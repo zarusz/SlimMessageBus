@@ -1,0 +1,1 @@
+nuget pack ./SlimMessageBus.csproj -Prop Configuration=Release -Prop Platform=AnyCPU
