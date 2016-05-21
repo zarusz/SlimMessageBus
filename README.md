@@ -3,6 +3,8 @@
 SlimMessageBus is a helper for .NET that helps achieve design patterns requiring to pass messages in your application:
 * Domain Events
 
+[![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s/branch/develop?svg=true)](https://ci.appveyor.com/project/zarusz/slimmessagebus/branch/develop)
+
 ### Usage example (basic)
 
 This example is the simplest usage of `SlimMessageBus` and `SlimMessageBus.Core` to implement Domain Events.
