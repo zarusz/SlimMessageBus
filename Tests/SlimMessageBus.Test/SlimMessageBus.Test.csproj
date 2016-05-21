@@ -3,11 +3,11 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{D32EC328-AFA6-4E12-8D69-0C786FD95AA3}</ProjectGuid>
+    <ProjectGuid>{EFF77413-F44D-4D47-A5DD-8CCA45B8A22D}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>SlimMessageBus.Core.Test</RootNamespace>
-    <AssemblyName>SlimMessageBus.Core.Test</AssemblyName>
+    <RootNamespace>SlimMessageBus.Test</RootNamespace>
+    <AssemblyName>SlimMessageBus.Test</AssemblyName>
     <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{3AC096D0-A1C2-E12C-1390-A8335801FDAB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
@@ -35,8 +35,16 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Common.Logging, Version=3.3.1.0, Culture=neutral, PublicKeyToken=af08829b84f0328e, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Common.Logging.3.3.1\lib\net40\Common.Logging.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Common.Logging.Core, Version=3.3.1.0, Culture=neutral, PublicKeyToken=af08829b84f0328e, processorArchitecture=MSIL">
+      <HintPath>..\packages\Common.Logging.Core.3.3.1\lib\net40\Common.Logging.Core.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="Moq, Version=4.2.1510.2205, Culture=neutral, PublicKeyToken=69f491c39445e920, processorArchitecture=MSIL">
-      <HintPath>..\packages\Moq.4.2.1510.2205\lib\net40\Moq.dll</HintPath>
+      <HintPath>..\..\packages\Moq.4.2.1510.2205\lib\net40\Moq.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />
@@ -54,21 +62,17 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
-    <Compile Include="SimpleMessageBusTest.cs" />
+    <Compile Include="MessageBusTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\SlimMessageBus.Core\SlimMessageBus.Core.csproj">
-      <Project>{4542edfa-0154-440b-aec3-d2b1e725596b}</Project>
-      <Name>SlimMessageBus.Core</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\SlimMessageBus\SlimMessageBus.csproj">
-      <Project>{09b7c2a3-5af3-401a-bb13-d5558124b46a}</Project>
-      <Name>SlimMessageBus</Name>
-    </ProjectReference>
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <ProjectReference Include="..\..\SlimMessageBus\SlimMessageBus.csproj">
+      <Project>{09B7C2A3-5AF3-401A-BB13-D5558124B46A}</Project>
+      <Name>SlimMessageBus</Name>
+    </ProjectReference>
   </ItemGroup>
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '10.0' And '$(IsCodedUITest)' == 'True'">
