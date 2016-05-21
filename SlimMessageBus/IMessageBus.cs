@@ -1,6 +1,8 @@
-﻿namespace SlimMessageBus
+﻿using System;
+
+namespace SlimMessageBus
 {
-    public interface IMessageBus : IMessageBusPublisher, IMessageBusSubscriber
+    public interface IMessageBus : IMessageBusPublisher, IMessageBusSubscriber, IDisposable
     {
     }                      
 }

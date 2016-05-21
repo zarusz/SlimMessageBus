@@ -6,7 +6,7 @@ using Common.Logging;
 namespace SlimMessageBus.Core
 {
     /// <summary>
-    /// Simple <see cref="IMessageBus"/> implementation that maintains a list of subscriptions.
+    /// SimpleMessageBus <see cref="IMessageBus"/> implementation that maintains a list of subscriptions.
     /// This class is not thread-safe.
     /// </summary>
     public class SimpleMessageBus : IMessageBus
@@ -55,21 +55,31 @@ namespace SlimMessageBus.Core
             return typedHandlers;
         }
 
-        #region Implementation of IEventBus
+        #region Implementation of IMessageBus
+
+        #region Implementation of IDisposable
+
+        public void Dispose()
+        {
+            
+        }
+
+        #endregion
+
 
         public void Subscribe<TEvent>(IHandles<TEvent> handler)
         {
             _log.Debug(m => m("Subscribing handler {0} to event {1}", handler, typeof(TEvent)));
 
-            var eventHandlers = GetOwnHandlersOrNull<TEvent>();
-            if (eventHandlers == null)
+            var handlers = GetOwnHandlersOrNull<TEvent>();
+            if (handlers == null)
             {
-                eventHandlers = new List<object>();
+                handlers = new List<object>();
                 var eventType = typeof(TEvent);
-                _subscriptions.Add(eventType, eventHandlers);
+                _subscriptions.Add(eventType, handlers);
             }
 
-            eventHandlers.Add(handler);
+            handlers.Add(handler);
         }
 
         public void UnSubscribe<TEvent>(IHandles<TEvent> handler)
@@ -78,10 +88,10 @@ namespace SlimMessageBus.Core
 
             var removed = false;
 
-            var eventHandlers = GetOwnHandlersOrNull<TEvent>();
-            if (eventHandlers != null)
+            var handlers = GetOwnHandlersOrNull<TEvent>();
+            if (handlers != null)
             {
-                removed = eventHandlers.Remove(handler);
+                removed = handlers.Remove(handler);
             }
 
             if (!removed)
@@ -92,10 +102,10 @@ namespace SlimMessageBus.Core
 
         public void Publish<TEvent>(TEvent e)
         {
-            var eventHandlers = GetTypedHandlersOrNull<TEvent>();
-            if (eventHandlers != null)
+            var handlers = GetTypedHandlersOrNull<TEvent>();
+            if (handlers != null)
             {
-                CallHandlers(eventHandlers, e);
+                CallHandlers(handlers, e);
             }
             else
             {

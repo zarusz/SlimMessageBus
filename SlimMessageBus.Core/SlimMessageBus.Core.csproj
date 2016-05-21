@@ -48,6 +48,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Config\MessageBusConfigExtensions.cs" />
+    <Compile Include="Config\MessageBusExtensions.cs" />
+    <Compile Include="Config\SimpleMessageBusBuilder.cs" />
     <Compile Include="HandlerResolverChain.cs" />
     <Compile Include="IHandlerResolver.cs" />
     <Compile Include="Config\MessageBusBuilder.cs" />

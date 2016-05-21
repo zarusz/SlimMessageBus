@@ -35,8 +35,16 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Common.Logging, Version=3.3.1.0, Culture=neutral, PublicKeyToken=af08829b84f0328e, processorArchitecture=MSIL">
+      <HintPath>..\packages\Common.Logging.3.3.1\lib\net40\Common.Logging.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Common.Logging.Core, Version=3.3.1.0, Culture=neutral, PublicKeyToken=af08829b84f0328e, processorArchitecture=MSIL">
+      <HintPath>..\packages\Common.Logging.Core.3.3.1\lib\net40\Common.Logging.Core.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="Moq, Version=4.2.1510.2205, Culture=neutral, PublicKeyToken=69f491c39445e920, processorArchitecture=MSIL">
-      <HintPath>..\packages\Moq.4.2.1510.2205\lib\net40\Moq.dll</HintPath>
+      <HintPath>..\..\packages\Moq.4.2.1510.2205\lib\net40\Moq.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />
@@ -58,11 +66,11 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\SlimMessageBus.Core\SlimMessageBus.Core.csproj">
+    <ProjectReference Include="..\..\SlimMessageBus.Core\SlimMessageBus.Core.csproj">
       <Project>{4542edfa-0154-440b-aec3-d2b1e725596b}</Project>
       <Name>SlimMessageBus.Core</Name>
     </ProjectReference>
-    <ProjectReference Include="..\SlimMessageBus\SlimMessageBus.csproj">
+    <ProjectReference Include="..\..\SlimMessageBus\SlimMessageBus.csproj">
       <Project>{09b7c2a3-5af3-401a-bb13-d5558124b46a}</Project>
       <Name>SlimMessageBus</Name>
     </ProjectReference>
