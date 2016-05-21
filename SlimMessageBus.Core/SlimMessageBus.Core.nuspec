@@ -8,7 +8,7 @@
     <owners>$author$</owners>
     <licenseUrl>http://www.apache.org/licenses/LICENSE-2.0</licenseUrl>
     <projectUrl>https://github.com/zarusz/SlimMessageBus</projectUrl>
-    <iconUrl>https://github.com/zarusz/SlimMessageBus/blob/master/icon.png</iconUrl>
+    <iconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>$description$</description>
     <releaseNotes>Summary of changes made in this release of the package.</releaseNotes>

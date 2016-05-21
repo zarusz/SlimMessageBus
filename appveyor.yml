@@ -1,0 +1,17 @@
+version: 0.8.{build}
+nuget:
+  disable_publish_on_pr: true
+build_script:
+- cmd: build.bat
+artifacts:
+- path: packages-dist\SlimMessageBus.*.nupkg
+  name: SlimMessageBus
+deploy: off
+notifications:
+- provider: Email
+  to:
+  - maruszaktomasz@gmail.com
+  subject: '[Build] SlimMessageBus'
+  on_build_success: true
+  on_build_failure: true
+  on_build_status_changed: true
