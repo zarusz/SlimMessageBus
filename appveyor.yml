@@ -3,6 +3,9 @@ nuget:
   disable_publish_on_pr: true
 build_script:
 - cmd: build.bat
+artifacts:
+- path: packages-dist\SlimMessageBus.*.nupkg
+  name: SlimMessageBus
 deploy: off
 notifications:
 - provider: Email
