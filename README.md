@@ -1,6 +1,6 @@
 # SlimMessageBus
 
-SlimMessageBus is a helper for .NET that helps achieve design patterns rquiring to pass messages in your application:
+SlimMessageBus is a helper for .NET that helps achieve design patterns requiring to pass messages in your application:
 * Domain Events
 
 ## Basic Example
@@ -100,3 +100,10 @@ ToDo
 * Selectively add features you really need (e.g. async handler execution or autofac integration).
 * Fluent configuration.
 
+#Packages
+Name | Descripton | Dependencies
+------------ | ------------- | -------------
+`SlimMessageBus` | The interfaces to work with SlimMessageBus | `Common.Logging`
+`SlimMessageBus.Core` | The minimal in-process, synchronous messsage passing implementation | `SlimMessageBus`
+`SlimMessageBus.ServiceLocator` | Extension that resolves handlers from ServiceLocator | `SlimMessageBus.Core` `CommonServiceLocator`
+`SlimMessageBus.Autofac` (pending) | Extension that resolves handlers from Autofac DI container | `SlimMessageBus.Core` `Autofac`
