@@ -1,0 +1,1 @@
+msbuild SlimMessageBus.sln /t:Clean;Build /p:Platform="Any CPU" /p:Configuration=Release
