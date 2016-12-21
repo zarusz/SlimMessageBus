@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SlimMessageBus.Host;
 
 namespace SlimMessageBus.Config
 {
@@ -7,8 +8,9 @@ namespace SlimMessageBus.Config
     {
         public IList<PublisherSettings> Publishers { get; }
         public IList<SubscriberSettings> Subscribers { get; }
-        public IMessageSerializer Serializer { get; set; }
         public RequestResponseSettings RequestResponse { get; set; }
+        public IMessageSerializer Serializer { get; set; }
+        public ISubscriberResolver SubscriberResolver { get; set; }
 
         public MessageBusSettings()
         {

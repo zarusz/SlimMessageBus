@@ -65,10 +65,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\SlimMessageBus.Config\SlimMessageBus.Config.csproj">
-      <Project>{7EE5CC08-A7E6-409C-BC15-92B1B6033C04}</Project>
-      <Name>SlimMessageBus.Config</Name>
-    </ProjectReference>
     <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj">
       <Project>{72F49AFE-CDB8-4490-AA52-D59EFB20B90F}</Project>
       <Name>SlimMessageBus.Host</Name>

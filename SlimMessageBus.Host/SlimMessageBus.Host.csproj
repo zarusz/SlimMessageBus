@@ -39,6 +39,7 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -49,16 +50,26 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BaseMessageBus.cs" />
+    <Compile Include="Config\GroupBuilder.cs" />
+    <Compile Include="Config\GroupSettings.cs" />
+    <Compile Include="IMessageSerializer.cs" />
+    <Compile Include="Config\MessageBusBuilder.cs" />
+    <Compile Include="Config\MessageBusConfigurationSection.cs" />
+    <Compile Include="Config\MessageBusSettings.cs" />
+    <Compile Include="Config\PublisherBuilder.cs" />
+    <Compile Include="Config\PublisherSettings.cs" />
+    <Compile Include="Config\RequestResponseBuilder.cs" />
+    <Compile Include="Config\RequestResponseSettings.cs" />
+    <Compile Include="Config\SubscriberBuilder.cs" />
+    <Compile Include="Config\SubscriberSettings.cs" />
+    <Compile Include="ISubscriberResolver.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SubscriberResolverChain.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\SlimMessageBus.Config\SlimMessageBus.Config.csproj">
-      <Project>{7EE5CC08-A7E6-409C-BC15-92B1B6033C04}</Project>
-      <Name>SlimMessageBus.Config</Name>
-    </ProjectReference>
     <ProjectReference Include="..\SlimMessageBus\SlimMessageBus.csproj">
       <Project>{09B7C2A3-5AF3-401A-BB13-D5558124B46A}</Project>
       <Name>SlimMessageBus</Name>

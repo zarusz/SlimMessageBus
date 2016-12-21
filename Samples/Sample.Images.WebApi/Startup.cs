@@ -13,23 +13,17 @@ namespace Sample.Images.WebApi
     {
         public void Configuration(IAppBuilder app)
         {
-            var builder = new ContainerBuilder();
-
             // STANDARD WEB API SETUP:
 
             // Get your HttpConfiguration. In OWIN, you'll create one
             // rather than using GlobalConfiguration.
             var config = new HttpConfiguration();
 
-            // Register your Web API controllers.
-            builder.RegisterApiControllers(Assembly.GetExecutingAssembly());
-
-            ContainerSetup.Configure(builder);
+            var container = ContainerSetup.Create();
 
             // Run other optional steps, like registering filters,
             // per-controller-type services, etc., then set the dependency resolver
             // to be Autofac.
-            var container = builder.Build();
             config.DependencyResolver = new AutofacWebApiDependencyResolver(container);
 
             // OWIN WEB API SETUP:

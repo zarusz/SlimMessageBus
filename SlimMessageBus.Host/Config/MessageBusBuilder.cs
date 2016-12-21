@@ -1,4 +1,5 @@
 using System;
+using SlimMessageBus.Host;
 
 namespace SlimMessageBus.Config
 {
@@ -43,6 +44,12 @@ namespace SlimMessageBus.Config
         public MessageBusBuilder WithSerializer(IMessageSerializer serializer)
         {
             _settings.Serializer = serializer;
+            return this;
+        }
+
+        public MessageBusBuilder WithSubscriberResolver(ISubscriberResolver subscriberResolver)
+        {
+            _settings.SubscriberResolver = subscriberResolver;
             return this;
         }
 

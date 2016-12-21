@@ -1,12 +1,15 @@
 using System;
 using System.Configuration;
 using Autofac;
+using Autofac.Extras.CommonServiceLocator;
+using Microsoft.Practices.ServiceLocation;
 using Sample.Images.FileStore;
 using Sample.Images.FileStore.Disk;
 using Sample.Images.Messages;
 using SlimMessageBus;
 using SlimMessageBus.Config;
 using SlimMessageBus.Host.Serialization.Json;
+using SlimMessageBus.Host.ServiceLocator;
 using SlimMessageBus.Provider.Kafka;
 
 namespace Sample.Images.Worker
@@ -16,8 +19,16 @@ namespace Sample.Images.Worker
         public static IContainer Create()
         {
             var builder = new ContainerBuilder();
+
             Configure(builder);
-            return builder.Build();
+
+            var container = builder.Build();
+
+            // Set the service locator to an AutofacServiceLocator.
+            var csl = new AutofacServiceLocator(container);
+            ServiceLocator.SetLocatorProvider(() => csl);
+
+            return container;
         }
 
         private static void Configure(ContainerBuilder builder)
@@ -25,13 +36,11 @@ namespace Sample.Images.Worker
             builder.RegisterType<DiskFileStore>().As<IFileStore>().SingleInstance();
             builder.RegisterType<SimpleThumbnailFileIdStrategy>().As<IThumbnailFileIdStrategy>().SingleInstance();
 
+            // SlimMessageBus
             var messageBus = BuildMessageBus();
             builder.RegisterInstance(messageBus)
                 .As<IPublishBus>()
                 .As<IRequestResponseBus>();
-
-            // SlimMessageBus
-            builder.RegisterType<KafkaMessageBus>().As<IRequestResponseBus>().SingleInstance();
         }
 
         private static IMessageBus BuildMessageBus()
@@ -55,6 +64,7 @@ namespace Sample.Images.Worker
                     x.OnTopic($"worker-{instanceId}-response");
                     x.DefaultTimeout(TimeSpan.FromSeconds(10));
                 })
+                .WithSubscriberResolverAsServiceLocator()
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
 

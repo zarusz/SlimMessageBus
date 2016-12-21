@@ -1,7 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
-namespace SlimMessageBus.Core
+namespace SlimMessageBus.Host
 {
     /// <summary>
     /// Responsible for resolving the list of handlers (<see cref="ISubscriber{TMessage}"/>).
@@ -11,8 +10,8 @@ namespace SlimMessageBus.Core
         /// <summary>
         /// Resolves the list of handles (<see cref="ISubscriber{TMessage}"/>).
         /// </summary>
-        /// <typeparam name="TEvent"></typeparam>
+        /// <typeparam name="TMessage"></typeparam>
         /// <returns></returns>
-        IEnumerable<ISubscriber<TEvent>> Resolve<TEvent>();
+        IEnumerable<ISubscriber<TMessage>> Resolve<TMessage>();
     }
 }

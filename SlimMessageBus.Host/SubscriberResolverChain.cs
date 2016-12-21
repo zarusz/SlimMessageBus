@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 
-namespace SlimMessageBus.Core
+namespace SlimMessageBus.Host
 {
     /// <summary>
     /// Implementation of <see cref="ISubscriberResolver"/> that delegates the resolve operation to a chain of other <see cref="ISubscriberResolver"/>-s.
@@ -20,16 +20,16 @@ namespace SlimMessageBus.Core
 
         public IEnumerable<ISubscriber<TMessage>> Resolve<TMessage>()
         {
-            IEnumerable<ISubscriber<TMessage>> allResolvers = null;
+            IEnumerable<ISubscriber<TMessage>> allSubscribers = null;
 
             // ReSharper disable once LoopCanBeConvertedToQuery
             foreach (var resolver in _chain)
             {
-                var handlers = resolver.Resolve<TMessage>();
-                allResolvers = allResolvers?.Concat(handlers) ?? handlers;
+                var subscribers = resolver.Resolve<TMessage>();
+                allSubscribers = allSubscribers?.Concat(subscribers) ?? subscribers;
             }
 
-            return allResolvers;
+            return allSubscribers;
         }
 
         #endregion

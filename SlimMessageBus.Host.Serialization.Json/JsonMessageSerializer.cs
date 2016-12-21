@@ -1,7 +1,6 @@
 using System;
 using System.Text;
 using Newtonsoft.Json;
-using SlimMessageBus.Config;
 
 namespace SlimMessageBus.Host.Serialization.Json
 {

@@ -1,4 +1,4 @@
-﻿namespace SlimMessageBus.ServiceLocator.Config
+﻿namespace SlimMessageBus.Host.ServiceLocator
 {
     public static class MessageBusExtensions
     {

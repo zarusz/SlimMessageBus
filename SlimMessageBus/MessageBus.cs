@@ -3,7 +3,7 @@
 namespace SlimMessageBus
 {
     /// <summary>
-    /// The primary access point to SlimMessageBus.
+    /// Lookup helper of the <see cref="IMessageBus"/> for the current execution context.
     /// </summary>
     public class MessageBus
     {

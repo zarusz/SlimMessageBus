@@ -7,7 +7,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus", "SlimMessa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Core", "SlimMessageBus.Core\SlimMessageBus.Core.csproj", "{4542EDFA-0154-440B-AEC3-D2B1E725596B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.ServiceLocator", "SlimMessageBus.ServiceLocator\SlimMessageBus.ServiceLocator.csproj", "{008710F6-EFA9-4C99-A781-5593C5F1E9D7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.ServiceLocator", "SlimMessageBus.Host.ServiceLocator\SlimMessageBus.Host.ServiceLocator.csproj", "{008710F6-EFA9-4C99-A781-5593C5F1E9D7}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{9F005B5C-A856-4351-8C0C-47A8B785C637}"
 EndProject
@@ -18,8 +18,6 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Core.Test", "Tests\SlimMessageBus.Core.Test\SlimMessageBus.Core.Test.csproj", "{D32EC328-AFA6-4E12-8D69-0C786FD95AA3}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Sample.DomainEvents.Simple", "Samples\SlimMessageBus.Sample.DomainEvents.Simple\SlimMessageBus.Sample.DomainEvents.Simple.csproj", "{2F39CE0D-CDCF-4FD1-AE3E-6B2293850627}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Config", "SlimMessageBus.Config\SlimMessageBus.Config.csproj", "{7EE5CC08-A7E6-409C-BC15-92B1B6033C04}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host", "SlimMessageBus.Host\SlimMessageBus.Host.csproj", "{72F49AFE-CDB8-4490-AA52-D59EFB20B90F}"
 EndProject
@@ -36,6 +34,49 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sample.Images.WebApi", "Samples\Sample.Images.WebApi\Sample.Images.WebApi.csproj", "{2A1FAC78-E0EB-4E63-8945-D5A28271A896}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sample.Images.Worker", "Samples\Sample.Images.Worker\Sample.Images.Worker.csproj", "{37C54EAA-731B-442B-A1A5-6A9D954D3A88}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Content", "Content", "{8835721D-ECA4-42CB-BA8B-F8C1A06340EC}"
+	ProjectSection(SolutionItems) = preProject
+		Samples\Content\DSC0843.jpg = Samples\Content\DSC0843.jpg
+		Samples\Content\DSC0862.jpg = Samples\Content\DSC0862.jpg
+		Samples\Content\DSC1042.jpg = Samples\Content\DSC1042.jpg
+		Samples\Content\DSC1044.jpg = Samples\Content\DSC1044.jpg
+		Samples\Content\DSC2145.jpg = Samples\Content\DSC2145.jpg
+		Samples\Content\DSC2152.jpg = Samples\Content\DSC2152.jpg
+		Samples\Content\DSC2468.jpg = Samples\Content\DSC2468.jpg
+		Samples\Content\DSC3714.jpg = Samples\Content\DSC3714.jpg
+		Samples\Content\DSC3718.jpg = Samples\Content\DSC3718.jpg
+		Samples\Content\DSC3720.jpg = Samples\Content\DSC3720.jpg
+		Samples\Content\DSC3781.jpg = Samples\Content\DSC3781.jpg
+		Samples\Content\DSC3808.jpg = Samples\Content\DSC3808.jpg
+		Samples\Content\DSC3884.jpg = Samples\Content\DSC3884.jpg
+		Samples\Content\DSC4029.jpg = Samples\Content\DSC4029.jpg
+		Samples\Content\DSC4037.jpg = Samples\Content\DSC4037.jpg
+		Samples\Content\DSC4038.jpg = Samples\Content\DSC4038.jpg
+		Samples\Content\DSC4205.jpg = Samples\Content\DSC4205.jpg
+		Samples\Content\DSC4216.jpg = Samples\Content\DSC4216.jpg
+		Samples\Content\DSC5718.jpg = Samples\Content\DSC5718.jpg
+		Samples\Content\DSC5819.jpg = Samples\Content\DSC5819.jpg
+		Samples\Content\DSC5839.jpg = Samples\Content\DSC5839.jpg
+		Samples\Content\DSC8169.jpg = Samples\Content\DSC8169.jpg
+		Samples\Content\DSC8177.jpg = Samples\Content\DSC8177.jpg
+		Samples\Content\DSC8327.jpg = Samples\Content\DSC8327.jpg
+		Samples\Content\DSC8333.jpg = Samples\Content\DSC8333.jpg
+		Samples\Content\DSC8462.jpg = Samples\Content\DSC8462.jpg
+		Samples\Content\DSC8789.jpg = Samples\Content\DSC8789.jpg
+		Samples\Content\DSC9135.jpg = Samples\Content\DSC9135.jpg
+		Samples\Content\DSC9230.jpg = Samples\Content\DSC9230.jpg
+		Samples\Content\DSC9235.jpg = Samples\Content\DSC9235.jpg
+		Samples\Content\DSC9319.jpg = Samples\Content\DSC9319.jpg
+		Samples\Content\DSC9323.jpg = Samples\Content\DSC9323.jpg
+		Samples\Content\DSC9329.jpg = Samples\Content\DSC9329.jpg
+		Samples\Content\DSC9823.jpg = Samples\Content\DSC9823.jpg
+		Samples\Content\DSC9827.jpg = Samples\Content\DSC9827.jpg
+		Samples\Content\DSC9831.jpg = Samples\Content\DSC9831.jpg
+		Samples\Content\DSC9839.jpg = Samples\Content\DSC9839.jpg
+		Samples\Content\DSC9892.jpg = Samples\Content\DSC9892.jpg
+		Samples\Content\DSC9904.jpg = Samples\Content\DSC9904.jpg
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -67,10 +108,6 @@ Global
 		{2F39CE0D-CDCF-4FD1-AE3E-6B2293850627}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2F39CE0D-CDCF-4FD1-AE3E-6B2293850627}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2F39CE0D-CDCF-4FD1-AE3E-6B2293850627}.Release|Any CPU.Build.0 = Release|Any CPU
-		{7EE5CC08-A7E6-409C-BC15-92B1B6033C04}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7EE5CC08-A7E6-409C-BC15-92B1B6033C04}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{7EE5CC08-A7E6-409C-BC15-92B1B6033C04}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{7EE5CC08-A7E6-409C-BC15-92B1B6033C04}.Release|Any CPU.Build.0 = Release|Any CPU
 		{72F49AFE-CDB8-4490-AA52-D59EFB20B90F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{72F49AFE-CDB8-4490-AA52-D59EFB20B90F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{72F49AFE-CDB8-4490-AA52-D59EFB20B90F}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -116,5 +153,6 @@ Global
 		{C473D79D-5B04-4BB3-A29A-D04798AA0797} = {A5B15524-93B8-4CCE-AC6D-A22984498BA0}
 		{2A1FAC78-E0EB-4E63-8945-D5A28271A896} = {A5B15524-93B8-4CCE-AC6D-A22984498BA0}
 		{37C54EAA-731B-442B-A1A5-6A9D954D3A88} = {A5B15524-93B8-4CCE-AC6D-A22984498BA0}
+		{8835721D-ECA4-42CB-BA8B-F8C1A06340EC} = {A5B15524-93B8-4CCE-AC6D-A22984498BA0}
 	EndGlobalSection
 EndGlobal

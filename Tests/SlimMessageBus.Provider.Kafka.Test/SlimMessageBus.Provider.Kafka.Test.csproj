@@ -62,10 +62,6 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\SlimMessageBus.Config\SlimMessageBus.Config.csproj">
-      <Project>{7EE5CC08-A7E6-409C-BC15-92B1B6033C04}</Project>
-      <Name>SlimMessageBus.Config</Name>
-    </ProjectReference>
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Json\SlimMessageBus.Host.Serialization.Json.csproj">
       <Project>{cb7d8d2e-1272-406e-b7c2-8ae072fe80eb}</Project>
       <Name>SlimMessageBus.Host.Serialization.Json</Name>
@@ -76,7 +72,7 @@
     </ProjectReference>
     <ProjectReference Include="..\..\SlimMessageBus.Provider.Kafka\SlimMessageBus.Provider.Kafka.csproj">
       <Project>{d50fe4a0-1cda-48f7-ad40-ff17325a3715}</Project>
-      <Name>SlimMessageBus.Kafka</Name>
+      <Name>SlimMessageBus.Provider.Kafka</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\SlimMessageBus\SlimMessageBus.csproj">
       <Project>{09B7C2A3-5AF3-401A-BB13-D5558124B46A}</Project>

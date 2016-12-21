@@ -49,19 +49,19 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="IPublishBus.cs" />
-    <Compile Include="IRequestHandler.cs" />
-    <Compile Include="IResponseMessage.cs" />
-    <Compile Include="IHasRequestId.cs" />
+    <Compile Include="RequestResponse\IRequestHandler.cs" />
+    <Compile Include="RequestResponse\IResponseMessage.cs" />
+    <Compile Include="RequestResponse\IHasRequestId.cs" />
     <Compile Include="IMessageBus.cs" />
     <Compile Include="IPublisher.cs" />
     <Compile Include="IMessageBusSubscription.cs" />
-    <Compile Include="IRequestMessage.cs" />
-    <Compile Include="IRequestResponseBus.cs" />
+    <Compile Include="RequestResponse\IRequestMessage.cs" />
+    <Compile Include="RequestResponse\IRequestResponseBus.cs" />
     <Compile Include="ISubscriber.cs" />
     <Compile Include="MessageBus.cs" />
-    <Compile Include="MessageBusException.cs" />
+    <Compile Include="Exceptions\MessageBusException.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="PublishMessageBusException.cs" />
+    <Compile Include="Exceptions\PublishMessageBusException.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
