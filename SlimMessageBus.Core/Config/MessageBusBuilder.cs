@@ -4,7 +4,7 @@ namespace SlimMessageBus.Core.Config
 {
     public class MessageBusBuilder       
     {
-        protected internal Lazy<HandlerResolverChain> ResolverChain = new Lazy<HandlerResolverChain>();
+        protected internal Lazy<SubscriberResolverChain> ResolverChain = new Lazy<SubscriberResolverChain>();
 
         public SimpleMessageBusBuilder SimpleMessageBus()
         {

@@ -2,7 +2,7 @@
 
 namespace SlimMessageBus
 {
-    public interface IMessageBus : IMessageBusPublisher, IMessageBusSubscriber, IDisposable
+    public interface IMessageBus : IDisposable, IRequestResponseBus, IPublishBus
     {
-    }                      
+    }
 }

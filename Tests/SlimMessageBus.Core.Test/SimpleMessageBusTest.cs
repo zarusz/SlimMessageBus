@@ -22,8 +22,8 @@ namespace SlimMessageBus.Core.Test
         {
             // arrange
             var aMessage = new MessageA();
-            var aHandler = new Mock<IHandles<MessageA>>();
-            var bHandler = new Mock<IHandles<MessageB>>();
+            var aHandler = new Mock<ISubscriber<MessageA>>();
+            var bHandler = new Mock<ISubscriber<MessageB>>();
             _bus.Subscribe(aHandler.Object);
             _bus.Subscribe(bHandler.Object);
 
@@ -31,9 +31,9 @@ namespace SlimMessageBus.Core.Test
             _bus.Publish(aMessage);
 
             // assert
-            aHandler.Verify(x => x.Handle(It.Is<MessageA>(m => ReferenceEquals(m, aMessage))), Times.Once);
-            aHandler.Verify(x => x.Handle(It.IsAny<MessageA>()), Times.Once);
-            bHandler.Verify(x => x.Handle(It.IsAny<MessageB>()), Times.Never);
+            aHandler.Verify(x => x.OnHandle(It.Is<MessageA>(m => ReferenceEquals(m, aMessage)), It.IsAny<string>()), Times.Once);
+            aHandler.Verify(x => x.OnHandle(It.IsAny<MessageA>(), It.IsAny<string>()), Times.Once);
+            bHandler.Verify(x => x.OnHandle(It.IsAny<MessageB>(), It.IsAny<string>()), Times.Never);
         }
 
         [TestMethod]
@@ -41,8 +41,8 @@ namespace SlimMessageBus.Core.Test
         {
             // arrange
             var aMessage = new MessageA();
-            var a1Handler = new Mock<IHandles<MessageA>>();
-            var a2Handler = new Mock<IHandles<MessageA>>();
+            var a1Handler = new Mock<ISubscriber<MessageA>>();
+            var a2Handler = new Mock<ISubscriber<MessageA>>();
             _bus.Subscribe(a1Handler.Object);
             _bus.Subscribe(a2Handler.Object);
 
@@ -51,8 +51,8 @@ namespace SlimMessageBus.Core.Test
             _bus.Publish(aMessage);
 
             // assert
-            a1Handler.Verify(x => x.Handle(It.IsAny<MessageA>()), Times.Never);
-            a2Handler.Verify(x => x.Handle(It.Is<MessageA>(m => ReferenceEquals(m, aMessage))), Times.Once);
+            a1Handler.Verify(x => x.OnHandle(It.IsAny<MessageA>(), It.IsAny<string>()), Times.Never);
+            a2Handler.Verify(x => x.OnHandle(It.Is<MessageA>(m => ReferenceEquals(m, aMessage)), It.IsAny<string>()), Times.Once);
         }
     }
 
