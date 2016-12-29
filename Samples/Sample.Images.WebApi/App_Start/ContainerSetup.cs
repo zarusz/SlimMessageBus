@@ -9,7 +9,7 @@ using Sample.Images.FileStore;
 using Sample.Images.FileStore.Disk;
 using Sample.Images.Messages;
 using SlimMessageBus;
-using SlimMessageBus.Config;
+using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.ServiceLocator;
 using SlimMessageBus.Provider.Kafka;
@@ -41,8 +41,7 @@ namespace Sample.Images.WebApi
             // SlimMessageBus
             var messageBus = BuildMessageBus();
             builder.RegisterInstance(messageBus)
-                .As<IPublishBus>()
-                .As<IRequestResponseBus>();
+                .AsImplementedInterfaces();
 
             ConfigureControllers(builder);
         }

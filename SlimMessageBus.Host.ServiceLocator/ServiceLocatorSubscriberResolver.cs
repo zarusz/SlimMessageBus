@@ -1,14 +1,15 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace SlimMessageBus.Host.ServiceLocator
 {
-    public class ServiceLocatorSubscriberResolver : ISubscriberResolver
+    public class ServiceLocatorDependencyResolver : IDependencyResolver
     {
-        #region Implementation of ISubscriberResolver
+        #region Implementation of IDependencyResolver
 
-        public IEnumerable<ISubscriber<TMessage>> Resolve<TMessage>()
+        public IEnumerable<object> Resolve(Type type)
         {
-            var handlers = Microsoft.Practices.ServiceLocation.ServiceLocator.Current.GetAllInstances<ISubscriber<TMessage>>();
+            var handlers = Microsoft.Practices.ServiceLocation.ServiceLocator.Current.GetAllInstances(type);
             return handlers;
         }
 

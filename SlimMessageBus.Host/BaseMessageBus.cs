@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Common.Logging;
-using SlimMessageBus.Config;
+using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host
 {
@@ -11,8 +12,11 @@ namespace SlimMessageBus.Host
     {
         private static readonly ILog Log = LogManager.GetLogger<BaseMessageBus>();
 
-        protected readonly MessageBusSettings Settings;
+        public MessageBusSettings Settings { get; protected set; }
         protected readonly IDictionary<Type, PublisherSettings> PublisherSettingsByType;
+
+        private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
+        public CancellationToken CancellationToken => _cancellationTokenSource.Token;
 
         protected BaseMessageBus(MessageBusSettings settings)
         {
@@ -59,14 +63,12 @@ namespace SlimMessageBus.Host
 
         #region Implementation of IRequestResponseBus
 
-        public virtual async Task<TResponseMessage> Request<TResponseMessage>(IRequestMessageWithResponse<TResponseMessage> request) 
-            where TResponseMessage : IResponseMessage
+        public virtual async Task<TResponseMessage> Request<TResponseMessage>(IRequestMessage<TResponseMessage> request) 
         {
             return await Request(request, Settings.RequestResponse.Timeout);
         }
 
-        public virtual async Task<TResponseMessage> Request<TResponseMessage>(IRequestMessageWithResponse<TResponseMessage> request, TimeSpan timeout) 
-            where TResponseMessage : IResponseMessage
+        public virtual async Task<TResponseMessage> Request<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout) 
         {
             throw new NotImplementedException();
         }

@@ -1,4 +1,4 @@
-using System;
+using System;   
 using System.Configuration;
 using Autofac;
 using Autofac.Extras.CommonServiceLocator;
@@ -6,8 +6,9 @@ using Microsoft.Practices.ServiceLocation;
 using Sample.Images.FileStore;
 using Sample.Images.FileStore.Disk;
 using Sample.Images.Messages;
+using Sample.Images.Worker.Handlers;
 using SlimMessageBus;
-using SlimMessageBus.Config;
+using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.ServiceLocator;
 using SlimMessageBus.Provider.Kafka;
@@ -37,10 +38,12 @@ namespace Sample.Images.Worker
             builder.RegisterType<SimpleThumbnailFileIdStrategy>().As<IThumbnailFileIdStrategy>().SingleInstance();
 
             // SlimMessageBus
-            var messageBus = BuildMessageBus();
-            builder.RegisterInstance(messageBus)
-                .As<IPublishBus>()
-                .As<IRequestResponseBus>();
+            builder.Register(x => BuildMessageBus())
+                .AsImplementedInterfaces()
+                .SingleInstance();
+
+            builder.RegisterType<GenerateThumbnailRequestHandler>().AsSelf();
+            builder.RegisterType<GenerateThumbnailRequestSubscriber>().AsSelf();
         }
 
         private static IMessageBus BuildMessageBus()
@@ -49,20 +52,31 @@ namespace Sample.Images.Worker
             var instanceId = ConfigurationManager.AppSettings["InstanceId"];
             var kafkaBrokers = ConfigurationManager.AppSettings["Kafka.Brokers"];
 
+            var instanceGroup = $"worker-{instanceId}";
+            var sharedGroup = $"workers";
+
             var messageBusBuilder = new MessageBusBuilder()
-                .Publish<GenerateThumbnailRequest>(x =>
+                .Publish<GenerateThumbnailRequest>(p =>
                 {
-                    x.OnTopicByDefault("thumbnail-generation");
+                    p.OnTopicByDefault("thumbnail-generation");
                 })
-                .SubscribeTo<GenerateThumbnailRequest>(x =>
+                .SubscribeTo<GenerateThumbnailRequest>(s =>
                 {
-                    x.OnTopic("thumbnail-gneration");
-                    //s.WithGroup("workers").Of(3);
+                    s.OnTopic("thumbnail-generation", t =>
+                    {
+                        t.Group(instanceGroup)
+                            .WithConsumer<GenerateThumbnailRequestSubscriber>()
+                            .Instances(3);
+
+                        t.Group(sharedGroup)
+                            .WithRequestHandler<GenerateThumbnailRequestHandler, GenerateThumbnailResponse, GenerateThumbnailRequest>()
+                            .Instances(3);
+                    });
                 })
-                .ExpectRequestResponses(x =>
+                .ExpectRequestResponses(r =>
                 {
-                    x.OnTopic($"worker-{instanceId}-response");
-                    x.DefaultTimeout(TimeSpan.FromSeconds(10));
+                    r.OnTopic(instanceGroup);
+                    r.DefaultTimeout(TimeSpan.FromSeconds(10));
                 })
                 .WithSubscriberResolverAsServiceLocator()
                 .WithSerializer(new JsonMessageSerializer())

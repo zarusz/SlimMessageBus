@@ -1,4 +1,4 @@
-using SlimMessageBus.Config;
+using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Provider.Kafka
 {

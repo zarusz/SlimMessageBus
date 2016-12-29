@@ -1,7 +1,6 @@
 using System;
-using SlimMessageBus.Host;
 
-namespace SlimMessageBus.Config
+namespace SlimMessageBus.Host.Config
 {
     public class MessageBusBuilder
     {
@@ -18,9 +17,7 @@ namespace SlimMessageBus.Config
 
         public MessageBusBuilder SubscribeTo<T>(Action<SubscriberBuilder<T>> subscriberBuilder)
         {
-            var item = new SubscriberSettings();
-            subscriberBuilder(new SubscriberBuilder<T>(item));
-            _settings.Subscribers.Add(item);
+            subscriberBuilder(new SubscriberBuilder<T>(_settings));
             return this;
         }
 
@@ -47,9 +44,9 @@ namespace SlimMessageBus.Config
             return this;
         }
 
-        public MessageBusBuilder WithSubscriberResolver(ISubscriberResolver subscriberResolver)
+        public MessageBusBuilder WithSubscriberResolver(IDependencyResolver dependencyResolver)
         {
-            _settings.SubscriberResolver = subscriberResolver;
+            _settings.DependencyResolver = dependencyResolver;
             return this;
         }
 

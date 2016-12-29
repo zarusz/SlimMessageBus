@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Common.Logging;
 using RdKafka;
-using SlimMessageBus.Config;
 using SlimMessageBus.Host;
+using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Provider.Kafka
 {
@@ -13,34 +14,55 @@ namespace SlimMessageBus.Provider.Kafka
     ///
     /// Note the assumption is that Topic/Producer/Consumer are all thread-safe (see https://github.com/edenhill/librdkafka/issues/215)
     /// </summary>
-    ///
     public class KafkaMessageBus : BaseMessageBus
     {
         private static readonly ILog Log = LogManager.GetLogger<KafkaMessageBus>();
 
-        //private MessageBusConfiguration _configuration;
-        private readonly KafkaMessageBusSettings _kafkaSettings;
+        public KafkaMessageBusSettings KafkaSettings { get; protected set; }
 
         private Producer _producer;
-        private readonly IDictionary<string, KafkaTopic> _topics = new Dictionary<string, KafkaTopic>();
+        private readonly IDictionary<string, KafkaTopic> _topics = new Dictionary<string, KafkaTopic>();                                                     
+        private readonly IList<KafkaGroupConsumer> _groupConsumers = new List<KafkaGroupConsumer>();
 
         public KafkaMessageBus(MessageBusSettings settings, KafkaMessageBusSettings kafkaSettings)
             : base(settings)
         {
-            _kafkaSettings = kafkaSettings;
-            _producer = new Producer(kafkaSettings.BrokerList);
+            KafkaSettings = kafkaSettings;
 
+            Log.Info("Creating producers");
+            _producer = new Producer(kafkaSettings.BrokerList);
             foreach (var topicName in Settings.Publishers.Select(x => x.DefaultTopic).Distinct())
             {
                 Log.DebugFormat("Creating Kafka topic {0}", topicName);
                 _topics.Add(topicName, new KafkaTopic(topicName, _producer));
             }
+
+            Log.Info("Creating subscribers");
+            foreach (var subscribersByGroup in settings.Subscribers.GroupBy(x => x.Group))
+            {
+                var group = subscribersByGroup.Key;
+
+                foreach (var subscribersByMessageType in subscribersByGroup.GroupBy(x => x.MessageType))
+                {
+                    var messageType = subscribersByMessageType.Key;
+
+                    var kafkaGroupConsumer = new KafkaGroupConsumer(this, group, messageType, subscribersByMessageType.ToList());
+                    _groupConsumers.Add(kafkaGroupConsumer);
+                }
+            }
+            
         }
 
         #region Overrides of BaseMessageBus
 
         public override void Dispose()
         {
+            foreach (var kafkaGroupConsumer in _groupConsumers)
+            {
+                kafkaGroupConsumer.Dispose();
+            }
+            _groupConsumers.Clear();
+
             foreach (var topic in _topics.Values)
             {
                 topic.Dispose();
@@ -67,33 +89,5 @@ namespace SlimMessageBus.Provider.Kafka
         }
 
         #endregion
-
-        protected class KafkaTopic : IDisposable
-        {
-            public string Name;
-            public Topic Topic;
-            //public SemaphoreSlim Semaphore;
-
-            public KafkaTopic(string name, Producer producer)
-            {
-                Name = name;
-                Topic = producer.Topic(name);
-                //Semaphore = new SemaphoreSlim(1);
-            }
-
-            #region Implementation of IDisposable
-
-            public void Dispose()
-            {
-                if (Topic != null)
-                {
-                    Topic.Dispose();
-                    Topic = null;
-                }
-            }
-
-            #endregion
-        }
-
     }
 }

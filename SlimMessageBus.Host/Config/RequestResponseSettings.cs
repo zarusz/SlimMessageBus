@@ -1,6 +1,6 @@
 using System;
 
-namespace SlimMessageBus.Config
+namespace SlimMessageBus.Host.Config
 {
     public class RequestResponseSettings
     {

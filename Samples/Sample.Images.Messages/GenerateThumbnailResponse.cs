@@ -2,9 +2,8 @@
 
 namespace Sample.Images.Messages
 {
-    public class GenerateThumbnailResponse : IResponseMessage
+    public class GenerateThumbnailResponse
     {
-        public string RequestId { get; set; }
         public string FileId { get; set; }
     }
 }

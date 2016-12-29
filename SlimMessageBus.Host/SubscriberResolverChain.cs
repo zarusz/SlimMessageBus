@@ -1,31 +1,32 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace SlimMessageBus.Host
 {
     /// <summary>
-    /// Implementation of <see cref="ISubscriberResolver"/> that delegates the resolve operation to a chain of other <see cref="ISubscriberResolver"/>-s.
+    /// Implementation of <see cref="IDependencyResolver"/> that delegates the resolve operation to a chain of other <see cref="IDependencyResolver"/>-s.
     /// The resolvers are controbuting to the list in the order of the chain (e.g first resolver-s handlers are first on the resolved list).
     /// </summary>
-    public class SubscriberResolverChain : ISubscriberResolver
+    public class DependencyResolverChain : IDependencyResolver
     {
-        private readonly IList<ISubscriberResolver> _chain = new List<ISubscriberResolver>();
+        private readonly IList<IDependencyResolver> _chain = new List<IDependencyResolver>();
 
-        public void Add(ISubscriberResolver resolver)
+        public void Add(IDependencyResolver resolver)
         {
             _chain.Add(resolver);
         }
 
-        #region Implementation of IHandlerResolver
+        #region Implementation of IDependencyResolver
 
-        public IEnumerable<ISubscriber<TMessage>> Resolve<TMessage>()
+        public IEnumerable<object> Resolve(Type type)
         {
-            IEnumerable<ISubscriber<TMessage>> allSubscribers = null;
+            IEnumerable<object> allSubscribers = null;
 
             // ReSharper disable once LoopCanBeConvertedToQuery
             foreach (var resolver in _chain)
             {
-                var subscribers = resolver.Resolve<TMessage>();
+                var subscribers = resolver.Resolve(type);
                 allSubscribers = allSubscribers?.Concat(subscribers) ?? subscribers;
             }
 

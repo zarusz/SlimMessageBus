@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace SlimMessageBus.Config
+namespace SlimMessageBus.Host.Config
 {
     public class GroupSettings
     {

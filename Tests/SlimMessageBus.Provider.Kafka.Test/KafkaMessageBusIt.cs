@@ -1,10 +1,13 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
+using Common.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SlimMessageBus.Config;
-using SlimMessageBus.Host.Serialization;
+using SlimMessageBus.Host;
+using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization.Json;
 
 namespace SlimMessageBus.Provider.Kafka.Test
@@ -15,15 +18,71 @@ namespace SlimMessageBus.Provider.Kafka.Test
         public int Counter { get; set; }
     }
 
+    public class PingSubscriber : ISubscriber<PingMessage>
+    {
+        private static readonly ILog Log = LogManager.GetLogger<PingSubscriber>();
+
+        public IList<PingMessage> Messages { get; }
+
+        public PingSubscriber()
+        {
+            Messages = new List<PingMessage>();
+        }
+
+        #region Implementation of ISubscriber<in PingMessage>
+
+        public Task OnHandle(PingMessage message, string topic)
+        {
+            Messages.Add(message);
+
+            Log.InfoFormat("Got message {0} on topic {1}.", message.Counter, topic);
+            return Task.FromResult(false);
+        }
+
+        #endregion
+    }
+
 
     [TestClass]
     public class KafkaMessageBusIt
     {
+        private static readonly ILog Log = LogManager.GetLogger<KafkaMessageBusIt>();
+
+        private const int NumberOfMessages = 100;
         private KafkaMessageBus _bus;
+        private PingSubscriber _pingSubscriber;
+
+        private class FakeDependencyResolver : IDependencyResolver
+        {
+            private readonly PingSubscriber _pingSubscriber;
+
+            public FakeDependencyResolver(PingSubscriber pingSubscriber)
+            {
+                _pingSubscriber = pingSubscriber;
+            }
+
+            #region Implementation of IDependencyResolver
+
+            public IEnumerable<object> Resolve(Type type)
+            {
+                if (type.IsAssignableFrom(typeof(PingSubscriber)))
+                {
+                    return new List<object>() { _pingSubscriber };
+                }
+                return new List<object>();
+            }
+
+            #endregion
+        }
 
         [TestInitialize]
         public void SetupBus()
         {
+            _pingSubscriber = new PingSubscriber();
+
+            //var testTopic = $"test-ping-{DateTime.Now.Ticks}";
+            var topic = $"test-ping";
+
             // some unique string across all application instances
             var instanceId = "1";
             // address to your Kafka broker
@@ -32,12 +91,14 @@ namespace SlimMessageBus.Provider.Kafka.Test
             var messageBusBuilder = new MessageBusBuilder()
                 .Publish<PingMessage>(x =>
                 {
-                    x.OnTopicByDefault("test-ping");
+                    x.OnTopicByDefault(topic);
                 })
                 .SubscribeTo<PingMessage>(x =>
                 {
-                    x.OnTopic("test-ping");
-                    //s.WithGroup("workers").Of(3);
+                    x.OnTopic(topic)
+                        .Group("subscriber1")
+                        .WithConsumer<PingSubscriber>()
+                        .Instances(1);
                 })
                 .ExpectRequestResponses(x =>
                 {
@@ -45,9 +106,10 @@ namespace SlimMessageBus.Provider.Kafka.Test
                     x.DefaultTimeout(TimeSpan.FromSeconds(10));
                 })
                 .WithSerializer(new JsonMessageSerializer())
+                .WithSubscriberResolver(new FakeDependencyResolver(_pingSubscriber))
                 .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
 
-            _bus = (KafkaMessageBus) messageBusBuilder.Build();
+            _bus = (KafkaMessageBus)messageBusBuilder.Build();
         }
 
         [TestCleanup]
@@ -57,10 +119,40 @@ namespace SlimMessageBus.Provider.Kafka.Test
         }
 
         [TestMethod]
-        public void PublishToTopic()
+        public void BasicIntegration()
+        {
+            // ensure the subscribers have established connections and are ready
+            Thread.Sleep(2000);
+
+            var stopwatch = new Stopwatch();
+
+            stopwatch.Start();
+            var messagesPublished = PublishToTopic();
+
+            stopwatch.Stop();
+            Log.InfoFormat("Published {0} messages in {1}", messagesPublished.Count, stopwatch.Elapsed);
+
+            stopwatch.Restart();
+            var messagesReceived = ConsumeFromTopic();
+
+            stopwatch.Stop();
+            Log.InfoFormat("Consumed {0} messages in {1}", messagesReceived.Count, stopwatch.Elapsed);
+
+        }
+
+        private IList<PingMessage> ConsumeFromTopic()
+        {
+            while (_pingSubscriber.Messages.Count != NumberOfMessages)
+            {
+                Thread.Sleep(200);
+            }
+            return _pingSubscriber.Messages;
+        }
+
+        private IList<PingMessage> PublishToTopic()
         {
             var messages = new List<PingMessage>();
-            for (var i = 0; i < 1000; i++)
+            for (var i = 0; i < NumberOfMessages; i++)
             {
                 messages.Add(new PingMessage()
                 {
@@ -69,13 +161,20 @@ namespace SlimMessageBus.Provider.Kafka.Test
                 });
             }
 
-            var stopwatch = new Stopwatch();
-            stopwatch.Start();
+            messages.ForEach(m =>
+            {
+                try
+                {
+                    _bus.Publish(m).Wait();
+                }
+                catch (Exception e)
+                {
+                    Log.ErrorFormat("Could not publish: {0}", e);                    
+                }
 
-            Parallel.ForEach(messages, (message) => _bus.Publish(message).Wait());
+            });
 
-            stopwatch.Stop();
-            Console.WriteLine("Sent {0} messages in {1}", messages.Count, stopwatch.Elapsed);
+            return messages;
         }
 
     }

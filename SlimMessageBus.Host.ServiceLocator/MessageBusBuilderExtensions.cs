@@ -1,4 +1,4 @@
-﻿using SlimMessageBus.Config;
+﻿using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.ServiceLocator
 {
@@ -6,7 +6,7 @@ namespace SlimMessageBus.Host.ServiceLocator
     {
         public static MessageBusBuilder WithSubscriberResolverAsServiceLocator(this MessageBusBuilder builder)
         {
-            return builder.WithSubscriberResolver(new ServiceLocatorSubscriberResolver());
+            return builder.WithSubscriberResolver(new ServiceLocatorDependencyResolver());
         }
     }
 }
