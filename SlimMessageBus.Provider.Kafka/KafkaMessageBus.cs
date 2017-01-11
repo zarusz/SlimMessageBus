@@ -18,7 +18,7 @@ namespace SlimMessageBus.Provider.Kafka
     {
         private static readonly ILog Log = LogManager.GetLogger<KafkaMessageBus>();
 
-        public KafkaMessageBusSettings KafkaSettings { get; protected set; }
+        public KafkaMessageBusSettings KafkaSettings { get; }
 
         private Producer _producer;
         private readonly IDictionary<string, KafkaTopic> _topics = new Dictionary<string, KafkaTopic>();                                                     
@@ -46,8 +46,7 @@ namespace SlimMessageBus.Provider.Kafka
                 {
                     var messageType = subscribersByMessageType.Key;
 
-                    var kafkaGroupConsumer = new KafkaGroupConsumer(this, group, messageType, subscribersByMessageType.ToList());
-                    _groupConsumers.Add(kafkaGroupConsumer);
+                    _groupConsumers.Add(new KafkaGroupConsumer(this, group, messageType, subscribersByMessageType.ToList()));
                 }
             }
             
@@ -57,9 +56,9 @@ namespace SlimMessageBus.Provider.Kafka
 
         public override void Dispose()
         {
-            foreach (var kafkaGroupConsumer in _groupConsumers)
+            foreach (var groupConsumer in _groupConsumers)
             {
-                kafkaGroupConsumer.Dispose();
+                groupConsumer.Dispose();
             }
             _groupConsumers.Clear();
 
@@ -78,7 +77,7 @@ namespace SlimMessageBus.Provider.Kafka
             base.Dispose();
         }
 
-        protected override async Task Publish(Type type, string topic, byte[] payload, string replyTo = null)
+        protected override async Task Publish(Type type, string topic, byte[] payload)
         {
             // lookup the Kafka topic
             var kafkaTopic = _topics[topic];

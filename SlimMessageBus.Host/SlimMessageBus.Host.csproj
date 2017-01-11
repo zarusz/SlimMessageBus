@@ -67,7 +67,10 @@
     <Compile Include="Config\SubscriberBuilder.cs" />
     <Compile Include="Config\SubscriberSettings.cs" />
     <Compile Include="IDependencyResolver.cs" />
+    <Compile Include="MessageWithHeaders.cs" />
+    <Compile Include="MessageWithHeadersSerializer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="PendingRequestMessageState.cs" />
     <Compile Include="SubscriberResolverChain.cs" />
   </ItemGroup>
   <ItemGroup>
