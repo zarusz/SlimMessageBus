@@ -4,8 +4,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Timers;
 using Common.Logging;
 using SlimMessageBus.Host.Config;
+using Timer = System.Timers.Timer;
 
 namespace SlimMessageBus.Host
 {
@@ -19,22 +21,53 @@ namespace SlimMessageBus.Host
         public MessageBusSettings Settings { get; }
 
         protected readonly IDictionary<Type, PublisherSettings> PublisherSettingsByMessageType;
-        protected readonly ConcurrentDictionary<string, PendingRequestState> RequestRegistry;
+
+        protected readonly ConcurrentDictionary<string, PendingRequestState> PendingRequests;
+        protected readonly Timer PendingRequestsTimer;
 
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         public CancellationToken CancellationToken => _cancellationTokenSource.Token;
-
+        
         protected BaseMessageBus(MessageBusSettings settings)
         {
             Settings = settings;
             PublisherSettingsByMessageType = Settings.Publishers.ToDictionary(x => x.MessageType);
-            RequestRegistry = new ConcurrentDictionary<string, PendingRequestState>();
+
+            PendingRequests = new ConcurrentDictionary<string, PendingRequestState>();
+
+            PendingRequestsTimer = new Timer
+            {
+                Interval = 1000,
+                AutoReset = true               
+            };
+            PendingRequestsTimer.Elapsed += CleanRequestReqistry;
+            PendingRequestsTimer.Start();
+        }
+
+        protected virtual void CleanRequestReqistry(object sender, ElapsedEventArgs args)
+        {
+            var now = DateTime.Now;
+
+            var requestsToExpire = PendingRequests.Values.Where(x => x.Expire < now).ToList();
+            foreach (var requestState in requestsToExpire)
+            {
+                var canceled = requestState.TaskCompletionSource.TrySetCanceled();
+                if (canceled)
+                {
+                    Log.DebugFormat("Pending request timed-out: {0}", requestState);
+                }
+
+                PendingRequestState s;
+                PendingRequests.TryRemove(requestState.Id, out s);
+            }
         }
 
         #region Implementation of IDisposable
 
         public virtual void Dispose()
         {
+            PendingRequestsTimer.Stop();
+            PendingRequestsTimer.Dispose();
         }
 
         #endregion
@@ -100,18 +133,18 @@ namespace SlimMessageBus.Host
 
             // record the request state
             var requestState = new PendingRequestState(requestId, request, requestType, typeof(TResponseMessage), timeout);
-            RequestRegistry.TryAdd(requestId, requestState);
+            PendingRequests.TryAdd(requestId, requestState);
 
             try
             {
-                Log.DebugFormat("Sending request message of type {0} to topic {1} with payload size {2} (reply-to: {3}, request-id: {4})", requestType, topic, payload.Length, replyTo, requestId);
+                Log.DebugFormat("Sending request message {0} to topic {1} with reply to {2} and payload size {3}", requestState, topic, replyTo, payload.Length);
                 await Publish(requestType, topic, requestPayload);
             }
             catch (PublishMessageBusException e)
             {
                 Log.DebugFormat("Publishing of request message failed: {0}", e);
                 // remove from registry
-                RequestRegistry.TryRemove(requestId, out requestState);
+                PendingRequests.TryRemove(requestId, out requestState);
                 throw;
             }
 
@@ -151,7 +184,7 @@ namespace SlimMessageBus.Host
         protected virtual async Task OnResponseArrived(byte[] payload, string topic, string requestId)
         {
             PendingRequestState requestState;
-            if (!RequestRegistry.TryGetValue(requestId, out requestState))
+            if (!PendingRequests.TryGetValue(requestId, out requestState))
             {
                 Log.DebugFormat("The response message with request id {0} arriving on topic {1} already expired.", requestId, topic);
                 // ToDo add a callback hook
@@ -163,7 +196,7 @@ namespace SlimMessageBus.Host
                 if (Log.IsDebugEnabled)
                 {
                     var tookTimespan = DateTime.Now.Subtract(requestState.Created);
-                    Log.DebugFormat("Response arrived for request {0} on topic {1} (time: {4} ms, request type: {2}, response type: {3})", requestId, topic, requestState.RequestType, requestState.ResponseType, tookTimespan);
+                    Log.DebugFormat("Response arrived for {0} on topic {1} (time: {2} ms)", requestState, topic, tookTimespan);
                 }
 
                 object response = null;
@@ -174,7 +207,7 @@ namespace SlimMessageBus.Host
                 catch (Exception e)
 
                 {
-                    Log.DebugFormat("Could not deserialize the response message with request-id {0} and arriving on topic {1}: {2}", requestId, topic, e);
+                    Log.DebugFormat("Could not deserialize the response message for {0} arriving on topic {1}: {2}", requestState, topic, e);
                     requestState.TaskCompletionSource.SetException(e);
                 }
 
@@ -187,7 +220,7 @@ namespace SlimMessageBus.Host
             finally
             {
                 // remove the request from the queue
-                RequestRegistry.TryRemove(requestId, out requestState);
+                PendingRequests.TryRemove(requestId, out requestState);
             }
         }
 
