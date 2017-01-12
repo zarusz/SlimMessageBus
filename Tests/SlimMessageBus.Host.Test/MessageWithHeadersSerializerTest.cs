@@ -11,7 +11,6 @@ namespace SlimMessageBus.Host.Test
         private byte[] _payload;
         private MessageWithHeadersSerializer _serializer;
 
-
         [TestInitialize]
         public void Setup()
         {
@@ -19,9 +18,8 @@ namespace SlimMessageBus.Host.Test
             _serializer = new MessageWithHeadersSerializer(Encoding.ASCII);
         }
 
-
         [TestMethod]
-        public void SerializesWhenNoHeaders()
+        public void WithoutHeaders_SerializationWorks()
         {
             // arrange
             var m = new MessageWithHeaders
@@ -39,7 +37,7 @@ namespace SlimMessageBus.Host.Test
         }
 
         [TestMethod]
-        public void SerializesWhenWhenHeaders()
+        public void WithHeaders_SerializationWorks()
         {
             // arrange
             var m = new MessageWithHeaders

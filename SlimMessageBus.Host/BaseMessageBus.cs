@@ -153,7 +153,7 @@ namespace SlimMessageBus.Host
             PendingRequestState requestState;
             if (!RequestRegistry.TryGetValue(requestId, out requestState))
             {
-                Log.DebugFormat("The response message arriving on topic {0} with request id {1} already expired.", topic, requestId);
+                Log.DebugFormat("The response message with request id {0} arriving on topic {1} already expired.", requestId, topic);
                 // ToDo add a callback hook
                 return;
             }
@@ -172,8 +172,9 @@ namespace SlimMessageBus.Host
                     response = Settings.Serializer.Deserialize(requestState.ResponseType, payload);
                 }
                 catch (Exception e)
+
                 {
-                    Log.DebugFormat("Could not deserialize the response message: {0}", e);
+                    Log.DebugFormat("Could not deserialize the response message with request-id {0} and arriving on topic {1}: {2}", requestId, topic, e);
                     requestState.TaskCompletionSource.SetException(e);
                 }
 
