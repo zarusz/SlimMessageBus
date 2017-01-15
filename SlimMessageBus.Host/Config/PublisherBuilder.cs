@@ -10,7 +10,7 @@
             _settings.MessageType = typeof (T);
         }
 
-        public PublisherBuilder<T> OnTopicByDefault(string name)
+        public PublisherBuilder<T> DefaultTopic(string name)
         {
             _settings.DefaultTopic = name;
             return this;

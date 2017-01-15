@@ -115,6 +115,11 @@ namespace SlimMessageBus.Host
 
         public virtual async Task<TResponseMessage> Request<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout)
         {
+            if (Settings.RequestResponse == null)
+            {
+                throw new PublishMessageBusException("An attempt to send ruequest while request/response communication was not configured for the message bus. Ensure you configure the bus properly before the application starts.");
+            }
+
             var requestType = request.GetType();
             var topic = GetDefaultTopic(requestType);
             var replyTo = Settings.RequestResponse.Topic;
@@ -124,12 +129,7 @@ namespace SlimMessageBus.Host
 
             // generate the request guid
             var requestId = GenerateRequestId();
-
-            // create the request wrapper message
-            var requestMessage = new MessageWithHeaders(payload);
-            requestMessage.Headers.Add(HeaderRequestId, requestId);
-            requestMessage.Headers.Add(HeaderReplyTo, replyTo);
-            var requestPayload = Settings.RequestResponse.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), requestMessage);
+            var requestPayload = SerializeRequestMessage(payload, requestId, replyTo);
 
             // record the request state
             var requestState = new PendingRequestState(requestId, request, requestType, typeof(TResponseMessage), timeout);
@@ -153,19 +153,41 @@ namespace SlimMessageBus.Host
             return await typedTask;
         }
 
+
         #endregion
+
+        protected virtual byte[] SerializeRequestMessage(byte[] payload, string requestId, string replyTo)
+        {
+            // create the request wrapper message
+            var requestMessage = new MessageWithHeaders(payload);
+            requestMessage.Headers.Add(HeaderRequestId, requestId);
+            requestMessage.Headers.Add(HeaderReplyTo, replyTo);
+
+            var requestPayload = Settings.RequestResponse.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), requestMessage);
+            return requestPayload;
+        }
+
+        protected virtual byte[] SerializeResponseMessage(byte[] payload, string requestId)
+        {
+            // create the request wrapper message
+            var responseMessage = new MessageWithHeaders(payload);
+            responseMessage.Headers.Add(HeaderRequestId, requestId);
+
+            var responsePayload = Settings.RequestResponse.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), responseMessage);
+            return responsePayload;
+        }
+
 
         /// <summary>
         /// Should be invoked by the concrete bus implementation whenever there is a message arrived on the reply to topic.
         /// </summary>
-        /// <param name="payload"></param>
+        /// <param name="responsePayload"></param>
         /// <param name="topic"></param>
         /// <returns></returns>
-        protected virtual async Task OnResponseArrived(byte[] payload, string topic)
+        public virtual async Task OnResponseArrived(byte[] responsePayload, string topic)
         {
-            var responseMessage = (MessageWithHeaders)Settings.RequestResponse.MessageWithHeadersSerializer.Deserialize(typeof(MessageWithHeaders), payload);
-
             string requestId;
+            var responseMessage = (MessageWithHeaders)Settings.RequestResponse.MessageWithHeadersSerializer.Deserialize(typeof(MessageWithHeaders), responsePayload);
             if (!responseMessage.Headers.TryGetValue(HeaderRequestId, out requestId))
             {
                 Log.ErrorFormat("The response message arriving on topic {0} did not have the {1} header. Unable to math the response with the request. This likely indicates a misconfiguration.", topic, HeaderRequestId);
@@ -180,8 +202,9 @@ namespace SlimMessageBus.Host
         /// </summary>
         /// <param name="payload"></param>
         /// <param name="topic"></param>
+        /// <param name="requestId"></param>
         /// <returns></returns>
-        protected virtual async Task OnResponseArrived(byte[] payload, string topic, string requestId)
+        public virtual async Task OnResponseArrived(byte[] payload, string topic, string requestId)
         {
             PendingRequestState requestState;
             if (!PendingRequests.TryGetValue(requestId, out requestState))

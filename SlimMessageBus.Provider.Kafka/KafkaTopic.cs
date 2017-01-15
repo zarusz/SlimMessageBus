@@ -3,12 +3,12 @@ using RdKafka;
 
 namespace SlimMessageBus.Provider.Kafka
 {
-    public class KafkaTopic : IDisposable
+    public class KafkaTopicProducer : IDisposable
     {
         public string Name;
         public Topic Topic;
 
-        public KafkaTopic(string name, Producer producer)
+        public KafkaTopicProducer(string name, Producer producer)
         {
             Name = name;
             Topic = producer.Topic(name);

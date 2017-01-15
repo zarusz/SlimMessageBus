@@ -58,11 +58,11 @@ namespace Sample.Images.Worker
             var messageBusBuilder = new MessageBusBuilder()
                 .Publish<GenerateThumbnailRequest>(p =>
                 {
-                    p.OnTopicByDefault("thumbnail-generation");
+                    p.DefaultTopic("thumbnail-generation");
                 })
                 .SubscribeTo<GenerateThumbnailRequest>(s =>
                 {
-                    s.OnTopic("thumbnail-generation", t =>
+                    s.Topic("thumbnail-generation", t =>
                     {
                         t.Group(instanceGroup)
                             .WithConsumer<GenerateThumbnailRequestSubscriber>()
@@ -72,11 +72,6 @@ namespace Sample.Images.Worker
                             .WithRequestHandler<GenerateThumbnailRequestHandler, GenerateThumbnailResponse, GenerateThumbnailRequest>()
                             .Instances(3);
                     });
-                })
-                .ExpectRequestResponses(r =>
-                {
-                    r.OnTopic(instanceGroup);
-                    r.DefaultTimeout(TimeSpan.FromSeconds(10));
                 })
                 .WithSubscriberResolverAsServiceLocator()
                 .WithSerializer(new JsonMessageSerializer())

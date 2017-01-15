@@ -60,12 +60,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="KafkaGroupConsumer.cs" />
+    <Compile Include="Consumer\KafkaGroupConsumer.cs" />
+    <Compile Include="Consumer\KafkaGroupConsumerBase.cs" />
     <Compile Include="KafkaMessageBus.cs" />
     <Compile Include="KafkaMessageBusBuilderExtensions.cs" />
     <Compile Include="KafkaMessageBusSettings.cs" />
     <Compile Include="KafkaRequestResponseBus.cs" />
+    <Compile Include="Consumer\KafkaResponseConsumer.cs" />
     <Compile Include="KafkaTopic.cs" />
+    <Compile Include="MessageProcessingResult.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TopicSubscriberInstances.cs" />
   </ItemGroup>

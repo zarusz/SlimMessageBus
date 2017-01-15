@@ -12,14 +12,14 @@ namespace SlimMessageBus.Host.Config
             _settings = settings;
         }
 
-        public TopicSubscriberBuilder<T> OnTopic(string topic)
+        public TopicSubscriberBuilder<T> Topic(string topic)
         {
             return new TopicSubscriberBuilder<T>(topic, _settings);
         }
 
-        public TopicSubscriberBuilder<T> OnTopic(string topic, Action<TopicSubscriberBuilder<T>> topicConfig)
+        public TopicSubscriberBuilder<T> Topic(string topic, Action<TopicSubscriberBuilder<T>> topicConfig)
         {
-            var b = OnTopic(topic);
+            var b = Topic(topic);
             topicConfig(b);
             return b;
         }
@@ -69,6 +69,7 @@ namespace SlimMessageBus.Host.Config
             where TConsumer : ISubscriber<T>
         {
             _subscriberSettings.ConsumerType = typeof(TConsumer);
+            _subscriberSettings.ConsumerMode = ConsumerMode.Subscriber;
             return this;
         }
 
@@ -77,6 +78,7 @@ namespace SlimMessageBus.Host.Config
             where TConsumer : IRequestHandler<TRequest, TResponse>
         {
             _subscriberSettings.ConsumerType = typeof(TConsumer);
+            _subscriberSettings.ConsumerMode = ConsumerMode.RequestResponse;
             return this;
         }
 

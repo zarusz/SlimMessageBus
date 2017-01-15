@@ -17,9 +17,14 @@ namespace SlimMessageBus.Host.Config
             return this;
         }
 
-        public void OnTopic(string topic)
+        public void ReplyToTopic(string topic)
         {
             _settings.Topic = topic;
+        }
+
+        public void Group(string group)
+        {
+            _settings.Group = group;
         }
     }
 }

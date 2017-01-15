@@ -104,7 +104,8 @@ namespace SlimMessageBus.Provider.Kafka
         {
             try
             {
-                Task.WaitAll(_messages.Select(x => x.Task).ToArray());
+                var tasks = _messages.Select(x => x.Task).ToArray();
+                Task.WaitAll(tasks);
             }
             catch (AggregateException e)
             {

@@ -33,11 +33,11 @@ namespace SlimMessageBus.Host.Test
             var messageBusBuilder = new MessageBusBuilder()
                 .Publish<RequestA>(x =>
                 {
-                    x.OnTopicByDefault("a-requests");
+                    x.DefaultTopic("a-requests");
                 })
                 .ExpectRequestResponses(x =>
                 {
-                    x.OnTopic("app01-responses");
+                    x.ReplyToTopic("app01-responses");
                     x.DefaultTimeout(TimeSpan.FromSeconds(20));
                 })
                 .WithSerializer(new JsonMessageSerializer())

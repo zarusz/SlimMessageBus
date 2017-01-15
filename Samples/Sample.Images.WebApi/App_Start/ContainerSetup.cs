@@ -52,19 +52,18 @@ namespace Sample.Images.WebApi
             var instanceId = ConfigurationManager.AppSettings["InstanceId"];
             var kafkaBrokers = ConfigurationManager.AppSettings["Kafka.Brokers"];
 
+            var instanceGroup = $"worker-{instanceId}";
+            var instanceReplyTo = $"worker-{instanceId}-response";
+
             var messageBusBuilder = new MessageBusBuilder()
                 .Publish<GenerateThumbnailRequest>(x =>
                 {
-                    x.OnTopicByDefault("thumbnail-generation");
-                })
-                .SubscribeTo<GenerateThumbnailRequest>(x =>
-                {
-                    x.OnTopic("thumbnail-gneration");
-                    //s.WithGroup("workers").Of(3);
+                    x.DefaultTopic("thumbnail-generation");
                 })
                 .ExpectRequestResponses(x =>
                 {
-                    x.OnTopic($"worker-{instanceId}-response");
+                    x.ReplyToTopic(instanceReplyTo);
+                    x.Group(instanceGroup);
                     x.DefaultTimeout(TimeSpan.FromSeconds(10));
                 })
                 .WithSubscriberResolverAsServiceLocator()

@@ -91,18 +91,18 @@ namespace SlimMessageBus.Provider.Kafka.Test
             var messageBusBuilder = new MessageBusBuilder()
                 .Publish<PingMessage>(x =>
                 {
-                    x.OnTopicByDefault(topic);
+                    x.DefaultTopic(topic);
                 })
                 .SubscribeTo<PingMessage>(x =>
                 {
-                    x.OnTopic(topic)
+                    x.Topic(topic)
                         .Group("subscriber1")
                         .WithConsumer<PingSubscriber>()
                         .Instances(1);
                 })
                 .ExpectRequestResponses(x =>
                 {
-                    x.OnTopic($"worker-{instanceId}-response");
+                    x.ReplyToTopic($"worker-{instanceId}-response");
                     x.DefaultTimeout(TimeSpan.FromSeconds(10));
                 })
                 .WithSerializer(new JsonMessageSerializer())
