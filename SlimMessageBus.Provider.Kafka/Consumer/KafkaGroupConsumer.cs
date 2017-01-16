@@ -12,18 +12,15 @@ namespace SlimMessageBus.Provider.Kafka
         private static readonly ILog Log = LogManager.GetLogger<KafkaGroupConsumer>();
 
         public readonly Type MessageType;
-        public readonly Type SubscriberType;
 
         private readonly IDictionary<string, TopicSubscriberInstances> _consumerInstancesByTopic;
 
-        public KafkaGroupConsumer(KafkaMessageBus messageBus, string group, Type messageType,
-            ICollection<SubscriberSettings> groupSubscriberSettings)
+        public KafkaGroupConsumer(KafkaMessageBus messageBus, string group, Type messageType, ICollection<SubscriberSettings> groupSubscriberSettings)
             : base(messageBus, group, groupSubscriberSettings.Select(x => x.Topic).ToList())
         {
             Log.InfoFormat("Creating consumer for topics {0} and group {1}", string.Join(",", groupSubscriberSettings.Select(x => x.Topic)), group);
 
             MessageType = messageType;
-            SubscriberType = typeof (ISubscriber<>).MakeGenericType(messageType);
 
             _consumerInstancesByTopic = groupSubscriberSettings
                 .ToDictionary(x => x.Topic, x => new TopicSubscriberInstances(x, this, MessageBus));

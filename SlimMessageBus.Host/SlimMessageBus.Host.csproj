@@ -54,6 +54,7 @@
     <Compile Include="Config\Assert.cs" />
     <Compile Include="Config\GroupBuilder.cs" />
     <Compile Include="Config\GroupSettings.cs" />
+    <Compile Include="Config\GroupSubscriberBuilder.cs" />
     <Compile Include="Config\HasProviderExtensions.cs" />
     <Compile Include="Config\TopicSubscriberBuilder.cs" />
     <Compile Include="IMessageSerializer.cs" />
@@ -66,12 +67,12 @@
     <Compile Include="Config\RequestResponseSettings.cs" />
     <Compile Include="Config\SubscriberBuilder.cs" />
     <Compile Include="Config\SubscriberSettings.cs" />
-    <Compile Include="IDependencyResolver.cs" />
+    <Compile Include="DependencyResolver\IDependencyResolver.cs" />
     <Compile Include="MessageWithHeaders.cs" />
     <Compile Include="MessageWithHeadersSerializer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="PendingRequestState.cs" />
-    <Compile Include="SubscriberResolverChain.cs" />
+    <Compile Include="DependencyResolver\DependencyResolverChain.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

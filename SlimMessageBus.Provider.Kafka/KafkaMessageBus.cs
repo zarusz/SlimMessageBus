@@ -13,14 +13,14 @@ namespace SlimMessageBus.Provider.Kafka
     ///
     /// Note the assumption is that Topic/Producer/Consumer are all thread-safe (see https://github.com/edenhill/librdkafka/issues/215)
     /// </summary>
-    public class KafkaMessageBus : BaseMessageBus
+    public class KafkaMessageBus : MessageBusBus
     {
         private static readonly ILog Log = LogManager.GetLogger<KafkaMessageBus>();
 
         public KafkaMessageBusSettings KafkaSettings { get; }
 
         private Producer _producer;
-        private readonly IDictionary<string, KafkaTopicProducer> _topics = new Dictionary<string, KafkaTopicProducer>();                                                     
+        private readonly IDictionary<string, KafkaTopicProducer> _topics = new Dictionary<string, KafkaTopicProducer>();
         private readonly IList<KafkaGroupConsumerBase> _groupConsumers = new List<KafkaGroupConsumerBase>();
 
         public KafkaMessageBus(MessageBusSettings settings, KafkaMessageBusSettings kafkaSettings)
@@ -45,8 +45,9 @@ namespace SlimMessageBus.Provider.Kafka
                 {
                     var messageType = subscribersByMessageType.Key;
 
-                    Log.InfoFormat("Creating consumer for topics {0}, group {1} and message type {2}", string.Join(",", subscribersByMessageType.Select(x => x.Topic)), group, messageType);
-                    _groupConsumers.Add(new KafkaGroupConsumer(this, group, messageType, subscribersByMessageType.ToList()));
+                    Log.InfoFormat("Creating consumer for topics {0}, group {1}, message type {2}", string.Join(",", subscribersByMessageType.Select(x => x.Topic)), group, messageType);
+                    var consumer = new KafkaGroupConsumer(this, group, messageType, subscribersByMessageType.ToList());
+                    _groupConsumers.Add(consumer);
                 }
             }
 

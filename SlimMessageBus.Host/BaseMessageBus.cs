@@ -11,9 +11,9 @@ using Timer = System.Timers.Timer;
 
 namespace SlimMessageBus.Host
 {
-    public abstract class BaseMessageBus : IMessageBus
+    public abstract class MessageBusBus : IMessageBus
     {
-        private static readonly ILog Log = LogManager.GetLogger<BaseMessageBus>();
+        private static readonly ILog Log = LogManager.GetLogger<MessageBusBus>();
 
         public const string HeaderRequestId = "request-id";
         public const string HeaderReplyTo = "reply-to";
@@ -28,7 +28,7 @@ namespace SlimMessageBus.Host
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         public CancellationToken CancellationToken => _cancellationTokenSource.Token;
         
-        protected BaseMessageBus(MessageBusSettings settings)
+        protected MessageBusBus(MessageBusSettings settings)
         {
             Settings = settings;
             PublisherSettingsByMessageType = Settings.Publishers.ToDictionary(x => x.MessageType);
@@ -108,12 +108,12 @@ namespace SlimMessageBus.Host
 
         #region Implementation of IRequestResponseBus
 
-        public virtual async Task<TResponseMessage> Request<TResponseMessage>(IRequestMessage<TResponseMessage> request)
+        public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request)
         {
-            return await Request(request, Settings.RequestResponse.Timeout);
+            return await Send(request, Settings.RequestResponse.Timeout);
         }
 
-        public virtual async Task<TResponseMessage> Request<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout)
+        public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout)
         {
             if (Settings.RequestResponse == null)
             {

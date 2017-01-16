@@ -66,7 +66,7 @@ namespace Sample.Images.WebApi
                     x.Group(instanceGroup);
                     x.DefaultTimeout(TimeSpan.FromSeconds(10));
                 })
-                .WithSubscriberResolverAsServiceLocator()
+                .WithDependencyResolverAsServiceLocator()
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
 

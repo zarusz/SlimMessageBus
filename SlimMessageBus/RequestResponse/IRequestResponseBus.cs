@@ -5,7 +5,7 @@ namespace SlimMessageBus
 {
     public interface IRequestResponseBus
     {
-        Task<TResponseMessage> Request<TResponseMessage>(IRequestMessage<TResponseMessage> request);
-        Task<TResponseMessage> Request<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout);
+        Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request);
+        Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout);
     }
 }

@@ -14,7 +14,6 @@ namespace SlimMessageBus.Host.Config
         {
             Publishers = new List<PublisherSettings>();
             Subscribers = new List<SubscriberSettings>();
-            RequestResponse = new RequestResponseSettings();
         }
     }
 }

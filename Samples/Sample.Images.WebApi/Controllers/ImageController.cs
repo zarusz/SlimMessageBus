@@ -33,7 +33,7 @@ namespace Sample.Images.WebApi.Controllers
             var thumbFileContent = await _fileStore.GetFile(thumbFileId);
             if (thumbFileContent == null)
             {
-                var thumbGenResponse = await _bus.Request(new GenerateThumbnailRequest(fileId, mode, w, h));
+                var thumbGenResponse = await _bus.Send(new GenerateThumbnailRequest(fileId, mode, w, h));
 
                 thumbFileContent = await _fileStore.GetFile(thumbGenResponse.FileId);
             }

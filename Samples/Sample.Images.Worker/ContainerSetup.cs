@@ -43,7 +43,7 @@ namespace Sample.Images.Worker
                 .SingleInstance();
 
             builder.RegisterType<GenerateThumbnailRequestHandler>().AsSelf();
-            builder.RegisterType<GenerateThumbnailRequestSubscriber>().AsSelf();
+            //builder.RegisterType<GenerateThumbnailRequestSubscriber>().AsSelf();
         }
 
         private static IMessageBus BuildMessageBus()
@@ -60,20 +60,21 @@ namespace Sample.Images.Worker
                 {
                     p.DefaultTopic("thumbnail-generation");
                 })
+                // ToDo: ReplyTo<>
                 .SubscribeTo<GenerateThumbnailRequest>(s =>
                 {
                     s.Topic("thumbnail-generation", t =>
                     {
-                        t.Group(instanceGroup)
-                            .WithConsumer<GenerateThumbnailRequestSubscriber>()
+                        t.Group(sharedGroup)
+                            .WithConsumer<GenerateThumbnailRequestHandler>()
                             .Instances(3);
 
-                        t.Group(sharedGroup)
-                            .WithRequestHandler<GenerateThumbnailRequestHandler, GenerateThumbnailResponse, GenerateThumbnailRequest>()
-                            .Instances(3);
+                        //t.Group(sharedGroup)
+                        //    .WithConsumer<GenerateThumbnailRequestSubscriber>()
+                        //    .Instances(3);
                     });
                 })
-                .WithSubscriberResolverAsServiceLocator()
+                .WithDependencyResolverAsServiceLocator()
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
 

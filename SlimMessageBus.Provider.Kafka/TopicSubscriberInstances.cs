@@ -19,7 +19,7 @@ namespace SlimMessageBus.Provider.Kafka
 
         private readonly List<object> _consumerInstances;
         private readonly BufferBlock<object> _consumerQueue;
-        private readonly Queue<MessageProcessingResult> _messages = new Queue<MessageProcessingResult>(); 
+        private readonly Queue<MessageProcessingResult> _messages = new Queue<MessageProcessingResult>();
         private readonly KafkaMessageBus _messageBus;
         private readonly KafkaGroupConsumer _groupConsumer;
         private readonly MethodInfo _consumerInstanceOnHandleMethod;
@@ -31,18 +31,18 @@ namespace SlimMessageBus.Provider.Kafka
             _messageBus = messageBus;
             _groupConsumer = groupConsumer;
 
-            _consumerInstanceOnHandleMethod = settings.ConsumerType.GetMethod("OnHandle");
+            _consumerInstanceOnHandleMethod = settings.ConsumerType.GetMethod("OnHandle", new[] { groupConsumer.MessageType, typeof(string) });
             _consumerInstances = ResolveInstances(settings, messageBus);
             _consumerQueue = new BufferBlock<object>();
             _consumerInstances.ForEach(x => _consumerQueue.Post(x));
         }
 
-        private static List<object> ResolveInstances(SubscriberSettings settings, BaseMessageBus messageBus)
+        private static List<object> ResolveInstances(SubscriberSettings settings, MessageBusBus messageBusBus)
         {
             var subscribers = new List<object>();
             for (var i = 0; i < settings.Instances; i++)
             {
-                var subscriber = messageBus.Settings.DependencyResolver.Resolve(settings.ConsumerType).ToList();
+                var subscriber = messageBusBus.Settings.DependencyResolver.Resolve(settings.ConsumerType).ToList();
 
                 Assert.IsFalse(subscriber.Count == 0,
                     () => new ConfigurationMessageBusException($"There was no implementation of {settings.ConsumerType} returned by the resolver. Ensure you have registered an implementation for {settings.ConsumerType} in your DI container."));
@@ -77,7 +77,7 @@ namespace SlimMessageBus.Provider.Kafka
                 //var subscriber = (ISubscriber<object>)obj;
                 //await subscriber.OnHandle(message, msg.Topic);
 
-                var task = (Task) _consumerInstanceOnHandleMethod.Invoke(obj, new[] {message, msg.Topic});
+                var task = (Task)_consumerInstanceOnHandleMethod.Invoke(obj, new[] { message, msg.Topic });
                 await task;
             }
             finally
@@ -110,7 +110,7 @@ namespace SlimMessageBus.Provider.Kafka
             catch (AggregateException e)
             {
                 Log.ErrorFormat("Errors occured while executing the tasks {0}", e);
-                
+
                 // ToDo
                 // some tasks failed
 
