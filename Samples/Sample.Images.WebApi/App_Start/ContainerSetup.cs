@@ -52,8 +52,8 @@ namespace Sample.Images.WebApi
             var instanceId = ConfigurationManager.AppSettings["InstanceId"];
             var kafkaBrokers = ConfigurationManager.AppSettings["Kafka.Brokers"];
 
-            var instanceGroup = $"worker-{instanceId}";
-            var instanceReplyTo = $"worker-{instanceId}-response";
+            var instanceGroup = $"webapi-{instanceId}";
+            var instanceReplyTo = $"webapi-{instanceId}-response";
 
             var messageBusBuilder = new MessageBusBuilder()
                 .Publish<GenerateThumbnailRequest>(x =>

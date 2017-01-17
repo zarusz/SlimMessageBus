@@ -13,7 +13,7 @@ namespace SlimMessageBus.Provider.Kafka
 
         public readonly Type MessageType;
 
-        private readonly IDictionary<string, TopicSubscriberInstances> _consumerInstancesByTopic;
+        private readonly IDictionary<string, TopicConsumerInstances> _consumerInstancesByTopic;
 
         public KafkaGroupConsumer(KafkaMessageBus messageBus, string group, Type messageType, ICollection<SubscriberSettings> groupSubscriberSettings)
             : base(messageBus, group, groupSubscriberSettings.Select(x => x.Topic).ToList())
@@ -23,14 +23,13 @@ namespace SlimMessageBus.Provider.Kafka
             MessageType = messageType;
 
             _consumerInstancesByTopic = groupSubscriberSettings
-                .ToDictionary(x => x.Topic, x => new TopicSubscriberInstances(x, this, MessageBus));
+                .ToDictionary(x => x.Topic, x => new TopicConsumerInstances(x, this, MessageBus));
 
             Consumer.Start();
         }
 
         protected override void OnEndReached(object sender, TopicPartitionOffset offset)
-        {
-            
+        {            
             Log.DebugFormat("Group {0}: Reached end of topic: {1} and parition: {2}, next message will be at offset: {3}", Group, offset.Topic, offset.Partition, offset.Offset);
             var consumerInstances = _consumerInstancesByTopic[offset.Topic];
             consumerInstances.Commit(offset);

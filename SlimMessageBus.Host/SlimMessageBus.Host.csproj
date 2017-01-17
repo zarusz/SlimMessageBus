@@ -49,7 +49,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BaseMessageBus.cs" />
+    <Compile Include="MessageBusBase.cs" />
+    <Compile Include="RequestResponse\MessageHeaders.cs" />
     <Compile Include="ConfigurationMessageBusException.cs" />
     <Compile Include="Config\Assert.cs" />
     <Compile Include="Config\GroupBuilder.cs" />
@@ -68,10 +69,10 @@
     <Compile Include="Config\SubscriberBuilder.cs" />
     <Compile Include="Config\SubscriberSettings.cs" />
     <Compile Include="DependencyResolver\IDependencyResolver.cs" />
-    <Compile Include="MessageWithHeaders.cs" />
-    <Compile Include="MessageWithHeadersSerializer.cs" />
+    <Compile Include="RequestResponse\MessageWithHeaders.cs" />
+    <Compile Include="RequestResponse\MessageWithHeadersSerializer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="PendingRequestState.cs" />
+    <Compile Include="RequestResponse\PendingRequestState.cs" />
     <Compile Include="DependencyResolver\DependencyResolverChain.cs" />
   </ItemGroup>
   <ItemGroup>

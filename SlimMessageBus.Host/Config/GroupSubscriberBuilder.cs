@@ -13,12 +13,20 @@ namespace SlimMessageBus.Host.Config
             Group = group;
 
             var subscriberSettingsExist = settings.Subscribers.Any(x => x.Group == group && x.Topic == topicSubscriberBuilder.Topic);
-            Assert.IsFalse(subscriberSettingsExist, 
+            Assert.IsFalse(subscriberSettingsExist,
                 () => new ConfigurationMessageBusException($"Group '{group}' configuration for topic '{topicSubscriberBuilder.Topic}' already exists"));
+
+            var messageType = typeof(T);
 
             _subscriberSettings = new SubscriberSettings()
             {
-                MessageType = typeof(T),
+                MessageType = messageType,
+                // If the message is a Request message (implements IRequestMessage<>)
+                ResponseType = messageType
+                    .GetInterfaces()
+                    .Where(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IRequestMessage<>))
+                    .Select(x => x.GetGenericArguments()[0])
+                    .SingleOrDefault(),
                 Topic = topicSubscriberBuilder.Topic,
                 Group = group
             };
@@ -35,7 +43,7 @@ namespace SlimMessageBus.Host.Config
 
         public GroupSubscriberBuilder<T> WithConsumer<TConsumer>()
         {
-            return WithConsumer(typeof (TConsumer));
+            return WithConsumer(typeof(TConsumer));
         }
 
         public GroupSubscriberBuilder<T> WithConsumer(Type consumerType)
@@ -43,11 +51,11 @@ namespace SlimMessageBus.Host.Config
             _subscriberSettings.ConsumerType = consumerType;
 
             var genericInterfaces = consumerType.GetInterfaces().Where(x => x.IsGenericType).Select(x => x.GetGenericTypeDefinition()).ToList();
-            if (genericInterfaces.Contains(typeof (ISubscriber<>)))
+            if (genericInterfaces.Contains(typeof(ISubscriber<>)))
             {
                 _subscriberSettings.ConsumerMode = ConsumerMode.Subscriber;
             }
-            else if (genericInterfaces.Contains(typeof (IRequestHandler<,>)))
+            else if (genericInterfaces.Contains(typeof(IRequestHandler<,>)))
             {
                 _subscriberSettings.ConsumerMode = ConsumerMode.RequestResponse;
             }

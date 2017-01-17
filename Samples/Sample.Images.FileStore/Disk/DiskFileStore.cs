@@ -34,14 +34,27 @@ namespace Sample.Images.FileStore.Disk
             }
         }
 
-        public void UploadFile(string id, Stream stream)
+        public Task UploadFile(string id, Stream stream)
         {
-            throw new NotImplementedException();
+            var filePath = Path.Combine(_folder, id);
+            try
+            {
+                using (var fileStream = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
+                {
+                    stream.CopyTo(fileStream);
+                }
+                return Task.FromResult(0);
+            }
+            catch (Exception e)
+            {
+                return Task.FromException(e);
+            }
         }
 
         public void DeleteFile(string id)
         {
-            throw new NotImplementedException();
+            var filePath = Path.Combine(_folder, id);
+            File.Delete(filePath);
         }
 
         #endregion

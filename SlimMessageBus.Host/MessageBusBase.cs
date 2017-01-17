@@ -11,12 +11,9 @@ using Timer = System.Timers.Timer;
 
 namespace SlimMessageBus.Host
 {
-    public abstract class MessageBusBus : IMessageBus
+    public abstract class MessageBusBase : IMessageBus
     {
-        private static readonly ILog Log = LogManager.GetLogger<MessageBusBus>();
-
-        public const string HeaderRequestId = "request-id";
-        public const string HeaderReplyTo = "reply-to";
+        private static readonly ILog Log = LogManager.GetLogger<MessageBusBase>();
 
         public MessageBusSettings Settings { get; }
 
@@ -27,8 +24,8 @@ namespace SlimMessageBus.Host
 
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         public CancellationToken CancellationToken => _cancellationTokenSource.Token;
-        
-        protected MessageBusBus(MessageBusSettings settings)
+
+        protected MessageBusBase(MessageBusSettings settings)
         {
             Settings = settings;
             PublisherSettingsByMessageType = Settings.Publishers.ToDictionary(x => x.MessageType);
@@ -38,7 +35,7 @@ namespace SlimMessageBus.Host
             PendingRequestsTimer = new Timer
             {
                 Interval = 1000,
-                AutoReset = true               
+                AutoReset = true
             };
             PendingRequestsTimer.Elapsed += CleanRequestReqistry;
             PendingRequestsTimer.Start();
@@ -87,13 +84,10 @@ namespace SlimMessageBus.Host
             return topic;
         }
 
-        protected abstract Task Publish(Type type, string topic, byte[] payload);
+        public abstract Task Publish(Type messageType, byte[] payload, string topic);
 
-        #region Implementation of IPublishBus
-
-        public virtual async Task Publish<TMessage>(TMessage message, string topic = null)
+        public virtual async Task Publish(Type messageType, object message, string topic = null)
         {
-            var messageType = message.GetType();
             if (topic == null)
             {
                 topic = GetDefaultTopic(messageType);
@@ -101,35 +95,43 @@ namespace SlimMessageBus.Host
             var payload = Settings.Serializer.Serialize(messageType, message);
 
             Log.DebugFormat("Publishing message of type {0} to topic {1} with payload size {2}", messageType, topic, payload.Length);
-            await Publish(messageType, topic, payload);
+            await Publish(messageType, payload, topic);
+        }
+
+
+        #region Implementation of IPublishBus
+
+        public virtual async Task Publish<TMessage>(TMessage message, string topic = null)
+        {
+            await Publish(message.GetType(), message, topic);
         }
 
         #endregion
 
         #region Implementation of IRequestResponseBus
 
-        public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request)
+        public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string topic = null)
         {
-            return await Send(request, Settings.RequestResponse.Timeout);
+            return await Send(request, Settings.RequestResponse.Timeout, topic);
         }
 
-        public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout)
+        public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string topic = null)
         {
             if (Settings.RequestResponse == null)
             {
-                throw new PublishMessageBusException("An attempt to send ruequest while request/response communication was not configured for the message bus. Ensure you configure the bus properly before the application starts.");
+                throw new PublishMessageBusException("An attempt to send ruquest while request/response communication was not configured for the message bus. Ensure you configure the bus properly before the application starts.");
             }
 
             var requestType = request.GetType();
-            var topic = GetDefaultTopic(requestType);
+            if (topic == null)
+            {
+                topic = GetDefaultTopic(requestType);
+            }
             var replyTo = Settings.RequestResponse.Topic;
-
-            // serialize the message
-            var payload = Settings.Serializer.Serialize(requestType, request);
 
             // generate the request guid
             var requestId = GenerateRequestId();
-            var requestPayload = SerializeRequestMessage(payload, requestId, replyTo);
+            var requestPayload = SerializeRequest(requestType, request, requestId, replyTo);
 
             // record the request state
             var requestState = new PendingRequestState(requestId, request, requestType, typeof(TResponseMessage), timeout);
@@ -137,8 +139,8 @@ namespace SlimMessageBus.Host
 
             try
             {
-                Log.DebugFormat("Sending request message {0} to topic {1} with reply to {2} and payload size {3}", requestState, topic, replyTo, payload.Length);
-                await Publish(requestType, topic, requestPayload);
+                Log.DebugFormat("Sending request message {0} to topic {1} with reply to {2} and payload size {3}", requestState, topic, replyTo, requestPayload.Length);
+                await Publish(requestType, requestPayload, topic);
             }
             catch (PublishMessageBusException e)
             {
@@ -156,27 +158,51 @@ namespace SlimMessageBus.Host
 
         #endregion
 
-        protected virtual byte[] SerializeRequestMessage(byte[] payload, string requestId, string replyTo)
+        public virtual byte[] SerializeRequest(Type requestType, object request, string requestId, string replyTo)
         {
-            // create the request wrapper message
-            var requestMessage = new MessageWithHeaders(payload);
-            requestMessage.Headers.Add(HeaderRequestId, requestId);
-            requestMessage.Headers.Add(HeaderReplyTo, replyTo);
+            var requestPayload = Settings.Serializer.Serialize(requestType, request);
 
-            var requestPayload = Settings.RequestResponse.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), requestMessage);
-            return requestPayload;
+            // create the request wrapper message
+            var requestMessage = new MessageWithHeaders(requestPayload);
+            requestMessage.Headers.Add(MessageHeaders.RequestId, requestId);
+            requestMessage.Headers.Add(MessageHeaders.ReplyTo, replyTo);
+
+            var requestMessagePayload = Settings.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), requestMessage);
+            return requestMessagePayload;
         }
 
-        protected virtual byte[] SerializeResponseMessage(byte[] payload, string requestId)
+        public virtual object DeserializeRequest(Type requestType, byte[] requestPayload, out string requestId, out string replyTo)
         {
-            // create the request wrapper message
-            var responseMessage = new MessageWithHeaders(payload);
-            responseMessage.Headers.Add(HeaderRequestId, requestId);
+            var requestMessage = (MessageWithHeaders)Settings.MessageWithHeadersSerializer.Deserialize(typeof(MessageWithHeaders), requestPayload);
+            requestId = requestMessage.Headers[MessageHeaders.RequestId];
+            replyTo = requestMessage.Headers[MessageHeaders.ReplyTo];
 
-            var responsePayload = Settings.RequestResponse.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), responseMessage);
-            return responsePayload;
+            var request = Settings.Serializer.Deserialize(requestType, requestMessage.Payload);
+            return request;
         }
 
+        public virtual byte[] SerializeResponse(Type responseType, object response, string requestId)
+        {
+            var responsePayload = Settings.Serializer.Serialize(responseType, response);
+
+            // create the response wrapper message
+            var responseMessage = new MessageWithHeaders(responsePayload);
+            responseMessage.Headers.Add(MessageHeaders.RequestId, requestId);
+
+            var responseMessagePayload = Settings.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), responseMessage);
+            return responseMessagePayload;
+        }
+
+        /*
+        public virtual object DeserializeResponse(Type responseType, byte[] responsePayload, out string requestId)
+        {
+            var responseMessage = (MessageWithHeaders)Settings.RequestResponse.MessageWithHeadersSerializer.Deserialize(typeof(MessageWithHeaders), responsePayload);
+            requestId = responseMessage.Headers[MessageHeaders.RequestId];
+
+            var response = Settings.Serializer.Deserialize(responseType, responseMessage.Payload);
+            return response;
+        }
+        */
 
         /// <summary>
         /// Should be invoked by the concrete bus implementation whenever there is a message arrived on the reply to topic.
@@ -187,10 +213,10 @@ namespace SlimMessageBus.Host
         public virtual async Task OnResponseArrived(byte[] responsePayload, string topic)
         {
             string requestId;
-            var responseMessage = (MessageWithHeaders)Settings.RequestResponse.MessageWithHeadersSerializer.Deserialize(typeof(MessageWithHeaders), responsePayload);
-            if (!responseMessage.Headers.TryGetValue(HeaderRequestId, out requestId))
+            var responseMessage = (MessageWithHeaders)Settings.MessageWithHeadersSerializer.Deserialize(typeof(MessageWithHeaders), responsePayload);
+            if (!responseMessage.Headers.TryGetValue(MessageHeaders.RequestId, out requestId))
             {
-                Log.ErrorFormat("The response message arriving on topic {0} did not have the {1} header. Unable to math the response with the request. This likely indicates a misconfiguration.", topic, HeaderRequestId);
+                Log.ErrorFormat("The response message arriving on topic {0} did not have the {1} header. Unable to math the response with the request. This likely indicates a misconfiguration.", topic, MessageHeaders.RequestId);
                 return;
             }
 

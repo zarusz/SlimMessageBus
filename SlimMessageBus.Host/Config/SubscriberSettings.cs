@@ -31,6 +31,9 @@ namespace SlimMessageBus.Host.Config
         /// </summary>
         public Type ConsumerType { get; set; }
         public ConsumerMode ConsumerMode { get; set; }
+        public Type ResponseType { get; set; }
+
+        public bool IsRequestMessage => ResponseType != null;
 
         public SubscriberSettings()
         {

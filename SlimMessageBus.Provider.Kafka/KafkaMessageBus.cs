@@ -13,7 +13,7 @@ namespace SlimMessageBus.Provider.Kafka
     ///
     /// Note the assumption is that Topic/Producer/Consumer are all thread-safe (see https://github.com/edenhill/librdkafka/issues/215)
     /// </summary>
-    public class KafkaMessageBus : MessageBusBus
+    public class KafkaMessageBus : MessageBusBase
     {
         private static readonly ILog Log = LogManager.GetLogger<KafkaMessageBus>();
 
@@ -104,7 +104,7 @@ namespace SlimMessageBus.Provider.Kafka
             base.Dispose();
         }
 
-        protected override async Task Publish(Type type, string topic, byte[] payload)
+        public override async Task Publish(Type messageType, byte[] payload, string topic)
         {
             // lookup the Kafka topic
             var kafkaTopic = _topics[topic];

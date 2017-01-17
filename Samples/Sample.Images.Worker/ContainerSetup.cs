@@ -56,10 +56,6 @@ namespace Sample.Images.Worker
             var sharedGroup = $"workers";
 
             var messageBusBuilder = new MessageBusBuilder()
-                .Publish<GenerateThumbnailRequest>(p =>
-                {
-                    p.DefaultTopic("thumbnail-generation");
-                })
                 // ToDo: ReplyTo<>
                 .SubscribeTo<GenerateThumbnailRequest>(s =>
                 {

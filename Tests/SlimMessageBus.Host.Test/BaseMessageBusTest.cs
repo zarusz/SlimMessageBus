@@ -23,9 +23,9 @@ namespace SlimMessageBus.Host.Test
     }
 
     [TestClass]
-    public class BaseMessageBusTest
+    public class MessageBusBaseTest
     {
-        private MessageBusBusTested _busBus;
+        private MessageBusTested _bus;
 
         [TestInitialize]
         public void Init()
@@ -41,9 +41,9 @@ namespace SlimMessageBus.Host.Test
                     x.DefaultTimeout(TimeSpan.FromSeconds(20));
                 })
                 .WithSerializer(new JsonMessageSerializer())
-                .WithProvider(s => new MessageBusBusTested(s));
+                .WithProvider(s => new MessageBusTested(s));
 
-            _busBus = (MessageBusBusTested)messageBusBuilder.Build();
+            _bus = (MessageBusTested)messageBusBuilder.Build();
         }
 
         [TestMethod]
@@ -53,7 +53,7 @@ namespace SlimMessageBus.Host.Test
             var r1 = new RequestA();
             var r2 = new RequestA();
 
-            _busBus.OnReply = (type, topic, request) =>
+            _bus.OnReply = (type, topic, request) =>
             {
                 if (topic == "a-requests")
                 {
@@ -64,8 +64,8 @@ namespace SlimMessageBus.Host.Test
             };
 
             // act
-            var r1Task = _busBus.Send(r1);
-            var r2Task = _busBus.Send(r2);
+            var r1Task = _bus.Send(r1);
+            var r2Task = _bus.Send(r2);
 
             Task.WaitAll(new Task[] {r1Task, r2Task}, 3000);
 
@@ -76,7 +76,7 @@ namespace SlimMessageBus.Host.Test
             Assert.IsTrue(r2Task.IsCompleted, "Response 2 should be completed");
             Assert.AreEqual(r2.Id, r2Task.Result.Id);
 
-            Assert.AreEqual(0, _busBus.PendingRequestsCount, "There should be no pending requests");
+            Assert.AreEqual(0, _bus.PendingRequestsCount, "There should be no pending requests");
         }
 
 
@@ -88,7 +88,7 @@ namespace SlimMessageBus.Host.Test
             var r2 = new RequestA();
             var r3 = new RequestA();
 
-            _busBus.OnReply = (type, topic, request) =>
+            _bus.OnReply = (type, topic, request) =>
             {
                 if (topic == "a-requests")
                 {
@@ -103,9 +103,9 @@ namespace SlimMessageBus.Host.Test
             };
 
             // act
-            var r1Task = _busBus.Send(r1);
-            var r2Task = _busBus.Send(r2, TimeSpan.FromSeconds(1));
-            var r3Task = _busBus.Send(r3);
+            var r1Task = _bus.Send(r1);
+            var r2Task = _bus.Send(r2, TimeSpan.FromSeconds(1));
+            var r3Task = _bus.Send(r3);
 
             try
             {
@@ -120,14 +120,14 @@ namespace SlimMessageBus.Host.Test
             Assert.IsTrue(r2Task.IsCanceled, "Response 2 should be canceled");
             Assert.IsTrue(!r3Task.IsCanceled && !r3Task.IsCompleted, "Response 3 should still be pending");
 
-            Assert.AreEqual(1, _busBus.PendingRequestsCount, "There should be only 1 pending request");
+            Assert.AreEqual(1, _bus.PendingRequestsCount, "There should be only 1 pending request");
         }
     }
 
 
-    public class MessageBusBusTested : MessageBusBus
+    public class MessageBusTested : MessageBusBase
     {
-        public MessageBusBusTested(MessageBusSettings settings) : base(settings)
+        public MessageBusTested(MessageBusSettings settings) : base(settings)
         {
         }
 
@@ -137,26 +137,20 @@ namespace SlimMessageBus.Host.Test
 
         #region Overrides of BaseMessageBus
 
-        protected override Task Publish(Type type, string topic, byte[] payload)
+        public override Task Publish(Type messageType, byte[] payload, string topic)
         {
             // async execution (no wait)
             Task.Run(() =>
             {
-                var reqH = (MessageWithHeaders)Settings.RequestResponse.MessageWithHeadersSerializer.Deserialize(typeof(MessageWithHeaders), payload);
-                var reqId = reqH.Headers[MessageBusBus.HeaderRequestId];
-                var reqReplyTo = reqH.Headers[MessageBusBus.HeaderReplyTo];
-                var req = Settings.Serializer.Deserialize(type, reqH.Payload);
+                string reqId, replyTo;
+                var req = DeserializeRequest(messageType, payload, out reqId, out replyTo);
 
-                var resp = OnReply(type, topic, req);
+                var resp = OnReply(messageType, topic, req);
                 if (resp == null)
                     return;
 
-                var respPayload = Settings.Serializer.Serialize(resp.GetType(), resp);
-                var respH = new MessageWithHeaders(respPayload);
-                respH.Headers.Add(MessageBusBus.HeaderRequestId, reqId);
-                var respHPayload = Settings.RequestResponse.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), respH);
-
-                OnResponseArrived(respHPayload, reqReplyTo).Wait();
+                var respPayload = SerializeResponse(resp.GetType(), resp, reqId);
+                OnResponseArrived(respPayload, replyTo).Wait();
             });
 
             return Task.FromResult(0);

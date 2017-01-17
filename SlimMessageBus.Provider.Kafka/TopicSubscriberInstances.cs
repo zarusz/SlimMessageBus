@@ -11,23 +11,22 @@ using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Provider.Kafka
 {
-    public class TopicSubscriberInstances : IDisposable
+    public class TopicConsumerInstances : IDisposable
     {
-        private static readonly ILog Log = LogManager.GetLogger<TopicSubscriberInstances>();
-
-        public string Topic { get; protected set; }
+        private static readonly ILog Log = LogManager.GetLogger<TopicConsumerInstances>();
 
         private readonly List<object> _consumerInstances;
         private readonly BufferBlock<object> _consumerQueue;
         private readonly Queue<MessageProcessingResult> _messages = new Queue<MessageProcessingResult>();
+        private readonly SubscriberSettings _settings;
         private readonly KafkaMessageBus _messageBus;
         private readonly KafkaGroupConsumer _groupConsumer;
         private readonly MethodInfo _consumerInstanceOnHandleMethod;
+        private PropertyInfo _taskResult;
 
-        public TopicSubscriberInstances(SubscriberSettings settings, KafkaGroupConsumer groupConsumer, KafkaMessageBus messageBus)
+        public TopicConsumerInstances(SubscriberSettings settings, KafkaGroupConsumer groupConsumer, KafkaMessageBus messageBus)
         {
-            Topic = settings.Topic;
-
+            _settings = settings;
             _messageBus = messageBus;
             _groupConsumer = groupConsumer;
 
@@ -35,9 +34,13 @@ namespace SlimMessageBus.Provider.Kafka
             _consumerInstances = ResolveInstances(settings, messageBus);
             _consumerQueue = new BufferBlock<object>();
             _consumerInstances.ForEach(x => _consumerQueue.Post(x));
+
+            var taskType = typeof(Task<>).MakeGenericType(_settings.ResponseType);
+            _taskResult = taskType.GetProperty("Result");
+
         }
 
-        private static List<object> ResolveInstances(SubscriberSettings settings, MessageBusBus messageBusBus)
+        private static List<object> ResolveInstances(SubscriberSettings settings, MessageBusBase messageBusBus)
         {
             var subscribers = new List<object>();
             for (var i = 0; i < settings.Instances; i++)
@@ -67,9 +70,14 @@ namespace SlimMessageBus.Provider.Kafka
             _messages.Enqueue(new MessageProcessingResult(ProcessMessage(msg), msg));
         }
 
-        private async Task ProcessMessage(Message msg)
+        protected async Task ProcessMessage(Message msg)
         {
-            var message = _messageBus.Settings.Serializer.Deserialize(_groupConsumer.MessageType, msg.Payload);
+            string requestId = null, replyTo = null;
+            var message = _settings.IsRequestMessage
+                ? _messageBus.DeserializeRequest(_settings.MessageType, msg.Payload, out requestId, out replyTo)
+                : _messageBus.Settings.Serializer.Deserialize(_groupConsumer.MessageType, msg.Payload);
+
+            object response = null;
 
             var obj = await _consumerQueue.ReceiveAsync(_messageBus.CancellationToken);
             try
@@ -77,12 +85,25 @@ namespace SlimMessageBus.Provider.Kafka
                 //var subscriber = (ISubscriber<object>)obj;
                 //await subscriber.OnHandle(message, msg.Topic);
 
+                // the consumer just subscribes to the message
                 var task = (Task)_consumerInstanceOnHandleMethod.Invoke(obj, new[] { message, msg.Topic });
                 await task;
+
+                if (_settings.ConsumerMode == ConsumerMode.RequestResponse)
+                {
+                    // the consumer handles the request (and replies)
+                    response = _taskResult.GetValue(task);
+                }
             }
             finally
             {
                 await _consumerQueue.SendAsync(obj);
+            }
+
+            if (response != null)
+            {
+                var responsePayload = _messageBus.SerializeResponse(_settings.ResponseType, response, requestId);
+                await _messageBus.Publish(_settings.ResponseType, responsePayload, replyTo);
             }
         }
 
@@ -90,9 +111,9 @@ namespace SlimMessageBus.Provider.Kafka
 
         public void Dispose()
         {
-            foreach (var subscriber in _consumerInstances)
+            foreach (var consumerInstance in _consumerInstances)
             {
-                var dispoable = subscriber as IDisposable;
+                var dispoable = consumerInstance as IDisposable;
                 dispoable?.Dispose();
             }
             _consumerInstances.Clear();

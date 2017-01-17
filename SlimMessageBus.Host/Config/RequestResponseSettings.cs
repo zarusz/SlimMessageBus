@@ -19,15 +19,5 @@ namespace SlimMessageBus.Host.Config
         /// Consummer GroupId to to use for the app domain.
         /// </summary>
         public string Group { get; set; }
-        /// <summary>
-        /// Dedicated <see cref="IMessageSerializer"/> capable of serializing <see cref="MessageWithHeaders"/>.
-        /// By default uses <see cref="MessageWithHeadersSerializer"/>.
-        /// </summary>
-        public IMessageSerializer MessageWithHeadersSerializer { get; set; }
-
-        public RequestResponseSettings()
-        {
-            MessageWithHeadersSerializer = new MessageWithHeadersSerializer();
-        }
     }
 }
