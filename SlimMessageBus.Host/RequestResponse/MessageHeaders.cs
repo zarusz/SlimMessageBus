@@ -4,6 +4,6 @@ namespace SlimMessageBus.Host
     {
         public const string RequestId = "request-id";
         public const string ReplyTo = "reply-to";
-
+        public const string Expires = "expires";
     }
 }

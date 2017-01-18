@@ -75,11 +75,22 @@ namespace SlimMessageBus.Provider.Kafka
         protected async Task ProcessMessage(Message msg)
         {
             string requestId = null, replyTo = null;
+            DateTimeOffset? expires = null;
             var message = _settings.IsRequestMessage
-                ? _messageBus.DeserializeRequest(_settings.MessageType, msg.Payload, out requestId, out replyTo)
+                ? _messageBus.DeserializeRequest(_settings.MessageType, msg.Payload, out requestId, out replyTo, out expires)
                 : _messageBus.Settings.Serializer.Deserialize(_groupConsumer.MessageType, msg.Payload);
 
-            // ToDo: verify if the request already expired
+            // Verify if the request/message is already expired
+            if (expires.HasValue)
+            {
+                var currentTime = _messageBus.CurrentTime;
+                if (currentTime > expires.Value)
+                {
+                    Log.DebugFormat("The request message arrived late and is already expired (expires {0}, current {1})", expires.Value, currentTime);
+                    // Do not process the expired message
+                    return;
+                }
+            }
 
             object response = null;
 

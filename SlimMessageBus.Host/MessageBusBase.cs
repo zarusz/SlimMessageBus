@@ -1,4 +1,5 @@
 using System;
+using System.CodeDom;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -69,6 +70,8 @@ namespace SlimMessageBus.Host
 
         #endregion
 
+        public virtual DateTimeOffset CurrentTime => DateTimeOffset.UtcNow;            
+
         protected virtual string GetDefaultTopic(Type messageType)
         {
             // when topic was not provided, lookup default topic from configuration
@@ -128,10 +131,11 @@ namespace SlimMessageBus.Host
                 topic = GetDefaultTopic(requestType);
             }
             var replyTo = Settings.RequestResponse.Topic;
+            var expires = CurrentTime.Add(timeout);
 
             // generate the request guid
             var requestId = GenerateRequestId();
-            var requestPayload = SerializeRequest(requestType, request, requestId, replyTo);
+            var requestPayload = SerializeRequest(requestType, request, requestId, replyTo, expires);
 
             // record the request state
             var requestState = new PendingRequestState(requestId, request, requestType, typeof(TResponseMessage), timeout);
@@ -158,7 +162,7 @@ namespace SlimMessageBus.Host
 
         #endregion
 
-        public virtual byte[] SerializeRequest(Type requestType, object request, string requestId, string replyTo)
+        public virtual byte[] SerializeRequest(Type requestType, object request, string requestId, string replyTo, DateTimeOffset? expires)
         {
             var requestPayload = Settings.Serializer.Serialize(requestType, request);
 
@@ -166,16 +170,30 @@ namespace SlimMessageBus.Host
             var requestMessage = new MessageWithHeaders(requestPayload);
             requestMessage.Headers.Add(MessageHeaders.RequestId, requestId);
             requestMessage.Headers.Add(MessageHeaders.ReplyTo, replyTo);
+            if (expires.HasValue)
+            {
+                requestMessage.Headers.Add(MessageHeaders.Expires, expires.Value.ToUnixTimeSeconds().ToString());
+            }
 
             var requestMessagePayload = Settings.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), requestMessage);
             return requestMessagePayload;
         }
 
-        public virtual object DeserializeRequest(Type requestType, byte[] requestPayload, out string requestId, out string replyTo)
+        public virtual object DeserializeRequest(Type requestType, byte[] requestPayload, out string requestId, out string replyTo, out DateTimeOffset? expires)
         {
             var requestMessage = (MessageWithHeaders)Settings.MessageWithHeadersSerializer.Deserialize(typeof(MessageWithHeaders), requestPayload);
             requestId = requestMessage.Headers[MessageHeaders.RequestId];
             replyTo = requestMessage.Headers[MessageHeaders.ReplyTo];
+
+            string expiresStr;
+            if (requestMessage.Headers.TryGetValue(MessageHeaders.Expires, out expiresStr))
+            {
+                expires = DateTimeOffset.FromUnixTimeSeconds(long.Parse(expiresStr));
+            }
+            else
+            {
+                expires = null;
+            }
 
             var request = Settings.Serializer.Deserialize(requestType, requestMessage.Payload);
             return request;
