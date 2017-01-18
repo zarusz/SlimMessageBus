@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -20,7 +21,7 @@ namespace SlimMessageBus.Provider.Kafka
         public KafkaMessageBusSettings KafkaSettings { get; }
 
         private Producer _producer;
-        private readonly IDictionary<string, KafkaTopicProducer> _topics = new Dictionary<string, KafkaTopicProducer>();
+        private readonly ConcurrentDictionary<string, KafkaTopicProducer> _topicProducers = new ConcurrentDictionary<string, KafkaTopicProducer>();
         private readonly IList<KafkaGroupConsumerBase> _groupConsumers = new List<KafkaGroupConsumerBase>();
 
         public KafkaMessageBus(MessageBusSettings settings, KafkaMessageBusSettings kafkaSettings)
@@ -32,8 +33,7 @@ namespace SlimMessageBus.Provider.Kafka
             _producer = new Producer(kafkaSettings.BrokerList);
             foreach (var topicName in Settings.Publishers.Select(x => x.DefaultTopic).Distinct())
             {
-                Log.DebugFormat("Creating topic producer {0}", topicName);
-                _topics.Add(topicName, new KafkaTopicProducer(topicName, _producer));
+                AddTopicProducerSafe(topicName);
             }
 
             Log.Info("Creating subscribers");
@@ -64,40 +64,19 @@ namespace SlimMessageBus.Provider.Kafka
         {
             foreach (var groupConsumer in _groupConsumers)
             {
-                try
-                {
-                    groupConsumer.Dispose();
-                }
-                catch (Exception e)
-                {
-                    Log.WarnFormat("Error occured while disposing consumer group {0}. {1}", groupConsumer.Group, e);
-                }
+                groupConsumer.DisposeSilently(e => Log.WarnFormat("Error occured while disposing consumer group {0}. {1}", groupConsumer.Group, e));
             }
             _groupConsumers.Clear();
 
-            foreach (var topic in _topics.Values)
+            foreach (var topic in _topicProducers.Values)
             {
-                try
-                {
-                    topic.Dispose();
-                }
-                catch (Exception e)
-                {
-                    Log.WarnFormat("Error occured while disposing topic {0}. {1}", topic.Name, e);
-                }
+                topic.DisposeSilently(e => Log.WarnFormat("Error occured while disposing topic {0}. {1}", topic.Name, e));
             }
-            _topics.Clear();
+            _topicProducers.Clear();
 
             if (_producer != null)
             {
-                try
-                {
-                    _producer.Dispose();
-                }
-                catch (Exception e)
-                {
-                    Log.WarnFormat("Error occured while producer. {0}", e);
-                }
+                _producer.DisposeSilently(e => Log.WarnFormat("Error occured while disposing producer. {0}", e));
                 _producer = null;
             }
 
@@ -107,7 +86,7 @@ namespace SlimMessageBus.Provider.Kafka
         public override async Task Publish(Type messageType, byte[] payload, string topic)
         {
             // lookup the Kafka topic
-            var kafkaTopic = _topics[topic];
+            var kafkaTopic = GetTopicProducerSafe(topic);
             // send the message to topic
             var deliveryReport = await kafkaTopic.Topic.Produce(payload);
             // log some debug information
@@ -115,5 +94,34 @@ namespace SlimMessageBus.Provider.Kafka
         }
 
         #endregion
+
+        protected KafkaTopicProducer AddTopicProducerSafe(string topic)
+        {
+            KafkaTopicProducer kafkaTopic;
+            // The lock is used to ensure, that during add, only one instance of kafkaTopic instance is created.
+            // Without the lock, multiple instances of the kafka topic could have been created.
+            lock (_topicProducers)
+            {
+                if (!_topicProducers.TryGetValue(topic, out kafkaTopic))
+                {
+                    Log.DebugFormat("Creating topic producer {0}", topic);
+                    kafkaTopic = new KafkaTopicProducer(topic, _producer);
+                    _topicProducers.TryAdd(topic, kafkaTopic);
+                }
+            }
+            return kafkaTopic;
+        }
+
+        protected KafkaTopicProducer GetTopicProducerSafe(string topic)
+        {
+            // lookup the Kafka topic
+            KafkaTopicProducer kafkaTopic;
+            if (!_topicProducers.TryGetValue(topic, out kafkaTopic))
+            {
+                // when the Kafka topic producer does not exist create one
+                kafkaTopic = AddTopicProducerSafe(topic);
+            }
+            return kafkaTopic;
+        }
     }
 }

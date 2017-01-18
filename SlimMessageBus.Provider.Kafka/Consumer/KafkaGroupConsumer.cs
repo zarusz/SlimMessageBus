@@ -54,14 +54,17 @@ namespace SlimMessageBus.Provider.Kafka
 
         public override void Dispose()
         {
-            base.Dispose();
+            // first stop the consumer, so that messages do not get consumed at this point
+            Consumer?.Stop().Wait();
 
             // dispose all subscriber instances
             foreach (var consumerInstances in _consumerInstancesByTopic.Values)
             {
-                consumerInstances.Dispose();
+                consumerInstances.DisposeSilently(e => Log.WarnFormat("Error occured while disposing consumer instances. {0}", e));
             }
             _consumerInstancesByTopic.Clear();
+
+            base.Dispose();
         }
 
         #endregion

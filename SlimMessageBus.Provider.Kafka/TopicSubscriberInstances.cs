@@ -22,7 +22,7 @@ namespace SlimMessageBus.Provider.Kafka
         private readonly KafkaMessageBus _messageBus;
         private readonly KafkaGroupConsumer _groupConsumer;
         private readonly MethodInfo _consumerInstanceOnHandleMethod;
-        private PropertyInfo _taskResult;
+        private readonly PropertyInfo _taskResult;
 
         public TopicConsumerInstances(SubscriberSettings settings, KafkaGroupConsumer groupConsumer, KafkaMessageBus messageBus)
         {
@@ -58,16 +58,18 @@ namespace SlimMessageBus.Provider.Kafka
             return subscribers;
         }
 
+        private int _commitBatchSize = 10;
+
         public void EnqueueMessage(Message msg)
         {
+            _messages.Enqueue(new MessageProcessingResult(ProcessMessage(msg), msg));
+
             // ToDo: add timer trigger
-            if (_messages.Count >= 10)
+            if (_messages.Count >= _commitBatchSize)
             {
-                Log.DebugFormat("Reached {0} message threshold - will commit at offset {1}", 10, msg.TopicPartitionOffset);
+                Log.DebugFormat("Reached {0} message threshold - will commit at offset {1}", _commitBatchSize, msg.TopicPartitionOffset);
                 Commit(msg.TopicPartitionOffset);
             }
-
-            _messages.Enqueue(new MessageProcessingResult(ProcessMessage(msg), msg));
         }
 
         protected async Task ProcessMessage(Message msg)
@@ -76,6 +78,8 @@ namespace SlimMessageBus.Provider.Kafka
             var message = _settings.IsRequestMessage
                 ? _messageBus.DeserializeRequest(_settings.MessageType, msg.Payload, out requestId, out replyTo)
                 : _messageBus.Settings.Serializer.Deserialize(_groupConsumer.MessageType, msg.Payload);
+
+            // ToDo: verify if the request already expired
 
             object response = null;
 
@@ -111,10 +115,9 @@ namespace SlimMessageBus.Provider.Kafka
 
         public void Dispose()
         {
-            foreach (var consumerInstance in _consumerInstances)
+            foreach (var consumerInstance in _consumerInstances.OfType<IDisposable>())
             {
-                var dispoable = consumerInstance as IDisposable;
-                dispoable?.Dispose();
+                consumerInstance.DisposeSilently(e => Log.WarnFormat("Error occured while disposing consumer instance. {0}", e));
             }
             _consumerInstances.Clear();
         }
@@ -123,20 +126,23 @@ namespace SlimMessageBus.Provider.Kafka
 
         public void Commit(TopicPartitionOffset offset)
         {
-            try
+            if (_messages.Count > 0)
             {
-                var tasks = _messages.Select(x => x.Task).ToArray();
-                Task.WaitAll(tasks);
-            }
-            catch (AggregateException e)
-            {
-                Log.ErrorFormat("Errors occured while executing the tasks {0}", e);
+                try
+                {
+                    var tasks = _messages.Select(x => x.Task).ToArray();
+                    Task.WaitAll(tasks);
+                }
+                catch (AggregateException e)
+                {
+                    Log.ErrorFormat("Errors occured while executing the tasks {0}", e);
 
-                // ToDo
-                // some tasks failed
+                    // ToDo
+                    // some tasks failed
 
-                //_messages.OrderBy(x => x.Message.)
+                    //_messages.OrderBy(x => x.Message.)
 
+                }
             }
             _groupConsumer.Commit(offset).Wait();
             _messages.Clear();

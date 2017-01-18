@@ -68,6 +68,7 @@ namespace Sample.Images.Worker.Handlers
             using (var ms = new MemoryStream())
             {
                 image.Save(ms, ImageFormat.Jpeg);
+                ms.Seek(0, SeekOrigin.Begin);
 
                 _fileStore.UploadFile(fileId, ms);
             }
@@ -82,8 +83,8 @@ namespace Sample.Images.Worker.Handlers
             var sourceWidth = imgPhoto.Width;
             var sourceHeight = imgPhoto.Height;
 
-            var scaleW = sourceWidth/(float) targetW;
-            var scaleH = sourceHeight/(float) targetH;
+            var scaleW = targetW / (float) sourceWidth;
+            var scaleH = targetH / (float) sourceHeight;
             var scale = Math.Min(scaleW, scaleH);
 
             var destX = 0;

@@ -64,7 +64,7 @@ namespace Sample.Images.WebApi
                 {
                     x.ReplyToTopic(instanceReplyTo);
                     x.Group(instanceGroup);
-                    x.DefaultTimeout(TimeSpan.FromSeconds(10));
+                    x.DefaultTimeout(TimeSpan.FromSeconds(60));
                 })
                 .WithDependencyResolverAsServiceLocator()
                 .WithSerializer(new JsonMessageSerializer())

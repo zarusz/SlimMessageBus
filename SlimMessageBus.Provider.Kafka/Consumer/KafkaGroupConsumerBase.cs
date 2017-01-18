@@ -48,13 +48,11 @@ namespace SlimMessageBus.Provider.Kafka
 
         public virtual void Dispose()
         {
-            // first stop the consumer, so that messages do not get consumed at this point
-            Consumer?.Stop().Wait();
 
             // dispose the consumer
             if (Consumer != null)
             {
-                Consumer.Dispose();
+                Consumer.DisposeSilently(e => Log.WarnFormat("Error occured while disposing consumer. {0}", e));
                 Consumer = null;
             }
         }
