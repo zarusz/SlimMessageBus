@@ -118,7 +118,7 @@ namespace SlimMessageBus.Provider.Kafka.Test
             _bus.Dispose();
         }
 
-        [TestMethod]
+        [TestMethod, TestCategory("Integration")]
         public void BasicIntegration()
         {
             // ensure the subscribers have established connections and are ready

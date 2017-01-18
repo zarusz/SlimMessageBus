@@ -13,13 +13,12 @@ namespace SlimMessageBus.Provider.Kafka.Test
     {
         private string _brokerList = "127.0.0.1:9092";
 
-        [TestMethod]
+        [TestMethod, TestCategory("Integration")]
         public async Task PublishToTopic()
         {
-            var config = new RdKafka.Config();
-
-
+            //var config = new RdKafka.Config();
             //using (var producer = new Producer(config, brokerList))
+
             using (var producer = new Producer(_brokerList))
             {
                 using (var topic = producer.Topic("testtopic"))
@@ -33,8 +32,8 @@ namespace SlimMessageBus.Provider.Kafka.Test
             }
         }
 
-        [TestMethod]
-        public async Task ConsumeFromTopic()
+        [TestMethod, TestCategory("Integration")]
+        public void ConsumeFromTopic()
         {
             var config = new RdKafka.Config() { GroupId = "example-csharp-consumer" };
             using (var consumer = new EventConsumer(config, _brokerList))
