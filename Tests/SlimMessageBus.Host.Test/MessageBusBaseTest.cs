@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Threading.Tasks;
+using FluentAssertions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization.Json;
-using Assert = Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
 namespace SlimMessageBus.Host.Test
 {
@@ -70,13 +70,13 @@ namespace SlimMessageBus.Host.Test
             Task.WaitAll(new Task[] {r1Task, r2Task}, 3000);
 
             // assert
-            Assert.IsTrue(r1Task.IsCompleted, "Response 1 should be completed");
-            Assert.AreEqual(r1.Id, r1Task.Result.Id);
+            r1Task.IsCompleted.Should().BeTrue("Response 1 should be completed");
+            r1.Id.ShouldBeEquivalentTo(r1Task.Result.Id);
 
-            Assert.IsTrue(r2Task.IsCompleted, "Response 2 should be completed");
-            Assert.AreEqual(r2.Id, r2Task.Result.Id);
+            r2Task.IsCompleted.Should().BeTrue("Response 2 should be completed");
+            r2.Id.ShouldBeEquivalentTo(r2Task.Result.Id);
 
-            Assert.AreEqual(0, _bus.PendingRequestsCount, "There should be no pending requests");
+            _bus.PendingRequestsCount.Should().Be(0, "There should be no pending requests");
         }
 
 
@@ -116,11 +116,10 @@ namespace SlimMessageBus.Host.Test
             }
 
             // assert
-            Assert.IsTrue(r1Task.IsCompleted, "Response 1 should be completed");
-            Assert.IsTrue(r2Task.IsCanceled, "Response 2 should be canceled");
-            Assert.IsTrue(!r3Task.IsCanceled && !r3Task.IsCompleted, "Response 3 should still be pending");
-
-            Assert.AreEqual(1, _bus.PendingRequestsCount, "There should be only 1 pending request");
+            r1Task.IsCompleted.Should().BeTrue("Response 1 should be completed");
+            r2Task.IsCanceled.Should().BeTrue("Response 2 should be canceled");
+            (!r3Task.IsCanceled && !r3Task.IsCompleted).Should().BeTrue("Response 3 should still be pending");
+            _bus.PendingRequestsCount.Should().Be(1, "There should be only 1 pending request");
         }
     }
 
@@ -143,7 +142,8 @@ namespace SlimMessageBus.Host.Test
             Task.Run(() =>
             {
                 string reqId, replyTo;
-                var req = DeserializeRequest(messageType, payload, out reqId, out replyTo);
+                DateTimeOffset? expires;
+                var req = DeserializeRequest(messageType, payload, out reqId, out replyTo, out expires);
 
                 var resp = OnReply(messageType, topic, req);
                 if (resp == null)

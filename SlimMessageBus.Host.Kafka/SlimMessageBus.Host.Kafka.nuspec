@@ -11,8 +11,8 @@
     <iconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>$description$</description>
-    <releaseNotes>Summary of changes made in this release of the package.</releaseNotes>
+    <releaseNotes></releaseNotes>
     <copyright>Copyright 2017</copyright>
-    <tags>SlimMessageBus MessageBus Kafka Facade Abstraction</tags>
+    <tags>SlimMessageBus Kafka Provider MessageBus Facade Abstraction</tags>
   </metadata>
 </package>

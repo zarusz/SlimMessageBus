@@ -100,9 +100,9 @@
       <Project>{72F49AFE-CDB8-4490-AA52-D59EFB20B90F}</Project>
       <Name>SlimMessageBus.Host</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\SlimMessageBus.Provider.Kafka\SlimMessageBus.Provider.Kafka.csproj">
+    <ProjectReference Include="..\..\SlimMessageBus.Host.Kafka\SlimMessageBus.Host.Kafka.csproj">
       <Project>{d50fe4a0-1cda-48f7-ad40-ff17325a3715}</Project>
-      <Name>SlimMessageBus.Provider.Kafka</Name>
+      <Name>SlimMessageBus.Host.Kafka</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\SlimMessageBus\SlimMessageBus.csproj">
       <Project>{09b7c2a3-5af3-401a-bb13-d5558124b46a}</Project>

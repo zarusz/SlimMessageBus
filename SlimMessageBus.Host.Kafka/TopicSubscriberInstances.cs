@@ -6,10 +6,9 @@ using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Common.Logging;
 using RdKafka;
-using SlimMessageBus.Host;
 using SlimMessageBus.Host.Config;
 
-namespace SlimMessageBus.Provider.Kafka
+namespace SlimMessageBus.Host.Kafka
 {
     public class TopicConsumerInstances : IDisposable
     {
@@ -18,13 +17,13 @@ namespace SlimMessageBus.Provider.Kafka
         private readonly List<object> _consumerInstances;
         private readonly BufferBlock<object> _consumerQueue;
         private readonly Queue<MessageProcessingResult> _messages = new Queue<MessageProcessingResult>();
-        private readonly SubscriberSettings _settings;
+        private readonly ConsumerSettings _settings;
         private readonly KafkaMessageBus _messageBus;
         private readonly KafkaGroupConsumer _groupConsumer;
         private readonly MethodInfo _consumerInstanceOnHandleMethod;
         private readonly PropertyInfo _taskResult;
 
-        public TopicConsumerInstances(SubscriberSettings settings, KafkaGroupConsumer groupConsumer, KafkaMessageBus messageBus)
+        public TopicConsumerInstances(ConsumerSettings settings, KafkaGroupConsumer groupConsumer, KafkaMessageBus messageBus)
         {
             _settings = settings;
             _messageBus = messageBus;
@@ -35,12 +34,15 @@ namespace SlimMessageBus.Provider.Kafka
             _consumerQueue = new BufferBlock<object>();
             _consumerInstances.ForEach(x => _consumerQueue.Post(x));
 
-            var taskType = typeof(Task<>).MakeGenericType(_settings.ResponseType);
-            _taskResult = taskType.GetProperty("Result");
+            if (_settings.ConsumerMode == ConsumerMode.RequestResponse)
+            {
+                var taskType = typeof(Task<>).MakeGenericType(_settings.ResponseType);
+                _taskResult = taskType.GetProperty("Result");
+            }
 
         }
 
-        private static List<object> ResolveInstances(SubscriberSettings settings, MessageBusBase messageBusBus)
+        private static List<object> ResolveInstances(ConsumerSettings settings, MessageBusBase messageBusBus)
         {
             var subscribers = new List<object>();
             for (var i = 0; i < settings.Instances; i++)
@@ -88,6 +90,8 @@ namespace SlimMessageBus.Provider.Kafka
                 {
                     Log.DebugFormat("The request message arrived late and is already expired (expires {0}, current {1})", expires.Value, currentTime);
                     // Do not process the expired message
+
+                    // ToDo: add and API hook to these kind of situation
                     return;
                 }
             }
@@ -128,7 +132,7 @@ namespace SlimMessageBus.Provider.Kafka
         {
             foreach (var consumerInstance in _consumerInstances.OfType<IDisposable>())
             {
-                consumerInstance.DisposeSilently(e => Log.WarnFormat("Error occured while disposing consumer instance. {0}", e));
+                consumerInstance.DisposeSilently("consumer instance", Log);
             }
             _consumerInstances.Clear();
         }

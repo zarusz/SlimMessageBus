@@ -5,7 +5,7 @@ using Common.Logging;
 using RdKafka;
 using SlimMessageBus.Host.Config;
 
-namespace SlimMessageBus.Provider.Kafka
+namespace SlimMessageBus.Host.Kafka
 {
     public class KafkaGroupConsumer : KafkaGroupConsumerBase
     {
@@ -15,7 +15,7 @@ namespace SlimMessageBus.Provider.Kafka
 
         private readonly IDictionary<string, TopicConsumerInstances> _consumerInstancesByTopic;
 
-        public KafkaGroupConsumer(KafkaMessageBus messageBus, string group, Type messageType, ICollection<SubscriberSettings> groupSubscriberSettings)
+        public KafkaGroupConsumer(KafkaMessageBus messageBus, string group, Type messageType, ICollection<ConsumerSettings> groupSubscriberSettings)
             : base(messageBus, group, groupSubscriberSettings.Select(x => x.Topic).ToList())
         {
             Log.InfoFormat("Creating consumer for topics {0} and group {1}", string.Join(",", groupSubscriberSettings.Select(x => x.Topic)), group);
@@ -60,7 +60,7 @@ namespace SlimMessageBus.Provider.Kafka
             // dispose all subscriber instances
             foreach (var consumerInstances in _consumerInstancesByTopic.Values)
             {
-                consumerInstances.DisposeSilently(e => Log.WarnFormat("Error occured while disposing consumer instances. {0}", e));
+                consumerInstances.DisposeSilently("consumer instances", Log);
             }
             _consumerInstancesByTopic.Clear();
 

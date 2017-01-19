@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using RdKafka;
 
-namespace SlimMessageBus.Provider.Kafka.Test
+namespace SlimMessageBus.Host.Kafka.Test
 {
     [TestClass]
     public class KafkaConnectionIt
@@ -35,7 +35,7 @@ namespace SlimMessageBus.Provider.Kafka.Test
         [TestMethod, TestCategory("Integration")]
         public void ConsumeFromTopic()
         {
-            var config = new RdKafka.Config() { GroupId = "example-csharp-consumer" };
+            var config = new RdKafka.Config { GroupId = "example-csharp-consumer" };
             using (var consumer = new EventConsumer(config, _brokerList))
             {
                 consumer.OnMessage += (obj, msg) =>

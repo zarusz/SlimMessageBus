@@ -12,7 +12,7 @@ using SlimMessageBus;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.ServiceLocator;
-using SlimMessageBus.Provider.Kafka;
+using SlimMessageBus.Host.Kafka;
 
 namespace Sample.Images.WebApi
 {

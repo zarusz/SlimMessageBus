@@ -8,8 +8,8 @@
     <ProjectGuid>{D50FE4A0-1CDA-48F7-AD40-FF17325A3715}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>SlimMessageBus.Provider.Kafka</RootNamespace>
-    <AssemblyName>SlimMessageBus.Provider.Kafka</AssemblyName>
+    <RootNamespace>SlimMessageBus.Host.Kafka</RootNamespace>
+    <AssemblyName>SlimMessageBus.Host.Kafka</AssemblyName>
     <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <NuGetPackageImportStamp>
@@ -67,11 +67,10 @@
     <Compile Include="KafkaMessageBusSettings.cs" />
     <Compile Include="KafkaRequestResponseBus.cs" />
     <Compile Include="Consumer\KafkaResponseConsumer.cs" />
-    <Compile Include="KafkaTopic.cs" />
+    <Compile Include="Producer\KafkaTopicProducer.cs" />
     <Compile Include="MessageProcessingResult.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TopicSubscriberInstances.cs" />
-    <Compile Include="Utils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

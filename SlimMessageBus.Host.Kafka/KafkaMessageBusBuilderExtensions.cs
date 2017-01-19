@@ -1,6 +1,6 @@
 using SlimMessageBus.Host.Config;
 
-namespace SlimMessageBus.Provider.Kafka
+namespace SlimMessageBus.Host.Kafka
 {
     public static class KafkaMessageBusBuilderExtensions
     {

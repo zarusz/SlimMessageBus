@@ -3,7 +3,7 @@ using Common.Logging;
 using RdKafka;
 using SlimMessageBus.Host.Config;
 
-namespace SlimMessageBus.Provider.Kafka
+namespace SlimMessageBus.Host.Kafka
 {
     public class KafkaResponseConsumer : KafkaGroupConsumerBase
     {

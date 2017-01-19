@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Common.Logging;
 using RdKafka;
 
-namespace SlimMessageBus.Provider.Kafka
+namespace SlimMessageBus.Host.Kafka
 {
     public abstract class KafkaGroupConsumerBase : IDisposable
     {
@@ -20,7 +20,7 @@ namespace SlimMessageBus.Provider.Kafka
             MessageBus = messageBus;
             Group = group;
 
-            var config = new Config
+            var config = new RdKafka.Config
             {
                 GroupId = group,
                 EnableAutoCommit = false
@@ -52,7 +52,7 @@ namespace SlimMessageBus.Provider.Kafka
             // dispose the consumer
             if (Consumer != null)
             {
-                Consumer.DisposeSilently(e => Log.WarnFormat("Error occured while disposing consumer. {0}", e));
+                Consumer.DisposeSilently("consumer", Log);
                 Consumer = null;
             }
         }

@@ -10,7 +10,7 @@ namespace SlimMessageBus.Host.Config
         /// <summary>
         /// Default wait time for the response to come in. This is used when the timeout during publish was not provided.
         /// </summary>
-        public TimeSpan Timeout { get; set; }
+        public TimeSpan? Timeout { get; set; }
         /// <summary>
         /// Individual topic that will act as a the private reply queue for the app domain.
         /// </summary>

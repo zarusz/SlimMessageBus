@@ -49,31 +49,39 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Config\Fluent\ConsumerBuilder.cs" />
+    <Compile Include="Config\ConsumerSettings.cs" />
+    <Compile Include="Config\Fluent\GroupConsumerBuilder.cs" />
+    <Compile Include="Config\Fluent\GroupHandlerBuilder.cs" />
+    <Compile Include="Config\Fluent\HandlerBuilder.cs" />
+    <Compile Include="Config\Fluent\TopicConsumerBuilder.cs" />
+    <Compile Include="Config\Fluent\TopicHandlerBuilder.cs" />
     <Compile Include="MessageBusBase.cs" />
     <Compile Include="RequestResponse\MessageHeaders.cs" />
     <Compile Include="ConfigurationMessageBusException.cs" />
-    <Compile Include="Config\Assert.cs" />
-    <Compile Include="Config\GroupBuilder.cs" />
+    <Compile Include="Utility\Assert.cs" />
+    <Compile Include="Config\Fluent\GroupBuilder.cs" />
     <Compile Include="Config\GroupSettings.cs" />
-    <Compile Include="Config\GroupSubscriberBuilder.cs" />
+    <Compile Include="Config\Fluent\GroupSubscriberBuilder.cs" />
     <Compile Include="Config\HasProviderExtensions.cs" />
-    <Compile Include="Config\TopicSubscriberBuilder.cs" />
+    <Compile Include="Config\Fluent\TopicSubscriberBuilder.cs" />
     <Compile Include="IMessageSerializer.cs" />
-    <Compile Include="Config\MessageBusBuilder.cs" />
+    <Compile Include="Config\Fluent\MessageBusBuilder.cs" />
     <Compile Include="Config\MessageBusConfigurationSection.cs" />
     <Compile Include="Config\MessageBusSettings.cs" />
-    <Compile Include="Config\PublisherBuilder.cs" />
+    <Compile Include="Config\Fluent\PublisherBuilder.cs" />
     <Compile Include="Config\PublisherSettings.cs" />
-    <Compile Include="Config\RequestResponseBuilder.cs" />
+    <Compile Include="Config\Fluent\RequestResponseBuilder.cs" />
     <Compile Include="Config\RequestResponseSettings.cs" />
-    <Compile Include="Config\SubscriberBuilder.cs" />
-    <Compile Include="Config\SubscriberSettings.cs" />
+    <Compile Include="Config\Fluent\SubscriberBuilder.cs" />
+    <Compile Include="Config\ConsumerMode.cs" />
     <Compile Include="DependencyResolver\IDependencyResolver.cs" />
     <Compile Include="RequestResponse\MessageWithHeaders.cs" />
     <Compile Include="RequestResponse\MessageWithHeadersSerializer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RequestResponse\PendingRequestState.cs" />
     <Compile Include="DependencyResolver\DependencyResolverChain.cs" />
+    <Compile Include="Utility\Utils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

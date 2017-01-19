@@ -2,18 +2,16 @@ using System;
 
 namespace SlimMessageBus.Host.Config
 {
-    public class SubscriberBuilder<T>
+    public class SubscriberBuilder<T> : ConsumerBuilder<T>
     {
-        private readonly MessageBusSettings _settings;
-
         public SubscriberBuilder(MessageBusSettings settings)
+            : base(settings)
         {
-            _settings = settings;
         }
 
         public TopicSubscriberBuilder<T> Topic(string topic)
         {
-            return new TopicSubscriberBuilder<T>(topic, _settings);
+            return new TopicSubscriberBuilder<T>(topic, Settings);
         }
 
         public TopicSubscriberBuilder<T> Topic(string topic, Action<TopicSubscriberBuilder<T>> topicConfig)

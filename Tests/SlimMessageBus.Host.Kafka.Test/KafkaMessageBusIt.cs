@@ -1,16 +1,14 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Common.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SlimMessageBus.Host;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization.Json;
 
-namespace SlimMessageBus.Provider.Kafka.Test
+namespace SlimMessageBus.Host.Kafka.Test
 {
     public class PingMessage
     {
@@ -97,12 +95,13 @@ namespace SlimMessageBus.Provider.Kafka.Test
                 {
                     x.Topic(topic)
                         .Group("subscriber1")
-                        .WithConsumer<PingSubscriber>()
+                        .WithSubscriber<PingSubscriber>()
                         .Instances(1);
                 })
                 .ExpectRequestResponses(x =>
                 {
                     x.ReplyToTopic($"worker-{instanceId}-response");
+                    x.Group($"worker-{instanceId}");
                     x.DefaultTimeout(TimeSpan.FromSeconds(10));
                 })
                 .WithSerializer(new JsonMessageSerializer())

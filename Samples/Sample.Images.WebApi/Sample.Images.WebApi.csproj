@@ -345,9 +345,9 @@
       <Project>{39d70a9e-f54f-407d-a74f-e342d264d623}</Project>
       <Name>Sample.Images.FileStore</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\SlimMessageBus.Provider.Kafka\SlimMessageBus.Provider.Kafka.csproj">
+    <ProjectReference Include="..\..\SlimMessageBus.Host.Kafka\SlimMessageBus.Host.Kafka.csproj">
       <Project>{d50fe4a0-1cda-48f7-ad40-ff17325a3715}</Project>
-      <Name>SlimMessageBus.Provider.Kafka</Name>
+      <Name>SlimMessageBus.Host.Kafka</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\SlimMessageBus\SlimMessageBus.csproj">
       <Project>{09b7c2a3-5af3-401a-bb13-d5558124b46a}</Project>

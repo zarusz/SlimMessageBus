@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 using RdKafka;
 
-namespace SlimMessageBus.Provider.Kafka
+namespace SlimMessageBus.Host.Kafka
 {
     public class MessageProcessingResult
     {

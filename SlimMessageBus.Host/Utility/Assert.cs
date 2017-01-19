@@ -1,6 +1,6 @@
 using System;
 
-namespace SlimMessageBus.Host.Config
+namespace SlimMessageBus.Host
 {
     public class Assert
     {

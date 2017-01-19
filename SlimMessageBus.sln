@@ -15,9 +15,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Test", "Test
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host", "SlimMessageBus.Host\SlimMessageBus.Host.csproj", "{72F49AFE-CDB8-4490-AA52-D59EFB20B90F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Provider.Kafka", "SlimMessageBus.Provider.Kafka\SlimMessageBus.Provider.Kafka.csproj", "{D50FE4A0-1CDA-48F7-AD40-FF17325A3715}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.Kafka", "SlimMessageBus.Host.Kafka\SlimMessageBus.Host.Kafka.csproj", "{D50FE4A0-1CDA-48F7-AD40-FF17325A3715}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Provider.Kafka.Test", "Tests\SlimMessageBus.Provider.Kafka.Test\SlimMessageBus.Provider.Kafka.Test.csproj", "{5B1B5E4B-DB8A-49CE-A1D9-103083F6EBDB}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.Kafka.Test", "Tests\SlimMessageBus.Host.Kafka.Test\SlimMessageBus.Host.Kafka.Test.csproj", "{5B1B5E4B-DB8A-49CE-A1D9-103083F6EBDB}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.Serialization.Json", "SlimMessageBus.Host.Serialization.Json\SlimMessageBus.Host.Serialization.Json.csproj", "{CB7D8D2E-1272-406E-B7C2-8AE072FE80EB}"
 EndProject

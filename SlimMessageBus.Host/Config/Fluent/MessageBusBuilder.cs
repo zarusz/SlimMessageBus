@@ -15,9 +15,16 @@ namespace SlimMessageBus.Host.Config
             return this;
         }
 
-        public MessageBusBuilder SubscribeTo<T>(Action<SubscriberBuilder<T>> subscriberBuilder)
+        public MessageBusBuilder SubscribeTo<TMessage>(Action<SubscriberBuilder<TMessage>> subscriberBuilder)
         {
-            subscriberBuilder(new SubscriberBuilder<T>(_settings));
+            subscriberBuilder(new SubscriberBuilder<TMessage>(_settings));
+            return this;
+        }
+
+        public MessageBusBuilder Handle<TRequest, TResponse>(Action<HandlerBuilder<TRequest, TResponse>> handlerBuilder)
+            where TRequest: IRequestMessage<TResponse>
+        {
+            handlerBuilder(new HandlerBuilder<TRequest, TResponse>(_settings));
             return this;
         }
 
@@ -28,15 +35,6 @@ namespace SlimMessageBus.Host.Config
             _settings.RequestResponse = item;
             return this;
         }
-
-        /*
-        public MessageBusBuilder WithGroup(Action<GroupBuilder> groupBuilder)
-        {
-            _group = new GroupSettings();
-            groupBuilder(new GroupBuilder(_group));
-            return this;
-        }
-        */
 
         public MessageBusBuilder WithSerializer(IMessageSerializer serializer)
         {

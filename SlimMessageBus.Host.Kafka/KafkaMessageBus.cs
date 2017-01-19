@@ -5,10 +5,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using Common.Logging;
 using RdKafka;
-using SlimMessageBus.Host;
 using SlimMessageBus.Host.Config;
 
-namespace SlimMessageBus.Provider.Kafka
+namespace SlimMessageBus.Host.Kafka
 {
     /// <summary>
     ///
@@ -37,7 +36,7 @@ namespace SlimMessageBus.Provider.Kafka
             }
 
             Log.Info("Creating subscribers");
-            foreach (var subscribersByGroup in settings.Subscribers.GroupBy(x => x.Group))
+            foreach (var subscribersByGroup in settings.Consumers.GroupBy(x => x.Group))
             {
                 var group = subscribersByGroup.Key;
 
@@ -64,19 +63,19 @@ namespace SlimMessageBus.Provider.Kafka
         {
             foreach (var groupConsumer in _groupConsumers)
             {
-                groupConsumer.DisposeSilently(e => Log.WarnFormat("Error occured while disposing consumer group {0}. {1}", groupConsumer.Group, e));
+                groupConsumer.DisposeSilently(() => $"consumer group {groupConsumer.Group}", Log);
             }
             _groupConsumers.Clear();
 
             foreach (var topic in _topicProducers.Values)
             {
-                topic.DisposeSilently(e => Log.WarnFormat("Error occured while disposing topic {0}. {1}", topic.Name, e));
+                topic.DisposeSilently(() => $"topic {topic.Name}", Log);
             }
             _topicProducers.Clear();
 
             if (_producer != null)
             {
-                _producer.DisposeSilently(e => Log.WarnFormat("Error occured while disposing producer. {0}", e));
+                _producer.DisposeSilently("producer", Log);
                 _producer = null;
             }
 

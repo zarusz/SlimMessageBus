@@ -5,7 +5,7 @@ namespace SlimMessageBus.Host.Config
     public class MessageBusSettings
     {
         public IList<PublisherSettings> Publishers { get; }
-        public IList<SubscriberSettings> Subscribers { get; }
+        public IList<ConsumerSettings> Consumers { get; }
         public RequestResponseSettings RequestResponse { get; set; }
         public IMessageSerializer Serializer { get; set; }
         /// <summary>
@@ -18,7 +18,7 @@ namespace SlimMessageBus.Host.Config
         public MessageBusSettings()
         {
             Publishers = new List<PublisherSettings>();
-            Subscribers = new List<SubscriberSettings>();
+            Consumers = new List<ConsumerSettings>();
             MessageWithHeadersSerializer = new MessageWithHeadersSerializer();
         }
     }

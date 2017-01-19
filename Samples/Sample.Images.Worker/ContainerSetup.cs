@@ -1,4 +1,4 @@
-using System;   
+using System;
 using System.Configuration;
 using Autofac;
 using Autofac.Extras.CommonServiceLocator;
@@ -11,7 +11,7 @@ using SlimMessageBus;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.ServiceLocator;
-using SlimMessageBus.Provider.Kafka;
+using SlimMessageBus.Host.Kafka;
 
 namespace Sample.Images.Worker
 {
@@ -56,13 +56,12 @@ namespace Sample.Images.Worker
             var sharedGroup = $"workers";
 
             var messageBusBuilder = new MessageBusBuilder()
-                // ToDo: ReplyTo<>
-                .SubscribeTo<GenerateThumbnailRequest>(s =>
+                .Handle<GenerateThumbnailRequest, GenerateThumbnailResponse>(s =>
                 {
                     s.Topic("thumbnail-generation", t =>
                     {
                         t.Group(sharedGroup)
-                            .WithConsumer<GenerateThumbnailRequestHandler>()
+                            .WithHandler<GenerateThumbnailRequestHandler>()
                             .Instances(3);
 
                         //t.Group(sharedGroup)

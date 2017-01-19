@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Text;
+using FluentAssertions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace SlimMessageBus.Host.Test
@@ -32,8 +33,8 @@ namespace SlimMessageBus.Host.Test
             var m2 = (MessageWithHeaders)_serializer.Deserialize(typeof(MessageWithHeaders), payload);
 
             // assert
-            Assert.AreEqual(0, m2.Headers.Count);
-            Assert.IsTrue(_payload.SequenceEqual(m2.Payload));
+            m2.Headers.Count.Should().Be(0);
+            _payload.SequenceEqual(m2.Payload).Should().BeTrue();
         }
 
         [TestMethod]
@@ -55,12 +56,12 @@ namespace SlimMessageBus.Host.Test
             var m2 = (MessageWithHeaders)_serializer.Deserialize(typeof(MessageWithHeaders), payload);
 
             // assert
-            Assert.AreEqual(2, m2.Headers.Count);
-            Assert.IsTrue(m2.Headers.ContainsKey("key1"));
-            Assert.AreEqual("value1", m2.Headers["key1"]);
-            Assert.IsTrue(m2.Headers.ContainsKey("key2"));
-            Assert.AreEqual("value22", m2.Headers["key2"]);
-            Assert.IsTrue(_payload.SequenceEqual(m2.Payload));
+            m2.Headers.Count.Should().Be(2);
+            m2.Headers.ContainsKey("key1").Should().BeTrue();
+            m2.Headers["key1"].ShouldBeEquivalentTo("value1");
+            m2.Headers.ContainsKey("key2").Should().BeTrue();
+            m2.Headers["key2"].ShouldBeEquivalentTo("value22");
+            _payload.SequenceEqual(m2.Payload).Should().BeTrue();
         }
     }
 }

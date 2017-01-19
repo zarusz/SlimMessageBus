@@ -2,7 +2,7 @@ using System;
 using Common.Logging;
 using RdKafka;
 
-namespace SlimMessageBus.Provider.Kafka
+namespace SlimMessageBus.Host.Kafka
 {
     public class KafkaTopicProducer : IDisposable
     {
@@ -23,7 +23,7 @@ namespace SlimMessageBus.Provider.Kafka
         {
             if (Topic != null)
             {
-                Topic.DisposeSilently(e => Log.WarnFormat("Error occured while disposing kafka topic. {0}", e));
+                Topic.DisposeSilently("kafka topic", Log);
                 Topic = null;
             }
         }

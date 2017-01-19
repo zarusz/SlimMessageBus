@@ -1,5 +1,4 @@
 using System;
-using System.CodeDom;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -42,24 +41,6 @@ namespace SlimMessageBus.Host
             PendingRequestsTimer.Start();
         }
 
-        protected virtual void CleanRequestReqistry(object sender, ElapsedEventArgs args)
-        {
-            var now = DateTime.Now;
-
-            var requestsToExpire = PendingRequests.Values.Where(x => x.Expire < now).ToList();
-            foreach (var requestState in requestsToExpire)
-            {
-                var canceled = requestState.TaskCompletionSource.TrySetCanceled();
-                if (canceled)
-                {
-                    Log.DebugFormat("Pending request timed-out: {0}", requestState);
-                }
-
-                PendingRequestState s;
-                PendingRequests.TryRemove(requestState.Id, out s);
-            }
-        }
-
         #region Implementation of IDisposable
 
         public virtual void Dispose()
@@ -70,18 +51,41 @@ namespace SlimMessageBus.Host
 
         #endregion
 
-        public virtual DateTimeOffset CurrentTime => DateTimeOffset.UtcNow;            
-
-        protected virtual string GetDefaultTopic(Type messageType)
+        protected virtual void CleanRequestReqistry(object sender, ElapsedEventArgs args)
         {
-            // when topic was not provided, lookup default topic from configuration
+            var now = CurrentTime;
 
+            var requestsToExpire = PendingRequests.Values.Where(x => x.Expires < now).ToList();
+            foreach (var requestState in requestsToExpire)
+            {
+                var canceled = requestState.TaskCompletionSource.TrySetCanceled();
+
+                PendingRequestState s;
+                if (PendingRequests.TryRemove(requestState.Id, out s) && canceled)
+                {
+                    Log.DebugFormat("Pending request timed-out: {0}", requestState);
+                    // ToDo: add and API hook to these kind of situation
+                }
+            }
+        }
+
+        public virtual DateTimeOffset CurrentTime => DateTimeOffset.UtcNow;
+
+        protected PublisherSettings GetPublisherSettings(Type messageType)
+        {
             PublisherSettings publisherSettings;
             if (!PublisherSettingsByMessageType.TryGetValue(messageType, out publisherSettings))
             {
                 throw new PublishMessageBusException($"Message of type {messageType} was not registered as a supported publish message. Please check your MessageBus configuration and include this type.");
             }
 
+            return publisherSettings;
+        }
+
+        protected virtual string GetDefaultTopic(Type messageType)
+        {
+            // when topic was not provided, lookup default topic from configuration
+            var publisherSettings = GetPublisherSettings(messageType);
             var topic = publisherSettings.DefaultTopic;
             Log.DebugFormat("Applying default topic {0} for message type {1}", topic, messageType);
             return topic;
@@ -111,14 +115,8 @@ namespace SlimMessageBus.Host
 
         #endregion
 
-        #region Implementation of IRequestResponseBus
 
-        public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string topic = null)
-        {
-            return await Send(request, Settings.RequestResponse.Timeout, topic);
-        }
-
-        public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string topic = null)
+        public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan? timeout, string topic)
         {
             if (Settings.RequestResponse == null)
             {
@@ -126,19 +124,29 @@ namespace SlimMessageBus.Host
             }
 
             var requestType = request.GetType();
+
+            var publisherSettings = GetPublisherSettings(requestType);
             if (topic == null)
             {
-                topic = GetDefaultTopic(requestType);
+                topic = publisherSettings.DefaultTopic;
+                Log.DebugFormat("Applying default topic {0} for message type {1}", topic, requestType);
             }
+            if (timeout == null && publisherSettings.Timeout != null)
+            {
+                timeout = publisherSettings.Timeout;
+                Log.DebugFormat("Applying default timeout {0} for message type {1}", timeout, requestType);
+            }
+
             var replyTo = Settings.RequestResponse.Topic;
-            var expires = CurrentTime.Add(timeout);
+            var created = CurrentTime;
+            var expires = timeout.HasValue ? created.Add(timeout.Value) : (DateTimeOffset?) null;
 
             // generate the request guid
             var requestId = GenerateRequestId();
             var requestPayload = SerializeRequest(requestType, request, requestId, replyTo, expires);
 
             // record the request state
-            var requestState = new PendingRequestState(requestId, request, requestType, typeof(TResponseMessage), timeout);
+            var requestState = new PendingRequestState(requestId, request, requestType, typeof(TResponseMessage), created, expires);
             PendingRequests.TryAdd(requestId, requestState);
 
             try
@@ -159,6 +167,17 @@ namespace SlimMessageBus.Host
             return await typedTask;
         }
 
+        #region Implementation of IRequestResponseBus
+
+        public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string topic = null)
+        {
+            return await Send(request, Settings.RequestResponse.Timeout, topic);
+        }
+
+        public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string topic = null)
+        {
+            return await Send(request, (TimeSpan?) timeout, topic);
+        }
 
         #endregion
 
@@ -254,7 +273,7 @@ namespace SlimMessageBus.Host
             if (!PendingRequests.TryGetValue(requestId, out requestState))
             {
                 Log.DebugFormat("The response message with request id {0} arriving on topic {1} already expired.", requestId, topic);
-                // ToDo add a callback hook
+                // ToDo: add and API hook to these kind of situation
                 return;
             }
 
@@ -262,7 +281,7 @@ namespace SlimMessageBus.Host
             {
                 if (Log.IsDebugEnabled)
                 {
-                    var tookTimespan = DateTime.Now.Subtract(requestState.Created);
+                    var tookTimespan = CurrentTime.Subtract(requestState.Created);
                     Log.DebugFormat("Response arrived for {0} on topic {1} (time: {2} ms)", requestState, topic, tookTimespan);
                 }
 

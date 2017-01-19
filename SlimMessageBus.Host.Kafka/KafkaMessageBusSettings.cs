@@ -1,4 +1,4 @@
-namespace SlimMessageBus.Provider.Kafka
+namespace SlimMessageBus.Host.Kafka
 {
     public class KafkaMessageBusSettings
     {
