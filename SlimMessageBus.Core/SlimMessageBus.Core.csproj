@@ -51,8 +51,6 @@
     <Compile Include="Config\MessageBusConfigExtensions.cs" />
     <Compile Include="Config\MessageBusExtensions.cs" />
     <Compile Include="Config\SimpleMessageBusBuilder.cs" />
-    <Compile Include="HandlerResolverChain.cs" />
-    <Compile Include="IHandlerResolver.cs" />
     <Compile Include="Config\MessageBusBuilder.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SimpleMessageBus.cs" />

@@ -48,12 +48,18 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="IHandles.cs" />
+    <Compile Include="IPublishBus.cs" />
+    <Compile Include="RequestResponse\IRequestHandler.cs" />
     <Compile Include="IMessageBus.cs" />
-    <Compile Include="IMessageBusPublisher.cs" />
-    <Compile Include="IMessageBusSubscriber.cs" />
+    <Compile Include="IPublisher.cs" />
+    <Compile Include="IMessageBusSubscription.cs" />
+    <Compile Include="RequestResponse\IRequestMessage.cs" />
+    <Compile Include="RequestResponse\IRequestResponseBus.cs" />
+    <Compile Include="IConsumer.cs" />
     <Compile Include="MessageBus.cs" />
+    <Compile Include="Exceptions\MessageBusException.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Exceptions\PublishMessageBusException.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

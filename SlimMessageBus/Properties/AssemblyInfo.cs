@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("SlimMessageBus")]
-[assembly: AssemblyDescription("A lightweight pub/sub message bus interface. The goal of this library is to introduce a slim common interface. Use one of the extensions to add in-process, sync/async or out of process message passing. Only adds what you actually use, while giving a great potential for growth as your app evolves.")]
+[assembly: AssemblyDescription("A lightweight message bus interface. The goal of this library is to introduce a slim facade for messaging brokers. Use one of the extensions to add in-process, Apacke Kafka or Azure EventHub. Only adds what you actually use, while giving a great potential for growth as your app evolves.")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("zarusz")]
 [assembly: AssemblyProduct("SlimMessageBus")]
@@ -32,5 +32,5 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("0.8.1.*")]
+[assembly: AssemblyVersion("0.9.1.*")]
 [assembly: AssemblyFileVersion("1.0.0.0")]

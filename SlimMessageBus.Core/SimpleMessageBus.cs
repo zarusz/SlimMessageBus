@@ -5,10 +5,12 @@ using Common.Logging;
 
 namespace SlimMessageBus.Core
 {
+
     /// <summary>
     /// SimpleMessageBus <see cref="IMessageBus"/> implementation that maintains a list of subscriptions.
     /// This class is not thread-safe.
     /// </summary>
+    /*
     public class SimpleMessageBus : IMessageBus
     {
         private readonly ILog _log;
@@ -24,8 +26,7 @@ namespace SlimMessageBus.Core
         {
         }
 
-        private readonly IDictionary<Type, ICollection<object>> _subscriptions =
-            new Dictionary<Type, ICollection<object>>();
+        private readonly IDictionary<Type, ICollection<object>> _subscriptions = new Dictionary<Type, ICollection<object>>();
 
         private ICollection<object> GetOwnHandlersOrNull<TEvent>()
         {
@@ -35,14 +36,14 @@ namespace SlimMessageBus.Core
             return handlers;
         }
 
-        protected virtual IEnumerable<IHandles<TMessage>> GetOwnTypedHandlersOrNull<TMessage>()
+        protected virtual IEnumerable<IConsumer<TMessage>> GetOwnTypedHandlersOrNull<TMessage>()
         {
             var handlers = GetOwnHandlersOrNull<TMessage>();
-            var typedHandlers = handlers?.Cast<IHandles<TMessage>>();
+            var typedHandlers = handlers?.Cast<IConsumer<TMessage>>();
             return typedHandlers;
         }
 
-        protected virtual IEnumerable<IHandles<TMessage>> GetTypedHandlersOrNull<TMessage>()
+        protected virtual IEnumerable<IConsumer<TMessage>> GetTypedHandlersOrNull<TMessage>()
         {
             var typedHandlers = GetOwnTypedHandlersOrNull<TMessage>();
 
@@ -67,7 +68,7 @@ namespace SlimMessageBus.Core
         #endregion
 
 
-        public void Subscribe<TEvent>(IHandles<TEvent> handler)
+        public void Subscribe<TEvent>(IConsumer<TEvent> handler)
         {
             _log.Debug(m => m("Subscribing handler {0} to event {1}", handler, typeof(TEvent)));
 
@@ -82,7 +83,7 @@ namespace SlimMessageBus.Core
             handlers.Add(handler);
         }
 
-        public void UnSubscribe<TEvent>(IHandles<TEvent> handler)
+        public void UnSubscribe<TEvent>(IConsumer<TEvent> handler)
         {
             _log.Debug(m => m("UnSubscribing handler {0} from event {1}", handler, typeof(TEvent)));
 
@@ -115,7 +116,7 @@ namespace SlimMessageBus.Core
 
         #endregion
 
-        protected virtual void CallHandlers<TEvent>(IEnumerable<IHandles<TEvent>> handlers, TEvent e)
+        protected virtual void CallHandlers<TEvent>(IEnumerable<IConsumer<TEvent>> handlers, TEvent e)
         {
             foreach (var handler in handlers)
             {
@@ -123,9 +124,10 @@ namespace SlimMessageBus.Core
             }
         }
 
-        protected virtual void CallHandler<TEvent>(IHandles<TEvent> handler, TEvent e)
+        protected virtual void CallHandler<TEvent>(IConsumer<TEvent> handler, TEvent e)
         {
             handler.Handle(e);
         }
     }
+    */
 }
