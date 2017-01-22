@@ -1,6 +1,6 @@
 # SlimMessageBus
 
-SlimMessageBus is a facade for message brokers for .NET. It comes with implementations for specific technologies (Apacke Kafka, Azure EventHub, MQTT/Mosquitto, Redis Pub/Sub) and the simplest one for in memory message passing (in-process communication). SlimMessageBus additionally provides request-response messaging abstraction.
+SlimMessageBus is a facade for message brokers for .NET. It comes with implementations for specific technologies (Apache Kafka, Azure EventHub, MQTT/Mosquitto, Redis Pub/Sub) and also for in memory message passing (in-process communication). SlimMessageBus additionally provides request-response messaging abstraction.
 
 [![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s/branch/develop?svg=true)](https://ci.appveyor.com/project/zarusz/slimmessagebus/branch/develop)
 
