@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("SlimMessageBus.Host.Serialization.Json")]
-[assembly: AssemblyDescription("Extension to SlimMessageBus that provides JSON serialization based on the Json.NET library")]
+[assembly: AssemblyDescription("Extension to SlimMessageBus that provides JSON serialization based on the Newtonsoft.Json library")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("zarusz")]
 [assembly: AssemblyProduct("SlimMessageBus.Host.Serialization.Json")]

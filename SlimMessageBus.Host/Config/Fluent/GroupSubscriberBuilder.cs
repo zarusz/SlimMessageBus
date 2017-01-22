@@ -10,7 +10,7 @@ namespace SlimMessageBus.Host.Config
         }
 
         public GroupSubscriberBuilder<TMessage> WithSubscriber<TConsumer>()
-            where TConsumer : ISubscriber<TMessage>
+            where TConsumer : IConsumer<TMessage>
         {
             ConsumerSettings.ConsumerType = typeof(TConsumer);
             ConsumerSettings.ConsumerMode = ConsumerMode.Subscriber;

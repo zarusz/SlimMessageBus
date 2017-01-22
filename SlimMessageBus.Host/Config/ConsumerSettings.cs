@@ -41,7 +41,7 @@ namespace SlimMessageBus.Host.Config
         /// </summary>
         public int Instances { get; set; }
         /// <summary>
-        /// The consumer type that will handle the messages. An implementation of <see cref="ISubscriber{TMessage}"/> or <see cref="IRequestHandler{TRequest,TResponse}"/>.
+        /// The consumer type that will handle the messages. An implementation of <see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest,TResponse}"/>.
         /// </summary>
         public Type ConsumerType { get; set; }
         /// <summary>

@@ -55,7 +55,7 @@
     <Compile Include="IMessageBusSubscription.cs" />
     <Compile Include="RequestResponse\IRequestMessage.cs" />
     <Compile Include="RequestResponse\IRequestResponseBus.cs" />
-    <Compile Include="ISubscriber.cs" />
+    <Compile Include="IConsumer.cs" />
     <Compile Include="MessageBus.cs" />
     <Compile Include="Exceptions\MessageBusException.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

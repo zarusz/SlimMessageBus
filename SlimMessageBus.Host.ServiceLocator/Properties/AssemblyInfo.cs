@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("SlimMessageBus.Host.ServiceLocator")]
-[assembly: AssemblyDescription("Extension to SlimMessageBus that resolves message handlers from the ServiceLocator")]
+[assembly: AssemblyDescription("Extension to SlimMessageBus that resolves message consumers from the ServiceLocator")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("zarusz")]
 [assembly: AssemblyProduct("SlimMessageBus.Host.ServiceLocator")]

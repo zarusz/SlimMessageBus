@@ -6,13 +6,13 @@ using SlimMessageBus;
 
 namespace Sample.Images.Worker.Handlers
 {
-    public class GenerateThumbnailRequestSubscriber : ISubscriber<GenerateThumbnailRequest>
+    public class GenerateThumbnailRequestConsumer : IConsumer<GenerateThumbnailRequest>
     {
-        private static readonly ILog Log = LogManager.GetLogger<GenerateThumbnailRequestSubscriber>();
+        private static readonly ILog Log = LogManager.GetLogger<GenerateThumbnailRequestConsumer>();
 
         private readonly string _instanceId;
 
-        public GenerateThumbnailRequestSubscriber()
+        public GenerateThumbnailRequestConsumer()
         {
             _instanceId = Guid.NewGuid().ToString("N");
             Log.InfoFormat("Created instance {0}", _instanceId);

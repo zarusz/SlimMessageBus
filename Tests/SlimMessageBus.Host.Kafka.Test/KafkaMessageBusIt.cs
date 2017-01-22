@@ -16,13 +16,13 @@ namespace SlimMessageBus.Host.Kafka.Test
         public int Counter { get; set; }
     }
 
-    public class PingSubscriber : ISubscriber<PingMessage>
+    public class PingConsumer : IConsumer<PingMessage>
     {
-        private static readonly ILog Log = LogManager.GetLogger<PingSubscriber>();
+        private static readonly ILog Log = LogManager.GetLogger<PingConsumer>();
 
         public IList<PingMessage> Messages { get; }
 
-        public PingSubscriber()
+        public PingConsumer()
         {
             Messages = new List<PingMessage>();
         }
@@ -48,24 +48,24 @@ namespace SlimMessageBus.Host.Kafka.Test
 
         private const int NumberOfMessages = 100;
         private KafkaMessageBus _bus;
-        private PingSubscriber _pingSubscriber;
+        private PingConsumer _pingConsumer;
 
         private class FakeDependencyResolver : IDependencyResolver
         {
-            private readonly PingSubscriber _pingSubscriber;
+            private readonly PingConsumer _pingConsumer;
 
-            public FakeDependencyResolver(PingSubscriber pingSubscriber)
+            public FakeDependencyResolver(PingConsumer pingConsumer)
             {
-                _pingSubscriber = pingSubscriber;
+                _pingConsumer = pingConsumer;
             }
 
             #region Implementation of IDependencyResolver
 
             public IEnumerable<object> Resolve(Type type)
             {
-                if (type.IsAssignableFrom(typeof(PingSubscriber)))
+                if (type.IsAssignableFrom(typeof(PingConsumer)))
                 {
-                    return new List<object>() { _pingSubscriber };
+                    return new List<object>() { _pingConsumer };
                 }
                 return new List<object>();
             }
@@ -76,7 +76,7 @@ namespace SlimMessageBus.Host.Kafka.Test
         [TestInitialize]
         public void SetupBus()
         {
-            _pingSubscriber = new PingSubscriber();
+            _pingConsumer = new PingConsumer();
 
             //var testTopic = $"test-ping-{DateTime.Now.Ticks}";
             var topic = $"test-ping";
@@ -95,7 +95,7 @@ namespace SlimMessageBus.Host.Kafka.Test
                 {
                     x.Topic(topic)
                         .Group("subscriber1")
-                        .WithSubscriber<PingSubscriber>()
+                        .WithSubscriber<PingConsumer>()
                         .Instances(1);
                 })
                 .ExpectRequestResponses(x =>
@@ -105,7 +105,7 @@ namespace SlimMessageBus.Host.Kafka.Test
                     x.DefaultTimeout(TimeSpan.FromSeconds(10));
                 })
                 .WithSerializer(new JsonMessageSerializer())
-                .WithSubscriberResolver(new FakeDependencyResolver(_pingSubscriber))
+                .WithSubscriberResolver(new FakeDependencyResolver(_pingConsumer))
                 .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
 
             _bus = (KafkaMessageBus)messageBusBuilder.Build();
@@ -141,11 +141,11 @@ namespace SlimMessageBus.Host.Kafka.Test
 
         private IList<PingMessage> ConsumeFromTopic()
         {
-            while (_pingSubscriber.Messages.Count != NumberOfMessages)
+            while (_pingConsumer.Messages.Count != NumberOfMessages)
             {
                 Thread.Sleep(200);
             }
-            return _pingSubscriber.Messages;
+            return _pingConsumer.Messages;
         }
 
         private IList<PingMessage> PublishToTopic()
