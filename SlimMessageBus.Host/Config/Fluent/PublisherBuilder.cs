@@ -1,4 +1,6 @@
-﻿namespace SlimMessageBus.Host.Config
+﻿using System;
+
+namespace SlimMessageBus.Host.Config
 {
     public class PublisherBuilder<T>
     {
@@ -13,6 +15,12 @@
         public PublisherBuilder<T> DefaultTopic(string name)
         {
             _settings.DefaultTopic = name;
+            return this;
+        }
+
+        public PublisherBuilder<T> DefaultTimeout(TimeSpan timeout)
+        {
+            _settings.Timeout = timeout;
             return this;
         }
     }

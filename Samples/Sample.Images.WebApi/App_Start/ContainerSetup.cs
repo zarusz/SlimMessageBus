@@ -58,12 +58,15 @@ namespace Sample.Images.WebApi
             var messageBusBuilder = new MessageBusBuilder()
                 .Publish<GenerateThumbnailRequest>(x =>
                 {
+                    // Default response timeout for this request type
+                    //x.DefaultTimeout(TimeSpan.FromSeconds(10));
                     x.DefaultTopic("thumbnail-generation");
                 })
                 .ExpectRequestResponses(x =>
                 {
                     x.ReplyToTopic(instanceReplyTo);
                     x.Group(instanceGroup);
+                    // Default global response timeout
                     x.DefaultTimeout(TimeSpan.FromSeconds(60));
                 })
                 .WithDependencyResolverAsServiceLocator()

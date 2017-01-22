@@ -6,7 +6,7 @@ namespace SlimMessageBus
     /// Subscriber for messages of given type <typeparam name="TMessage"></typeparam>.
     /// </summary>
     /// <typeparam name="TMessage"></typeparam>
-    public interface ISubscriber<in TMessage>
+    public interface IConsumer<in TMessage>
     {
         /// <summary>
         /// Invoked when a message arrives of type <typeparam name="TMessage"></typeparam>.
