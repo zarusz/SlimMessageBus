@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("SlimMessageBus.Provider.Kafka")]
+[assembly: AssemblyTitle("SlimMessageBus.Host.Kafka")]
 [assembly: AssemblyDescription("Apache Kafka provider for SlimMessageBus")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("zarusz")]
@@ -32,5 +32,5 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("0.9.1.*")]
+[assembly: AssemblyVersion("0.9.2.*")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
