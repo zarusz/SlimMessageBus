@@ -26,6 +26,8 @@ namespace SlimMessageBus.Host.Kafka
         public KafkaMessageBus(MessageBusSettings settings, KafkaMessageBusSettings kafkaSettings)
             : base(settings)
         {
+            AssertSettings(settings);
+
             KafkaSettings = kafkaSettings;
 
             Log.Info("Creating producers");
@@ -54,6 +56,15 @@ namespace SlimMessageBus.Host.Kafka
             {
                 Log.InfoFormat("Creating response consumer for topic {0} and group {1}", settings.RequestResponse.Group, settings.RequestResponse.Topic);
                 _groupConsumers.Add(new KafkaResponseConsumer(this, settings.RequestResponse));
+            }
+        }
+
+        private static void AssertSettings(MessageBusSettings settings)
+        {
+            if (settings.RequestResponse != null)
+            {
+                Assert.IsTrue(settings.RequestResponse.Group != null,
+                    () => new InvalidConfigurationMessageBusException($"Request-response: group was not provided"));
             }
         }
 

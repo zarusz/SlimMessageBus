@@ -29,7 +29,7 @@ namespace SlimMessageBus.Host
 
         public override string ToString()
         {
-            return $"Request(Id: {Id}, RequestType: {RequestType}, ResponseType: {ResponseType})";
+            return $"Request(Id: {Id}, RequestType: {RequestType}, ResponseType: {ResponseType}, Created: {Created}, Expires: {Expires})";
         }
 
         #endregion

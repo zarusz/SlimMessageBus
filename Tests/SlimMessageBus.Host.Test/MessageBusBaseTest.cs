@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -22,6 +23,15 @@ namespace SlimMessageBus.Host.Test
         public string Id { get; set; }
     }
 
+    public class RequestB : IRequestMessage<ResponseB>
+    {
+        
+    }
+
+    public class ResponseB
+    {
+    }
+
     [TestClass]
     public class MessageBusBaseTest
     {
@@ -34,6 +44,11 @@ namespace SlimMessageBus.Host.Test
                 .Publish<RequestA>(x =>
                 {
                     x.DefaultTopic("a-requests");
+                    x.DefaultTimeout(TimeSpan.FromSeconds(10));
+                })
+                .Publish<RequestB>(x =>
+                {
+                    x.DefaultTopic("b-requests");
                 })
                 .ExpectRequestResponses(x =>
                 {
@@ -44,6 +59,44 @@ namespace SlimMessageBus.Host.Test
                 .WithProvider(s => new MessageBusTested(s));
 
             _bus = (MessageBusTested)messageBusBuilder.Build();
+
+            // provide current time
+            _bus.CurrentTimeProvider = () => DateTimeOffset.UtcNow;
+        }
+
+        [TestCleanup]
+        public void Cleanup()
+        {
+            _bus.Dispose();
+        }
+
+        [TestMethod]
+        public void WhenNoTimeoutProvided_TakesDefault()
+        {
+            // arrange
+            var ra = new RequestA();
+            var rb = new RequestB();
+            var t0 = DateTimeOffset.UtcNow;
+            var t10 = t0.AddSeconds(11);
+            var t20 = t0.AddSeconds(21);
+
+            // act
+            var raTask = _bus.Send(ra);
+            var rbTask = _bus.Send(rb);
+
+            // when 10 seconds passed
+            _bus.CurrentTimeProvider = () => t10;
+            Thread.Sleep(1000); // give the internal cleanup timer a chance to execute
+
+            // assert
+            raTask.IsCanceled.Should().BeTrue();
+            rbTask.IsCanceled.Should().BeFalse();
+
+            // when 20 seconds passed
+            _bus.CurrentTimeProvider = () => t20;
+            Thread.Sleep(1000); // give the internal cleanup timer a chance to execute
+
+            rbTask.IsCanceled.Should().BeTrue();
         }
 
         [TestMethod]
@@ -157,5 +210,13 @@ namespace SlimMessageBus.Host.Test
         }
 
         #endregion
+
+        #region Overrides of MessageBusBase
+
+        public override DateTimeOffset CurrentTime => CurrentTimeProvider();
+
+        #endregion
+
+        public Func<DateTimeOffset> CurrentTimeProvider { get; set; }
     }
 }
