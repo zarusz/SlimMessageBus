@@ -27,6 +27,8 @@ namespace SlimMessageBus.Host
 
         protected MessageBusBase(MessageBusSettings settings)
         {
+            AssertSettings(settings);
+
             Settings = settings;
             PublisherSettingsByMessageType = Settings.Publishers.ToDictionary(x => x.MessageType);
 
@@ -39,6 +41,18 @@ namespace SlimMessageBus.Host
             };
             PendingRequestsTimer.Elapsed += CleanRequestReqistry;
             PendingRequestsTimer.Start();
+        }
+
+        private static void AssertSettings(MessageBusSettings settings)
+        {
+            Assert.IsTrue(settings.Serializer != null, 
+                () => new InvalidConfigurationMessageBusException($"Serializer was not provided"));
+
+            if (settings.RequestResponse != null)
+            {
+                Assert.IsTrue(settings.RequestResponse.Topic != null,
+                    () => new InvalidConfigurationMessageBusException($"Request-response: topic was not provided"));
+            }
         }
 
         #region Implementation of IDisposable
@@ -86,7 +100,16 @@ namespace SlimMessageBus.Host
         {
             // when topic was not provided, lookup default topic from configuration
             var publisherSettings = GetPublisherSettings(messageType);
+            return GetDefaultTopic(messageType, publisherSettings);
+        }
+
+        protected virtual string GetDefaultTopic(Type messageType, PublisherSettings publisherSettings)
+        {
             var topic = publisherSettings.DefaultTopic;
+            if (topic == null)
+            {
+                throw new PublishMessageBusException($"An attempt to produce message of type {messageType} without specifying topic, but there was no default topic configured. Double check your configuration.");
+            }
             Log.DebugFormat("Applying default topic {0} for message type {1}", topic, messageType);
             return topic;
         }
@@ -115,31 +138,36 @@ namespace SlimMessageBus.Host
 
         #endregion
 
+        protected virtual TimeSpan GetDefaultRequestTimeout(Type requestType, PublisherSettings publisherSettings)
+        {
+            var timeout = publisherSettings.Timeout ?? Settings.RequestResponse.Timeout;
+            Log.DebugFormat("Applying default timeout {0} for message type {1}", timeout, requestType);
+            return timeout;
+        }
 
         public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan? timeout, string topic)
         {
             if (Settings.RequestResponse == null)
             {
-                throw new PublishMessageBusException("An attempt to send ruquest while request/response communication was not configured for the message bus. Ensure you configure the bus properly before the application starts.");
+                throw new PublishMessageBusException("An attempt to send request when request/response communication was not configured for the message bus. Ensure you configure the bus properly before the application starts.");
             }
 
             var requestType = request.GetType();
-
             var publisherSettings = GetPublisherSettings(requestType);
+
             if (topic == null)
             {
-                topic = publisherSettings.DefaultTopic;
-                Log.DebugFormat("Applying default topic {0} for message type {1}", topic, requestType);
+                topic = GetDefaultTopic(requestType, publisherSettings);
             }
-            if (timeout == null && publisherSettings.Timeout != null)
+
+            if (timeout == null)
             {
-                timeout = publisherSettings.Timeout;
-                Log.DebugFormat("Applying default timeout {0} for message type {1}", timeout, requestType);
+                timeout = GetDefaultRequestTimeout(requestType, publisherSettings);
             }
 
             var replyTo = Settings.RequestResponse.Topic;
             var created = CurrentTime;
-            var expires = timeout.HasValue ? created.Add(timeout.Value) : (DateTimeOffset?) null;
+            var expires = created.Add(timeout.Value);
 
             // generate the request guid
             var requestId = GenerateRequestId();
@@ -171,7 +199,7 @@ namespace SlimMessageBus.Host
 
         public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string topic = null)
         {
-            return await Send(request, Settings.RequestResponse.Timeout, topic);
+            return await Send(request, null, topic);
         }
 
         public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string topic = null)
@@ -229,17 +257,6 @@ namespace SlimMessageBus.Host
             var responseMessagePayload = Settings.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), responseMessage);
             return responseMessagePayload;
         }
-
-        /*
-        public virtual object DeserializeResponse(Type responseType, byte[] responsePayload, out string requestId)
-        {
-            var responseMessage = (MessageWithHeaders)Settings.RequestResponse.MessageWithHeadersSerializer.Deserialize(typeof(MessageWithHeaders), responsePayload);
-            requestId = responseMessage.Headers[MessageHeaders.RequestId];
-
-            var response = Settings.Serializer.Deserialize(responseType, responseMessage.Payload);
-            return response;
-        }
-        */
 
         /// <summary>
         /// Should be invoked by the concrete bus implementation whenever there is a message arrived on the reply to topic.
