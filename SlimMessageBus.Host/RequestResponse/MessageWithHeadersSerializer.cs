@@ -17,7 +17,6 @@ namespace SlimMessageBus.Host
             _encoding = encoding;
         }
 
-
         protected byte[] Serialize(MessageWithHeaders message)
         {
             // calculate bytes needed
@@ -33,10 +32,8 @@ namespace SlimMessageBus.Host
             }
             n += message.Payload.Length;
 
-
             // allocate bytes
             var payload = new byte[n];
-
             
             // write bytes
             var i = 0;

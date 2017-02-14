@@ -77,7 +77,7 @@ namespace SlimMessageBus.Host
                 PendingRequestState s;
                 if (PendingRequests.TryRemove(requestState.Id, out s) && canceled)
                 {
-                    Log.DebugFormat("Pending request timed-out: {0}", requestState);
+                    Log.DebugFormat("Pending request timed-out: {0}, now: {1}", requestState, now);
                     // ToDo: add and API hook to these kind of situation
                 }
             }
@@ -176,6 +176,7 @@ namespace SlimMessageBus.Host
             // record the request state
             var requestState = new PendingRequestState(requestId, request, requestType, typeof(TResponseMessage), created, expires);
             PendingRequests.TryAdd(requestId, requestState);
+            Log.DebugFormat("Added to PendingRequests, total is {0}", PendingRequests.Count);
 
             try
             {
@@ -287,6 +288,7 @@ namespace SlimMessageBus.Host
         public virtual async Task OnResponseArrived(byte[] payload, string topic, string requestId)
         {
             PendingRequestState requestState;
+
             if (!PendingRequests.TryGetValue(requestId, out requestState))
             {
                 Log.DebugFormat("The response message with request id {0} arriving on topic {1} already expired.", requestId, topic);
@@ -308,7 +310,6 @@ namespace SlimMessageBus.Host
                     response = Settings.Serializer.Deserialize(requestState.ResponseType, payload);
                 }
                 catch (Exception e)
-
                 {
                     Log.DebugFormat("Could not deserialize the response message for {0} arriving on topic {1}: {2}", requestState, topic, e);
                     requestState.TaskCompletionSource.SetException(e);

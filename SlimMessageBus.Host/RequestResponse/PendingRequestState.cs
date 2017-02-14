@@ -10,10 +10,10 @@ namespace SlimMessageBus.Host
         public Type RequestType { get; }
         public Type ResponseType { get; }
         public DateTimeOffset Created { get; }
-        public DateTimeOffset? Expires { get; }
+        public DateTimeOffset Expires { get; }
         public TaskCompletionSource<object> TaskCompletionSource { get; }
 
-        public PendingRequestState(string id, object request, Type requestType, Type responseType, DateTimeOffset created, DateTimeOffset? expires)
+        public PendingRequestState(string id, object request, Type requestType, Type responseType, DateTimeOffset created, DateTimeOffset expires)
         {
             Id = id;
             Request = request;
