@@ -1,6 +1,6 @@
 set dist_folder=packages-dist
 set nuget_source=https://www.nuget.org
-set version=0.9.3
+set version=0.9.4
 nuget push .\%dist_folder%\SlimMessageBus.%version%.*.nupkg -Source %nuget_source%
 nuget push .\%dist_folder%\SlimMessageBus.Host.%version%.*.nupkg -Source %nuget_source%
 nuget push .\%dist_folder%\SlimMessageBus.Host.ServiceLocator.%version%.*.nupkg -Source %nuget_source%
