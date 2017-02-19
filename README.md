@@ -188,4 +188,8 @@ MessageBus.SetProvider(() => bus);
 
 ## Other
 
-See [Release Notes](docs/release_notes.md)
+See [Release Notes](docs/release_notes.md).
+
+## Samples
+
+Check out the [Samples](Samples/README.md) folder.
