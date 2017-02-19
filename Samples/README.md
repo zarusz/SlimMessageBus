@@ -1,10 +1,10 @@
-** Sample.Images **
+## Sample.Images
 
 Sample project that uses request-response to generate image thumbnails. It consists of two main applications:
 * WebApi (ASP.NET)
 * Worker (Console App)
 
-The WebApi, serves thumbnails of the desired WxH from an full size picture. To request a thumbnail of size `120x80` if the image `DSC0843.jpg` use:
+The WebApi serves thumbnails of the desired *Width x Height* from an full size picture. To request a thumbnail of size `120x80` of the image `DSC0843.jpg` use:
 
 `http://localhost:50452/api/Image/DSC3781.jpg/?w=120&h=80&mode=1`
 
