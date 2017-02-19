@@ -183,7 +183,7 @@ namespace SlimMessageBus.Host.Test
         {
         }
 
-        public int PendingRequestsCount => PendingRequests.Count;
+        public int PendingRequestsCount => PendingRequestStore.GetCount();
 
         public Func<Type, string, object, object> OnReply { get; set; }
 
