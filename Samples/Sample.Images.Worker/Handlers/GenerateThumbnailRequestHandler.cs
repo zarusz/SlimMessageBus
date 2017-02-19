@@ -43,7 +43,7 @@ namespace Sample.Images.Worker.Handlers
                     {
                         FileId = thumbnailFileId
                     };
-                }
+                }                
             }
         }
 

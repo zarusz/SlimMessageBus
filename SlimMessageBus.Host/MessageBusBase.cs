@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -19,8 +18,8 @@ namespace SlimMessageBus.Host
 
         protected readonly IDictionary<Type, PublisherSettings> PublisherSettingsByMessageType;
 
-        protected readonly ConcurrentDictionary<string, PendingRequestState> PendingRequests;
-        protected readonly Timer PendingRequestsTimer;
+        protected readonly IPendingRequestStore PendingRequestStore;
+        protected readonly Timer PendingRequestTimer;
 
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         public CancellationToken CancellationToken => _cancellationTokenSource.Token;
@@ -32,15 +31,14 @@ namespace SlimMessageBus.Host
             Settings = settings;
             PublisherSettingsByMessageType = Settings.Publishers.ToDictionary(x => x.MessageType);
 
-            PendingRequests = new ConcurrentDictionary<string, PendingRequestState>();
-
-            PendingRequestsTimer = new Timer
+            PendingRequestStore = new InMemoryPendingRequestStore();
+            PendingRequestTimer = new Timer
             {
                 Interval = 1000,
                 AutoReset = true
             };
-            PendingRequestsTimer.Elapsed += CleanRequestReqistry;
-            PendingRequestsTimer.Start();
+            PendingRequestTimer.Elapsed += CleanPendingRequests;
+            PendingRequestTimer.Start();
         }
 
         private static void AssertSettings(MessageBusSettings settings)
@@ -59,23 +57,21 @@ namespace SlimMessageBus.Host
 
         public virtual void Dispose()
         {
-            PendingRequestsTimer.Stop();
-            PendingRequestsTimer.Dispose();
+            PendingRequestTimer.Stop();
+            PendingRequestTimer.Dispose();
         }
 
         #endregion
 
-        protected virtual void CleanRequestReqistry(object sender, ElapsedEventArgs args)
+        protected virtual void CleanPendingRequests(object sender, ElapsedEventArgs args)
         {
             var now = CurrentTime;
 
-            var requestsToExpire = PendingRequests.Values.Where(x => x.Expires < now).ToList();
+            var requestsToExpire = PendingRequestStore.GetAllExpired(now);
             foreach (var requestState in requestsToExpire)
             {
                 var canceled = requestState.TaskCompletionSource.TrySetCanceled();
-
-                PendingRequestState s;
-                if (PendingRequests.TryRemove(requestState.Id, out s) && canceled)
+                if (PendingRequestStore.Remove(requestState.Id) && canceled)
                 {
                     Log.DebugFormat("Pending request timed-out: {0}, now: {1}", requestState, now);
                     // ToDo: add and API hook to these kind of situation
@@ -175,8 +171,10 @@ namespace SlimMessageBus.Host
 
             // record the request state
             var requestState = new PendingRequestState(requestId, request, requestType, typeof(TResponseMessage), created, expires);
-            PendingRequests.TryAdd(requestId, requestState);
-            Log.DebugFormat("Added to PendingRequests, total is {0}", PendingRequests.Count);
+            PendingRequestStore.Add(requestState);
+
+            if (Log.IsDebugEnabled)
+                Log.DebugFormat("Added to PendingRequests, total is {0}", PendingRequestStore.GetCount());
 
             try
             {
@@ -187,7 +185,7 @@ namespace SlimMessageBus.Host
             {
                 Log.DebugFormat("Publishing of request message failed: {0}", e);
                 // remove from registry
-                PendingRequests.TryRemove(requestId, out requestState);
+                PendingRequestStore.Remove(requestId);
                 throw;
             }
 
@@ -287,11 +285,10 @@ namespace SlimMessageBus.Host
         /// <returns></returns>
         public virtual async Task OnResponseArrived(byte[] payload, string topic, string requestId)
         {
-            PendingRequestState requestState;
-
-            if (!PendingRequests.TryGetValue(requestId, out requestState))
+            var requestState = PendingRequestStore.GetById(requestId);
+            if (requestState == null)
             {
-                Log.DebugFormat("The response message with request id {0} arriving on topic {1} already expired.", requestId, topic);
+                Log.DebugFormat("The response message for request id {0} arriving on topic {1} will be disregarded. Either the request had already expired or it was already handled (this response message is duplicate).", requestId, topic);
                 // ToDo: add and API hook to these kind of situation
                 return;
             }
@@ -324,7 +321,7 @@ namespace SlimMessageBus.Host
             finally
             {
                 // remove the request from the queue
-                PendingRequests.TryRemove(requestId, out requestState);
+                PendingRequestStore.Remove(requestId);
             }
         }
 

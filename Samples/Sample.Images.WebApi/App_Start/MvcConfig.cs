@@ -1,7 +1,3 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Web;
 using System.Web.Http;
 using System.Web.Mvc;
 using System.Web.Optimization;
@@ -9,9 +5,9 @@ using System.Web.Routing;
 
 namespace Sample.Images.WebApi
 {
-    public class WebApiApplication : System.Web.HttpApplication
+    public class MvcConfig
     {
-        protected void Application_Start()
+        public static void Register(HttpConfiguration config)
         {
             AreaRegistration.RegisterAllAreas();
             //GlobalConfiguration.Configure(WebApiConfig.Register);
