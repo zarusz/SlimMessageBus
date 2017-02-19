@@ -54,6 +54,10 @@ SlimMessageBus is a facade for message brokers for .NET. It comes with implement
 
  Typically your application components only need to depend on `SlimMessageBus` which is the facade. Your application hosting layer (ASP.NET, Windows Service, Console App) will add and configure the other dependencies.
 
+## Samples
+
+Check out the [Samples](Samples/README.md) folder.
+
 ### Usage examples
 
 ### Request-response with Kafka
@@ -189,7 +193,3 @@ MessageBus.SetProvider(() => bus);
 ## Other
 
 See [Release Notes](docs/release_notes.md).
-
-## Samples
-
-Check out the [Samples](Samples/README.md) folder.
