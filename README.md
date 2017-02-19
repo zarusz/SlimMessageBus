@@ -185,3 +185,7 @@ MessageBus.SetProvider(() => bus);
 ## License
 
 [Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0)
+
+## Other
+
+See [Release Notes](docs/release_notes.md)
