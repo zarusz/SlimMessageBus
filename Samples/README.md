@@ -1,4 +1,4 @@
-** Sample.Images **
+## Sample.Images
 
 Sample project that uses request-response to generate image thumbnails. It consists of two main applications:
 * WebApi (ASP.NET)
