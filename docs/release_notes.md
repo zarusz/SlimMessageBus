@@ -7,7 +7,7 @@ Fixes:
 * SlimMessageBus.Host.Kafka: PendingRequestStore was introduced with in-memory/transient implementation that relays on a synchronized Dictionary<K, V>. Before it used to be ConcurrentDictionary, but there was some issues in one test environment. Furthermore the current approach should work better according to [this article](https://www.codeproject.com/Articles/548406/Dictionary-plus-Locking-versus-ConcurrentDictionar).
 
 Packages:
-* SlimMessageBus.Host (https://www.nuget.org/packages/SlimMessageBus.Host/0.9.6.28525)
-* SlimMessageBus.Host.Kafka (https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.6.28526)
-* SlimMessageBus.Host.Serialization.Json (https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json/0.9.6.28526)
-* SlimMessageBus.Host.ServiceLocator (https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator/0.9.6.28526)
+* https://www.nuget.org/packages/SlimMessageBus.Host/0.9.6.28525
+* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.6.28526
+* https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json/0.9.6.28526
+* https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator/0.9.6.28526
