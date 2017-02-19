@@ -1,7 +1,7 @@
 ## Sample.Images
 
 Sample project that uses request-response to generate image thumbnails. It consists of two main applications:
-* WebApi (ASP.NET)
+* WebApi (ASP.NET WebApi)
 * Worker (Console App)
 
 The WebApi serves thumbnails of the desired *Width x Height* from an full size picture. To request a thumbnail of size `120x80` of the image `DSC0843.jpg` use:
@@ -13,3 +13,7 @@ The thumbnail generation happens on the Worker.
 The images and produced thumbnails reside on disk in folder: `.\SlimMessageBus\Samples\Content\`
 
 When a thumbnail of the specified size already exists it will be served by WebApi, otherwise a request/response message is sent to Worker to perform processing.
+
+Check the sequence diagram:
+
+![](images/SlimMessageBus_Sample_Images.png)
