@@ -1,6 +1,6 @@
 # SlimMessageBus
 
-SlimMessageBus is a facade for message brokers for .NET. It comes with implementations for specific technologies (Apache Kafka, Azure EventHub, MQTT/Mosquitto, Redis Pub/Sub) and also for in memory message passing (in-process communication). SlimMessageBus additionally provides request-response messaging abstraction.
+SlimMessageBus is a facade for message brokers for .NET. It comes with implementations for specific technologies (Apache Kafka, Azure EventHub, MQTT/Mosquitto, Redis Pub/Sub) and also for in memory message passing (in-process communication). SlimMessageBus additionally provides request-response messaging implementation.
 
 [![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s/branch/develop?svg=true)](https://ci.appveyor.com/project/zarusz/slimmessagebus/branch/develop)
 
@@ -41,15 +41,15 @@ SlimMessageBus is a facade for message brokers for .NET. It comes with implement
 ## Packages
 
  Name | Descripton | Dependencies | NuGet
- ------------ | ------------- | -------------
+ ------------ | ------------- | ------------- | -------------
  `SlimMessageBus` | The interfaces to work with SlimMessageBus | `Common.Logging` | https://www.nuget.org/packages/SlimMessageBus
  `SlimMessageBus.Host` | The minimal in-process, synchronous messsage passing implementation | `SlimMessageBus` | https://www.nuget.org/packages/SlimMessageBus.Host
  `SlimMessageBus.Host.Kafka` | Implementation for Apache Kafka  | `SlimMessageBus.Host` `RdKafka` | https://www.nuget.org/packages/SlimMessageBus.Host.Kafka
- `SlimMessageBus.Host.EventHub` (future) | Implementation for Azure EventHub | `SlimMessageBus.Host` `Microsoft.Azure.ServiceBus.EventProcessorHost` |
- `SlimMessageBus.Host.Redis` (future) | Implementation for Redis | `SlimMessageBus.Host` `StackExchange.Redis.StrongName` |
- `SlimMessageBus.Host.InMemory` (pending) | Implementation for in memory broker (in-process message passing) | `SlimMessageBus.Host` |
+ `SlimMessageBus.Host.EventHub` (future) | Implementation for Azure EventHub | `SlimMessageBus.Host` `Microsoft.Azure.ServiceBus.EventProcessorHost` | .
+ `SlimMessageBus.Host.Redis` (future) | Implementation for Redis | `SlimMessageBus.Host` `StackExchange.Redis.StrongName` | .
+ `SlimMessageBus.Host.InMemory` (pending) | Implementation for in memory broker (in-process message passing) | `SlimMessageBus.Host` | .
  `SlimMessageBus.Host.ServiceLocator` | Extension that resolves consumers from ServiceLocator | `SlimMessageBus.Host` `CommonServiceLocator` | https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator
- `SlimMessageBus.Host.Autofac` (pending) | Extension that resolves consumers from Autofac DI container | `SlimMessageBus.Host` `Autofac` |
+ `SlimMessageBus.Host.Autofac` (pending) | Extension that resolves consumers from Autofac DI container | `SlimMessageBus.Host` `Autofac` | .
  `SlimMessageBus.Host.Serialization.Json` | Extension to serialize messages to JSON | `SlimMessageBus.Host` `Newtonsoft.Json` | https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json
 
  Typically your application components only need to depend on `SlimMessageBus` which is the facade. Your application hosting layer (ASP.NET, Windows Service, Console App) will add and configure the other dependencies.
@@ -185,3 +185,7 @@ MessageBus.SetProvider(() => bus);
 ## License
 
 [Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0)
+
+## Other
+
+See [Release Notes](docs/release_notes.md)

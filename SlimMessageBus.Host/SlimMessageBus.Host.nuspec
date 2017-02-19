@@ -13,6 +13,6 @@
     <description>$description$</description>
     <releaseNotes></releaseNotes>
     <copyright>Copyright 2017</copyright>
-    <tags>MessageBus Facade EventBus Broker DomainEvents Events Messages EDA</tags>
+    <tags>SlimMessageBus Provider MessageBus Facade</tags>
   </metadata>
 </package>
