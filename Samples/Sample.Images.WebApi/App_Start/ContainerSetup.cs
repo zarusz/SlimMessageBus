@@ -3,6 +3,7 @@ using System.Configuration;
 using System.Reflection;
 using Autofac;
 using Autofac.Extras.CommonServiceLocator;
+using Autofac.Integration.Mvc;
 using Autofac.Integration.WebApi;
 using Microsoft.Practices.ServiceLocation;
 using Sample.Images.FileStore;
@@ -67,7 +68,7 @@ namespace Sample.Images.WebApi
                     x.ReplyToTopic(instanceReplyTo);
                     x.Group(instanceGroup);
                     // Default global response timeout
-                    x.DefaultTimeout(TimeSpan.FromSeconds(60));
+                    x.DefaultTimeout(TimeSpan.FromSeconds(30));
                 })
                 .WithDependencyResolverAsServiceLocator()
                 .WithSerializer(new JsonMessageSerializer())
@@ -81,6 +82,8 @@ namespace Sample.Images.WebApi
         {
             // Register your Web API controllers.
             builder.RegisterApiControllers(Assembly.GetExecutingAssembly());
+            // Register your MVC controllers.
+            builder.RegisterControllers(Assembly.GetExecutingAssembly());
         }
     }
 }

@@ -32,6 +32,11 @@ namespace Sample.Images.Worker.Handlers
             }
             using (image)
             {
+                return new GenerateThumbnailResponse
+                {
+                    FileId = request.FileId
+                };
+                /*
                 var thumbnailFileId = _fileIdStrategy.GetFileId(request.FileId, request.Width, request.Height, request.Mode);
                 var thumbnail = ScaleToFitInside(image, request.Width, request.Height);
 
@@ -44,6 +49,7 @@ namespace Sample.Images.Worker.Handlers
                         FileId = thumbnailFileId
                     };
                 }
+                */
             }
         }
 

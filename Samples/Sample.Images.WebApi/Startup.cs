@@ -1,6 +1,8 @@
 ﻿using System.Reflection;
 using System.Web.Http;
+using System.Web.Mvc;
 using Autofac;
+using Autofac.Integration.Mvc;
 using Autofac.Integration.WebApi;
 using Microsoft.Owin;
 using Owin;
@@ -25,6 +27,7 @@ namespace Sample.Images.WebApi
             // per-controller-type services, etc., then set the dependency resolver
             // to be Autofac.
             config.DependencyResolver = new AutofacWebApiDependencyResolver(container);
+            DependencyResolver.SetResolver(new AutofacDependencyResolver(container));
 
             // OWIN WEB API SETUP:
 
@@ -32,9 +35,11 @@ namespace Sample.Images.WebApi
             // and finally the standard Web API middleware.
             app.UseAutofacMiddleware(container);
             app.UseAutofacWebApi(config);
+            app.UseAutofacMvc();
             app.UseWebApi(config);
 
             WebApiConfig.Register(config);
+            MvcConfig.Register(config);
 
             //ConfigureAuth(app);
         }
