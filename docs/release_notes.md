@@ -1,15 +1,15 @@
 # Release Notes of SlimMessageBus
 
-## Version 0.9.7.X
+## Version 0.9.7.41418
 
 Features:
 * Added RequestHandlerFaultedMessageBusException: When request handler errors out the IRequestResponseBus.Send() resolves to RequestHandlerFaultedMessageBusException
 * Added code comments
 
 Packages:
-* https://www.nuget.org/packages/SlimMessageBus/0.9.7.X
-* https://www.nuget.org/packages/SlimMessageBus.Host/0.9.7.X
-* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.7.X
+* https://www.nuget.org/packages/SlimMessageBus/0.9.7.41418
+* https://www.nuget.org/packages/SlimMessageBus.Host/0.9.7.41418
+* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.7.41418
 
 ## Version 0.9.6.28525
 
