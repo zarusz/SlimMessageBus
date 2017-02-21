@@ -65,7 +65,6 @@
     <Compile Include="KafkaMessageBus.cs" />
     <Compile Include="KafkaMessageBusBuilderExtensions.cs" />
     <Compile Include="KafkaMessageBusSettings.cs" />
-    <Compile Include="KafkaRequestResponseBus.cs" />
     <Compile Include="Consumer\KafkaResponseConsumer.cs" />
     <Compile Include="Producer\KafkaTopicProducer.cs" />
     <Compile Include="MessageProcessingResult.cs" />

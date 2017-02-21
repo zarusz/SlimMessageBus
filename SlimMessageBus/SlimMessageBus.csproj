@@ -49,6 +49,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Exceptions\InvalidConfigurationMessageBusException.cs" />
+    <Compile Include="Exceptions\RequestHandlerFaultedMessageBusException.cs" />
     <Compile Include="IPublishBus.cs" />
     <Compile Include="RequestResponse\IRequestHandler.cs" />
     <Compile Include="IMessageBus.cs" />

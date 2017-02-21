@@ -86,7 +86,7 @@ namespace SlimMessageBus.Host.Test
 
             // when 10 seconds passed
             _bus.CurrentTimeProvider = () => t10;
-            Thread.Sleep(1000); // give the internal cleanup timer a chance to execute
+            Thread.Sleep(1200); // give the internal cleanup timer a chance to execute
 
             // assert
             raTask.IsCanceled.Should().BeTrue();
@@ -94,7 +94,7 @@ namespace SlimMessageBus.Host.Test
 
             // when 20 seconds passed
             _bus.CurrentTimeProvider = () => t20;
-            Thread.Sleep(1000); // give the internal cleanup timer a chance to execute
+            Thread.Sleep(1200); // give the internal cleanup timer a chance to execute
 
             rbTask.IsCanceled.Should().BeTrue();
         }
@@ -202,7 +202,7 @@ namespace SlimMessageBus.Host.Test
                 if (resp == null)
                     return;
 
-                var respPayload = SerializeResponse(resp.GetType(), resp, reqId);
+                var respPayload = SerializeResponse(resp.GetType(), resp, reqId, null);
                 OnResponseArrived(respPayload, replyTo).Wait();
             });
 

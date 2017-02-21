@@ -33,9 +33,16 @@ namespace Sample.Images.WebApi.Controllers
             var thumbFileContent = await _fileStore.GetFile(thumbFileId);
             if (thumbFileContent == null)
             {
-                var thumbGenResponse = await _bus.Send(new GenerateThumbnailRequest(fileId, mode, w, h));
-
-                thumbFileContent = await _fileStore.GetFile(thumbGenResponse.FileId);
+                try
+                {
+                    var thumbGenResponse = await _bus.Send(new GenerateThumbnailRequest(fileId, mode, w, h));
+                    thumbFileContent = await _fileStore.GetFile(thumbGenResponse.FileId);
+                }
+                catch (RequestHandlerFaultedMessageBusException e)
+                {
+                    // The request handler for GenerateThumbnailRequest failed
+                    return Request.CreateResponse(HttpStatusCode.NotFound);
+                }
             }
 
             return ServeStream(thumbFileContent);

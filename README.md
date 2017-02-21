@@ -20,23 +20,23 @@ SlimMessageBus is a facade for message brokers for .NET. It comes with implement
 
 ## Key elements of SlimMessageBus
  * Consumers:
-  * `IRequestHandler<in TRequest, TResponse>`
-  * `IConsumer<in TMessage>`
+  * `IConsumer<in TMessage>` - subscriber in pub/sub or queue consumer
+  * `IRequestHandler<in TRequest, TResponse>` - req/resp handler
  * Producers:
   * `IPublishBus`
-  * `IRequestResponseBus`
+  * `IRequestResponseBus` - sender in req/resp
   * `IMessageBus`
  * Misc
-  * `IRequestMessage<TResponse>`
+  * `IRequestMessage<TResponse>` - marker for request messages
   * `MessageBus`
 
 ## Principles
- * The core interface `SlimMessageBus` is slim
-   * Depens only on `Common.Logging`. Connect with your favorite logger.
-   * Very generic.
- * Selectively add features you really need (e.g. request-response, autofac integration).
+ * The core of `SlimMessageBus` is "slim"
+   * Simple, common and friendly API to work with messaging systems.
+   * No external dependencies. Logging is done via `Common.Logging`, so that you can connect your favorite logger provider.
+ * Selectively add features you really need (e.g. Autofac integration, JSON serialization, your favorite messaging broker).
  * Fluent configuration.
- * No threads created (uses TPL).
+ * No threads created (pure TPL and async).
 
 ## Packages
 
@@ -52,11 +52,11 @@ SlimMessageBus is a facade for message brokers for .NET. It comes with implement
  `SlimMessageBus.Host.Autofac` (pending) | Extension that resolves consumers from Autofac DI container | `SlimMessageBus.Host` `Autofac` | .
  `SlimMessageBus.Host.Serialization.Json` | Extension to serialize messages to JSON | `SlimMessageBus.Host` `Newtonsoft.Json` | https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json
 
- Typically your application components only need to depend on `SlimMessageBus` which is the facade. Your application hosting layer (ASP.NET, Windows Service, Console App) will add and configure the other dependencies.
+ Typically your application components only need to depend on `SlimMessageBus` which is the facade. Your application hosting layer (ASP.NET, Windows Service, Console App) will add and configure the other packages.
 
 ## Samples
 
-Check out the [Samples](Samples/README.md) folder.
+Check out the [Samples](Samples/) folder.
 
 ### Usage examples
 

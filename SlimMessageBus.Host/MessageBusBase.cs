@@ -245,13 +245,17 @@ namespace SlimMessageBus.Host
             return request;
         }
 
-        public virtual byte[] SerializeResponse(Type responseType, object response, string requestId)
+        public virtual byte[] SerializeResponse(Type responseType, object response, string requestId, string error)
         {
-            var responsePayload = Settings.Serializer.Serialize(responseType, response);
+            var responsePayload = error == null ? Settings.Serializer.Serialize(responseType, response) : null;
 
             // create the response wrapper message
             var responseMessage = new MessageWithHeaders(responsePayload);
             responseMessage.Headers.Add(MessageHeaders.RequestId, requestId);
+            if (error != null)
+            {
+                responseMessage.Headers.Add(MessageHeaders.Error, error);
+            }
 
             var responseMessagePayload = Settings.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), responseMessage);
             return responseMessagePayload;
@@ -265,15 +269,19 @@ namespace SlimMessageBus.Host
         /// <returns></returns>
         public virtual async Task OnResponseArrived(byte[] responsePayload, string topic)
         {
-            string requestId;
             var responseMessage = (MessageWithHeaders)Settings.MessageWithHeadersSerializer.Deserialize(typeof(MessageWithHeaders), responsePayload);
+
+            string requestId;
             if (!responseMessage.Headers.TryGetValue(MessageHeaders.RequestId, out requestId))
             {
                 Log.ErrorFormat("The response message arriving on topic {0} did not have the {1} header. Unable to math the response with the request. This likely indicates a misconfiguration.", topic, MessageHeaders.RequestId);
                 return;
             }
 
-            await OnResponseArrived(responseMessage.Payload, topic, requestId);
+            string error;
+            responseMessage.Headers.TryGetValue(MessageHeaders.Error, out error);
+
+            await OnResponseArrived(responseMessage.Payload, topic, requestId, error);
         }
 
         /// <summary>
@@ -282,13 +290,14 @@ namespace SlimMessageBus.Host
         /// <param name="payload"></param>
         /// <param name="topic"></param>
         /// <param name="requestId"></param>
+        /// <param name="error"></param>
         /// <returns></returns>
-        public virtual async Task OnResponseArrived(byte[] payload, string topic, string requestId)
+        public virtual async Task OnResponseArrived(byte[] payload, string topic, string requestId, string error)
         {
             var requestState = PendingRequestStore.GetById(requestId);
             if (requestState == null)
             {
-                Log.DebugFormat("The response message for request id {0} arriving on topic {1} will be disregarded. Either the request had already expired or it was already handled (this response message is duplicate).", requestId, topic);
+                Log.DebugFormat("The response message for request id {0} arriving on topic {1} will be disregarded. Either the request had already expired or it was already handled (this response message is a duplicate).", requestId, topic);
                 // ToDo: add and API hook to these kind of situation
                 return;
             }
@@ -301,21 +310,30 @@ namespace SlimMessageBus.Host
                     Log.DebugFormat("Response arrived for {0} on topic {1} (time: {2} ms)", requestState, topic, tookTimespan);
                 }
 
-                object response = null;
-                try
+                if (error != null)
                 {
-                    response = Settings.Serializer.Deserialize(requestState.ResponseType, payload);
-                }
-                catch (Exception e)
-                {
-                    Log.DebugFormat("Could not deserialize the response message for {0} arriving on topic {1}: {2}", requestState, topic, e);
-                    requestState.TaskCompletionSource.SetException(e);
-                }
+                    // error response arrived
+                    Log.DebugFormat("Response arrived for {0} on topic {1} with error: {2}", requestState, topic, error);
 
-                if (response != null)
+                    var e = new RequestHandlerFaultedMessageBusException(error);
+                    requestState.TaskCompletionSource.TrySetException(e);
+                }
+                else
                 {
-                    // resolve the task
-                    requestState.TaskCompletionSource.SetResult(response);
+                    // response arrived
+                    try
+                    {
+                        // deserialize the response message
+                        var response = Settings.Serializer.Deserialize(requestState.ResponseType, payload);
+
+                        // resolve the response
+                        requestState.TaskCompletionSource.TrySetResult(response);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.DebugFormat("Could not deserialize the response message for {0} arriving on topic {1}: {2}", requestState, topic, e);
+                        requestState.TaskCompletionSource.TrySetException(e);
+                    }
                 }
             }
             finally
