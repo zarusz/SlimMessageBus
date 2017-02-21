@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 namespace SlimMessageBus
 {
     /// <summary>
-    /// Subscriber for messages of given type <typeparam name="TMessage"></typeparam>.
+    /// Consumer for messages of given type <typeparam name="TMessage"></typeparam>.
     /// </summary>
     /// <typeparam name="TMessage"></typeparam>
     public interface IConsumer<in TMessage>

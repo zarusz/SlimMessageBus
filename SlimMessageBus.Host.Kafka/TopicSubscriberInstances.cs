@@ -97,31 +97,46 @@ namespace SlimMessageBus.Host.Kafka
             }
 
             object response = null;
+            string responseError = null;
 
             var obj = await _consumerQueue.ReceiveAsync(_messageBus.CancellationToken);
             try
             {
-                //var subscriber = (ISubscriber<object>)obj;
-                //await subscriber.OnHandle(message, msg.Topic);
-
                 // the consumer just subscribes to the message
                 var task = (Task)_consumerInstanceOnHandleMethod.Invoke(obj, new[] { message, msg.Topic });
-                await task;
-
-                if (_settings.ConsumerMode == ConsumerMode.RequestResponse)
+                try
                 {
-                    // the consumer handles the request (and replies)
-                    response = _taskResult.GetValue(task);
+                    await task;
+
+                    if (_settings.ConsumerMode == ConsumerMode.RequestResponse)
+                    {
+                        // the consumer handles the request (and replies)
+                        response = _taskResult.GetValue(task);
+                    }
                 }
+                catch (Exception e)
+                {
+                    if (_settings.ConsumerMode == ConsumerMode.RequestResponse)
+                    {
+                        Log.DebugFormat("Handler execution failed", e);
+                        responseError = e.ToString();
+                    }
+                    else
+                    {
+                        Log.ErrorFormat("Consumer execution failed", e);
+                    }
+                }
+
             }
             finally
             {
                 await _consumerQueue.SendAsync(obj);
             }
 
-            if (response != null)
+            if (response != null || responseError != null)
             {
-                var responsePayload = _messageBus.SerializeResponse(_settings.ResponseType, response, requestId);
+                // send the response (or error response)
+                var responsePayload = _messageBus.SerializeResponse(_settings.ResponseType, response, requestId, responseError);
                 await _messageBus.Publish(_settings.ResponseType, responsePayload, replyTo);
             }
         }

@@ -28,6 +28,7 @@ namespace Sample.Images.Worker.Handlers
             var image = await LoadImage(request.FileId);
             if (image == null)
             {
+                // Note: This will cause RequestHandlerFaultedMessageBusException thrown on the other side (IRequestResponseBus.Send() method)
                 throw new InvalidOperationException($"Image with id '{request.FileId}' does not exist");
             }
             using (image)

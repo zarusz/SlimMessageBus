@@ -7,6 +7,8 @@ namespace SlimMessageBus.Host
     {
         private readonly Encoding _encoding;
 
+        private const int StringLengthFieldSize = 2;
+
         public MessageWithHeadersSerializer()
             : this(Encoding.ASCII)
         {            
@@ -25,12 +27,12 @@ namespace SlimMessageBus.Host
             var n = 1;
             foreach (var header in message.Headers)
             {
-                // 1 byte for key length
-                n += 1 + _encoding.GetByteCount(header.Key);
-                // 1 byte for value length
-                n += 1 + _encoding.GetByteCount(header.Value);
+                // 2 byte for key length
+                n += StringLengthFieldSize + _encoding.GetByteCount(header.Key);
+                // 2 byte for value length
+                n += StringLengthFieldSize + _encoding.GetByteCount(header.Value);
             }
-            n += message.Payload.Length;
+            n += message.Payload?.Length ?? 0;
 
             // allocate bytes
             var payload = new byte[n];
@@ -45,23 +47,24 @@ namespace SlimMessageBus.Host
                 i += WriteString(payload, i, header.Value);
             }
 
-            message.Payload.CopyTo(payload, i);
+            message.Payload?.CopyTo(payload, i);
 
             return payload;
         }
 
         private int WriteString(byte[] payload, int index, string s)
         {
-            var count = _encoding.GetBytes(s, 0, s.Length, payload, index + 1);
-            payload[index] = (byte) count;
-            return count + 1;
+            var count = _encoding.GetBytes(s, 0, s.Length, payload, index + StringLengthFieldSize);
+            payload[index] = (byte)(count & 255);
+            payload[index+1] = (byte)((count >> 8) & 255);
+            return count + StringLengthFieldSize;
         }
 
         private int ReadString(byte[] payload, int index, out string s)
         {
-            var count = payload[index];
-            s = _encoding.GetString(payload, index + 1, count);
-            return count + 1;
+            var count = (ushort) (payload[index] | (payload[index+1] << 8));
+            s = _encoding.GetString(payload, index + StringLengthFieldSize, count);
+            return count + StringLengthFieldSize;
         }
 
         protected MessageWithHeaders Deserialize(byte[] payload)
@@ -81,9 +84,12 @@ namespace SlimMessageBus.Host
                 message.Headers.Add(key, value);
             }
 
-            message.Payload = new byte[payload.Length - i];
-            Array.Copy(payload, i, message.Payload, 0, message.Payload.Length);
-
+            var payloadSize = payload.Length - i;
+            if (payloadSize > 0)
+            {
+                message.Payload = new byte[payload.Length - i];
+                Array.Copy(payload, i, message.Payload, 0, message.Payload.Length);
+            }
             return message;
         }
 
