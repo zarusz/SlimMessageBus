@@ -25,7 +25,7 @@ namespace SlimMessageBus.Host.Test
 
     public class RequestB : IRequestMessage<ResponseB>
     {
-        
+
     }
 
     public class ResponseB
@@ -110,8 +110,8 @@ namespace SlimMessageBus.Host.Test
             {
                 if (topic == "a-requests")
                 {
-                    var req = (RequestA) request;
-                    return new ResponseA {Id = req.Id};
+                    var req = (RequestA)request;
+                    return new ResponseA { Id = req.Id };
                 }
                 return null;
             };
@@ -120,7 +120,7 @@ namespace SlimMessageBus.Host.Test
             var r1Task = _bus.Send(r1);
             var r2Task = _bus.Send(r2);
 
-            Task.WaitAll(new Task[] {r1Task, r2Task}, 3000);
+            Task.WaitAll(new Task[] { r1Task, r2Task }, 3000);
 
             // assert
             r1Task.IsCompleted.Should().BeTrue("Response 1 should be completed");
@@ -173,6 +173,63 @@ namespace SlimMessageBus.Host.Test
             r2Task.IsCanceled.Should().BeTrue("Response 2 should be canceled");
             (!r3Task.IsCanceled && !r3Task.IsCompleted).Should().BeTrue("Response 3 should still be pending");
             _bus.PendingRequestsCount.Should().Be(1, "There should be only 1 pending request");
+        }
+
+        [TestMethod]
+        public void WhenCancellationTokenCancelled_CancellsPendingRequest()
+        {
+            // arrange
+            var r1 = new RequestA();
+            var r2 = new RequestA();
+            
+            _bus.OnReply = (type, topic, request) => null; // none request will be processed
+
+            var cts1 = new CancellationTokenSource();
+            var cts2 = new CancellationTokenSource();
+
+            var r1Task = _bus.Send(r1, cts1.Token);
+            var r2Task = _bus.Send(r2, cts2.Token);
+
+            // act
+            cts2.Cancel();
+
+            // assert
+            Thread.Sleep(1200); // wait until internal timer has enough time to sweep the pending requests
+
+            r1Task.IsCanceled.Should().BeFalse();
+            r1Task.IsFaulted.Should().BeFalse();
+            r1Task.IsCompleted.Should().BeFalse();
+
+            r2Task.IsCanceled.Should().BeTrue();
+            r2Task.IsFaulted.Should().BeFalse();
+            r2Task.IsCompleted.Should().BeTrue();
+
+            cts1.Dispose();
+            cts2.Dispose();
+        }
+
+        [TestMethod]
+        public void SerializedRequestMessage_Property()
+        {
+            // arrange
+            var r = new RequestA();
+            var rid = "1";
+            var replyTo = "some_topic";
+            var expires = DateTimeOffset.UtcNow.AddMinutes(2);
+
+            // act
+            var p = _bus.SerializeRequest(typeof(RequestA), r, rid, replyTo, expires);
+
+            string rid2;
+            string replyTo2;
+            DateTimeOffset? expires2;
+            _bus.DeserializeRequest(typeof (RequestA), p, out rid2, out replyTo2, out expires2);
+
+            // assert
+            rid2.ShouldBeEquivalentTo(rid);
+            replyTo2.ShouldBeEquivalentTo(replyTo);
+            expires2.HasValue.Should().BeTrue();
+            expires2.Value.Subtract(expires).TotalSeconds.Should().BeLessOrEqualTo(1);
         }
     }
 

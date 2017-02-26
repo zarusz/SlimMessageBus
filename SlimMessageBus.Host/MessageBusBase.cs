@@ -243,11 +243,11 @@ namespace SlimMessageBus.Host
 
             // create the request wrapper message
             var requestMessage = new MessageWithHeaders(requestPayload);
-            requestMessage.Headers.Add(MessageHeaders.RequestId, requestId);
-            requestMessage.Headers.Add(MessageHeaders.ReplyTo, replyTo);
+            requestMessage.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
+            requestMessage.SetHeader(ReqRespMessageHeaders.ReplyTo, replyTo);
             if (expires.HasValue)
             {
-                requestMessage.Headers.Add(MessageHeaders.Expires, expires.Value.ToUnixTimeSeconds().ToString());
+                requestMessage.SetHeader(ReqRespMessageHeaders.Expires, expires.Value);
             }
 
             var requestMessagePayload = Settings.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), requestMessage);
@@ -257,18 +257,9 @@ namespace SlimMessageBus.Host
         public virtual object DeserializeRequest(Type requestType, byte[] requestPayload, out string requestId, out string replyTo, out DateTimeOffset? expires)
         {
             var requestMessage = (MessageWithHeaders)Settings.MessageWithHeadersSerializer.Deserialize(typeof(MessageWithHeaders), requestPayload);
-            requestId = requestMessage.Headers[MessageHeaders.RequestId];
-            replyTo = requestMessage.Headers[MessageHeaders.ReplyTo];
-
-            string expiresStr;
-            if (requestMessage.Headers.TryGetValue(MessageHeaders.Expires, out expiresStr))
-            {
-                expires = DateTimeOffset.FromUnixTimeSeconds(long.Parse(expiresStr));
-            }
-            else
-            {
-                expires = null;
-            }
+            requestMessage.TryGetHeader(ReqRespMessageHeaders.RequestId, out requestId);
+            requestMessage.TryGetHeader(ReqRespMessageHeaders.ReplyTo, out replyTo);
+            requestMessage.TryGetHeader(ReqRespMessageHeaders.Expires, out expires);
 
             var request = Settings.Serializer.Deserialize(requestType, requestMessage.Payload);
             return request;
@@ -280,10 +271,10 @@ namespace SlimMessageBus.Host
 
             // create the response wrapper message
             var responseMessage = new MessageWithHeaders(responsePayload);
-            responseMessage.Headers.Add(MessageHeaders.RequestId, requestId);
+            responseMessage.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
             if (error != null)
             {
-                responseMessage.Headers.Add(MessageHeaders.Error, error);
+                responseMessage.SetHeader(ReqRespMessageHeaders.Error, error);
             }
 
             var responseMessagePayload = Settings.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), responseMessage);
@@ -301,14 +292,14 @@ namespace SlimMessageBus.Host
             var responseMessage = (MessageWithHeaders)Settings.MessageWithHeadersSerializer.Deserialize(typeof(MessageWithHeaders), responsePayload);
 
             string requestId;
-            if (!responseMessage.Headers.TryGetValue(MessageHeaders.RequestId, out requestId))
+            if (!responseMessage.TryGetHeader(ReqRespMessageHeaders.RequestId, out requestId))
             {
-                Log.ErrorFormat("The response message arriving on topic {0} did not have the {1} header. Unable to math the response with the request. This likely indicates a misconfiguration.", topic, MessageHeaders.RequestId);
+                Log.ErrorFormat("The response message arriving on topic {0} did not have the {1} header. Unable to math the response with the request. This likely indicates a misconfiguration.", topic, ReqRespMessageHeaders.RequestId);
                 return;
             }
 
             string error;
-            responseMessage.Headers.TryGetValue(MessageHeaders.Error, out error);
+            responseMessage.TryGetHeader(ReqRespMessageHeaders.Error, out error);
 
             await OnResponseArrived(responseMessage.Payload, topic, requestId, error);
         }

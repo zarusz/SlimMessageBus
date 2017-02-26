@@ -60,7 +60,7 @@
     <Compile Include="RequestResponse\InMemoryPendingRequestStore.cs" />
     <Compile Include="RequestResponse\IPendingRequestStore.cs" />
     <Compile Include="MessageBusBase.cs" />
-    <Compile Include="RequestResponse\MessageHeaders.cs" />
+    <Compile Include="RequestResponse\ReqRespMessageHeaders.cs" />
     <Compile Include="ConfigurationMessageBusException.cs" />
     <Compile Include="Utility\Assert.cs" />
     <Compile Include="Config\Fluent\GroupBuilder.cs" />
