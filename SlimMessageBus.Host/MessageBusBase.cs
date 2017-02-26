@@ -23,6 +23,7 @@ namespace SlimMessageBus.Host
 
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         public CancellationToken CancellationToken => _cancellationTokenSource.Token;
+        protected bool IsDisposed = false;
 
         protected MessageBusBase(MessageBusSettings settings)
         {
@@ -55,8 +56,22 @@ namespace SlimMessageBus.Host
 
         #region Implementation of IDisposable
 
-        public virtual void Dispose()
+        public void Dispose()
         {
+            if (IsDisposed)
+            {
+                return;
+            }
+
+            OnDispose();
+            IsDisposed = true;
+        }
+
+        protected virtual void OnDispose()
+        {
+            _cancellationTokenSource.Cancel();
+            _cancellationTokenSource.Dispose();
+
             PendingRequestTimer.Stop();
             PendingRequestTimer.Dispose();
         }
@@ -67,10 +82,14 @@ namespace SlimMessageBus.Host
         {
             var now = CurrentTime;
 
-            var requestsToExpire = PendingRequestStore.GetAllExpired(now);
-            foreach (var requestState in requestsToExpire)
+            var requestsToCancel = PendingRequestStore.FindAllToCancel(now);
+            foreach (var requestState in requestsToCancel)
             {
-                var canceled = requestState.TaskCompletionSource.TrySetCanceled();
+                // request is either cancelled (via CancellationToken) or expired
+                var canceled = requestState.CancellationToken.IsCancellationRequested
+                    ? requestState.TaskCompletionSource.TrySetCanceled(requestState.CancellationToken)
+                    : requestState.TaskCompletionSource.TrySetCanceled();
+
                 if (PendingRequestStore.Remove(requestState.Id) && canceled)
                 {
                     Log.DebugFormat("Pending request timed-out: {0}, now: {1}", requestState, now);
@@ -141,12 +160,17 @@ namespace SlimMessageBus.Host
             return timeout;
         }
 
-        public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan? timeout, string topic)
+        protected virtual async Task<TResponseMessage> SendInternal<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan? timeout, string topic, CancellationToken cancellationToken)
         {
             if (Settings.RequestResponse == null)
             {
                 throw new PublishMessageBusException("An attempt to send request when request/response communication was not configured for the message bus. Ensure you configure the bus properly before the application starts.");
             }
+
+            //return await Task.FromCanceled<TResponseMessage>(cancellationToken);
+
+            // check if the cancellation was already requested
+            cancellationToken.ThrowIfCancellationRequested();
 
             var requestType = request.GetType();
             var publisherSettings = GetPublisherSettings(requestType);
@@ -170,7 +194,7 @@ namespace SlimMessageBus.Host
             var requestPayload = SerializeRequest(requestType, request, requestId, replyTo, expires);
 
             // record the request state
-            var requestState = new PendingRequestState(requestId, request, requestType, typeof(TResponseMessage), created, expires);
+            var requestState = new PendingRequestState(requestId, request, requestType, typeof(TResponseMessage), created, expires, cancellationToken);
             PendingRequestStore.Add(requestState);
 
             if (Log.IsDebugEnabled)
@@ -196,14 +220,19 @@ namespace SlimMessageBus.Host
 
         #region Implementation of IRequestResponseBus
 
-        public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string topic = null)
+        public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, CancellationToken cancellationToken)
         {
-            return await Send(request, null, topic);
+            return await SendInternal(request, null, null, cancellationToken);
         }
 
-        public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string topic = null)
+        public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string topic = null, CancellationToken cancellationToken = default(CancellationToken))
         {
-            return await Send(request, (TimeSpan?) timeout, topic);
+            return await SendInternal(request, null, topic, cancellationToken);
+        }
+
+        public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string topic = null, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            return await SendInternal(request, (TimeSpan?) timeout, topic, cancellationToken);
         }
 
         #endregion
@@ -214,11 +243,11 @@ namespace SlimMessageBus.Host
 
             // create the request wrapper message
             var requestMessage = new MessageWithHeaders(requestPayload);
-            requestMessage.Headers.Add(MessageHeaders.RequestId, requestId);
-            requestMessage.Headers.Add(MessageHeaders.ReplyTo, replyTo);
+            requestMessage.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
+            requestMessage.SetHeader(ReqRespMessageHeaders.ReplyTo, replyTo);
             if (expires.HasValue)
             {
-                requestMessage.Headers.Add(MessageHeaders.Expires, expires.Value.ToUnixTimeSeconds().ToString());
+                requestMessage.SetHeader(ReqRespMessageHeaders.Expires, expires.Value);
             }
 
             var requestMessagePayload = Settings.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), requestMessage);
@@ -228,18 +257,9 @@ namespace SlimMessageBus.Host
         public virtual object DeserializeRequest(Type requestType, byte[] requestPayload, out string requestId, out string replyTo, out DateTimeOffset? expires)
         {
             var requestMessage = (MessageWithHeaders)Settings.MessageWithHeadersSerializer.Deserialize(typeof(MessageWithHeaders), requestPayload);
-            requestId = requestMessage.Headers[MessageHeaders.RequestId];
-            replyTo = requestMessage.Headers[MessageHeaders.ReplyTo];
-
-            string expiresStr;
-            if (requestMessage.Headers.TryGetValue(MessageHeaders.Expires, out expiresStr))
-            {
-                expires = DateTimeOffset.FromUnixTimeSeconds(long.Parse(expiresStr));
-            }
-            else
-            {
-                expires = null;
-            }
+            requestMessage.TryGetHeader(ReqRespMessageHeaders.RequestId, out requestId);
+            requestMessage.TryGetHeader(ReqRespMessageHeaders.ReplyTo, out replyTo);
+            requestMessage.TryGetHeader(ReqRespMessageHeaders.Expires, out expires);
 
             var request = Settings.Serializer.Deserialize(requestType, requestMessage.Payload);
             return request;
@@ -251,10 +271,10 @@ namespace SlimMessageBus.Host
 
             // create the response wrapper message
             var responseMessage = new MessageWithHeaders(responsePayload);
-            responseMessage.Headers.Add(MessageHeaders.RequestId, requestId);
+            responseMessage.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
             if (error != null)
             {
-                responseMessage.Headers.Add(MessageHeaders.Error, error);
+                responseMessage.SetHeader(ReqRespMessageHeaders.Error, error);
             }
 
             var responseMessagePayload = Settings.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), responseMessage);
@@ -272,14 +292,14 @@ namespace SlimMessageBus.Host
             var responseMessage = (MessageWithHeaders)Settings.MessageWithHeadersSerializer.Deserialize(typeof(MessageWithHeaders), responsePayload);
 
             string requestId;
-            if (!responseMessage.Headers.TryGetValue(MessageHeaders.RequestId, out requestId))
+            if (!responseMessage.TryGetHeader(ReqRespMessageHeaders.RequestId, out requestId))
             {
-                Log.ErrorFormat("The response message arriving on topic {0} did not have the {1} header. Unable to math the response with the request. This likely indicates a misconfiguration.", topic, MessageHeaders.RequestId);
+                Log.ErrorFormat("The response message arriving on topic {0} did not have the {1} header. Unable to math the response with the request. This likely indicates a misconfiguration.", topic, ReqRespMessageHeaders.RequestId);
                 return;
             }
 
             string error;
-            responseMessage.Headers.TryGetValue(MessageHeaders.Error, out error);
+            responseMessage.TryGetHeader(ReqRespMessageHeaders.Error, out error);
 
             await OnResponseArrived(responseMessage.Payload, topic, requestId, error);
         }
@@ -297,7 +317,7 @@ namespace SlimMessageBus.Host
             var requestState = PendingRequestStore.GetById(requestId);
             if (requestState == null)
             {
-                Log.DebugFormat("The response message for request id {0} arriving on topic {1} will be disregarded. Either the request had already expired or it was already handled (this response message is a duplicate).", requestId, topic);
+                Log.DebugFormat("The response message for request id {0} arriving on topic {1} will be disregarded. Either the request had already expired, had been cancelled or it was already handled (this response message is a duplicate).", requestId, topic);
                 // ToDo: add and API hook to these kind of situation
                 return;
             }

@@ -11,6 +11,7 @@
     <AssemblyName>SlimMessageBus.Host</AssemblyName>
     <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -59,7 +60,7 @@
     <Compile Include="RequestResponse\InMemoryPendingRequestStore.cs" />
     <Compile Include="RequestResponse\IPendingRequestStore.cs" />
     <Compile Include="MessageBusBase.cs" />
-    <Compile Include="RequestResponse\MessageHeaders.cs" />
+    <Compile Include="RequestResponse\ReqRespMessageHeaders.cs" />
     <Compile Include="ConfigurationMessageBusException.cs" />
     <Compile Include="Utility\Assert.cs" />
     <Compile Include="Config\Fluent\GroupBuilder.cs" />

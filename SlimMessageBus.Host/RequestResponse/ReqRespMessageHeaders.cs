@@ -1,6 +1,6 @@
 namespace SlimMessageBus.Host
 {
-    public static class MessageHeaders
+    public static class ReqRespMessageHeaders
     {
         public const string RequestId = "request-id";
         public const string ReplyTo = "reply-to";

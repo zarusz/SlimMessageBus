@@ -1,7 +1,9 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
 using Sample.Images.FileStore;
@@ -26,7 +28,7 @@ namespace Sample.Images.WebApi.Controllers
         }
 
         [Route("{fileId}")]
-        public async Task<HttpResponseMessage> GetImageThumbnail(string fileId, ThumbnailMode mode, int w, int h)
+        public async Task<HttpResponseMessage> GetImageThumbnail(string fileId, ThumbnailMode mode, int w, int h, CancellationToken cancellationToken)
         {
             var thumbFileId = _fileIdStrategy.GetFileId(fileId, w, h, mode);
 
@@ -35,13 +37,18 @@ namespace Sample.Images.WebApi.Controllers
             {
                 try
                 {
-                    var thumbGenResponse = await _bus.Send(new GenerateThumbnailRequest(fileId, mode, w, h));
+                    var thumbGenResponse = await _bus.Send(new GenerateThumbnailRequest(fileId, mode, w, h), cancellationToken);
                     thumbFileContent = await _fileStore.GetFile(thumbGenResponse.FileId);
                 }
                 catch (RequestHandlerFaultedMessageBusException e)
                 {
                     // The request handler for GenerateThumbnailRequest failed
                     return Request.CreateResponse(HttpStatusCode.NotFound);
+                }
+                catch (OperationCanceledException e)
+                {
+                    // The request was cancelled (HTTP connection cancelled, or request timed out)
+                    return Request.CreateErrorResponse(HttpStatusCode.ServiceUnavailable, "The request was cancelled");
                 }
             }
 

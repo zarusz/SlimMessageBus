@@ -1,5 +1,16 @@
 # Release Notes of SlimMessageBus
 
+## Version 0.9.8.X
+
+Features:
+* The core IRequestResponseBus methods now take an optional [CancellationToken](https://msdn.microsoft.com/en-us/library/system.threading.cancellationtoken(v=vs.110).aspx). This allows for the API client to cancel the pending request. For example you can use this with [WebApi async actions](http://www.davepaquette.com/archive/2015/07/19/cancelling-long-running-queries-in-asp-net-mvc-and-web-api.aspx), in the case where the HTTP call is cancelled.
+
+
+Packages:
+* https://www.nuget.org/packages/SlimMessageBus/0.9.8.X
+* https://www.nuget.org/packages/SlimMessageBus.Host/0.9.8.X
+* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.8.X
+
 ## Version 0.9.7.41418
 
 Features:
