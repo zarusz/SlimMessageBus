@@ -10,6 +10,12 @@ namespace SlimMessageBus.Host
 
         int GetCount();
         PendingRequestState GetById(string id);
-        ICollection<PendingRequestState> GetAllExpired(DateTimeOffset now);
+
+        /// <summary>
+        /// Find all the requests which either expired or cancelation was requested
+        /// </summary>
+        /// <param name="now"></param>
+        /// <returns></returns>
+        ICollection<PendingRequestState> FindAllToCancel(DateTimeOffset now);
     }
 }

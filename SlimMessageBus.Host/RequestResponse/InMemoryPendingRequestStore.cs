@@ -39,11 +39,11 @@ namespace SlimMessageBus.Host
             }
         }
 
-        public ICollection<PendingRequestState> GetAllExpired(DateTimeOffset now)
+        public ICollection<PendingRequestState> FindAllToCancel(DateTimeOffset now)
         {
             lock (_itemsLock)
             {
-                return _items.Values.Where(x => x.Expires < now).ToList();
+                return _items.Values.Where(x => x.Expires < now || x.CancellationToken.IsCancellationRequested).ToList();
             }
         }
 

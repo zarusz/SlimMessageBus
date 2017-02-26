@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SlimMessageBus.Host
@@ -12,8 +13,9 @@ namespace SlimMessageBus.Host
         public DateTimeOffset Created { get; }
         public DateTimeOffset Expires { get; }
         public TaskCompletionSource<object> TaskCompletionSource { get; }
+        public CancellationToken CancellationToken { get; }
 
-        public PendingRequestState(string id, object request, Type requestType, Type responseType, DateTimeOffset created, DateTimeOffset expires)
+        public PendingRequestState(string id, object request, Type requestType, Type responseType, DateTimeOffset created, DateTimeOffset expires, CancellationToken cancellationToken)
         {
             Id = id;
             Request = request;
@@ -23,6 +25,7 @@ namespace SlimMessageBus.Host
             Expires = expires;
             // https://blogs.msdn.microsoft.com/pfxteam/2009/06/02/the-nature-of-taskcompletionsourcetresult/
             TaskCompletionSource = new TaskCompletionSource<object>();
+            CancellationToken = cancellationToken;
         }
 
         #region Overrides of Object

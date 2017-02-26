@@ -70,7 +70,7 @@ namespace SlimMessageBus.Host.Kafka
 
         #region Overrides of BaseMessageBus
 
-        public override void Dispose()
+        protected override void OnDispose()
         {
             foreach (var groupConsumer in _groupConsumers)
             {
@@ -90,7 +90,7 @@ namespace SlimMessageBus.Host.Kafka
                 _producer = null;
             }
 
-            base.Dispose();
+            base.OnDispose();
         }
 
         public override async Task Publish(Type messageType, byte[] payload, string topic)
