@@ -28,14 +28,10 @@ namespace SlimMessageBus.Host.Kafka
 
             KafkaSettings = kafkaSettings;
 
-            // ToDo: Wrap this into a factory, so that users can add custom options
-            var config = new Dictionary<string, object>
-            {
-                {KafkaConfigKeys.Servers, kafkaSettings.BrokerList}
-            };
-
+            Log.Debug("Creating producer settings");
+            var config = kafkaSettings.ProducerConfigFactory();
             Log.InfoFormat("Creating producer with settings: {0}", config);
-            _producer = new Producer(config);
+            _producer = kafkaSettings.ProducerFactory(config);
             Log.InfoFormat("Producer has been assigned name: {0}", _producer.Name);
 
             Log.Info("Creating subscribers");

@@ -43,9 +43,10 @@ namespace SlimMessageBus.Host.Kafka
             Group = group;
             Topics = topics;
 
-            // ToDo: Wrap into a factory, so that users can tweak some params
-            var config = ConstructConfig(messageBus.KafkaSettings.BrokerList, group, false);
-            Consumer = new Consumer(config);
+            var config = messageBus.KafkaSettings.ConsumerConfigFactory(group);
+            // ToDo: add support for auto commit
+            config[KafkaConfigKeys.Consumer.EnableAutoCommit] = false;
+            Consumer = messageBus.KafkaSettings.ConsumerFactory(group, config);
             Consumer.OnMessage += OnMessage;
             Consumer.OnPartitionsAssigned += OnPartitionAssigned;
             Consumer.OnPartitionsRevoked += OnPartitionRevoked;
