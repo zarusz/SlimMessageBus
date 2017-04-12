@@ -1,15 +1,23 @@
 # Release Notes of SlimMessageBus
 
-## Version 0.9.8.X
+## Version 0.9.9.X
+
+Features
+* Switched the kafka client to [confluent-kafka-dotnet](https://github.com/confluentinc/confluent-kafka-dotnet) which is an evolution of the previously used ([rdkafka-dotnet](https://github.com/ah-/rdkafka-dotnet))
+* Added factory methods to KafkaMessageBusSettings that allows to customize settings of producer/consumer.
+
+Packages:
+* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.9.X
+
+## Version 0.9.8.34503
 
 Features:
 * The core IRequestResponseBus methods now take an optional [CancellationToken](https://msdn.microsoft.com/en-us/library/system.threading.cancellationtoken(v=vs.110).aspx). This allows for the API client to cancel the pending request. For example you can use this with [WebApi async actions](http://www.davepaquette.com/archive/2015/07/19/cancelling-long-running-queries-in-asp-net-mvc-and-web-api.aspx), in the case where the HTTP call is cancelled.
 
-
 Packages:
-* https://www.nuget.org/packages/SlimMessageBus/0.9.8.X
-* https://www.nuget.org/packages/SlimMessageBus.Host/0.9.8.X
-* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.8.X
+* https://www.nuget.org/packages/SlimMessageBus/0.9.8.34503
+* https://www.nuget.org/packages/SlimMessageBus.Host/0.9.8.34503
+* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.8.34503
 
 ## Version 0.9.7.41418
 
