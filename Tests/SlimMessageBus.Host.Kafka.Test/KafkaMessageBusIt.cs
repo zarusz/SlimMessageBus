@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Common.Logging;
+using FluentAssertions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization.Json;
@@ -31,7 +32,10 @@ namespace SlimMessageBus.Host.Kafka.Test
 
         public Task OnHandle(PingMessage message, string topic)
         {
-            Messages.Add(message);
+            lock (Messages)
+            {
+                Messages.Add(message);
+            }
 
             Log.InfoFormat("Got message {0} on topic {1}.", message.Counter, topic);
             return Task.FromResult(false);
@@ -46,7 +50,7 @@ namespace SlimMessageBus.Host.Kafka.Test
     {
         private static readonly ILog Log = LogManager.GetLogger<KafkaMessageBusIt>();
 
-        private const int NumberOfMessages = 100;
+        private const int NumberOfMessages = 77;
         private KafkaMessageBus _bus;
         private PingConsumer _pingConsumer;
 
@@ -94,9 +98,9 @@ namespace SlimMessageBus.Host.Kafka.Test
                 .SubscribeTo<PingMessage>(x =>
                 {
                     x.Topic(topic)
-                        .Group("subscriber1")
+                        .Group("subscriber2")
                         .WithSubscriber<PingConsumer>()
-                        .Instances(1);
+                        .Instances(2);
                 })
                 .ExpectRequestResponses(x =>
                 {
@@ -132,16 +136,18 @@ namespace SlimMessageBus.Host.Kafka.Test
             Log.InfoFormat("Published {0} messages in {1}", messagesPublished.Count, stopwatch.Elapsed);
 
             stopwatch.Restart();
+                                                   
             var messagesReceived = ConsumeFromTopic();
 
-            stopwatch.Stop();
-            Log.InfoFormat("Consumed {0} messages in {1}", messagesReceived.Count, stopwatch.Elapsed);
+            messagesReceived.Count.ShouldBeEquivalentTo(messagesPublished.Count);
 
+            stopwatch.Stop();
+            Log.InfoFormat("Consumed {0} messages in {1}", messagesReceived.Count, stopwatch.Elapsed);            
         }
 
         private IList<PingMessage> ConsumeFromTopic()
         {
-            while (_pingConsumer.Messages.Count != NumberOfMessages)
+            while (_pingConsumer.Messages.Count < NumberOfMessages)
             {
                 Thread.Sleep(200);
             }

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Common.Logging;
-using RdKafka;
+using Confluent.Kafka;
 using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.Kafka
@@ -25,27 +25,29 @@ namespace SlimMessageBus.Host.Kafka
             _consumerInstancesByTopic = groupSubscriberSettings
                 .ToDictionary(x => x.Topic, x => new TopicConsumerInstances(x, this, MessageBus));
 
-            Consumer.Start();
+            Start();
         }
 
-        protected override void OnEndReached(object sender, TopicPartitionOffset offset)
+        protected override void OnPartitionEndReached(object sender, TopicPartitionOffset offset)
         {            
-            Log.DebugFormat("Group {0}: Reached end of topic: {1} and parition: {2}, next message will be at offset: {3}", Group, offset.Topic, offset.Partition, offset.Offset);
+            base.OnPartitionEndReached(sender, offset);
+
             var consumerInstances = _consumerInstancesByTopic[offset.Topic];
             consumerInstances.Commit(offset);
         }
 
         protected override void OnMessage(object sender, Message msg)
         {
+            base.OnMessage(sender, msg);
+
             try
             {
-                Log.DebugFormat("Group {0}: Received message on topic: {1} (offset: {2}, payload size: {3})", Group, msg.Topic, msg.TopicPartitionOffset, msg.Payload.Length);
                 var consumerInstances = _consumerInstancesByTopic[msg.Topic];
                 consumerInstances.EnqueueMessage(msg);
             }
             catch (Exception e)
             {
-                Log.ErrorFormat("Group {0}: Error occured while processing a message from topic {0} of type {1}. {2}", Group, msg.Topic, MessageType, e);
+                Log.ErrorFormat("Group [{0}]: Error occured while processing a message from topic {0} of type {1}. {2}", Group, msg.Topic, MessageType, e);
                 throw;
             }
         }
@@ -55,7 +57,7 @@ namespace SlimMessageBus.Host.Kafka
         public override void Dispose()
         {
             // first stop the consumer, so that messages do not get consumed at this point
-            Consumer?.Stop().Wait();
+            Stop();
 
             // dispose all subscriber instances
             foreach (var consumerInstances in _consumerInstancesByTopic.Values)

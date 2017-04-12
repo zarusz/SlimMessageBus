@@ -5,7 +5,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Common.Logging;
-using RdKafka;
+using Confluent.Kafka;
 using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.Kafka
@@ -79,8 +79,8 @@ namespace SlimMessageBus.Host.Kafka
             string requestId = null, replyTo = null;
             DateTimeOffset? expires = null;
             var message = _settings.IsRequestMessage
-                ? _messageBus.DeserializeRequest(_settings.MessageType, msg.Payload, out requestId, out replyTo, out expires)
-                : _messageBus.Settings.Serializer.Deserialize(_groupConsumer.MessageType, msg.Payload);
+                ? _messageBus.DeserializeRequest(_settings.MessageType, msg.Value, out requestId, out replyTo, out expires)
+                : _messageBus.Settings.Serializer.Deserialize(_groupConsumer.MessageType, msg.Value);
 
             // Verify if the request/message is already expired
             if (expires.HasValue)

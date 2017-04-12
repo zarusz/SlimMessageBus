@@ -44,7 +44,7 @@ SlimMessageBus is a facade for message brokers for .NET. It comes with implement
  ------------ | ------------- | ------------- | -------------
  `SlimMessageBus` | The interfaces to work with SlimMessageBus | `Common.Logging` | https://www.nuget.org/packages/SlimMessageBus
  `SlimMessageBus.Host` | The minimal in-process, synchronous messsage passing implementation | `SlimMessageBus` | https://www.nuget.org/packages/SlimMessageBus.Host
- `SlimMessageBus.Host.Kafka` | Implementation for Apache Kafka  | `SlimMessageBus.Host` `RdKafka` | https://www.nuget.org/packages/SlimMessageBus.Host.Kafka
+ `SlimMessageBus.Host.Kafka` | Implementation for Apache Kafka  | `SlimMessageBus.Host` [`Confluent.Kafka`](https://www.nuget.org/packages/Confluent.Kafka/) | https://www.nuget.org/packages/SlimMessageBus.Host.Kafka
  `SlimMessageBus.Host.EventHub` (future) | Implementation for Azure EventHub | `SlimMessageBus.Host` `Microsoft.Azure.ServiceBus.EventProcessorHost` | .
  `SlimMessageBus.Host.Redis` (future) | Implementation for Redis | `SlimMessageBus.Host` `StackExchange.Redis.StrongName` | .
  `SlimMessageBus.Host.InMemory` (pending) | Implementation for in memory broker (in-process message passing) | `SlimMessageBus.Host` | .
