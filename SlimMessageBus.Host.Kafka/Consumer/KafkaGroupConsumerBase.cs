@@ -20,22 +20,16 @@ namespace SlimMessageBus.Host.Kafka
         private Task _consumerTask;
         private CancellationTokenSource _consumerCts;
 
-        // See https://kafka.apache.org/documentation/#newconsumerconfigs
-        private static Dictionary<string, object> ConstructConfig(string brokerList, string groupId, bool enableAutoCommit) 
-            => new Dictionary<string, object>
-            {
-                {KafkaConfigKeys.Servers, brokerList},
-                {KafkaConfigKeys.Consumer.GroupId, groupId},
-                {KafkaConfigKeys.Consumer.EnableAutoCommit, enableAutoCommit},
-                {KafkaConfigKeys.Consumer.AutoCommitEnableMs, 5000},
-                {KafkaConfigKeys.Consumer.StatisticsIntervalMs, 60000},
-                {
-                    "default.topic.config", new Dictionary<string, object>
-                    {
-                        {KafkaConfigKeys.Consumer.AutoOffsetReset, "latest"}
-                    }
-                }
-            };
+        public Consumer CreateConsumer(string group)
+        {
+            var config = MessageBus.KafkaSettings.ConsumerConfigFactory(group);
+            config[KafkaConfigKeys.Servers] = MessageBus.KafkaSettings.BrokerList;
+            config[KafkaConfigKeys.Consumer.GroupId] = group;
+            // ToDo: add support for auto commit
+            config[KafkaConfigKeys.Consumer.EnableAutoCommit] = false;
+            var consumer = MessageBus.KafkaSettings.ConsumerFactory(group, config);
+            return consumer;
+        }
 
         protected KafkaGroupConsumerBase(KafkaMessageBus messageBus, string group, List<string> topics)
         {
@@ -43,10 +37,8 @@ namespace SlimMessageBus.Host.Kafka
             Group = group;
             Topics = topics;
 
-            var config = messageBus.KafkaSettings.ConsumerConfigFactory(group);
-            // ToDo: add support for auto commit
-            config[KafkaConfigKeys.Consumer.EnableAutoCommit] = false;
-            Consumer = messageBus.KafkaSettings.ConsumerFactory(group, config);
+            Log.InfoFormat("Creating consumer for group: {0}", group);
+            Consumer = CreateConsumer(group);
             Consumer.OnMessage += OnMessage;
             Consumer.OnPartitionsAssigned += OnPartitionAssigned;
             Consumer.OnPartitionsRevoked += OnPartitionRevoked;

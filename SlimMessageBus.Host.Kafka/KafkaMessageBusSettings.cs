@@ -32,16 +32,9 @@ namespace SlimMessageBus.Host.Kafka
         public KafkaMessageBusSettings(string brokerList)
         {
             BrokerList = brokerList;
-            ProducerConfigFactory = () => new Dictionary<string, object>
-            {
-                { KafkaConfigKeys.Servers, BrokerList }
-            };
+            ProducerConfigFactory = () => new Dictionary<string, object>();
             ProducerFactory = (config) => new Producer(config);
-            ConsumerConfigFactory = (group) => new Dictionary<string, object>
-            {
-                { KafkaConfigKeys.Servers, BrokerList },
-                { KafkaConfigKeys.Consumer.GroupId, group }
-            };
+            ConsumerConfigFactory = (group) => new Dictionary<string, object>();
             ConsumerFactory = (group, config) => new Consumer(config);
         }
     }

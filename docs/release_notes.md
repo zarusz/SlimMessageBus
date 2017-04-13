@@ -1,13 +1,13 @@
 # Release Notes of SlimMessageBus
 
-## Version 0.9.9.X
+## Version 0.9.8.34503
 
 Features
 * Switched the kafka client to [confluent-kafka-dotnet](https://github.com/confluentinc/confluent-kafka-dotnet) which is an evolution of the previously used ([rdkafka-dotnet](https://github.com/ah-/rdkafka-dotnet))
-* Added factory methods to KafkaMessageBusSettings that allows to customize settings of producer/consumer.
+* Added factory methods to KafkaMessageBusSettings that allows to customize settings of producer/consumer in the underlying kafka client.
 
 Packages:
-* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.9.X
+* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.8.34503
 
 ## Version 0.9.8.34503
 

@@ -166,7 +166,7 @@ namespace SlimMessageBus.Host.Kafka.Test
                 });
             }
 
-            messages.ForEach(m =>
+            Parallel.ForEach(messages, m =>
             {
                 try
                 {

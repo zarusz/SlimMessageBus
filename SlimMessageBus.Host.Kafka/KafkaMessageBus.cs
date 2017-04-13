@@ -21,6 +21,16 @@ namespace SlimMessageBus.Host.Kafka
         private Producer _producer;
         private readonly IList<KafkaGroupConsumerBase> _groupConsumers = new List<KafkaGroupConsumerBase>();
 
+        public Producer CreateProducer()
+        {
+            Log.Debug("Creating producer settings");
+            var config = KafkaSettings.ProducerConfigFactory();
+            config[KafkaConfigKeys.Servers] = KafkaSettings.BrokerList;
+            Log.DebugFormat("Producer settings: {0}", config);
+            var producer = KafkaSettings.ProducerFactory(config);
+            return producer;
+        }
+
         public KafkaMessageBus(MessageBusSettings settings, KafkaMessageBusSettings kafkaSettings)
             : base(settings)
         {
@@ -28,10 +38,8 @@ namespace SlimMessageBus.Host.Kafka
 
             KafkaSettings = kafkaSettings;
 
-            Log.Debug("Creating producer settings");
-            var config = kafkaSettings.ProducerConfigFactory();
-            Log.InfoFormat("Creating producer with settings: {0}", config);
-            _producer = kafkaSettings.ProducerFactory(config);
+            Log.Info("Creating producer");
+            _producer = CreateProducer();
             Log.InfoFormat("Producer has been assigned name: {0}", _producer.Name);
 
             Log.Info("Creating subscribers");

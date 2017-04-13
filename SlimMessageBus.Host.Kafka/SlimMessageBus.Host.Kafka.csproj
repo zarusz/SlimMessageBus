@@ -63,6 +63,7 @@
     <Compile Include="KafkaConfigKeys.cs" />
     <Compile Include="Consumer\KafkaGroupConsumer.cs" />
     <Compile Include="Consumer\KafkaGroupConsumerBase.cs" />
+    <Compile Include="KafkaConfigValues.cs" />
     <Compile Include="KafkaMessageBus.cs" />
     <Compile Include="KafkaMessageBusBuilderExtensions.cs" />
     <Compile Include="KafkaMessageBusSettings.cs" />

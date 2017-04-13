@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Configuration;
 using Autofac;
 using Autofac.Extras.CommonServiceLocator;
@@ -71,7 +72,20 @@ namespace Sample.Images.Worker
                 })
                 .WithDependencyResolverAsServiceLocator()
                 .WithSerializer(new JsonMessageSerializer())
-                .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
+                .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+                {
+                    ConsumerConfigFactory = (group) => new Dictionary<string, object>
+                    {
+                        {KafkaConfigKeys.Consumer.AutoCommitEnableMs, 5000},
+                        {KafkaConfigKeys.Consumer.StatisticsIntervalMs, 60000},
+                        {
+                            "default.topic.config", new Dictionary<string, object>
+                            {
+                                {KafkaConfigKeys.Consumer.AutoOffsetReset, KafkaConfigValues.AutoOffsetReset.Latest}
+                            }
+                        }
+                    }
+                });
 
             var messageBus = messageBusBuilder.Build();
             return messageBus;
