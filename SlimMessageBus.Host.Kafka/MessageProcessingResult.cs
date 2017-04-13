@@ -1,5 +1,5 @@
 using System.Threading.Tasks;
-using RdKafka;
+using Confluent.Kafka;
 
 namespace SlimMessageBus.Host.Kafka
 {

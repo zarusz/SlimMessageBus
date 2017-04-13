@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using Common.Logging;
-using RdKafka;
+using Confluent.Kafka;
 using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.Kafka
@@ -17,21 +17,30 @@ namespace SlimMessageBus.Host.Kafka
         public KafkaResponseConsumer(KafkaMessageBus messageBus, RequestResponseSettings requestResponseSettings)
             : base(messageBus, requestResponseSettings.Group, new List<string> { requestResponseSettings.Topic })
         {
-            Consumer.Start();
+            Start();
         }
 
         #region Overrides of KafkaGroupConsumerBase
 
-        protected override void OnEndReached(object sender, TopicPartitionOffset offset)
+        protected override void OnPartitionEndReached(object sender, TopicPartitionOffset offset)
         {
+            base.OnPartitionEndReached(sender, offset);
             Commit(offset);
         }
 
         protected override void OnMessage(object sender, Message msg)
         {
-            MessageBus.OnResponseArrived(msg.Payload, MessageBus.Settings.RequestResponse.Topic).Wait();
+            base.OnMessage(sender, msg);
+            MessageBus.OnResponseArrived(msg.Value, MessageBus.Settings.RequestResponse.Topic).Wait();
         }
 
         #endregion
+
+        public override void Dispose()
+        {
+            Stop();
+            base.Dispose();
+        }
+
     }
 }
