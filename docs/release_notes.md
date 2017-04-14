@@ -1,13 +1,20 @@
 # Release Notes of SlimMessageBus
 
-## Version 0.9.9.42683
+## Version 0.9.9.16686
 
 Features
 * Switched the kafka client to [confluent-kafka-dotnet](https://github.com/confluentinc/confluent-kafka-dotnet) which is an evolution of the previously used ([rdkafka-dotnet](https://github.com/ah-/rdkafka-dotnet))
 * Added factory methods to KafkaMessageBusSettings that allows to customize settings of producer/consumer in the underlying kafka client.
 
+Known Bugs:
+* There is a [bug](https://github.com/confluentinc/confluent-kafka-dotnet/issues/87) with the underlying client that causes high CPU usage. When fix is available, new release of SlimMessageBus.Host.Kafka will be available.
+
 Packages:
-* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.9.42683
+* https://www.nuget.org/packages/SlimMessageBus/0.9.8.16686
+* https://www.nuget.org/packages/SlimMessageBus.Host/0.9.8.16686
+* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.9.16686
+* https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json/0.9.6.16686
+* https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator/0.9.6.16686
 
 ## Version 0.9.8.34503
 
