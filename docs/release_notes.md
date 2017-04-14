@@ -1,6 +1,18 @@
 # Release Notes of SlimMessageBus
+Date: 2017-04-??
+
+Features:
+* Dropping build number from version names.
+
+Packages:
+* https://www.nuget.org/packages/SlimMessageBus/0.9.10
+* https://www.nuget.org/packages/SlimMessageBus.Host/0.9.10
+* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.10
+* https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json/0.9.10
+* https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator/0.9.10
 
 ## Version 0.9.9.16686
+Date: 2017-04-14
 
 Features:
 * SlimMessageBus.Host.Kafka: Switched the kafka client to [confluent-kafka-dotnet](https://github.com/confluentinc/confluent-kafka-dotnet) which is an evolution of the previously used ([rdkafka-dotnet](https://github.com/ah-/rdkafka-dotnet))
