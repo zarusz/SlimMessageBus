@@ -92,7 +92,8 @@ namespace SlimMessageBus.Host.Kafka
                 {
                     while (!ct.IsCancellationRequested)
                     {
-                        Consumer.Poll(1000);
+                        Log.Debug("Polling consumer");
+                        Consumer.Poll(ts);
                     }
                 }
                 catch (Exception e)
