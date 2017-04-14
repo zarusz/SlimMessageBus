@@ -11,8 +11,8 @@
     <iconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>$description$</description>
-    <releaseNotes></releaseNotes>
+    <releaseNotes>Check out https://github.com/zarusz/SlimMessageBus/blob/master/docs/release_notes.md</releaseNotes>
     <copyright>Copyright 2017</copyright>
-    <tags>MessageBus Facade EventBus Broker DomainEvents Events Messages EDA</tags>
+    <tags>MessageBus Facade EventBus Broker Events Messages EDA DomainEvents</tags>
   </metadata>
 </package>

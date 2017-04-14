@@ -11,7 +11,7 @@
     <iconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>$description$</description>
-    <releaseNotes></releaseNotes>
+    <releaseNotes>Check out https://github.com/zarusz/SlimMessageBus/blob/master/docs/release_notes.md</releaseNotes>
     <copyright>Copyright 2017</copyright>
     <tags>SlimMessageBus Provider MessageBus Facade</tags>
   </metadata>
