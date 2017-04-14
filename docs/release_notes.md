@@ -2,7 +2,7 @@
 
 ## Version 0.9.9.16686
 
-Features
+Features:
 * Switched the kafka client to [confluent-kafka-dotnet](https://github.com/confluentinc/confluent-kafka-dotnet) which is an evolution of the previously used ([rdkafka-dotnet](https://github.com/ah-/rdkafka-dotnet))
 * Added factory methods to KafkaMessageBusSettings that allows to customize settings of producer/consumer in the underlying kafka client.
 
