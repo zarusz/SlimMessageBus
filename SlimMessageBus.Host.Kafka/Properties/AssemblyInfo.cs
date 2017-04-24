@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyDescription("Apache Kafka provider for SlimMessageBus")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("zarusz")]
-[assembly: AssemblyProduct("SlimMessageBus.Provider.Kafka")]
+[assembly: AssemblyProduct("SlimMessageBus.Host.Kafka")]
 [assembly: AssemblyCopyright("Copyright © 2017")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -32,5 +32,5 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("0.9.9.*")]
+[assembly: AssemblyInformationalVersion("0.9.10-rc1")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
