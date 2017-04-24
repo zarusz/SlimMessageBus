@@ -85,7 +85,7 @@ namespace SlimMessageBus.Host.Kafka
 
             _consumerCts = new CancellationTokenSource();
             var ct = _consumerCts.Token;
-            var ts = TimeSpan.FromSeconds(1);
+            var ts = TimeSpan.FromSeconds(2);
             _consumerTask = Task.Factory.StartNew(() =>
             {
                 try
@@ -93,12 +93,19 @@ namespace SlimMessageBus.Host.Kafka
                     while (!ct.IsCancellationRequested)
                     {
                         Log.Debug("Polling consumer");
-                        Consumer.Poll(ts);
+                        try
+                        {
+                            Consumer.Poll(ts);
+                        }
+                        catch (Exception e)
+                        {
+                            Log.ErrorFormat("Group [{0}]: Error occured while polling new messages (will retry)", e, Group);
+                        }
                     }
                 }
                 catch (Exception e)
                 {
-                    Log.ErrorFormat("Group [{0}]: Error occured while polling new messages", e, Group);
+                    Log.ErrorFormat("Group [{0}]: Error occured in group loop (terminated)", e, Group);
                 }
             }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         }
