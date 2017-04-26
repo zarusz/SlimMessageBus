@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 
 namespace SlimMessageBus.Host
 {
@@ -12,6 +11,6 @@ namespace SlimMessageBus.Host
         /// Resolves the list of handles (<see cref="IConsumer{TMessage}"/>).
         /// </summary>
         /// <returns></returns>
-        IEnumerable<object> Resolve(Type type);
+        object Resolve(Type type);
     }
 }

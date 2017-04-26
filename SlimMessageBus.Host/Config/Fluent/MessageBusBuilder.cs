@@ -42,7 +42,7 @@ namespace SlimMessageBus.Host.Config
             return this;
         }
 
-        public MessageBusBuilder WithSubscriberResolver(IDependencyResolver dependencyResolver)
+        public MessageBusBuilder WithDependencyResolver(IDependencyResolver dependencyResolver)
         {
             _settings.DependencyResolver = dependencyResolver;
             return this;

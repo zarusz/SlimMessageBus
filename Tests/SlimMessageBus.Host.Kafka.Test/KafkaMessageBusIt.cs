@@ -65,13 +65,13 @@ namespace SlimMessageBus.Host.Kafka.Test
 
             #region Implementation of IDependencyResolver
 
-            public IEnumerable<object> Resolve(Type type)
+            public object Resolve(Type type)
             {
                 if (type.IsAssignableFrom(typeof(PingConsumer)))
                 {
-                    return new List<object>() { _pingConsumer };
+                    return _pingConsumer;
                 }
-                return new List<object>();
+                return null;
             }
 
             #endregion
@@ -109,7 +109,7 @@ namespace SlimMessageBus.Host.Kafka.Test
                     x.DefaultTimeout(TimeSpan.FromSeconds(10));
                 })
                 .WithSerializer(new JsonMessageSerializer())
-                .WithSubscriberResolver(new FakeDependencyResolver(_pingConsumer))
+                .WithDependencyResolver(new FakeDependencyResolver(_pingConsumer))
                 .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
 
             _bus = (KafkaMessageBus)messageBusBuilder.Build();

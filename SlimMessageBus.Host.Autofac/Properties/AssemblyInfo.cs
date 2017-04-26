@@ -4,11 +4,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("SlimMessageBus.Host.ServiceLocator")]
-[assembly: AssemblyDescription("Extension to SlimMessageBus that resolves dependencies from CommonServiceLocator")]
+[assembly: AssemblyTitle("SlimMessageBus.Host.Autofac")]
+[assembly: AssemblyDescription("Extension to SlimMessageBus that resolves dependencies from Autofac")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("zarusz")]
-[assembly: AssemblyProduct("SlimMessageBus.Host.ServiceLocator")]
+[assembly: AssemblyProduct("SlimMessageBus.Host.Autofac")]
 [assembly: AssemblyCopyright("Copyright © 2017")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -19,7 +19,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("008710f6-efa9-4c99-a781-5593c5f1e9d7")]
+[assembly: Guid("b895b5c1-f9a6-4e70-8d00-cf7b71d081c2")]
 
 // Version information for an assembly consists of the following four values:
 //
@@ -31,5 +31,5 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyInformationalVersion("0.9.11")]
+[assembly: AssemblyInformationalVersion("0.9.10")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
