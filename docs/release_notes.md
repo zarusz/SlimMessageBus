@@ -6,7 +6,7 @@ Date: 2017-04-25
 Features:
 * Dropping build number from version names.
 * SlimMessageBus.Host.Kafka:
-	* Targeting version 0.9.5 that fixes high CPU usage [bug](https://github.com/confluentinc/confluent-kafka-dotnet/issues/87). 
+	* Targeting Kafka client version 0.9.5 that fixes high CPU usage [bug](https://github.com/confluentinc/confluent-kafka-dotnet/issues/87). 
 	* Improving debug logging.
 
 Packages:
