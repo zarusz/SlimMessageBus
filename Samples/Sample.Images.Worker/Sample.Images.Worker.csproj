@@ -85,13 +85,13 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\SlimMessageBus.Host.Autofac\SlimMessageBus.Host.Autofac.csproj">
+      <Project>{b895b5c1-f9a6-4e70-8d00-cf7b71d081c2}</Project>
+      <Name>SlimMessageBus.Host.Autofac</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Json\SlimMessageBus.Host.Serialization.Json.csproj">
       <Project>{CB7D8D2E-1272-406E-B7C2-8AE072FE80EB}</Project>
       <Name>SlimMessageBus.Host.Serialization.Json</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\SlimMessageBus.Host.ServiceLocator\SlimMessageBus.Host.ServiceLocator.csproj">
-      <Project>{008710f6-efa9-4c99-a781-5593c5f1e9d7}</Project>
-      <Name>SlimMessageBus.Host.ServiceLocator</Name>
     </ProjectReference>
     <ProjectReference Include="..\Sample.Images.FileStore\Sample.Images.FileStore.csproj">
       <Project>{39d70a9e-f54f-407d-a74f-e342d264d623}</Project>

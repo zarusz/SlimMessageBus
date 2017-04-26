@@ -31,8 +31,8 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Autofac, Version=4.5.0.0, Culture=neutral, PublicKeyToken=17863af14b0044da, processorArchitecture=MSIL">
-      <HintPath>..\packages\Autofac.4.5.0\lib\net45\Autofac.dll</HintPath>
+    <Reference Include="Autofac, Version=4.2.1.0, Culture=neutral, PublicKeyToken=17863af14b0044da, processorArchitecture=MSIL">
+      <HintPath>..\packages\Autofac.4.2.1\lib\net45\Autofac.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Common.Logging, Version=3.3.1.0, Culture=neutral, PublicKeyToken=af08829b84f0328e, processorArchitecture=MSIL">
@@ -53,7 +53,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AutofacDependencyResolver.cs" />
+    <Compile Include="AutofacMessageBusDependencyResolver.cs" />
     <Compile Include="MessageBusBuilderExtensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
@@ -64,6 +64,10 @@
     <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj">
       <Project>{72f49afe-cdb8-4490-aa52-d59efb20b90f}</Project>
       <Name>SlimMessageBus.Host</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\SlimMessageBus\SlimMessageBus.csproj">
+      <Project>{09B7C2A3-5AF3-401A-BB13-D5558124B46A}</Project>
+      <Name>SlimMessageBus</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

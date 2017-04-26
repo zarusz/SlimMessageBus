@@ -3,9 +3,9 @@ using Common.Logging;
 
 namespace SlimMessageBus.Host.ServiceLocator
 {
-    public class ServiceLocatorDependencyResolver : IDependencyResolver
+    public class ServiceLocatorMessageBusDependencyResolver : IDependencyResolver
     {
-        private static readonly ILog Log = LogManager.GetLogger<ServiceLocatorDependencyResolver>();
+        private static readonly ILog Log = LogManager.GetLogger<ServiceLocatorMessageBusDependencyResolver>();
         
         #region Implementation of IDependencyResolver
 
