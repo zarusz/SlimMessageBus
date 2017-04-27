@@ -7,36 +7,36 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 ### Features
 
 * Types of messaging patterns supported:
- * Publish-subscribe
- * Request-response
- * Queues
- * Hybrid of the above (e.g. Kafka with multiple topic consumers in one group)
+  * Publish-subscribe
+  * Request-response
+  * Queues
+  * Hybrid of the above (e.g. Kafka with multiple topic consumers in one group)
 * Modern async/await syntax and TPL
 * Fluent configuration
 * Because SlimMessageBus is a facade, you have the ability to swap broker implementations
- * Using nuget pull another broker provider
- * Reconfigure SlimMessageBus and retest your app
- * Try out the messaging middleware that works best for your app (Kafka vs. Redis) without having to rewrite your app.
+  * Using nuget pull another broker provider
+  * Reconfigure SlimMessageBus and retest your app
+  * Try out the messaging middleware that works best for your app (Kafka vs. Redis) without having to rewrite your app.
 
 ## Key elements of SlimMessageBus
- * Consumers:
+* Consumers:
   * `IConsumer<in TMessage>` - subscriber in pub/sub or queue consumer
   * `IRequestHandler<in TRequest, TResponse>` - request handler in req/resp
- * Producers:
+* Producers:
   * `IPublishBus` - publisher in pub/sub or queue producer
   * `IRequestResponseBus` - sender in req/resp
   * `IMessageBus`
- * Misc
+* Misc
   * `IRequestMessage<TResponse>` - marker for request messages
   * `MessageBus`
 
 ## Principles
- * The core of `SlimMessageBus` is "slim"
-   * Simple, common and friendly API to work with messaging systems.
-   * No external dependencies. Logging is done via `Common.Logging`, so that you can connect your favorite logger provider.
- * Selectively add features you really need (e.g. Autofac integration, JSON serialization, your favorite messaging broker).
- * Fluent configuration.
- * No threads created (pure TPL and async).
+* The core of `SlimMessageBus` is "slim"
+  * Simple, common and friendly API to work with messaging systems.
+  * No external dependencies. Logging is done via `Common.Logging`, so that you can connect your favorite logger provider.
+* Selectively add features you really need (e.g. Autofac integration, JSON serialization, your favorite messaging broker).
+* Fluent configuration.
+* No threads created (pure TPL and async).
 
 ## Packages
 
@@ -192,6 +192,5 @@ MessageBus.SetProvider(() => bus);
 
 ## Docs
 
-[Release Notes](docs/release_notes.md)
-
-[Kafka Notes](docs/kafka_notes.md)
+* [Release Notes](docs/release_notes.md)
+* [Kafka Notes](docs/kafka_notes.md)
