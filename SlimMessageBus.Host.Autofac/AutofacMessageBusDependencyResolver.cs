@@ -8,7 +8,7 @@ namespace SlimMessageBus.Host.Autofac
     {
         private static readonly ILog Log = LogManager.GetLogger<AutofacMessageBusDependencyResolver>();
 
-        public static IContainer Container { get; set; }
+        public static IComponentContext Container { get; set; }
 
         #region Implementation of IDependencyResolver
 

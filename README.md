@@ -1,6 +1,6 @@
 # SlimMessageBus
 
-SlimMessageBus is a facade for message brokers for .NET. It comes with implementations for specific technologies (Apache Kafka, Azure EventHub, MQTT/Mosquitto, Redis Pub/Sub) and also for in memory message passing (in-process communication). SlimMessageBus additionally provides request-response messaging implementation.
+SlimMessageBus is a client façade for message brokers for .NET. It comes with implementations for specific brokers (Apache Kafka, Azure EventHub, MQTT/Mosquitto, Redis Pub/Sub) and also for in memory message passing (in-process communication). SlimMessageBus additionally provides request-response messaging implementation.
 
 [![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s/branch/develop?svg=true)](https://ci.appveyor.com/project/zarusz/slimmessagebus/branch/develop)
 
@@ -21,9 +21,9 @@ SlimMessageBus is a facade for message brokers for .NET. It comes with implement
 ## Key elements of SlimMessageBus
  * Consumers:
   * `IConsumer<in TMessage>` - subscriber in pub/sub or queue consumer
-  * `IRequestHandler<in TRequest, TResponse>` - req/resp handler
+  * `IRequestHandler<in TRequest, TResponse>` - request handler in req/resp
  * Producers:
-  * `IPublishBus`
+  * `IPublishBus` - publisher in pub/sub or queue producer
   * `IRequestResponseBus` - sender in req/resp
   * `IMessageBus`
  * Misc
@@ -42,15 +42,15 @@ SlimMessageBus is a facade for message brokers for .NET. It comes with implement
 
  Name | Descripton | Dependencies | NuGet
  ------------ | ------------- | ------------- | -------------
- `SlimMessageBus` | The interfaces to work with SlimMessageBus | `Common.Logging` | https://www.nuget.org/packages/SlimMessageBus
- `SlimMessageBus.Host` | The minimal in-process, synchronous messsage passing implementation | `SlimMessageBus` | https://www.nuget.org/packages/SlimMessageBus.Host
- `SlimMessageBus.Host.Kafka` | Implementation for Apache Kafka  | `SlimMessageBus.Host` [`Confluent.Kafka`](https://www.nuget.org/packages/Confluent.Kafka/) | https://www.nuget.org/packages/SlimMessageBus.Host.Kafka
+ `SlimMessageBus` | The interfaces to work with SlimMessageBus | `Common.Logging` | [NuGet](https://www.nuget.org/packages/SlimMessageBus)
+ `SlimMessageBus.Host` | The common implementation for the hosting application layer | `SlimMessageBus` | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host)
+ `SlimMessageBus.Host.Kafka` | Implementation for Apache Kafka  | `SlimMessageBus.Host` [`Confluent.Kafka`](https://www.nuget.org/packages/Confluent.Kafka/) | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)
  `SlimMessageBus.Host.EventHub` (future) | Implementation for Azure EventHub | `SlimMessageBus.Host` `Microsoft.Azure.ServiceBus.EventProcessorHost` | .
  `SlimMessageBus.Host.Redis` (future) | Implementation for Redis | `SlimMessageBus.Host` `StackExchange.Redis.StrongName` | .
  `SlimMessageBus.Host.InMemory` (pending) | Implementation for in memory broker (in-process message passing) | `SlimMessageBus.Host` | .
- `SlimMessageBus.Host.ServiceLocator` | Extension that resolves consumers from ServiceLocator | `SlimMessageBus.Host` `CommonServiceLocator` | https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator
- `SlimMessageBus.Host.Autofac` (pending) | Extension that resolves consumers from Autofac DI container | `SlimMessageBus.Host` `Autofac` | .
- `SlimMessageBus.Host.Serialization.Json` | Extension to serialize messages to JSON | `SlimMessageBus.Host` `Newtonsoft.Json` | https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json
+ `SlimMessageBus.Host.ServiceLocator` | Resolves dependencies from ServiceLocator | `SlimMessageBus.Host` `CommonServiceLocator` | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator)
+ `SlimMessageBus.Host.Autofac` | Resolves dependencies from Autofac container | `SlimMessageBus.Host` `Autofac` | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Autofac)
+ `SlimMessageBus.Host.Serialization.Json` | Message serialization provider for JSON | `SlimMessageBus.Host` `Newtonsoft.Json` | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json)
 
  Typically your application components only need to depend on `SlimMessageBus` which is the facade. Your application hosting layer (ASP.NET, Windows Service, Console App) will add and configure the other packages.
 
@@ -190,6 +190,7 @@ MessageBus.SetProvider(() => bus);
 
 [Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0)
 
-## Other
+## Docs
 
-See [Release Notes](docs/release_notes.md).
+[Release Notes](docs/release_notes.md).
+[Kafka Notes](docs/kafka_notes.md).

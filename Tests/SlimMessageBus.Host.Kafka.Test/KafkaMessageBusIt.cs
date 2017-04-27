@@ -110,7 +110,22 @@ namespace SlimMessageBus.Host.Kafka.Test
                 })
                 .WithSerializer(new JsonMessageSerializer())
                 .WithDependencyResolver(new FakeDependencyResolver(_pingConsumer))
-                .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
+                .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+                {
+                    ProducerConfigFactory = () => new Dictionary<string, object>
+                    {
+                        {"socket.blocking.max.ms",1},
+                        {"queue.buffering.max.ms",1},
+                        {"socket.nagle.disable", true}
+                    },
+                    ConsumerConfigFactory = (group) => new Dictionary<string, object>
+                    {
+                        {"socket.blocking.max.ms", 1},
+                        {"fetch.error.backoff.ms", 1},
+                        {"statistics.interval.ms", 500000},
+                        {"socket.nagle.disable", true}
+                    }
+                });
 
             _bus = (KafkaMessageBus)messageBusBuilder.Build();
         }
