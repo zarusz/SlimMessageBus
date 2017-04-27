@@ -192,5 +192,6 @@ MessageBus.SetProvider(() => bus);
 
 ## Docs
 
-[Release Notes](docs/release_notes.md).
-[Kafka Notes](docs/kafka_notes.md).
+[Release Notes](docs/release_notes.md)
+
+[Kafka Notes](docs/kafka_notes.md)
