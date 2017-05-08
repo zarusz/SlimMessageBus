@@ -1,7 +1,7 @@
 # Release Notes of SlimMessageBus
 
 ## Version 0.9.11
-Date: 2017-04-28
+Date: 2017-05-08
 
 Features:
 * SlimMessageBus.Host.Autofac: The Autofac plugin assembly was introduced.
