@@ -65,13 +65,13 @@ namespace SlimMessageBus.Host.Kafka.Test
 
             #region Implementation of IDependencyResolver
 
-            public IEnumerable<object> Resolve(Type type)
+            public object Resolve(Type type)
             {
                 if (type.IsAssignableFrom(typeof(PingConsumer)))
                 {
-                    return new List<object>() { _pingConsumer };
+                    return _pingConsumer;
                 }
-                return new List<object>();
+                return null;
             }
 
             #endregion
@@ -109,8 +109,23 @@ namespace SlimMessageBus.Host.Kafka.Test
                     x.DefaultTimeout(TimeSpan.FromSeconds(10));
                 })
                 .WithSerializer(new JsonMessageSerializer())
-                .WithSubscriberResolver(new FakeDependencyResolver(_pingConsumer))
-                .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
+                .WithDependencyResolver(new FakeDependencyResolver(_pingConsumer))
+                .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+                {
+                    ProducerConfigFactory = () => new Dictionary<string, object>
+                    {
+                        {"socket.blocking.max.ms",1},
+                        {"queue.buffering.max.ms",1},
+                        {"socket.nagle.disable", true}
+                    },
+                    ConsumerConfigFactory = (group) => new Dictionary<string, object>
+                    {
+                        {"socket.blocking.max.ms", 1},
+                        {"fetch.error.backoff.ms", 1},
+                        {"statistics.interval.ms", 500000},
+                        {"socket.nagle.disable", true}
+                    }
+                });
 
             _bus = (KafkaMessageBus)messageBusBuilder.Build();
         }

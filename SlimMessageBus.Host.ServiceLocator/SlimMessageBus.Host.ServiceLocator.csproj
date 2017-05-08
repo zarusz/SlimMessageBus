@@ -53,8 +53,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="MessageBusBuilderExtensions.cs" />
-    <Compile Include="MessageBusExtensions.cs" />
-    <Compile Include="ServiceLocatorSubscriberResolver.cs" />
+    <Compile Include="ServiceLocatorMessageBusDependencyResolver.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

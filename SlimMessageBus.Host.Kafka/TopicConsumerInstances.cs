@@ -39,25 +39,17 @@ namespace SlimMessageBus.Host.Kafka
                 var taskType = typeof(Task<>).MakeGenericType(_settings.ResponseType);
                 _taskResult = taskType.GetProperty("Result");
             }
-
         }
 
         private static List<object> ResolveInstances(ConsumerSettings settings, MessageBusBase messageBusBus)
         {
-            var subscribers = new List<object>();
+            var consumers = new List<object>();
             for (var i = 0; i < settings.Instances; i++)
             {
-                var subscriber = messageBusBus.Settings.DependencyResolver.Resolve(settings.ConsumerType).ToList();
-
-                Assert.IsFalse(subscriber.Count == 0,
-                    () => new ConfigurationMessageBusException($"There was no implementation of {settings.ConsumerType} returned by the resolver. Ensure you have registered an implementation for {settings.ConsumerType} in your DI container."));
-
-                Assert.IsFalse(subscriber.Count > 1,
-                    () => new ConfigurationMessageBusException($"More than one implementation of {settings.ConsumerType} returned by the resolver. Ensure you have registered exactly one implementation for {settings.ConsumerType} in your DI container."));
-
-                subscribers.Add(subscriber[0]);
+                var consumer = messageBusBus.Settings.DependencyResolver.Resolve(settings.ConsumerType);
+                consumers.Add(consumer);
             }
-            return subscribers;
+            return consumers;
         }
 
         private int _commitBatchSize = 10;

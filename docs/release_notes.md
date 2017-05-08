@@ -1,5 +1,18 @@
 # Release Notes of SlimMessageBus
 
+## Version 0.9.11
+Date: 2017-05-08
+
+Features:
+* SlimMessageBus.Host.Autofac: The Autofac plugin assembly was introduced.
+* Minor changes and improvements.
+
+Packages:
+* https://www.nuget.org/packages/SlimMessageBus.Host/0.9.11
+* https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator/0.9.11
+* https://www.nuget.org/packages/SlimMessageBus.Host.Autofac/0.9.11
+* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.11
+
 ## Version 0.9.10
 Date: 2017-04-25
 

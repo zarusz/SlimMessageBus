@@ -6,7 +6,7 @@ namespace SlimMessageBus.Host.ServiceLocator
     {
         public static MessageBusBuilder WithDependencyResolverAsServiceLocator(this MessageBusBuilder builder)
         {
-            return builder.WithSubscriberResolver(new ServiceLocatorDependencyResolver());
+            return builder.WithDependencyResolver(new ServiceLocatorMessageBusDependencyResolver());
         }
     }
 }

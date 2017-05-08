@@ -4,7 +4,7 @@ using Newtonsoft.Json;
 
 namespace SlimMessageBus.Host.Serialization.Json
 {
-    public class JsonMessageSerializer  : IMessageSerializer
+    public class JsonMessageSerializer : IMessageSerializer
     {
         #region Implementation of IMessageSerializer
 

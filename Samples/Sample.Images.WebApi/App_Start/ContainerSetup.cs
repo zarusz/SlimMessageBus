@@ -10,6 +10,7 @@ using Sample.Images.FileStore;
 using Sample.Images.FileStore.Disk;
 using Sample.Images.Messages;
 using SlimMessageBus;
+using SlimMessageBus.Host.Autofac;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.ServiceLocator;
@@ -27,9 +28,13 @@ namespace Sample.Images.WebApi
 
             var container = builder.Build();
 
+            AutofacMessageBusDependencyResolver.Container = container;
+
             // Set the service locator to an AutofacServiceLocator.
+            /*
             var csl = new AutofacServiceLocator(container);
             ServiceLocator.SetLocatorProvider(() => csl);
+            */
 
             return container;
         }
@@ -70,7 +75,8 @@ namespace Sample.Images.WebApi
                     // Default global response timeout
                     x.DefaultTimeout(TimeSpan.FromSeconds(30));
                 })
-                .WithDependencyResolverAsServiceLocator()
+                //.WithDependencyResolverAsServiceLocator()
+                .WithDependencyResolverAsAutofac()
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
 
