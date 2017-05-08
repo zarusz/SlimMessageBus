@@ -14,7 +14,7 @@ Packages:
 * https://www.nuget.org/packages/SlimMessageBus.Host/0.9.10
 * https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json/0.9.10
 * https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator/0.9.10
-* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.10-rc1
+* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.10
 
 ## Version 0.9.9.16686
 Date: 2017-04-14
