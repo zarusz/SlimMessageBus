@@ -80,6 +80,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.Autofac
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Plugins", "Plugins", "{75BDDBB5-8DB8-4893-BD89-8FFC6C42244D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.AzureEventHub", "SlimMessageBus.Host.AzureEventHub\SlimMessageBus.Host.AzureEventHub.csproj", "{4A1C6A70-B24D-4A42-9638-36D3F08E8BC2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sample.Simple.ConsoleApp", "Samples\Sample.Simple.ConsoleApp\Sample.Simple.ConsoleApp.csproj", "{1B233076-A0C8-480E-A4D0-0E9F28B7B2EF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -142,6 +146,14 @@ Global
 		{B895B5C1-F9A6-4E70-8D00-CF7B71D081C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B895B5C1-F9A6-4E70-8D00-CF7B71D081C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B895B5C1-F9A6-4E70-8D00-CF7B71D081C2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4A1C6A70-B24D-4A42-9638-36D3F08E8BC2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4A1C6A70-B24D-4A42-9638-36D3F08E8BC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4A1C6A70-B24D-4A42-9638-36D3F08E8BC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4A1C6A70-B24D-4A42-9638-36D3F08E8BC2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1B233076-A0C8-480E-A4D0-0E9F28B7B2EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1B233076-A0C8-480E-A4D0-0E9F28B7B2EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1B233076-A0C8-480E-A4D0-0E9F28B7B2EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1B233076-A0C8-480E-A4D0-0E9F28B7B2EF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -158,5 +170,6 @@ Global
 		{8835721D-ECA4-42CB-BA8B-F8C1A06340EC} = {A5B15524-93B8-4CCE-AC6D-A22984498BA0}
 		{C3BF37F0-074D-41D1-BBA4-7CB604756CFD} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
 		{B895B5C1-F9A6-4E70-8D00-CF7B71D081C2} = {75BDDBB5-8DB8-4893-BD89-8FFC6C42244D}
+		{1B233076-A0C8-480E-A4D0-0E9F28B7B2EF} = {A5B15524-93B8-4CCE-AC6D-A22984498BA0}
 	EndGlobalSection
 EndGlobal
