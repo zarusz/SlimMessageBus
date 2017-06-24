@@ -35,8 +35,9 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
   * Simple, common and friendly API to work with messaging systems.
   * No external dependencies. Logging is done via `Common.Logging`, so that you can connect your favorite logger provider.
 * Selectively add features you really need (e.g. Autofac integration, JSON serialization, your favorite messaging broker).
+* No threads created (pure TPL).
+* Async/Await support.
 * Fluent configuration.
-* No threads created (pure TPL and async).
 
 ## Packages
 
