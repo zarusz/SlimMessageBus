@@ -10,10 +10,10 @@ using SlimMessageBus.Host.Config;
 namespace SlimMessageBus.Host.AzureEventHub
 {
     // ToDo: Move to SlimMessageBus.Host assembly
-    public class TopicConsumerInstances<TMessage> : IDisposable
+    public class ConsumerInstancePool<TMessage> : IDisposable
         where TMessage : class
     {
-        private static readonly ILog Log = LogManager.GetLogger(typeof(TopicConsumerInstances<TMessage>));
+        private static readonly ILog Log = LogManager.GetLogger(typeof(ConsumerInstancePool<TMessage>));
 
         private readonly List<object> _instances;
         private readonly BufferBlock<object> _instancesQueue;
@@ -27,7 +27,7 @@ namespace SlimMessageBus.Host.AzureEventHub
         private readonly MethodInfo _consumerOnHandleMethod;
         private readonly PropertyInfo _taskResultProperty;
 
-        public TopicConsumerInstances(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, byte[]> messagePayloadProvider)
+        public ConsumerInstancePool(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, byte[]> messagePayloadProvider)
         {
             _consumerSettings = consumerSettings;
             _messageBus = messageBus;
@@ -76,20 +76,10 @@ namespace SlimMessageBus.Host.AzureEventHub
             return consumers;
         }
 
-        // ToDo: Extract this into config param
-        private int _commitBatchSize = 10;
-
-        public TMessage Submit(TMessage message)
+        public void Submit(TMessage message)
         {
             var messageTask = ProcessMessage(message);
             _pendingMessages.Enqueue(new MessageProcessingResult<TMessage>(messageTask, message));
-
-            // ToDo: add timer trigger
-            if (_pendingMessages.Count >= _commitBatchSize)
-            {
-                return Commit(message);
-            }
-            return null;
         }
 
         public TMessage Commit(TMessage lastMessage)
@@ -138,11 +128,11 @@ namespace SlimMessageBus.Host.AzureEventHub
             object response = null;
             string responseError = null;
 
-            var obj = await _instancesQueue.ReceiveAsync(_messageBus.CancellationToken);
+            var consumerInstance = await _instancesQueue.ReceiveAsync(_messageBus.CancellationToken);
             try
             {
                 // the consumer just subscribes to the message
-                var task = (Task)_consumerOnHandleMethod.Invoke(obj, new[] { message, _consumerSettings.Topic });
+                var task = (Task)_consumerOnHandleMethod.Invoke(consumerInstance, new[] { message, _consumerSettings.Topic });
                 try
                 {
                     await task;
@@ -169,7 +159,7 @@ namespace SlimMessageBus.Host.AzureEventHub
             }
             finally
             {
-                await _instancesQueue.SendAsync(obj);
+                await _instancesQueue.SendAsync(consumerInstance);
             }
 
             if (response != null || responseError != null)

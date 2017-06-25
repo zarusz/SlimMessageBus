@@ -11,10 +11,11 @@ namespace SlimMessageBus.Host.AzureEventHub
         private static readonly ILog Log = LogManager.GetLogger<EventProcessor>();
 
         protected readonly EventHubConsumer Consumer;
+        private int _numMessagesProcessed;
 
         protected EventProcessor(EventHubConsumer consumer)
         {
-            Consumer = consumer;
+            Consumer = consumer;            
         }
 
         #region Implementation of IDisposable
@@ -28,8 +29,12 @@ namespace SlimMessageBus.Host.AzureEventHub
         public Task OpenAsync(PartitionContext context)
         {
             Log.DebugFormat("Open lease: {0}", new PartitionContextInfo(context));
-            return Task.FromResult<object>(null);
+            _numMessagesProcessed = 0;
+            return Task.CompletedTask;
         }
+
+        // ToDo: Extract this into config param
+        private int _commitBatchSize = 10;
 
         public async Task ProcessEventsAsync(PartitionContext context, IEnumerable<EventData> messages)
         {
@@ -44,35 +49,47 @@ namespace SlimMessageBus.Host.AzureEventHub
                     break;
                 }
 
-                var messageToCheckpoint = await OnSubmit(message);
-                if (messageToCheckpoint != null)
-                {
-                    Log.DebugFormat("Will checkpoint at Offset: {0}, {1}", message.Offset, new PartitionContextInfo(context));
-                    await context.CheckpointAsync(messageToCheckpoint);
-
-                    skipLastCheckpoint = messageToCheckpoint != message;
-
-                    lastCheckpointMessage = messageToCheckpoint;
-                }
+                await OnSubmit(message);
                 lastMessage = message;
+                _numMessagesProcessed++;
+
+                // ToDo: add timer trigger
+                if (_numMessagesProcessed >= _commitBatchSize)
+                {
+                    lastCheckpointMessage = await Checkpoint(message, context);
+                    // something went wrong (not all messages were processed with success)
+                    skipLastCheckpoint = lastCheckpointMessage != message;
+                }
             }
 
             if (!skipLastCheckpoint && lastCheckpointMessage != lastMessage && lastMessage != null)
             {
-                var messageToCommit = await OnCommit(lastMessage);
-                await context.CheckpointAsync(messageToCommit);
+                // checkpoint the last message (if all was succesful until now)
+                await Checkpoint(lastMessage, context);
             }
+        }
+
+        private async Task<EventData> Checkpoint(EventData message, PartitionContext context)
+        {
+            var messageToCheckpoint = await OnCommit(message);
+
+            Log.DebugFormat("Will checkpoint at Offset: {0}, {1}", message.Offset, new PartitionContextInfo(context));
+            await context.CheckpointAsync(messageToCheckpoint);
+
+            _numMessagesProcessed = 0;
+
+            return messageToCheckpoint;
         }
 
         public Task CloseAsync(PartitionContext context, CloseReason reason)
         {
             Log.DebugFormat("Close lease: Reason: {0}, {1}", reason, new PartitionContextInfo(context));
-            return Task.FromResult<object>(null);
+            return Task.CompletedTask;
         }
 
         #endregion
 
-        protected abstract Task<EventData> OnSubmit(EventData message);
+        protected abstract Task OnSubmit(EventData message);
         protected abstract Task<EventData> OnCommit(EventData lastMessage);
     }
 }

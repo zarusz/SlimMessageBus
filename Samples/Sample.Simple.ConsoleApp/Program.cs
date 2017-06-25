@@ -41,14 +41,16 @@ namespace Sample.Simple.ConsoleApp
 
             // Create message bus
             IMessageBus messageBus = new MessageBusBuilder()
+                // Pub / Sub
                 .Publish<AddCommand>(x => x.DefaultTopic(eventHubNameForAddCommand)) // By default messages of type 'AddCommand' will go to event hub named 'topica' (or topic if Kafka is chosen)
                 .SubscribeTo<AddCommand>(x => x.Topic(eventHubNameForAddCommand).Group(consumerGroup).WithSubscriber<AddCommandConsumer>().Instances(1))
+                // Req / Resp
                 .Publish<MultiplyRequest>(x => x.DefaultTopic(eventHubNameForMultiplyRequest)) // By default messages of type 'AddCommand' will go to event hub named 'topica' (or topic if Kafka is chosen)
                 .Handle<MultiplyRequest, MultiplyResponse>(x => x.Topic(eventHubNameForMultiplyRequest).Group(consumerGroup).WithHandler<MultiplyRequestHandler>())
                 .ExpectRequestResponses(x =>
                 {
-                    x.Group("consoleapp");
-                    x.ReplyToTopic(eventHubNameForResponses);
+                    x.Group("consoleapp");                    
+                    x.ReplyToTopic(eventHubNameForResponses); // All responses from req/resp will return on this topic (event hub)
                 })
                 .WithSerializer(new JsonMessageSerializer()) // Use JSON for message serialization                
                 .WithDependencyResolver(new LookupDependencyResolver(type =>

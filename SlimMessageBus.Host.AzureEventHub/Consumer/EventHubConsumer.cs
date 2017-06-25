@@ -24,8 +24,8 @@ namespace SlimMessageBus.Host.AzureEventHub
         {
         }
 
-        public EventHubConsumer(EventHubMessageBus messageBus, RequestResponseSettings requestResponse)
-            : this(messageBus, requestResponse, x => new EventProcessorForResponses(x, requestResponse))
+        public EventHubConsumer(EventHubMessageBus messageBus, RequestResponseSettings requestResponseSettings)
+            : this(messageBus, requestResponseSettings, x => new EventProcessorForResponses(x, requestResponseSettings))
         {
         }
 

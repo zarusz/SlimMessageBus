@@ -12,33 +12,34 @@ namespace SlimMessageBus.Host.AzureEventHub
     {
         private static readonly ILog Log = LogManager.GetLogger<EventProcessorForConsumers>();
 
-        private TopicConsumerInstances<EventData> _instances;
+        private ConsumerInstancePool<EventData> _instancePool;
 
         public EventProcessorForConsumers(EventHubConsumer consumer, ConsumerSettings consumerSettings)
             : base(consumer)
         {
-            _instances = new TopicConsumerInstances<EventData>(consumerSettings, consumer.MessageBus, e => e.GetBytes());
+            _instancePool = new ConsumerInstancePool<EventData>(consumerSettings, consumer.MessageBus, e => e.GetBytes());
         }
 
         #region Overrides of EventProcessor
 
         public override void Dispose()
         {
-            if (_instances != null)
+            if (_instancePool != null)
             {
-                _instances.DisposeSilently("TopicConsumerInstances", Log);
-                _instances = null;
+                _instancePool.DisposeSilently("TopicConsumerInstances", Log);
+                _instancePool = null;
             }
         }
 
-        protected override Task<EventData> OnSubmit(EventData message)
+        protected override Task OnSubmit(EventData message)
         {
-            return Task.FromResult(_instances.Submit(message));
+            _instancePool.Submit(message);
+            return Task.CompletedTask;
         }
 
         protected override Task<EventData> OnCommit(EventData lastMessage)
         {
-            return Task.FromResult(_instances.Commit(lastMessage));
+            return Task.FromResult(_instancePool.Commit(lastMessage));
         }
 
         #endregion

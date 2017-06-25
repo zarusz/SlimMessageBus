@@ -27,7 +27,7 @@ namespace SlimMessageBus.Host.AzureEventHub
         {            
         }
 
-        protected override async Task<EventData> OnSubmit(EventData message)
+        protected override async Task OnSubmit(EventData message)
         {
             try
             {
@@ -37,9 +37,8 @@ namespace SlimMessageBus.Host.AzureEventHub
             {
                 // ToDo: add hook to capture these situations
                 Log.ErrorFormat("Error occured while consuming response message, Offset: {0}, Topic: {1}, Group: {2}", e, message.Offset, _requestResponseSettings.Topic, _requestResponseSettings.Group);
+                // for now continue until end all messages in lease are processed
             }
-            // for now continue until end all messages in lease are processed
-            return null;
         }
 
         protected override Task<EventData> OnCommit(EventData lastMessage)
