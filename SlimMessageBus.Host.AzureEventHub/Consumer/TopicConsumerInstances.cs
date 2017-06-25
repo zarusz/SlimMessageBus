@@ -9,38 +9,40 @@ using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.AzureEventHub
 {
+    // ToDo: Move to SlimMessageBus.Host assembly
     public class TopicConsumerInstances<TMessage> : IDisposable
         where TMessage : class
     {
-        private static readonly ILog Log = LogManager.GetLogger(typeof(TopicConsumerInstances<>));
+        private static readonly ILog Log = LogManager.GetLogger(typeof(TopicConsumerInstances<TMessage>));
 
-        private readonly List<object> _consumerInstances;
-        private readonly BufferBlock<object> _consumerQueue;
-        private readonly Queue<MessageProcessingResult<TMessage>> _messages = new Queue<MessageProcessingResult<TMessage>>();
-        private readonly ConsumerSettings _settings;
-        private readonly EventHubMessageBus _messageBus;
+        private readonly List<object> _instances;
+        private readonly BufferBlock<object> _instancesQueue;
+        private readonly Queue<MessageProcessingResult<TMessage>> _pendingMessages = new Queue<MessageProcessingResult<TMessage>>();
+
+        private readonly MessageBusBase _messageBus;
+        private readonly ConsumerSettings _consumerSettings;
+
         private readonly Func<TMessage, byte[]> _messagePayloadProvider;
-        private readonly EventHubConsumer _consumer;
 
-        private readonly MethodInfo _consumerInstanceOnHandleMethod;
-        private readonly PropertyInfo _taskResult;
+        private readonly MethodInfo _consumerOnHandleMethod;
+        private readonly PropertyInfo _taskResultProperty;
 
-        public TopicConsumerInstances(ConsumerSettings settings, EventHubConsumer consumer, EventHubMessageBus messageBus, Func<TMessage, byte[]> messagePayloadProvider)
+        public TopicConsumerInstances(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, byte[]> messagePayloadProvider)
         {
-            _settings = settings;
+            _consumerSettings = consumerSettings;
             _messageBus = messageBus;
-            _consumer = consumer;
             _messagePayloadProvider = messagePayloadProvider;
 
-            _consumerInstanceOnHandleMethod = settings.ConsumerType.GetMethod(nameof(IConsumer<object>.OnHandle), new[] { consumer.MessageType, typeof(string) });
-            _consumerInstances = ResolveInstances(settings, messageBus);
-            _consumerQueue = new BufferBlock<object>();
-            _consumerInstances.ForEach(x => _consumerQueue.Post(x));
+            _consumerOnHandleMethod = consumerSettings.ConsumerType.GetMethod(nameof(IConsumer<object>.OnHandle), new[] { consumerSettings.MessageType, typeof(string) });
 
-            if (_settings.ConsumerMode == ConsumerMode.RequestResponse)
+            _instancesQueue = new BufferBlock<object>();
+            _instances = ResolveInstances(consumerSettings, messageBus);
+            _instances.ForEach(x => _instancesQueue.Post(x));
+
+            if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
             {
-                var taskType = typeof(Task<>).MakeGenericType(_settings.ResponseType);
-                _taskResult = taskType.GetProperty(nameof(Task<object>.Result));
+                var taskType = typeof(Task<>).MakeGenericType(_consumerSettings.ResponseType);
+                _taskResultProperty = taskType.GetProperty(nameof(Task<object>.Result));
             }
         }
 
@@ -48,13 +50,14 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         public void Dispose()
         {
-            if (_consumerInstances.Any())
+            if (_instances.Any())
             {
-                foreach (var consumerInstance in _consumerInstances.OfType<IDisposable>())
+                // dospose instances that implement IDisposable
+                foreach (var instance in _instances.OfType<IDisposable>())
                 {
-                    consumerInstance.DisposeSilently("consumer instance", Log);
+                    instance.DisposeSilently("Consumer", Log);
                 }
-                _consumerInstances.Clear();
+                _instances.Clear();
             }
         }
 
@@ -66,21 +69,23 @@ namespace SlimMessageBus.Host.AzureEventHub
             // Resolve as many instances from DI as requested in settings
             for (var i = 0; i < settings.Instances; i++)
             {
+                Log.DebugFormat("Resolving Consumer instance {0} of type {1}", i + 1, settings.ConsumerType);
                 var consumer = messageBus.Settings.DependencyResolver.Resolve(settings.ConsumerType);
                 consumers.Add(consumer);
             }
             return consumers;
         }
 
+        // ToDo: Extract this into config param
         private int _commitBatchSize = 10;
 
         public TMessage Submit(TMessage message)
         {
             var messageTask = ProcessMessage(message);
-            _messages.Enqueue(new MessageProcessingResult<TMessage>(messageTask, message));
+            _pendingMessages.Enqueue(new MessageProcessingResult<TMessage>(messageTask, message));
 
             // ToDo: add timer trigger
-            if (_messages.Count >= _commitBatchSize)
+            if (_pendingMessages.Count >= _commitBatchSize)
             {
                 return Commit(message);
             }
@@ -89,11 +94,11 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         public TMessage Commit(TMessage lastMessage)
         {
-            if (_messages.Count > 0)
+            if (_pendingMessages.Count > 0)
             {
                 try
                 {
-                    var tasks = _messages.Select(x => x.Task).ToArray();
+                    var tasks = _pendingMessages.Select(x => x.Task).ToArray();
                     Task.WaitAll(tasks);
                 }
                 catch (AggregateException e)
@@ -101,7 +106,7 @@ namespace SlimMessageBus.Host.AzureEventHub
                     Log.ErrorFormat("Errors occured while executing the tasks {0}", e);
                     // ToDo: some tasks failed
                 }
-                _messages.Clear();
+                _pendingMessages.Clear();
             }
             return lastMessage;
         }
@@ -112,9 +117,9 @@ namespace SlimMessageBus.Host.AzureEventHub
 
             string requestId = null, replyTo = null;
             DateTimeOffset? expires = null;
-            var message = _settings.IsRequestMessage
-                ? _messageBus.DeserializeRequest(_settings.MessageType, msgPayload, out requestId, out replyTo, out expires)
-                : _messageBus.Settings.Serializer.Deserialize(_consumer.MessageType, msgPayload);
+            var message = _consumerSettings.IsRequestMessage
+                ? _messageBus.DeserializeRequest(_consumerSettings.MessageType, msgPayload, out requestId, out replyTo, out expires)
+                : _messageBus.Settings.Serializer.Deserialize(_consumerSettings.MessageType, msgPayload);
 
             // Verify if the request/message is already expired
             if (expires.HasValue)
@@ -133,24 +138,24 @@ namespace SlimMessageBus.Host.AzureEventHub
             object response = null;
             string responseError = null;
 
-            var obj = await _consumerQueue.ReceiveAsync(_messageBus.CancellationToken);
+            var obj = await _instancesQueue.ReceiveAsync(_messageBus.CancellationToken);
             try
             {
                 // the consumer just subscribes to the message
-                var task = (Task)_consumerInstanceOnHandleMethod.Invoke(obj, new[] { message, _consumer.Topic });
+                var task = (Task)_consumerOnHandleMethod.Invoke(obj, new[] { message, _consumerSettings.Topic });
                 try
                 {
                     await task;
 
-                    if (_settings.ConsumerMode == ConsumerMode.RequestResponse)
+                    if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
                     {
                         // the consumer handles the request (and replies)
-                        response = _taskResult.GetValue(task);
+                        response = _taskResultProperty.GetValue(task);
                     }
                 }
                 catch (Exception e)
                 {
-                    if (_settings.ConsumerMode == ConsumerMode.RequestResponse)
+                    if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
                     {
                         Log.DebugFormat("Handler execution failed", e);
                         responseError = e.ToString();
@@ -164,14 +169,14 @@ namespace SlimMessageBus.Host.AzureEventHub
             }
             finally
             {
-                await _consumerQueue.SendAsync(obj);
+                await _instancesQueue.SendAsync(obj);
             }
 
             if (response != null || responseError != null)
             {
                 // send the response (or error response)
-                var responsePayload = _messageBus.SerializeResponse(_settings.ResponseType, response, requestId, responseError);
-                await _messageBus.Publish(_settings.ResponseType, responsePayload, replyTo);
+                var responsePayload = _messageBus.SerializeResponse(_consumerSettings.ResponseType, response, requestId, responseError);
+                await _messageBus.Publish(_consumerSettings.ResponseType, responsePayload, replyTo);
             }
         }
     }

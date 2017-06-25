@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
+using System.Linq;
 using Common.Logging;
 using Microsoft.ServiceBus.Messaging;
 using SlimMessageBus.Host.Config;
@@ -12,36 +12,32 @@ namespace SlimMessageBus.Host.AzureEventHub
         private static readonly ILog Log = LogManager.GetLogger<EventHubConsumer>();
 
         public readonly EventHubMessageBus MessageBus;
-        public readonly string Group;
-        public readonly string Topic;
-        public readonly Type MessageType;
 
-        internal protected TopicConsumerInstances<EventData> Instances;
         protected EventProcessorHost EventProcessorHost;
+        protected readonly List<EventProcessor> EventProcessors = new List<EventProcessor>();
+        protected readonly Func<EventHubConsumer, EventProcessor> EventProcessorFactory;
 
-        internal protected bool CanRun = true;
+        public bool CanRun { get; protected set; } = true;
 
         public EventHubConsumer(EventHubMessageBus messageBus, ConsumerSettings consumerSettings)
+            : this(messageBus, consumerSettings, x => new EventProcessorForConsumers(x, consumerSettings))
         {
-            MessageBus = messageBus;
-            Group = consumerSettings.Group;
-            Topic = consumerSettings.Topic;
-            MessageType = consumerSettings.MessageType;
-
-            Instances = new TopicConsumerInstances<EventData>(consumerSettings, this, MessageBus, e => e.GetBytes());
-
-            Log.InfoFormat("Creating EventProcessorHost for topic {0}, group: {1}", Topic, Group);
-
-            EventProcessorHost = MessageBus.EventHubSettings.EventProcessorHostFactory(consumerSettings);
-            var eventProcessorOptions = MessageBus.EventHubSettings.EventProcessorOptionsFactory(consumerSettings);
-            EventProcessorHost.RegisterEventProcessorFactoryAsync(this, eventProcessorOptions).Wait();
         }
 
         public EventHubConsumer(EventHubMessageBus messageBus, RequestResponseSettings requestResponse)
+            : this(messageBus, requestResponse, x => new EventProcessorForResponses(x, requestResponse))
+        {
+        }
+
+        protected EventHubConsumer(EventHubMessageBus messageBus, ITopicGroupConsumerSettings consumerSettings, Func<EventHubConsumer, EventProcessor> eventProcessorFactory)
         {
             MessageBus = messageBus;
-            Group = requestResponse.Group;
-            Topic = requestResponse.Topic;
+            EventProcessorFactory = eventProcessorFactory;
+
+            Log.InfoFormat("Creating EventProcessorHost for Topic: {0}, Group: {1}", consumerSettings.Topic, consumerSettings.Group);
+            EventProcessorHost = MessageBus.EventHubSettings.EventProcessorHostFactory(consumerSettings);
+            var eventProcessorOptions = MessageBus.EventHubSettings.EventProcessorOptionsFactory(consumerSettings);
+            EventProcessorHost.RegisterEventProcessorFactoryAsync(this, eventProcessorOptions).Wait();
         }
 
         #region Implementation of IDisposable
@@ -57,10 +53,10 @@ namespace SlimMessageBus.Host.AzureEventHub
                 EventProcessorHost = null;
             }
 
-            if (Instances != null)
+            if (EventProcessors.Any())
             {
-                Instances.DisposeSilently("consumer instances", Log);
-                Instances = null;
+                EventProcessors.ForEach(ep => ep.DisposeSilently("EventProcessor", Log));
+                EventProcessors.Clear();
             }
         }
 
@@ -70,74 +66,12 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         public IEventProcessor CreateEventProcessor(PartitionContext context)
         {
-            Log.DebugFormat("Creating EventHubEventProcessor for EventHubPath: {0}, ConsumerGroupName: {1}", context.EventHubPath, context.ConsumerGroupName);
-            var ep = new EventProcessor(this);
+            Log.DebugFormat("Creating EventHubEventProcessor for {0}", new PartitionContextInfo(context));
+            var ep = EventProcessorFactory(this);
+            EventProcessors.Add(ep);
             return ep;
         }
 
         #endregion
     }
-
-    public class EventProcessor : IEventProcessor
-    {
-        private static readonly ILog Log = LogManager.GetLogger<EventProcessor>();
-
-        private readonly EventHubConsumer _consumer;
-
-        public EventProcessor(EventHubConsumer consumer)
-        {
-            _consumer = consumer;
-        }
-
-        #region Implementation of IEventProcessor
-
-        public Task OpenAsync(PartitionContext context)
-        {
-            Log.DebugFormat("Open lease {0}", context.Lease);
-            return Task.FromResult<object>(null);
-        }
-
-        public async Task ProcessEventsAsync(PartitionContext context, IEnumerable<EventData> messages)
-        {
-            EventData lastMessage = null;
-            EventData lastCheckpointMessage = null;
-            var skipLastCheckpoint = false;
-
-            foreach (var message in messages)
-            {
-                if (!_consumer.CanRun)
-                {
-                    break;
-                }
-
-                var messageToCheckpoint = _consumer.Instances.Submit(message);
-                if (messageToCheckpoint != null)
-                {
-                    Log.DebugFormat("Will checkpoint at offset {0}, sequence {1}, topic {2}, group {3}", message.Offset, message.SequenceNumber, _consumer.Topic, _consumer.Group);
-                    await context.CheckpointAsync(messageToCheckpoint);
-
-                    skipLastCheckpoint = messageToCheckpoint != message;
-
-                    lastCheckpointMessage = messageToCheckpoint;
-                }
-                lastMessage = message;
-            }
-
-            if (!skipLastCheckpoint && lastCheckpointMessage != lastMessage && lastMessage != null)
-            {
-                var messageToCommit = _consumer.Instances.Commit(lastMessage);
-                await context.CheckpointAsync(messageToCommit);
-            }
-        }
-
-        public Task CloseAsync(PartitionContext context, CloseReason reason)
-        {
-            Log.DebugFormat("Close lease {0}, reason {1}", context.Lease, reason);
-            return Task.FromResult<object>(null);
-        }
-
-        #endregion
-    }
-
-
 }

@@ -26,13 +26,13 @@ namespace SlimMessageBus.Host.AzureEventHub
         /// Factory for <see cref="EventProcessorHost"/>. Called whenever a new instance needs to be created.
         /// The func arguments are as follows: EventHubPath, Group.
         /// </summary>
-        public Func<ConsumerSettings, EventProcessorHost> EventProcessorHostFactory { get; set; }
+        public Func<ITopicGroupConsumerSettings, EventProcessorHost> EventProcessorHostFactory { get; set; }
 
         /// <summary>
         /// Factory for <see cref="EventProcessorOptions"/>.
         /// The func arguments are as follows: EventHubPath, Group.
         /// </summary>
-        public Func<ConsumerSettings, EventProcessorOptions> EventProcessorOptionsFactory { get; set; }
+        public Func<ITopicGroupConsumerSettings, EventProcessorOptions> EventProcessorOptionsFactory { get; set; }
 
         /// <summary>
         /// Provides the HostName for this options. By default a GUID string provider is used.

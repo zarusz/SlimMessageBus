@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Common.Logging;
 using Microsoft.ServiceBus.Messaging;
@@ -19,7 +20,7 @@ namespace SlimMessageBus.Host.AzureEventHub
         private readonly object _producerByTopicLock = new object();
         private IDictionary<string, EventHubClient> _producerByTopic = new Dictionary<string, EventHubClient>();
 
-        private readonly IList<EventHubConsumer> _consumers = new List<EventHubConsumer>();
+        private readonly List<EventHubConsumer> _consumers = new List<EventHubConsumer>();
 
         // ToDo: move to base class
         private bool _disposing = false;
@@ -32,14 +33,14 @@ namespace SlimMessageBus.Host.AzureEventHub
             Log.Info("Creating consumers");
             foreach (var consumerSettings in settings.Consumers)
             {
-                Log.InfoFormat("Creating consumer for topic {0}, group {1}, message type {2}", consumerSettings.Topic, consumerSettings.Group, consumerSettings.MessageType);
+                Log.InfoFormat("Creating consumer for Topic: {0}, Group: {1}, MessageType: {2}", consumerSettings.Topic, consumerSettings.Group, consumerSettings.MessageType);
                 //var consumer = new EventHubConsumer(this, group, messageType, subscribersByMessageType.ToList());
                 _consumers.Add(new EventHubConsumer(this, consumerSettings));
             }
 
             if (settings.RequestResponse != null)
             {
-                Log.InfoFormat("Creating response consumer for topic {0}, group {1}", settings.RequestResponse.Group, settings.RequestResponse.Topic);
+                Log.InfoFormat("Creating response consumer for Topic: {0}, Group: {1}", settings.RequestResponse.Topic, settings.RequestResponse.Group);
                 // _consumers.Add(new EvenHubResponseConsumer(this, settings.RequestResponse));
                 _consumers.Add(new EventHubConsumer(this, settings.RequestResponse));
             }
@@ -51,7 +52,7 @@ namespace SlimMessageBus.Host.AzureEventHub
         {
             _disposing = true;
 
-            if (_producerByTopic.Count > 0)
+            if (_producerByTopic.Any())
             {
                 lock (_producerByTopicLock)
                 {
@@ -71,12 +72,9 @@ namespace SlimMessageBus.Host.AzureEventHub
                 }
             }
 
-            if (_consumers.Count > 0)
+            if (_consumers.Any())
             {
-                foreach (var consumer in _consumers)
-                {
-                    consumer.DisposeSilently("consumer", Log);
-                }
+                _consumers.ForEach(c => c.DisposeSilently("Consumer", Log));
                 _consumers.Clear();
             }
 

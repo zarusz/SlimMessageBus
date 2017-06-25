@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace SlimMessageBus.Host.Config
 {
-    public class ConsumerSettings : HasProviderExtensions
+    public class ConsumerSettings : HasProviderExtensions, ITopicGroupConsumerSettings
     {
         private Type _messageType;
 
