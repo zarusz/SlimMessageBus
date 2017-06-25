@@ -32,11 +32,16 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 
 ## Principles
 * The core of `SlimMessageBus` is "slim"
-  * Simple, common and friendly API to work with messaging systems.
+  * Simple, common and friendly API to work with messaging systems
   * No external dependencies. Logging is done via `Common.Logging`, so that you can connect your favorite logger provider.
-* Selectively add features you really need (e.g. Autofac integration, JSON serialization, your favorite messaging broker).
-* Fluent configuration.
-* No threads created (pure TPL and async).
+  * The core interface can be used in domain model (e.g. DomainEvents)
+* Plugin architecture:
+  * DI integration (Autofac, CommonServiceLocator)
+  * Message serialization (JSON, XML)
+  * Use your favorite messaging broker as provider by simply pulling a nuget package 
+* No threads created (pure TPL)
+* Async/Await support
+* Fluent configuration
 
 ## Packages
 
@@ -44,10 +49,10 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
  ------------ | ------------- | ------------- | -------------
  `SlimMessageBus` | The interfaces to work with SlimMessageBus | `Common.Logging` | [NuGet](https://www.nuget.org/packages/SlimMessageBus)
  `SlimMessageBus.Host` | The common implementation for the hosting application layer | `SlimMessageBus` | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host)
- `SlimMessageBus.Host.Kafka` | Implementation for Apache Kafka  | `SlimMessageBus.Host` [`Confluent.Kafka`](https://www.nuget.org/packages/Confluent.Kafka/) | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)
- `SlimMessageBus.Host.EventHub` (future) | Implementation for Azure EventHub | `SlimMessageBus.Host` `Microsoft.Azure.ServiceBus.EventProcessorHost` | .
- `SlimMessageBus.Host.Redis` (future) | Implementation for Redis | `SlimMessageBus.Host` `StackExchange.Redis.StrongName` | .
- `SlimMessageBus.Host.InMemory` (pending) | Implementation for in memory broker (in-process message passing) | `SlimMessageBus.Host` | .
+ `SlimMessageBus.Host.Kafka` | Provider for Apache Kafka  | `SlimMessageBus.Host` [`Confluent.Kafka`](https://www.nuget.org/packages/Confluent.Kafka/) | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)
+ `SlimMessageBus.Host.AzureEventHub` (pending) | Provider for Azure EventHub | `SlimMessageBus.Host` `WindowsAzure.ServiceBus` | .
+ `SlimMessageBus.Host.Redis` (future) | Provider for Redis | `SlimMessageBus.Host` `StackExchange.Redis.StrongName` | .
+ `SlimMessageBus.Host.InMemory` (pending) | Implementation for in-process (memory) message passing | `SlimMessageBus.Host` | .
  `SlimMessageBus.Host.ServiceLocator` | Resolves dependencies from ServiceLocator | `SlimMessageBus.Host` `CommonServiceLocator` | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator)
  `SlimMessageBus.Host.Autofac` | Resolves dependencies from Autofac container | `SlimMessageBus.Host` `Autofac` | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Autofac)
  `SlimMessageBus.Host.Serialization.Json` | Message serialization provider for JSON | `SlimMessageBus.Host` `Newtonsoft.Json` | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json)
