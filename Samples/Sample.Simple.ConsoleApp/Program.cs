@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using SlimMessageBus;
+using SlimMessageBus.Host;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.AzureEventHub;
@@ -15,14 +16,20 @@ namespace Sample.Simple.ConsoleApp
 
         static void Main(string[] args)
         {
-            var eventHubConnectionString = "Endpoint=sb://slimmessagebus.servicebus.windows.net/;SharedAccessKeyName=AppAccessKey;SharedAccessKey=mxendUq7rHnAsUBP1xfuaK8bsRJA69jy6bOUI1Q1iNI=";
+            // ToDo: Provide connection string to your event hub namespace
+            var eventHubConnectionString = "";
+            // ToDo: Provider your event hub name
             var eventHubName = "topica";
+            // ToDo: Provide connection string to your storage account 
+            var storageConnectionString = "";
 
             // Create message bus
             IMessageBus messageBus = new MessageBusBuilder()
-                .Publish<AddCommand>(x => x.DefaultTopic(eventHubName)) // By default messages of type AddCommand will go 'topica' Event Hub path (or Kafka topic)
+                .Publish<AddCommand>(x => x.DefaultTopic(eventHubName)) // By default messages of type 'AddCommand' will go to event hub named 'topica' (or topic of Kafka is chosen)
+                .SubscribeTo<AddCommand>(x => x.Topic(eventHubName).Group("consoleapp").WithSubscriber<AddCommandHandler>().Instances(1))
                 .WithSerializer(new JsonMessageSerializer()) // Use JSON for message serialization                
-                .WithProviderEventHub(new EventHubMessageBusSettings(eventHubConnectionString)) // Use Azure Event Hub
+                .WithDependencyResolver(new LookupDependencyResolver(type => type == typeof(AddCommandHandler) ? new AddCommandHandler() : null))
+                .WithProviderEventHub(new EventHubMessageBusSettings(eventHubConnectionString, storageConnectionString)) // Use Azure Event Hub
                 //.WithProviderKafka(new KafkaMessageBusSettings("<kafka-broker-list-here>")) // Or use Apache Kafka
                 .Build();
 

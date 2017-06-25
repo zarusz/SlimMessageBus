@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using Common.Logging;
 using Microsoft.ServiceBus.Messaging;
@@ -15,10 +14,12 @@ namespace SlimMessageBus.Host.AzureEventHub
     {
         private static readonly ILog Log = LogManager.GetLogger<EventHubMessageBus>();
 
-        private readonly EventHubMessageBusSettings _eventHubSettings;
+        public EventHubMessageBusSettings EventHubSettings { get; }
 
-        private readonly object _eventHubClientByTopicLock = new object();
-        private IDictionary<string, EventHubClient> _eventHubClientByTopic = new Dictionary<string, EventHubClient>();
+        private readonly object _producerByTopicLock = new object();
+        private IDictionary<string, EventHubClient> _producerByTopic = new Dictionary<string, EventHubClient>();
+
+        private readonly IList<EventHubConsumer> _consumers = new List<EventHubConsumer>();
 
         // ToDo: move to base class
         private bool _disposing = false;
@@ -26,7 +27,22 @@ namespace SlimMessageBus.Host.AzureEventHub
         public EventHubMessageBus(MessageBusSettings settings, EventHubMessageBusSettings eventHubSettings)
             : base(settings)
         {
-            _eventHubSettings = eventHubSettings;
+            EventHubSettings = eventHubSettings;
+
+            Log.Info("Creating consumers");
+            foreach (var consumerSettings in settings.Consumers)
+            {
+                Log.InfoFormat("Creating consumer for topic {0}, group {1}, message type {2}", consumerSettings.Topic, consumerSettings.Group, consumerSettings.MessageType);
+                //var consumer = new EventHubConsumer(this, group, messageType, subscribersByMessageType.ToList());
+                _consumers.Add(new EventHubConsumer(this, consumerSettings));
+            }
+
+            if (settings.RequestResponse != null)
+            {
+                Log.InfoFormat("Creating response consumer for topic {0}, group {1}", settings.RequestResponse.Group, settings.RequestResponse.Topic);
+                // _consumers.Add(new EvenHubResponseConsumer(this, settings.RequestResponse));
+                _consumers.Add(new EventHubConsumer(this, settings.RequestResponse));
+            }
         }
 
         #region Overrides of MessageBusBase
@@ -35,22 +51,35 @@ namespace SlimMessageBus.Host.AzureEventHub
         {
             _disposing = true;
 
-            lock (_eventHubClientByTopicLock)
+            if (_producerByTopic.Count > 0)
             {
-                foreach (var eventHubClient in _eventHubClientByTopic.Values)
+                lock (_producerByTopicLock)
                 {
-                    Log.DebugFormat("Closing EventHubClient for path {0}", eventHubClient.Path);
-                    try
+                    foreach (var eventHubClient in _producerByTopic.Values)
                     {
-                        eventHubClient.Close();
+                        Log.DebugFormat("Closing EventHubClient for path {0}", eventHubClient.Path);
+                        try
+                        {
+                            eventHubClient.Close();
+                        }
+                        catch (Exception e)
+                        {
+                            Log.ErrorFormat("Error while closing EventHubClient for path {0}", e, eventHubClient.Path);
+                        }
                     }
-                    catch (Exception e)
-                    {
-                        Log.ErrorFormat("Error while closing EventHubClient for path {0}", e, eventHubClient.Path);
-                    }
+                    _producerByTopic.Clear();
                 }
-                _eventHubClientByTopic.Clear();                
             }
+
+            if (_consumers.Count > 0)
+            {
+                foreach (var consumer in _consumers)
+                {
+                    consumer.DisposeSilently("consumer", Log);
+                }
+                _consumers.Clear();
+            }
+
             base.OnDispose();
         }
 
@@ -68,9 +97,12 @@ namespace SlimMessageBus.Host.AzureEventHub
             Assert.IsFalse(_disposing, () => new MessageBusException("The message bus is disposed at this time"));
 
             Log.DebugFormat("Producing message of type {0} on topic {1} with size {2}", messageType.Name, topic, payload.Length);
-            var eventHubClient = GetOrCreateEventHubClient(topic);
-            await eventHubClient.SendAsync(new EventData(payload));
-            Log.DebugFormat("Delivered message");
+            var eventHubClient = GetOrCreateProducer(topic);
+
+            var ev = new EventData(payload);
+            await eventHubClient.SendAsync(ev);
+
+            Log.DebugFormat("Delivered message at offset {0} and sequence {1}", ev.Offset, ev.SequenceNumber);
         }
 
         /// <summary>
@@ -78,21 +110,21 @@ namespace SlimMessageBus.Host.AzureEventHub
         /// </summary>
         /// <param name="path"></param>
         /// <returns></returns>
-        private EventHubClient GetOrCreateEventHubClient(string path)
+        private EventHubClient GetOrCreateProducer(string path)
         {
             EventHubClient eventHubClient;
             // check if we have the EventHubClient already for the HubName
-            if (!_eventHubClientByTopic.TryGetValue(path, out eventHubClient))
+            if (!_producerByTopic.TryGetValue(path, out eventHubClient))
             {
-                lock (_eventHubClientByTopicLock)
+                lock (_producerByTopicLock)
                 {
                     // double check if another thread did create it in meantime (before lock)
-                    if (!_eventHubClientByTopic.TryGetValue(path, out eventHubClient))
+                    if (!_producerByTopic.TryGetValue(path, out eventHubClient))
                     {
                         Log.DebugFormat("Creating EventHubClient for path {0}", path);
-                        eventHubClient = _eventHubSettings.EventHubClientFactory(path);
+                        eventHubClient = EventHubSettings.EventHubClientFactory(path);
 
-                        _eventHubClientByTopic = new Dictionary<string, EventHubClient>(_eventHubClientByTopic)
+                        _producerByTopic = new Dictionary<string, EventHubClient>(_producerByTopic)
                         {
                             {path, eventHubClient}
                         };

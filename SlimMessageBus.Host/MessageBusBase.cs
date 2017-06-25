@@ -45,12 +45,15 @@ namespace SlimMessageBus.Host
         private static void AssertSettings(MessageBusSettings settings)
         {
             Assert.IsTrue(settings.Serializer != null, 
-                () => new InvalidConfigurationMessageBusException($"Serializer was not provided"));
+                () => new InvalidConfigurationMessageBusException($"{nameof(MessageBusSettings.Serializer)} was not set on {nameof(MessageBusSettings)} object"));
+
+            Assert.IsTrue(settings.DependencyResolver != null,
+                () => new InvalidConfigurationMessageBusException($"{nameof(MessageBusSettings.DependencyResolver)} was not set on {nameof(MessageBusSettings)} object"));
 
             if (settings.RequestResponse != null)
             {
                 Assert.IsTrue(settings.RequestResponse.Topic != null,
-                    () => new InvalidConfigurationMessageBusException($"Request-response: topic was not provided"));
+                    () => new InvalidConfigurationMessageBusException($"Request-response: topic was not set"));
             }
         }
 

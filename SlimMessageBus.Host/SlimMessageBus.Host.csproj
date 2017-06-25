@@ -57,6 +57,7 @@
     <Compile Include="Config\Fluent\HandlerBuilder.cs" />
     <Compile Include="Config\Fluent\TopicConsumerBuilder.cs" />
     <Compile Include="Config\Fluent\TopicHandlerBuilder.cs" />
+    <Compile Include="LookupDependencyResolver.cs" />
     <Compile Include="MessageBusExtensions.cs" />
     <Compile Include="RequestResponse\InMemoryPendingRequestStore.cs" />
     <Compile Include="RequestResponse\IPendingRequestStore.cs" />
