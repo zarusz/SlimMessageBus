@@ -55,6 +55,7 @@ namespace SlimMessageBus.Host.Test
                     x.ReplyToTopic("app01-responses");
                     x.DefaultTimeout(TimeSpan.FromSeconds(20));
                 })
+                .WithDependencyResolver(new LookupDependencyResolver(t => null))
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProvider(s => new MessageBusTested(s));
 

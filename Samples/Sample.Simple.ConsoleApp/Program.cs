@@ -43,7 +43,7 @@ namespace Sample.Simple.ConsoleApp
             IMessageBus messageBus = new MessageBusBuilder()
                 // Pub / Sub
                 .Publish<AddCommand>(x => x.DefaultTopic(eventHubNameForAddCommand)) // By default messages of type 'AddCommand' will go to event hub named 'topica' (or topic if Kafka is chosen)
-                .SubscribeTo<AddCommand>(x => x.Topic(eventHubNameForAddCommand).Group(consumerGroup).WithSubscriber<AddCommandConsumer>().Instances(1))
+                .SubscribeTo<AddCommand>(x => x.Topic(eventHubNameForAddCommand).Group(consumerGroup).WithSubscriber<AddCommandConsumer>())
                 // Req / Resp
                 .Publish<MultiplyRequest>(x => x.DefaultTopic(eventHubNameForMultiplyRequest)) // By default messages of type 'AddCommand' will go to event hub named 'topica' (or topic if Kafka is chosen)
                 .Handle<MultiplyRequest, MultiplyResponse>(x => x.Topic(eventHubNameForMultiplyRequest).Group(consumerGroup).WithHandler<MultiplyRequestHandler>())
