@@ -321,6 +321,7 @@ namespace SlimMessageBus.Host
             if (requestState == null)
             {
                 Log.DebugFormat("The response message for request id {0} arriving on topic {1} will be disregarded. Either the request had already expired, had been cancelled or it was already handled (this response message is a duplicate).", requestId, topic);
+                
                 // ToDo: add and API hook to these kind of situation
                 return;
             }

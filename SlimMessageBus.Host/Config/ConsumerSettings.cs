@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace SlimMessageBus.Host.Config
 {
-    public class ConsumerSettings : HasProviderExtensions, ITopicGroupConsumerSettings
+    public class ConsumerSettings : HasProviderExtensions, ITopicGroupConsumerSettings, IConsumerEvents
     {
         private Type _messageType;
 
@@ -57,6 +57,19 @@ namespace SlimMessageBus.Host.Config
         /// </summary>
         public bool IsRequestMessage => ResponseType != null;
 
+        #region Implementation of IConsumerEvents
+
+        /// <summary>
+        /// Called whenever a consumer receives an expired message.
+        /// </summary>
+        public Action<ConsumerSettings, object> OnMessageExpired { get; set; }
+        /// <summary>
+        /// Called whenever a consumer errors out while processing the message.
+        /// </summary>
+        public Action<ConsumerSettings, object, Exception> OnMessageFault { get; set; }
+
+        #endregion
+        
         public ConsumerSettings()
         {
             Instances = 1;

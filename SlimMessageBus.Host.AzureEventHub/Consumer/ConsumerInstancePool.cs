@@ -107,6 +107,8 @@ namespace SlimMessageBus.Host.AzureEventHub
 
             string requestId = null, replyTo = null;
             DateTimeOffset? expires = null;
+
+            Log.Debug("Deserializing message...");
             var message = _consumerSettings.IsRequestMessage
                 ? _messageBus.DeserializeRequest(_consumerSettings.MessageType, msgPayload, out requestId, out replyTo, out expires)
                 : _messageBus.Settings.Serializer.Deserialize(_consumerSettings.MessageType, msgPayload);
@@ -117,10 +119,12 @@ namespace SlimMessageBus.Host.AzureEventHub
                 var currentTime = _messageBus.CurrentTime;
                 if (currentTime > expires.Value)
                 {
-                    Log.DebugFormat("The request message arrived late and is already expired (expires {0}, current {1})", expires.Value, currentTime);
-                    // Do not process the expired message
+                    Log.DebugFormat("The message arrived too late and is already expired (expires {0}, current {1})", expires.Value, currentTime);
+                    
+                    // Execute the event hook
+                    (_consumerSettings.OnMessageExpired ?? _messageBus.Settings.OnMessageExpired)?.Invoke(_consumerSettings, message);
 
-                    // ToDo: add and API hook to these kind of situation
+                    // Do not process the expired message
                     return;
                 }
             }
@@ -148,11 +152,23 @@ namespace SlimMessageBus.Host.AzureEventHub
                     if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
                     {
                         Log.DebugFormat("Handler execution failed", e);
+                        // Save the exception
                         responseError = e.ToString();
                     }
                     else
                     {
                         Log.ErrorFormat("Consumer execution failed", e);
+                    }
+
+                    try
+                    {
+                        // Execute the event hook
+                        (_consumerSettings.OnMessageFault ?? _messageBus.Settings.OnMessageFault)?.Invoke(_consumerSettings, message, e);
+                    }
+                    catch (Exception eh)
+                    {
+                        // When the hook itself error out, catch the exception
+                        Log.ErrorFormat("{0} method failed", eh, nameof(IConsumerEvents.OnMessageFault));
                     }
                 }
 
@@ -165,6 +181,7 @@ namespace SlimMessageBus.Host.AzureEventHub
             if (response != null || responseError != null)
             {
                 // send the response (or error response)
+                Log.Debug("Serializing the respoonse...");
                 var responsePayload = _messageBus.SerializeResponse(_consumerSettings.ResponseType, response, requestId, responseError);
                 await _messageBus.Publish(_consumerSettings.ResponseType, responsePayload, replyTo);
             }

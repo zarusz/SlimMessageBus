@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Common.Logging;
 using Microsoft.ServiceBus.Messaging;
@@ -18,6 +19,12 @@ namespace SlimMessageBus.Host.AzureEventHub
             : base(consumer)
         {
             _instancePool = new ConsumerInstancePool<EventData>(consumerSettings, consumer.MessageBus, e => e.GetBytes());
+
+            if (consumerSettings.Properties.ContainsKey(Consts.CheckpointCount))
+                CheckpointCount = (int) consumerSettings.Properties[Consts.CheckpointCount];
+
+            if (consumerSettings.Properties.ContainsKey(Consts.CheckpointDuration))
+                CheckpointDuration = (int) consumerSettings.Properties[Consts.CheckpointDuration];
         }
 
         #region Overrides of EventProcessor

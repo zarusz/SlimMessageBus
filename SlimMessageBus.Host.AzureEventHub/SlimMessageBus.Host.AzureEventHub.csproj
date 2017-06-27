@@ -90,6 +90,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Consts.cs" />
+    <Compile Include="ConsumerSettingsExtensions.cs" />
     <Compile Include="Consumer\EventHubConsumer.cs" />
     <Compile Include="Consumer\EventProcessor.cs" />
     <Compile Include="Consumer\EventProcessorForConsumers.cs" />
@@ -99,7 +101,7 @@
     <Compile Include="Consumer\ConsumerInstancePool.cs" />
     <Compile Include="EventHubMessageBus.cs" />
     <Compile Include="EventHubMessageBusSettings.cs" />
-    <Compile Include="EventHubMessageBusBuilderExtensions.cs" />
+    <Compile Include="MessageBusBuilderExtensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

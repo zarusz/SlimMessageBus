@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using Common.Logging;
 using Microsoft.ServiceBus.Messaging;
@@ -11,7 +12,11 @@ namespace SlimMessageBus.Host.AzureEventHub
         private static readonly ILog Log = LogManager.GetLogger<EventProcessor>();
 
         protected readonly EventHubConsumer Consumer;
-        private int _numMessagesProcessed;
+        private int _lastCheckpointCount;
+        private readonly Stopwatch _lastCheckpointDuration = new Stopwatch();
+
+        protected int CheckpointCount = Consts.CheckpointCountDefault;
+        protected int CheckpointDuration = Consts.CheckpointDurationDefault;
 
         protected EventProcessor(EventHubConsumer consumer)
         {
@@ -29,12 +34,12 @@ namespace SlimMessageBus.Host.AzureEventHub
         public Task OpenAsync(PartitionContext context)
         {
             Log.DebugFormat("Open lease: {0}", new PartitionContextInfo(context));
-            _numMessagesProcessed = 0;
+
+            _lastCheckpointCount = 0;
+            _lastCheckpointDuration.Start();
+
             return Task.CompletedTask;
         }
-
-        // ToDo: Extract this into config param
-        private int _commitBatchSize = 10;
 
         public async Task ProcessEventsAsync(PartitionContext context, IEnumerable<EventData> messages)
         {
@@ -51,10 +56,9 @@ namespace SlimMessageBus.Host.AzureEventHub
 
                 await OnSubmit(message);
                 lastMessage = message;
-                _numMessagesProcessed++;
+                _lastCheckpointCount++;
 
-                // ToDo: add timer trigger
-                if (_numMessagesProcessed >= _commitBatchSize)
+                if (_lastCheckpointCount >= CheckpointCount || _lastCheckpointDuration.ElapsedMilliseconds > CheckpointDuration)
                 {
                     lastCheckpointMessage = await Checkpoint(message, context);
                     // something went wrong (not all messages were processed with success)
@@ -76,7 +80,8 @@ namespace SlimMessageBus.Host.AzureEventHub
             Log.DebugFormat("Will checkpoint at Offset: {0}, {1}", message.Offset, new PartitionContextInfo(context));
             await context.CheckpointAsync(messageToCheckpoint);
 
-            _numMessagesProcessed = 0;
+            _lastCheckpointCount = 0;
+            _lastCheckpointDuration.Restart();            
 
             return messageToCheckpoint;
         }
@@ -84,6 +89,10 @@ namespace SlimMessageBus.Host.AzureEventHub
         public Task CloseAsync(PartitionContext context, CloseReason reason)
         {
             Log.DebugFormat("Close lease: Reason: {0}, {1}", reason, new PartitionContextInfo(context));
+
+            _lastCheckpointCount = 0;
+            _lastCheckpointDuration.Stop();
+
             return Task.CompletedTask;
         }
 

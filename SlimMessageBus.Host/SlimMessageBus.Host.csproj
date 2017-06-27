@@ -57,6 +57,7 @@
     <Compile Include="Config\Fluent\HandlerBuilder.cs" />
     <Compile Include="Config\Fluent\TopicConsumerBuilder.cs" />
     <Compile Include="Config\Fluent\TopicHandlerBuilder.cs" />
+    <Compile Include="Config\IConsumerEvents.cs" />
     <Compile Include="Config\ITopicGroupConsumerSettings.cs" />
     <Compile Include="LookupDependencyResolver.cs" />
     <Compile Include="MessageBusExtensions.cs" />

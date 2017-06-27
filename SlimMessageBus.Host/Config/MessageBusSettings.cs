@@ -1,8 +1,9 @@
+using System;
 using System.Collections.Generic;
 
 namespace SlimMessageBus.Host.Config
 {
-    public class MessageBusSettings
+    public class MessageBusSettings : IConsumerEvents
     {
         public IList<PublisherSettings> Publishers { get; }
         public IList<ConsumerSettings> Consumers { get; }
@@ -14,6 +15,13 @@ namespace SlimMessageBus.Host.Config
         /// </summary>
         public IMessageSerializer MessageWithHeadersSerializer { get; set; }
         public IDependencyResolver DependencyResolver { get; set; }
+
+        #region Implementation of IConsumerEvents
+
+        public Action<ConsumerSettings, object> OnMessageExpired { get; set; }
+        public Action<ConsumerSettings, object, Exception> OnMessageFault { get; set; }
+
+        #endregion
 
         public MessageBusSettings()
         {

@@ -15,9 +15,8 @@ namespace SlimMessageBus.Host.Config
         /// Consummer GroupId to to use for the app domain.
         /// </summary>
         public string Group { get; set; }
-
         /// <summary>
-        /// Default wait time for the response to come in. This is used when the timeout during publish was not provided.
+        /// Default wait time for the response to arrive. This is used when the timeout during publish was not provided.
         /// </summary>
         public TimeSpan Timeout { get; set; }
 
