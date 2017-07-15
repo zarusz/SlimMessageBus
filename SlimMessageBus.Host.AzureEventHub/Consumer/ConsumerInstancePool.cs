@@ -93,7 +93,7 @@ namespace SlimMessageBus.Host.AzureEventHub
                 }
                 catch (AggregateException e)
                 {
-                    Log.ErrorFormat("Errors occured while executing the tasks {0}", e);
+                    Log.ErrorFormat("Errors occured while executing the tasks.", e);
                     // ToDo: some tasks failed
                 }
                 _pendingMessages.Clear();
@@ -137,41 +137,37 @@ namespace SlimMessageBus.Host.AzureEventHub
             {
                 // the consumer just subscribes to the message
                 var task = (Task)_consumerOnHandleMethod.Invoke(consumerInstance, new[] { message, _consumerSettings.Topic });
+                await task;
+
+                if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
+                {
+                    // the consumer handles the request (and replies)
+                    response = _taskResultProperty.GetValue(task);
+                }
+            }
+            catch (Exception e)
+            {
+                if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
+                {
+                    Log.DebugFormat("Handler execution failed", e);
+                    // Save the exception
+                    responseError = e.ToString();
+                }
+                else
+                {
+                    Log.ErrorFormat("Consumer execution failed", e);
+                }
+
                 try
                 {
-                    await task;
-
-                    if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
-                    {
-                        // the consumer handles the request (and replies)
-                        response = _taskResultProperty.GetValue(task);
-                    }
+                    // Execute the event hook
+                    (_consumerSettings.OnMessageFault ?? _messageBus.Settings.OnMessageFault)?.Invoke(_consumerSettings, message, e);
                 }
-                catch (Exception e)
+                catch (Exception eh)
                 {
-                    if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
-                    {
-                        Log.DebugFormat("Handler execution failed", e);
-                        // Save the exception
-                        responseError = e.ToString();
-                    }
-                    else
-                    {
-                        Log.ErrorFormat("Consumer execution failed", e);
-                    }
-
-                    try
-                    {
-                        // Execute the event hook
-                        (_consumerSettings.OnMessageFault ?? _messageBus.Settings.OnMessageFault)?.Invoke(_consumerSettings, message, e);
-                    }
-                    catch (Exception eh)
-                    {
-                        // When the hook itself error out, catch the exception
-                        Log.ErrorFormat("{0} method failed", eh, nameof(IConsumerEvents.OnMessageFault));
-                    }
+                    // When the hook itself error out, catch the exception
+                    Log.ErrorFormat("{0} method failed", eh, nameof(IConsumerEvents.OnMessageFault));
                 }
-
             }
             finally
             {
