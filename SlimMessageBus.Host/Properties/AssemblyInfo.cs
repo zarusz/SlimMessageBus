@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("SlimMessageBus.Host")]
-[assembly: AssemblyDescription("A lightweight message bus interface. The goal of this library is to introduce a slim facade for messaging brokers. Use one of the extensions to add in-process, Apacke Kafka or Azure EventHub. Only adds what you actually use, while giving a great potential for growth as your app evolves.")]
+[assembly: AssemblyDescription("A lightweight message bus interface. The goal of this library is to introduce a slim facade for messaging brokers. Use one of the extensions to add in-process, Apache Kafka or Azure Event Hub messaging.")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("zarusz")]
 [assembly: AssemblyProduct("SlimMessageBus.Host")]
