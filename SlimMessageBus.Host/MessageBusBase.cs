@@ -14,7 +14,7 @@ namespace SlimMessageBus.Host
     {
         private static readonly ILog Log = LogManager.GetLogger<MessageBusBase>();
 
-        public MessageBusSettings Settings { get; }
+        public virtual MessageBusSettings Settings { get; }
 
         protected readonly IDictionary<Type, PublisherSettings> PublisherSettingsByMessageType;
 

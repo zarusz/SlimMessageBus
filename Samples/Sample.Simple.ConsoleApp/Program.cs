@@ -16,9 +16,6 @@ namespace Sample.Simple.ConsoleApp
 
         static void Main(string[] args)
         {
-            // ToDo: Provide connection string to your event hub namespace
-            var eventHubConnectionString = "";
-            
             // ToDo: Provider your event hub names
             var eventHubNameForAddCommand = "add-command";
             var eventHubNameForMultiplyRequest = "multiply-request";
@@ -26,6 +23,8 @@ namespace Sample.Simple.ConsoleApp
             // ToDo: Provide consumer group name
             var consumerGroup = "consoleapp";
 
+            // ToDo: Provide connection string to your event hub namespace
+            var eventHubConnectionString = "";
             // ToDo: Provide connection string to your storage account 
             var storageConnectionString = "";
 

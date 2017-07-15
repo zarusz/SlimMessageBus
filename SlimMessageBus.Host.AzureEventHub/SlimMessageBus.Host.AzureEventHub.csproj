@@ -90,6 +90,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Common\SafeDictionaryWrapper.cs" />
     <Compile Include="Consts.cs" />
     <Compile Include="ConsumerSettingsExtensions.cs" />
     <Compile Include="Consumer\EventHubConsumer.cs" />
