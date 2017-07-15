@@ -7,9 +7,8 @@ using System.Threading.Tasks.Dataflow;
 using Common.Logging;
 using SlimMessageBus.Host.Config;
 
-namespace SlimMessageBus.Host.AzureEventHub
+namespace SlimMessageBus.Host
 {
-    // ToDo: Move to SlimMessageBus.Host assembly
     public class ConsumerInstancePool<TMessage> : IDisposable
         where TMessage : class
     {

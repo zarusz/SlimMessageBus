@@ -115,7 +115,6 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
-    <Compile Include="Common\SafeDictionaryWrapper.cs" />
     <Compile Include="ConsumerSettingsExtensionsTest.cs" />
     <Compile Include="Consumer\ConsumerInstancePoolTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

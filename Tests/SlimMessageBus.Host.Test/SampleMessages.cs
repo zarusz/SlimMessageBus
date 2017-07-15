@@ -5,12 +5,12 @@ namespace SlimMessageBus.Host.Test
 
     }
 
-    public class SomeRequestMessage : IRequestMessage<SomeResponseMessage>
+    public class SomeRequest : IRequestMessage<SomeResponse>
     {
 
     }
 
-    public class SomeResponseMessage
+    public class SomeResponse
     {
         
     }

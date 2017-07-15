@@ -84,6 +84,8 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="Collections\SafeDictionaryWrapperTest.cs" />
+    <Compile Include="Consumer\ConsumerInstancePoolTest.cs" />
     <Compile Include="Consumer\ConsumerSettingsTest.cs" />
     <Compile Include="SampleMessages.cs" />
     <Compile Include="MessageBusBaseTest.cs" />

@@ -2,7 +2,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SlimMessageBus.Host.Config;
 
-namespace SlimMessageBus.Host.Test.Consumer
+namespace SlimMessageBus.Host.Test
 {
     [TestClass]
     public class ConsumerSettingsTest
@@ -28,10 +28,10 @@ namespace SlimMessageBus.Host.Test.Consumer
             var cs = new ConsumerSettings();
 
             // act
-            cs.MessageType = typeof(SomeRequestMessage);
+            cs.MessageType = typeof(SomeRequest);
 
             // assert
-            cs.ResponseType.ShouldBeEquivalentTo(typeof(SomeResponseMessage));
+            cs.ResponseType.ShouldBeEquivalentTo(typeof(SomeResponse));
             cs.IsRequestMessage.Should().BeTrue();
         }
 

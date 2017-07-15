@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 
-namespace SlimMessageBus.Host.AzureEventHub.Common
+namespace SlimMessageBus.Host.Collections
 {
     /// <summary>
     /// Dictionary wrapper that exposes a <see cref="ReadOnlyDictionary{TKey,TValue}"/> for read, while for mutation exposes thread-safe methods.
@@ -64,7 +64,6 @@ namespace SlimMessageBus.Host.AzureEventHub.Common
                 _dict.Clear();
                 OnChanged();
             }
-
         }
     }
 

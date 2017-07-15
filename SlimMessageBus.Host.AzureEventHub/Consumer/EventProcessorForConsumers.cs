@@ -1,4 +1,3 @@
-using System;
 using System.Threading.Tasks;
 using Common.Logging;
 using Microsoft.ServiceBus.Messaging;

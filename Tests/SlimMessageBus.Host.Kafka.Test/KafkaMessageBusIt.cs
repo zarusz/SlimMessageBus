@@ -28,7 +28,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             Messages = new List<PingMessage>();
         }
 
-        #region Implementation of ISubscriber<in PingMessage>
+        #region Implementation of IConsumer<in PingMessage>
 
         public Task OnHandle(PingMessage message, string topic)
         {
@@ -38,12 +38,11 @@ namespace SlimMessageBus.Host.Kafka.Test
             }
 
             Log.InfoFormat("Got message {0} on topic {1}.", message.Counter, topic);
-            return Task.FromResult(false);
+            return Task.CompletedTask;
         }
 
         #endregion
     }
-
 
     [TestClass]
     public class KafkaMessageBusIt
@@ -53,29 +52,6 @@ namespace SlimMessageBus.Host.Kafka.Test
         private const int NumberOfMessages = 77;
         private KafkaMessageBus _bus;
         private PingConsumer _pingConsumer;
-
-        private class FakeDependencyResolver : IDependencyResolver
-        {
-            private readonly PingConsumer _pingConsumer;
-
-            public FakeDependencyResolver(PingConsumer pingConsumer)
-            {
-                _pingConsumer = pingConsumer;
-            }
-
-            #region Implementation of IDependencyResolver
-
-            public object Resolve(Type type)
-            {
-                if (type.IsAssignableFrom(typeof(PingConsumer)))
-                {
-                    return _pingConsumer;
-                }
-                return null;
-            }
-
-            #endregion
-        }
 
         [TestInitialize]
         public void SetupBus()
@@ -109,7 +85,11 @@ namespace SlimMessageBus.Host.Kafka.Test
                     x.DefaultTimeout(TimeSpan.FromSeconds(10));
                 })
                 .WithSerializer(new JsonMessageSerializer())
-                .WithDependencyResolver(new FakeDependencyResolver(_pingConsumer))
+                .WithDependencyResolver(new LookupDependencyResolver(f =>
+                {
+                    if (f == typeof(PingConsumer)) return _pingConsumer;
+                    throw new InvalidOperationException();
+                }))
                 .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
                 {
                     ProducerConfigFactory = () => new Dictionary<string, object>
@@ -151,13 +131,13 @@ namespace SlimMessageBus.Host.Kafka.Test
             Log.InfoFormat("Published {0} messages in {1}", messagesPublished.Count, stopwatch.Elapsed);
 
             stopwatch.Restart();
-                                                   
+
             var messagesReceived = ConsumeFromTopic();
 
             messagesReceived.Count.ShouldBeEquivalentTo(messagesPublished.Count);
 
             stopwatch.Stop();
-            Log.InfoFormat("Consumed {0} messages in {1}", messagesReceived.Count, stopwatch.Elapsed);            
+            Log.InfoFormat("Consumed {0} messages in {1}", messagesReceived.Count, stopwatch.Elapsed);
         }
 
         private IList<PingMessage> ConsumeFromTopic()
@@ -189,9 +169,9 @@ namespace SlimMessageBus.Host.Kafka.Test
                 }
                 catch (Exception e)
                 {
-                    Log.ErrorFormat("Could not publish: {0}", e);                    
+                    Log.Error("Could not publish", e);
+                    throw;
                 }
-
             });
 
             return messages;

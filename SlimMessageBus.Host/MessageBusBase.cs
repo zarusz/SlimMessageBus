@@ -23,6 +23,8 @@ namespace SlimMessageBus.Host
 
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         public CancellationToken CancellationToken => _cancellationTokenSource.Token;
+
+        protected bool IsDisposing = false;
         protected bool IsDisposed = false;
 
         protected MessageBusBase(MessageBusSettings settings)
@@ -30,7 +32,7 @@ namespace SlimMessageBus.Host
             AssertSettings(settings);
 
             Settings = settings;
-            PublisherSettingsByMessageType = Settings.Publishers.ToDictionary(x => x.MessageType);
+            PublisherSettingsByMessageType = settings.Publishers.ToDictionary(x => x.MessageType);
 
             PendingRequestStore = new InMemoryPendingRequestStore();
             PendingRequestTimer = new Timer
@@ -57,6 +59,11 @@ namespace SlimMessageBus.Host
             }
         }
 
+        protected void AssertActive()
+        {
+            Assert.IsFalse(IsDisposed, () => new MessageBusException("The message bus is disposed at this time"));
+        }
+
         #region Implementation of IDisposable
 
         public void Dispose()
@@ -65,9 +72,16 @@ namespace SlimMessageBus.Host
             {
                 return;
             }
-
-            OnDispose();
             IsDisposed = true;
+            IsDisposing = true;
+            try
+            {
+                OnDispose();
+            }
+            finally
+            {
+                IsDisposing = false;
+            }
         }
 
         protected virtual void OnDispose()
@@ -94,9 +108,11 @@ namespace SlimMessageBus.Host
                     : requestState.TaskCompletionSource.TrySetCanceled();
 
                 if (PendingRequestStore.Remove(requestState.Id) && canceled)
-                {
+                {                    
                     Log.DebugFormat("Pending request timed-out: {0}, now: {1}", requestState, now);
-                    // ToDo: add and API hook to these kind of situation
+                    // Execute the event hook
+                    // ToDo: sort out the ConsumerSettings arg for req/resp, for now pass null
+                    (Settings.RequestResponse.OnMessageExpired ?? Settings.OnMessageExpired)?.Invoke(null, requestState.Request);
                 }
             }
         }

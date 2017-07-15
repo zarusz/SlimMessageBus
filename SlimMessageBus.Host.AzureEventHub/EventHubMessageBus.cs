@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Common.Logging;
 using Microsoft.ServiceBus.Messaging;
-using SlimMessageBus.Host.AzureEventHub.Common;
+using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.AzureEventHub
@@ -20,9 +20,6 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         private readonly SafeDictionaryWrapper<string, EventHubClient> _producersByTopic = new SafeDictionaryWrapper<string, EventHubClient>(); 
         private readonly List<EventHubConsumer> _consumers = new List<EventHubConsumer>();
-
-        // ToDo: move to base class
-        private bool _disposing = false;
 
         public EventHubMessageBus(MessageBusSettings settings, EventHubMessageBusSettings eventHubSettings)
             : base(settings)
@@ -55,8 +52,6 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         protected override void OnDispose()
         {
-            _disposing = true;
-
             if (_producersByTopic.Dictonary.Any())
             {
                 foreach (var eventHubClient in _producersByTopic.Dictonary.Values)
@@ -94,7 +89,7 @@ namespace SlimMessageBus.Host.AzureEventHub
         /// <returns></returns>
         public override async Task Publish(Type messageType, byte[] payload, string topic)
         {
-            Assert.IsFalse(_disposing, () => new MessageBusException("The message bus is disposed at this time"));
+            AssertActive();
 
             Log.DebugFormat("Producing message of type {0} on topic {1} with size {2}", messageType.Name, topic, payload.Length);
             var eventHubClient = _producersByTopic.GetOrAdd(topic);

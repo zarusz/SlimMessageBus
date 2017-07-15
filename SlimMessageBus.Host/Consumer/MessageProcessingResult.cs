@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 
-namespace SlimMessageBus.Host.AzureEventHub
+namespace SlimMessageBus.Host
 {
     public class MessageProcessingResult<TMessage>
         where TMessage : class

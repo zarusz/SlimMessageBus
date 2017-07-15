@@ -2,9 +2,9 @@
 using FluentAssertions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
-using SlimMessageBus.Host.AzureEventHub.Common;
+using SlimMessageBus.Host.Collections;
 
-namespace SlimMessageBus.Host.AzureEventHub.Test.Common
+namespace SlimMessageBus.Host.Test.Collections
 {
     [TestClass]
     public class SafeDictionaryWrapperTest

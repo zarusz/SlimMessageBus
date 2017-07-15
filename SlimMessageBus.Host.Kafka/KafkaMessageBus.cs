@@ -94,6 +94,8 @@ namespace SlimMessageBus.Host.Kafka
 
         public override async Task Publish(Type messageType, byte[] payload, string topic)
         {
+            AssertActive();
+
             Log.DebugFormat("Producing message of type {0} on topic {1} with size {2}", messageType.Name, topic, payload.Length);
             // send the message to topic
             var deliveryReport = await _producer.ProduceAsync(topic, null, payload);

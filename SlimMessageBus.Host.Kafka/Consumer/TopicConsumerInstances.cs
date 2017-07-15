@@ -16,7 +16,7 @@ namespace SlimMessageBus.Host.Kafka
 
         private readonly List<object> _consumerInstances;
         private readonly BufferBlock<object> _consumerQueue;
-        private readonly Queue<MessageProcessingResult> _messages = new Queue<MessageProcessingResult>();
+        private readonly Queue<MessageProcessingResult<Message>> _messages = new Queue<MessageProcessingResult<Message>>();
         private readonly ConsumerSettings _settings;
         private readonly KafkaMessageBus _messageBus;
         private readonly KafkaGroupConsumer _groupConsumer;
@@ -56,7 +56,7 @@ namespace SlimMessageBus.Host.Kafka
 
         public void EnqueueMessage(Message msg)
         {
-            _messages.Enqueue(new MessageProcessingResult(ProcessMessage(msg), msg));
+            _messages.Enqueue(new MessageProcessingResult<Message>(ProcessMessage(msg), msg));
 
             // ToDo: add timer trigger
             if (_messages.Count >= _commitBatchSize)

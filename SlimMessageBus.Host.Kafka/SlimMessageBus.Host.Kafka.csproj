@@ -68,9 +68,8 @@
     <Compile Include="KafkaMessageBusBuilderExtensions.cs" />
     <Compile Include="KafkaMessageBusSettings.cs" />
     <Compile Include="Consumer\KafkaResponseConsumer.cs" />
-    <Compile Include="MessageProcessingResult.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TopicConsumerInstances.cs" />
+    <Compile Include="Consumer\TopicConsumerInstances.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
