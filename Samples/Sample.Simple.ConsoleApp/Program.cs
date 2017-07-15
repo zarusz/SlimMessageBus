@@ -14,6 +14,8 @@ namespace Sample.Simple.ConsoleApp
         static readonly Random Random = new Random();
         static bool _stop;
 
+        public const int ConsumerDelayMs = 500;
+
         static void Main(string[] args)
         {
             // ToDo: Provider your event hub names
@@ -37,6 +39,10 @@ namespace Sample.Simple.ConsoleApp
 
               2. Remember to create 'consoleapp' group consumer under each event hub.
             */
+
+            eventHubConnectionString = "Endpoint=sb://slimmessagebus.servicebus.windows.net/;SharedAccessKeyName=AppAccessKey;SharedAccessKey=mxendUq7rHnAsUBP1xfuaK8bsRJA69jy6bOUI1Q1iNI=";
+            storageConnectionString = "DefaultEndpointsProtocol=https;AccountName=slimmessagebus;AccountKey=ZXuCENdDjl+4gc8HZ73SQl2E/Sp9rnYTHpQ4s0H8YuMy9uM3LnQ42pe6mVTeUDq1iiRSwIDfueOII3fQ55YBfQ==;EndpointSuffix=core.windows.net";
+
 
             // Create message bus
             IMessageBus messageBus = new MessageBusBuilder()
@@ -119,10 +125,10 @@ namespace Sample.Simple.ConsoleApp
     {
         #region Implementation of IConsumer<in AddCommand>
 
-        public Task OnHandle(AddCommand message, string topic)
+        public async Task OnHandle(AddCommand message, string topic)
         {
+            await Task.Delay(Program.ConsumerDelayMs);
             Console.WriteLine("Consumer: Adding {0} and {1} gives {2}", message.Left, message.Right, message.Left + message.Right);
-            return Task.FromResult(0);
         }
 
         #endregion
@@ -145,6 +151,7 @@ namespace Sample.Simple.ConsoleApp
 
         public async Task<MultiplyResponse> OnHandle(MultiplyRequest request, string topic)
         {
+            await Task.Delay(Program.ConsumerDelayMs);
             return new MultiplyResponse { Result = request.Left * request.Right };
         }
 
