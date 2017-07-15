@@ -37,12 +37,8 @@ namespace Sample.Simple.ConsoleApp
                 multiply-request
                 responses
 
-              2. Remember to create 'consoleapp' group consumer under each event hub.
+              2. Remember to create 'consoleapp' group consumer in each event hub.
             */
-
-            eventHubConnectionString = "Endpoint=sb://slimmessagebus.servicebus.windows.net/;SharedAccessKeyName=AppAccessKey;SharedAccessKey=mxendUq7rHnAsUBP1xfuaK8bsRJA69jy6bOUI1Q1iNI=";
-            storageConnectionString = "DefaultEndpointsProtocol=https;AccountName=slimmessagebus;AccountKey=ZXuCENdDjl+4gc8HZ73SQl2E/Sp9rnYTHpQ4s0H8YuMy9uM3LnQ42pe6mVTeUDq1iiRSwIDfueOII3fQ55YBfQ==;EndpointSuffix=core.windows.net";
-
 
             // Create message bus
             IMessageBus messageBus = new MessageBusBuilder()
