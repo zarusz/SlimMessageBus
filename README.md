@@ -45,17 +45,17 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 
 ## Packages
 
- Name | Descripton | Dependencies | NuGet
- ------------ | ------------- | ------------- | -------------
- `SlimMessageBus` | The interfaces to work with SlimMessageBus | `Common.Logging` | [NuGet](https://www.nuget.org/packages/SlimMessageBus)
- `SlimMessageBus.Host` | The common implementation for the hosting application layer | `SlimMessageBus` | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host)
- `SlimMessageBus.Host.Kafka` | Provider for Apache Kafka  | `SlimMessageBus.Host` [`Confluent.Kafka`](https://www.nuget.org/packages/Confluent.Kafka/) | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)
- `SlimMessageBus.Host.AzureEventHub` (alpha) | Provider for Azure Event Hub | `SlimMessageBus.Host` `WindowsAzure.ServiceBus` | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)
- `SlimMessageBus.Host.Redis` (future) | Provider for Redis | `SlimMessageBus.Host` `StackExchange.Redis.StrongName` | .
- `SlimMessageBus.Host.InMemory` (pending) | Implementation for in-process (memory) message passing | `SlimMessageBus.Host` | .
- `SlimMessageBus.Host.ServiceLocator` | Resolves dependencies from ServiceLocator | `SlimMessageBus.Host` `CommonServiceLocator` | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator)
- `SlimMessageBus.Host.Autofac` | Resolves dependencies from Autofac container | `SlimMessageBus.Host` `Autofac` | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Autofac)
- `SlimMessageBus.Host.Serialization.Json` | Message serialization provider for JSON | `SlimMessageBus.Host` `Newtonsoft.Json` | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json)
+ Name | Descripton | NuGet
+ ------------ | ------------- | -------------
+ `SlimMessageBus` | The interfaces to work with SlimMessageBus | [NuGet](https://www.nuget.org/packages/SlimMessageBus)
+ `SlimMessageBus.Host` | The common implementation for the hosting application layer | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host)
+ `SlimMessageBus.Host.Kafka` | Provider for Apache Kafka | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)
+ `SlimMessageBus.Host.AzureEventHub` (alpha) | Provider for Azure Event Hub | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)
+ `SlimMessageBus.Host.Redis` (future) | Provider for Redis | .
+ `SlimMessageBus.Host.InMemory` (pending) | Implementation for in-process (memory) message passing | .
+ `SlimMessageBus.Host.ServiceLocator` | Resolves dependencies from ServiceLocator | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator)
+ `SlimMessageBus.Host.Autofac` | Resolves dependencies from Autofac container | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Autofac)
+ `SlimMessageBus.Host.Serialization.Json` | Message serialization provider for JSON | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json)
 
  Typically your application components only need to depend on `SlimMessageBus` which is the facade. Your application hosting layer (ASP.NET, Windows Service, Console App) will add and configure the other packages.
 
