@@ -1,5 +1,17 @@
 # Release Notes of SlimMessageBus
 
+## Version 0.9.13
+Date: 2017-07-15
+
+Features:
+* SlimMessageBus.Host.AzureEventHub: The [Azure Event Hub](https://docs.microsoft.com/en-us/azure/event-hubs/) provider was introduced. This is the very first alpha release.
+* Minor changes and improvements.
+
+Packages:
+* https://www.nuget.org/packages/SlimMessageBus.Host/0.9.13
+* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.13
+* https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub/0.9.13-alpha1
+
 ## Version 0.9.11
 Date: 2017-05-08
 
