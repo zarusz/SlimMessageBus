@@ -50,7 +50,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
  `SlimMessageBus` | The interfaces to work with SlimMessageBus | `Common.Logging` | [NuGet](https://www.nuget.org/packages/SlimMessageBus)
  `SlimMessageBus.Host` | The common implementation for the hosting application layer | `SlimMessageBus` | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host)
  `SlimMessageBus.Host.Kafka` | Provider for Apache Kafka  | `SlimMessageBus.Host` [`Confluent.Kafka`](https://www.nuget.org/packages/Confluent.Kafka/) | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)
- `SlimMessageBus.Host.AzureEventHub` (pending) | Provider for Azure EventHub | `SlimMessageBus.Host` `WindowsAzure.ServiceBus` | .
+ `SlimMessageBus.Host.AzureEventHub` (alpha) | Provider for Azure Event Hub | `SlimMessageBus.Host` `WindowsAzure.ServiceBus` | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)
  `SlimMessageBus.Host.Redis` (future) | Provider for Redis | `SlimMessageBus.Host` `StackExchange.Redis.StrongName` | .
  `SlimMessageBus.Host.InMemory` (pending) | Implementation for in-process (memory) message passing | `SlimMessageBus.Host` | .
  `SlimMessageBus.Host.ServiceLocator` | Resolves dependencies from ServiceLocator | `SlimMessageBus.Host` `CommonServiceLocator` | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator)
