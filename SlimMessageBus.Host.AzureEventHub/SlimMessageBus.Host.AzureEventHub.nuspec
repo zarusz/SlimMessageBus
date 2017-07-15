@@ -11,8 +11,8 @@
     <iconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>$description$</description>
-    <releaseNotes>Check out https://github.com/zarusz/SlimMessageBus/blob/master/docs/release_notes.md</releaseNotes>
+    <releaseNotes>See https://github.com/zarusz/SlimMessageBus/blob/master/docs/release_notes.md</releaseNotes>
     <copyright>Copyright 2017</copyright>
-    <tags>SlimMessageBus Azure Event Hub Provider MessageBus Facade Abstraction</tags>
+    <tags>Azure EventHubs EventHub Event Hub Provider SlimMessageBus MessageBus Bus Facade</tags>
   </metadata>
 </package>
