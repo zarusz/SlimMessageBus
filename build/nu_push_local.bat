@@ -1,2 +1,2 @@
 set nuget_source=local
-call nu_push.bat
+call build\nu_push.bat
