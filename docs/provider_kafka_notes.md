@@ -1,4 +1,4 @@
-# SlimMessageBus Kafka Notes
+# Apache Kafka notes for SlimMessageBus
 
 ### Underlying client
 
@@ -37,3 +37,14 @@ There is also a good discussion around latency in [this issue](https://github.co
 ### Deploying
 
 The `librdkafka` distribution for Windows requires [Visual C++ Redistributable for 2013](https://www.microsoft.com/en-US/download/details.aspx?id=40784) installed on the server. More information can be found [here](https://www.microsoft.com/en-US/download/details.aspx?id=40784).
+
+
+### Selecting message partition for topic producer
+
+In typical scenarios your topic is broken into multiple partitions. 
+The question is how does SMB Kafka choose the partition to assign the message?
+
+At the momemnt SMB Kafka does not pass the [partition key](https://kafka.apache.org/documentation/#intro_producers) to the underlying Kafka client. As a result the partition is chosen on a round-robin fashion.
+
+In the near future ability to select the desired partition for a message will be added to SMB Kafka. 
+It will most likely be in a form of method delegate passed during SMB configuration (MessageBusBuilder).
