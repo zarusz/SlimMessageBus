@@ -66,6 +66,7 @@
     <Compile Include="Config\ITopicGroupConsumerSettings.cs" />
     <Compile Include="Consumer\ConsumerInstancePool.cs" />
     <Compile Include="Consumer\MessageProcessingResult.cs" />
+    <Compile Include="Consumer\MessageQueueWorker.cs" />
     <Compile Include="LookupDependencyResolver.cs" />
     <Compile Include="MessageBusExtensions.cs" />
     <Compile Include="RequestResponse\InMemoryPendingRequestStore.cs" />

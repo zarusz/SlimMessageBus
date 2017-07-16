@@ -16,7 +16,6 @@ namespace SlimMessageBus.Host
 
         private readonly List<object> _instances;
         private readonly BufferBlock<object> _instancesQueue;
-        private readonly Queue<MessageProcessingResult<TMessage>> _pendingMessages = new Queue<MessageProcessingResult<TMessage>>();
 
         private readonly MessageBusBase _messageBus;
         private readonly ConsumerSettings _consumerSettings;
@@ -75,32 +74,7 @@ namespace SlimMessageBus.Host
             return consumers;
         }
 
-        public void Submit(TMessage message)
-        {
-            var messageTask = ProcessMessage(message);
-            _pendingMessages.Enqueue(new MessageProcessingResult<TMessage>(messageTask, message));
-        }
-
-        public TMessage Commit(TMessage lastMessage)
-        {
-            if (_pendingMessages.Count > 0)
-            {
-                try
-                {
-                    var tasks = _pendingMessages.Select(x => x.Task).ToArray();
-                    Task.WaitAll(tasks);
-                }
-                catch (AggregateException e)
-                {
-                    Log.ErrorFormat("Errors occured while executing the tasks.", e);
-                    // ToDo: some tasks failed
-                }
-                _pendingMessages.Clear();
-            }
-            return lastMessage;
-        }
-
-        protected async Task ProcessMessage(TMessage msg)
+        public virtual async Task ProcessMessage(TMessage msg)
         {
             var msgPayload = _messagePayloadProvider(msg);
 

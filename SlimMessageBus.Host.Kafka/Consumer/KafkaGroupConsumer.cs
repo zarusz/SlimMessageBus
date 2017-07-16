@@ -13,6 +13,7 @@ namespace SlimMessageBus.Host.Kafka
 
         public readonly Type MessageType;
 
+        // ToDo: Use the ConsumerInstancePool
         private readonly IDictionary<string, TopicConsumerInstances> _consumerInstancesByTopic;
 
         public KafkaGroupConsumer(KafkaMessageBus messageBus, string group, Type messageType, ICollection<ConsumerSettings> groupSubscriberSettings)

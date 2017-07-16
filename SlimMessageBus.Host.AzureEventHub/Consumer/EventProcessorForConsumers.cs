@@ -13,11 +13,13 @@ namespace SlimMessageBus.Host.AzureEventHub
         private static readonly ILog Log = LogManager.GetLogger<EventProcessorForConsumers>();
 
         private ConsumerInstancePool<EventData> _instancePool;
+        private readonly MessageQueueWorker<EventData> _queueWorker; 
 
         public EventProcessorForConsumers(EventHubConsumer consumer, ConsumerSettings consumerSettings)
             : base(consumer)
         {
             _instancePool = new ConsumerInstancePool<EventData>(consumerSettings, consumer.MessageBus, e => e.GetBytes());
+            _queueWorker = new MessageQueueWorker<EventData>(_instancePool);
 
             if (consumerSettings.Properties.ContainsKey(Consts.CheckpointCount))
                 CheckpointCount = (int) consumerSettings.Properties[Consts.CheckpointCount];
@@ -39,13 +41,13 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         protected override Task OnSubmit(EventData message)
         {
-            _instancePool.Submit(message);
+            _queueWorker.Submit(message);
             return Task.CompletedTask;
         }
 
         protected override Task<EventData> OnCommit(EventData lastMessage)
         {
-            return Task.FromResult(_instancePool.Commit(lastMessage));
+            return Task.FromResult(_queueWorker.Commit(lastMessage));
         }
 
         #endregion

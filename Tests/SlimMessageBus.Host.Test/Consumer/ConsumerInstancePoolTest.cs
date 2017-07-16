@@ -15,36 +15,12 @@ namespace SlimMessageBus.Host.Test
     {
         private static readonly ILog Log = LogManager.GetLogger(typeof(ConsumerInstancePoolTest));
 
-        private Mock<IDependencyResolver> _dependencyResolverMock;
-        private Mock<IMessageSerializer> _serializerMock;
-        private Mock<IConsumer<SomeMessage>> _consumerMock;
-        private Mock<IRequestHandler<SomeRequest, SomeResponse>> _handlerMock;
-        private Mock<MessageBusBase> _busMock;
-        private DateTimeOffset _currentTime;
+        private MessageBusMock _busMock;
 
         [TestInitialize]
         public void Init()
         {
-            _consumerMock = new Mock<IConsumer<SomeMessage>>();
-            _handlerMock = new Mock<IRequestHandler<SomeRequest, SomeResponse>>();
-
-            _dependencyResolverMock = new Mock<IDependencyResolver>();
-            _dependencyResolverMock.Setup(x => x.Resolve(typeof(IConsumer<SomeMessage>))).Returns(_consumerMock.Object);
-            _dependencyResolverMock.Setup(x => x.Resolve(typeof(IRequestHandler<SomeRequest, SomeResponse>))).Returns(_handlerMock.Object);
-
-            _serializerMock = new Mock<IMessageSerializer>();
-
-            var mbSettings = new MessageBusSettings
-            {
-                DependencyResolver = _dependencyResolverMock.Object,
-                Serializer = _serializerMock.Object
-            };
-
-            _currentTime = DateTimeOffset.UtcNow;
-
-            _busMock = new Mock<MessageBusBase>(mbSettings);
-            _busMock.SetupGet(x => x.Settings).Returns(mbSettings);
-            _busMock.SetupGet(x => x.CurrentTime).Returns(() => _currentTime);
+            _busMock = new MessageBusMock();
         }
 
         [TestMethod]
@@ -63,7 +39,7 @@ namespace SlimMessageBus.Host.Test
             var p = new ConsumerInstancePool<SomeMessage>(consumerSettings, _busMock.Object, x => new byte[0]);
 
             // assert
-            _dependencyResolverMock.Verify(x => x.Resolve(typeof(IConsumer<SomeMessage>)), Times.Exactly(consumerSettings.Instances));
+            _busMock.DependencyResolverMock.Verify(x => x.Resolve(typeof(IConsumer<SomeMessage>)), Times.Exactly(consumerSettings.Instances));
         }
 
         [TestMethod]
@@ -82,7 +58,7 @@ namespace SlimMessageBus.Host.Test
             var p = new ConsumerInstancePool<SomeRequest>(consumerSettings, _busMock.Object, x => new byte[0]);
 
             // assert
-            _dependencyResolverMock.Verify(x => x.Resolve(typeof(IRequestHandler<SomeRequest, SomeResponse>)), Times.Exactly(consumerSettings.Instances));
+            _busMock.DependencyResolverMock.Verify(x => x.Resolve(typeof(IRequestHandler<SomeRequest, SomeResponse>)), Times.Exactly(consumerSettings.Instances));
         }
 
         [TestMethod]
@@ -107,7 +83,7 @@ namespace SlimMessageBus.Host.Test
             var maxInstances = 0;
             var maxInstancesLock = new object();
 
-            _consumerMock.Setup(x => x.OnHandle(It.IsAny<SomeMessage>(), It.IsAny<string>()))
+            _busMock.ConsumerMock.Setup(x => x.OnHandle(It.IsAny<SomeMessage>(), It.IsAny<string>()))
                 .Returns((SomeMessage msg, string topic) =>
                 {
                     Interlocked.Increment(ref activeInstances);
@@ -129,13 +105,15 @@ namespace SlimMessageBus.Host.Test
 
             // act
             var time = Stopwatch.StartNew();
-            SomeMessage lastMsg = null;
+            var tasks = new Task[messageCount];
             for (var i = 0; i < messageCount; i++)
             {
-                lastMsg = new SomeMessage();
-                p.Submit(lastMsg);
+                tasks[i] = p.ProcessMessage(new SomeMessage());
             }
-            var commitedMsg = p.Commit(lastMsg);
+            Task.WaitAll(tasks);
+            // this is slower
+            //Parallel.For(0, messageCount, i => p.ProcessMessage(new SomeMessage()).Wait());            
+            
             time.Stop();
 
             // assert
@@ -143,7 +121,6 @@ namespace SlimMessageBus.Host.Test
             var maxPossibleTime = messageCount * consumerTime;
 
             processedMessageCount.ShouldBeEquivalentTo(messageCount);
-            commitedMsg.Should().BeSameAs(lastMsg); // no errors occured
             maxInstances.ShouldBeEquivalentTo(consumerSettings.Instances);
             // max concurrent consumers should reach number of desired instances
             time.ElapsedMilliseconds.Should().BeInRange(minPossibleTime, maxPossibleTime);
@@ -173,16 +150,14 @@ namespace SlimMessageBus.Host.Test
             var request = new SomeRequest();
             string requestId;
             string replyTo;
-            DateTimeOffset? expires = _currentTime.AddSeconds(-10);
-            _busMock.Setup(x => x.DeserializeRequest(typeof(SomeRequest), It.IsAny<byte[]>(), out requestId, out replyTo, out expires)).Returns(request);
+            DateTimeOffset? expires = _busMock.CurrentTime.AddSeconds(-10);
+            _busMock.BusMock.Setup(x => x.DeserializeRequest(typeof(SomeRequest), It.IsAny<byte[]>(), out requestId, out replyTo, out expires)).Returns(request);
 
             // act
-            p.Submit(request);
-            var commitedMsg = p.Commit(request);
+            p.ProcessMessage(request).Wait();
 
             // assert
-            commitedMsg.Should().BeSameAs(request); // it should commit the request message
-            _handlerMock.Verify(x => x.OnHandle(It.IsAny<SomeRequest>(), It.IsAny<string>()), Times.Never); // the handler should not be called
+            _busMock.HandlerMock.Verify(x => x.OnHandle(It.IsAny<SomeRequest>(), It.IsAny<string>()), Times.Never); // the handler should not be called
 
             onMessageExpiredMock.Verify(x => x(consumerSettings, request), Times.Once); // callback called once
         }
@@ -208,21 +183,19 @@ namespace SlimMessageBus.Host.Test
             string requestId;
             string replyTo = "reply-topic";
             DateTimeOffset? expires;
-            _busMock.Setup(x => x.DeserializeRequest(typeof(SomeRequest), It.IsAny<byte[]>(), out requestId, out replyTo, out expires)).Returns(request);
+            _busMock.BusMock.Setup(x => x.DeserializeRequest(typeof(SomeRequest), It.IsAny<byte[]>(), out requestId, out replyTo, out expires)).Returns(request);
 
             var ex = new Exception("Something went bad");
-            _handlerMock.Setup(x => x.OnHandle(request, consumerSettings.Topic)).Returns(Task.FromException<SomeResponse>(ex));
+            _busMock.HandlerMock.Setup(x => x.OnHandle(request, consumerSettings.Topic)).Returns(Task.FromException<SomeResponse>(ex));
 
             // act
-            p.Submit(request);
-            var commitedMsg = p.Commit(request);
+            p.ProcessMessage(request).Wait();
 
             // assert
-            commitedMsg.Should().BeSameAs(request); // it should commit the failed request message
-            _handlerMock.Verify(x => x.OnHandle(request, consumerSettings.Topic), Times.Once); // handler called once
+            _busMock.HandlerMock.Verify(x => x.OnHandle(request, consumerSettings.Topic), Times.Once); // handler called once
 
             onMessageFaultMock.Verify(x => x(consumerSettings, request, ex), Times.Once); // callback called once
-            _busMock.Verify(x => x.Publish(typeof(SomeResponse), It.IsAny<byte[]>(), replyTo));
+            _busMock.BusMock.Verify(x => x.Publish(typeof(SomeResponse), It.IsAny<byte[]>(), replyTo));
         }
 
         [TestMethod]
@@ -243,18 +216,16 @@ namespace SlimMessageBus.Host.Test
             var p = new ConsumerInstancePool<SomeMessage>(consumerSettings, _busMock.Object, x => new byte[0]);
 
             var message = new SomeMessage();
-            _serializerMock.Setup(x => x.Deserialize(typeof(SomeMessage), It.IsAny<byte[]>())).Returns(message);
+            _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeMessage), It.IsAny<byte[]>())).Returns(message);
 
             var ex = new Exception("Something went bad");
-            _consumerMock.Setup(x => x.OnHandle(message, consumerSettings.Topic)).Returns(Task.FromException<SomeResponse>(ex));
+            _busMock.ConsumerMock.Setup(x => x.OnHandle(message, consumerSettings.Topic)).Returns(Task.FromException<SomeResponse>(ex));
 
             // act
-            p.Submit(message);
-            var commitedMsg = p.Commit(message);
+            p.ProcessMessage(message).Wait();
 
             // assert
-            commitedMsg.Should().BeSameAs(message); // it should commit the failed message
-            _consumerMock.Verify(x => x.OnHandle(message, consumerSettings.Topic), Times.Once); // handler called once
+            _busMock.ConsumerMock.Verify(x => x.OnHandle(message, consumerSettings.Topic), Times.Once); // handler called once
 
             onMessageFaultMock.Verify(x => x(consumerSettings, message, ex), Times.Once); // callback called once
         }
