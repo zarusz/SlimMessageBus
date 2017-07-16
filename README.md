@@ -198,4 +198,5 @@ MessageBus.SetProvider(() => bus);
 ## Docs
 
 * [Release Notes](docs/release_notes.md)
-* [Kafka Notes](docs/kafka_notes.md)
+* [Apache Kafka Wiki](docs/provider_kafka_notes.md)
+* [Azure EventHubs Wiki](docs/provider_eventhubs_notes.md)
