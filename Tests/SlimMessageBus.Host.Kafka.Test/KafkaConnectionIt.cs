@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Confluent.Kafka;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-
 namespace SlimMessageBus.Host.Kafka.Test
 {
     [TestClass]
@@ -17,11 +16,11 @@ namespace SlimMessageBus.Host.Kafka.Test
         [TestMethod, TestCategory("Integration")]
         public async Task ProduceToTopic()
         {
-            var config = new Dictionary<string, object>
+            var producerConfig = new Dictionary<string, object>
             {
-                { KafkaConfigKeys.Servers, BrokerList }
+                {KafkaConfigKeys.Servers, BrokerList}
             };
-            using (var producer = new Producer(config))
+            using (var producer = new Producer(producerConfig))
             {
                 var data = Encoding.UTF8.GetBytes("Hello Kafka " + DateTime.Now.ToString("HH:mm:ss"));
                 var deliveryReport = await producer.ProduceAsync(TopicName, null, data);
@@ -33,7 +32,7 @@ namespace SlimMessageBus.Host.Kafka.Test
         [TestMethod, TestCategory("Integration")]
         public void ConsumeFromTopic()
         {
-            var config = new Dictionary<string, object>
+            var consumerConfig = new Dictionary<string, object>
             {
                 {KafkaConfigKeys.Servers, BrokerList},
                 {KafkaConfigKeys.Consumer.GroupId, "simple-csharp-consumer"},
@@ -45,7 +44,7 @@ namespace SlimMessageBus.Host.Kafka.Test
                 }
             };
 
-            using (var consumer = new Consumer(config))
+            using (var consumer = new Consumer(consumerConfig))
             {
                 var numConsumed = 0;
                 consumer.OnMessage += (obj, msg) =>
@@ -59,14 +58,16 @@ namespace SlimMessageBus.Host.Kafka.Test
 
                 Console.WriteLine("Started consumer...");
 
-                Task.Factory.StartNew(() =>
+                Action loopAction = () =>
                 {
                     var start = DateTime.Now;
                     while (DateTime.Now.Subtract(start).TotalSeconds < 5000 && numConsumed == 0)
                     {
                         consumer.Poll(1000);
                     }
-                }).Wait();
+                };
+
+                Task.Factory.StartNew(loopAction).Wait();
             }
         }
     }

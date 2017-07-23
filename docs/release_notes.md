@@ -1,5 +1,20 @@
 # Release Notes of SlimMessageBus
 
+## Version 0.9.14
+Date: 2017-09-30
+
+Features:
+* SlimMessageBus.Host.Kafka: 
+  * Upgraded Confluent.Kafka from version 0.9.5 to 0.11.0.
+  * Internal refactoring and improvements.
+* Minor changes and improvements (mostly refactoring).
+
+Packages:
+* https://www.nuget.org/packages/SlimMessageBus.Host/0.9.13
+* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.13
+* https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub/0.9.13-alpha1
+
+  
 ## Version 0.9.13
 Date: 2017-07-15
 

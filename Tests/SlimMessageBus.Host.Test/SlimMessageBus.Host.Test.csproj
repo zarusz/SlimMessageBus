@@ -85,7 +85,9 @@
   </Choose>
   <ItemGroup>
     <Compile Include="Collections\SafeDictionaryWrapperTest.cs" />
+    <Compile Include="Consumer\CheckpointTriggerTest.cs" />
     <Compile Include="Consumer\ConsumerInstancePoolTest.cs" />
+    <Compile Include="Consumer\CheckpointSettingsExtensionsTest.cs" />
     <Compile Include="Consumer\ConsumerSettingsTest.cs" />
     <Compile Include="Consumer\MessageBusMock.cs" />
     <Compile Include="Consumer\MessageQueueWorkerTest.cs" />

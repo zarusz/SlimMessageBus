@@ -11,7 +11,7 @@ namespace SlimMessageBus.Test
     public class MessageBusTest
     {
         [TestMethod]
-        public void It_calls_provider_to_determine_current_bus()
+        public void CurrentAccess_CallsProviderForInstance()
         {
             // arrange
             var busMock = new Mock<IMessageBus>();
@@ -20,11 +20,13 @@ namespace SlimMessageBus.Test
             MessageBus.SetProvider(providerMock.Object);
 
             // act
-            var currentBus = MessageBus.Current;
+            var currentBus1 = MessageBus.Current;
+            var currentBus2 = MessageBus.Current;
 
             // assert
-            Assert.AreSame(busMock.Object, currentBus);
-            providerMock.Verify(x => x(), Times.Once);
+            Assert.AreSame(busMock.Object, currentBus1);
+            Assert.AreSame(busMock.Object, currentBus2);
+            providerMock.Verify(x => x(), Times.Exactly(2));
         }
     }
 }

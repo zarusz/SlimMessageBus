@@ -8,6 +8,11 @@ namespace SlimMessageBus.Host.Config
         {
         }
 
+        /// <summary>
+        /// Configure the consumer group (GroupId) to use for the handler.
+        /// </summary>
+        /// <param name="group">Consumer group</param>
+        /// <returns></returns>
         public GroupHandlerBuilder<TRequest, TResponse> Group(string group)
         {
             return new GroupHandlerBuilder<TRequest, TResponse>(group, Topic, Settings);

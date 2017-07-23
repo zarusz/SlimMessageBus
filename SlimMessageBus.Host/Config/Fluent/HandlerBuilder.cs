@@ -10,11 +10,21 @@ namespace SlimMessageBus.Host.Config
         {
         }
 
+        /// <summary>
+        /// Configure topic name that incomming requests (<see cref="TRequest"/>) are expected on.
+        /// </summary>
+        /// <param name="topic">Topic name</param>
+        /// <returns></returns>
         public TopicHandlerBuilder<TRequest, TResponse> Topic(string topic)
         {
             return new TopicHandlerBuilder<TRequest, TResponse>(topic, Settings);
         }
 
+        /// <summary>
+        /// Configure topic name that incomming requests (<see cref="TRequest"/>) are expected on.
+        /// </summary>
+        /// <param name="topic">Topic name</param>
+        /// <returns></returns>
         public TopicHandlerBuilder<TRequest, TResponse> Topic(string topic, Action<TopicHandlerBuilder<TRequest, TResponse>> topicConfig)
         {
             var b = Topic(topic);

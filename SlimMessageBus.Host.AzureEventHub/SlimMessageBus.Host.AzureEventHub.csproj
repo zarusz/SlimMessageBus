@@ -90,12 +90,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Consts.cs" />
-    <Compile Include="ConsumerSettingsExtensions.cs" />
-    <Compile Include="Consumer\EventHubConsumer.cs" />
-    <Compile Include="Consumer\EventProcessor.cs" />
-    <Compile Include="Consumer\EventProcessorForConsumers.cs" />
-    <Compile Include="Consumer\EventProcessorForResponses.cs" />
+    <Compile Include="Consumer\GroupTopicConsumer.cs" />
+    <Compile Include="Consumer\PartitionConsumer.cs" />
+    <Compile Include="Consumer\PartitionConsumerForConsumers.cs" />
+    <Compile Include="Consumer\PartitionConsumerForResponses.cs" />
+    <Compile Include="Consumer\MessageContextInfo.cs" />
     <Compile Include="Consumer\PartitionContextInfo.cs" />
     <Compile Include="EventHubMessageBus.cs" />
     <Compile Include="EventHubMessageBusSettings.cs" />

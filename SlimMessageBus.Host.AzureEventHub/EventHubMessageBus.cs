@@ -18,33 +18,31 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         public EventHubMessageBusSettings EventHubSettings { get; }
 
-        private readonly SafeDictionaryWrapper<string, EventHubClient> _producersByTopic = new SafeDictionaryWrapper<string, EventHubClient>(); 
-        private readonly List<EventHubConsumer> _consumers = new List<EventHubConsumer>();
+        private readonly SafeDictionaryWrapper<string, EventHubClient> _producerByTopic;
+        private readonly List<GroupTopicConsumer> _consumers = new List<GroupTopicConsumer>();
 
         public EventHubMessageBus(MessageBusSettings settings, EventHubMessageBusSettings eventHubSettings)
             : base(settings)
         {
             EventHubSettings = eventHubSettings;
 
-            _producersByTopic.ValueFactory = topic =>
+            _producerByTopic = new SafeDictionaryWrapper<string, EventHubClient>(topic =>
             {
                 Log.DebugFormat("Creating EventHubClient for path {0}", topic);
                 return EventHubSettings.EventHubClientFactory(topic);
-            };
+            });
 
             Log.Info("Creating consumers");
             foreach (var consumerSettings in settings.Consumers)
             {
                 Log.InfoFormat("Creating consumer for Topic: {0}, Group: {1}, MessageType: {2}", consumerSettings.Topic, consumerSettings.Group, consumerSettings.MessageType);
-                //var consumer = new EventHubConsumer(this, group, messageType, subscribersByMessageType.ToList());
-                _consumers.Add(new EventHubConsumer(this, consumerSettings));
+                _consumers.Add(new GroupTopicConsumer(this, consumerSettings));
             }
 
             if (settings.RequestResponse != null)
             {
                 Log.InfoFormat("Creating response consumer for Topic: {0}, Group: {1}", settings.RequestResponse.Topic, settings.RequestResponse.Group);
-                // _consumers.Add(new EvenHubResponseConsumer(this, settings.RequestResponse));
-                _consumers.Add(new EventHubConsumer(this, settings.RequestResponse));
+                _consumers.Add(new GroupTopicConsumer(this, settings.RequestResponse));
             }
         }
 
@@ -52,28 +50,24 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         protected override void OnDispose()
         {
-            if (_producersByTopic.Dictonary.Any())
-            {
-                foreach (var eventHubClient in _producersByTopic.Dictonary.Values)
-                {
-                    Log.DebugFormat("Closing EventHubClient for path {0}", eventHubClient.Path);
-                    try
-                    {
-                        eventHubClient.Close();
-                    }
-                    catch (Exception e)
-                    {
-                        Log.ErrorFormat("Error while closing EventHubClient for path {0}", e, eventHubClient.Path);
-                    }
-                }
-                _producersByTopic.Clear();
-            }
-
             if (_consumers.Any())
             {
                 _consumers.ForEach(c => c.DisposeSilently("Consumer", Log));
                 _consumers.Clear();
             }
+
+            _producerByTopic.Clear(producer =>
+            {
+                Log.DebugFormat("Closing EventHubClient for path {0}", producer.Path);
+                try
+                {
+                    producer.Close();
+                }
+                catch (Exception e)
+                {
+                    Log.ErrorFormat("Error while closing EventHubClient for path {0}", e, producer.Path);
+                }
+            });
 
             base.OnDispose();
         }
@@ -92,10 +86,10 @@ namespace SlimMessageBus.Host.AzureEventHub
             AssertActive();
 
             Log.DebugFormat("Producing message of type {0} on topic {1} with size {2}", messageType.Name, topic, payload.Length);
-            var eventHubClient = _producersByTopic.GetOrAdd(topic);
+            var producer = _producerByTopic.GetOrAdd(topic);
             
             var ev = new EventData(payload);
-            await eventHubClient.SendAsync(ev);
+            await producer.SendAsync(ev);
 
             Log.DebugFormat("Delivered message at offset {0} and sequence {1}", ev.Offset, ev.SequenceNumber);
         }

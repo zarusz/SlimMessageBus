@@ -30,7 +30,7 @@ namespace SlimMessageBus
         /// <param name="topic">The topic to send the request to. When null, the default topic for request message type (or global default) will be used.</param>
         /// <param name="cancellationToken">Cancellation token to notify if the client no longer is interested in the response.</param>
         /// <returns>Task that represents the pending request.</returns>
-        Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string topic = null, CancellationToken cancellationToken = default (CancellationToken));
+        Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string topic = null, CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         /// Sends a request message

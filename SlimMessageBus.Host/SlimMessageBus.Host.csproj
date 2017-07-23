@@ -64,7 +64,11 @@
     <Compile Include="Config\Fluent\TopicHandlerBuilder.cs" />
     <Compile Include="Config\IConsumerEvents.cs" />
     <Compile Include="Config\ITopicGroupConsumerSettings.cs" />
+    <Compile Include="Consumer\CheckpointSettings.cs" />
+    <Compile Include="Consumer\CheckpointTrigger.cs" />
     <Compile Include="Consumer\ConsumerInstancePool.cs" />
+    <Compile Include="Consumer\CheckpointSettingsExtensions.cs" />
+    <Compile Include="Consumer\ICheckpointTrigger.cs" />
     <Compile Include="Consumer\MessageProcessingResult.cs" />
     <Compile Include="Consumer\MessageQueueWorker.cs" />
     <Compile Include="LookupDependencyResolver.cs" />
@@ -74,7 +78,7 @@
     <Compile Include="MessageBusBase.cs" />
     <Compile Include="RequestResponse\ReqRespMessageHeaders.cs" />
     <Compile Include="ConfigurationMessageBusException.cs" />
-    <Compile Include="Utility\Assert.cs" />
+    <Compile Include="Helpers\Assert.cs" />
     <Compile Include="Config\Fluent\GroupBuilder.cs" />
     <Compile Include="Config\GroupSettings.cs" />
     <Compile Include="Config\Fluent\GroupSubscriberBuilder.cs" />
@@ -95,7 +99,8 @@
     <Compile Include="RequestResponse\MessageWithHeadersSerializer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RequestResponse\PendingRequestState.cs" />
-    <Compile Include="Utility\Utils.cs" />
+    <Compile Include="Helpers\TaskMarker.cs" />
+    <Compile Include="Helpers\Utils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

@@ -72,7 +72,6 @@ namespace SlimMessageBus.Host
             {
                 return;
             }
-            IsDisposed = true;
             IsDisposing = true;
             try
             {
@@ -81,6 +80,7 @@ namespace SlimMessageBus.Host
             finally
             {
                 IsDisposing = false;
+                IsDisposed = true;
             }
         }
 
@@ -162,7 +162,6 @@ namespace SlimMessageBus.Host
             await Publish(messageType, payload, topic);
         }
 
-
         #region Implementation of IPublishBus
 
         public virtual async Task Publish<TMessage>(TMessage message, string topic = null)
@@ -185,8 +184,6 @@ namespace SlimMessageBus.Host
             {
                 throw new PublishMessageBusException("An attempt to send request when request/response communication was not configured for the message bus. Ensure you configure the bus properly before the application starts.");
             }
-
-            //return await Task.FromCanceled<TResponseMessage>(cancellationToken);
 
             // check if the cancellation was already requested
             cancellationToken.ThrowIfCancellationRequested();
@@ -216,8 +213,8 @@ namespace SlimMessageBus.Host
             var requestState = new PendingRequestState(requestId, request, requestType, typeof(TResponseMessage), created, expires, cancellationToken);
             PendingRequestStore.Add(requestState);
 
-            if (Log.IsDebugEnabled)
-                Log.DebugFormat("Added to PendingRequests, total is {0}", PendingRequestStore.GetCount());
+            if (Log.IsTraceEnabled)
+                Log.TraceFormat("Added to PendingRequests, total is {0}", PendingRequestStore.GetCount());
 
             try
             {

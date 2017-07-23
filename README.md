@@ -20,10 +20,10 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 
 ## Key elements of SlimMessageBus
 * Consumers:
-  * `IConsumer<in TMessage>` - subscriber in pub/sub or queue consumer
-  * `IRequestHandler<in TRequest, TResponse>` - request handler in req/resp
+  * `IConsumer<in TMessage>` - subscriber in pub/sub (or queue consumer)
+  * `IRequestHandler<in TRequest, TResponse>` - request handler in request-response
 * Producers:
-  * `IPublishBus` - publisher in pub/sub or queue producer
+  * `IPublishBus` - publisher in pub/sub (or queue producer)
   * `IRequestResponseBus` - sender in req/resp
   * `IMessageBus`
 * Misc
@@ -57,7 +57,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
  `SlimMessageBus.Host.Autofac` | Resolves dependencies from Autofac container | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Autofac)
  `SlimMessageBus.Host.Serialization.Json` | Message serialization provider for JSON | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json)
 
- Typically your application components only need to depend on `SlimMessageBus` which is the facade. Your application hosting layer (ASP.NET, Windows Service, Console App) will add and configure the other packages.
+Typically your application components only need to depend on `SlimMessageBus` which is the facade. However, your application hosting layer (ASP.NET, Windows Service, Console App) will reference and configure the other packages (`SlimMessageBus.Host.*`) which are the providers and plugins.
 
 ## Samples
 

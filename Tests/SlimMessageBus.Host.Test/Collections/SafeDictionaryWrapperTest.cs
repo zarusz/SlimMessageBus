@@ -3,6 +3,7 @@ using FluentAssertions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using SlimMessageBus.Host.Collections;
+using System.Threading.Tasks;
 
 namespace SlimMessageBus.Host.Test.Collections
 {
@@ -63,5 +64,34 @@ namespace SlimMessageBus.Host.Test.Collections
             addAction.ShouldThrow<NotSupportedException>();
         }
 
+        [TestMethod]
+        public void CheckThreadSafety()
+        {
+            // arrange
+            var w = new SafeDictionaryWrapper<string, string>();
+
+            var count = 3000;
+
+            // act
+            var task1 = Task.Factory.StartNew(() =>
+            {
+                for (var i = 0; i < count; i++)
+                    w.GetOrAdd($"a_{i}", k => $"v_{i}");
+            });
+            var task2 = Task.Factory.StartNew(() =>
+            {
+                for (var i = 0; i < count; i++)
+                    w.GetOrAdd($"b_{i}", k => $"v_{i}");
+            });
+            var task3 = Task.Factory.StartNew(() =>
+            {
+                for (var i = 0; i < count; i++)
+                    w.GetOrAdd($"c_{i}", k => $"v_{i}");
+            });
+            Task.WaitAll(task1, task2, task3);
+
+            // assert
+            w.Dictonary.Count.ShouldBeEquivalentTo(3 * count);
+        }
     }
 }

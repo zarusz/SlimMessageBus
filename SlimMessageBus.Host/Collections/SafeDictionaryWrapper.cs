@@ -6,37 +6,59 @@ namespace SlimMessageBus.Host.Collections
 {
     /// <summary>
     /// Dictionary wrapper that exposes a <see cref="ReadOnlyDictionary{TKey,TValue}"/> for read, while for mutation exposes thread-safe methods.
-    /// Internally a dictionary is maintained and any mutation is locked. Each mutation causes a new <see cref="ReadOnlyDictionary{TKey,TValue}"/> to be created.
+    /// Internally a dictionary is maintained and any change is synchronized. When access is performed to the snapshot after a change happened a new <see cref="ReadOnlyDictionary{TKey,TValue}"/> snapshot is created.
     /// </summary>
     /// <typeparam name="TKey"></typeparam>
     /// <typeparam name="TValue"></typeparam>
     public class SafeDictionaryWrapper<TKey, TValue>
     {
-        private IDictionary<TKey, TValue> _dict;
-        public IDictionary<TKey, TValue> Dictonary { get; protected set; }
-        public Func<TKey, TValue> ValueFactory { get; set; }
+        private IDictionary<TKey, TValue> _mutableDict;
+        private IDictionary<TKey, TValue> _readonlyDict;
+
+        /// <summary>
+        /// Provides read only snapshot of the mutable internal dictionary
+        /// </summary>
+        public IDictionary<TKey, TValue> Dictonary
+        {
+            get
+            {
+                if (_readonlyDict == null)
+                {
+                    // Lazily create the read only snapshot
+                    _readonlyDict = new ReadOnlyDictionary<TKey, TValue>(_mutableDict);
+                }
+                return _readonlyDict;
+            }
+        }
+
+        private readonly Func<TKey, TValue> _valueFactory;
 
         public SafeDictionaryWrapper()
+            : this(null)
         {
-            _dict = new Dictionary<TKey, TValue>();
+        }
+
+        public SafeDictionaryWrapper(Func<TKey, TValue> valueFactory)
+        {
+            _mutableDict = new Dictionary<TKey, TValue>();
+            _valueFactory = valueFactory;
             OnChanged();
         }
 
         public TValue GetOrAdd(TKey key, Func<TKey, TValue> factory)
         {
-            TValue value;
-            // check if we have the EventHubClient already for the HubName
+            // check if we have the value already for the key
             // ReSharper disable once InconsistentlySynchronizedField
-            if (!_dict.TryGetValue(key, out value))
+            if (!_mutableDict.TryGetValue(key, out TValue value))
             {
                 lock (this)
                 {
                     // double check if another thread did create it in meantime (before lock)
-                    if (!_dict.TryGetValue(key, out value))
+                    if (!_mutableDict.TryGetValue(key, out value))
                     {
                         value = factory(key);
                         // allocate a new dictonary to avoid mutation while reading in another thread
-                        _dict = new Dictionary<TKey, TValue>(_dict)
+                        _mutableDict = new Dictionary<TKey, TValue>(_mutableDict)
                         {
                             {key, value}
                         };
@@ -47,23 +69,53 @@ namespace SlimMessageBus.Host.Collections
             return value;
         }
 
-        private void OnChanged()
-        {
-            Dictonary = new ReadOnlyDictionary<TKey, TValue>(_dict);
-        }
-
         public TValue GetOrAdd(TKey key)
         {
-            return GetOrAdd(key, ValueFactory);
+            if (_valueFactory == null)
+            {
+                throw new InvalidOperationException("No value factory provided");
+            }
+            return GetOrAdd(key, _valueFactory);
         }
 
-        public void Clear()
+        public void Clear(Action<TValue> action = null)
         {
             lock (this)
             {
-                _dict.Clear();
+                if (action != null)
+                {
+                    ForEach(action);
+                }
+                _mutableDict.Clear();
                 OnChanged();
             }
+        }
+
+        public void ForEach(Action<TKey, TValue> action)
+        {
+            lock (this)
+            {
+                foreach (var entry in _mutableDict)
+                {
+                    action(entry.Key, entry.Value);
+                }
+            }
+        }
+
+        public void ForEach(Action<TValue> action)
+        {
+            lock (this)
+            {
+                foreach (var value in _mutableDict.Values)
+                {
+                    action(value);
+                }
+            }
+        }
+
+        private void OnChanged()
+        {
+            _readonlyDict = null;
         }
     }
 

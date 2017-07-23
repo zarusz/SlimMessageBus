@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -12,12 +14,14 @@ namespace SlimMessageBus.Host.Test.Consumer
     public class MessageQueueWorkerTest
     {
         private Mock<ConsumerInstancePool<SomeMessage>> _consumerInstancePoolMock;
+        private Mock<ICheckpointTrigger> _checkpointTriggerMock;
         private MessageBusMock _busMock;
 
         [TestInitialize]
         public void Init()
         {
             _busMock = new MessageBusMock();
+            _checkpointTriggerMock = new Mock<ICheckpointTrigger>();
 
             var consumerSettings = new ConsumerSettings
             {
@@ -35,26 +39,57 @@ namespace SlimMessageBus.Host.Test.Consumer
         public void Commit_WaitsOnAllMessagesToComplete()
         {
             // arrange
-            var w = new MessageQueueWorker<SomeMessage>(_consumerInstancePoolMock.Object);
+            //_checkpointTriggerMock.SetupGet(x => x.IsEnabled).Returns(false);
+            var w = new MessageQueueWorker<SomeMessage>(_consumerInstancePoolMock.Object, _checkpointTriggerMock.Object);
 
             var numFinishedMessages = 0;
             _consumerInstancePoolMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>())).Returns(() => Task.Delay(50).ContinueWith(t => Interlocked.Increment(ref numFinishedMessages)));
 
-            SomeMessage lastMsg = null;
             const int numMessages = 100;
             for (var i = 0; i < numMessages; i++)
             {
-                lastMsg = new SomeMessage();
-                w.Submit(lastMsg);
+                w.Submit(new SomeMessage());
             }
 
             // act
-            var commitedMsg = w.Commit(lastMsg);
+            SomeMessage lastGoodMessage;
+            var success = w.Commit(out lastGoodMessage);
 
             // assert
-            commitedMsg.Should().BeSameAs(lastMsg);
+            success.Should().BeTrue();
             numFinishedMessages.ShouldBeEquivalentTo(numMessages);
         }
 
+        [TestMethod]
+        public void Commit_IfSomeMessageFails_ReturnsFirstNonFailedMessage()
+        {
+            // arrange
+            var w = new MessageQueueWorker<SomeMessage>(_consumerInstancePoolMock.Object, _checkpointTriggerMock.Object);
+
+            var taskQueue = new Queue<Task>();
+            taskQueue.Enqueue(Task.CompletedTask);
+            taskQueue.Enqueue(Task.Delay(3000));
+            taskQueue.Enqueue(Task.FromException(new Exception()));
+            taskQueue.Enqueue(Task.CompletedTask);
+            taskQueue.Enqueue(Task.FromException(new Exception()));
+            taskQueue.Enqueue(Task.CompletedTask);
+
+            var messages = taskQueue.ToList().Select(x => new SomeMessage()).ToArray();
+
+            _consumerInstancePoolMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>())).Returns(() => taskQueue.Dequeue());
+
+            foreach (var t in messages)
+            {
+                w.Submit(t);
+            }
+
+            // act
+            SomeMessage lastGoodMessage;
+            var success = w.Commit(out lastGoodMessage);
+
+            // assert
+            success.Should().BeFalse();
+            lastGoodMessage.Should().BeSameAs(messages[1]);
+        }
     }
 }

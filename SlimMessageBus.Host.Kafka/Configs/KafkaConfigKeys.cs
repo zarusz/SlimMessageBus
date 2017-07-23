@@ -11,7 +11,6 @@ namespace SlimMessageBus.Host.Kafka
             public const string AutoCommitEnableMs = "auto.commit.interval.ms";
             public const string StatisticsIntervalMs = "statistics.interval.ms";
             public const string AutoOffsetReset = "auto.offset.reset";
-
         }
     }
 }

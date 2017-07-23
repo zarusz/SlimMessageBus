@@ -13,5 +13,15 @@ namespace SlimMessageBus.Host.Config
         {
             Properties = new Dictionary<string, object>();
         }
+
+        public T GetOrDefault<T>(string key, T defaultValue)
+        {
+            object value;
+            if (Properties.TryGetValue(key, out value))
+            {
+                return (T) value;
+            }
+            return defaultValue;
+        }
     }
 }

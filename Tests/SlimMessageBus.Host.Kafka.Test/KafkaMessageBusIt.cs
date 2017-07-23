@@ -58,7 +58,6 @@ namespace SlimMessageBus.Host.Kafka.Test
         {
             _pingConsumer = new PingConsumer();
 
-            //var testTopic = $"test-ping-{DateTime.Now.Ticks}";
             var topic = $"test-ping";
 
             // some unique string across all application instances
@@ -107,7 +106,7 @@ namespace SlimMessageBus.Host.Kafka.Test
                     }
                 });
 
-            _bus = (KafkaMessageBus)messageBusBuilder.Build();
+            _bus = (KafkaMessageBus) messageBusBuilder.Build();
         }
 
         [TestCleanup]

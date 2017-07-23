@@ -14,19 +14,56 @@ namespace SlimMessageBus.Host
         private readonly Queue<MessageProcessingResult<TMessage>> _pendingMessages = new Queue<MessageProcessingResult<TMessage>>();
         private readonly ConsumerInstancePool<TMessage> _consumerInstancePool;
 
-        public MessageQueueWorker(ConsumerInstancePool<TMessage> consumerInstancePool)
+        public int Count => _pendingMessages.Count;
+
+        private readonly ICheckpointTrigger _checkpointTrigger;
+
+        public MessageQueueWorker(ConsumerInstancePool<TMessage> consumerInstancePool, ICheckpointTrigger checkpointTrigger)
         {
             _consumerInstancePool = consumerInstancePool;
+            _checkpointTrigger = checkpointTrigger;
         }
 
-        public void Submit(TMessage message)
+        /// <summary>
+        /// Clears the pending messages
+        /// </summary>
+        public void Clear()
         {
+            _pendingMessages.Clear();
+        }
+
+        /// <summary>
+        /// Submits an incomming message to the queue to be processed
+        /// </summary>
+        /// <param name="message">The message to be processed</param>
+        /// <returns>True if should Commit() at this point.</returns>
+        public bool Submit(TMessage message)
+        {
+            if (_pendingMessages.Count == 0)
+            {
+                // when message arrives for the first time (or since last commit)
+                _checkpointTrigger.Reset();
+            }
+
             var messageTask = _consumerInstancePool.ProcessMessage(message);
             _pendingMessages.Enqueue(new MessageProcessingResult<TMessage>(messageTask, message));
+
+            // limit check / time check
+            return _checkpointTrigger.Increment();
         }
 
-        public TMessage Commit(TMessage lastMessage)
+        /// <summary>
+        /// Flushed all the pending messages:
+        /// - checks if any failed
+        /// - clears the checkpoint state and internal queue
+        /// </summary>
+        /// <param name="lastGoodMessage">If some messages failed, points at the last massage that suceeded</param>
+        /// <returns>True if all messages succeeded, false otherwise</returns>
+        public bool Commit(out TMessage lastGoodMessage)
         {
+            lastGoodMessage = null;
+            var success = true;
+
             if (_pendingMessages.Count > 0)
             {
                 try
@@ -36,12 +73,24 @@ namespace SlimMessageBus.Host
                 }
                 catch (AggregateException e)
                 {
+                    // some tasks failed
+                    success = false;
                     Log.ErrorFormat("Errors occured while executing the tasks.", e);
-                    // ToDo: some tasks failed
+
+                    // grab last message that succeeded (if any)
+                    // Note: Assumption that that messages in queue follow the partition offset.
+                    foreach (var messageProcessingResult in _pendingMessages)
+                    {
+                        if (messageProcessingResult.Task.IsFaulted || messageProcessingResult.Task.IsCanceled)
+                        {
+                            break;
+                        }
+                        lastGoodMessage = messageProcessingResult.Message;
+                    }
                 }
                 _pendingMessages.Clear();
             }
-            return lastMessage;
+            return success;
         }
     }
 }

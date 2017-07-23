@@ -45,7 +45,6 @@
     <Compile Include="IPublishBus.cs" />
     <Compile Include="RequestResponse\IRequestHandler.cs" />
     <Compile Include="IMessageBus.cs" />
-    <Compile Include="IPublisher.cs" />
     <Compile Include="IMessageBusSubscription.cs" />
     <Compile Include="RequestResponse\IRequestMessage.cs" />
     <Compile Include="RequestResponse\IRequestResponseBus.cs" />

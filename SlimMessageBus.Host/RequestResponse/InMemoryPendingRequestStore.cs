@@ -51,8 +51,7 @@ namespace SlimMessageBus.Host
         {
             lock (_itemsLock)
             {
-                PendingRequestState requestState;
-                return _items.TryGetValue(id, out requestState) ? requestState : null;
+                return _items.TryGetValue(id, out PendingRequestState requestState) ? requestState : null;
             }
         }
 

@@ -14,54 +14,62 @@ namespace Sample.Simple.ConsoleApp
         static readonly Random Random = new Random();
         static bool _stop;
 
-        public const int ConsumerDelayMs = 500;
-
         static void Main(string[] args)
         {
             // ToDo: Provider your event hub names
-            var eventHubNameForAddCommand = "add-command";
-            var eventHubNameForMultiplyRequest = "multiply-request";
-            var eventHubNameForResponses = "responses";
+            var topicForAddCommand = "add-command";
+            var topicForMultiplyRequest = "multiply-request";            
+            // Note: Each running instance (node) of ConsoleApp should have its own unique response queue (i.e. responses-1)
+            var topicForResponses = "responses";
             // ToDo: Provide consumer group name
             var consumerGroup = "consoleapp";
+            var responseGroup = "consoleapp-1";
 
             // ToDo: Provide connection string to your event hub namespace
             var eventHubConnectionString = "";
             // ToDo: Provide connection string to your storage account 
             var storageConnectionString = "";
 
+            // ToDo: Ensure your Kafka broker is running
+            var kafkaBrokers = "127.0.0.1:9092";
+
             /*
             Azure setup notes:
-              1. Remember to create 3 event hubs in Azure:
-                add-command
-                multiply-request
-                responses
-
-              2. Remember to create 'consoleapp' group consumer in each event hub.
+              Create 3 event hubs in Azure:
+                1. 'add-command' with 'consoleapp' group consumer
+                2. 'multiply-request' with 'consoleapp' group consumer
+                3. 'responses' with 'consoleapp-1' group consumer
             */
 
-            // Create message bus
+            // Create message bus using the fluent builder interface
             IMessageBus messageBus = new MessageBusBuilder()
-                // Pub / Sub
-                .Publish<AddCommand>(x => x.DefaultTopic(eventHubNameForAddCommand)) // By default messages of type 'AddCommand' will go to event hub named 'topica' (or topic if Kafka is chosen)
-                .SubscribeTo<AddCommand>(x => x.Topic(eventHubNameForAddCommand).Group(consumerGroup).WithSubscriber<AddCommandConsumer>())
-                // Req / Resp
-                .Publish<MultiplyRequest>(x => x.DefaultTopic(eventHubNameForMultiplyRequest)) // By default messages of type 'AddCommand' will go to event hub named 'topica' (or topic if Kafka is chosen)
-                .Handle<MultiplyRequest, MultiplyResponse>(x => x.Topic(eventHubNameForMultiplyRequest).Group(consumerGroup).WithHandler<MultiplyRequestHandler>())
+                // Pub/Sub example
+                .Publish<AddCommand>(x => x.DefaultTopic(topicForAddCommand)) // By default AddCommand messages will go to event hub named 'add-command' (or topic if Kafka is chosen)
+                .SubscribeTo<AddCommand>(x => x.Topic(topicForAddCommand)
+                                               .Group(consumerGroup)
+                                               .WithSubscriber<AddCommandConsumer>())
+                // Req/Resp example
+                .Publish<MultiplyRequest>(x => x.DefaultTopic(topicForMultiplyRequest)) // By default AddCommand messages will go to event hub named 'multiply-request' (or topic if Kafka is chosen)
+                .Handle<MultiplyRequest, MultiplyResponse>(x => x.Topic(topicForMultiplyRequest) // topic to expect the requests
+                                                                 .Group(consumerGroup)
+                                                                 .WithHandler<MultiplyRequestHandler>())
+                // Configure response message queue (topic) when using req/resp
                 .ExpectRequestResponses(x =>
                 {
-                    x.Group("consoleapp");                    
-                    x.ReplyToTopic(eventHubNameForResponses); // All responses from req/resp will return on this topic (event hub)
+                    x.Group(responseGroup); 
+                    x.ReplyToTopic(topicForResponses); // All responses from req/resp will return on this topic (the EventHub name)
+                    x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
                 })
                 .WithSerializer(new JsonMessageSerializer()) // Use JSON for message serialization                
                 .WithDependencyResolver(new LookupDependencyResolver(type =>
                 {
+                    // Simulate a dependency container
                     if (type == typeof (AddCommandConsumer)) return new AddCommandConsumer();
                     if (type == typeof (MultiplyRequestHandler)) return new MultiplyRequestHandler();
                     throw new InvalidOperationException();
                 }))
-                .WithProviderEventHub(new EventHubMessageBusSettings(eventHubConnectionString, storageConnectionString)) // Use Azure Event Hub as provider
-                //.WithProviderKafka(new KafkaMessageBusSettings("<kafka-broker-list-here>")) // Or use Apache Kafka as provider
+                //.WithProviderEventHub(new EventHubMessageBusSettings(eventHubConnectionString, storageConnectionString)) // Use Azure Event Hub as provider
+                .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)) // Or use Apache Kafka as provider
                 .Build();
 
             try
@@ -89,7 +97,14 @@ namespace Sample.Simple.ConsoleApp
                 var b = Random.Next(100);
 
                 Console.WriteLine("Producer: Sending numbers {0} and {1}", a, b);
-                await bus.Publish(new AddCommand { Left = a, Right = b });
+                try
+                {
+                    await bus.Publish(new AddCommand { Left = a, Right = b });
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine("Producer: publish error");
+                }
 
                 await Task.Delay(50); // Simulate some delay
             }
@@ -103,8 +118,15 @@ namespace Sample.Simple.ConsoleApp
                 var b = Random.Next(100);
 
                 Console.WriteLine("Sender: Sending numbers {0} and {1}", a, b);
-                var response = await bus.Send(new MultiplyRequest { Left = a, Right = b });
-                Console.WriteLine("Sender: Got result back {0}", response.Result);
+                try
+                {
+                    var response = await bus.Send(new MultiplyRequest { Left = a, Right = b });
+                    Console.WriteLine("Sender: Got response back with result {0}", response.Result);
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine("Sender: request error or timeout");
+                }
 
                 await Task.Delay(50); // Simulate some delay
             }
@@ -123,7 +145,6 @@ namespace Sample.Simple.ConsoleApp
 
         public async Task OnHandle(AddCommand message, string topic)
         {
-            await Task.Delay(Program.ConsumerDelayMs);
             Console.WriteLine("Consumer: Adding {0} and {1} gives {2}", message.Left, message.Right, message.Left + message.Right);
         }
 
@@ -147,7 +168,7 @@ namespace Sample.Simple.ConsoleApp
 
         public async Task<MultiplyResponse> OnHandle(MultiplyRequest request, string topic)
         {
-            await Task.Delay(Program.ConsumerDelayMs);
+            // simulate some processing
             return new MultiplyResponse { Result = request.Left * request.Right };
         }
 

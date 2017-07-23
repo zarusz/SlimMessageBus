@@ -5,18 +5,18 @@ namespace SlimMessageBus.Host.Config
     /// <summary>
     /// The request/response settings.
     /// </summary>
-    public class RequestResponseSettings : ITopicGroupConsumerSettings, IConsumerEvents
+    public class RequestResponseSettings : HasProviderExtensions, ITopicGroupConsumerSettings, IConsumerEvents
     {
         /// <summary>
-        /// Individual topic that will act as a the private reply queue for the app domain.
+        /// Topic that will act as a the private reply queue for the application.
         /// </summary>
         public string Topic { get; set; }
         /// <summary>
-        /// Consummer GroupId to to use for the app domain.
+        /// Consummer GroupId to to use.
         /// </summary>
         public string Group { get; set; }
         /// <summary>
-        /// Default wait time for the response to arrive. This is used when the timeout during publish was not provided.
+        /// Default wait time for the response to arrive. This is used when the timeout during request send method was not provided.
         /// </summary>
         public TimeSpan Timeout { get; set; }
 
@@ -32,6 +32,11 @@ namespace SlimMessageBus.Host.Config
         public Action<ConsumerSettings, object, Exception> OnMessageFault { get; set; }
 
         #endregion
+
+        /// <summary>
+        /// Called whenever an incomming response message errors out.
+        /// </summary>
+        public Action<RequestResponseSettings, object, Exception> OnResponseMessageFault { get; set; }
 
         public RequestResponseSettings()
         {
