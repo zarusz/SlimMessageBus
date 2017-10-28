@@ -1,10 +1,18 @@
-version: 0.8.{build}
+version: 1.0.{build}
+image: Visual Studio 2017
 nuget:
   disable_publish_on_pr: true
 build_script:
-- cmd: build.bat
+- ps: >-
+    nuget restore src\SlimMessageBus.sln
+
+    build\do_package.ps1
+test:
+  categories:
+    except:
+    - Integration
 artifacts:
-- path: packages-dist\SlimMessageBus.*.nupkg
+- path: dist\SlimMessageBus.*.nupkg
   name: SlimMessageBus
 deploy: off
 notifications:
@@ -15,7 +23,3 @@ notifications:
   on_build_success: true
   on_build_failure: true
   on_build_status_changed: true
-test:
-  categories:
-    except:
-      - Integration      

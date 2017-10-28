@@ -1,0 +1,171 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Threading;
+using System.Threading.Tasks;
+using Common.Logging;
+using FluentAssertions;
+using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host.Serialization.Json;
+using Xunit;
+
+namespace SlimMessageBus.Host.Kafka.Test
+{
+    public class PingMessage
+    {
+        public DateTime Timestamp { get; set; }
+        public int Counter { get; set; }
+    }
+
+    public class PingConsumer : IConsumer<PingMessage>
+    {
+        private static readonly ILog Log = LogManager.GetLogger<PingConsumer>();
+
+        public IList<PingMessage> Messages { get; }
+
+        public PingConsumer()
+        {
+            Messages = new List<PingMessage>();
+        }
+
+        #region Implementation of IConsumer<in PingMessage>
+
+        public Task OnHandle(PingMessage message, string topic)
+        {
+            lock (Messages)
+            {
+                Messages.Add(message);
+            }
+
+            Log.InfoFormat("Got message {0} on topic {1}.", message.Counter, topic);
+            return Task.CompletedTask;
+        }
+
+        #endregion
+    }
+
+    public class KafkaMessageBusIt : IDisposable
+    {
+        private static readonly ILog Log = LogManager.GetLogger<KafkaMessageBusIt>();
+
+        private const int NumberOfMessages = 77;
+        private KafkaMessageBus _bus;
+        private PingConsumer _pingConsumer;
+
+        public KafkaMessageBusIt()
+        {
+            _pingConsumer = new PingConsumer();
+
+            var topic = $"test-ping";
+
+            // some unique string across all application instances
+            var instanceId = "1";
+            // address to your Kafka broker
+            var kafkaBrokers = "127.0.0.1:9092";
+
+            var messageBusBuilder = new MessageBusBuilder()
+                .Publish<PingMessage>(x => x.DefaultTopic(topic))
+                .SubscribeTo<PingMessage>(x => x.Topic(topic)
+                                                .Group("subscriber2")
+                                                .WithSubscriber<PingConsumer>()
+                                                .Instances(2))
+                .ExpectRequestResponses(x =>
+                {
+                    x.ReplyToTopic($"worker-{instanceId}-response");
+                    x.Group($"worker-{instanceId}");
+                    x.DefaultTimeout(TimeSpan.FromSeconds(10));
+                })
+                .WithSerializer(new JsonMessageSerializer())
+                .WithDependencyResolver(new LookupDependencyResolver(f =>
+                {
+                    if (f == typeof(PingConsumer)) return _pingConsumer;
+                    throw new InvalidOperationException();
+                }))
+                .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+                {
+                    ProducerConfigFactory = () => new Dictionary<string, object>
+                    {
+                        {"socket.blocking.max.ms",1},
+                        {"queue.buffering.max.ms",1},
+                        {"socket.nagle.disable", true}
+                    },
+                    ConsumerConfigFactory = (group) => new Dictionary<string, object>
+                    {
+                        {"socket.blocking.max.ms", 1},
+                        {"fetch.error.backoff.ms", 1},
+                        {"statistics.interval.ms", 500000},
+                        {"socket.nagle.disable", true}
+                    }
+                });
+
+            _bus = (KafkaMessageBus) messageBusBuilder.Build();
+        }
+
+        public void Dispose()
+        {
+            _bus.Dispose();
+        }
+
+        [Fact]
+        [Trait("Category", "Integration")]
+        public void BasicIntegration()
+        {
+            // ensure the subscribers have established connections and are ready
+            Thread.Sleep(2000);
+
+            var stopwatch = new Stopwatch();
+
+            stopwatch.Start();
+            var messagesPublished = PublishToTopic();
+
+            stopwatch.Stop();
+            Log.InfoFormat("Published {0} messages in {1}", messagesPublished.Count, stopwatch.Elapsed);
+
+            stopwatch.Restart();
+
+            var messagesReceived = ConsumeFromTopic();
+
+            messagesReceived.Count.ShouldBeEquivalentTo(messagesPublished.Count);
+
+            stopwatch.Stop();
+            Log.InfoFormat("Consumed {0} messages in {1}", messagesReceived.Count, stopwatch.Elapsed);
+        }
+
+        private IList<PingMessage> ConsumeFromTopic()
+        {
+            while (_pingConsumer.Messages.Count < NumberOfMessages)
+            {
+                Thread.Sleep(200);
+            }
+            return _pingConsumer.Messages;
+        }
+
+        private IList<PingMessage> PublishToTopic()
+        {
+            var messages = new List<PingMessage>();
+            for (var i = 0; i < NumberOfMessages; i++)
+            {
+                messages.Add(new PingMessage()
+                {
+                    Counter = i,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+
+            Parallel.ForEach(messages, m =>
+            {
+                try
+                {
+                    _bus.Publish(m).Wait();
+                }
+                catch (Exception e)
+                {
+                    Log.Error("Could not publish", e);
+                    throw;
+                }
+            });
+
+            return messages;
+        }
+    }
+}

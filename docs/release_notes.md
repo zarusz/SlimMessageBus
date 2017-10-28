@@ -4,8 +4,9 @@
 Date: 2017-09-30
 
 Features:
-* SlimMessageBus.Host.Kafka: 
+* SlimMessageBus.Host.Kafka:
   * Upgraded Confluent.Kafka from version 0.9.5 to 0.11.0.
+  * Bugfix: When publish failed no error was reported to client code. Now exception will be thrown.
   * Internal refactoring and improvements.
 * Minor changes and improvements (mostly refactoring).
 
@@ -14,7 +15,7 @@ Packages:
 * https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.13
 * https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub/0.9.13-alpha1
 
-  
+
 ## Version 0.9.13
 Date: 2017-07-15
 
@@ -46,7 +47,7 @@ Date: 2017-04-25
 Features:
 * Dropping build number from version names.
 * SlimMessageBus.Host.Kafka:
-	* Targeting Kafka client version 0.9.5 that fixes high CPU usage [bug](https://github.com/confluentinc/confluent-kafka-dotnet/issues/87). 
+	* Targeting Kafka client version 0.9.5 that fixes high CPU usage [bug](https://github.com/confluentinc/confluent-kafka-dotnet/issues/87).
 	* Improving debug logging.
 
 Packages:
