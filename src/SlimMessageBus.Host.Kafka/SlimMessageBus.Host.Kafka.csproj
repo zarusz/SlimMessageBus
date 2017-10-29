@@ -75,6 +75,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="SlimMessageBus.Host.Kafka.nuspec" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj">

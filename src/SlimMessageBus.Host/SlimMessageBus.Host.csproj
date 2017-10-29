@@ -107,6 +107,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="SlimMessageBus.Host.nuspec" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SlimMessageBus\SlimMessageBus.csproj">

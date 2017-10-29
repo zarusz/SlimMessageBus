@@ -57,8 +57,6 @@ task NuPack {
 
 task NuPush {
 
-	$nuget_source = "local"
-	
 	foreach ($package in Get-ChildItem $dist_folder -filter "*.nupkg" -name) {
 		Write-Host "===== Push $package to $nuget_source" -ForegroundColor Green
 		Exec { nuget push "$dist_folder\$package" -Source $nuget_source }

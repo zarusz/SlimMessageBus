@@ -1,19 +1,22 @@
 # Release Notes of SlimMessageBus
 
-## Version 0.9.14
-Date: 2017-09-30
+## Version 0.9.15
+Date: 2017-10-29
 
-Features:
+Changes:
 * SlimMessageBus.Host.Kafka:
   * Upgraded Confluent.Kafka from version 0.9.5 to 0.11.0.
   * Bugfix: When publish failed no error was reported to client code. Now exception will be thrown.
   * Internal refactoring and improvements.
-* Minor changes and improvements (mostly refactoring).
+* SlimMessageBus.Host.AzureEventHub: Changes to reflect for new SlimMessageBus.Host internals.
+* SlimMessageBus.Host: Minor changes and improvements (mostly refactoring) to support reuse between Kafka and Azure EventHubs providers.
+* SlimMessageBus.Host.Autofac: Added missing nuget metadata (icons, tags).
 
 Packages:
-* https://www.nuget.org/packages/SlimMessageBus.Host/0.9.13
-* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.13
-* https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub/0.9.13-alpha1
+* https://www.nuget.org/packages/SlimMessageBus.Host/0.9.15
+* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.15
+* https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub/0.9.15-alpha2
+* https://www.nuget.org/packages/SlimMessageBus.Host.Autofac/0.9.15
 
 
 ## Version 0.9.13

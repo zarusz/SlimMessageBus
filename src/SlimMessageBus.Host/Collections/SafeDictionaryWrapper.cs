@@ -5,8 +5,8 @@ using System.Collections.ObjectModel;
 namespace SlimMessageBus.Host.Collections
 {
     /// <summary>
-    /// Dictionary wrapper that exposes a <see cref="ReadOnlyDictionary{TKey,TValue}"/> for read, while for mutation exposes thread-safe methods.
-    /// Internally a dictionary is maintained and any change is synchronized. When access is performed to the snapshot after a change happened a new <see cref="ReadOnlyDictionary{TKey,TValue}"/> snapshot is created.
+    /// Dictionary wrapper that exposes a <see cref="ReadOnlyDictionary{TKey,TValue}"/> snapshot for read, while for mutation exposes thread-safe methods.
+    /// Internally a dictionary is maintained and any change is synchronized. When read access is performed after a change happened a new <see cref="ReadOnlyDictionary{TKey,TValue}"/> snapshot is created.
     /// </summary>
     /// <typeparam name="TKey"></typeparam>
     /// <typeparam name="TValue"></typeparam>

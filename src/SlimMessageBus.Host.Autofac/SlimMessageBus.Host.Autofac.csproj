@@ -62,6 +62,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="SlimMessageBus.Host.Autofac.nuspec" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj">

@@ -52,6 +52,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="SlimMessageBus.Host.Serialization.Json.nuspec" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj">

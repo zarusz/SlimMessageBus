@@ -13,6 +13,6 @@
     <description>$description$</description>
     <releaseNotes>See https://github.com/zarusz/SlimMessageBus/blob/master/docs/release_notes.md</releaseNotes>
     <copyright>Copyright 2017</copyright>
-    <tags>Azure EventHubs EventHub Event Hub Provider SlimMessageBus MessageBus Bus Facade</tags>
+    <tags>Azure Event Hubs provider SlimMessageBus MessageBus bus facade</tags>
   </metadata>
 </package>

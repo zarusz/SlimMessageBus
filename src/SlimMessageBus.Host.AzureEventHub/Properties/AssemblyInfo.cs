@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("SlimMessageBus.Host.AzureEventHub")]
-[assembly: AssemblyDescription("Azure Event Hub provider for SlimMessageBus")]
+[assembly: AssemblyDescription("Azure Event Hubs provider for SlimMessageBus")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("zarusz")]
 [assembly: AssemblyProduct("SlimMessageBus.Host.AzureEventHub")]
@@ -32,5 +32,5 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyInformationalVersion("0.9.14-alpha1")]
+[assembly: AssemblyInformationalVersion("0.9.15-alpha2")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
