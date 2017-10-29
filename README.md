@@ -61,7 +61,7 @@ Typically your application components only need to depend on `SlimMessageBus` wh
 
 ## Samples
 
-Check out the [Samples](Samples/) folder.
+Check out the [Samples](src/Samples/) folder.
 
 ### Usage examples
 
