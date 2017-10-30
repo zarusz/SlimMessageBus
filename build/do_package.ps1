@@ -1,3 +1,3 @@
-Import-Module $PSScriptRoot\psake\psake.psm1
+. $PSScriptRoot\tasks.ps1
 
-& Invoke-psake $PSScriptRoot\tasks.ps1 Package
+Package
