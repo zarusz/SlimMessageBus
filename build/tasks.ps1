@@ -1,68 +1,81 @@
-Framework "4.6"
+$root = [System.IO.Path]::GetFullPath("$PSScriptRoot\..")
 
-properties {
-	$root = "$PSScriptRoot\.."
+$sln_file = "$root\src\SlimMessageBus.sln"
+$sln_platform = "Any CPU"
+$csp_platform = "AnyCPU" 
+$config = "Release"
+$dist_folder = "$root\dist"
+# choose: q[uiet], m[inimal], n[ormal], d[etailed], and diag[nostic]
+$msbuild_verbosity = "m"
+	
+$vs_tools = "$root\src\packages\MSBuild.Microsoft.VisualStudio.Web.targets.14.0.0.3\tools\VSToolsPath"
+	
+$projects = @(
+	"SlimMessageBus", 
+	"SlimMessageBus.Host",
+	"SlimMessageBus.Host.Serialization.Json", 
+	"SlimMessageBus.Host.ServiceLocator", 
+	"SlimMessageBus.Host.Autofac",
+	"SlimMessageBus.Host.Kafka",
+	"SlimMessageBus.Host.AzureEventHub"
+)
 
-	$sln_file = "$root\src\SlimMessageBus.sln"
-	$sln_platform = "Any CPU"
-	$csproj_platform = "AnyCPU" 
-	$config = "Release"
-	$dist_folder = "$root\dist"
+# msbuild.exe https://msdn.microsoft.com/pl-pl/library/ms164311(v=vs.80).aspx
 	
-	$vs_tools = "$root\src\packages\MSBuild.Microsoft.VisualStudio.Web.targets.14.0.0.3\tools\VSToolsPath"
+function _AssertExec() {
+	if ($LastExitCode -ne 0) { exit 1 }
+}
+
+function _Step($msg) {
+	Write-Host ""
+	Write-Host "===== $msg =====" -ForegroundColor Green
+}
+
+function NuRestore() {
+	_Step "Restore NuGet packages"
+	& nuget restore $sln_file
+	_AssertExec
+}
+
+function _MsBuild($target) {
+	_Step "$target solution"
+	& msbuild $sln_file /t:$target /p:Platform=$sln_platform /p:Configuration=$config /p:VSToolsPath=$vs_tools /v:$msbuild_verbosity /m
+	_AssertExec
+}
+
+function Clean() {
 	
-	$projects = @(
-		"SlimMessageBus", 
-		"SlimMessageBus.Host",
-		"SlimMessageBus.Host.Serialization.Json", 
-		"SlimMessageBus.Host.ServiceLocator", 
-		"SlimMessageBus.Host.Autofac",
-		"SlimMessageBus.Host.Kafka",
-		"SlimMessageBus.Host.AzureEventHub"
-	)
-	
+	_Step "Clean folder $dist_folder"
 	# Ensure dist folder exists
 	New-Item -ErrorAction Ignore -ItemType directory -Path $dist_folder
-}
-
-task default -depends Dist
-
-task NuRestore {
-	Write-Host "===== Restore NuGet packages" -ForegroundColor Green
-	#Exec { nuget restore $sln_file }
-}
-
-task Clean -depends NuRestore {
-	Write-Host "===== Clean folder $dist_folder" -ForegroundColor Green
 	Remove-Item $dist_folder\* -recurse
 	
-	Write-Host "===== Clean solution" -ForegroundColor Green
-	Exec { msbuild $sln_file /t:Clean /p:Platform=$sln_platform /p:Configuration=$config /p:VSToolsPath=$vs_tools /m }
+	NuRestore
+	_MsBuild "Clean"
 }
 
-task Build -depends Clean { 
-
-	Write-Host "===== Build solution" -ForegroundColor Green
-	Exec { msbuild $sln_file /t:Build /p:Platform=$sln_platform /p:Configuration=$config /p:VSToolsPath=$vs_tools /m }
+function Build() { 
+	Clean	
+	_MsBuild "Build"
 }
 
-task NuPack {
-
+function NuPack() {
 	foreach ($project in $projects) {
-		Write-Host "===== Package project $project" -ForegroundColor Green
-		Exec { nuget pack "$root\src\$project\$project.csproj" -OutputDirectory $dist_folder -Prop Configuration=$config -Prop Platform=$csproj_platform -IncludeReferencedProjects }
+		_Step "Package project $project"
+		& nuget pack "$root\src\$project\$project.csproj" -OutputDirectory $dist_folder -Prop Configuration=$config -Prop Platform=$csp_platform -IncludeReferencedProjects
+		_AssertExec
 	}
-
 }
 
-task NuPush {
-
+function NuPush($nuget_source) {
 	foreach ($package in Get-ChildItem $dist_folder -filter "*.nupkg" -name) {
-		Write-Host "===== Push $package to $nuget_source" -ForegroundColor Green
-		Exec { nuget push "$dist_folder\$package" -Source $nuget_source }
+		_Step "Push $package to $nuget_source"
+		& nuget push "$dist_folder\$package" -Source $nuget_source
+		_AssertExec
 	}
 }
 
-task Package -depends Build, NuPack {
-	
+function Package() {
+	Build
+	NuPack	
 }
