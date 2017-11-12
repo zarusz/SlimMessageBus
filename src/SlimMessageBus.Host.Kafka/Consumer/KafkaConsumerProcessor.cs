@@ -16,10 +16,16 @@ namespace SlimMessageBus.Host.Kafka
 
         private readonly ConsumerSettings _consumerSettings;
         private readonly IKafkaCommitController _commitController;
-        private readonly MessageQueueWorker<Message> _messageQueueWorker; 
+        private readonly MessageQueueWorker<Message> _messageQueueWorker;
 
         public KafkaConsumerProcessor(ConsumerSettings consumerSettings, TopicPartition topicPartition, IKafkaCommitController commitController, MessageBusBase messageBus)
-            : this(consumerSettings, topicPartition, commitController, messageBus, new MessageQueueWorker<Message>(new ConsumerInstancePool<Message>(consumerSettings, messageBus, m => m.Value), new CheckpointTrigger(consumerSettings)))
+            : this(consumerSettings,
+                   topicPartition,
+                   commitController,
+                   messageBus,
+                   new MessageQueueWorker<Message>(
+                       new ConsumerInstancePool<Message>(consumerSettings, messageBus, m => m.Value, (m, ctx) => ctx.SetTransportMessage(m)),
+                       new CheckpointTrigger(consumerSettings)))
         {
         }
 

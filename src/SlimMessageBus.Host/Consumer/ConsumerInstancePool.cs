@@ -12,7 +12,7 @@ namespace SlimMessageBus.Host
     public class ConsumerInstancePool<TMessage> : IDisposable
         where TMessage : class
     {
-        private static readonly ILog Log = LogManager.GetLogger(typeof(ConsumerInstancePool<TMessage>));
+        private static readonly ILog Log = LogManager.GetLogger(typeof(ConsumerInstancePool<>));
 
         private readonly List<object> _instances;
         private readonly BufferBlock<object> _instancesQueue;
@@ -22,14 +22,20 @@ namespace SlimMessageBus.Host
 
         private readonly Func<TMessage, byte[]> _messagePayloadProvider;
 
+        private readonly bool _consumerWithContext;
+        private readonly Action<TMessage, ConsumerContext> _consumerContextInitializer;
+
         private readonly MethodInfo _consumerOnHandleMethod;
         private readonly PropertyInfo _taskResultProperty;
 
-        public ConsumerInstancePool(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, byte[]> messagePayloadProvider)
+        public ConsumerInstancePool(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, byte[]> messagePayloadProvider, Action<TMessage, ConsumerContext> consumerContextInitializer = null)
         {
             _consumerSettings = consumerSettings;
             _messageBus = messageBus;
             _messagePayloadProvider = messagePayloadProvider;
+
+            _consumerContextInitializer = consumerContextInitializer;
+            _consumerWithContext = typeof(IConsumerContextAware).IsAssignableFrom(consumerSettings.ConsumerType);
 
             _consumerOnHandleMethod = consumerSettings.ConsumerType.GetMethod(nameof(IConsumer<object>.OnHandle), new[] { consumerSettings.MessageType, typeof(string) });
 
@@ -108,6 +114,15 @@ namespace SlimMessageBus.Host
             var consumerInstance = await _instancesQueue.ReceiveAsync(_messageBus.CancellationToken);
             try
             {
+                if (_consumerWithContext && _consumerContextInitializer != null)
+                {
+                    var consumerContext = new ConsumerContext();
+                    _consumerContextInitializer(msg, consumerContext);
+
+                    var consumerWithContext = (IConsumerContextAware)consumerInstance;
+                    consumerWithContext.Context.Value = consumerContext;
+                }
+
                 // the consumer just subscribes to the message
                 var task = (Task)_consumerOnHandleMethod.Invoke(consumerInstance, new[] { message, _consumerSettings.Topic });
                 await task;
@@ -150,9 +165,9 @@ namespace SlimMessageBus.Host
             if (response != null || responseError != null)
             {
                 // send the response (or error response)
-                Log.Debug("Serializing the respoonse...");
+                Log.Debug("Serializing the response...");
                 var responsePayload = _messageBus.SerializeResponse(_consumerSettings.ResponseType, response, requestId, responseError);
-                await _messageBus.Publish(_consumerSettings.ResponseType, responsePayload, replyTo);
+                await _messageBus.PublishToTransport(_consumerSettings.ResponseType, response, replyTo, responsePayload);
             }
         }
     }

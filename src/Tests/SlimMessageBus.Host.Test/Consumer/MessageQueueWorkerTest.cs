@@ -30,7 +30,7 @@ namespace SlimMessageBus.Host.Test.Consumer
             };
 
             Func<SomeMessage, byte[]> payloadProvider = m => new byte[0];
-            _consumerInstancePoolMock = new Mock<ConsumerInstancePool<SomeMessage>>(consumerSettings, _busMock.BusMock.Object, payloadProvider);
+            _consumerInstancePoolMock = new Mock<ConsumerInstancePool<SomeMessage>>(consumerSettings, _busMock.BusMock.Object, payloadProvider, null);
         }
 
         [Fact]

@@ -14,6 +14,7 @@ namespace SlimMessageBus.Host.Config
         /// <summary>
         /// Consummer GroupId to to use.
         /// </summary>
+        // TODO: Move this out of the host layer. Not all brokers use a concept of groups.
         public string Group { get; set; }
         /// <summary>
         /// Default wait time for the response to arrive. This is used when the timeout during request send method was not provided.

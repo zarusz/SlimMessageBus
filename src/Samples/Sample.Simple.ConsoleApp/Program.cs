@@ -6,6 +6,7 @@ using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.AzureEventHub;
 using SlimMessageBus.Host.Kafka;
+using System.Text;
 
 namespace Sample.Simple.ConsoleApp
 {
@@ -31,7 +32,7 @@ namespace Sample.Simple.ConsoleApp
             var storageConnectionString = "";
 
             // ToDo: Ensure your Kafka broker is running
-            var kafkaBrokers = "127.0.0.1:9092";
+            var kafkaBrokers = "localhost:9092";
 
             /*
             Azure setup notes:
@@ -49,11 +50,17 @@ namespace Sample.Simple.ConsoleApp
                                                .Group(consumerGroup)
                                                .WithSubscriber<AddCommandConsumer>())
                 // Req/Resp example
-                .Publish<MultiplyRequest>(x => x.DefaultTopic(topicForMultiplyRequest)) // By default AddCommand messages will go to event hub named 'multiply-request' (or topic if Kafka is chosen)
+                .Publish<MultiplyRequest>(x => 
+                {
+                    // By default AddCommand messages will go to event hub named 'multiply-request' (or topic if Kafka is chosen)
+                    x.DefaultTopic(topicForMultiplyRequest);
+                    // Message key could be set for the message
+                    x.KeyProvider((request, topic) => Encoding.ASCII.GetBytes((request.Left + request.Right).ToString()));
+                })
                 .Handle<MultiplyRequest, MultiplyResponse>(x => x.Topic(topicForMultiplyRequest) // topic to expect the requests
                                                                  .Group(consumerGroup)
                                                                  .WithHandler<MultiplyRequestHandler>())
-                // Configure response message queue (topic) when using req/resp
+                // Configure response message queue (on topic) when using req/resp
                 .ExpectRequestResponses(x =>
                 {
                     x.Group(responseGroup); 
@@ -123,9 +130,9 @@ namespace Sample.Simple.ConsoleApp
                     var response = await bus.Send(new MultiplyRequest { Left = a, Right = b });
                     Console.WriteLine("Sender: Got response back with result {0}", response.Result);
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
-                    Console.WriteLine("Sender: request error or timeout");
+                    Console.WriteLine("Sender: request error or timeout: " + e);
                 }
 
                 await Task.Delay(50); // Simulate some delay

@@ -4,23 +4,23 @@ namespace SlimMessageBus.Host.Config
 {
     public class PublisherBuilder<T>
     {
-        private readonly PublisherSettings _settings;
+        public PublisherSettings Settings { get; }
 
         public PublisherBuilder(PublisherSettings settings)
         {
-            _settings = settings;
-            _settings.MessageType = typeof (T);
+            Settings = settings;
+            Settings.MessageType = typeof (T);
         }
 
         public PublisherBuilder<T> DefaultTopic(string name)
         {
-            _settings.DefaultTopic = name;
+            Settings.DefaultTopic = name;
             return this;
         }
 
         public PublisherBuilder<T> DefaultTimeout(TimeSpan timeout)
         {
-            _settings.Timeout = timeout;
+            Settings.Timeout = timeout;
             return this;
         }
     }

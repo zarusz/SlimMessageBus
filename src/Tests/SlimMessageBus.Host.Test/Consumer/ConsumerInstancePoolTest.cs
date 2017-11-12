@@ -143,7 +143,7 @@ namespace SlimMessageBus.Host.Test
                 OnMessageExpired = onMessageExpiredMock.Object
             };
 
-            var p = new ConsumerInstancePool<SomeRequest>(consumerSettings, _busMock.Object, x => new byte[0]);
+            var p = new ConsumerInstancePool<SomeRequest>(consumerSettings, _busMock.Object, x => new byte[0], null);
 
             var request = new SomeRequest();
             string requestId;
@@ -193,7 +193,7 @@ namespace SlimMessageBus.Host.Test
             _busMock.HandlerMock.Verify(x => x.OnHandle(request, consumerSettings.Topic), Times.Once); // handler called once
 
             onMessageFaultMock.Verify(x => x(consumerSettings, request, ex), Times.Once); // callback called once
-            _busMock.BusMock.Verify(x => x.Publish(typeof(SomeResponse), It.IsAny<byte[]>(), replyTo));
+            _busMock.BusMock.Verify(x => x.PublishToTransport(typeof(SomeResponse), It.IsAny<SomeResponse>(), replyTo, It.IsAny<byte[]>()));
         }
 
         [Fact]

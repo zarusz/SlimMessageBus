@@ -20,6 +20,8 @@ namespace SlimMessageBus.Host.Kafka
 
         private Producer _producer;
         private readonly IList<KafkaGroupConsumer> _groupConsumers = new List<KafkaGroupConsumer>();
+        private readonly IDictionary<Type, Func<object, string, byte[]>> _keyProviders = new Dictionary<Type, Func<object, string, byte[]>>();
+        private readonly IDictionary<Type, Func<object, string, int>> _partitionProviders = new Dictionary<Type, Func<object, string, int>>();
 
         public Producer CreateProducerInternal()
         {
@@ -40,8 +42,28 @@ namespace SlimMessageBus.Host.Kafka
 
             CreateProducer();
             CreateGroupConsumers(settings);
+            CreateProviders();
 
+            // TODO: Auto start should be a setting
             Start();
+        }
+
+        private void CreateProviders()
+        {
+            foreach (var publisherSettings in Settings.Publishers)
+            {
+                var keyProvider = publisherSettings.GetKeyProvider();
+                if (keyProvider != null)
+                {
+                    _keyProviders.Add(publisherSettings.MessageType, keyProvider);
+                }
+
+                var partitionProvider = publisherSettings.GetPartitionProvider();
+                if (partitionProvider != null)
+                {
+                    _partitionProviders.Add(publisherSettings.MessageType, partitionProvider);
+                }
+            }
         }
 
         private void CreateProducer()
@@ -144,20 +166,60 @@ namespace SlimMessageBus.Host.Kafka
             base.OnDispose();
         }
 
-        public override async Task Publish(Type messageType, byte[] payload, string topic)
+        public override async Task PublishToTransport(Type messageType, object message, string topic, byte[] payload)
         {
             AssertActive();
 
-            Log.TraceFormat("Producing message of type {0} on topic {1} with size {2}", messageType.Name, topic, payload.Length);
+            // calculate message key
+            var key = GetMessageKey(messageType, message, topic);
+
+            // calculate partition
+            var partition = GetMessagePartition(messageType, message, topic);
+
+            Log.TraceFormat("Producing message of type {0}, on topic {1}, partition {2}, key length {3}, paylod size {4}", 
+                messageType.Name, topic, partition, key?.Length ?? 0, payload.Length);
+
             // send the message to topic
-            var deliveryReport = await _producer.ProduceAsync(topic, null, payload);
+            var task = partition == NoPartition
+                ? _producer.ProduceAsync(topic, key, payload)
+                : _producer.ProduceAsync(topic, key, 0, key?.Length ?? 0, payload, 0, payload.Length, partition);
+            
+            var deliveryReport = await task;
             if (deliveryReport.Error.HasError)
             {
-                throw new PublishMessageBusException($"Could not publish message of type ${messageType.Name} to topic ${topic}. Kafka response code: ${deliveryReport.Error.Code}, reason: ${deliveryReport.Error.Reason}");
+                throw new PublishMessageBusException($"Error while publish message of type ${messageType.Name} to topic ${topic}. Kafka response code: ${deliveryReport.Error.Code}, reason: ${deliveryReport.Error.Reason}");
             }
-                
+
             // log some debug information
-            Log.DebugFormat("Message of type {0} delivered at offset {1}", messageType.Name, deliveryReport.TopicPartitionOffset);
+            Log.DebugFormat("Message of type {0} delivered to topic-partition-offset {1}", messageType.Name, deliveryReport.TopicPartitionOffset);
+        }
+
+        protected byte[] GetMessageKey(Type messageType, object message, string topic)
+        {
+            byte[] key = null;
+            if (_keyProviders.TryGetValue(messageType, out Func<object, string, byte[]> keyProvider))
+            {
+                key = keyProvider(message, topic);
+
+                if (Log.IsDebugEnabled)
+                    Log.DebugFormat("The message type {0} calculated key is {1} (Base64)", messageType.Name, Convert.ToBase64String(key));
+            }
+            return key;
+        }
+
+        const int NoPartition = -1;
+
+        protected int GetMessagePartition(Type messageType, object message, string topic)
+        {
+            var partition = NoPartition;
+            if (_partitionProviders.TryGetValue(messageType, out Func<object, string, int> partitionProvider))
+            {
+                partition = partitionProvider(message, topic);
+
+                if (Log.IsDebugEnabled)
+                    Log.DebugFormat("The message type {0} calculated partition is {1}", messageType.Name, partition);
+            }
+            return partition;
         }
 
         #endregion

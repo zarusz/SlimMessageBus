@@ -40,7 +40,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             _mssageBusMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageConsumer))).Returns(_consumer);
 
             Func<Message, byte[]> messageValueProvider = m => m.Value;
-            consumerInstancePoolMock = new Mock<ConsumerInstancePool<Message>>(_consumerSettings, _mssageBusMock.Object, messageValueProvider);
+            consumerInstancePoolMock = new Mock<ConsumerInstancePool<Message>>(_consumerSettings, _mssageBusMock.Object, messageValueProvider, null);
             _messageQueueWorkerMock = new Mock<MessageQueueWorker<Message>>(consumerInstancePoolMock.Object, _checkpointTrigger.Object);
             _subject = new KafkaConsumerProcessor(_consumerSettings, _topicPartition, _commitControllerMock.Object, _mssageBusMock.Object, _messageQueueWorkerMock.Object);
         }

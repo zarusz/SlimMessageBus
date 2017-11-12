@@ -156,7 +156,7 @@ namespace SlimMessageBus.Host
             return topic;
         }
 
-        public abstract Task Publish(Type messageType, byte[] payload, string topic);
+        public abstract Task PublishToTransport(Type messageType, object message, string topic, byte[] payload);
 
         public virtual async Task Publish(Type messageType, object message, string topic = null)
         {
@@ -167,7 +167,7 @@ namespace SlimMessageBus.Host
             var payload = Settings.Serializer.Serialize(messageType, message);
 
             Log.DebugFormat("Publishing message of type {0} to topic {1} with payload size {2}", messageType, topic, payload.Length);
-            await Publish(messageType, payload, topic);
+            await PublishToTransport(messageType, message, topic, payload);
         }
 
         #region Implementation of IPublishBus
@@ -227,7 +227,7 @@ namespace SlimMessageBus.Host
             try
             {
                 Log.DebugFormat("Sending request message {0} to topic {1} with reply to {2} and payload size {3}", requestState, topic, replyTo, requestPayload.Length);
-                await Publish(requestType, requestPayload, topic);
+                await PublishToTransport(requestType, request, topic, requestPayload);
             }
             catch (PublishMessageBusException e)
             {
@@ -315,15 +315,13 @@ namespace SlimMessageBus.Host
         {
             var responseMessage = (MessageWithHeaders)Settings.MessageWithHeadersSerializer.Deserialize(typeof(MessageWithHeaders), responsePayload);
 
-            string requestId;
-            if (!responseMessage.TryGetHeader(ReqRespMessageHeaders.RequestId, out requestId))
+            if (!responseMessage.TryGetHeader(ReqRespMessageHeaders.RequestId, out string requestId))
             {
                 Log.ErrorFormat("The response message arriving on topic {0} did not have the {1} header. Unable to math the response with the request. This likely indicates a misconfiguration.", topic, ReqRespMessageHeaders.RequestId);
                 return;
             }
 
-            string error;
-            responseMessage.TryGetHeader(ReqRespMessageHeaders.Error, out error);
+            responseMessage.TryGetHeader(ReqRespMessageHeaders.Error, out string error);
 
             await OnResponseArrived(responseMessage.Payload, topic, requestId, error);
         }

@@ -81,7 +81,7 @@ namespace SlimMessageBus.Host.AzureEventHub
         /// <param name="payload"></param>
         /// <param name="topic"></param>
         /// <returns></returns>
-        public override async Task Publish(Type messageType, byte[] payload, string topic)
+        public override async Task PublishToTransport(Type messageType, object message, string topic, byte[] payload)
         {
             AssertActive();
 

@@ -17,5 +17,10 @@ namespace SlimMessageBus.Host
         {
             IsTrue(!value, exceptionFactory);
         }
+
+        public static void IsNotNull(object value, Func<Exception> exceptionFactory)
+        {
+            IsTrue(value != null, exceptionFactory);
+        }
     }
 }

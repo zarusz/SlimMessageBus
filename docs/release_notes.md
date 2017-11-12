@@ -1,5 +1,20 @@
 # Release Notes of SlimMessageBus
 
+## Version 0.10.1
+Date: 2017-11-13
+
+Changes:
+* SlimMessageBus.Host.Kafka:
+  * Upgraded Confluent.Kafka to version 0.11.2.
+  * Feature: Ability to specify message key and partition.
+* SlimMessageBus.Host: Minor changes required for Kafka features. 
+* SlimMessageBus.Host.AzureEventHub: Changes to reflect new version of SlimMessageBus.Host.
+
+Packages:
+* https://www.nuget.org/packages/SlimMessageBus.Host/0.10.1-beta1
+* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.10.1-beta1
+* https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub/0.10.1-beta1
+
 ## Version 0.9.15
 Date: 2017-10-29
 
@@ -17,7 +32,6 @@ Packages:
 * https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.15
 * https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub/0.9.15-alpha2
 * https://www.nuget.org/packages/SlimMessageBus.Host.Autofac/0.9.15
-
 
 ## Version 0.9.13
 Date: 2017-07-15

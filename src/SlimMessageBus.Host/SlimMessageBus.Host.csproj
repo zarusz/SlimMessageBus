@@ -69,8 +69,10 @@
     <Compile Include="Config\ITopicGroupConsumerSettings.cs" />
     <Compile Include="Consumer\CheckpointSettings.cs" />
     <Compile Include="Consumer\CheckpointTrigger.cs" />
+    <Compile Include="Consumer\Context\ConsumerContext.cs" />
     <Compile Include="Consumer\ConsumerInstancePool.cs" />
     <Compile Include="Consumer\CheckpointSettingsExtensions.cs" />
+    <Compile Include="Consumer\Context\IConsumerContextAware.cs" />
     <Compile Include="Consumer\ICheckpointTrigger.cs" />
     <Compile Include="Consumer\MessageProcessingResult.cs" />
     <Compile Include="Consumer\MessageQueueWorker.cs" />

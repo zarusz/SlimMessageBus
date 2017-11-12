@@ -260,7 +260,7 @@ namespace SlimMessageBus.Host.Test
 
         #region Overrides of BaseMessageBus
 
-        public override async Task Publish(Type messageType, byte[] payload, string topic)
+        public override async Task PublishToTransport(Type messageType, object message, string topic, byte[] payload)
         {
             var req = DeserializeRequest(messageType, payload, out string reqId, out string replyTo, out DateTimeOffset? expires);
 

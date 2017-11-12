@@ -41,10 +41,48 @@ The `librdkafka` distribution for Windows requires [Visual C++ Redistributable f
 
 ### Selecting message partition for topic producer
 
-In typical scenarios your topic is broken into multiple partitions. 
-The question is how does SMB Kafka choose the partition to assign the message?
+Kafka topics are broken into partitions. The question is how does SMB Kafka choose the partition to assign the message?
+There are two possible options:
 
-At the momemnt SMB Kafka does not pass the [partition key](https://kafka.apache.org/documentation/#intro_producers) to the underlying Kafka client. As a result the partition is chosen on a round-robin fashion.
+#### Default partitioner with message key
 
-In the near future ability to select the desired partition for a message will be added to SMB Kafka. 
-It will most likely be in a form of method delegate passed during SMB configuration (MessageBusBuilder).
+Currently the [confluent-kafka-dotnet](https://github.com/confluentinc/confluent-kafka-dotnet) does not support custom partitioners (see [here](https://github.com/confluentinc/confluent-kafka-dotnet/issues/343)). 
+The default partitioner is supported, which works in this way:
+* when message key is not provided then partition is assigned using round-robin,
+* when message key is provided then same partition is assigned to same key
+
+SMB Kafka allows to set a provider (selector) that will assign the message key for a given message and topic pair. Here is an example:
+
+```cs
+IMessageBus messageBus = new MessageBusBuilder()
+	.Publish<MultiplyRequest>(x => 
+	{
+		x.DefaultTopic("topic1");
+		// Message key could be set for the message
+		x.KeyProvider((request, topic) => Encoding.ASCII.GetBytes((request.Left + request.Right).ToString()));
+	})
+	.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers))
+	.Build();
+
+```
+
+The key must be a `byte[]`. 
+
+#### Assigning partition explicitly
+
+SMB Kafka allows to set a provider (selector) that will assign the partition number for a given message and topic pair. Here is an example:
+
+```cs
+IMessageBus messageBus = new MessageBusBuilder()
+	.Publish<PingMessage>(x =>
+	{
+		x.DefaultTopic("topic1");
+		// Partition #0 for even counters
+		// Partition #1 for odd counters
+		x.PartitionProvider((message, topic) => message.Counter % 2);
+	})
+	.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers))
+	.Build();
+```
+
+With this approach your provider needs to know the number of partitions for a topic.
