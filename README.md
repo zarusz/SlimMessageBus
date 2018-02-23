@@ -2,7 +2,7 @@
 
 SlimMessageBus is a client façade for message brokers for .NET. It comes with implementations for specific brokers (Apache Kafka, Azure EventHub, MQTT/Mosquitto, Redis Pub/Sub) and also for in memory message passing (in-process communication). SlimMessageBus additionally provides request-response messaging implementation.
 
-[![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s?svg=true)](https://ci.appveyor.com/project/zarusz/slimmessagebus)
+[![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s/branch/develop?svg=true)](https://ci.appveyor.com/project/zarusz/slimmessagebus/branch/develop)
 
 ### Features
 
@@ -38,7 +38,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 * Plugin architecture:
   * DI integration (Autofac, CommonServiceLocator)
   * Message serialization (JSON, XML)
-  * Use your favorite messaging broker as provider by simply pulling a nuget package 
+  * Use your favorite messaging broker as provider by simply pulling a nuget package
 * No threads created (pure TPL)
 * Async/Await support
 * Fluent configuration
@@ -50,7 +50,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
  `SlimMessageBus` | The interfaces to work with SlimMessageBus | [NuGet](https://www.nuget.org/packages/SlimMessageBus)
  `SlimMessageBus.Host` | The common implementation for the hosting application layer | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host)
  `SlimMessageBus.Host.Kafka` | Provider for Apache Kafka | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)
- `SlimMessageBus.Host.AzureEventHub` (alpha) | Provider for Azure Event Hub | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)
+ `SlimMessageBus.Host.AzureEventHub` | Provider for Azure Event Hub | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)
  `SlimMessageBus.Host.Redis` (future) | Provider for Redis | .
  `SlimMessageBus.Host.InMemory` (pending) | Implementation for in-process (memory) message passing | .
  `SlimMessageBus.Host.ServiceLocator` | Resolves dependencies from ServiceLocator | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator)
@@ -61,7 +61,7 @@ Typically your application components only need to depend on `SlimMessageBus` wh
 
 ## Samples
 
-Check out the [Samples](src/Samples/) folder.
+Check out the [Samples](Samples/) folder.
 
 ### Usage examples
 

@@ -12,7 +12,7 @@
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>$description$</description>
     <releaseNotes>Check out https://github.com/zarusz/SlimMessageBus/blob/master/docs/release_notes.md</releaseNotes>
-    <copyright>Copyright 2017</copyright>
+    <copyright>$copyright$</copyright>
     <tags>SlimMessageBus ServiceLocator CommonServiceLocator</tags>
   </metadata>
 </package>

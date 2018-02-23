@@ -1,37 +1,36 @@
 # Release Notes of SlimMessageBus
 
 ## Version 0.10.1
-Date: 2017-11-13
+Date: 2018-03-23
 
-Changes:
+Features:
 * SlimMessageBus.Host.Kafka:
-  * Upgraded Confluent.Kafka to version 0.11.2.
-  * Feature: Ability to specify message key and partition.
-* SlimMessageBus.Host: Minor changes required for Kafka features. 
-* SlimMessageBus.Host.AzureEventHub: Changes to reflect new version of SlimMessageBus.Host.
+  * Introducing partition selector.
+  * Introducing message key provider.
+* SlimMessageBus.Host.AzureEventHub:
+  * Released a stable version.
+* SlimMessageBus.Host
+  * Changes to support Kafka partition selector.
 
 Packages:
-* https://www.nuget.org/packages/SlimMessageBus.Host/0.10.1-beta1
-* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.10.1-beta1
-* https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub/0.10.1-beta1
+* https://www.nuget.org/packages/SlimMessageBus.Host/0.10.1
+* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.10.1
+* https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub/0.10.1
 
 ## Version 0.9.15
-Date: 2017-10-29
+Date: 2017-09-30
 
-Changes:
+Features:
 * SlimMessageBus.Host.Kafka:
   * Upgraded Confluent.Kafka from version 0.9.5 to 0.11.0.
   * Bugfix: When publish failed no error was reported to client code. Now exception will be thrown.
   * Internal refactoring and improvements.
-* SlimMessageBus.Host.AzureEventHub: Changes to reflect for new SlimMessageBus.Host internals.
-* SlimMessageBus.Host: Minor changes and improvements (mostly refactoring) to support reuse between Kafka and Azure EventHubs providers.
-* SlimMessageBus.Host.Autofac: Added missing nuget metadata (icons, tags).
+* Minor changes and improvements (mostly refactoring).
 
 Packages:
 * https://www.nuget.org/packages/SlimMessageBus.Host/0.9.15
 * https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/0.9.15
 * https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub/0.9.15-alpha2
-* https://www.nuget.org/packages/SlimMessageBus.Host.Autofac/0.9.15
 
 ## Version 0.9.13
 Date: 2017-07-15
