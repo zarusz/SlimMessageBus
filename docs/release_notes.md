@@ -1,7 +1,17 @@
 # Release Notes of SlimMessageBus
 
 ## Version 0.10.1
-Date: 2018-03-23
+Date: 2018-02-26
+
+Features:
+* SlimMessageBus.Host.Unity
+  * Provider for Unity container by @diseks
+
+Packages:
+* https://www.nuget.org/packages/SlimMessageBus.Host.Unity/0.10.1
+
+## Version 0.10.1
+Date: 2018-02-23
 
 Features:
 * SlimMessageBus.Host.Kafka:

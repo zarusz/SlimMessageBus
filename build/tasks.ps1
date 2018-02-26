@@ -16,6 +16,7 @@ $projects = @(
 	"SlimMessageBus.Host.Serialization.Json", 
 	"SlimMessageBus.Host.ServiceLocator", 
 	"SlimMessageBus.Host.Autofac",
+	"SlimMessageBus.Host.Unity",
 	"SlimMessageBus.Host.Kafka",
 	"SlimMessageBus.Host.AzureEventHub"
 )
