@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.IO;
 using Autofac;
-using Autofac.Extras.CommonServiceLocator;
-using Microsoft.Practices.ServiceLocation;
 using Sample.Images.FileStore;
 using Sample.Images.FileStore.Disk;
 using Sample.Images.Messages;
@@ -14,16 +13,17 @@ using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.ServiceLocator;
 using SlimMessageBus.Host.Kafka;
+using Microsoft.Extensions.Configuration;
 
 namespace Sample.Images.Worker
 {
     public class ContainerSetup
     {
-        public static IContainer Create()
+        public static IContainer Create(IConfigurationRoot configuration)
         {
             var builder = new ContainerBuilder();
 
-            Configure(builder);
+            Configure(builder, configuration);
 
             var container = builder.Build();
 
@@ -38,13 +38,14 @@ namespace Sample.Images.Worker
             return container;
         }
 
-        private static void Configure(ContainerBuilder builder)
+        private static void Configure(ContainerBuilder builder, IConfigurationRoot configuration)
         {
-            builder.RegisterType<DiskFileStore>().As<IFileStore>().SingleInstance();
+            var imagesPath = Path.Combine(Directory.GetCurrentDirectory(), "..\\Content");
+            builder.Register(x => new DiskFileStore(imagesPath)).As<IFileStore>().SingleInstance();
             builder.RegisterType<SimpleThumbnailFileIdStrategy>().As<IThumbnailFileIdStrategy>().SingleInstance();
 
             // SlimMessageBus
-            builder.Register(x => BuildMessageBus())
+            builder.Register(x => BuildMessageBus(configuration))
                 .AsImplementedInterfaces()
                 .SingleInstance();
 
@@ -52,11 +53,11 @@ namespace Sample.Images.Worker
             //builder.RegisterType<GenerateThumbnailRequestSubscriber>().AsSelf();
         }
 
-        private static IMessageBus BuildMessageBus()
+        private static IMessageBus BuildMessageBus(IConfigurationRoot configuration)
         {
             // unique id across instances of this application (e.g. 1, 2, 3)
-            var instanceId = ConfigurationManager.AppSettings["InstanceId"];
-            var kafkaBrokers = ConfigurationManager.AppSettings["Kafka.Brokers"];
+            var instanceId = configuration["InstanceId"];
+            var kafkaBrokers = configuration["Kafka:Brokers"];
 
             var instanceGroup = $"worker-{instanceId}";
             var sharedGroup = $"workers";

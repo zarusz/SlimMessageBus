@@ -63,7 +63,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             Action act = () => pb.KeyProvider(null);
 
             // assert
-            act.ShouldThrow<ConfigurationMessageBusException>();
+            act.Should().Throw<ConfigurationMessageBusException>();
         }
 
         [Fact]
@@ -75,7 +75,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             Action act = () => pb.PartitionProvider(null);
 
             // assert
-            act.ShouldThrow<ConfigurationMessageBusException>();
+            act.Should().Throw<ConfigurationMessageBusException>();
         }
     }
 }

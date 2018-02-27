@@ -54,7 +54,7 @@ namespace SlimMessageBus.Host.Test.Consumer
 
             // assert
             success.Should().BeTrue();
-            numFinishedMessages.ShouldBeEquivalentTo(numMessages);
+            numFinishedMessages.Should().Be(numMessages);
         }
 
         [Fact]

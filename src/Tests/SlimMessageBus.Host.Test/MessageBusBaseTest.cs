@@ -34,7 +34,7 @@ namespace SlimMessageBus.Host.Test
 
     public class MessageBusBaseTest : IDisposable
     {
-        private MessageBusTested _bus;
+        private readonly MessageBusTested _bus;
         private DateTimeOffset _timeZero;
         private DateTimeOffset _timeNow;
 
@@ -65,7 +65,7 @@ namespace SlimMessageBus.Host.Test
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProvider(s => new MessageBusTested(s));
 
-            _bus = (MessageBusTested)messageBusBuilder.Build();
+            _bus = (MessageBusTested) messageBusBuilder.Build();
 
             // provide current time
             _bus.CurrentTimeProvider = () => _timeNow;
@@ -91,7 +91,7 @@ namespace SlimMessageBus.Host.Test
 
             // after 10 seconds
             _timeNow = _timeZero.AddSeconds(timeoutForA_10 + 1);
-            _bus.CleanPendingRequests();
+            _bus.TriggerPendingRequestCleanup();
 
             // assert
             raTask.IsCanceled.Should().BeTrue();
@@ -99,7 +99,7 @@ namespace SlimMessageBus.Host.Test
 
             // adter 20 seconds
             _timeNow = _timeZero.AddSeconds(timeoutDefault_20 + 1);
-            _bus.CleanPendingRequests();
+            _bus.TriggerPendingRequestCleanup();
 
             // assert
             rbTask.IsCanceled.Should().BeTrue();
@@ -124,11 +124,11 @@ namespace SlimMessageBus.Host.Test
             // act
             var rTask = _bus.Send(r);
             WaitForTasks(2000, rTask);
-            _bus.CleanPendingRequests();
+            _bus.TriggerPendingRequestCleanup();
 
             // assert
             rTask.IsCompleted.Should().BeTrue("Response should be completed");
-            r.Id.ShouldBeEquivalentTo(rTask.Result.Id);
+            r.Id.Should().Be(rTask.Result.Id);
 
             _bus.PendingRequestsCount.Should().Be(0, "There should be no pending requests");
         }
@@ -162,7 +162,7 @@ namespace SlimMessageBus.Host.Test
 
             // 2 seconds later
             _timeNow = _timeZero.AddSeconds(2);
-            _bus.CleanPendingRequests();
+            _bus.TriggerPendingRequestCleanup();
 
             WaitForTasks(2000, r1Task, r2Task, r3Task);
 
@@ -188,7 +188,7 @@ namespace SlimMessageBus.Host.Test
 
             // act
             cts2.Cancel();
-            _bus.CleanPendingRequests();
+            _bus.TriggerPendingRequestCleanup();
             WaitForAnyTasks(2000, r1Task, r2Task);
 
             // assert
@@ -239,8 +239,8 @@ namespace SlimMessageBus.Host.Test
             _bus.DeserializeRequest(typeof(RequestA), p, out string rid2, out string replyTo2, out DateTimeOffset? expires2);
 
             // assert
-            rid2.ShouldBeEquivalentTo(rid);
-            replyTo2.ShouldBeEquivalentTo(replyTo);
+            rid2.Should().Be(rid);
+            replyTo2.Should().Be(replyTo);
             expires2.HasValue.Should().BeTrue();
             expires2.Value.Subtract(expires).TotalSeconds.Should().BeLessOrEqualTo(1);
         }
@@ -281,5 +281,10 @@ namespace SlimMessageBus.Host.Test
         #endregion
 
         public Func<DateTimeOffset> CurrentTimeProvider { get; set; }
+
+        public void TriggerPendingRequestCleanup()
+        {
+            this.PendingRequestManager.CleanPendingRequests();
+        }
     }
 }

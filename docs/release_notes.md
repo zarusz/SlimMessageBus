@@ -1,5 +1,21 @@
 # Release Notes of SlimMessageBus
 
+## Version 1.0.0
+Date: 2018-03-04
+
+Features:
+* Porting the project to .NET Standard and samples to .NET Core 2.0
+
+Packages:
+* https://www.nuget.org/packages/SlimMessageBus/1.0.0
+* https://www.nuget.org/packages/SlimMessageBus.Host/1.0.0
+* https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json/1.0.0
+* https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator/1.0.0
+* https://www.nuget.org/packages/SlimMessageBus.Host.Autofac/1.0.0
+* https://www.nuget.org/packages/SlimMessageBus.Host.Unity/1.0.0
+* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/1.0.0
+* https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub/1.0.0
+
 ## Version 0.10.1
 Date: 2018-02-26
 

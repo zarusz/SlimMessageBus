@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Timers;
 using Common.Logging;
 using SlimMessageBus.Host.Config;
-using Timer = System.Timers.Timer;
+using SlimMessageBus.Host.RequestResponse;
 
 namespace SlimMessageBus.Host
 {
@@ -19,7 +19,7 @@ namespace SlimMessageBus.Host
         protected readonly IDictionary<Type, PublisherSettings> PublisherSettingsByMessageType;
 
         protected readonly IPendingRequestStore PendingRequestStore;
-        protected readonly Timer PendingRequestTimer;
+        protected readonly PendingRequestManager PendingRequestManager;
 
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         public CancellationToken CancellationToken => _cancellationTokenSource.Token;
@@ -35,13 +35,13 @@ namespace SlimMessageBus.Host
             PublisherSettingsByMessageType = settings.Publishers.ToDictionary(x => x.MessageType);
 
             PendingRequestStore = new InMemoryPendingRequestStore();
-            PendingRequestTimer = new Timer
+            PendingRequestManager = new PendingRequestManager(PendingRequestStore, () => CurrentTime, TimeSpan.FromSeconds(1), request =>
             {
-                Interval = 1000,
-                AutoReset = true
-            };
-            PendingRequestTimer.Elapsed += CleanPendingRequests;
-            PendingRequestTimer.Start();
+                // Execute the event hook
+                // ToDo: sort out the ConsumerSettings arg for req/resp, for now pass null
+                (Settings.RequestResponse.OnMessageExpired ?? Settings.OnMessageExpired)?.Invoke(null, request);
+            });
+            PendingRequestManager.Start();
         }
 
         private static void AssertSettings(MessageBusSettings settings)
@@ -89,48 +89,16 @@ namespace SlimMessageBus.Host
             _cancellationTokenSource.Cancel();
             _cancellationTokenSource.Dispose();
 
-            PendingRequestTimer.Stop();
-            PendingRequestTimer.Dispose();
+            PendingRequestManager.Dispose();
         }
 
         #endregion
-
-        protected virtual void CleanPendingRequests(object sender, ElapsedEventArgs args)
-        {
-            CleanPendingRequests();
-        }
-
-        /// <summary>
-        /// Performs cleanup of pending requests (requests that timed out or were cancelled).
-        /// </summary>
-        public virtual void CleanPendingRequests()
-        {
-            var now = CurrentTime;
-
-            var requestsToCancel = PendingRequestStore.FindAllToCancel(now);
-            foreach (var requestState in requestsToCancel)
-            {
-                // request is either cancelled (via CancellationToken) or expired
-                var canceled = requestState.CancellationToken.IsCancellationRequested
-                    ? requestState.TaskCompletionSource.TrySetCanceled(requestState.CancellationToken)
-                    : requestState.TaskCompletionSource.TrySetCanceled();
-
-                if (PendingRequestStore.Remove(requestState.Id) && canceled)
-                {
-                    Log.DebugFormat("Pending request timed-out: {0}, now: {1}", requestState, now);
-                    // Execute the event hook
-                    // ToDo: sort out the ConsumerSettings arg for req/resp, for now pass null
-                    (Settings.RequestResponse.OnMessageExpired ?? Settings.OnMessageExpired)?.Invoke(null, requestState.Request);
-                }
-            }
-        }
 
         public virtual DateTimeOffset CurrentTime => DateTimeOffset.UtcNow;
 
         protected PublisherSettings GetPublisherSettings(Type messageType)
         {
-            PublisherSettings publisherSettings;
-            if (!PublisherSettingsByMessageType.TryGetValue(messageType, out publisherSettings))
+            if (!PublisherSettingsByMessageType.TryGetValue(messageType, out var publisherSettings))
             {
                 throw new PublishMessageBusException($"Message of type {messageType} was not registered as a supported publish message. Please check your MessageBus configuration and include this type.");
             }

@@ -9,12 +9,14 @@ using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization.Json;
 using Xunit;
 using System.Linq;
+using System.Reflection;
+using Microsoft.Extensions.Configuration;
 
 namespace SlimMessageBus.Host.Kafka.Test
 {
     public class KafkaMessageBusIt : IDisposable
     {
-        private static readonly ILog Log = LogManager.GetLogger<KafkaMessageBusIt>();
+        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         private const int NumberOfMessages = 77;
 
@@ -24,15 +26,18 @@ namespace SlimMessageBus.Host.Kafka.Test
 
         public KafkaMessageBusIt()
         {
-            // address to the Kafka broker
-            var kafkaBrokers = "localhost:9092";
+            var configuration = new ConfigurationBuilder()
+                .AddJsonFile("appsettings.json")
+                .Build();
+
+            var kafkaBrokers = configuration["Kafka:Brokers"];
 
             KafkaSettings = new KafkaMessageBusSettings(kafkaBrokers)
             {
                 ProducerConfigFactory = () => new Dictionary<string, object>
                 {
-                    {"socket.blocking.max.ms",1},
-                    {"queue.buffering.max.ms",1},
+                    {"socket.blocking.max.ms", 1},
+                    {"queue.buffering.max.ms", 1},
                     {"socket.nagle.disable", true}
                 },
                 ConsumerConfigFactory = (group) => new Dictionary<string, object>
@@ -41,7 +46,7 @@ namespace SlimMessageBus.Host.Kafka.Test
                     {"fetch.error.backoff.ms", 1},
                     {"statistics.interval.ms", 500000},
                     {"socket.nagle.disable", true},
-                    {"auto.offset.reset", "earliest"}
+                    {KafkaConfigKeys.Consumer.AutoOffsetReset, KafkaConfigValues.AutoOffsetReset.Earliest}
                 }
             };
 
@@ -49,7 +54,7 @@ namespace SlimMessageBus.Host.Kafka.Test
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderKafka(KafkaSettings);
 
-            MessageBus = new Lazy<KafkaMessageBus>(() => (KafkaMessageBus)MessageBusBuilder.Build());
+            MessageBus = new Lazy<KafkaMessageBus>(() => (KafkaMessageBus) MessageBusBuilder.Build());
         }
 
         public void Dispose()
@@ -93,8 +98,14 @@ namespace SlimMessageBus.Host.Kafka.Test
             // publish
             var stopwatch = Stopwatch.StartNew();
 
-            var messages = Enumerable.Range(0, NumberOfMessages).Select(i => new PingMessage { Counter = i, Timestamp = DateTime.UtcNow }).ToList();
-            messages.AsParallel().ForAll(m => MessageBus.Value.Publish(m).Wait());
+            var messages = Enumerable
+                .Range(0, NumberOfMessages)
+                .Select(i => new PingMessage { Counter = i, Timestamp = DateTime.UtcNow })
+                .ToList();
+
+            messages
+                .AsParallel()
+                .ForAll(m => kafkaMessageBus.Publish(m).Wait());
 
             stopwatch.Stop();
             Log.InfoFormat("Published {0} messages in {1}", messages.Count, stopwatch.Elapsed);
@@ -108,7 +119,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             // assert
 
             // all messages got back
-            messagesReceived.Count.ShouldBeEquivalentTo(messages.Count);
+            messagesReceived.Count.Should().Be(messages.Count);
 
             // Partition #0 => Messages with even counter
             messagesReceived
@@ -161,11 +172,15 @@ namespace SlimMessageBus.Host.Kafka.Test
 
             // act
 
-            var requests = Enumerable.Range(0, NumberOfMessages).Select(i => new EchoRequest { Index = i, Message = $"Echo {i}" }).ToList();
+            var requests = Enumerable
+                .Range(0, NumberOfMessages)
+                .Select(i => new EchoRequest { Index = i, Message = $"Echo {i}" })
+                .ToList();
+
             var responses = new List<Tuple<EchoRequest, EchoResponse>>();
             requests.AsParallel().ForAll(req =>
             {
-                var resp = MessageBus.Value.Send(req).Result;
+                var resp = kafkaMessageBus.Send(req).Result;
                 lock (responses)
                 {
                     responses.Add(Tuple.Create(req, resp));
@@ -175,7 +190,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             // assert
 
             // all messages got back
-            responses.Count.ShouldBeEquivalentTo(NumberOfMessages);
+            responses.Count.Should().Be(NumberOfMessages);
             responses.All(x => x.Item1.Message == x.Item2.Message).Should().BeTrue();
         }
 
@@ -184,9 +199,9 @@ namespace SlimMessageBus.Host.Kafka.Test
             var lastMessageCount = 0;
             var lastMessageStopwatch = Stopwatch.StartNew();
 
-            const int NewMessagesAwatingTimeout = 10;
+            const int newMessagesAwatingTimeout = 10;
 
-            while (lastMessageStopwatch.Elapsed.TotalSeconds < NewMessagesAwatingTimeout)
+            while (lastMessageStopwatch.Elapsed.TotalSeconds < newMessagesAwatingTimeout)
             {
                 Thread.Sleep(200);
 
@@ -208,7 +223,7 @@ namespace SlimMessageBus.Host.Kafka.Test
 
         public class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
         {
-            private static readonly ILog Log = LogManager.GetLogger<PingConsumer>();
+            private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
             public AsyncLocal<ConsumerContext> Context { get; } = new AsyncLocal<ConsumerContext>();
             public IList<Tuple<PingMessage, int>> Messages { get; } = new List<Tuple<PingMessage, int>>();

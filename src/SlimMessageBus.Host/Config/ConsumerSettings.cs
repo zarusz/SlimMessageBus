@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Reflection;
 
 namespace SlimMessageBus.Host.Config
 {
@@ -12,17 +13,14 @@ namespace SlimMessageBus.Host.Config
         /// </summary>
         public Type MessageType
         {
-            get
-            {
-                return _messageType;
-            }
+            get => _messageType;
             set
             {
                 _messageType = value;
 
                 ResponseType = _messageType
                     .GetInterfaces()
-                    .Where(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof (IRequestMessage<>))
+                    .Where(x => x.GetTypeInfo().IsGenericType && x.GetTypeInfo().GetGenericTypeDefinition() == typeof (IRequestMessage<>))
                     .Select(x => x.GetGenericArguments()[0])
                     .SingleOrDefault();
             }

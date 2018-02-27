@@ -18,8 +18,8 @@ namespace SlimMessageBus.Host.Test
             cs.CheckpointAfter(TimeSpan.FromHours(60));
 
             // assert
-            cs.Properties[CheckpointSettings.CheckpointCount].ShouldBeEquivalentTo(10);
-            cs.Properties[CheckpointSettings.CheckpointDuration].ShouldBeEquivalentTo(TimeSpan.FromHours(60));
+            cs.Properties[CheckpointSettings.CheckpointCount].Should().BeEquivalentTo(10);
+            cs.Properties[CheckpointSettings.CheckpointDuration].Should().BeEquivalentTo(TimeSpan.FromHours(60));
         }
 
         [Fact]
@@ -33,8 +33,8 @@ namespace SlimMessageBus.Host.Test
             cs.CheckpointAfter(TimeSpan.FromHours(60));
 
             // assert
-            cs.Properties[CheckpointSettings.CheckpointCount].ShouldBeEquivalentTo(10);
-            cs.Properties[CheckpointSettings.CheckpointDuration].ShouldBeEquivalentTo(TimeSpan.FromHours(60));
+            cs.Properties[CheckpointSettings.CheckpointCount].Should().BeEquivalentTo(10);
+            cs.Properties[CheckpointSettings.CheckpointDuration].Should().BeEquivalentTo(TimeSpan.FromHours(60));
         }
     }
 }

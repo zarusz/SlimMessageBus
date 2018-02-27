@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Configuration;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -9,9 +8,9 @@ namespace Sample.Images.FileStore.Disk
     {
         private readonly string _folder;
 
-        public DiskFileStore()
+        public DiskFileStore(string folder)
         {
-            _folder = ConfigurationManager.AppSettings["DiskFileStorage_Folder"];
+            _folder = folder;
         }
 
         #region Implementation of IFileStore

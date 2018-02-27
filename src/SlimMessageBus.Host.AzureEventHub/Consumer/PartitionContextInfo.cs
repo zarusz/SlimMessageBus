@@ -1,4 +1,5 @@
-using Microsoft.ServiceBus.Messaging;
+
+using Microsoft.Azure.EventHubs.Processor;
 
 namespace SlimMessageBus.Host.AzureEventHub
 {
@@ -15,7 +16,7 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         public override string ToString()
         {
-            return $"EventHubPath: {Context.EventHubPath}, ConsumerGroupName: {Context.ConsumerGroupName}, Lease.PartitionId: {Context.Lease.PartitionId}, Lease.Offset: {Context.Lease.Offset}";
+            return $"EventHubPath: {Context.EventHubPath}, ConsumerGroupName: {Context.ConsumerGroupName}, PartitionId: {Context.PartitionId}, Offset: {Context.RuntimeInformation.LastEnqueuedOffset}";
         }
 
         #endregion

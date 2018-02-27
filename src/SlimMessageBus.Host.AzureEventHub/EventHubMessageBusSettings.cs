@@ -1,5 +1,6 @@
 using System;
-using Microsoft.ServiceBus.Messaging;
+using Microsoft.Azure.EventHubs;
+using Microsoft.Azure.EventHubs.Processor;
 using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.AzureEventHub
@@ -34,18 +35,25 @@ namespace SlimMessageBus.Host.AzureEventHub
         public Func<ITopicGroupConsumerSettings, EventProcessorOptions> EventProcessorOptionsFactory { get; set; }
 
         /// <summary>
-        /// Provides the HostName for this options. By default a GUID string provider is used.
+        /// The storage container name for leases.
         /// </summary>
-        public Func<string> HostNameProvider { get; set; }
+        public string LeaseContainerName { get; set; }
 
-        public EventHubMessageBusSettings(string connectionString, string storageConnectionString)
+        public EventHubMessageBusSettings(string connectionString, string storageConnectionString, string leaseContainerName)
         {
             ConnectionString = connectionString;
             StorageConnectionString = storageConnectionString;
-            EventHubClientFactory = (path) => EventHubClient.CreateFromConnectionString(ConnectionString, path);
-            EventProcessorHostFactory = (consumerSettings) => new EventProcessorHost(HostNameProvider(), consumerSettings.Topic, consumerSettings.Group, ConnectionString, StorageConnectionString);
+            EventHubClientFactory = (path) =>
+            {
+                var connectionStringBuilder = new EventHubsConnectionStringBuilder(ConnectionString)
+                {
+                    EntityPath = path
+                };
+                return EventHubClient.CreateFromConnectionString(connectionStringBuilder.ToString());
+            };
+            EventProcessorHostFactory = (consumerSettings) => new EventProcessorHost(consumerSettings.Topic, consumerSettings.Group, ConnectionString, StorageConnectionString, LeaseContainerName);
             EventProcessorOptionsFactory = (consumerSettings) => EventProcessorOptions.DefaultOptions;
-            HostNameProvider = () => Guid.NewGuid().ToString("N");
+            LeaseContainerName = leaseContainerName;
         }
     }
 }

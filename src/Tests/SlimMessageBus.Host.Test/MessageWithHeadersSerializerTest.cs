@@ -8,8 +8,8 @@ namespace SlimMessageBus.Host.Test
 {
     public class MessageWithHeadersSerializerTest
     {
-        private byte[] _payload;
-        private MessageWithHeadersSerializer _serializer;
+        private readonly byte[] _payload;
+        private readonly MessageWithHeadersSerializer _serializer;
 
         public MessageWithHeadersSerializerTest()
         {
@@ -74,9 +74,9 @@ namespace SlimMessageBus.Host.Test
             // assert
             m2.Headers.Count.Should().Be(2);
             m2.Headers.ContainsKey("key1").Should().BeTrue();
-            m2.Headers["key1"].ShouldBeEquivalentTo("value1");
+            m2.Headers["key1"].Should().Be("value1");
             m2.Headers.ContainsKey("key2").Should().BeTrue();
-            m2.Headers["key2"].ShouldBeEquivalentTo("value22");
+            m2.Headers["key2"].Should().Be("value22");
             _payload.SequenceEqual(m2.Payload).Should().BeTrue();
         }
 
@@ -101,7 +101,7 @@ namespace SlimMessageBus.Host.Test
             // assert
             m2.Headers.Count.Should().Be(1);
             m2.Headers.ContainsKey("key1").Should().BeTrue();
-            m2.Headers["key1"].ShouldBeEquivalentTo(largeValue);
+            m2.Headers["key1"].Should().Be(largeValue);
         }
     }
 }

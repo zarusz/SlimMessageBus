@@ -30,7 +30,7 @@ namespace SlimMessageBus.Host.Test
             cs.MessageType = typeof(SomeRequest);
 
             // assert
-            cs.ResponseType.ShouldBeEquivalentTo(typeof(SomeResponse));
+            cs.ResponseType.Should().Be(typeof(SomeResponse));
             cs.IsRequestMessage.Should().BeTrue();
         }
 
@@ -43,7 +43,7 @@ namespace SlimMessageBus.Host.Test
             var cs = new ConsumerSettings();
 
             // assert
-            cs.Instances.ShouldBeEquivalentTo(1);
+            cs.Instances.Should().Be(1);
         }
     }
 }

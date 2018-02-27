@@ -1,9 +1,9 @@
 ﻿using System;
-using FluentAssertions;
 using Moq;
 using SlimMessageBus.Host.Collections;
 using System.Threading.Tasks;
 using Xunit;
+using FluentAssertions;
 
 namespace SlimMessageBus.Host.Test.Collections
 {
@@ -24,11 +24,11 @@ namespace SlimMessageBus.Host.Test.Collections
             var v2 = w.GetOrAdd(k, valueFactoryMock.Object);
 
             // assert
-            w.Dictonary.Count.ShouldBeEquivalentTo(1);
+            w.Dictonary.Count.Should().Be(1);
 
-            v1.ShouldBeEquivalentTo(v);
-            v2.ShouldBeEquivalentTo(v);
-            w.Dictonary[k].ShouldBeEquivalentTo(v);
+            v1.Should().BeEquivalentTo(v);
+            v2.Should().BeEquivalentTo(v);
+            w.Dictonary[k].Should().BeEquivalentTo(v);
 
             valueFactoryMock.Verify(x => x(k), Times.Once);
         }
@@ -44,7 +44,7 @@ namespace SlimMessageBus.Host.Test.Collections
             w.Clear();
 
             // assert
-            w.Dictonary.Count.ShouldBeEquivalentTo(0);
+            w.Dictonary.Count.Should().Be(0);
         }
 
         [Fact]
@@ -59,8 +59,8 @@ namespace SlimMessageBus.Host.Test.Collections
             Action addAction = () => w.Dictonary.Add("c", "c");
 
             // assert
-            clearAction.ShouldThrow<NotSupportedException>();
-            addAction.ShouldThrow<NotSupportedException>();
+            clearAction.Should().Throw<NotSupportedException>();
+            addAction.Should().Throw<NotSupportedException>();
         }
 
         [Fact]
@@ -90,7 +90,7 @@ namespace SlimMessageBus.Host.Test.Collections
             Task.WaitAll(task1, task2, task3);
 
             // assert
-            w.Dictonary.Count.ShouldBeEquivalentTo(3 * count);
+            w.Dictonary.Count.Should().Be(3 * count);
         }
     }
 }

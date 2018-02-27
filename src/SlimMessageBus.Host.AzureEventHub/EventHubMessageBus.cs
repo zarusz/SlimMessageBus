@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using Common.Logging;
-using Microsoft.ServiceBus.Messaging;
+using Microsoft.Azure.EventHubs;
 using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.Config;
 
@@ -58,14 +59,14 @@ namespace SlimMessageBus.Host.AzureEventHub
 
             _producerByTopic.Clear(producer =>
             {
-                Log.DebugFormat("Closing EventHubClient for path {0}", producer.Path);
+                Log.DebugFormat("Closing EventHubClient for path {0}", producer.EventHubName);
                 try
                 {
                     producer.Close();
                 }
                 catch (Exception e)
                 {
-                    Log.ErrorFormat("Error while closing EventHubClient for path {0}", e, producer.Path);
+                    Log.ErrorFormat("Error while closing EventHubClient for path {0}", e, producer.EventHubName);
                 }
             });
 
@@ -91,7 +92,7 @@ namespace SlimMessageBus.Host.AzureEventHub
             var ev = new EventData(payload);
             await producer.SendAsync(ev);
 
-            Log.DebugFormat("Delivered message at offset {0} and sequence {1}", ev.Offset, ev.SequenceNumber);
+            Log.Debug("Delivered message");
         }
     }
 }

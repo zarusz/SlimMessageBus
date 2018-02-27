@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Common.Logging;
@@ -12,7 +13,7 @@ namespace SlimMessageBus.Host.Test
 {
     public class ConsumerInstancePoolTest
     {
-        private static readonly ILog Log = LogManager.GetLogger(typeof(ConsumerInstancePoolTest));
+        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         private MessageBusMock _busMock;
 
@@ -118,8 +119,8 @@ namespace SlimMessageBus.Host.Test
             var minPossibleTime = messageCount * consumerTime / consumerSettings.Instances;
             var maxPossibleTime = messageCount * consumerTime;
 
-            processedMessageCount.ShouldBeEquivalentTo(messageCount);
-            maxInstances.ShouldBeEquivalentTo(consumerSettings.Instances);
+            processedMessageCount.Should().Be(messageCount);
+            maxInstances.Should().Be(consumerSettings.Instances);
             // max concurrent consumers should reach number of desired instances
             time.ElapsedMilliseconds.Should().BeInRange(minPossibleTime, maxPossibleTime);
 

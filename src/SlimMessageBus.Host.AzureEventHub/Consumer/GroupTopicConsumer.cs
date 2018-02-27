@@ -1,14 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using Common.Logging;
-using Microsoft.ServiceBus.Messaging;
+using Microsoft.Azure.EventHubs.Processor;
 using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.AzureEventHub
 {
     public class GroupTopicConsumer : IDisposable, IEventProcessorFactory
     {
-        private static readonly ILog Log = LogManager.GetLogger<GroupTopicConsumer>();
+        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         public readonly EventHubMessageBus MessageBus;
 
@@ -45,7 +46,6 @@ namespace SlimMessageBus.Host.AzureEventHub
         public void Dispose()
         {
             _processorHost.UnregisterEventProcessorAsync().Wait();
-            _processorHost.Dispose();
 
             _taskMarker.Stop().Wait();
 

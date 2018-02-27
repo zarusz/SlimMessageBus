@@ -1,5 +1,4 @@
-﻿using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 
 namespace SlimMessageBus.Host
 {
@@ -21,7 +20,7 @@ namespace SlimMessageBus.Host
             {
                 while (IsRunning)
                 {
-                    Thread.Sleep(100);
+                    Task.Delay(100).Wait();
                 }
             });
         }

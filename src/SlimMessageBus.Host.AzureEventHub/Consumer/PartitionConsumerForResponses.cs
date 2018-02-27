@@ -1,6 +1,8 @@
 using System;
+using System.Reflection;
 using Common.Logging;
-using Microsoft.ServiceBus.Messaging;
+using Microsoft.Azure.EventHubs;
+using Microsoft.Azure.EventHubs.Processor;
 using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.AzureEventHub
@@ -10,7 +12,7 @@ namespace SlimMessageBus.Host.AzureEventHub
     /// </summary>
     public class PartitionConsumerForResponses : PartitionConsumer
     {
-        private static readonly ILog Log = LogManager.GetLogger<PartitionConsumerForResponses>();
+        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         private readonly RequestResponseSettings _requestResponseSettings;
         private readonly ICheckpointTrigger _checkpointTrigger;
@@ -32,7 +34,7 @@ namespace SlimMessageBus.Host.AzureEventHub
             }
             try
             {
-                MessageBus.OnResponseArrived(message.GetBytes(), _requestResponseSettings.Topic).Wait();
+                MessageBus.OnResponseArrived(message.Body.Array, _requestResponseSettings.Topic).Wait();
             }
             catch (Exception e)
             {

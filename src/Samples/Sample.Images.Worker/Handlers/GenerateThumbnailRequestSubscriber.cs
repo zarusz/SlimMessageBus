@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 using System.Threading.Tasks;
 using Common.Logging;
 using Sample.Images.Messages;
@@ -8,7 +9,7 @@ namespace Sample.Images.Worker.Handlers
 {
     public class GenerateThumbnailRequestConsumer : IConsumer<GenerateThumbnailRequest>
     {
-        private static readonly ILog Log = LogManager.GetLogger<GenerateThumbnailRequestConsumer>();
+        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         private readonly string _instanceId;
 

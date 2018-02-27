@@ -1,20 +1,22 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web.Http;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Sample.Images.FileStore;
 using Sample.Images.Messages;
 using SlimMessageBus;
 
 namespace Sample.Images.WebApi.Controllers
 {
-    [AllowAnonymous]
-    [RoutePrefix("api/Image")]
-    public class ImageController : ApiController
+    [Route("api/[controller]")]
+    public class ImageController : Controller
     {
         private readonly IRequestResponseBus _bus;
         private readonly IFileStore _fileStore;
@@ -27,8 +29,8 @@ namespace Sample.Images.WebApi.Controllers
             _fileIdStrategy = fileIdStrategy;
         }
 
-        [Route("{fileId}")]
-        public async Task<HttpResponseMessage> GetImageThumbnail(string fileId, ThumbnailMode mode, int w, int h, CancellationToken cancellationToken)
+        [HttpGet("{fileId}/r")]
+        public async Task<ActionResult> GetImageThumbnail(string fileId, [FromQuery] ThumbnailMode mode, [FromQuery] int w, [FromQuery] int h, CancellationToken cancellationToken)
         {
             var thumbFileId = _fileIdStrategy.GetFileId(fileId, w, h, mode);
 
@@ -40,40 +42,36 @@ namespace Sample.Images.WebApi.Controllers
                     var thumbGenResponse = await _bus.Send(new GenerateThumbnailRequest(fileId, mode, w, h), cancellationToken);
                     thumbFileContent = await _fileStore.GetFile(thumbGenResponse.FileId);
                 }
-                catch (RequestHandlerFaultedMessageBusException e)
+                catch (RequestHandlerFaultedMessageBusException)
                 {
                     // The request handler for GenerateThumbnailRequest failed
-                    return Request.CreateResponse(HttpStatusCode.NotFound);
+                    return NotFound();
                 }
-                catch (OperationCanceledException e)
+                catch (OperationCanceledException)
                 {
                     // The request was cancelled (HTTP connection cancelled, or request timed out)
-                    return Request.CreateErrorResponse(HttpStatusCode.ServiceUnavailable, "The request was cancelled");
+                    return StatusCode(StatusCodes.Status503ServiceUnavailable, "The request was cancelled");
                 }
             }
 
             return ServeStream(thumbFileContent);
         }
 
-        [Route("{fileId}")]
-        public async Task<HttpResponseMessage> GetImage(string fileId)
+        [HttpGet("{fileId}")]
+        public async Task<ActionResult> GetImage(string fileId)
         {
             var fileContent = await _fileStore.GetFile(fileId);
             if (fileContent == null)
             {
-                return Request.CreateResponse(HttpStatusCode.NotFound);
+                return NotFound();
             }
             return ServeStream(fileContent);
         }
 
-        public HttpResponseMessage ServeStream(Stream content)
+        public FileStreamResult ServeStream(Stream content)
         {
-            var r = new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StreamContent(content)
-            };
             // ToDo: determine media type 
-            r.Content.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+            var r = new FileStreamResult(content, "image/jpeg");
             // ToDo: add cache-control headers
             return r;
         }

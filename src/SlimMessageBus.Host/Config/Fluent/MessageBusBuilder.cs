@@ -54,6 +54,12 @@ namespace SlimMessageBus.Host.Config
             return this;
         }
 
+        public MessageBusBuilder Do(Action<MessageBusBuilder> builder)
+        {
+            builder(this);
+            return this;
+        }
+
         public IMessageBus Build()
         {
             return _factory(_settings);

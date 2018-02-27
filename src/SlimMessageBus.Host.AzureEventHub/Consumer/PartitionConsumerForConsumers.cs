@@ -1,5 +1,7 @@
+using System.Reflection;
 using Common.Logging;
-using Microsoft.ServiceBus.Messaging;
+using Microsoft.Azure.EventHubs;
+using Microsoft.Azure.EventHubs.Processor;
 using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.AzureEventHub
@@ -9,7 +11,7 @@ namespace SlimMessageBus.Host.AzureEventHub
     /// </summary>
     public class PartitionConsumerForConsumers : PartitionConsumer
     {
-        private static readonly ILog Log = LogManager.GetLogger<PartitionConsumerForConsumers>();
+        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         private readonly ConsumerInstancePool<EventData> _instancePool;
         private readonly MessageQueueWorker<EventData> _queueWorker; 
@@ -17,7 +19,7 @@ namespace SlimMessageBus.Host.AzureEventHub
         public PartitionConsumerForConsumers(EventHubMessageBus messageBus, ConsumerSettings consumerSettings)
             : base(messageBus)
         {
-            _instancePool = new ConsumerInstancePool<EventData>(consumerSettings, messageBus, e => e.GetBytes());
+            _instancePool = new ConsumerInstancePool<EventData>(consumerSettings, messageBus, e => e.Body.Array);
             _queueWorker = new MessageQueueWorker<EventData>(_instancePool, new CheckpointTrigger(consumerSettings));
         }
 

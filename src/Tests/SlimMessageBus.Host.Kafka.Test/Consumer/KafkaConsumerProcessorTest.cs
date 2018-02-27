@@ -48,7 +48,7 @@ namespace SlimMessageBus.Host.Kafka.Test
         [Fact]
         public void AfterCreation_TopicPartitonSet()
         {
-            _subject.TopicPartition.ShouldBeEquivalentTo(_topicPartition);
+            _subject.TopicPartition.Should().Be(_topicPartition);
         }
 
         [Fact]

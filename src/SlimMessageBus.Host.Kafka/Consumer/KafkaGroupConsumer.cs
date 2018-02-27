@@ -108,7 +108,7 @@ namespace SlimMessageBus.Host.Kafka
                     catch (Exception e)
                     {
                         Log.ErrorFormat("Group [{0}]: Error occured while polling new messages (will retry in {1})", e, Group, pollRetryInterval);
-                        Thread.Sleep(pollRetryInterval);
+                        Task.Delay(pollRetryInterval, _consumerCts.Token).Wait(_consumerCts.Token);
                     }
                 }
             }

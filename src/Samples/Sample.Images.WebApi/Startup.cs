@@ -1,47 +1,113 @@
-﻿using System.Reflection;
-using System.Web.Http;
-using System.Web.Mvc;
+﻿using System;
+using System.IO;
 using Autofac;
-using Autofac.Integration.Mvc;
-using Autofac.Integration.WebApi;
-using Microsoft.Owin;
-using Owin;
-
-[assembly: OwinStartup(typeof(Sample.Images.WebApi.Startup))]
+using Common.Logging;
+using Common.Logging.Configuration;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Sample.Images.FileStore;
+using Sample.Images.FileStore.Disk;
+using Sample.Images.Messages;
+using SlimMessageBus;
+using SlimMessageBus.Host.Autofac;
+using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host.Kafka;
+using SlimMessageBus.Host.Serialization.Json;
+using SlimMessageBus.Host.ServiceLocator;
 
 namespace Sample.Images.WebApi
 {
-    public partial class Startup
+    public class Startup
     {
-        public void Configuration(IAppBuilder app)
+        public Startup(IConfiguration configuration)
         {
-            // STANDARD WEB API SETUP:
+            Configuration = configuration;
 
-            // Get your HttpConfiguration. In OWIN, you'll create one
-            // rather than using GlobalConfiguration.
-            var config = new HttpConfiguration();
+            var logConfiguration = new LogConfiguration();
+            configuration.GetSection("LogConfiguration").Bind(logConfiguration);
+            LogManager.Configure(logConfiguration);
+        }
 
-            var container = ContainerSetup.Create();
+        public IConfiguration Configuration { get; }
 
-            // Run other optional steps, like registering filters,
-            // per-controller-type services, etc., then set the dependency resolver
-            // to be Autofac.
-            config.DependencyResolver = new AutofacWebApiDependencyResolver(container);
-            DependencyResolver.SetResolver(new AutofacDependencyResolver(container));
+        public IContainer ApplicationContainer
+        {
+            get => _container;
+            set
+            {
+                _container = value;
+                AutofacMessageBusDependencyResolver.Container = value;
+            }
+        }
+        private IContainer _container;
 
-            // OWIN WEB API SETUP:
+        // This method gets called by the runtime. Use this method to add services to the container.
+        public void ConfigureServices(IServiceCollection services)
+        {
+            services.AddMvc();
+        }
 
-            // Register the Autofac middleware FIRST, then the Autofac Web API middleware,
-            // and finally the standard Web API middleware.
-            app.UseAutofacMiddleware(container);
-            app.UseAutofacWebApi(config);
-            app.UseAutofacMvc();
-            app.UseWebApi(config);
+        // ConfigureContainer is where you can register things directly
+        // with Autofac. This runs after ConfigureServices so the things
+        // here will override registrations made in ConfigureServices.
+        // Don't build the container; that gets done for you. If you
+        // need a reference to the container, you need to use the
+        // "Without ConfigureContainer" mechanism shown later.
+        public void ConfigureContainer(ContainerBuilder builder)
+        {
+            var imagesPath = Path.Combine(Directory.GetCurrentDirectory(), "..\\Content");
+            builder.Register(x => new DiskFileStore(imagesPath)).As<IFileStore>().SingleInstance();
+            builder.RegisterType<SimpleThumbnailFileIdStrategy>().As<IThumbnailFileIdStrategy>().SingleInstance();
 
-            WebApiConfig.Register(config);
-            MvcConfig.Register(config);
+            // SlimMessageBus
+            var messageBus = BuildMessageBus();
+            builder.RegisterInstance(messageBus).AsImplementedInterfaces();
+        }
 
-            //ConfigureAuth(app);
+        private IMessageBus BuildMessageBus()
+        {
+            // unique id across instances of this application (e.g. 1, 2, 3)
+            var instanceId = Configuration["InstanceId"];
+            var kafkaBrokers = Configuration["Kafka:Brokers"];
+
+            var instanceGroup = $"webapi-{instanceId}";
+            var instanceReplyTo = $"webapi-{instanceId}-response";
+
+            var messageBusBuilder = new MessageBusBuilder()
+                .Publish<GenerateThumbnailRequest>(x =>
+                {
+                    // Default response timeout for this request type
+                    //x.DefaultTimeout(TimeSpan.FromSeconds(10));
+                    x.DefaultTopic("thumbnail-generation");
+                })
+                .ExpectRequestResponses(x =>
+                {
+                    x.ReplyToTopic(instanceReplyTo);
+                    x.Group(instanceGroup);
+                    // Default global response timeout
+                    x.DefaultTimeout(TimeSpan.FromSeconds(30));
+                })
+                //.WithDependencyResolverAsServiceLocator()
+                .WithDependencyResolverAsAutofac()
+                .WithSerializer(new JsonMessageSerializer())
+                .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
+
+            var messageBus = messageBusBuilder.Build();
+            return messageBus;
+        }
+
+
+        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        {
+            if (env.IsDevelopment())
+            {
+                app.UseDeveloperExceptionPage();
+            }
+
+            app.UseMvc();
         }
     }
 }

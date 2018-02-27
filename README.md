@@ -45,24 +45,24 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 
 ## Packages
 
- Name | Descripton | NuGet
- ------------ | ------------- | -------------
- `SlimMessageBus` | The interfaces to work with SlimMessageBus | [NuGet](https://www.nuget.org/packages/SlimMessageBus)
- `SlimMessageBus.Host` | The common implementation for the hosting application layer | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host)
- `SlimMessageBus.Host.Kafka` | Provider for Apache Kafka | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)
- `SlimMessageBus.Host.AzureEventHub` | Provider for Azure Event Hub | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)
- `SlimMessageBus.Host.Redis` (future) | Provider for Redis | .
- `SlimMessageBus.Host.InMemory` (pending) | Implementation for in-process (memory) message passing | .
- `SlimMessageBus.Host.ServiceLocator` | Resolves dependencies from ServiceLocator | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator)
- `SlimMessageBus.Host.Autofac` | Resolves dependencies from Autofac container | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Autofac)
- `SlimMessageBus.Host.Unity` | Resolves dependencies from Unity container | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Unity)
- `SlimMessageBus.Host.Serialization.Json` | Message serialization provider for JSON | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json)
+ Name | Descripton | NuGet | .NET Standard
+ ------------ | ------------- | ------------- | -----------
+ `SlimMessageBus` | The interfaces to work with SlimMessageBus | [NuGet](https://www.nuget.org/packages/SlimMessageBus) | 1.3
+ `SlimMessageBus.Host` | The common implementation for the hosting application layer | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host) | 1.3
+ `SlimMessageBus.Host.Kafka` | Provider for Apache Kafka | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka) | 1.3
+ `SlimMessageBus.Host.AzureEventHub` | Provider for Azure Event Hub | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub) | 2.0
+ `SlimMessageBus.Host.Redis` (future) | Provider for Redis | . | .
+ `SlimMessageBus.Host.InMemory` (pending) | Implementation for in-process (memory) message passing | . | .
+ `SlimMessageBus.Host.ServiceLocator` | Resolves dependencies from ServiceLocator | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator) | 1.3
+ `SlimMessageBus.Host.Autofac` | Resolves dependencies from Autofac container | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Autofac) | 1.3
+ `SlimMessageBus.Host.Unity` | Resolves dependencies from Unity container | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Unity) | 1.3
+ `SlimMessageBus.Host.Serialization.Json` | Message serialization provider for JSON | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json) | 1.3
 
 Typically your application components only need to depend on `SlimMessageBus` which is the facade. However, your application hosting layer (ASP.NET, Windows Service, Console App) will reference and configure the other packages (`SlimMessageBus.Host.*`) which are the providers and plugins.
 
 ## Samples
 
-Check out the [Samples](Samples/) folder.
+Check out the [Samples](src/Samples/) folder.
 
 ### Usage examples
 
@@ -202,3 +202,21 @@ MessageBus.SetProvider(() => bus);
 * [Release Notes](docs/release_notes.md)
 * [Apache Kafka Wiki](docs/provider_kafka_notes.md)
 * [Azure EventHubs Wiki](docs/provider_eventhubs_notes.md)
+
+## Building
+
+To build:
+```
+.\build\do_build.ps1
+```
+
+To create NuGet packages (in `dist` folder):
+
+```
+.\build\do_package.ps1
+```
+
+To push NuGet packages to `local` repository:
+```
+.\build\do_push_local.ps1
+```
