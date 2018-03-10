@@ -25,10 +25,10 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 * Producers:
   * `IPublishBus` - publisher in pub/sub (or queue producer)
   * `IRequestResponseBus` - sender in req/resp
-  * `IMessageBus`
-* Misc
+  * `IMessageBus` - extends `IPublishBus` and `IRequestResponseBus`
+* Misc:
   * `IRequestMessage<TResponse>` - marker for request messages
-  * `MessageBus`
+  * `MessageBus` - singleton accessor for current `IMessageBus`
 
 ## Principles
 * The core of `SlimMessageBus` is "slim"
@@ -36,7 +36,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
   * No external dependencies. Logging is done via `Common.Logging`, so that you can connect your favorite logger provider.
   * The core interface can be used in domain model (e.g. DomainEvents)
 * Plugin architecture:
-  * DI integration (Autofac, CommonServiceLocator)
+  * DI integration (Autofac, CommonServiceLocator, Unity)
   * Message serialization (JSON, XML)
   * Use your favorite messaging broker as provider by simply pulling a nuget package
 * No threads created (pure TPL)
@@ -75,7 +75,7 @@ Use case:
 
 Frontend makes a call to resize an image 'DSC0862.jpg' to '120x80' in size, by using this URL:
 ```
-http://localhost:50452/api/Image/DSC0862.jpg/?w=120&h=80&mode=1
+http://localhost:50452/api/Image/r/DSC0862.jpg/?w=120&h=80&mode=1
 ```
 
 This gets handled by the WebApi method of the `ImageController`
