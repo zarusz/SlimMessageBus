@@ -2,6 +2,18 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <PackageTags>Azure EventHubs provider SlimMessageBus MessageBus bus facade</PackageTags>
+    <PackageReleaseNotes>Check out https://github.com/zarusz/SlimMessageBus/blob/master/docs/release_notes.md</PackageReleaseNotes>
+    <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
+    <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.png</PackageIconUrl>
+    <Description>Azure EventHubs provider for SlimMessageBus</Description>
+    <Product>SlimMessageBus</Product>
+    <Company>zarusz</Company>
+    <Authors>zarusz</Authors>
+    <Version>1.0.1</Version>
+    <Copyright>Copyright © 2018</Copyright>
   </PropertyGroup>
 
   <ItemGroup>

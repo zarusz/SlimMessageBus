@@ -1,5 +1,21 @@
 # Release Notes of SlimMessageBus
 
+## Version 1.0.1
+Date: 2018-03-12
+
+Features:
+* Updating package metadata (license, tags, description, etc).
+
+Packages:
+* https://www.nuget.org/packages/SlimMessageBus/1.0.1
+* https://www.nuget.org/packages/SlimMessageBus.Host/1.0.1
+* https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json/1.0.1
+* https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator/1.0.1
+* https://www.nuget.org/packages/SlimMessageBus.Host.Autofac/1.0.1
+* https://www.nuget.org/packages/SlimMessageBus.Host.Unity/1.0.1
+* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/1.0.1
+* https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub/1.0.1
+
 ## Version 1.0.0
 Date: 2018-03-04
 

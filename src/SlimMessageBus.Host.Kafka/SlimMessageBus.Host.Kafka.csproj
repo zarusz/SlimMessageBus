@@ -2,10 +2,18 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard1.3</TargetFramework>
-    <Authors />
+    <Authors>zarusz</Authors>
     <Company>zarusz</Company>
     <Description>Apache Kafka provider for SlimMessageBus</Description>
     <Copyright>Copyright © 2018</Copyright>
+    <PackageTags>Apache Kafka provider SlimMessageBus MessageBus bus facade</PackageTags>
+    <Version>1.0.1</Version>
+    <Product>SlimMessageBus</Product>
+    <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.png</PackageIconUrl>
+    <PackageReleaseNotes>Check out https://github.com/zarusz/SlimMessageBus/blob/master/docs/release_notes.md</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

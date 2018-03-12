@@ -3,9 +3,17 @@
   <PropertyGroup>
     <TargetFramework>netstandard1.3</TargetFramework>
     <Copyright>Copyright © 2018</Copyright>
-    <Authors />
+    <Authors>zarusz</Authors>
     <Company>zarusz</Company>
     <Description>Extension to SlimMessageBus that resolves dependencies from Unity</Description>
+    <Version>1.0.1</Version>
+    <Product>SlimMessageBus</Product>
+    <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.png</PackageIconUrl>
+    <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
+    <PackageTags>SlimMessageBus Unity</PackageTags>
+    <PackageReleaseNotes>Check out https://github.com/zarusz/SlimMessageBus/blob/master/docs/release_notes.md</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
