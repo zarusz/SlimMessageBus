@@ -16,8 +16,7 @@ namespace SlimMessageBus.Host.Config
 
         public T GetOrDefault<T>(string key, T defaultValue)
         {
-            object value;
-            if (Properties.TryGetValue(key, out value))
+            if (Properties.TryGetValue(key, out var value))
             {
                 return (T) value;
             }

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Diagnostics;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Common.Logging;
@@ -47,7 +47,16 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
 
         public void Dispose()
         {
-            MessageBus.Value.Dispose();
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                MessageBus.Value.Dispose();
+            }
         }
 
         [Fact]
@@ -55,8 +64,7 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
         public void BasicPubSub()
         {
             // arrange
-            
-            var topic = $"test-ping";
+            var topic = "test-ping";
 
             var pingConsumer = new PingConsumer();
 
@@ -92,13 +100,13 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
                 .ForAll(m => kafkaMessageBus.Publish(m).Wait());
 
             stopwatch.Stop();
-            Log.InfoFormat("Published {0} messages in {1}", messages.Count, stopwatch.Elapsed);
+            Log.InfoFormat(CultureInfo.InvariantCulture, "Published {0} messages in {1}", messages.Count, stopwatch.Elapsed);
 
             // consume
             stopwatch.Restart();
             var messagesReceived = ConsumeFromTopic(pingConsumer);
             stopwatch.Stop();
-            Log.InfoFormat("Consumed {0} messages in {1}", messagesReceived.Count, stopwatch.Elapsed);
+            Log.InfoFormat(CultureInfo.InvariantCulture, "Consumed {0} messages in {1}", messagesReceived.Count, stopwatch.Elapsed);
 
             // assert
 
@@ -113,7 +121,7 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
             // arrange
 
             // ensure the topic has 2 partitions
-            var topic = $"test-echo";
+            var topic = "test-echo";
             var echoRequestHandler = new EchoRequestHandler();
 
             MessageBusBuilder
@@ -163,7 +171,7 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
             responses.All(x => x.Item1.Message == x.Item2.Message).Should().BeTrue();
         }
 
-        private IList<PingMessage> ConsumeFromTopic(PingConsumer pingConsumer)
+        private static IList<PingMessage> ConsumeFromTopic(PingConsumer pingConsumer)
         {
             var lastMessageCount = 0;
             var lastMessageStopwatch = Stopwatch.StartNew();
@@ -184,13 +192,13 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
             return pingConsumer.Messages;
         }
 
-        public class PingMessage
+        private class PingMessage
         {
             public DateTime Timestamp { get; set; }
             public int Counter { get; set; }
         }
 
-        public class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
+        private class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
         {
             private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -206,25 +214,25 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
                     Messages.Add(message);
                 }
 
-                Log.InfoFormat("Got message {0} on topic {1}.", message.Counter, topic);
+                Log.InfoFormat(CultureInfo.InvariantCulture, "Got message {0} on topic {1}.", message.Counter, topic);
                 return Task.CompletedTask;
             }
 
             #endregion
         }
 
-        public class EchoRequest: IRequestMessage<EchoResponse>
+        private class EchoRequest: IRequestMessage<EchoResponse>
         {
             public int Index { get; set; }
             public string Message { get; set; }
         }
 
-        public class EchoResponse
+        private class EchoResponse
         {
             public string Message { get; set; }
         }
 
-        public class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
+        private class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
         {
             public Task<EchoResponse> OnHandle(EchoRequest request, string topic)
             {

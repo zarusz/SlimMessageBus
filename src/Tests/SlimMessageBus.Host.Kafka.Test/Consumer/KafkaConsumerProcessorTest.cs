@@ -8,51 +8,62 @@ using Xunit;
 
 namespace SlimMessageBus.Host.Kafka.Test
 {
-    public class KafkaConsumerProcessorTest
+    public class KafkaConsumerProcessorTest : IDisposable
     {
-        MessageBusMock _mssageBusMock;
-        TopicPartition _topicPartition;
+        private readonly TopicPartition _topicPartition;
 
-        Mock<IKafkaCommitController> _commitControllerMock = new Mock<IKafkaCommitController>();
-        Mock<ICheckpointTrigger> _checkpointTrigger = new Mock<ICheckpointTrigger>();
-        Mock<ConsumerInstancePool<Message>> consumerInstancePoolMock;
-        Mock<MessageQueueWorker<Message>> _messageQueueWorkerMock;
+        private readonly Mock<IKafkaCommitController> _commitControllerMock = new Mock<IKafkaCommitController>();
+        private readonly Mock<ICheckpointTrigger> _checkpointTrigger = new Mock<ICheckpointTrigger>();
+        private readonly Mock<MessageQueueWorker<Message>> _messageQueueWorkerMock;
 
-        ConsumerSettings _consumerSettings;
-        SomeMessageConsumer _consumer = new SomeMessageConsumer();
+        private readonly SomeMessageConsumer _consumer = new SomeMessageConsumer();
 
-        KafkaConsumerProcessor _subject;
+        private readonly KafkaConsumerProcessor _subject;
 
         public KafkaConsumerProcessorTest()
         {
             _topicPartition = new TopicPartition("topic-a", 0);
 
-            _consumerSettings = new ConsumerSettings()
+            var consumerSettings = new ConsumerSettings
             {
                 MessageType = typeof(SomeMessage),
                 Topic = _topicPartition.Topic,
                 ConsumerType = typeof(SomeMessageConsumer),
-                ConsumerMode = ConsumerMode.Subscriber,
+                ConsumerMode = ConsumerMode.Subscriber
             };
 
-            _mssageBusMock = new MessageBusMock();
-            _mssageBusMock.BusSettings.Consumers.Add(_consumerSettings);
-            _mssageBusMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageConsumer))).Returns(_consumer);
+            var mssageBusMock = new MessageBusMock();
+            mssageBusMock.BusSettings.Consumers.Add(consumerSettings);
+            mssageBusMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageConsumer))).Returns(_consumer);
 
-            Func<Message, byte[]> messageValueProvider = m => m.Value;
-            consumerInstancePoolMock = new Mock<ConsumerInstancePool<Message>>(_consumerSettings, _mssageBusMock.Object, messageValueProvider, null);
+            byte[] MessageValueProvider(Message m) => m.Value;
+            var consumerInstancePoolMock = new Mock<ConsumerInstancePool<Message>>(consumerSettings, mssageBusMock.Bus, (Func<Message, byte[]>) MessageValueProvider, null);
             _messageQueueWorkerMock = new Mock<MessageQueueWorker<Message>>(consumerInstancePoolMock.Object, _checkpointTrigger.Object);
-            _subject = new KafkaConsumerProcessor(_consumerSettings, _topicPartition, _commitControllerMock.Object, _mssageBusMock.Object, _messageQueueWorkerMock.Object);
+            _subject = new KafkaConsumerProcessor(consumerSettings, _topicPartition, _commitControllerMock.Object, mssageBusMock.Bus, _messageQueueWorkerMock.Object);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _subject.Dispose();
+            }
         }
 
         [Fact]
-        public void AfterCreation_TopicPartitonSet()
+        public void WhenNewInstanceThenTopicPartitonSet()
         {
             _subject.TopicPartition.Should().Be(_topicPartition);
         }
 
         [Fact]
-        public void OnPartitionEndReached_ShouldCommit()
+        public void WhenOnPartitionEndReachedThenShouldCommit()
         {
             // arrange
             var partition = new TopicPartitionOffset(_topicPartition, new Offset(10));
@@ -65,7 +76,7 @@ namespace SlimMessageBus.Host.Kafka.Test
         }
 
         [Fact]
-        public void OnPartitionRevoked_ShouldClearWorkerQueue()
+        public void WhenOnPartitionRevokedThenShouldClearWorkerQueue()
         {
             // arrange
 
@@ -77,7 +88,7 @@ namespace SlimMessageBus.Host.Kafka.Test
         }
 
         [Fact]
-        public void OnMessage_WhenWorkerQueueSubmitReturnTrue_ShouldCommit()
+        public void WhenOnMessageAndWorkerQueueSubmitReturnTrueThenShouldCommit()
         {
             // arrange
             var message = GetSomeMessage();
@@ -91,7 +102,7 @@ namespace SlimMessageBus.Host.Kafka.Test
         }
 
         [Fact]
-        public void OnMessage_WhenWorkerQueueSubmitReturnFalse_ShouldNotCommit()
+        public void WhenOnMessageAndWorkerQueueSubmitReturnFalseThenShouldNotCommit()
         {
             // arrange
             var message = GetSomeMessage();
@@ -105,12 +116,11 @@ namespace SlimMessageBus.Host.Kafka.Test
         }
 
         [Fact]
-        public void Commit_ShouldSyncPendingMessages()
+        public void WhenCommitThenShouldSyncPendingMessages()
         {
             // arrange
             var offset = new TopicPartitionOffset(_topicPartition, new Offset(10));
             Message message;
-            //_messageQueueWorkerMock.Setup(x => x.Submit(message)).Returns(false);
 
             // act
             _subject.Commit(offset).Wait();
@@ -135,7 +145,7 @@ namespace SlimMessageBus.Host.Kafka.Test
     {
         public Task OnHandle(SomeMessage message, string topic)
         {
-            return Task.FromResult(0);
+            return Task.CompletedTask;
         }
     }
 }

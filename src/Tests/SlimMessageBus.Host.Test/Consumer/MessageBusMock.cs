@@ -12,7 +12,7 @@ namespace SlimMessageBus.Host.Test
         public Mock<IRequestHandler<SomeRequest, SomeResponse>> HandlerMock { get; }
         public DateTimeOffset CurrentTime { get; set; }
         public Mock<MessageBusBase> BusMock { get; }
-        public MessageBusBase Object => BusMock.Object;
+        public MessageBusBase Bus => BusMock.Object;
 
         public MessageBusMock()
         {

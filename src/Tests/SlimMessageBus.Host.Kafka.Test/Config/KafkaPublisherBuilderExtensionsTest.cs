@@ -8,17 +8,17 @@ namespace SlimMessageBus.Host.Kafka.Test
 {
     public class KafkaPublisherBuilderExtensionsTest
     {
-        private PublisherSettings ps;
-        private PublisherBuilder<SomeMessage> pb;
+        private readonly PublisherSettings _ps;
+        private readonly PublisherBuilder<SomeMessage> _pb;
 
         public KafkaPublisherBuilderExtensionsTest()
         {
-            ps = new PublisherSettings();
-            pb = new PublisherBuilder<SomeMessage>(ps);
+            _ps = new PublisherSettings();
+            _pb = new PublisherBuilder<SomeMessage>(_ps);
         }
 
         [Fact]
-        public void KeyProvider_CreatesUntypedWrapper()
+        public void WhenKeyProviderThenCreatesUntypedWrapper()
         {
             // arrange
             var message = new SomeMessage();
@@ -28,16 +28,16 @@ namespace SlimMessageBus.Host.Kafka.Test
             keyProviderMock.Setup(x => x(message, "topic1")).Returns(messageKey);
 
             // act
-            pb.KeyProvider(keyProviderMock.Object);
+            _pb.KeyProvider(keyProviderMock.Object);
 
             // assert
-            var keyProvider = ps.GetKeyProvider();
+            var keyProvider = _ps.GetKeyProvider();
             keyProvider(message, "topic1").Should().BeSameAs(messageKey);
             keyProviderMock.Verify(x => x(message, "topic1"), Times.Once);
         }
 
         [Fact]
-        public void PartitionProvider_CreatesUntypedWrapper()
+        public void WhenPartitionProviderThenCreatesUntypedWrapper()
         {
             // arrange
             var message = new SomeMessage();
@@ -46,33 +46,33 @@ namespace SlimMessageBus.Host.Kafka.Test
             partitionProviderMock.Setup(x => x(message, "topic1")).Returns(1);
 
             // act
-            pb.PartitionProvider(partitionProviderMock.Object);
+            _pb.PartitionProvider(partitionProviderMock.Object);
 
             // assert
-            var partitionProvider = ps.GetPartitionProvider();
+            var partitionProvider = _ps.GetPartitionProvider();
             partitionProvider(message, "topic1").Should().Be(1);
             partitionProviderMock.Verify(x => x(message, "topic1"), Times.Once);
         }
 
         [Fact]
-        public void KeyProvider_ThrowsConfigurationMessageBusException_WhenNullProviderSupplied()
+        public void WhenAttemptedNullKeyProviderThenThrowsConfigurationMessageBusException()
         {
             // arrange
 
             // act
-            Action act = () => pb.KeyProvider(null);
+            Action act = () => _pb.KeyProvider(null);
 
             // assert
             act.Should().Throw<ConfigurationMessageBusException>();
         }
 
         [Fact]
-        public void PartitionProvider_ThrowsConfigurationMessageBusException_WhenNullProviderSupplied()
+        public void WhenAttemptedNullPartitionProviderThenThrowsConfigurationMessageBusException()
         {
             // arrange
 
             // act
-            Action act = () => pb.PartitionProvider(null);
+            Action act = () => _pb.PartitionProvider(null);
 
             // assert
             act.Should().Throw<ConfigurationMessageBusException>();

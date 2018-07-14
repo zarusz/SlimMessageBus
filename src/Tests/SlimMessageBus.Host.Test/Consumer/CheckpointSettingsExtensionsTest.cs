@@ -8,7 +8,7 @@ namespace SlimMessageBus.Host.Test
     public class CheckpointSettingsExtensionsTest
     {
         [Fact]
-        public void ConsumerSettings_SetsCheckpointsProperly()
+        public void GivenConsumerSettingsWhenConfiguredThenCheckpointsSetProperly()
         {
             // arrange
             var cs = new ConsumerSettings();
@@ -23,7 +23,7 @@ namespace SlimMessageBus.Host.Test
         }
 
         [Fact]
-        public void RequestResponseSettings_SetsCheckpointsProperly()
+        public void GivenRequestResponseSettingsWhenConfiguredThenCheckpointsSetProperly()
         {
             // arrange
             var cs = new RequestResponseSettings();

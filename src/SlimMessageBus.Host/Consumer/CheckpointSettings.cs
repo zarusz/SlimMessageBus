@@ -2,7 +2,7 @@ using System;
 
 namespace SlimMessageBus.Host
 {
-    public class CheckpointSettings
+    public static class CheckpointSettings
     {
         public const string CheckpointCount = "CheckpointCount";
         public const string CheckpointDuration = "CheckpointDuration";

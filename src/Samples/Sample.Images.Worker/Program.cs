@@ -8,11 +8,11 @@ using SlimMessageBus;
 
 namespace Sample.Images.Worker
 {
-    class Program
+    internal static class Program
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        static void Main(string[] args)
+        public static void Main()
         {
             var configuration = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")

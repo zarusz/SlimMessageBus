@@ -1,5 +1,3 @@
-using System;
-
 namespace SlimMessageBus.Host.Config
 {
     public class GroupSubscriberBuilder<TMessage> : GroupConsumerBuilder<TMessage>

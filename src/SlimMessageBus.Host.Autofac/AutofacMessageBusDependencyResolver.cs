@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using Autofac;
 using Common.Logging;
 
@@ -14,10 +15,10 @@ namespace SlimMessageBus.Host.Autofac
 
         public object Resolve(Type type)
         {
-            Log.DebugFormat("Resolving type {0}", type);
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Resolving type {0}", type);
             Assert.IsTrue(Container != null, () => new ConfigurationMessageBusException($"The {nameof(Container)} property was null at this point"));
             var o = Container.Resolve(type);
-            Log.DebugFormat("Resolved type {0} to object {1}", type, o);
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Resolved type {0} to object {1}", type, o);
             return o;
         }
 

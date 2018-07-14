@@ -4,6 +4,10 @@ namespace SlimMessageBus.Host
 {
     public class ConfigurationMessageBusException : MessageBusException
     {
+        public ConfigurationMessageBusException()
+        {
+        }
+
         public ConfigurationMessageBusException(string message) : base(message)
         {
         }

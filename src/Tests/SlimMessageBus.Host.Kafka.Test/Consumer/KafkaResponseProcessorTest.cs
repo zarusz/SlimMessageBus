@@ -7,35 +7,40 @@ using Xunit;
 
 namespace SlimMessageBus.Host.Kafka.Test
 {
-    public class KafkaResponseProcessorTest
+    public class KafkaResponseProcessorTest : IDisposable
     {
-        MessageBusMock _mssageBusMock;
-        TopicPartition _topicPartition;
-        Mock<IKafkaCommitController> _commitControllerMock = new Mock<IKafkaCommitController>();
-        Mock<ICheckpointTrigger> _checkpointTrigger = new Mock<ICheckpointTrigger>();
-        KafkaResponseProcessor _subject;
+        private readonly MessageBusMock _mssageBusMock;
+        private readonly TopicPartition _topicPartition;
+        private readonly Mock<IKafkaCommitController> _commitControllerMock = new Mock<IKafkaCommitController>();
+        private readonly Mock<ICheckpointTrigger> _checkpointTrigger = new Mock<ICheckpointTrigger>();
+        private readonly KafkaResponseProcessor _subject;
 
         public KafkaResponseProcessorTest()
         {
             _topicPartition = new TopicPartition("topic-a", 0);
 
-            _mssageBusMock = new MessageBusMock();
-            _mssageBusMock.BusSettings.RequestResponse = new RequestResponseSettings
+            _mssageBusMock = new MessageBusMock
             {
-                Topic = "topic-a"
+                BusSettings =
+                {
+                    RequestResponse = new RequestResponseSettings
+                    {
+                        Topic = "topic-a"
+                    }
+                }
             };
 
-            _subject = new KafkaResponseProcessor(_mssageBusMock.BusSettings.RequestResponse, _topicPartition, _commitControllerMock.Object, _mssageBusMock.Object, _checkpointTrigger.Object);
+            _subject = new KafkaResponseProcessor(_mssageBusMock.BusSettings.RequestResponse, _topicPartition, _commitControllerMock.Object, _mssageBusMock.Bus, _checkpointTrigger.Object);
         }
 
         [Fact]
-        public void AfterCreation_TopicPartitonSet()
+        public void WhenNewInstanceThenTopicPartitonSet()
         {
             _subject.TopicPartition.Should().Be(_topicPartition);
         }
 
         [Fact]
-        public void OnPartitionEndReached_ShouldCommit()
+        public void WhenOnPartitionEndReachedThenShouldCommit()
         {
             // arrange
             var partition = new TopicPartitionOffset(_topicPartition, new Offset(10));
@@ -48,7 +53,7 @@ namespace SlimMessageBus.Host.Kafka.Test
         }
 
         [Fact]
-        public void OnPartitionRevoked_ShouldResetTrigger()
+        public void WhenOnPartitionRevokedThenShouldResetTrigger()
         {
             // arrange
 
@@ -60,7 +65,7 @@ namespace SlimMessageBus.Host.Kafka.Test
         }
 
         [Fact]
-        public void OnMessage_ShouldPassMessageToBus_OnResponseArrived()
+        public void GivenSuccessMessageWhenOnMessageThenOnResponseArrived()
         {
             // arrange
             var message = GetSomeMessage();
@@ -73,7 +78,7 @@ namespace SlimMessageBus.Host.Kafka.Test
         }
 
         [Fact]
-        public void OnMessage_WhenMessageErrors_ShouldCallHook()
+        public void GivenMessageErrorsWhenOnMessageThenShouldCallHook()
         {
             // arrange
             var message = GetSomeMessage();
@@ -91,7 +96,7 @@ namespace SlimMessageBus.Host.Kafka.Test
         }
 
         [Fact]
-        public void OnMessage_WhenCheckpointReturnTrue_ShouldCommit()
+        public void GivenCheckpointReturnTrueWhenOnMessageThenShouldCommit()
         {
             // arrange
             _checkpointTrigger.Setup(x => x.Increment()).Returns(true);
@@ -105,7 +110,7 @@ namespace SlimMessageBus.Host.Kafka.Test
         }
 
         [Fact]
-        public void OnMessage_WhenCheckpointReturnFalse_ShouldNotCommit()
+        public void GivenWhenCheckpointReturnFalseWhenOnMessageThenShouldNotCommit()
         {
             // arrange
             _checkpointTrigger.Setup(x => x.Increment()).Returns(false);
@@ -121,6 +126,20 @@ namespace SlimMessageBus.Host.Kafka.Test
         private Message GetSomeMessage()
         {
             return new Message(_topicPartition.Topic, _topicPartition.Partition, 10, new byte[] { 10, 20 }, new byte[] { 10, 20 }, new Timestamp(), null);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _subject.Dispose();
+            }
         }
     }
 }

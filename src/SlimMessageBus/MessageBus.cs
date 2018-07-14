@@ -5,7 +5,7 @@ namespace SlimMessageBus
     /// <summary>
     /// Lookup helper of the <see cref="IMessageBus"/> for the current execution context.
     /// </summary>
-    public class MessageBus
+    public static class MessageBus
     {
         private static Func<IMessageBus> _provider;
 

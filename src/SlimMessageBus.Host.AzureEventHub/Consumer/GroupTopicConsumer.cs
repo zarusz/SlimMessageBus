@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Reflection;
 using Common.Logging;
 using Microsoft.Azure.EventHubs.Processor;
@@ -11,7 +12,7 @@ namespace SlimMessageBus.Host.AzureEventHub
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        public readonly EventHubMessageBus MessageBus;
+        public EventHubMessageBus MessageBus { get; }
 
         private readonly EventProcessorHost _processorHost;
         private readonly Func<PartitionConsumer> _processorFactory;
@@ -34,7 +35,7 @@ namespace SlimMessageBus.Host.AzureEventHub
             MessageBus = messageBus;
             _processorFactory = processorFactory;
 
-            Log.InfoFormat("Creating EventProcessorHost for EventHub with Topic: {0}, Group: {1}", consumerSettings.Topic, consumerSettings.Group);
+            Log.InfoFormat(CultureInfo.InvariantCulture, "Creating EventProcessorHost for EventHub with Topic: {0}, Group: {1}", consumerSettings.Topic, consumerSettings.Group);
             _processorHost = MessageBus.EventHubSettings.EventProcessorHostFactory(consumerSettings);
 
             var eventProcessorOptions = MessageBus.EventHubSettings.EventProcessorOptionsFactory(consumerSettings);
@@ -45,14 +46,23 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         public void Dispose()
         {
-            _processorHost.UnregisterEventProcessorAsync().Wait();
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
 
-            _taskMarker.Stop().Wait();
-
-            if (_partitionConsumers.Count > 0)
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
             {
-                _partitionConsumers.ForEach(ep => ep.DisposeSilently("EventProcessor", Log));
-                _partitionConsumers.Clear();
+                _processorHost.UnregisterEventProcessorAsync().Wait();
+
+                _taskMarker.Stop().Wait();
+
+                if (_partitionConsumers.Count > 0)
+                {
+                    _partitionConsumers.ForEach(ep => ep.DisposeSilently("EventProcessor", Log));
+                    _partitionConsumers.Clear();
+                }
             }
         }
 
@@ -62,7 +72,7 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         public IEventProcessor CreateEventProcessor(PartitionContext context)
         {
-            Log.DebugFormat("Creating {0} for {1}", nameof(IEventProcessor), new PartitionContextInfo(context));
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Creating {0} for {1}", nameof(IEventProcessor), new PartitionContextInfo(context));
             var ep = _processorFactory();
             _partitionConsumers.Add(ep);
             return ep;

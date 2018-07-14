@@ -11,7 +11,7 @@ namespace SlimMessageBus.Test
     public class MessageBusTest
     {
         [Fact]
-        public void CurrentAccess_CallsProviderForInstance()
+        public void WhenCurrentThenCallsProviderForInstance()
         {
             // arrange
             var busMock = new Mock<IMessageBus>();

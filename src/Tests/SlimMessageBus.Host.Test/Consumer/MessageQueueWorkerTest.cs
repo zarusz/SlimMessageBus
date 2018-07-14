@@ -12,13 +12,12 @@ namespace SlimMessageBus.Host.Test.Consumer
 {
     public class MessageQueueWorkerTest
     {
-        private Mock<ConsumerInstancePool<SomeMessage>> _consumerInstancePoolMock;
-        private Mock<ICheckpointTrigger> _checkpointTriggerMock;
-        private MessageBusMock _busMock;
+        private readonly Mock<ConsumerInstancePool<SomeMessage>> _consumerInstancePoolMock;
+        private readonly Mock<ICheckpointTrigger> _checkpointTriggerMock;
 
         public MessageQueueWorkerTest()
         {
-            _busMock = new MessageBusMock();
+            var busMock = new MessageBusMock();
             _checkpointTriggerMock = new Mock<ICheckpointTrigger>();
 
             var consumerSettings = new ConsumerSettings
@@ -29,19 +28,18 @@ namespace SlimMessageBus.Host.Test.Consumer
                 MessageType = typeof(SomeMessage)
             };
 
-            Func<SomeMessage, byte[]> payloadProvider = m => new byte[0];
-            _consumerInstancePoolMock = new Mock<ConsumerInstancePool<SomeMessage>>(consumerSettings, _busMock.BusMock.Object, payloadProvider, null);
+            byte[] PayloadProvider(SomeMessage m) => Array.Empty<byte>();
+            _consumerInstancePoolMock = new Mock<ConsumerInstancePool<SomeMessage>>(consumerSettings, busMock.BusMock.Object, (Func<SomeMessage, byte[]>) PayloadProvider, null);
         }
 
         [Fact]
-        public void Commit_WaitsOnAllMessagesToComplete()
+        public void WhenCommitThenWaitsOnAllMessagesToComplete()
         {
             // arrange
-            //_checkpointTriggerMock.SetupGet(x => x.IsEnabled).Returns(false);
             var w = new MessageQueueWorker<SomeMessage>(_consumerInstancePoolMock.Object, _checkpointTriggerMock.Object);
 
             var numFinishedMessages = 0;
-            _consumerInstancePoolMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>())).Returns(() => Task.Delay(50).ContinueWith(t => Interlocked.Increment(ref numFinishedMessages)));
+            _consumerInstancePoolMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>())).Returns(() => Task.Delay(50).ContinueWith(t => Interlocked.Increment(ref numFinishedMessages), TaskScheduler.Current));
 
             const int numMessages = 100;
             for (var i = 0; i < numMessages; i++)
@@ -50,7 +48,7 @@ namespace SlimMessageBus.Host.Test.Consumer
             }
 
             // act
-            var success = w.WaitAll(out SomeMessage lastGoodMessage);
+            var success = w.WaitAll(out var _);
 
             // assert
             success.Should().BeTrue();
@@ -58,7 +56,7 @@ namespace SlimMessageBus.Host.Test.Consumer
         }
 
         [Fact]
-        public void Commit_IfSomeMessageFails_ReturnsFirstNonFailedMessage()
+        public void GivenIfSomeMessageFailsWhenCommitThenReturnsFirstNonFailedMessage()
         {
             // arrange
             var w = new MessageQueueWorker<SomeMessage>(_consumerInstancePoolMock.Object, _checkpointTriggerMock.Object);
@@ -71,7 +69,7 @@ namespace SlimMessageBus.Host.Test.Consumer
             taskQueue.Enqueue(Task.FromException(new Exception()));
             taskQueue.Enqueue(Task.CompletedTask);
 
-            var messages = taskQueue.ToList().Select(x => new SomeMessage()).ToArray();
+            var messages = taskQueue.Select(x => new SomeMessage()).ToArray();
 
             _consumerInstancePoolMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>())).Returns(() => taskQueue.Dequeue());
 
@@ -81,7 +79,7 @@ namespace SlimMessageBus.Host.Test.Consumer
             }
 
             // act
-            var success = w.WaitAll(out SomeMessage lastGoodMessage);
+            var success = w.WaitAll(out var lastGoodMessage);
 
             // assert
             success.Should().BeFalse();

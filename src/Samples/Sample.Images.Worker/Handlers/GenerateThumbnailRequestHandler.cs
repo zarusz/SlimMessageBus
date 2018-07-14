@@ -25,7 +25,7 @@ namespace Sample.Images.Worker.Handlers
 
         public async Task<GenerateThumbnailResponse> OnHandle(GenerateThumbnailRequest request, string topic)
         {
-            var image = await LoadImage(request.FileId);
+            var image = await LoadImage(request.FileId).ConfigureAwait(false);
             if (image == null)
             {
                 // Note: This will cause RequestHandlerFaultedMessageBusException thrown on the other side (IRequestResponseBus.Send() method)
@@ -52,7 +52,7 @@ namespace Sample.Images.Worker.Handlers
 
         private async Task<Image> LoadImage(string fileId)
         {
-            var imageContent = await _fileStore.GetFile(fileId);
+            var imageContent = await _fileStore.GetFile(fileId).ConfigureAwait(false);
             if (imageContent == null)
             {
                 return null;

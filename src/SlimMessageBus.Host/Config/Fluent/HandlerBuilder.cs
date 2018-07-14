@@ -24,6 +24,7 @@ namespace SlimMessageBus.Host.Config
         /// Configure topic name that incomming requests (<see cref="TRequest"/>) are expected on.
         /// </summary>
         /// <param name="topic">Topic name</param>
+        /// <param name="topicConfig"></param>
         /// <returns></returns>
         public TopicHandlerBuilder<TRequest, TResponse> Topic(string topic, Action<TopicHandlerBuilder<TRequest, TResponse>> topicConfig)
         {

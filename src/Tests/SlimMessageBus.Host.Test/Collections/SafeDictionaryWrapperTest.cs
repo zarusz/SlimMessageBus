@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using Moq;
 using SlimMessageBus.Host.Collections;
 using System.Threading.Tasks;
@@ -75,18 +76,26 @@ namespace SlimMessageBus.Host.Test.Collections
             var task1 = Task.Factory.StartNew(() =>
             {
                 for (var i = 0; i < count; i++)
+                {
                     w.GetOrAdd($"a_{i}", k => $"v_{i}");
-            });
+                }
+            }, CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Default);
+
             var task2 = Task.Factory.StartNew(() =>
             {
                 for (var i = 0; i < count; i++)
+                {
                     w.GetOrAdd($"b_{i}", k => $"v_{i}");
-            });
+                }
+            }, CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Default);
+
             var task3 = Task.Factory.StartNew(() =>
             {
                 for (var i = 0; i < count; i++)
+                {
                     w.GetOrAdd($"c_{i}", k => $"v_{i}");
-            });
+                }
+            }, CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Default);
             Task.WaitAll(task1, task2, task3);
 
             // assert

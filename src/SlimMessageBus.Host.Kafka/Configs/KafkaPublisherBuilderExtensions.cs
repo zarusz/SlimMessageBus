@@ -17,8 +17,8 @@ namespace SlimMessageBus.Host.Kafka
         {
             Assert.IsNotNull(keyProvider, () => new ConfigurationMessageBusException("Null value provided"));
 
-            Func<object, string, byte[]> untypedProvider = (message, topic) => keyProvider((T)message, topic);
-            mbb.Settings.Properties[KafkaPublisherSettingsExtensions.KeyProviderKey] = untypedProvider;
+            byte[] UntypedProvider(object message, string topic) => keyProvider((T) message, topic);
+            mbb.Settings.Properties[KafkaPublisherSettingsExtensions.KeyProviderKey] = (Func<object, string, byte[]>) UntypedProvider;
             return mbb;
         }
 
@@ -34,8 +34,8 @@ namespace SlimMessageBus.Host.Kafka
         {
             Assert.IsNotNull(partitionProvider, () => new ConfigurationMessageBusException("Null value provided"));
 
-            Func<object, string, int> untypedProvider = (message, topic) => partitionProvider((T)message, topic);
-            mbb.Settings.Properties[KafkaPublisherSettingsExtensions.PartitionProviderKey] = untypedProvider;
+            int UntypedProvider(object message, string topic) => partitionProvider((T) message, topic);
+            mbb.Settings.Properties[KafkaPublisherSettingsExtensions.PartitionProviderKey] = (Func<object, string, int>) UntypedProvider;
             return mbb;
         }
 

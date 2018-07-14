@@ -4,8 +4,8 @@ namespace SlimMessageBus.Host.Kafka
 {
     public class MessageContextInfo
     {
-        public readonly string Group;
-        public readonly Message Message;
+        public string Group { get; }
+        public Message Message { get; }
 
         public MessageContextInfo(string group, Message message)
         {

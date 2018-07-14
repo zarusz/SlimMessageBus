@@ -4,7 +4,7 @@ namespace SlimMessageBus.Host.Config
 {
     public abstract class GroupConsumerBuilder<TMessage>
     {
-        protected readonly ConsumerSettings ConsumerSettings;
+        protected ConsumerSettings ConsumerSettings { get; }
         public string Group { get; }
 
         protected GroupConsumerBuilder(string group, string topic, MessageBusSettings settings)

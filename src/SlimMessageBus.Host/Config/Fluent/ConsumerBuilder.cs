@@ -2,7 +2,7 @@ namespace SlimMessageBus.Host.Config
 {
     public abstract class ConsumerBuilder<T>
     {
-        protected readonly MessageBusSettings Settings;
+        protected MessageBusSettings Settings { get; }
 
         protected ConsumerBuilder(MessageBusSettings settings)
         {

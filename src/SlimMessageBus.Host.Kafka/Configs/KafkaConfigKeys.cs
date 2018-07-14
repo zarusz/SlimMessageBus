@@ -4,7 +4,7 @@ namespace SlimMessageBus.Host.Kafka
     {
         public const string Servers = "bootstrap.servers";
 
-        public static class Consumer
+        public static class ConsumerKeys
         {
             public const string GroupId = "group.id";
             public const string EnableAutoCommit = "enable.auto.commit";

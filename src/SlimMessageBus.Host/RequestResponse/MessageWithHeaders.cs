@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace SlimMessageBus.Host
 {
@@ -26,7 +27,7 @@ namespace SlimMessageBus.Host
 
         public void SetHeader(string header, DateTimeOffset dt)
         {
-            Headers[header] = dt.ToFileTime().ToString();
+            Headers[header] = dt.ToFileTime().ToString(CultureInfo.InvariantCulture);
         }
 
         public bool TryGetHeader(string header, out string value)
@@ -34,13 +35,11 @@ namespace SlimMessageBus.Host
             return Headers.TryGetValue(header, out value);
         }
 
-
         public bool TryGetHeader(string header, out DateTimeOffset dt)
         {
-            string dtStr;
-            if (Headers.TryGetValue(header, out dtStr))
+            if (Headers.TryGetValue(header, out var dtStr))
             {
-                var dtLong = long.Parse(dtStr);
+                var dtLong = long.Parse(dtStr, CultureInfo.InvariantCulture);
                 dt = DateTimeOffset.FromFileTime(dtLong);
                 return true;
             }
@@ -50,9 +49,7 @@ namespace SlimMessageBus.Host
 
         public bool TryGetHeader(string header, out DateTimeOffset? dt)
         {
-            DateTimeOffset dt2;
-
-            if (TryGetHeader(header, out dt2))
+            if (TryGetHeader(header, out DateTimeOffset dt2))
             {
                 dt = dt2;
                 return true;

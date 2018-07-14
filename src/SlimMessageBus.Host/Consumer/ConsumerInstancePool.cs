@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -12,7 +13,7 @@ namespace SlimMessageBus.Host
     public class ConsumerInstancePool<TMessage> : IDisposable
         where TMessage : class
     {
-        private static readonly ILog Log = LogManager.GetLogger(typeof(ConsumerInstancePool<>));
+        private readonly ILog _log = LogManager.GetLogger(typeof(ConsumerInstancePool<TMessage>));
 
         private readonly List<object> _instances;
         private readonly BufferBlock<object> _instancesQueue;
@@ -54,26 +55,39 @@ namespace SlimMessageBus.Host
 
         public void Dispose()
         {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing)
+            {
+                return;
+            }
+
             if (_instances.Any())
             {
                 // dospose instances that implement IDisposable
                 foreach (var instance in _instances.OfType<IDisposable>())
                 {
-                    instance.DisposeSilently("Consumer", Log);
+                    instance.DisposeSilently("Consumer", _log);
                 }
+
                 _instances.Clear();
             }
+
         }
 
         #endregion
 
-        private static List<object> ResolveInstances(ConsumerSettings settings, MessageBusBase messageBus)
+        private List<object> ResolveInstances(ConsumerSettings settings, MessageBusBase messageBus)
         {
             var consumers = new List<object>();
             // Resolve as many instances from DI as requested in settings
             for (var i = 0; i < settings.Instances; i++)
             {
-                Log.DebugFormat("Resolving Consumer instance {0} of type {1}", i + 1, settings.ConsumerType);
+                _log.DebugFormat(CultureInfo.InvariantCulture, "Resolving Consumer instance {0} of type {1}", i + 1, settings.ConsumerType);
                 var consumer = messageBus.Settings.DependencyResolver.Resolve(settings.ConsumerType);
                 consumers.Add(consumer);
             }
@@ -87,7 +101,7 @@ namespace SlimMessageBus.Host
             string requestId = null, replyTo = null;
             DateTimeOffset? expires = null;
 
-            Log.Debug("Deserializing message...");
+            _log.Debug("Deserializing message...");
             var message = _consumerSettings.IsRequestMessage
                 ? _messageBus.DeserializeRequest(_consumerSettings.MessageType, msgPayload, out requestId, out replyTo, out expires)
                 : _messageBus.Settings.Serializer.Deserialize(_consumerSettings.MessageType, msgPayload);
@@ -98,8 +112,8 @@ namespace SlimMessageBus.Host
                 var currentTime = _messageBus.CurrentTime;
                 if (currentTime > expires.Value)
                 {
-                    Log.DebugFormat("The message arrived too late and is already expired (expires {0}, current {1})", expires.Value, currentTime);
-                    
+                    _log.DebugFormat(CultureInfo.InvariantCulture, "The message arrived too late and is already expired (expires {0}, current {1})", expires.Value, currentTime);
+
                     // Execute the event hook
                     (_consumerSettings.OnMessageExpired ?? _messageBus.Settings.OnMessageExpired)?.Invoke(_consumerSettings, message);
 
@@ -111,7 +125,7 @@ namespace SlimMessageBus.Host
             object response = null;
             string responseError = null;
 
-            var consumerInstance = await _instancesQueue.ReceiveAsync(_messageBus.CancellationToken);
+            var consumerInstance = await _instancesQueue.ReceiveAsync(_messageBus.CancellationToken).ConfigureAwait(false);
             try
             {
                 if (_consumerWithContext && _consumerContextInitializer != null)
@@ -125,7 +139,7 @@ namespace SlimMessageBus.Host
 
                 // the consumer just subscribes to the message
                 var task = (Task)_consumerOnHandleMethod.Invoke(consumerInstance, new[] { message, _consumerSettings.Topic });
-                await task;
+                await task.ConfigureAwait(false);
 
                 if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
                 {
@@ -137,13 +151,13 @@ namespace SlimMessageBus.Host
             {
                 if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
                 {
-                    Log.DebugFormat("Handler execution failed", e);
+                    _log.DebugFormat(CultureInfo.InvariantCulture, "Handler execution failed", e);
                     // Save the exception
                     responseError = e.ToString();
                 }
                 else
                 {
-                    Log.ErrorFormat("Consumer execution failed", e);
+                    _log.ErrorFormat(CultureInfo.InvariantCulture, "Consumer execution failed", e);
                 }
 
                 try
@@ -154,20 +168,20 @@ namespace SlimMessageBus.Host
                 catch (Exception eh)
                 {
                     // When the hook itself error out, catch the exception
-                    Log.ErrorFormat("{0} method failed", eh, nameof(IConsumerEvents.OnMessageFault));
+                    _log.ErrorFormat(CultureInfo.InvariantCulture, "{0} method failed", eh, nameof(IConsumerEvents.OnMessageFault));
                 }
             }
             finally
             {
-                await _instancesQueue.SendAsync(consumerInstance);
+                await _instancesQueue.SendAsync(consumerInstance).ConfigureAwait(false);
             }
 
             if (response != null || responseError != null)
             {
                 // send the response (or error response)
-                Log.Debug("Serializing the response...");
+                _log.Debug("Serializing the response...");
                 var responsePayload = _messageBus.SerializeResponse(_consumerSettings.ResponseType, response, requestId, responseError);
-                await _messageBus.PublishToTransport(_consumerSettings.ResponseType, response, replyTo, responsePayload);
+                await _messageBus.PublishToTransport(_consumerSettings.ResponseType, response, replyTo, responsePayload).ConfigureAwait(false);
             }
         }
     }

@@ -8,11 +8,11 @@ namespace SlimMessageBus.Host.Kafka.Test
     {
         public Mock<IDependencyResolver> DependencyResolverMock { get; }
         public Mock<IMessageSerializer> SerializerMock { get; }
-        public MessageBusSettings BusSettings { get; private set; }
+        public MessageBusSettings BusSettings { get; }
 
         public DateTimeOffset CurrentTime { get; set; }
         public Mock<MessageBusBase> BusMock { get; }
-        public MessageBusBase Object => BusMock.Object;
+        public MessageBusBase Bus => BusMock.Object;
 
         public MessageBusMock()
         {

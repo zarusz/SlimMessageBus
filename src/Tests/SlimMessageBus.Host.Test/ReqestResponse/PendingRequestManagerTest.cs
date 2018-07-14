@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading;
-using System.Threading.Tasks;
 using Moq;
 using SlimMessageBus.Host.RequestResponse;
 using Xunit;
@@ -15,13 +14,12 @@ namespace SlimMessageBus.Host.Test
         private readonly Mock<Action<object>> _timeoutCallback;
         private readonly TimeSpan _cleanInterval = TimeSpan.FromMilliseconds(50);
 
-        private readonly DateTimeOffset _timeZero;
-        private DateTimeOffset _timeNow;
+        private readonly DateTimeOffset _timeNow;
 
         public PendingRequestManagerTest()
         {
-            _timeZero = DateTimeOffset.Now;
-            _timeNow = _timeZero;
+            var timeZero = DateTimeOffset.Now;
+            _timeNow = timeZero;
 
             _store = new Mock<IPendingRequestStore>();
             _timeoutCallback = new Mock<Action<object>>();
@@ -29,15 +27,11 @@ namespace SlimMessageBus.Host.Test
             _subject = new PendingRequestManager(_store.Object, () => _timeNow, _cleanInterval, _timeoutCallback.Object);
         }
 
-        public void Dispose()
-        {
-        }
-
         [Fact]
-        public void WhenNothingExpired_NoActionIsTaken()
+        public void WhenNothingExpiredThenNoActionIsTaken()
         {
             // arrange
-            _store.Setup(x => x.FindAllToCancel(_timeNow)).Returns(new PendingRequestState[0]);
+            _store.Setup(x => x.FindAllToCancel(_timeNow)).Returns(Array.Empty<PendingRequestState>());
 
             // act
             _subject.CleanPendingRequests();
@@ -48,7 +42,7 @@ namespace SlimMessageBus.Host.Test
         }
 
         [Fact]
-        public void WhenRequestExpired_ItIsRemoved()
+        public void WhenRequestExpiredThenItIsRemoved()
         {
             // arrange
             var r1 = new PendingRequestState("r1", "request1", typeof(string), typeof(string), _timeNow, _timeNow.AddSeconds(30), CancellationToken.None);
@@ -62,6 +56,20 @@ namespace SlimMessageBus.Host.Test
             // assert
             _store.Verify(x => x.Remove("r1"), Times.Once);
             _timeoutCallback.Verify(x => x("request1"), Times.Once);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _subject.Dispose();
+            }
         }
     }
 }

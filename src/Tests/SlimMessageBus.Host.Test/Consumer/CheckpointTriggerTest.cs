@@ -8,7 +8,7 @@ namespace SlimMessageBus.Host.Test.Consumer
     public class CheckpointTriggerTest
     {
         [Fact]
-        public void InitialState_IsNotActive()
+        public void WhenNewInstanceThenIsNotActive()
         {
             // act
             var ct = new CheckpointTrigger(2, TimeSpan.FromSeconds(5));
@@ -18,7 +18,7 @@ namespace SlimMessageBus.Host.Test.Consumer
         }
 
         [Fact]
-        public void AfterDurationReached_ShouldBecomeActive()
+        public void WhenAfterDurationReachedThenShouldBecomeActive()
         {
             var ct = new CheckpointTrigger(2, TimeSpan.FromSeconds(2));
 
@@ -32,7 +32,7 @@ namespace SlimMessageBus.Host.Test.Consumer
         }
 
         [Fact]
-        public void AfterCountReached_ShouldBecomeActive()
+        public void WhenAfterCountReachedThenShouldBecomeActive()
         {
             var ct = new CheckpointTrigger(2, TimeSpan.FromHours(1));
 
@@ -47,7 +47,7 @@ namespace SlimMessageBus.Host.Test.Consumer
         }
 
         [Fact]
-        public void AfterReset_ShouldBecomeNotActive()
+        public void WhenAfterResetThenShouldBecomeNotActive()
         {
             var ct = new CheckpointTrigger(2, TimeSpan.FromHours(1));
             ct.Increment();

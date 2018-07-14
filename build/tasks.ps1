@@ -6,10 +6,8 @@ $csp_platform = "AnyCPU"
 $config = "Release"
 $dist_folder = "$root\dist"
 # choose: q[uiet], m[inimal], n[ormal], d[etailed], and diag[nostic]
-$msbuild_verbosity = "m"
-	
-#$vs_tools = "$root\src\packages\MSBuild.Microsoft.VisualStudio.Web.targets.14.0.0.3\tools\VSToolsPath"
-	
+$msbuild_verbosity = "n"
+		
 $projects = @(
 	"SlimMessageBus", 
 	"SlimMessageBus.Host",
@@ -40,8 +38,7 @@ function NuRestore() {
 
 function _MsBuild($target) {
 	_Step "$target solution"
-#	& dotnet msbuild $sln_file /t:$target /p:Platform=$sln_platform /p:Configuration=$config /p:VSToolsPath=$vs_tools /v:$msbuild_verbosity /m
-	& dotnet msbuild $sln_file /t:$target /p:Platform=$sln_platform /p:Configuration=$config /v:$msbuild_verbosity /m
+	& dotnet msbuild $sln_file /t:$target /p:Platform=$sln_platform /p:Configuration=$config /v:$msbuild_verbosity
 	_AssertExec
 }
 

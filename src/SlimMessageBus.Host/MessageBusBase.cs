@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Common.Logging;
@@ -16,16 +16,16 @@ namespace SlimMessageBus.Host
 
         public virtual MessageBusSettings Settings { get; }
 
-        protected readonly IDictionary<Type, PublisherSettings> PublisherSettingsByMessageType;
+        protected IDictionary<Type, PublisherSettings> PublisherSettingsByMessageType { get; }
 
-        protected readonly IPendingRequestStore PendingRequestStore;
-        protected readonly PendingRequestManager PendingRequestManager;
+        protected IPendingRequestStore PendingRequestStore { get; }
+        protected PendingRequestManager PendingRequestManager { get; }
 
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         public CancellationToken CancellationToken => _cancellationTokenSource.Token;
 
-        protected bool IsDisposing = false;
-        protected bool IsDisposed = false;
+        protected bool IsDisposing { get; private set; }
+        protected bool IsDisposed { get; private set; }
 
         protected MessageBusBase(MessageBusSettings settings)
         {
@@ -55,18 +55,35 @@ namespace SlimMessageBus.Host
             if (settings.RequestResponse != null)
             {
                 Assert.IsTrue(settings.RequestResponse.Topic != null,
-                    () => new InvalidConfigurationMessageBusException($"Request-response: topic was not set"));
+                    () => new InvalidConfigurationMessageBusException("Request-response: topic was not set"));
             }
         }
 
         protected void AssertActive()
         {
-            Assert.IsFalse(IsDisposed, () => new MessageBusException("The message bus is disposed at this time"));
+            if (IsDisposed || IsDisposing)
+            {
+                throw new MessageBusException("The message bus is disposed at this time");
+            }
+        }
+
+        protected void AssertRequestResponseConfigured()
+        {
+            if (Settings.RequestResponse == null)
+            {
+                throw new PublishMessageBusException("An attempt to send request when request/response communication was not configured for the message bus. Ensure you configure the bus properly before the application starts.");
+            }
         }
 
         #region Implementation of IDisposable
 
         public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
         {
             if (IsDisposed)
             {
@@ -75,21 +92,19 @@ namespace SlimMessageBus.Host
             IsDisposing = true;
             try
             {
-                OnDispose();
+                if (disposing)
+                {
+                    _cancellationTokenSource.Cancel();
+                    _cancellationTokenSource.Dispose();
+
+                    PendingRequestManager.Dispose();
+                }
             }
             finally
             {
                 IsDisposing = false;
                 IsDisposed = true;
             }
-        }
-
-        protected virtual void OnDispose()
-        {
-            _cancellationTokenSource.Cancel();
-            _cancellationTokenSource.Dispose();
-
-            PendingRequestManager.Dispose();
         }
 
         #endregion
@@ -120,29 +135,31 @@ namespace SlimMessageBus.Host
             {
                 throw new PublishMessageBusException($"An attempt to produce message of type {messageType} without specifying topic, but there was no default topic configured. Double check your configuration.");
             }
-            Log.DebugFormat("Applying default topic {0} for message type {1}", topic, messageType);
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Applying default topic {0} for message type {1}", topic, messageType);
             return topic;
         }
 
         public abstract Task PublishToTransport(Type messageType, object message, string topic, byte[] payload);
 
-        public virtual async Task Publish(Type messageType, object message, string topic = null)
+        public virtual Task Publish(Type messageType, object message, string topic = null)
         {
+            AssertActive();
+
             if (topic == null)
             {
                 topic = GetDefaultTopic(messageType);
             }
             var payload = Settings.Serializer.Serialize(messageType, message);
 
-            Log.DebugFormat("Publishing message of type {0} to topic {1} with payload size {2}", messageType, topic, payload.Length);
-            await PublishToTransport(messageType, message, topic, payload);
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Publishing message of type {0} to topic {1} with payload size {2}", messageType, topic, payload.Length);
+            return PublishToTransport(messageType, message, topic, payload);
         }
 
         #region Implementation of IPublishBus
 
-        public virtual async Task Publish<TMessage>(TMessage message, string topic = null)
+        public virtual Task Publish<TMessage>(TMessage message, string topic = null)
         {
-            await Publish(message.GetType(), message, topic);
+            return Publish(message.GetType(), message, topic);
         }
 
         #endregion
@@ -150,16 +167,14 @@ namespace SlimMessageBus.Host
         protected virtual TimeSpan GetDefaultRequestTimeout(Type requestType, PublisherSettings publisherSettings)
         {
             var timeout = publisherSettings.Timeout ?? Settings.RequestResponse.Timeout;
-            Log.DebugFormat("Applying default timeout {0} for message type {1}", timeout, requestType);
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Applying default timeout {0} for message type {1}", timeout, requestType);
             return timeout;
         }
 
         protected virtual async Task<TResponseMessage> SendInternal<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan? timeout, string topic, CancellationToken cancellationToken)
         {
-            if (Settings.RequestResponse == null)
-            {
-                throw new PublishMessageBusException("An attempt to send request when request/response communication was not configured for the message bus. Ensure you configure the bus properly before the application starts.");
-            }
+            AssertActive();
+            AssertRequestResponseConfigured();
 
             // check if the cancellation was already requested
             cancellationToken.ThrowIfCancellationRequested();
@@ -190,41 +205,43 @@ namespace SlimMessageBus.Host
             PendingRequestStore.Add(requestState);
 
             if (Log.IsTraceEnabled)
-                Log.TraceFormat("Added to PendingRequests, total is {0}", PendingRequestStore.GetCount());
+            {
+                Log.TraceFormat(CultureInfo.InvariantCulture, "Added to PendingRequests, total is {0}", PendingRequestStore.GetCount());
+            }
 
             try
             {
-                Log.DebugFormat("Sending request message {0} to topic {1} with reply to {2} and payload size {3}", requestState, topic, replyTo, requestPayload.Length);
-                await PublishToTransport(requestType, request, topic, requestPayload);
+                Log.DebugFormat(CultureInfo.InvariantCulture, "Sending request message {0} to topic {1} with reply to {2} and payload size {3}", requestState, topic, replyTo, requestPayload.Length);
+                await PublishToTransport(requestType, request, topic, requestPayload).ConfigureAwait(false);
             }
             catch (PublishMessageBusException e)
             {
-                Log.DebugFormat("Publishing of request message failed: {0}", e);
+                Log.DebugFormat(CultureInfo.InvariantCulture, "Publishing of request message failed: {0}", e);
                 // remove from registry
                 PendingRequestStore.Remove(requestId);
                 throw;
             }
 
             // convert Task<object> to Task<TResponseMessage>
-            var typedTask = Convert<TResponseMessage>(requestState.TaskCompletionSource.Task);
-            return await typedTask;
+            var responseUntyped = await requestState.TaskCompletionSource.Task.ConfigureAwait(true);
+            return (TResponseMessage) responseUntyped;
         }
 
         #region Implementation of IRequestResponseBus
 
-        public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, CancellationToken cancellationToken)
+        public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, CancellationToken cancellationToken)
         {
-            return await SendInternal(request, null, null, cancellationToken);
+            return SendInternal(request, null, null, cancellationToken);
         }
 
-        public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string topic = null, CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string topic = null, CancellationToken cancellationToken = default(CancellationToken))
         {
-            return await SendInternal(request, null, topic, cancellationToken);
+            return SendInternal(request, null, topic, cancellationToken);
         }
 
-        public virtual async Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string topic = null, CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string topic = null, CancellationToken cancellationToken = default(CancellationToken))
         {
-            return await SendInternal(request, (TimeSpan?) timeout, topic, cancellationToken);
+            return SendInternal(request, timeout, topic, cancellationToken);
         }
 
         #endregion
@@ -257,16 +274,16 @@ namespace SlimMessageBus.Host
             return request;
         }
 
-        public virtual byte[] SerializeResponse(Type responseType, object response, string requestId, string error)
+        public virtual byte[] SerializeResponse(Type responseType, object response, string requestId, string errorMessage)
         {
-            var responsePayload = error == null ? Settings.Serializer.Serialize(responseType, response) : null;
+            var responsePayload = errorMessage == null ? Settings.Serializer.Serialize(responseType, response) : null;
 
             // create the response wrapper message
             var responseMessage = new MessageWithHeaders(responsePayload);
             responseMessage.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
-            if (error != null)
+            if (errorMessage != null)
             {
-                responseMessage.SetHeader(ReqRespMessageHeaders.Error, error);
+                responseMessage.SetHeader(ReqRespMessageHeaders.Error, errorMessage);
             }
 
             var responseMessagePayload = Settings.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), responseMessage);
@@ -279,19 +296,19 @@ namespace SlimMessageBus.Host
         /// <param name="responsePayload"></param>
         /// <param name="topic"></param>
         /// <returns></returns>
-        public virtual async Task OnResponseArrived(byte[] responsePayload, string topic)
+        public virtual Task OnResponseArrived(byte[] responsePayload, string topic)
         {
             var responseMessage = (MessageWithHeaders)Settings.MessageWithHeadersSerializer.Deserialize(typeof(MessageWithHeaders), responsePayload);
 
             if (!responseMessage.TryGetHeader(ReqRespMessageHeaders.RequestId, out string requestId))
             {
-                Log.ErrorFormat("The response message arriving on topic {0} did not have the {1} header. Unable to math the response with the request. This likely indicates a misconfiguration.", topic, ReqRespMessageHeaders.RequestId);
-                return;
+                Log.ErrorFormat(CultureInfo.InvariantCulture, "The response message arriving on topic {0} did not have the {1} header. Unable to math the response with the request. This likely indicates a misconfiguration.", topic, ReqRespMessageHeaders.RequestId);
+                return Task.CompletedTask;
             }
 
             responseMessage.TryGetHeader(ReqRespMessageHeaders.Error, out string error);
 
-            await OnResponseArrived(responseMessage.Payload, topic, requestId, error);
+            return OnResponseArrived(responseMessage.Payload, topic, requestId, error);
         }
 
         /// <summary>
@@ -300,17 +317,17 @@ namespace SlimMessageBus.Host
         /// <param name="payload"></param>
         /// <param name="topic"></param>
         /// <param name="requestId"></param>
-        /// <param name="error"></param>
+        /// <param name="errorMessage"></param>
         /// <returns></returns>
-        public virtual async Task OnResponseArrived(byte[] payload, string topic, string requestId, string error)
+        public virtual Task OnResponseArrived(byte[] payload, string topic, string requestId, string errorMessage)
         {
             var requestState = PendingRequestStore.GetById(requestId);
             if (requestState == null)
             {
-                Log.DebugFormat("The response message for request id {0} arriving on topic {1} will be disregarded. Either the request had already expired, had been cancelled or it was already handled (this response message is a duplicate).", requestId, topic);
+                Log.DebugFormat(CultureInfo.InvariantCulture, "The response message for request id {0} arriving on topic {1} will be disregarded. Either the request had already expired, had been cancelled or it was already handled (this response message is a duplicate).", requestId, topic);
                 
                 // ToDo: add and API hook to these kind of situation
-                return;
+                return Task.CompletedTask;
             }
 
             try
@@ -318,15 +335,15 @@ namespace SlimMessageBus.Host
                 if (Log.IsDebugEnabled)
                 {
                     var tookTimespan = CurrentTime.Subtract(requestState.Created);
-                    Log.DebugFormat("Response arrived for {0} on topic {1} (time: {2} ms)", requestState, topic, tookTimespan);
+                    Log.DebugFormat(CultureInfo.InvariantCulture, "Response arrived for {0} on topic {1} (time: {2} ms)", requestState, topic, tookTimespan);
                 }
 
-                if (error != null)
+                if (errorMessage != null)
                 {
                     // error response arrived
-                    Log.DebugFormat("Response arrived for {0} on topic {1} with error: {2}", requestState, topic, error);
+                    Log.DebugFormat(CultureInfo.InvariantCulture, "Response arrived for {0} on topic {1} with error: {2}", requestState, topic, errorMessage);
 
-                    var e = new RequestHandlerFaultedMessageBusException(error);
+                    var e = new RequestHandlerFaultedMessageBusException(errorMessage);
                     requestState.TaskCompletionSource.TrySetException(e);
                 }
                 else
@@ -342,7 +359,7 @@ namespace SlimMessageBus.Host
                     }
                     catch (Exception e)
                     {
-                        Log.DebugFormat("Could not deserialize the response message for {0} arriving on topic {1}: {2}", requestState, topic, e);
+                        Log.DebugFormat(CultureInfo.InvariantCulture, "Could not deserialize the response message for {0} arriving on topic {1}: {2}", requestState, topic, e);
                         requestState.TaskCompletionSource.TrySetException(e);
                     }
                 }
@@ -352,6 +369,7 @@ namespace SlimMessageBus.Host
                 // remove the request from the queue
                 PendingRequestStore.Remove(requestId);
             }
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -361,12 +379,6 @@ namespace SlimMessageBus.Host
         protected virtual string GenerateRequestId()
         {
             return Guid.NewGuid().ToString("N");
-        }
-
-        private static async Task<T> Convert<T>(Task<object> task)
-        {
-            var result = await task;
-            return (T)result;
         }
     }
 }

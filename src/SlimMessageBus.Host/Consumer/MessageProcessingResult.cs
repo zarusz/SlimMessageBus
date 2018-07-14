@@ -5,8 +5,8 @@ namespace SlimMessageBus.Host
     public class MessageProcessingResult<TMessage>
         where TMessage : class
     {
-        public readonly Task Task;
-        public readonly TMessage Message;
+        public Task Task { get; }
+        public TMessage Message { get; }
 
         public MessageProcessingResult(Task task, TMessage message)
         {

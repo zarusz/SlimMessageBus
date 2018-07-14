@@ -1,6 +1,4 @@
-﻿using SlimMessageBus;
-
-namespace Sample.Images.Messages
+﻿namespace Sample.Images.Messages
 {
     public class GenerateThumbnailResponse
     {

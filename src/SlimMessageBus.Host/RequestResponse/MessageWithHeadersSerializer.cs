@@ -76,10 +76,8 @@ namespace SlimMessageBus.Host
 
             for (var headerIndex = 0; headerIndex < headerCount; headerIndex++)
             {
-                string key, value;
-
-                i += ReadString(payload, i, out key);
-                i += ReadString(payload, i, out value);
+                i += ReadString(payload, i, out var key);
+                i += ReadString(payload, i, out var value);
 
                 message.Headers.Add(key, value);
             }

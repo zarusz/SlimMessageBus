@@ -1,6 +1,5 @@
 ﻿using FluentAssertions;
 using SlimMessageBus.Host.Config;
-using System;
 using Xunit;
 
 namespace SlimMessageBus.Host.Kafka.Test
@@ -8,7 +7,7 @@ namespace SlimMessageBus.Host.Kafka.Test
     public class KafkaPublisherSettingsExtensionsTest
     {
         [Fact]
-        public void GetKeyProvider_ReturnsNull_ByDefault()
+        public void GivenDefaultWhenGetKeyProviderThenReturnsNull()
         {
             // arrange
             var ps = new PublisherSettings();
@@ -21,7 +20,7 @@ namespace SlimMessageBus.Host.Kafka.Test
         }
 
         [Fact]
-        public void GetPartitionProvider_ReturnsNull_ByDefault()
+        public void GivenDefaultWhenGetPartitionProviderThenReturnsNull()
         {
             // arrange
             var ps = new PublisherSettings();

@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Reflection;
 using Common.Logging;
 using Microsoft.Azure.EventHubs;
@@ -30,7 +31,7 @@ namespace SlimMessageBus.Host.AzureEventHub
         {
             if (Log.IsDebugEnabled)
             {
-                Log.DebugFormat("Message submitted: {0}", new MessageContextInfo(context, message));
+                Log.DebugFormat(CultureInfo.InvariantCulture, "Message submitted: {0}", new MessageContextInfo(context, message));
             }
             try
             {
@@ -40,7 +41,7 @@ namespace SlimMessageBus.Host.AzureEventHub
             {
                 if (Log.IsErrorEnabled)
                 {
-                    Log.ErrorFormat("Error occured while consuming response message, {0}", e, new MessageContextInfo(context, message));
+                    Log.ErrorFormat(CultureInfo.InvariantCulture, "Error occured while consuming response message, {0}", e, new MessageContextInfo(context, message));
                 }
 
                 // We can only continue and process all messages in the lease    
@@ -48,7 +49,7 @@ namespace SlimMessageBus.Host.AzureEventHub
                 if (_requestResponseSettings.OnResponseMessageFault != null)
                 {
                     // Call the hook
-                    Log.DebugFormat("Executing the attached hook from {0}", nameof(_requestResponseSettings.OnResponseMessageFault));
+                    Log.DebugFormat(CultureInfo.InvariantCulture, "Executing the attached hook from {0}", nameof(_requestResponseSettings.OnResponseMessageFault));
                     _requestResponseSettings.OnResponseMessageFault(_requestResponseSettings, message, e);
                 }
             }

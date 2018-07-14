@@ -7,13 +7,12 @@ namespace SlimMessageBus.Host.Test
     public class ConsumerSettingsTest
     {
         [Fact]
-        public void AfterSettingMessageType_WhenNoRequestMessage_ResponseTypeShouldBeNull()
+        public void GivenMessageIsNotRequestWhenSetMessageTypeSetThenResponseTypeShouldBeNull()
         {
             // arrange
-            var cs = new ConsumerSettings();
 
             // act
-            cs.MessageType = typeof (SomeMessage);
+            var cs = new ConsumerSettings { MessageType = typeof(SomeMessage) };
 
             // assert
             cs.ResponseType.Should().BeNull();
@@ -21,13 +20,12 @@ namespace SlimMessageBus.Host.Test
         }
 
         [Fact]
-        public void AfterSettingMessageType_WhenRequestMessage_ResponseTypeShouldBeInfered()
+        public void GivenRequestMessageWhenSetMessageTypeWhenRequestMessageThenResponseTypeShouldBeInfered()
         {
             // arrange
-            var cs = new ConsumerSettings();
 
             // act
-            cs.MessageType = typeof(SomeRequest);
+            var cs = new ConsumerSettings { MessageType = typeof(SomeRequest) };
 
             // assert
             cs.ResponseType.Should().Be(typeof(SomeResponse));
@@ -35,7 +33,7 @@ namespace SlimMessageBus.Host.Test
         }
 
         [Fact]
-        public void AfterCreation_DefaultInstances_ShouldBe1()
+        public void WhenCreationThenDefaultInstancesIs1()
         {
             // arrange
 

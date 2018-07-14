@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.IO;
 using Autofac;
 using Sample.Images.FileStore;
@@ -17,7 +15,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace Sample.Images.Worker
 {
-    public class ContainerSetup
+    public static class ContainerSetup
     {
         public static IContainer Create(IConfigurationRoot configuration)
         {
@@ -60,7 +58,7 @@ namespace Sample.Images.Worker
             var kafkaBrokers = configuration["Kafka:Brokers"];
 
             var instanceGroup = $"worker-{instanceId}";
-            var sharedGroup = $"workers";
+            var sharedGroup = "workers";
 
             var messageBusBuilder = new MessageBusBuilder()
                 .Handle<GenerateThumbnailRequest, GenerateThumbnailResponse>(s =>
@@ -83,12 +81,12 @@ namespace Sample.Images.Worker
                 {
                     ConsumerConfigFactory = (group) => new Dictionary<string, object>
                     {
-                        {KafkaConfigKeys.Consumer.AutoCommitEnableMs, 5000},
-                        {KafkaConfigKeys.Consumer.StatisticsIntervalMs, 60000},
+                        {KafkaConfigKeys.ConsumerKeys.AutoCommitEnableMs, 5000},
+                        {KafkaConfigKeys.ConsumerKeys.StatisticsIntervalMs, 60000},
                         {
                             "default.topic.config", new Dictionary<string, object>
                             {
-                                {KafkaConfigKeys.Consumer.AutoOffsetReset, KafkaConfigValues.AutoOffsetReset.Latest}
+                                {KafkaConfigKeys.ConsumerKeys.AutoOffsetReset, KafkaConfigValues.AutoOffsetReset.Latest}
                             }
                         }
                     }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.Threading;
 using Common.Logging;
 
@@ -40,8 +41,17 @@ namespace SlimMessageBus.Host.RequestResponse
 
         public void Dispose()
         {
-            _timer.Change(Timeout.Infinite, Timeout.Infinite);
-            _timer.Dispose();
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _timer.Change(Timeout.Infinite, Timeout.Infinite);
+                _timer.Dispose();
+            }
         }
 
         #endregion
@@ -84,7 +94,7 @@ namespace SlimMessageBus.Host.RequestResponse
 
                 if (Store.Remove(requestState.Id) && canceled)
                 {
-                    Log.DebugFormat("Pending request timed-out: {0}, now: {1}", requestState, now);
+                    Log.DebugFormat(CultureInfo.InvariantCulture, "Pending request timed-out: {0}, now: {1}", requestState, now);
                     _onRequestTimeout(requestState.Request);
                 }
             }

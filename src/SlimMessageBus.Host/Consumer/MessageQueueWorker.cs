@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Common.Logging;
@@ -76,7 +77,7 @@ namespace SlimMessageBus.Host
                 {
                     // some tasks failed
                     success = false;
-                    Log.ErrorFormat("Errors occured while executing the tasks.", e);
+                    Log.ErrorFormat(CultureInfo.InvariantCulture, "Errors occured while executing the tasks.", e);
 
                     // grab last message that succeeded (if any)
                     // Note: Assumption that that messages in queue follow the partition offset.

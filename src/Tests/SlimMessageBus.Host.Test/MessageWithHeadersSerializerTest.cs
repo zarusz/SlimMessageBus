@@ -1,7 +1,6 @@
 ﻿using System.Linq;
 using System.Text;
 using FluentAssertions;
-using System;
 using Xunit;
 
 namespace SlimMessageBus.Host.Test
@@ -18,7 +17,7 @@ namespace SlimMessageBus.Host.Test
         }
 
         [Fact]
-        public void WithoutHeaders_SerializationWorks()
+        public void WithoutHeadersThenSerializationWorks()
         {
             // arrange
             var m = new MessageWithHeaders
@@ -36,7 +35,7 @@ namespace SlimMessageBus.Host.Test
         }
 
         [Fact]
-        public void WithoutPayload_SerializationWorks()
+        public void WithoutPayloadThenSerializationWorks()
         {
             // arrange
             var m = new MessageWithHeaders
@@ -54,7 +53,7 @@ namespace SlimMessageBus.Host.Test
         }
 
         [Fact]
-        public void WithHeaders_SerializationWorks()
+        public void WhenHeadersThenSerializationWorks()
         {
             // arrange
             var m = new MessageWithHeaders
@@ -81,7 +80,7 @@ namespace SlimMessageBus.Host.Test
         }
 
         [Fact]
-        public void WithLargeHeader_SerializationWorks()
+        public void WhenLargeHeaderThenSerializationWorks()
         {
             // arrange
             var largeValue = "System.InvalidOperationException: Image with id '_DSC0862.jpg' does not exist\r\n   at Sample.Images.Worker.Handlers.GenerateThumbnailRequestHandler.<OnHandle>d__3.MoveNext() in E:\\dev\\mygithub\\SlimMessageBus\\Samples\\Sample.Images.Worker\\Handlers\\GenerateThumbnailRequestHandler.cs:line 31\r\n--- End of stack trace from previous location where exception was thrown ---\r\n   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)\r\n   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)\r\n   at System.Runtime.CompilerServices.TaskAwaiter.GetResult()\r\n   at SlimMessageBus.Host.Kafka.TopicConsumerInstances.<ProcessMessage>d__13.MoveNext() in E:\\dev\\mygithub\\SlimMessageBus\\SlimMessageBus.Host.Kafka\\TopicSubscriberInstances.cs:line 109";

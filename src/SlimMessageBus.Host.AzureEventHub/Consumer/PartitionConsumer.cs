@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Reflection;
 using System.Threading.Tasks;
 using Common.Logging;
@@ -12,8 +13,8 @@ namespace SlimMessageBus.Host.AzureEventHub
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        protected readonly EventHubMessageBus MessageBus;
-        protected readonly TaskMarker TaskMarker = new TaskMarker();
+        protected EventHubMessageBus MessageBus { get; }
+        protected TaskMarker TaskMarker { get; } = new TaskMarker();
 
         protected PartitionConsumer(EventHubMessageBus messageBus)
         {
@@ -22,9 +23,18 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         #region Implementation of IDisposable
 
-        public virtual void Dispose()
+        public void Dispose()
         {
-            TaskMarker.Stop().Wait();
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected  virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                TaskMarker.Stop().Wait();
+            }
         }
 
         #endregion
@@ -33,7 +43,7 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         public Task OpenAsync(PartitionContext context)
         {
-            Log.DebugFormat("Open lease: {0}", new PartitionContextInfo(context));
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Open lease: {0}", new PartitionContextInfo(context));
             return Task.CompletedTask;
         }
 
@@ -56,7 +66,7 @@ namespace SlimMessageBus.Host.AzureEventHub
                     lastMessage = message;
                     if (OnSubmit(message, context))
                     {
-                        lastCheckpointMessage = await CheckpointSafe(message, context);
+                        lastCheckpointMessage = await CheckpointSafe(message, context).ConfigureAwait(false);
                         if (!ReferenceEquals(lastCheckpointMessage, message))
                         {
                             // something went wrong (not all messages were processed with success)
@@ -73,7 +83,7 @@ namespace SlimMessageBus.Host.AzureEventHub
                     // checkpoint the last messages
                     if ((!ReferenceEquals(lastCheckpointMessage, lastMessage) && lastMessage != null))
                     {
-                        await CheckpointSafe(lastMessage, context);
+                        await CheckpointSafe(lastMessage, context).ConfigureAwait(false);
                     }
                 }
             }
@@ -86,13 +96,13 @@ namespace SlimMessageBus.Host.AzureEventHub
         public Task ProcessErrorAsync(PartitionContext context, Exception error)
         {
             // ToDo: improve error handling
-            Log.ErrorFormat("Partition {0} error", error, new PartitionContextInfo(context));
+            Log.ErrorFormat(CultureInfo.InvariantCulture, "Partition {0} error", error, new PartitionContextInfo(context));
             return Task.CompletedTask;
         }
 
         public Task CloseAsync(PartitionContext context, CloseReason reason)
         {
-            Log.DebugFormat("Close lease: Reason: {0}, {1}", reason, new PartitionContextInfo(context));
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Close lease: Reason: {0}, {1}", reason, new PartitionContextInfo(context));
             return Task.CompletedTask;
         }
 
@@ -119,15 +129,15 @@ namespace SlimMessageBus.Host.AzureEventHub
             }
             if (lastCheckpointMessage != null)
             {
-                await Checkpoint(lastCheckpointMessage, context);
+                await Checkpoint(lastCheckpointMessage, context).ConfigureAwait(false);
             }
             return lastCheckpointMessage;
         }
 
-        private async Task Checkpoint(EventData message, PartitionContext context)
+        private static Task Checkpoint(EventData message, PartitionContext context)
         {
-            Log.DebugFormat("Will checkpoint at Offset: {0}, {1}", message.SystemProperties.Offset, new PartitionContextInfo(context));
-            await context.CheckpointAsync(message);
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Will checkpoint at Offset: {0}, {1}", message.SystemProperties.Offset, new PartitionContextInfo(context));
+            return context.CheckpointAsync(message);
         }
 
         protected abstract bool OnSubmit(EventData message, PartitionContext context);

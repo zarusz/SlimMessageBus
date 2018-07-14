@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.Threading.Tasks;
 using SlimMessageBus;
 using SlimMessageBus.Host;
@@ -7,6 +8,7 @@ using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.AzureEventHub;
 using SlimMessageBus.Host.Kafka;
 using System.Text;
+using System.Threading;
 using Common.Logging;
 using Common.Logging.Configuration;
 using Microsoft.Extensions.Configuration;
@@ -19,12 +21,12 @@ namespace Sample.Simple.ConsoleApp
         EventHub
     }
 
-    class Program
+    internal static class Program
     {
-        static readonly Random Random = new Random();
-        static bool _stop;
+        private static readonly Random Random = new Random();
+        private static bool _stop;
 
-        static void Main(string[] args)
+        private static void Main()
         {
             // Load configuration
             var configuration = new ConfigurationBuilder()
@@ -36,10 +38,10 @@ namespace Sample.Simple.ConsoleApp
             configuration.GetSection("LogConfiguration").Bind(logConfiguration);
             LogManager.Configure(logConfiguration);
 
-            using (IMessageBus messageBus = CreateMessageBus(configuration))
+            using (var messageBus = CreateMessageBus(configuration))
             {
-                var addTask = Task.Factory.StartNew(() => AddLoop(messageBus), TaskCreationOptions.LongRunning);
-                var multiplyTask = Task.Factory.StartNew(() => MultiplyLoop(messageBus), TaskCreationOptions.LongRunning);
+                var addTask = Task.Factory.StartNew(() => AddLoop(messageBus), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+                var multiplyTask = Task.Factory.StartNew(() => MultiplyLoop(messageBus), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
                 Console.WriteLine("Press any key to stop...");
                 Console.ReadKey();
@@ -77,10 +79,9 @@ namespace Sample.Simple.ConsoleApp
             // Create message bus using the fluent builder interface
             IMessageBus messageBus = new MessageBusBuilder()
                 // Pub/Sub example
-                .Publish<AddCommand
-                >(x => x.DefaultTopic(
-                    topicForAddCommand)) // By default AddCommand messages will go to event hub named 'add-command' (or topic if Kafka is chosen)
-                .SubscribeTo<AddCommand>(x => x.Topic(topicForAddCommand)
+                .Publish<AddCommand>(x => x.DefaultTopic(topicForAddCommand)) // By default AddCommand messages will go to event hub named 'add-command' (or topic if Kafka is chosen)
+                .SubscribeTo<AddCommand>(x => x
+                    .Topic(topicForAddCommand)
                     .Group(consumerGroup)
                     .WithSubscriber<AddCommandConsumer>())
                 // Req/Resp example
@@ -89,7 +90,7 @@ namespace Sample.Simple.ConsoleApp
                     // By default AddCommand messages will go to event hub named 'multiply-request' (or topic if Kafka is chosen)
                     x.DefaultTopic(topicForMultiplyRequest);
                     // Message key could be set for the message (this is optional)
-                    x.KeyProvider((request, topic) => Encoding.ASCII.GetBytes((request.Left + request.Right).ToString()));
+                    x.KeyProvider((request, topic) => Encoding.ASCII.GetBytes((request.Left + request.Right).ToString(CultureInfo.InvariantCulture)));
                     // Parition selector (this is optional) - assumptions that there are 2 partitions for the topic
                     // x.PartitionProvider((request, topic) => (request.Left + request.Right) % 2);
                 })
@@ -100,10 +101,8 @@ namespace Sample.Simple.ConsoleApp
                 .ExpectRequestResponses(x =>
                 {
                     x.Group(responseGroup);
-                    x.ReplyToTopic(
-                        topicForResponses); // All responses from req/resp will return on this topic (the EventHub name)
-                    x.DefaultTimeout(TimeSpan
-                        .FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
+                    x.ReplyToTopic(topicForResponses); // All responses from req/resp will return on this topic (the EventHub name)
+                    x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
                 })
                 .WithSerializer(new JsonMessageSerializer()) // Use JSON for message serialization                
                 .WithDependencyResolver(new LookupDependencyResolver(type =>
@@ -115,6 +114,7 @@ namespace Sample.Simple.ConsoleApp
                 }))
                 .Do(builder =>
                 {
+                    Console.WriteLine($"Using {provider} as the transport provider");
                     switch (provider)
                     {
                         case Provider.Kafka:
@@ -123,16 +123,14 @@ namespace Sample.Simple.ConsoleApp
                             var storageConnectionString = configuration["Azure:Storage"];
                             var storageContainerName = configuration["Azure:ContainerName"];
 
-                            builder.WithProviderEventHub(new EventHubMessageBusSettings(eventHubConnectionString,
-                                storageConnectionString, storageContainerName)); // Use Azure Event Hub as provider
+                            builder.WithProviderEventHub(new EventHubMessageBusSettings(eventHubConnectionString, storageConnectionString, storageContainerName)); // Use Azure Event Hub as provider
                             break;
 
                         case Provider.EventHub:
                             // ToDo: Ensure your Kafka broker is running
                             var kafkaBrokers = configuration["Kafka:Brokers"];
 
-                            builder.WithProviderKafka(
-                                new KafkaMessageBusSettings(kafkaBrokers)); // Or use Apache Kafka as provider
+                            builder.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)); // Or use Apache Kafka as provider
                             break;
                     }
                 })
@@ -150,14 +148,14 @@ namespace Sample.Simple.ConsoleApp
                 Console.WriteLine("Producer: Sending numbers {0} and {1}", a, b);
                 try
                 {
-                    await bus.Publish(new AddCommand { Left = a, Right = b });
+                    await bus.Publish(new AddCommand { Left = a, Right = b }).ConfigureAwait(false);
                 }
                 catch (Exception)
                 {
                     Console.WriteLine("Producer: publish error");
                 }
 
-                await Task.Delay(50); // Simulate some delay
+                await Task.Delay(50).ConfigureAwait(false); // Simulate some delay
             }
         }
 
@@ -171,7 +169,7 @@ namespace Sample.Simple.ConsoleApp
                 Console.WriteLine("Sender: Sending numbers {0} and {1}", a, b);
                 try
                 {
-                    var response = await bus.Send(new MultiplyRequest { Left = a, Right = b });
+                    var response = await bus.Send(new MultiplyRequest { Left = a, Right = b }).ConfigureAwait(false);
                     Console.WriteLine("Sender: Got response back with result {0}", response.Result);
                 }
                 catch (Exception e)
@@ -179,7 +177,7 @@ namespace Sample.Simple.ConsoleApp
                     Console.WriteLine("Sender: request error or timeout: " + e);
                 }
 
-                await Task.Delay(50); // Simulate some work
+                await Task.Delay(50).ConfigureAwait(false); // Simulate some work
             }
         }
     }
@@ -194,10 +192,10 @@ namespace Sample.Simple.ConsoleApp
     {
         #region Implementation of IConsumer<in AddCommand>
 
-        public async Task OnHandle(AddCommand message, string topic)
+        public Task OnHandle(AddCommand message, string topic)
         {
-            await Task.Delay(50); // Simulate some work
             Console.WriteLine("Consumer: Adding {0} and {1} gives {2}", message.Left, message.Right, message.Left + message.Right);
+            return Task.Delay(50); // Simulate some work
         }
 
         #endregion
@@ -220,7 +218,7 @@ namespace Sample.Simple.ConsoleApp
 
         public async Task<MultiplyResponse> OnHandle(MultiplyRequest request, string topic)
         {
-            await Task.Delay(50); // Simulate some work
+            await Task.Delay(50).ConfigureAwait(false); // Simulate some work
             return new MultiplyResponse { Result = request.Left * request.Right };
         }
 

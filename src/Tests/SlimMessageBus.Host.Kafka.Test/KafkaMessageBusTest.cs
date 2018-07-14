@@ -11,9 +11,9 @@ namespace SlimMessageBus.Host.Kafka.Test
 {
     public class KafkaMessageBusTest : IDisposable
     {
-        MessageBusSettings MbSettings { get; }
-        KafkaMessageBusSettings KafkaMbSettings { get; }
-        Lazy<WrappedKafkaMessageBus> KafkaMb { get; }
+        private MessageBusSettings MbSettings { get; }
+        private KafkaMessageBusSettings KafkaMbSettings { get; }
+        private Lazy<WrappedKafkaMessageBus> KafkaMb { get; }
 
         public KafkaMessageBusTest()
         {
@@ -31,7 +31,16 @@ namespace SlimMessageBus.Host.Kafka.Test
 
         public void Dispose()
         {
-            KafkaMb.Value.Dispose();
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                KafkaMb.Value.Dispose();
+            }
         }
 
         [Fact]

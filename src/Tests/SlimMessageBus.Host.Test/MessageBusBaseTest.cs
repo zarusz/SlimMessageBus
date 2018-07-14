@@ -35,11 +35,11 @@ namespace SlimMessageBus.Host.Test
     public class MessageBusBaseTest : IDisposable
     {
         private readonly MessageBusTested _bus;
-        private DateTimeOffset _timeZero;
+        private readonly DateTimeOffset _timeZero;
         private DateTimeOffset _timeNow;
 
-        private const int timeoutForA_10 = 10;
-        private const int timeoutDefault_20 = 20;
+        private const int TimeoutForA10 = 10;
+        private const int TimeoutDefault20 = 20;
 
         public MessageBusBaseTest()
         {
@@ -50,7 +50,7 @@ namespace SlimMessageBus.Host.Test
                 .Publish<RequestA>(x =>
                 {
                     x.DefaultTopic("a-requests");
-                    x.DefaultTimeout(TimeSpan.FromSeconds(timeoutForA_10));
+                    x.DefaultTimeout(TimeSpan.FromSeconds(TimeoutForA10));
                 })
                 .Publish<RequestB>(x =>
                 {
@@ -59,13 +59,13 @@ namespace SlimMessageBus.Host.Test
                 .ExpectRequestResponses(x =>
                 {
                     x.ReplyToTopic("app01-responses");
-                    x.DefaultTimeout(TimeSpan.FromSeconds(timeoutDefault_20));
+                    x.DefaultTimeout(TimeSpan.FromSeconds(TimeoutDefault20));
                 })
                 .WithDependencyResolver(new LookupDependencyResolver(t => null))
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProvider(s => new MessageBusTested(s));
 
-            _bus = (MessageBusTested) messageBusBuilder.Build();
+            _bus = (MessageBusTested)messageBusBuilder.Build();
 
             // provide current time
             _bus.CurrentTimeProvider = () => _timeNow;
@@ -73,11 +73,20 @@ namespace SlimMessageBus.Host.Test
 
         public void Dispose()
         {
-            _bus.Dispose();
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _bus.Dispose();
+            }
         }
 
         [Fact]
-        public void WhenNoTimeoutProvided_TakesDefaultTimeoutForRequestType()
+        public void WhenNoTimeoutProvidedThenTakesDefaultTimeoutForRequestType()
         {
             // arrange
             var ra = new RequestA();
@@ -90,7 +99,7 @@ namespace SlimMessageBus.Host.Test
             WaitForTasks(2000, raTask, rbTask);
 
             // after 10 seconds
-            _timeNow = _timeZero.AddSeconds(timeoutForA_10 + 1);
+            _timeNow = _timeZero.AddSeconds(TimeoutForA10 + 1);
             _bus.TriggerPendingRequestCleanup();
 
             // assert
@@ -98,7 +107,7 @@ namespace SlimMessageBus.Host.Test
             rbTask.IsCanceled.Should().BeFalse();
 
             // adter 20 seconds
-            _timeNow = _timeZero.AddSeconds(timeoutDefault_20 + 1);
+            _timeNow = _timeZero.AddSeconds(TimeoutDefault20 + 1);
             _bus.TriggerPendingRequestCleanup();
 
             // assert
@@ -106,7 +115,7 @@ namespace SlimMessageBus.Host.Test
         }
 
         [Fact]
-        public void WhenResponseArrives_ResolvesPendingRequest()
+        public void WhenResponseArrivesThenResolvesPendingRequest()
         {
             // arrange
             var r = new RequestA();
@@ -134,7 +143,7 @@ namespace SlimMessageBus.Host.Test
         }
 
         [Fact]
-        public void WhenResponseArrivesTooLate_ExpiresPendingRequest()
+        public void WhenResponseArrivesTooLateThenExpiresPendingRequest()
         {
             // arrange
             var r1 = new RequestA();
@@ -174,7 +183,7 @@ namespace SlimMessageBus.Host.Test
         }
 
         [Fact]
-        public void WhenCancellationTokenCancelled_CancellsPendingRequest()
+        public void WhenCancellationTokenCancelledThenCancellsPendingRequest()
         {
             // arrange
             var r1 = new RequestA();
@@ -209,6 +218,7 @@ namespace SlimMessageBus.Host.Test
             }
             catch (AggregateException)
             {
+                // swallow
             }
         }
 
@@ -220,12 +230,13 @@ namespace SlimMessageBus.Host.Test
             }
             catch (AggregateException)
             {
+                // swallow
             }
         }
 
 
         [Fact]
-        public void SerializedRequestMessage_Property()
+        public void WhenRequestMessageSerializedThenDeserializeGivesSameObject()
         {
             // arrange
             var r = new RequestA();
@@ -234,21 +245,53 @@ namespace SlimMessageBus.Host.Test
             var expires = DateTimeOffset.UtcNow.AddMinutes(2);
 
             // act
-            var p = _bus.SerializeRequest(typeof(RequestA), r, rid, replyTo, expires);
+            var payload = _bus.SerializeRequest(typeof(RequestA), r, rid, replyTo, expires);
 
-            _bus.DeserializeRequest(typeof(RequestA), p, out string rid2, out string replyTo2, out DateTimeOffset? expires2);
+            _bus.DeserializeRequest(typeof(RequestA), payload, out var rid2, out var replyTo2, out var expires2);
 
             // assert
             rid2.Should().Be(rid);
             replyTo2.Should().Be(replyTo);
-            expires2.HasValue.Should().BeTrue();
-            expires2.Value.Subtract(expires).TotalSeconds.Should().BeLessOrEqualTo(1);
+            expires2.Should().HaveValue();
+            expires2.Value.EqualsExact(expires);
         }
+
+        [Fact]
+        public void GivenDisposedWhenPublishThenThrowsException()
+        {
+            // arrange
+            _bus.Dispose();
+
+            // act
+            Func<Task> act = async () => await _bus.Publish(new SomeMessage()).ConfigureAwait(false);
+            Func<Task> actWithTopic = async () => await _bus.Publish(new SomeMessage(), "some-topic").ConfigureAwait(false);
+
+            // assert
+            act.Should().Throw<MessageBusException>();
+            actWithTopic.Should().Throw<MessageBusException>();
+        }
+
+        [Fact]
+        public void GivenDisposedWhenSendThenThrowsException()
+        {
+            // arrange
+            _bus.Dispose();
+
+            // act
+            Func<Task> act = async () => await _bus.Send(new SomeRequest()).ConfigureAwait(false);
+            Func<Task> actWithTopic = async () => await _bus.Send(new SomeRequest(), "some-topic").ConfigureAwait(false);
+
+            // assert
+            act.Should().Throw<MessageBusException>();
+            actWithTopic.Should().Throw<MessageBusException>();
+        }
+
     }
 
     public class MessageBusTested : MessageBusBase
     {
-        public MessageBusTested(MessageBusSettings settings) : base(settings)
+        public MessageBusTested(MessageBusSettings settings) 
+            : base(settings)
         {
             // by default no responses will arrive
             OnReply = (type, payload, req) => null;
@@ -260,16 +303,18 @@ namespace SlimMessageBus.Host.Test
 
         #region Overrides of BaseMessageBus
 
-        public override async Task PublishToTransport(Type messageType, object message, string topic, byte[] payload)
+        public override Task PublishToTransport(Type messageType, object message, string topic, byte[] payload)
         {
-            var req = DeserializeRequest(messageType, payload, out string reqId, out string replyTo, out DateTimeOffset? expires);
+            var req = DeserializeRequest(messageType, payload, out var reqId, out var replyTo, out var expires);
 
             var resp = OnReply(messageType, topic, req);
             if (resp == null)
-                return;
+            {
+                return Task.CompletedTask;
+            }
 
             var respPayload = SerializeResponse(resp.GetType(), resp, reqId, null);
-            await OnResponseArrived(respPayload, replyTo);
+            return OnResponseArrived(respPayload, replyTo);
         }
 
         #endregion
@@ -284,7 +329,7 @@ namespace SlimMessageBus.Host.Test
 
         public void TriggerPendingRequestCleanup()
         {
-            this.PendingRequestManager.CleanPendingRequests();
+            PendingRequestManager.CleanPendingRequests();
         }
     }
 }

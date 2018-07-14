@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Common.Logging;
@@ -14,7 +15,7 @@ namespace SlimMessageBus.Host.Kafka
 
         public KafkaMessageBus MessageBus { get; }
         public string Group { get; }
-        public string[] Topics { get; }
+        public ICollection<string> Topics { get; }
 
         private readonly SafeDictionaryWrapper<TopicPartition, IKafkaTopicPartitionProcessor> _processors;
         private Consumer _consumer;
@@ -24,7 +25,7 @@ namespace SlimMessageBus.Host.Kafka
 
         public KafkaGroupConsumer(KafkaMessageBus messageBus, string group, string[] topics, Func<TopicPartition, IKafkaCommitController, IKafkaTopicPartitionProcessor> processorFactory)
         {
-            Log.InfoFormat("Creating for group: {0}, topics: {1}", group, string.Join(", ", topics));
+            Log.InfoFormat(CultureInfo.InvariantCulture, "Creating for group: {0}, topics: {1}", group, string.Join(", ", topics));
 
             MessageBus = messageBus;
             Group = group;
@@ -43,20 +44,29 @@ namespace SlimMessageBus.Host.Kafka
 
         #region Implementation of IDisposable
 
-        public virtual void Dispose()
+        public void Dispose()
         {
-            if (_consumerTask != null)
-            {
-                Stop();
-            }
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
 
-            _processors.Clear(x => x.DisposeSilently("processor", Log));          
-
-            // dispose the consumer
-            if (_consumer != null)
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
             {
-                _consumer.DisposeSilently("consumer", Log);
-                _consumer = null;
+                if (_consumerTask != null)
+                {
+                    Stop();
+                }
+
+                _processors.Clear(x => x.DisposeSilently("processor", Log));
+
+                // dispose the consumer
+                if (_consumer != null)
+                {
+                    _consumer.DisposeSilently("consumer", Log);
+                    _consumer = null;
+                }
             }
         }
 
@@ -66,9 +76,9 @@ namespace SlimMessageBus.Host.Kafka
         {
             var config = MessageBus.KafkaSettings.ConsumerConfigFactory(group);
             config[KafkaConfigKeys.Servers] = MessageBus.KafkaSettings.BrokerList;
-            config[KafkaConfigKeys.Consumer.GroupId] = group;
+            config[KafkaConfigKeys.ConsumerKeys.GroupId] = group;
             // ToDo: add support for auto commit
-            config[KafkaConfigKeys.Consumer.EnableAutoCommit] = false;
+            config[KafkaConfigKeys.ConsumerKeys.EnableAutoCommit] = false;
             var consumer = MessageBus.KafkaSettings.ConsumerFactory(group, config);
             return consumer;
         }
@@ -80,7 +90,7 @@ namespace SlimMessageBus.Host.Kafka
                 throw new MessageBusException($"Consumer for group {Group} already started");
             }
 
-            Log.InfoFormat("Group [{0}]: Subscribing to topics: {1}", Group, string.Join(", ", Topics));
+            Log.InfoFormat(CultureInfo.InvariantCulture, "Group [{0}]: Subscribing to topics: {1}", Group, string.Join(", ", Topics));
             _consumer.Subscribe(Topics);
 
             _consumerCts = new CancellationTokenSource();
@@ -92,7 +102,7 @@ namespace SlimMessageBus.Host.Kafka
         /// </summary>
         protected virtual void ConsumerLoop()
         {
-            Log.InfoFormat("Group [{0}]: Consumer loop started", Group);
+            Log.InfoFormat(CultureInfo.InvariantCulture, "Group [{0}]: Consumer loop started", Group);
             try
             {
                 var pollInterval = MessageBus.KafkaSettings.ConsumerPollInterval;
@@ -102,23 +112,23 @@ namespace SlimMessageBus.Host.Kafka
                 {
                     try
                     {
-                        Log.TraceFormat("Group [{0}]: Polling consumer", Group);
+                        Log.TraceFormat(CultureInfo.InvariantCulture, "Group [{0}]: Polling consumer", Group);
                         _consumer.Poll(pollInterval);
                     }
                     catch (Exception e)
                     {
-                        Log.ErrorFormat("Group [{0}]: Error occured while polling new messages (will retry in {1})", e, Group, pollRetryInterval);
+                        Log.ErrorFormat(CultureInfo.InvariantCulture, "Group [{0}]: Error occured while polling new messages (will retry in {1})", e, Group, pollRetryInterval);
                         Task.Delay(pollRetryInterval, _consumerCts.Token).Wait(_consumerCts.Token);
                     }
                 }
             }
             catch (Exception e)
             {
-                Log.ErrorFormat("Group [{0}]: Error occured in group loop (terminated)", e, Group);
+                Log.ErrorFormat(CultureInfo.InvariantCulture, "Group [{0}]: Error occured in group loop (terminated)", e, Group);
             }
             finally
             {
-                Log.InfoFormat("Group [{0}]: Consumer loop finished", Group);
+                Log.InfoFormat(CultureInfo.InvariantCulture, "Group [{0}]: Consumer loop finished", Group);
             }
         }
 
@@ -129,10 +139,10 @@ namespace SlimMessageBus.Host.Kafka
                 throw new MessageBusException($"Consumer for group {Group} not yet started");
             }
 
-            Log.InfoFormat("Group [{0}]: Unassigning partitions", Group);
+            Log.InfoFormat(CultureInfo.InvariantCulture, "Group [{0}]: Unassigning partitions", Group);
             _consumer.Unassign();
 
-            Log.InfoFormat("Group [{0}]: Unsubscribing from topics", Group);
+            Log.InfoFormat(CultureInfo.InvariantCulture, "Group [{0}]: Unsubscribing from topics", Group);
             _consumer.Unsubscribe();
 
             _consumerCts.Cancel();
@@ -151,7 +161,7 @@ namespace SlimMessageBus.Host.Kafka
         {
             if (Log.IsDebugEnabled)
             {
-                Log.DebugFormat("Group [{0}]: Assigned partitions: {1}", Group, string.Join(", ", partitions));
+                Log.DebugFormat(CultureInfo.InvariantCulture, "Group [{0}]: Assigned partitions: {1}", Group, string.Join(", ", partitions));
             }
 
             // Ensure processors exist for each assigned topic-partition
@@ -164,7 +174,7 @@ namespace SlimMessageBus.Host.Kafka
         {
             if (Log.IsDebugEnabled)
             {
-                Log.DebugFormat("Group [{0}]: Revoked partitions: {1}", Group, string.Join(", ", partitions));
+                Log.DebugFormat(CultureInfo.InvariantCulture, "Group [{0}]: Revoked partitions: {1}", Group, string.Join(", ", partitions));
             }
 
             partitions.ForEach(tp => _processors.Dictonary[tp].OnPartitionRevoked().Wait());
@@ -174,7 +184,7 @@ namespace SlimMessageBus.Host.Kafka
 
         protected virtual void OnPartitionEndReached(object sender, TopicPartitionOffset offset)
         {
-            Log.DebugFormat("Group [{0}]: Reached end of partition: {1}, next message will be at offset: {2}", Group, offset.TopicPartition, offset.Offset);
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Group [{0}]: Reached end of partition: {1}, next message will be at offset: {2}", Group, offset.TopicPartition, offset.Offset);
 
             var processor = _processors.Dictonary[offset.TopicPartition];
             processor.OnPartitionEndReached(offset).Wait();
@@ -182,7 +192,7 @@ namespace SlimMessageBus.Host.Kafka
 
         protected virtual void OnMessage(object sender, Message message)
         {
-            Log.DebugFormat("Group [{0}]: Received message with offset: {1}, payload size: {2}", Group, message.TopicPartitionOffset, message.Value.Length);
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Group [{0}]: Received message with offset: {1}, payload size: {2}", Group, message.TopicPartitionOffset, message.Value.Length);
 
             var processor = _processors.Dictonary[message.TopicPartition];
             processor.OnMessage(message).Wait();
@@ -193,12 +203,12 @@ namespace SlimMessageBus.Host.Kafka
             if (e.Error)
             {
                 if (Log.IsWarnEnabled)
-                    Log.WarnFormat("Group [{0}]: Failed to commit offsets: [{1}], error: {2}", Group, string.Join(", ", e.Offsets), e.Error);
+                    Log.WarnFormat(CultureInfo.InvariantCulture, "Group [{0}]: Failed to commit offsets: [{1}], error: {2}", Group, string.Join(", ", e.Offsets), e.Error);
             }
             else
             {
                 if (Log.IsTraceEnabled)
-                    Log.TraceFormat("Group [{0}]: Successfully committed offsets: [{1}]", Group, string.Join(", ", e.Offsets));
+                    Log.TraceFormat(CultureInfo.InvariantCulture, "Group [{0}]: Successfully committed offsets: [{1}]", Group, string.Join(", ", e.Offsets));
             }
         }
 
@@ -206,7 +216,7 @@ namespace SlimMessageBus.Host.Kafka
         {
             if (Log.IsTraceEnabled)
             {
-                Log.TraceFormat("Group [{0}]: Statistics: {1}", Group, e);
+                Log.TraceFormat(CultureInfo.InvariantCulture, "Group [{0}]: Statistics: {1}", Group, e);
             }
         }
 
@@ -214,7 +224,7 @@ namespace SlimMessageBus.Host.Kafka
 
         public Task Commit(TopicPartitionOffset offset)
         {
-            Log.DebugFormat("Group [{0}]: Commit offset: {1}", Group, offset);
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Group [{0}]: Commit offset: {1}", Group, offset);
             return _consumer.CommitAsync(new List<TopicPartitionOffset> { offset });
         }    
 

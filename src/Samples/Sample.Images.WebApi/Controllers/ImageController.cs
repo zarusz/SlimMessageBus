@@ -1,10 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -34,13 +29,13 @@ namespace Sample.Images.WebApi.Controllers
         {
             var thumbFileId = _fileIdStrategy.GetFileId(fileId, w, h, mode);
 
-            var thumbFileContent = await _fileStore.GetFile(thumbFileId);
+            var thumbFileContent = await _fileStore.GetFile(thumbFileId).ConfigureAwait(false);
             if (thumbFileContent == null)
             {
                 try
                 {
-                    var thumbGenResponse = await _bus.Send(new GenerateThumbnailRequest(fileId, mode, w, h), cancellationToken);
-                    thumbFileContent = await _fileStore.GetFile(thumbGenResponse.FileId);
+                    var thumbGenResponse = await _bus.Send(new GenerateThumbnailRequest(fileId, mode, w, h), cancellationToken).ConfigureAwait(false);
+                    thumbFileContent = await _fileStore.GetFile(thumbGenResponse.FileId).ConfigureAwait(false);
                 }
                 catch (RequestHandlerFaultedMessageBusException)
                 {
@@ -60,7 +55,7 @@ namespace Sample.Images.WebApi.Controllers
         [HttpGet("{fileId}")]
         public async Task<ActionResult> GetImage(string fileId)
         {
-            var fileContent = await _fileStore.GetFile(fileId);
+            var fileContent = await _fileStore.GetFile(fileId).ConfigureAwait(false);
             if (fileContent == null)
             {
                 return NotFound();
@@ -68,7 +63,7 @@ namespace Sample.Images.WebApi.Controllers
             return ServeStream(fileContent);
         }
 
-        public FileStreamResult ServeStream(Stream content)
+        public static FileStreamResult ServeStream(Stream content)
         {
             // ToDo: determine media type 
             var r = new FileStreamResult(content, "image/jpeg");

@@ -5,8 +5,8 @@ namespace SlimMessageBus.Host.AzureEventHub
 {
     public class MessageContextInfo
     {
-        public readonly PartitionContext Context;
-        public readonly EventData Message;
+        public PartitionContext Context { get; }
+        public EventData Message { get; }
 
         public MessageContextInfo(PartitionContext context, EventData message)
         {

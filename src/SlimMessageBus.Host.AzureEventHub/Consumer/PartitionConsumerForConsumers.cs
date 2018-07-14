@@ -25,10 +25,13 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         #region Overrides of EventProcessor
 
-        public override void Dispose()
+        protected override void Dispose(bool disposing)
         {
-            base.Dispose();
-            _instancePool.DisposeSilently(nameof(ConsumerInstancePool<EventData>), Log);
+            if (disposing)
+            {
+                _instancePool.DisposeSilently(nameof(ConsumerInstancePool<EventData>), Log);
+            }
+            base.Dispose(disposing);
         }
 
         protected override bool OnSubmit(EventData message, PartitionContext context)

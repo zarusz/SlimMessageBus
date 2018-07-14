@@ -11,6 +11,5 @@ namespace SlimMessageBus.Host.Kafka
             public const string Earliest = "earliest";
             public const string None = "none";
         }
-
     }
 }
