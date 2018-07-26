@@ -7,6 +7,9 @@ using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.AzureEventHub;
 using SlimMessageBus.Host.Kafka;
+using SlimMessageBus.Host.Redis;
+using SlimMessageBus.Host.Serialization.Json;
+using System;
 using System.Text;
 using System.Threading;
 using Common.Logging;
@@ -18,7 +21,8 @@ namespace Sample.Simple.ConsoleApp
     enum Provider
     {
         Kafka,
-        EventHub
+        EventHub,
+        Redis
     }
 
     internal static class Program
@@ -57,7 +61,7 @@ namespace Sample.Simple.ConsoleApp
         private static IMessageBus CreateMessageBus(IConfiguration configuration)
         {
             // ToDo: Choose your provider
-            var provider = Provider.EventHub;
+            var provider = Provider.Redis;
 
             // ToDo: Provider your event hub names
             var topicForAddCommand = "add-command";
@@ -80,8 +84,7 @@ namespace Sample.Simple.ConsoleApp
             IMessageBus messageBus = new MessageBusBuilder()
                 // Pub/Sub example
                 .Publish<AddCommand>(x => x.DefaultTopic(topicForAddCommand)) // By default AddCommand messages will go to event hub named 'add-command' (or topic if Kafka is chosen)
-                .SubscribeTo<AddCommand>(x => x
-                    .Topic(topicForAddCommand)
+                .SubscribeTo<AddCommand>(x => x.Topic(topicForAddCommand)
                     .Group(consumerGroup)
                     .WithSubscriber<AddCommandConsumer>())
                 // Req/Resp example
@@ -117,7 +120,7 @@ namespace Sample.Simple.ConsoleApp
                     Console.WriteLine($"Using {provider} as the transport provider");
                     switch (provider)
                     {
-                        case Provider.Kafka:
+                        case Provider.EventHub:
                             // ToDo: Provide connection string to your event hub namespace
                             var eventHubConnectionString = configuration["Azure:EventHub"];
                             var storageConnectionString = configuration["Azure:Storage"];
@@ -126,11 +129,21 @@ namespace Sample.Simple.ConsoleApp
                             builder.WithProviderEventHub(new EventHubMessageBusSettings(eventHubConnectionString, storageConnectionString, storageContainerName)); // Use Azure Event Hub as provider
                             break;
 
-                        case Provider.EventHub:
+                        case Provider.Kafka:
                             // ToDo: Ensure your Kafka broker is running
                             var kafkaBrokers = configuration["Kafka:Brokers"];
 
                             builder.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)); // Or use Apache Kafka as provider
+                            break;
+
+                        case Provider.Redis:
+                            // ToDo: Ensure your Redis server is running
+                            var redisServer = configuration["Redis:Server"];
+                            var redisSyncTimeout = 5000;
+                            int.TryParse(configuration["Redis:SyncTimeout"], out redisSyncTimeout);
+
+                            builder.WithProviderRedis(
+                                new RedisMessageBusSettings(redisServer, redisSyncTimeout)); // Or use Redis as provider
                             break;
                     }
                 })

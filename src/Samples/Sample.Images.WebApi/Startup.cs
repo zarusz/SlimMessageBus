@@ -1,6 +1,4 @@
-﻿using System;
-using System.IO;
-using Autofac;
+﻿using Autofac;
 using Common.Logging;
 using Common.Logging.Configuration;
 using Microsoft.AspNetCore.Builder;
@@ -13,9 +11,11 @@ using Sample.Images.Messages;
 using SlimMessageBus;
 using SlimMessageBus.Host.Autofac;
 using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.Kafka;
+using SlimMessageBus.Host.Redis;
 using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.ServiceLocator;
+using System;
+using System.IO;
 
 namespace Sample.Images.WebApi
 {
@@ -72,6 +72,11 @@ namespace Sample.Images.WebApi
             var instanceId = Configuration["InstanceId"];
             var kafkaBrokers = Configuration["Kafka:Brokers"];
 
+            // configuration settings for Redis
+            var redisServer = Configuration["Redis:Server"];
+            var redisSyncTimeout = 5000;
+            int.TryParse(Configuration["Redis:SyncTimeout"], out redisSyncTimeout);
+
             var instanceGroup = $"webapi-{instanceId}";
             var instanceReplyTo = $"webapi-{instanceId}-response";
 
@@ -92,7 +97,8 @@ namespace Sample.Images.WebApi
                 //.WithDependencyResolverAsServiceLocator()
                 .WithDependencyResolverAsAutofac()
                 .WithSerializer(new JsonMessageSerializer())
-                .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
+                //.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers))
+                .WithProviderRedis(new RedisMessageBusSettings(redisServer, redisSyncTimeout));
 
             var messageBus = messageBusBuilder.Build();
             return messageBus;

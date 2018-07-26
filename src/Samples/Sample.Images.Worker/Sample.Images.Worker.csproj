@@ -15,6 +15,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\SlimMessageBus.Host.Autofac\SlimMessageBus.Host.Autofac.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Kafka\SlimMessageBus.Host.Kafka.csproj" />
+    <ProjectReference Include="..\..\SlimMessageBus.Host.Redis\SlimMessageBus.Host.Redis.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Json\SlimMessageBus.Host.Serialization.Json.csproj" />
     <ProjectReference Include="..\Sample.Images.FileStore\Sample.Images.FileStore.csproj" />
     <ProjectReference Include="..\Sample.Images.Messages\Sample.Images.Messages.csproj" />

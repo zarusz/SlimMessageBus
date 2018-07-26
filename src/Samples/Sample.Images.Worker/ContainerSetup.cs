@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using Autofac;
+using Microsoft.Extensions.Configuration;
 using Sample.Images.FileStore;
 using Sample.Images.FileStore.Disk;
 using Sample.Images.Messages;
@@ -8,6 +9,7 @@ using Sample.Images.Worker.Handlers;
 using SlimMessageBus;
 using SlimMessageBus.Host.Autofac;
 using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host.Redis;
 using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.ServiceLocator;
 using SlimMessageBus.Host.Kafka;
@@ -57,6 +59,11 @@ namespace Sample.Images.Worker
             var instanceId = configuration["InstanceId"];
             var kafkaBrokers = configuration["Kafka:Brokers"];
 
+            // configuration settings for Redis
+            var redisServer = configuration["Redis:Server"];
+            var redisSyncTimeout = 5000;
+            int.TryParse(configuration["Redis:SyncTimeout"], out redisSyncTimeout);
+
             var instanceGroup = $"worker-{instanceId}";
             var sharedGroup = "workers";
 
@@ -77,6 +84,7 @@ namespace Sample.Images.Worker
                 //.WithDependencyResolverAsServiceLocator()
                 .WithDependencyResolverAsAutofac()
                 .WithSerializer(new JsonMessageSerializer())
+                /*
                 .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
                 {
                     ConsumerConfigFactory = (group) => new Dictionary<string, object>
@@ -90,7 +98,9 @@ namespace Sample.Images.Worker
                             }
                         }
                     }
-                });
+                })
+                */
+                .WithProviderRedis(new RedisMessageBusSettings(redisServer, redisSyncTimeout));
 
             var messageBus = messageBusBuilder.Build();
             return messageBus;

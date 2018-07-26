@@ -90,7 +90,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.AzureEv
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.InMemory.Test", "Tests\SlimMessageBus.Host.InMemory.Test\SlimMessageBus.Host.InMemory.Test.csproj", "{53E4ECDB-5792-4161-A88D-2F3782F8964F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sample.Images.Worker", "Samples\Sample.Images.Worker\Sample.Images.Worker.csproj", "{19071CC2-DA95-4E9D-86DB-5DF2F810197A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sample.Images.Worker", "Samples\Sample.Images.Worker\Sample.Images.Worker.csproj", "{19071CC2-DA95-4E9D-86DB-5DF2F810197A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.Redis", "SlimMessageBus.Host.Redis\SlimMessageBus.Host.Redis.csproj", "{8D30EE98-8B43-4791-AFB6-37B1764CD79C}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Redis.Test", "Tests\SlimMessageBus.Host.Redis.Test\SlimMessageBus.Host.Redis.Test.csproj", "{DDF66B70-E77A-4C95-8E80-90EBF69265DA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -174,6 +178,14 @@ Global
 		{19071CC2-DA95-4E9D-86DB-5DF2F810197A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{19071CC2-DA95-4E9D-86DB-5DF2F810197A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{19071CC2-DA95-4E9D-86DB-5DF2F810197A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8D30EE98-8B43-4791-AFB6-37B1764CD79C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8D30EE98-8B43-4791-AFB6-37B1764CD79C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8D30EE98-8B43-4791-AFB6-37B1764CD79C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8D30EE98-8B43-4791-AFB6-37B1764CD79C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DDF66B70-E77A-4C95-8E80-90EBF69265DA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DDF66B70-E77A-4C95-8E80-90EBF69265DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DDF66B70-E77A-4C95-8E80-90EBF69265DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DDF66B70-E77A-4C95-8E80-90EBF69265DA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -197,6 +209,8 @@ Global
 		{16FA675A-CF71-4C0F-84E0-CC724668066D} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
 		{53E4ECDB-5792-4161-A88D-2F3782F8964F} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
 		{19071CC2-DA95-4E9D-86DB-5DF2F810197A} = {A5B15524-93B8-4CCE-AC6D-A22984498BA0}
+		{8D30EE98-8B43-4791-AFB6-37B1764CD79C} = {9291D340-B4FA-44A3-8060-C14743FB1712}
+		{DDF66B70-E77A-4C95-8E80-90EBF69265DA} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {435A0D65-610C-4B84-B1AA-2C7FBE72DB80}
