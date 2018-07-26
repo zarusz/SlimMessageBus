@@ -19,8 +19,18 @@ namespace SlimMessageBus.Host.Redis.Consumer
 
         public void Dispose()
         {
-            _instancePool.DisposeSilently(nameof(ConsumerInstancePool<RedisMessage>), Log);
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _instancePool.DisposeSilently(nameof(ConsumerInstancePool<RedisMessage>), Log);
+            }
+        }
+
 
         public bool OnSubmit(RedisMessage message)
         {

@@ -1,7 +1,7 @@
-﻿using System;
-using System.Globalization;
-using Autofac;
+﻿using Autofac;
 using Common.Logging;
+using System;
+using System.Globalization;
 
 namespace SlimMessageBus.Host.Autofac
 {

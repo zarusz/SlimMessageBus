@@ -1,5 +1,5 @@
-using System.Threading.Tasks;
 using Confluent.Kafka;
+using System.Threading.Tasks;
 
 namespace SlimMessageBus.Host.Kafka
 {

@@ -1,6 +1,6 @@
+using Common.Logging;
 using System;
 using System.Globalization;
-using Common.Logging;
 
 namespace SlimMessageBus.Host
 {

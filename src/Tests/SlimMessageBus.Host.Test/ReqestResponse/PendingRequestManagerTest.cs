@@ -1,7 +1,7 @@
-﻿using System;
-using System.Threading;
-using Moq;
+﻿using Moq;
 using SlimMessageBus.Host.RequestResponse;
+using System;
+using System.Threading;
 using Xunit;
 
 namespace SlimMessageBus.Host.Test

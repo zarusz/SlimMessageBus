@@ -1,13 +1,13 @@
-﻿using System;
+﻿using Common.Logging;
+using FluentAssertions;
+using Moq;
+using SlimMessageBus.Host.Config;
+using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using Common.Logging;
-using FluentAssertions;
-using Moq;
-using SlimMessageBus.Host.Config;
 using Xunit;
 
 namespace SlimMessageBus.Host.Test

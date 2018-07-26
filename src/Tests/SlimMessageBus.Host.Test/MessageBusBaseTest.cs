@@ -1,9 +1,9 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-using FluentAssertions;
+﻿using FluentAssertions;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization.Json;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace SlimMessageBus.Host.Test

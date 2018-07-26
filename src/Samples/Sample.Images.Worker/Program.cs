@@ -1,10 +1,10 @@
-﻿using System;
-using System.Reflection;
-using Autofac;
+﻿using Autofac;
 using Common.Logging;
 using Common.Logging.Configuration;
 using Microsoft.Extensions.Configuration;
 using SlimMessageBus;
+using System;
+using System.Reflection;
 
 namespace Sample.Images.Worker
 {

@@ -1,6 +1,6 @@
-﻿using System;
+﻿using FluentAssertions;
 using Moq;
-using FluentAssertions;
+using System;
 using Xunit;
 
 namespace SlimMessageBus.Test

@@ -1,20 +1,18 @@
-﻿using System;
-using System.Globalization;
-using System.Threading.Tasks;
+﻿using Common.Logging;
+using Common.Logging.Configuration;
+using Microsoft.Extensions.Configuration;
 using SlimMessageBus;
 using SlimMessageBus.Host;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.AzureEventHub;
+using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Kafka;
 using SlimMessageBus.Host.Redis;
 using SlimMessageBus.Host.Serialization.Json;
 using System;
+using System.Globalization;
 using System.Text;
 using System.Threading;
-using Common.Logging;
-using Common.Logging.Configuration;
-using Microsoft.Extensions.Configuration;
+using System.Threading.Tasks;
 
 namespace Sample.Simple.ConsoleApp
 {
@@ -139,8 +137,8 @@ namespace Sample.Simple.ConsoleApp
                         case Provider.Redis:
                             // ToDo: Ensure your Redis server is running
                             var redisServer = configuration["Redis:Server"];
-                            var redisSyncTimeout = 5000;
-                            int.TryParse(configuration["Redis:SyncTimeout"], out redisSyncTimeout);
+                            var redisSyncTimeout = 0;
+                            redisSyncTimeout = int.TryParse(configuration["Redis:SyncTimeout"], out redisSyncTimeout) ? redisSyncTimeout : 5000;
 
                             builder.WithProviderRedis(
                                 new RedisMessageBusSettings(redisServer, redisSyncTimeout)); // Or use Redis as provider

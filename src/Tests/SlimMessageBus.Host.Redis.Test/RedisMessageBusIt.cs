@@ -6,6 +6,7 @@ using SlimMessageBus.Host.Serialization.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -31,8 +32,8 @@ namespace SlimMessageBus.Host.Redis.Test
                 .Build();
 
             var redisServer = configuration["Redis:Server"];
-            var redisSyncTimeout = 5000;
-            int.TryParse(configuration["Redis:SyncTimeout"], out redisSyncTimeout);
+            var redisSyncTimeout = 0;
+            redisSyncTimeout = int.TryParse(configuration["Redis:SyncTimeout"], out redisSyncTimeout) ? redisSyncTimeout : 5000;
 
             RedisSettings = new RedisMessageBusSettings(redisServer, redisSyncTimeout);
 
@@ -45,7 +46,16 @@ namespace SlimMessageBus.Host.Redis.Test
 
         public void Dispose()
         {
-            MessageBus.Value.Dispose();
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                MessageBus.Value.Dispose();
+            }
         }
 
         [Fact]
@@ -90,13 +100,13 @@ namespace SlimMessageBus.Host.Redis.Test
                 .ForAll(m => redisMessageBus.Publish(m).Wait());
 
             stopwatch.Stop();
-            Log.InfoFormat("Published {0} messages in {1}", messages.Count, stopwatch.Elapsed);
+            Log.InfoFormat(CultureInfo.InvariantCulture, "Published {0} messages in {1}", messages.Count, stopwatch.Elapsed);
 
             // consume
             stopwatch.Restart();
             var messagesReceived = ConsumeFromTopic(pingConsumer);
             stopwatch.Stop();
-            Log.InfoFormat("Consumed {0} messages in {1}", messagesReceived.Count, stopwatch.Elapsed);
+            Log.InfoFormat(CultureInfo.InvariantCulture, "Consumed {0} messages in {1}", messagesReceived.Count, stopwatch.Elapsed);
 
             // assert
 
@@ -182,13 +192,13 @@ namespace SlimMessageBus.Host.Redis.Test
             return pingConsumer.Messages;
         }
 
-        public class PingMessage
+        private class PingMessage
         {
             public DateTime Timestamp { get; set; }
             public int Counter { get; set; }
         }
 
-        public class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
+        private class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
         {
             private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -204,25 +214,25 @@ namespace SlimMessageBus.Host.Redis.Test
                     Messages.Add(message);
                 }
 
-                Log.InfoFormat("Got message {0} on topic {1}.", message.Counter, topic);
+                Log.InfoFormat(CultureInfo.InvariantCulture, "Got message {0} on topic {1}.", message.Counter, topic);
                 return Task.CompletedTask;
             }
 
             #endregion
         }
 
-        public class EchoRequest : IRequestMessage<EchoResponse>
+        private class EchoRequest : IRequestMessage<EchoResponse>
         {
             public int Index { get; set; }
             public string Message { get; set; }
         }
 
-        public class EchoResponse
+        private class EchoResponse
         {
             public string Message { get; set; }
         }
 
-        public class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
+        private class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
         {
             public Task<EchoResponse> OnHandle(EchoRequest request, string topic)
             {

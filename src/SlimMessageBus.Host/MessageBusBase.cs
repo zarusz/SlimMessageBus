@@ -1,12 +1,12 @@
+using Common.Logging;
+using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host.RequestResponse;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Common.Logging;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.RequestResponse;
 
 namespace SlimMessageBus.Host
 {

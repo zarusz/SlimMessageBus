@@ -1,6 +1,6 @@
-﻿using System;
+﻿using SlimMessageBus.Host.Config;
+using System;
 using System.Threading.Tasks;
-using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.InMemory
 {

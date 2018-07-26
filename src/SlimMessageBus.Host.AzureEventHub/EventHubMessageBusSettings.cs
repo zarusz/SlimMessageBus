@@ -1,7 +1,7 @@
-using System;
 using Microsoft.Azure.EventHubs;
 using Microsoft.Azure.EventHubs.Processor;
 using SlimMessageBus.Host.Config;
+using System;
 
 namespace SlimMessageBus.Host.AzureEventHub
 {

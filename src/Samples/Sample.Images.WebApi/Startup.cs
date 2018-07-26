@@ -74,8 +74,8 @@ namespace Sample.Images.WebApi
 
             // configuration settings for Redis
             var redisServer = Configuration["Redis:Server"];
-            var redisSyncTimeout = 5000;
-            int.TryParse(Configuration["Redis:SyncTimeout"], out redisSyncTimeout);
+            var redisSyncTimeout = 0;
+            redisSyncTimeout = int.TryParse(Configuration["Redis:SyncTimeout"], out redisSyncTimeout) ? redisSyncTimeout : 5000;
 
             var instanceGroup = $"webapi-{instanceId}";
             var instanceReplyTo = $"webapi-{instanceId}-response";

@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.IO;
 using Autofac;
 using Microsoft.Extensions.Configuration;
 using Sample.Images.FileStore;
@@ -12,8 +10,7 @@ using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Redis;
 using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.ServiceLocator;
-using SlimMessageBus.Host.Kafka;
-using Microsoft.Extensions.Configuration;
+using System.IO;
 
 namespace Sample.Images.Worker
 {
@@ -61,8 +58,8 @@ namespace Sample.Images.Worker
 
             // configuration settings for Redis
             var redisServer = configuration["Redis:Server"];
-            var redisSyncTimeout = 5000;
-            int.TryParse(configuration["Redis:SyncTimeout"], out redisSyncTimeout);
+            var redisSyncTimeout = 0;
+            redisSyncTimeout = int.TryParse(configuration["Redis:SyncTimeout"], out redisSyncTimeout) ? redisSyncTimeout : 5000;
 
             var instanceGroup = $"worker-{instanceId}";
             var sharedGroup = "workers";

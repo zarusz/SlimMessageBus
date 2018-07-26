@@ -1,11 +1,11 @@
+using Common.Logging;
+using Confluent.Kafka;
+using SlimMessageBus.Host.Collections;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
-using Common.Logging;
-using Confluent.Kafka;
-using SlimMessageBus.Host.Collections;
 
 namespace SlimMessageBus.Host.Kafka
 {

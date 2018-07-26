@@ -1,6 +1,6 @@
-﻿using System.Linq;
+﻿using FluentAssertions;
+using System.Linq;
 using System.Text;
-using FluentAssertions;
 using Xunit;
 
 namespace SlimMessageBus.Host.Test

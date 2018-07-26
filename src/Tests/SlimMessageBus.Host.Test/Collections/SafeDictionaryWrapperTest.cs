@@ -1,10 +1,10 @@
-﻿using System;
-using System.Threading;
+﻿using FluentAssertions;
 using Moq;
 using SlimMessageBus.Host.Collections;
+using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
-using FluentAssertions;
 
 namespace SlimMessageBus.Host.Test.Collections
 {

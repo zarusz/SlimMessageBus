@@ -1,6 +1,6 @@
-using System;
 using Moq;
 using SlimMessageBus.Host.Config;
+using System;
 
 namespace SlimMessageBus.Host.Test
 {

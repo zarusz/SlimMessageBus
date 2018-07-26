@@ -1,7 +1,7 @@
-﻿using System;
+﻿using Common.Logging;
+using System;
 using System.Globalization;
 using System.Threading;
-using Common.Logging;
 
 namespace SlimMessageBus.Host.RequestResponse
 {

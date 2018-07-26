@@ -1,9 +1,9 @@
-using System;
-using System.Globalization;
-using System.Threading.Tasks;
 using Common.Logging;
 using Confluent.Kafka;
 using SlimMessageBus.Host.Config;
+using System;
+using System.Globalization;
+using System.Threading.Tasks;
 
 namespace SlimMessageBus.Host.Kafka
 {

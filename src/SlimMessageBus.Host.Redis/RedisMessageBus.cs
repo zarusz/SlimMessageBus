@@ -4,11 +4,15 @@ using SlimMessageBus.Host.Redis.Consumer;
 using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 
 namespace SlimMessageBus.Host.Redis
 {
+    /// <summary>
+    /// <see cref="IMessageBus"/> implementation for Redis.
+    /// </summary>
     public class RedisMessageBus : MessageBusBase
     {
         private static readonly ILog Log = LogManager.GetLogger<RedisMessageBus>();
@@ -38,7 +42,8 @@ namespace SlimMessageBus.Host.Redis
         {
             Log.Trace("Creating connection to the Redis server");
             var config = RedisSettings.ConfigurationOptionsFactory();
-            Log.DebugFormat("Configuration options: {0}", config);
+
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Configuration options: {0}", config);
             var connection = RedisSettings.ConnectionMultiplexerFactory(config);
 
             if (RedisSettings.DatabaseIndex < 0)
@@ -55,7 +60,7 @@ namespace SlimMessageBus.Host.Redis
 
             foreach (var consumerSettings in settings.Consumers)
             {
-                Log.InfoFormat("Creating consumer for Topic: {0}, MessageType: {1}", consumerSettings.Topic, consumerSettings.MessageType);
+                Log.InfoFormat(CultureInfo.InvariantCulture, "Creating consumer for Topic: {0}, MessageType: {1}", consumerSettings.Topic, consumerSettings.MessageType);
 
                 var consumer = new RedisConsumer(this, consumerSettings);
 
@@ -81,12 +86,12 @@ namespace SlimMessageBus.Host.Redis
         {
             AssertActive();
 
-            Log.TraceFormat("Producing message of type {0} on topic {1} with size {2}", messageType.Name, topic, payload.Length);
+            Log.TraceFormat(CultureInfo.InvariantCulture, "Producing message of type {0} on topic {1} with size {2}", messageType.Name, topic, payload.Length);
 
-            var count = await _pub.PublishAsync(topic, payload);
+            var count = await _pub.PublishAsync(topic, payload).ConfigureAwait(false);
 
             // log some debug information
-            Log.DebugFormat("Message of type {0} delivered to {1} subscribers", messageType.Name, count);
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Message of type {0} delivered to {1} subscribers", messageType.Name, count);
         }
     }
 }

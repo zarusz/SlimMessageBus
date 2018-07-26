@@ -1,12 +1,12 @@
-﻿using System;
+﻿using Common.Logging;
+using Microsoft.Azure.EventHubs;
+using SlimMessageBus.Host.Collections;
+using SlimMessageBus.Host.Config;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
-using Common.Logging;
-using Microsoft.Azure.EventHubs;
-using SlimMessageBus.Host.Collections;
-using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.AzureEventHub
 {

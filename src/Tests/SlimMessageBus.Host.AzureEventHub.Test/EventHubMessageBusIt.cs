@@ -1,17 +1,17 @@
+using Common.Logging;
+using FluentAssertions;
+using Microsoft.Extensions.Configuration;
+using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host.Serialization.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
-using System.Threading;
-using System.Threading.Tasks;
-using Common.Logging;
-using FluentAssertions;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.Serialization.Json;
-using Xunit;
 using System.Linq;
 using System.Reflection;
-using Microsoft.Extensions.Configuration;
+using System.Threading;
+using System.Threading.Tasks;
+using Xunit;
 
 namespace SlimMessageBus.Host.AzureEventHub.Test
 {
