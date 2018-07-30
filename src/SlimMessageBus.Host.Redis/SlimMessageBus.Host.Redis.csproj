@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard1.5</TargetFramework>
-    <Authors>diseks; zarusz</Authors>
+    <Authors>diseks, zarusz</Authors>
     <Company>zarusz</Company>
     <Description>Redis provider for SlimMessageBus</Description>
     <Copyright>Copyright © 2018</Copyright>

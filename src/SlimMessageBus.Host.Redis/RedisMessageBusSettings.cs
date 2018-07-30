@@ -22,11 +22,7 @@ namespace SlimMessageBus.Host.Redis
         /// </summary>
         public Func<ConfigurationOptions, ConnectionMultiplexer> ConnectionMultiplexerFactory { get; set; }
 
-        public RedisMessageBusSettings(string server, int syncTimeout)
-            : this(new List<string> { server }, syncTimeout, -1)
-        { }
-
-        public RedisMessageBusSettings(string server, int syncTimeout, int dbIndex)
+        public RedisMessageBusSettings(string server, int syncTimeout, int dbIndex = -1)
             : this(new List<string> { server }, syncTimeout, dbIndex)
         { }
 
