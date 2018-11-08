@@ -149,9 +149,10 @@ namespace SlimMessageBus.Host
             {
                 topic = GetDefaultTopic(messageType);
             }
-            var payload = Settings.Serializer.Serialize(messageType, message);
 
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Publishing message of type {0} to topic {1} with payload size {2}", messageType, topic, payload.Length);
+            var payload = SerializeMessage(messageType, message);
+
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Publishing message of type {0} to topic {1} with payload size {2}", messageType, topic, payload?.Length ?? 0);
             return PublishToTransport(messageType, message, topic, payload);
         }
 
@@ -246,9 +247,19 @@ namespace SlimMessageBus.Host
 
         #endregion
 
+        public virtual byte[] SerializeMessage(Type messageType, object message)
+        {
+            return Settings.Serializer.Serialize(messageType, message);
+        }
+
+        public virtual object DeserializeMessage(Type messageType, byte[] payload)
+        {
+            return Settings.Serializer.Deserialize(messageType, payload);
+        }
+
         public virtual byte[] SerializeRequest(Type requestType, object request, string requestId, string replyTo, DateTimeOffset? expires)
         {
-            var requestPayload = Settings.Serializer.Serialize(requestType, request);
+            var requestPayload = SerializeMessage(requestType, request);
 
             // create the request wrapper message
             var requestMessage = new MessageWithHeaders(requestPayload);
@@ -270,7 +281,7 @@ namespace SlimMessageBus.Host
             requestMessage.TryGetHeader(ReqRespMessageHeaders.ReplyTo, out replyTo);
             requestMessage.TryGetHeader(ReqRespMessageHeaders.Expires, out expires);
 
-            var request = Settings.Serializer.Deserialize(requestType, requestMessage.Payload);
+            var request = DeserializeMessage(requestType, requestMessage.Payload);
             return request;
         }
 
@@ -373,7 +384,7 @@ namespace SlimMessageBus.Host
         }
 
         /// <summary>
-        /// Gnenerates unique request IDs
+        /// Generates unique request IDs
         /// </summary>
         /// <returns></returns>
         protected virtual string GenerateRequestId()

@@ -15,7 +15,6 @@ using SlimMessageBus.Host.Autofac;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Kafka;
 using SlimMessageBus.Host.Serialization.Json;
-using SlimMessageBus.Host.ServiceLocator;
 
 namespace Sample.Images.WebApi
 {
@@ -75,7 +74,7 @@ namespace Sample.Images.WebApi
             var instanceGroup = $"webapi-{instanceId}";
             var instanceReplyTo = $"webapi-{instanceId}-response";
 
-            var messageBusBuilder = new MessageBusBuilder()
+            var messageBusBuilder = MessageBusBuilder.Create()
                 .Publish<GenerateThumbnailRequest>(x =>
                 {
                     // Default response timeout for this request type

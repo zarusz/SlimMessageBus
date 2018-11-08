@@ -77,7 +77,7 @@ namespace Sample.Simple.ConsoleApp
             */
 
             // Create message bus using the fluent builder interface
-            IMessageBus messageBus = new MessageBusBuilder()
+            IMessageBus messageBus = MessageBusBuilder.Create()
                 // Pub/Sub example
                 .Publish<AddCommand>(x => x.DefaultTopic(topicForAddCommand)) // By default AddCommand messages will go to event hub named 'add-command' (or topic if Kafka is chosen)
                 .SubscribeTo<AddCommand>(x => x

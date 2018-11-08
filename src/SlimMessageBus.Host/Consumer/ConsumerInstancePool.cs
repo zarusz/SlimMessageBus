@@ -20,35 +20,27 @@ namespace SlimMessageBus.Host
 
         private readonly MessageBusBase _messageBus;
         private readonly ConsumerSettings _consumerSettings;
+        private readonly ConsumerRuntimeInfo _consumerRuntimeInfo;
 
         private readonly Func<TMessage, byte[]> _messagePayloadProvider;
 
         private readonly bool _consumerWithContext;
         private readonly Action<TMessage, ConsumerContext> _consumerContextInitializer;
 
-        private readonly MethodInfo _consumerOnHandleMethod;
-        private readonly PropertyInfo _taskResultProperty;
-
         public ConsumerInstancePool(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, byte[]> messagePayloadProvider, Action<TMessage, ConsumerContext> consumerContextInitializer = null)
         {
             _consumerSettings = consumerSettings;
+            _consumerRuntimeInfo = new ConsumerRuntimeInfo(consumerSettings);
+
             _messageBus = messageBus;
             _messagePayloadProvider = messagePayloadProvider;
 
             _consumerContextInitializer = consumerContextInitializer;
             _consumerWithContext = typeof(IConsumerContextAware).IsAssignableFrom(consumerSettings.ConsumerType);
 
-            _consumerOnHandleMethod = consumerSettings.ConsumerType.GetMethod(nameof(IConsumer<object>.OnHandle), new[] { consumerSettings.MessageType, typeof(string) });
-
             _instancesQueue = new BufferBlock<object>();
             _instances = ResolveInstances(consumerSettings, messageBus);
             _instances.ForEach(x => _instancesQueue.Post(x));
-
-            if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
-            {
-                var taskType = typeof(Task<>).MakeGenericType(_consumerSettings.ResponseType);
-                _taskResultProperty = taskType.GetProperty(nameof(Task<object>.Result));
-            }
         }
 
         #region IDisposable
@@ -138,13 +130,13 @@ namespace SlimMessageBus.Host
                 }
 
                 // the consumer just subscribes to the message
-                var task = (Task)_consumerOnHandleMethod.Invoke(consumerInstance, new[] { message, _consumerSettings.Topic });
+                var task = _consumerRuntimeInfo.OnHandle(consumerInstance, message);
                 await task.ConfigureAwait(false);
 
                 if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
                 {
                     // the consumer handles the request (and replies)
-                    response = _taskResultProperty.GetValue(task);
+                    response = _consumerRuntimeInfo.GetResponseValue(task);
                 }
             }
             catch (Exception e)

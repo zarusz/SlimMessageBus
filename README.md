@@ -52,11 +52,12 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
  `SlimMessageBus.Host.Kafka` | Provider for Apache Kafka | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka) | 1.3
  `SlimMessageBus.Host.AzureEventHub` | Provider for Azure Event Hub | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub) | 2.0
  `SlimMessageBus.Host.Redis` (future) | Provider for Redis | . | .
- `SlimMessageBus.Host.InMemory` (pending) | Implementation for in-process (memory) message passing | . | .
+ `SlimMessageBus.Host.Memory` (beta) | Implementation for in-process (in memory) message passing | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Memory) | 1.3
  `SlimMessageBus.Host.ServiceLocator` | Resolves dependencies from ServiceLocator | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator) | 1.3
  `SlimMessageBus.Host.Autofac` | Resolves dependencies from Autofac container | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Autofac) | 1.3
  `SlimMessageBus.Host.Unity` | Resolves dependencies from Unity container | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Unity) | 1.3
  `SlimMessageBus.Host.Serialization.Json` | Message serialization provider for JSON | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json) | 1.3
+ `SlimMessageBus.Host.AspNetCore` (beta) | Integration for ASP.NET Core 2.1 (DI, config helpers) | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore) | 1.3
 
 Typically your application components only need to depend on `SlimMessageBus` which is the facade. However, your application hosting layer (ASP.NET, Windows Service, Console App) will reference and configure the other packages (`SlimMessageBus.Host.*`) which are the providers and plugins.
 
@@ -120,60 +121,88 @@ Check out the full sample for image resizing application (`Sample.Images.WebApi`
 
 ### Basic in-memory
 
-This example is the simplest usage of `SlimMessageBus` and `SlimMessageBus.Host.InMemory` to implement Domain Events.
+This example is the simplest usage of `SlimMessageBus` and `SlimMessageBus.Host.Memory` to implement Domain Events use case.
 
-... Somewhere in your domain layer a domain event gets published
-
-```cs
-// Option 1
-IMessageBus bus = ... // Injected from your favorite DI container
-await bus.Publish(new NewUserJoinedEvent("Jane"));
-
-// OR Option 2
-await MessageBus.Current.Publish(new NewUserJoinedEvent("Jennifer"));
-```
-
-... The domain event is a simple POCO
+The domain event is a simple POCO:
 
 ```cs
-public class NewUserJoinedEvent
+// domain event
+public class OrderSubmittedEvent
 {
-	public string FullName { get; protected set; }
+	public Order Order { get; }
+	public DateTime Timestamp { get; }
 
-	public NewUserJoinedEvent(string fullName)
+	public OrderSubmittedEvent(Order order)
 	{
-		FullName = fullName;
+		// ...
 	}
 }
 ```
 
-... The event handler implements the `IConsumer<T>` interface
+The event handler implements the `IConsumer<T>` interface that is pulled from the dependency resolver:
 
 ```cs
-public class NewUserHelloGreeter : IConsumer<NewUserJoinedEvent>
+// domain event handler
+public class OrderSubmittedHandler : IConsumer<OrderSubmittedEvent>
 {
-    public Task OnHandle(NewUserJoinedEvent message, string topic)
-    {
-        Console.WriteLine("Hello {0}", message.FullName);
-    }
-}
-```
+	public Task OnHandle(OrderSubmittedEvent e, string topic)
+	{
+		Console.WriteLine("Customer {0} {1} just placed an order for:", e.Order.Customer.Firstname, e.Order.Customer.Lastname);
+		foreach (var orderLine in e.Order.Lines)
+		{
+			Console.WriteLine("- {0}x {1}", orderLine.Quantity, orderLine.ProductId);
+		}
 
-... The handler can be subscribed explicitly
+		Console.WriteLine("Generating a shipping order...");
+		return Task.Delay(1000);
+	}
+}
+
+
+Somewhere in your domain layer a domain event gets raised:
 
 ```cs
-// Get a hold of the handler
-var greeter = new NewUserHelloGreeter();
+// aggregate root
+public class Order
+{
+	public Customer Customer { get; }
+	private IList<OrderLine> _lines = new List<OrderLine>();
+	public OrderState State { get; private set; }
 
-// Register handler explicitly
-bus.Subscribe(greeter);
+	public IEnumerable<OrderLine> Lines => _lines.AsEnumerable();
 
-// Events are being published here
+	public Order(Customer customer)
+	{
+		State = OrderState.New;
+		Customer = customer;
+	}
 
-bus.UnSubscribe(greeter);
+	public OrderLine Add(string productId, int quantity) { }
+
+	public void Submit()
+	{
+		State = OrderState.Submitted;
+
+		var e = new OrderSubmittedEvent(this);
+		MessageBus.Current.Publish(e).Wait(); // raise domain event
+	}
+}
+
 ```
 
-... Or when you decide to use one of the container integrations  (e.g. `SlimMessageBus.Host.Autofac`) the handlers can be resolved from the DI container. For more details see other examples.
+Some sample logic executed in your domain:
+
+```cs
+var john = new Customer("John", "Whick");
+
+var order = new Order(john);
+order.Add("id_machine_gun", 2);
+order.Add("id_grenade", 4);
+
+order.Submit(); // events fired here
+```
+
+Notice the static `MessageBus.Current` property might actually be configure to pull the per web request scoped IMessageBus instance or the actual domain event handlers (consumers). 
 
 #### Setup
 
@@ -181,8 +210,15 @@ This is how you set the 'SlimMessageBus' up in the simplest use case.
 
 ```cs
 // Define the recipie how to create our IMessageBus
-var busBuilder = new MessageBusBuilder()
-    .SimpleMessageBus();
+var busBuilder = MessageBusBuilder
+	.Publish<OrderSubmittedEvent>(x => x.DefaultTopic(x.MessageType.Name))
+	.SubscribeTo<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).Group("").WithSubscriber<OrderSubmittedHandler>())
+	.WithDependencyResolverAsAutofac()
+	.WithSerializer(new JsonMessageSerializer()) // Use JSON for message serialization                
+	.WithProviderMemory(new MemoryMessageBusSettings
+	{
+		EnableMessageSerialization = false
+	});
 
 // Create the IMessageBus instance from the builder
 IMessageBus bus = busBuilder

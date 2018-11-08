@@ -5,7 +5,16 @@ namespace SlimMessageBus.Host.Config
     public class MessageBusBuilder
     {
         private readonly MessageBusSettings _settings = new MessageBusSettings();
-        private Func<MessageBusSettings, IMessageBus> _factory; 
+        private Func<MessageBusSettings, IMessageBus> _factory;
+
+        protected MessageBusBuilder()
+        {
+        }
+
+        public static MessageBusBuilder Create()
+        {
+            return new MessageBusBuilder();
+        }
 
         public MessageBusBuilder Publish<T>(Action<PublisherBuilder<T>> publisherBuilder)
         {

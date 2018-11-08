@@ -1,7 +1,6 @@
-﻿using SlimMessageBus.Host.Autofac;
-using SlimMessageBus.Host.Config;
+﻿using SlimMessageBus.Host.Config;
 
-namespace SlimMessageBus.Host.ServiceLocator
+namespace SlimMessageBus.Host.Autofac
 {
     public static class MessageBusBuilderExtensions
     {

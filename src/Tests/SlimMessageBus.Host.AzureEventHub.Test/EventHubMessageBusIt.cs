@@ -38,7 +38,7 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
 
             Settings = new EventHubMessageBusSettings(connectionString, storageConnectionString, storageContainerName);
 
-            MessageBusBuilder = new MessageBusBuilder()
+            MessageBusBuilder = MessageBusBuilder.Create()
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderEventHub(Settings);
 

@@ -17,13 +17,17 @@ namespace SlimMessageBus.Host.Config
             set
             {
                 _messageType = value;
-
-                ResponseType = _messageType
-                    .GetInterfaces()
-                    .Where(x => x.GetTypeInfo().IsGenericType && x.GetTypeInfo().GetGenericTypeDefinition() == typeof (IRequestMessage<>))
-                    .Select(x => x.GetGenericArguments()[0])
-                    .SingleOrDefault();
+                CalculateResponseType();
             }
+        }
+
+        private void CalculateResponseType()
+        {
+            ResponseType = _messageType
+                .GetInterfaces()
+                .Where(x => x.GetTypeInfo().IsGenericType && x.GetTypeInfo().GetGenericTypeDefinition() == typeof(IRequestMessage<>))
+                .Select(x => x.GetGenericArguments()[0])
+                .SingleOrDefault();
         }
 
         /// <summary>
@@ -67,7 +71,7 @@ namespace SlimMessageBus.Host.Config
         public Action<ConsumerSettings, object, Exception> OnMessageFault { get; set; }
 
         #endregion
-        
+
         public ConsumerSettings()
         {
             Instances = 1;

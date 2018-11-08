@@ -4,6 +4,8 @@ namespace SlimMessageBus.Host.Config
 {
     public class PublisherBuilder<T>
     {
+        public Type MessageType => typeof(T);
+
         public PublisherSettings Settings { get; }
 
         public PublisherBuilder(PublisherSettings settings)

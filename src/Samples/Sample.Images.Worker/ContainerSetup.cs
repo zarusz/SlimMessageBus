@@ -9,7 +9,6 @@ using SlimMessageBus;
 using SlimMessageBus.Host.Autofac;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization.Json;
-using SlimMessageBus.Host.ServiceLocator;
 using SlimMessageBus.Host.Kafka;
 using Microsoft.Extensions.Configuration;
 
@@ -60,7 +59,7 @@ namespace Sample.Images.Worker
             var instanceGroup = $"worker-{instanceId}";
             var sharedGroup = "workers";
 
-            var messageBusBuilder = new MessageBusBuilder()
+            var messageBusBuilder = MessageBusBuilder.Create()
                 .Handle<GenerateThumbnailRequest, GenerateThumbnailResponse>(s =>
                 {
                     s.Topic("thumbnail-generation", t =>

@@ -46,7 +46,7 @@ namespace SlimMessageBus.Host.Test
             _timeZero = DateTimeOffset.Now;
             _timeNow = _timeZero;
 
-            var messageBusBuilder = new MessageBusBuilder()
+            var messageBusBuilder = MessageBusBuilder.Create()
                 .Publish<RequestA>(x =>
                 {
                     x.DefaultTopic("a-requests");

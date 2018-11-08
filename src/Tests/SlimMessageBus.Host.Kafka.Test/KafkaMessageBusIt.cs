@@ -55,7 +55,7 @@ namespace SlimMessageBus.Host.Kafka.Test
                 }
             };
 
-            MessageBusBuilder = new MessageBusBuilder()
+            MessageBusBuilder = MessageBusBuilder.Create()
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderKafka(KafkaSettings);
 
