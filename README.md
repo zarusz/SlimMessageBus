@@ -136,7 +136,7 @@ public class OrderSubmittedEvent
 }
 ```
 
-The event handler implements the `IConsumer<T>` interface, and an instance is being taken from the dependency resolver:
+The event handler implements the `IConsumer<T>` interface:
 
 ```cs
 // domain event handler
@@ -155,6 +155,7 @@ public class OrderSubmittedHandler : IConsumer<OrderSubmittedEvent>
 	}
 }
 ```
+The domain handler (well, really the consumer) is obtained from dependency resolver at the time of event publication. It can be scoped (per web request, per unit of work) as configured in your favorite DI container.
 
 Somewhere in your domain layer the domain event gets raised:
 
@@ -198,7 +199,7 @@ order.Add("id_grenade", 4);
 order.Submit(); // events fired here
 ```
 
-Notice the static `MessageBus.Current` property might actually be configured to resolve the per web request scoped IMessageBus instance. Likewise the actual domain event handler instance can scoped (web request). 
+Notice the static `MessageBus.Current` property might actually be configured to resolve the web request scoped `IMessageBus` instance.
 
 #### Setup
 
