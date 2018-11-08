@@ -132,14 +132,11 @@ public class OrderSubmittedEvent
 	public Order Order { get; }
 	public DateTime Timestamp { get; }
 
-	public OrderSubmittedEvent(Order order)
-	{
-		// ...
-	}
+	public OrderSubmittedEvent(Order order)	{ ... }
 }
 ```
 
-The event handler implements the `IConsumer<T>` interface that is pulled from the dependency resolver:
+The event handler implements the `IConsumer<T>` interface, and an instance is being taken from the dependency resolver:
 
 ```cs
 // domain event handler
@@ -157,9 +154,9 @@ public class OrderSubmittedHandler : IConsumer<OrderSubmittedEvent>
 		return Task.Delay(1000);
 	}
 }
+```
 
-
-Somewhere in your domain layer a domain event gets raised:
+Somewhere in your domain layer the domain event gets raised:
 
 ```cs
 // aggregate root
@@ -187,7 +184,6 @@ public class Order
 		MessageBus.Current.Publish(e).Wait(); // raise domain event
 	}
 }
-
 ```
 
 Some sample logic executed in your domain:
@@ -202,7 +198,7 @@ order.Add("id_grenade", 4);
 order.Submit(); // events fired here
 ```
 
-Notice the static `MessageBus.Current` property might actually be configure to pull the per web request scoped IMessageBus instance or the actual domain event handlers (consumers). 
+Notice the static `MessageBus.Current` property might actually be configured to resolve the per web request scoped IMessageBus instance. Likewise the actual domain event handler instance can scoped (web request). 
 
 #### Setup
 
