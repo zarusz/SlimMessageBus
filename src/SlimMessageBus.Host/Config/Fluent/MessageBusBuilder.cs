@@ -24,9 +24,23 @@ namespace SlimMessageBus.Host.Config
             return this;
         }
 
+        public MessageBusBuilder Publish(Type messageType, Action<PublisherBuilder<object>> publisherBuilder)
+        {
+            var item = new PublisherSettings();
+            publisherBuilder(new PublisherBuilder<object>(item, messageType));
+            _settings.Publishers.Add(item);
+            return this;
+        }
+                                        
         public MessageBusBuilder SubscribeTo<TMessage>(Action<SubscriberBuilder<TMessage>> subscriberBuilder)
         {
             subscriberBuilder(new SubscriberBuilder<TMessage>(_settings));
+            return this;
+        }
+
+        public MessageBusBuilder SubscribeTo(Type messageType, Action<SubscriberBuilder<object>> subscriberBuilder)
+        {
+            subscriberBuilder(new SubscriberBuilder<object>(_settings, messageType));
             return this;
         }
 

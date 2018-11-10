@@ -4,7 +4,7 @@ namespace SlimMessageBus.Host.Config
         where TRequest : IRequestMessage<TResponse>
     {
         public TopicHandlerBuilder(string topic, MessageBusSettings settings)
-            : base(topic, settings)
+            : base(topic, typeof(TRequest), settings)
         {
         }
 

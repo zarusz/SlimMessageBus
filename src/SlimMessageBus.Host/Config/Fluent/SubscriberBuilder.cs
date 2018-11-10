@@ -9,9 +9,14 @@ namespace SlimMessageBus.Host.Config
         {
         }
 
+        public SubscriberBuilder(MessageBusSettings settings, Type messageType)
+            : base(settings, messageType)
+        {
+        }
+
         public TopicSubscriberBuilder<T> Topic(string topic)
         {
-            return new TopicSubscriberBuilder<T>(topic, Settings);
+            return new TopicSubscriberBuilder<T>(topic, MessageType, Settings);
         }
 
         public TopicSubscriberBuilder<T> Topic(string topic, Action<TopicSubscriberBuilder<T>> topicConfig)

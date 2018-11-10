@@ -4,7 +4,7 @@ namespace SlimMessageBus.Host.Config
         where TRequest : IRequestMessage<TResponse>
     {
         public GroupHandlerBuilder(string group, string topic, MessageBusSettings settings)
-            : base(group, topic, settings)
+            : base(group, topic, typeof(TRequest), settings)
         {
             ConsumerSettings.ResponseType = typeof (TResponse);
         }

@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 
 namespace SlimMessageBus.Host.Config
@@ -7,7 +8,7 @@ namespace SlimMessageBus.Host.Config
         protected ConsumerSettings ConsumerSettings { get; }
         public string Group { get; }
 
-        protected GroupConsumerBuilder(string group, string topic, MessageBusSettings settings)
+        protected GroupConsumerBuilder(string group, string topic, Type messageType, MessageBusSettings settings)
         {
             Group = group;
 
@@ -19,7 +20,7 @@ namespace SlimMessageBus.Host.Config
             {
                 Group = group,
                 Topic = topic,
-                MessageType = typeof(TMessage)
+                MessageType = messageType
             };
             settings.Consumers.Add(ConsumerSettings);
         }
