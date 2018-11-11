@@ -18,7 +18,7 @@ namespace Sample.DomainEvents.ConsoleApp
 
             var mbb = MessageBusBuilder.Create()
                 .Publish<OrderSubmittedEvent>(x => x.DefaultTopic(x.MessageType.Name))
-                .SubscribeTo<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).Group("").WithSubscriber<OrderSubmittedHandler>())
+                .SubscribeTo<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithSubscriber<OrderSubmittedHandler>())
                 //.Do(builder => Assembly.GetExecutingAssembly()
                 //        .GetTypes()
                 //        .Where(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IConsumer<>))
@@ -41,7 +41,6 @@ namespace Sample.DomainEvents.ConsoleApp
 
             var mb = mbb.Build();
             MessageBus.SetProvider(() => mb);
-            //HttpContextAccessor
 
             var john = new Customer("John", "Whick");
 

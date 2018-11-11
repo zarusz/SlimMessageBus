@@ -12,7 +12,7 @@ namespace SlimMessageBus.Host.Config
         /// </summary>
         public string Topic { get; set; }
         /// <summary>
-        /// Consummer GroupId to to use.
+        /// Consumer GroupId to to use.
         /// </summary>
         // TODO: Move this out of the host layer. Not all brokers use a concept of groups.
         public string Group { get; set; }
@@ -35,7 +35,7 @@ namespace SlimMessageBus.Host.Config
         #endregion
 
         /// <summary>
-        /// Called whenever an incomming response message errors out.
+        /// Called whenever an incoming response message errors out.
         /// </summary>
         public Action<RequestResponseSettings, object, Exception> OnResponseMessageFault { get; set; }
 

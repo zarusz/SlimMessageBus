@@ -20,7 +20,7 @@ namespace SlimMessageBus.Host.Test
         }
 
         [Fact]
-        public void GivenRequestMessageWhenSetMessageTypeWhenRequestMessageThenResponseTypeShouldBeInfered()
+        public void GivenRequestMessageWhenSetMessageTypeWhenRequestMessageThenResponseTypeShouldBeInferred()
         {
             // arrange
 
