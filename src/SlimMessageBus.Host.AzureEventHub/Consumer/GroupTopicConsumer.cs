@@ -21,24 +21,24 @@ namespace SlimMessageBus.Host.AzureEventHub
         private readonly TaskMarker _taskMarker = new TaskMarker();
 
         public GroupTopicConsumer(EventHubMessageBus messageBus, ConsumerSettings consumerSettings)
-            : this(messageBus, consumerSettings, () => new PartitionConsumerForConsumers(messageBus, consumerSettings))
+            : this(messageBus, new TopicGroup(consumerSettings.Topic, consumerSettings.GetGroup()), () => new PartitionConsumerForConsumers(messageBus, consumerSettings))
         {
         }
 
         public GroupTopicConsumer(EventHubMessageBus messageBus, RequestResponseSettings requestResponseSettings)
-            : this(messageBus, requestResponseSettings, () => new PartitionConsumerForResponses(messageBus, requestResponseSettings))
+            : this(messageBus, new TopicGroup(requestResponseSettings.Topic, requestResponseSettings.GetGroup()), () => new PartitionConsumerForResponses(messageBus, requestResponseSettings))
         {
         }
 
-        protected GroupTopicConsumer(EventHubMessageBus messageBus, ITopicGroupConsumerSettings consumerSettings, Func<PartitionConsumer> processorFactory)
+        protected GroupTopicConsumer(EventHubMessageBus messageBus, TopicGroup topicGroup, Func<PartitionConsumer> processorFactory)
         {
             MessageBus = messageBus;
             _processorFactory = processorFactory;
 
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Creating EventProcessorHost for EventHub with Topic: {0}, Group: {1}", consumerSettings.Topic, consumerSettings.Group);
-            _processorHost = MessageBus.EventHubSettings.EventProcessorHostFactory(consumerSettings);
+            Log.InfoFormat(CultureInfo.InvariantCulture, "Creating EventProcessorHost for EventHub with Topic: {0}, Group: {1}", topicGroup.Topic, topicGroup.Group);
+            _processorHost = MessageBus.EventHubSettings.EventProcessorHostFactory(topicGroup);
 
-            var eventProcessorOptions = MessageBus.EventHubSettings.EventProcessorOptionsFactory(consumerSettings);
+            var eventProcessorOptions = MessageBus.EventHubSettings.EventProcessorOptionsFactory(topicGroup);
             _processorHost.RegisterEventProcessorFactoryAsync(this, eventProcessorOptions).Wait();
         }
 

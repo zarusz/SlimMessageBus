@@ -4,7 +4,7 @@ using System.Reflection;
 
 namespace SlimMessageBus.Host.Config
 {
-    public class ConsumerSettings : HasProviderExtensions, ITopicGroupConsumerSettings, IConsumerEvents
+    public class ConsumerSettings : HasProviderExtensions, IConsumerEvents
     {
         private Type _messageType;
 
@@ -34,10 +34,6 @@ namespace SlimMessageBus.Host.Config
         /// The topic name.
         /// </summary>
         public string Topic { get; set; }
-        /// <summary>
-        /// The group the consumer will belong to.
-        /// </summary>
-        public string Group { get; set; }
         /// <summary>
         /// Number of consumer instances created for this app domain.
         /// </summary>

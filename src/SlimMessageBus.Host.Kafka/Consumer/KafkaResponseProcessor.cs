@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Common.Logging;
 using Confluent.Kafka;
 using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host.Kafka.Configs;
 
 namespace SlimMessageBus.Host.Kafka
 {
@@ -22,7 +23,7 @@ namespace SlimMessageBus.Host.Kafka
 
         public KafkaResponseProcessor(RequestResponseSettings requestResponseSettings, TopicPartition topicPartition, IKafkaCommitController commitController, MessageBusBase messageBus, ICheckpointTrigger checkpointTrigger)
         {
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Creating for Group: {0}, Topic: {1}, Partition: {2}", requestResponseSettings.Group, requestResponseSettings.Topic, topicPartition);
+            Log.InfoFormat(CultureInfo.InvariantCulture, "Creating for Group: {0}, Topic: {1}, Partition: {2}", requestResponseSettings.GetGroup(), requestResponseSettings.Topic, topicPartition);
 
             _requestResponseSettings = requestResponseSettings;
             TopicPartition = topicPartition;
@@ -63,7 +64,7 @@ namespace SlimMessageBus.Host.Kafka
             catch (Exception e)
             {
                 if (Log.IsErrorEnabled)
-                    Log.ErrorFormat(CultureInfo.InvariantCulture, "Error occured while consuming response message: {0}", e, new MessageContextInfo(_requestResponseSettings.Group, message));
+                    Log.ErrorFormat(CultureInfo.InvariantCulture, "Error occured while consuming response message: {0}", e, new MessageContextInfo(_requestResponseSettings.GetGroup(), message));
 
                 // For response messages we can only continue and process all messages in the lease
                 // ToDo: Add support for retry ?
@@ -78,7 +79,7 @@ namespace SlimMessageBus.Host.Kafka
                     }
                     catch (Exception e2)
                     {
-                        Log.WarnFormat(CultureInfo.InvariantCulture, "Error handling hook failed for message: {0}", e2, new MessageContextInfo(_requestResponseSettings.Group, message));
+                        Log.WarnFormat(CultureInfo.InvariantCulture, "Error handling hook failed for message: {0}", e2, new MessageContextInfo(_requestResponseSettings.GetGroup(), message));
                     }
                 }
             }

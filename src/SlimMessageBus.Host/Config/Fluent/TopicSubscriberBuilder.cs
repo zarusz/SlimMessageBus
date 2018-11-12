@@ -33,11 +33,5 @@ namespace SlimMessageBus.Host.Config
             ConsumerSettings.Instances = numberOfInstances;
             return this;
         }
-
-        public TopicSubscriberBuilder<TMessage> Group(string group)
-        {
-            ConsumerSettings.Group = group;
-            return this;
-        }
     }
 }

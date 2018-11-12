@@ -36,13 +36,13 @@ namespace SlimMessageBus.Host.AzureEventHub
             Log.Info("Creating consumers");
             foreach (var consumerSettings in settings.Consumers)
             {
-                Log.InfoFormat(CultureInfo.InvariantCulture, "Creating consumer for Topic: {0}, Group: {1}, MessageType: {2}", consumerSettings.Topic, consumerSettings.Group, consumerSettings.MessageType);
+                Log.InfoFormat(CultureInfo.InvariantCulture, "Creating consumer for Topic: {0}, Group: {1}, MessageType: {2}", consumerSettings.Topic, consumerSettings.GetGroup(), consumerSettings.MessageType);
                 _consumers.Add(new GroupTopicConsumer(this, consumerSettings));
             }
 
             if (settings.RequestResponse != null)
             {
-                Log.InfoFormat(CultureInfo.InvariantCulture, "Creating response consumer for Topic: {0}, Group: {1}", settings.RequestResponse.Topic, settings.RequestResponse.Group);
+                Log.InfoFormat(CultureInfo.InvariantCulture, "Creating response consumer for Topic: {0}, Group: {1}", settings.RequestResponse.Topic, settings.RequestResponse.GetGroup());
                 _consumers.Add(new GroupTopicConsumer(this, settings.RequestResponse));
             }
         }

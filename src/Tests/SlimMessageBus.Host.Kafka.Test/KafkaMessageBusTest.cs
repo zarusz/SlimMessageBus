@@ -47,15 +47,15 @@ namespace SlimMessageBus.Host.Kafka.Test
         public void GetMessageKey()
         {
             // arrange
-            var publisherA = new PublisherSettings();
-            new PublisherBuilder<MessageA>(publisherA)
+            var publisherA = new ProducerSettings();
+            new ProducerBuilder<MessageA>(publisherA)
                 .KeyProvider((m, t) => m.Key);
 
-            var publisherB = new PublisherSettings();
-            new PublisherBuilder<MessageB>(publisherB);
+            var publisherB = new ProducerSettings();
+            new ProducerBuilder<MessageB>(publisherB);
 
-            MbSettings.Publishers.Add(publisherA);
-            MbSettings.Publishers.Add(publisherB);        
+            MbSettings.Producers.Add(publisherA);
+            MbSettings.Producers.Add(publisherB);        
 
             var msgA = new MessageA();
             var msgB = new MessageB();
@@ -73,15 +73,15 @@ namespace SlimMessageBus.Host.Kafka.Test
         public void GetMessagePartition()
         {
             // arrange
-            var publisherA = new PublisherSettings();
-            new PublisherBuilder<MessageA>(publisherA)
+            var publisherA = new ProducerSettings();
+            new ProducerBuilder<MessageA>(publisherA)
                 .PartitionProvider((m, t) => 10);
 
-            var publisherB = new PublisherSettings();
-            new PublisherBuilder<MessageB>(publisherB);
+            var publisherB = new ProducerSettings();
+            new ProducerBuilder<MessageB>(publisherB);
 
-            MbSettings.Publishers.Add(publisherA);
-            MbSettings.Publishers.Add(publisherB);
+            MbSettings.Producers.Add(publisherA);
+            MbSettings.Producers.Add(publisherB);
 
             var msgA = new MessageA();
             var msgB = new MessageB();

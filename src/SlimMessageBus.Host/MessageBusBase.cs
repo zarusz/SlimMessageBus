@@ -16,7 +16,7 @@ namespace SlimMessageBus.Host
 
         public virtual MessageBusSettings Settings { get; }
 
-        protected IDictionary<Type, PublisherSettings> PublisherSettingsByMessageType { get; }
+        protected IDictionary<Type, ProducerSettings> PublisherSettingsByMessageType { get; }
 
         protected IPendingRequestStore PendingRequestStore { get; }
         protected PendingRequestManager PendingRequestManager { get; }
@@ -32,7 +32,7 @@ namespace SlimMessageBus.Host
             AssertSettings(settings);
 
             Settings = settings;
-            PublisherSettingsByMessageType = settings.Publishers.ToDictionary(x => x.MessageType);
+            PublisherSettingsByMessageType = settings.Producers.ToDictionary(x => x.MessageType);
 
             PendingRequestStore = new InMemoryPendingRequestStore();
             PendingRequestManager = new PendingRequestManager(PendingRequestStore, () => CurrentTime, TimeSpan.FromSeconds(1), request =>
@@ -111,7 +111,7 @@ namespace SlimMessageBus.Host
 
         public virtual DateTimeOffset CurrentTime => DateTimeOffset.UtcNow;
 
-        protected PublisherSettings GetPublisherSettings(Type messageType)
+        protected ProducerSettings GetPublisherSettings(Type messageType)
         {
             if (!PublisherSettingsByMessageType.TryGetValue(messageType, out var publisherSettings))
             {
@@ -128,9 +128,9 @@ namespace SlimMessageBus.Host
             return GetDefaultTopic(messageType, publisherSettings);
         }
 
-        protected virtual string GetDefaultTopic(Type messageType, PublisherSettings publisherSettings)
+        protected virtual string GetDefaultTopic(Type messageType, ProducerSettings producerSettings)
         {
-            var topic = publisherSettings.DefaultTopic;
+            var topic = producerSettings.DefaultTopic;
             if (topic == null)
             {
                 throw new PublishMessageBusException($"An attempt to produce message of type {messageType} without specifying topic, but there was no default topic configured. Double check your configuration.");
@@ -165,9 +165,9 @@ namespace SlimMessageBus.Host
 
         #endregion
 
-        protected virtual TimeSpan GetDefaultRequestTimeout(Type requestType, PublisherSettings publisherSettings)
+        protected virtual TimeSpan GetDefaultRequestTimeout(Type requestType, ProducerSettings producerSettings)
         {
-            var timeout = publisherSettings.Timeout ?? Settings.RequestResponse.Timeout;
+            var timeout = producerSettings.Timeout ?? Settings.RequestResponse.Timeout;
             Log.DebugFormat(CultureInfo.InvariantCulture, "Applying default timeout {0} for message type {1}", timeout, requestType);
             return timeout;
         }

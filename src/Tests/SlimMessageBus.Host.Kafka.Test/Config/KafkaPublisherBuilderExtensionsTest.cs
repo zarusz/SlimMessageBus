@@ -8,13 +8,13 @@ namespace SlimMessageBus.Host.Kafka.Test
 {
     public class KafkaPublisherBuilderExtensionsTest
     {
-        private readonly PublisherSettings _ps;
-        private readonly PublisherBuilder<SomeMessage> _pb;
+        private readonly ProducerSettings _ps;
+        private readonly ProducerBuilder<SomeMessage> _pb;
 
         public KafkaPublisherBuilderExtensionsTest()
         {
-            _ps = new PublisherSettings();
-            _pb = new PublisherBuilder<SomeMessage>(_ps);
+            _ps = new ProducerSettings();
+            _pb = new ProducerBuilder<SomeMessage>(_ps);
         }
 
         [Fact]

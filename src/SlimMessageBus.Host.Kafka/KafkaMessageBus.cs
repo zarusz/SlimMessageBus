@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Common.Logging;
 using Confluent.Kafka;
 using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host.Kafka.Configs;
 
 namespace SlimMessageBus.Host.Kafka
 {
@@ -57,7 +58,7 @@ namespace SlimMessageBus.Host.Kafka
 
         private void CreateProviders()
         {
-            foreach (var publisherSettings in Settings.Publishers)
+            foreach (var publisherSettings in Settings.Producers)
             {
                 var keyProvider = publisherSettings.GetKeyProvider();
                 if (keyProvider != null)
@@ -88,7 +89,7 @@ namespace SlimMessageBus.Host.Kafka
 
             IKafkaTopicPartitionProcessor ResponseProcessorFactory(TopicPartition tp, IKafkaCommitController cc) => new KafkaResponseProcessor(settings.RequestResponse, tp, cc, this);
 
-            foreach (var consumersByGroup in settings.Consumers.GroupBy(x => x.Group))
+            foreach (var consumersByGroup in settings.Consumers.GroupBy(x => x.GetGroup()))
             {
                 var group = consumersByGroup.Key;
                 var consumerByTopic = consumersByGroup.ToDictionary(x => x.Topic);
@@ -99,7 +100,7 @@ namespace SlimMessageBus.Host.Kafka
                 var processorFactory = (Func<TopicPartition, IKafkaCommitController, IKafkaTopicPartitionProcessor>) ConsumerProcessorFactory;
 
                 // if responses are used and shared with the regular consumers group
-                if (settings.RequestResponse != null && group == settings.RequestResponse.Group)
+                if (settings.RequestResponse != null && group == settings.RequestResponse.GetGroup())
                 {
                     // Note: response topic cannot be used in consumer topics - this is enforced in AssertSettings method
                     topics.Add(settings.RequestResponse.Topic);
@@ -116,7 +117,7 @@ namespace SlimMessageBus.Host.Kafka
 
             if (settings.RequestResponse != null && !responseConsumerCreated)
             {
-                AddGroupConsumer(settings.RequestResponse.Group, new[] { settings.RequestResponse.Topic }, ResponseProcessorFactory);
+                AddGroupConsumer(settings.RequestResponse.GetGroup(), new[] { settings.RequestResponse.Topic }, ResponseProcessorFactory);
             }
 
             Log.InfoFormat(CultureInfo.InvariantCulture, "Created {0} group consumers", _groupConsumers.Count);
@@ -141,10 +142,10 @@ namespace SlimMessageBus.Host.Kafka
         {
             if (settings.RequestResponse != null)
             {
-                Assert.IsTrue(settings.RequestResponse.Group != null,
+                Assert.IsTrue(settings.RequestResponse.GetGroup() != null,
                     () => new InvalidConfigurationMessageBusException("Request-response: group was not provided"));
 
-                Assert.IsFalse(settings.Consumers.Any(x => x.Group == settings.RequestResponse.Group && x.Topic == settings.RequestResponse.Topic),
+                Assert.IsFalse(settings.Consumers.Any(x => x.GetGroup() == settings.RequestResponse.GetGroup() && x.Topic == settings.RequestResponse.Topic),
                     () => new InvalidConfigurationMessageBusException("Request-response: cannot use topic that is already being used by a consumer"));
             }
         }

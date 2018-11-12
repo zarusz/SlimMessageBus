@@ -47,12 +47,12 @@ namespace SlimMessageBus.Host.Test
             _timeNow = _timeZero;
 
             var messageBusBuilder = MessageBusBuilder.Create()
-                .Publish<RequestA>(x =>
+                .Produce<RequestA>(x =>
                 {
                     x.DefaultTopic("a-requests");
                     x.DefaultTimeout(TimeSpan.FromSeconds(TimeoutForA10));
                 })
-                .Publish<RequestB>(x =>
+                .Produce<RequestB>(x =>
                 {
                     x.DefaultTopic("b-requests");
                 })

@@ -20,12 +20,10 @@ namespace SlimMessageBus.Host.Test.Config
             var subject = new RequestResponseBuilder(settings);
             subject.DefaultTimeout(timeout);
             subject.ReplyToTopic(topic);
-            subject.Group(group);
 
             // assert
             settings.Timeout.Should().Be(timeout);
             settings.Topic.Should().Be(topic);
-            settings.Group.Should().Be(group);
         }
     }
 }

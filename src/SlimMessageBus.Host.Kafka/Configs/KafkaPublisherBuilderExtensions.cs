@@ -13,7 +13,7 @@ namespace SlimMessageBus.Host.Kafka
         /// <param name="keyProvider">Delegate to determine the key for an message. Parameter meaning: (message, topic) => key.</param>
         /// <remarks>Ensure the implementation is thread-safe.</remarks>
         /// <returns></returns>
-        public static PublisherBuilder<T> KeyProvider<T>(this PublisherBuilder<T> mbb, Func<T, string, byte[]> keyProvider)
+        public static ProducerBuilder<T> KeyProvider<T>(this ProducerBuilder<T> mbb, Func<T, string, byte[]> keyProvider)
         {
             Assert.IsNotNull(keyProvider, () => new ConfigurationMessageBusException("Null value provided"));
 
@@ -30,7 +30,7 @@ namespace SlimMessageBus.Host.Kafka
         /// <param name="partitionProvider">Delegate to determine the partition number for an message. Parameter meaning: (message, topic) => partition.</param>
         /// <remarks>Ensure the implementation is thread-safe.</remarks>
         /// <returns></returns>
-        public static PublisherBuilder<T> PartitionProvider<T>(this PublisherBuilder<T> mbb, Func<T, string, int> partitionProvider)
+        public static ProducerBuilder<T> PartitionProvider<T>(this ProducerBuilder<T> mbb, Func<T, string, int> partitionProvider)
         {
             Assert.IsNotNull(partitionProvider, () => new ConfigurationMessageBusException("Null value provided"));
 

@@ -13,14 +13,13 @@ namespace SlimMessageBus.Host.Test.Config
             // arrange
             var timeout = TimeSpan.FromSeconds(16);
             var topic = "default-topic";
-            var publisherSettings = new PublisherSettings();
+            var publisherSettings = new ProducerSettings();
 
             // act
-            var subject = new PublisherBuilder<SomeMessage>(publisherSettings)
+            new ProducerBuilder<SomeMessage>(publisherSettings)
                 .DefaultTimeout(timeout)
                 .DefaultTopic(topic);
 
-            subject.MessageType.Should().Be(typeof(SomeMessage));
             publisherSettings.MessageType.Should().Be(typeof(SomeMessage));
             publisherSettings.Timeout.Should().Be(timeout);
             publisherSettings.DefaultTopic.Should().Be(topic);

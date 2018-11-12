@@ -11,6 +11,7 @@ using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.Kafka;
 using Microsoft.Extensions.Configuration;
+using SlimMessageBus.Host.Kafka.Configs;
 
 namespace Sample.Images.Worker
 {

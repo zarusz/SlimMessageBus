@@ -28,16 +28,5 @@ namespace SlimMessageBus.Host.Config
             ConsumerSettings.Instances = numberOfInstances;
             return this;
         }
-
-        /// <summary>
-        /// Configure the consumer group (GroupId) to use for the handler.
-        /// </summary>
-        /// <param name="group">Consumer group</param>
-        /// <returns></returns>
-        public TopicHandlerBuilder<TRequest, TResponse> Group(string group)
-        {
-            ConsumerSettings.Group = group;
-            return this;
-        }
     }
 }

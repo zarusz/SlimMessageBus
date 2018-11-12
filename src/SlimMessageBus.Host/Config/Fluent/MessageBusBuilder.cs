@@ -4,7 +4,7 @@ namespace SlimMessageBus.Host.Config
 {
     public class MessageBusBuilder
     {
-        private readonly MessageBusSettings _settings = new MessageBusSettings();
+        public MessageBusSettings Settings { get; } = new MessageBusSettings();
         private Func<MessageBusSettings, IMessageBus> _factory;
 
         protected MessageBusBuilder()
@@ -16,38 +16,69 @@ namespace SlimMessageBus.Host.Config
             return new MessageBusBuilder();
         }
 
-        public MessageBusBuilder Publish<T>(Action<PublisherBuilder<T>> publisherBuilder)
+        /// <summary>
+        /// Configures (declares) the production (publishing for pub/sub or request sending in request/response) of a message 
+        /// </summary>
+        /// <typeparam name="T">Type of the message</typeparam>
+        /// <param name="producerBuilder"></param>
+        /// <returns></returns>
+        public MessageBusBuilder Produce<T>(Action<ProducerBuilder<T>> producerBuilder)
         {
-            var item = new PublisherSettings();
-            publisherBuilder(new PublisherBuilder<T>(item));
-            _settings.Publishers.Add(item);
+            var item = new ProducerSettings();
+            producerBuilder(new ProducerBuilder<T>(item));
+            Settings.Producers.Add(item);
             return this;
         }
 
-        public MessageBusBuilder Publish(Type messageType, Action<PublisherBuilder<object>> publisherBuilder)
+        /// <summary>
+        /// Configures (declares) the production (publishing for pub/sub or request sending in request/response) of a message 
+        /// </summary>
+        /// <param name="messageType">Type of the message</param>
+        /// <param name="producerBuilder"></param>
+        /// <returns></returns>
+        public MessageBusBuilder Produce(Type messageType, Action<ProducerBuilder<object>> producerBuilder)
         {
-            var item = new PublisherSettings();
-            publisherBuilder(new PublisherBuilder<object>(item, messageType));
-            _settings.Publishers.Add(item);
+            var item = new ProducerSettings();
+            producerBuilder(new ProducerBuilder<object>(item, messageType));
+            Settings.Producers.Add(item);
             return this;
         }
-                                        
+
+        /// <summary>
+        /// Configures (declares) the subscriber of given message types in pub/sub communication.
+        /// </summary>
+        /// <typeparam name="TMessage">Type of message</typeparam>
+        /// <param name="subscriberBuilder"></param>
+        /// <returns></returns>
         public MessageBusBuilder SubscribeTo<TMessage>(Action<SubscriberBuilder<TMessage>> subscriberBuilder)
         {
-            subscriberBuilder(new SubscriberBuilder<TMessage>(_settings));
+            subscriberBuilder(new SubscriberBuilder<TMessage>(Settings));
             return this;
         }
 
+        /// <summary>
+        /// Configures (declares) the subscriber of given message types in pub/sub communication.
+        /// </summary>
+        /// <param name="messageType">Type of message</param>
+        /// <param name="subscriberBuilder"></param>
+        /// <returns></returns>
         public MessageBusBuilder SubscribeTo(Type messageType, Action<SubscriberBuilder<object>> subscriberBuilder)
         {
-            subscriberBuilder(new SubscriberBuilder<object>(_settings, messageType));
+            subscriberBuilder(new SubscriberBuilder<object>(Settings, messageType));
             return this;
         }
 
+        /// <summary>
+        /// Configures (declares) the handler of a given request message type in request-response communication.
+        /// </summary>
+        /// <typeparam name="TRequest"></typeparam>
+        /// <typeparam name="TResponse"></typeparam>
+        /// <param name="handlerBuilder"></param>
+        /// <returns></returns>
         public MessageBusBuilder Handle<TRequest, TResponse>(Action<HandlerBuilder<TRequest, TResponse>> handlerBuilder)
-            where TRequest: IRequestMessage<TResponse>
+            where TRequest : IRequestMessage<TResponse>
         {
-            handlerBuilder(new HandlerBuilder<TRequest, TResponse>(_settings));
+            handlerBuilder(new HandlerBuilder<TRequest, TResponse>(Settings));
             return this;
         }
 
@@ -55,19 +86,19 @@ namespace SlimMessageBus.Host.Config
         {
             var item = new RequestResponseSettings();
             reqRespBuilder(new RequestResponseBuilder(item));
-            _settings.RequestResponse = item;
+            Settings.RequestResponse = item;
             return this;
         }
 
         public MessageBusBuilder WithSerializer(IMessageSerializer serializer)
         {
-            _settings.Serializer = serializer;
+            Settings.Serializer = serializer;
             return this;
         }
 
         public MessageBusBuilder WithDependencyResolver(IDependencyResolver dependencyResolver)
         {
-            _settings.DependencyResolver = dependencyResolver;
+            Settings.DependencyResolver = dependencyResolver;
             return this;
         }
 
@@ -85,7 +116,7 @@ namespace SlimMessageBus.Host.Config
 
         public IMessageBus Build()
         {
-            return _factory(_settings);
+            return _factory(Settings);
         }
     }
 }

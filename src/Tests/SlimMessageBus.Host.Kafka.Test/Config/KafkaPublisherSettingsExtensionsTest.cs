@@ -10,7 +10,7 @@ namespace SlimMessageBus.Host.Kafka.Test
         public void GivenDefaultWhenGetKeyProviderThenReturnsNull()
         {
             // arrange
-            var ps = new PublisherSettings();
+            var ps = new ProducerSettings();
 
             // act
             var keyProvider = ps.GetKeyProvider();
@@ -23,7 +23,7 @@ namespace SlimMessageBus.Host.Kafka.Test
         public void GivenDefaultWhenGetPartitionProviderThenReturnsNull()
         {
             // arrange
-            var ps = new PublisherSettings();
+            var ps = new ProducerSettings();
 
             // act
             var partitionProvider = ps.GetPartitionProvider();

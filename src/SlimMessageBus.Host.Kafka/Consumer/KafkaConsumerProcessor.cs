@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Common.Logging;
 using Confluent.Kafka;
 using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host.Kafka.Configs;
 
 namespace SlimMessageBus.Host.Kafka
 {
@@ -33,7 +34,7 @@ namespace SlimMessageBus.Host.Kafka
 
         public KafkaConsumerProcessor(ConsumerSettings consumerSettings, TopicPartition topicPartition, IKafkaCommitController commitController, MessageBusBase messageBus, MessageQueueWorker<Message> messageQueueWorker)
         {
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Creating for Group: {0}, Topic: {1}, Partition: {2}, MessageType: {3}", consumerSettings.Group, consumerSettings.Topic, topicPartition, consumerSettings.MessageType);
+            Log.InfoFormat(CultureInfo.InvariantCulture, "Creating for Group: {0}, Topic: {1}, Partition: {2}, MessageType: {3}", consumerSettings.GetGroup(), consumerSettings.Topic, topicPartition, consumerSettings.MessageType);
 
             _messageBus = messageBus;
             _consumerSettings = consumerSettings;
@@ -70,13 +71,13 @@ namespace SlimMessageBus.Host.Kafka
             {
                 if (_messageQueueWorker.Submit(message))
                 {
-                    Log.DebugFormat(CultureInfo.InvariantCulture, "Group [{0}]: Will commit at offset {1}", _consumerSettings.Group, message.TopicPartitionOffset);
+                    Log.DebugFormat(CultureInfo.InvariantCulture, "Group [{0}]: Will commit at offset {1}", _consumerSettings.GetGroup(), message.TopicPartitionOffset);
                     return Commit(message.TopicPartitionOffset);
                 }
             }
             catch (Exception e)
             {
-                Log.ErrorFormat(CultureInfo.InvariantCulture, "Group [{0}]: Error occured while consuming a message: {0}, of type {1}", e, _consumerSettings.Group, message.TopicPartitionOffset, _consumerSettings.MessageType);
+                Log.ErrorFormat(CultureInfo.InvariantCulture, "Group [{0}]: Error occured while consuming a message: {0}, of type {1}", e, _consumerSettings.GetGroup(), message.TopicPartitionOffset, _consumerSettings.MessageType);
                 throw;
             }
             return Task.CompletedTask;

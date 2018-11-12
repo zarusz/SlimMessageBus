@@ -17,7 +17,7 @@ namespace Sample.DomainEvents.ConsoleApp
             Console.WriteLine("Hello World!");
 
             var mbb = MessageBusBuilder.Create()
-                .Publish<OrderSubmittedEvent>(x => x.DefaultTopic(x.MessageType.Name))
+                .Produce<OrderSubmittedEvent>(x => x.DefaultTopic(x.Settings.MessageType.Name))
                 .SubscribeTo<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithSubscriber<OrderSubmittedHandler>())
                 //.Do(builder => Assembly.GetExecutingAssembly()
                 //        .GetTypes()

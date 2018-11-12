@@ -2,7 +2,7 @@
 
 namespace SlimMessageBus.Host.Config
 {
-    public class PublisherSettings : HasProviderExtensions
+    public class ProducerSettings : HasProviderExtensions
     {
         /// <summary>
         /// Message type that will be published.

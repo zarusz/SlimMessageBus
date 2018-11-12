@@ -21,7 +21,6 @@ namespace SlimMessageBus.Host.Config
                 MessageType = messageType
             };
             settings.Consumers.Add(ConsumerSettings);
-
         }
     }
 }

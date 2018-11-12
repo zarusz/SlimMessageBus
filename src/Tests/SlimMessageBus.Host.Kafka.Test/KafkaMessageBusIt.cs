@@ -14,6 +14,7 @@ using System.Reflection;
 using Common.Logging.Simple;
 //using Common.Logging.Simple.;
 using Microsoft.Extensions.Configuration;
+using SlimMessageBus.Host.Kafka.Configs;
 
 namespace SlimMessageBus.Host.Kafka.Test
 {
@@ -88,7 +89,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             var pingConsumer = new PingConsumer();
 
             MessageBusBuilder
-                .Publish<PingMessage>(x =>
+                .Produce<PingMessage>(x =>
                 {
                     x.DefaultTopic(topic);
                     // Partition #0 for even counters
@@ -159,7 +160,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             var echoRequestHandler = new EchoRequestHandler();
 
             MessageBusBuilder
-                .Publish<EchoRequest>(x =>
+                .Produce<EchoRequest>(x =>
                 {
                     x.DefaultTopic(topic);
                     // Partition #0 for even indices

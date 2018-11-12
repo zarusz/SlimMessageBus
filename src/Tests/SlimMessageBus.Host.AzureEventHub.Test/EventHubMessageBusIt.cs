@@ -69,7 +69,7 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
             var pingConsumer = new PingConsumer();
 
             MessageBusBuilder
-                .Publish<PingMessage>(x =>
+                .Produce<PingMessage>(x =>
                 {
                     x.DefaultTopic(topic);
                 })
@@ -125,7 +125,7 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
             var echoRequestHandler = new EchoRequestHandler();
 
             MessageBusBuilder
-                .Publish<EchoRequest>(x =>
+                .Produce<EchoRequest>(x =>
                 {
                     x.DefaultTopic(topic);
                 })

@@ -5,17 +5,12 @@ namespace SlimMessageBus.Host.Config
     /// <summary>
     /// The request/response settings.
     /// </summary>
-    public class RequestResponseSettings : HasProviderExtensions, ITopicGroupConsumerSettings, IConsumerEvents
+    public class RequestResponseSettings : HasProviderExtensions, IConsumerEvents
     {
         /// <summary>
         /// Topic that will act as a the private reply queue for the application.
         /// </summary>
         public string Topic { get; set; }
-        /// <summary>
-        /// Consumer GroupId to to use.
-        /// </summary>
-        // TODO: Move this out of the host layer. Not all brokers use a concept of groups.
-        public string Group { get; set; }
         /// <summary>
         /// Default wait time for the response to arrive. This is used when the timeout during request send method was not provided.
         /// </summary>

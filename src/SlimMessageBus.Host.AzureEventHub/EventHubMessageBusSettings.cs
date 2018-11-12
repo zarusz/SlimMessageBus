@@ -1,10 +1,21 @@
 using System;
 using Microsoft.Azure.EventHubs;
 using Microsoft.Azure.EventHubs.Processor;
-using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.AzureEventHub
 {
+    public class TopicGroup
+    {
+        public TopicGroup(string topic, string group)
+        {
+            Topic = topic;
+            Group = group;
+        }
+
+        public string Topic { get; set; }
+        public string Group { get; set; }
+    }
+
     public class EventHubMessageBusSettings
     {
         /// <summary>
@@ -26,13 +37,13 @@ namespace SlimMessageBus.Host.AzureEventHub
         /// Factory for <see cref="EventProcessorHost"/>. Called whenever a new instance needs to be created.
         /// The func arguments are as follows: EventHubPath, Group.
         /// </summary>
-        public Func<ITopicGroupConsumerSettings, EventProcessorHost> EventProcessorHostFactory { get; set; }
+        public Func<TopicGroup, EventProcessorHost> EventProcessorHostFactory { get; set; }
 
         /// <summary>
         /// Factory for <see cref="EventProcessorOptions"/>.
         /// The func arguments are as follows: EventHubPath, Group.
         /// </summary>
-        public Func<ITopicGroupConsumerSettings, EventProcessorOptions> EventProcessorOptionsFactory { get; set; }
+        public Func<TopicGroup, EventProcessorOptions> EventProcessorOptionsFactory { get; set; }
 
         /// <summary>
         /// The storage container name for leases.

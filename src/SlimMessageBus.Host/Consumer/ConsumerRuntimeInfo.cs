@@ -1,7 +1,8 @@
 ﻿using System.Reflection;
 using System.Threading.Tasks;
+using SlimMessageBus.Host.Config;
 
-namespace SlimMessageBus.Host.Config
+namespace SlimMessageBus.Host
 {
     public class ConsumerRuntimeInfo
     {

@@ -4,27 +4,22 @@ namespace SlimMessageBus.Host.Config
 {
     public class RequestResponseBuilder
     {
-        private readonly RequestResponseSettings _settings;
+        public RequestResponseSettings Settings;
 
         public RequestResponseBuilder(RequestResponseSettings settings)
         {
-            _settings = settings;
+            Settings = settings;
         }
 
         public RequestResponseBuilder DefaultTimeout(TimeSpan timeout)
         {
-            _settings.Timeout = timeout;
+            Settings.Timeout = timeout;
             return this;
         }
 
         public void ReplyToTopic(string topic)
         {
-            _settings.Topic = topic;
-        }
-
-        public void Group(string group)
-        {
-            _settings.Group = group;
+            Settings.Topic = topic;
         }
     }
 }

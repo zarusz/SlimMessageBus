@@ -22,9 +22,9 @@ namespace SlimMessageBus.Host.Memory.Test
             _subject = new Lazy<MemoryMessageBus>(() => new MemoryMessageBus(_settings, _providerSettings));
         }
 
-        private static PublisherSettings Publisher(Type messageType, string defaultTopic)
+        private static ProducerSettings Publisher(Type messageType, string defaultTopic)
         {
-            return new PublisherSettings
+            return new ProducerSettings
             {
                 MessageType = messageType,
                 DefaultTopic = defaultTopic
@@ -50,8 +50,8 @@ namespace SlimMessageBus.Host.Memory.Test
             var topicA2 = "topic-a-2";
             var topicB = "topic-b";
 
-            _settings.Publishers.Add(Publisher(typeof(SomeMessageA), topicA));
-            _settings.Publishers.Add(Publisher(typeof(SomeMessageB), topicB));
+            _settings.Producers.Add(Publisher(typeof(SomeMessageA), topicA));
+            _settings.Producers.Add(Publisher(typeof(SomeMessageB), topicB));
             _settings.Consumers.Add(Consumer(typeof(SomeMessageA), topicA, typeof(SomeMessageAConsumer)));
             _settings.Consumers.Add(Consumer(typeof(SomeMessageA), topicA2, typeof(SomeMessageAConsumer2)));
             _settings.Consumers.Add(Consumer(typeof(SomeMessageB), topicB, typeof(SomeMessageBConsumer)));
