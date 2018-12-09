@@ -52,12 +52,12 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
  `SlimMessageBus.Host.Kafka` | Provider for Apache Kafka | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka) | 1.3
  `SlimMessageBus.Host.AzureEventHub` | Provider for Azure Event Hub | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub) | 2.0
  `SlimMessageBus.Host.Redis` (future) | Provider for Redis | . | .
- `SlimMessageBus.Host.Memory` (beta) | Implementation for in-process (in memory) message passing | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Memory) | 1.3
+ `SlimMessageBus.Host.Memory` | Implementation for in-process (in memory) message passing | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Memory) | 1.3
  `SlimMessageBus.Host.ServiceLocator` | Resolves dependencies from ServiceLocator | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator) | 1.3
  `SlimMessageBus.Host.Autofac` | Resolves dependencies from Autofac container | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Autofac) | 1.3
  `SlimMessageBus.Host.Unity` | Resolves dependencies from Unity container | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Unity) | 1.3
  `SlimMessageBus.Host.Serialization.Json` | Message serialization provider for JSON | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json) | 1.3
- `SlimMessageBus.Host.AspNetCore` (beta) | Integration for ASP.NET Core 2.1 (DI, config helpers) | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore) | 1.3
+ `SlimMessageBus.Host.AspNetCore` | Integration for ASP.NET Core 2.1 (DI, config helpers) | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore) | 1.3
 
 Typically your application components only need to depend on `SlimMessageBus` which is the facade. However, your application hosting layer (ASP.NET, Windows Service, Console App) will reference and configure the other packages (`SlimMessageBus.Host.*`) which are the providers and plugins.
 
@@ -119,9 +119,9 @@ var thumbGenResponse = await _bus.Send(new GenerateThumbnailRequest(fileId, mode
 
 Check out the full sample for image resizing application (`Sample.Images.WebApi` and `Sample.Images.Worker`)!
 
-### Basic in-memory
+### Basic in-process messaging (for domain events)
 
-This example is the simplest usage of `SlimMessageBus` and `SlimMessageBus.Host.Memory` to implement Domain Events use case.
+This example shows how `SlimMessageBus` and `SlimMessageBus.Host.Memory` can be used to implement Domain Events pattern. The provider passes messages in the same app domain process (no external message broker is required).
 
 The domain event is a simple POCO:
 
@@ -199,11 +199,9 @@ order.Add("id_grenade", 4);
 order.Submit(); // events fired here
 ```
 
-Notice the static `MessageBus.Current` property might actually be configured to resolve the web request scoped `IMessageBus` instance.
+Notice the static `MessageBus.Current` property might actually be configured to resolve a scoped `IMessageBus` instance (web request scoped).
 
-#### Setup
-
-This is how you set the 'SlimMessageBus' up in the simplest use case.
+The 'SlimMessageBus' configuration could looks like this:
 
 ```cs
 // Define the recipie how to create our IMessageBus
@@ -224,6 +222,8 @@ IMessageBus bus = busBuilder
 // Set the provider to resolve our bus - this setup will work as a singleton.
 MessageBus.SetProvider(() => bus);
 ```
+
+Examine the complete [sample](/src/Samples#sampledomainevents) for ASP.NET Core where the handler and bus is web-request scoped.
 
 ## License
 
