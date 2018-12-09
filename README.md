@@ -117,7 +117,7 @@ The response gets replied onto the originating WebApi instance and the Task<Gene
 var thumbGenResponse = await _bus.Send(new GenerateThumbnailRequest(fileId, mode, w, h));
 ```
 
-Check out the full sample for image resizing application (`Sample.Images.WebApi` and `Sample.Images.Worker`)!
+Check out the complete [sample](/src/Samples#sampleimages) for image resizing.
 
 ### Basic in-process messaging (for domain events)
 
