@@ -1,12 +1,12 @@
 # Release Notes of SlimMessageBus
 
 ## Version 1.1.0
-Date: 2018-11-20
+Date: 2018-12-09
 
 Features:
 * Introduced Memory provider for in-process communication.
 * Introduced AspNetCore extension that uses the ASP.NET Core 2 dependency injection.
-* Refactoring around fluent configurations (moved Group to Kafka/AzureEventHub providers, renamed `Publish` to `Produce`).
+* Refactoring around fluent configurations (moved Group to Kafka/AzureEventHub providers).
 
 Packages:
 * https://www.nuget.org/packages/SlimMessageBus/1.0.1
@@ -15,8 +15,6 @@ Packages:
 * https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator/1.1.0
 * https://www.nuget.org/packages/SlimMessageBus.Host.Autofac/1.1.0
 * https://www.nuget.org/packages/SlimMessageBus.Host.Unity/1.1.0
-* https://www.nuget.org/packages/SlimMessageBus.Host.Kafka/1.1.0
-* https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub/1.1.0
 * https://www.nuget.org/packages/SlimMessageBus.Host.Memory/1.1.0
 * https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore/1.1.0
 
