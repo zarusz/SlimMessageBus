@@ -90,13 +90,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.AzureEv
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sample.Images.Worker", "Samples\Sample.Images.Worker\Sample.Images.Worker.csproj", "{19071CC2-DA95-4E9D-86DB-5DF2F810197A}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sample.DomainEvents.ConsoleApp", "Samples\Sample.DomainEvents.ConsoleApp\Sample.DomainEvents.ConsoleApp.csproj", "{524F174F-1B58-48AE-B5EF-8D15110F75BA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sample.DomainEvents.Domain", "Samples\Sample.DomainEvents.Domain\Sample.DomainEvents.Domain.csproj", "{524F174F-1B58-48AE-B5EF-8D15110F75BA}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sample.DomainEvents.WebApi", "Samples\Sample.DomainEvents.WebApi\Sample.DomainEvents.WebApi.csproj", "{910289CE-825F-4CAF-B9DB-BD3E97F2E6E1}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.AspNetCore", "SlimMessageBus.Host.AspNetCore\SlimMessageBus.Host.AspNetCore.csproj", "{D24DFA4B-F522-41D9-BEDD-419994F6F625}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.Memory.Test", "Tests\SlimMessageBus.Host.Memory.Test\SlimMessageBus.Host.Memory.Test.csproj", "{D4542D75-F4D5-4DF6-BA86-9248909AA023}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Memory.Test", "Tests\SlimMessageBus.Host.Memory.Test\SlimMessageBus.Host.Memory.Test.csproj", "{D4542D75-F4D5-4DF6-BA86-9248909AA023}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

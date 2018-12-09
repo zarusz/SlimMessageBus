@@ -3,17 +3,19 @@
 namespace SlimMessageBus
 {
     /// <summary>
-    /// Lookup helper of the <see cref="IMessageBus"/> for the current execution context.
+    /// Lookup helper of the <see cref="IMessageBus"/> for the current execution context (singleton, thread bound (ThreadLocal) or task bound (AsyncLocal)).
     /// </summary>
     public static class MessageBus
     {
-        private static Func<IMessageBus> _provider;
+        private static readonly Func<IMessageBus> ProviderDefault = () => throw new InvalidConfigurationMessageBusException("The provider was not set");
 
-        public static bool IsProviderSet() => _provider == null;
+        private static Func<IMessageBus> _provider = ProviderDefault;
+
+        public static bool IsProviderSet() => _provider != ProviderDefault;
 
         public static void SetProvider(Func<IMessageBus> provider)
         {
-            _provider = provider;
+            _provider = provider ?? throw new ArgumentNullException(nameof(provider));
         }
 
         /// <summary>

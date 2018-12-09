@@ -11,7 +11,7 @@ namespace SlimMessageBus
         where TRequest : IRequestMessage<TResponse>
     {
         /// <summary>
-        /// Handles the incomming request message.
+        /// Handles the incoming request message.
         /// </summary>
         /// <param name="request">The request message</param>
         /// <param name="topic">The topic on which the request message arrived on.</param>

@@ -6,7 +6,7 @@
     <Company>zarusz</Company>
     <Authors>zarusz</Authors>
     <Copyright>Copyright © 2018</Copyright>
-    <Version>1.1.0-beta1</Version>
+    <Version>1.1.0</Version>
     <PackageReleaseNotes>Check out https://github.com/zarusz/SlimMessageBus/blob/master/docs/release_notes.md</PackageReleaseNotes>
     <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
     <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>

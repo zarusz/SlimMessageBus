@@ -1,6 +1,8 @@
 using System;
+using System.Text;
 using System.Threading.Tasks;
 using Moq;
+using Newtonsoft.Json;
 using SlimMessageBus.Host.Config;
 using Xunit;
 
@@ -18,6 +20,13 @@ namespace SlimMessageBus.Host.Memory.Test
         {
             _settings.DependencyResolver = _dependencyResolverMock.Object;
             _settings.Serializer = _messageSerializerMock.Object;
+
+            _messageSerializerMock
+                .Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<object>()))
+                .Returns((Type type, object message) => Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(message)));
+            _messageSerializerMock
+                .Setup(x => x.Deserialize(It.IsAny<Type>(), It.IsAny<byte[]>()))
+                .Returns((Type type, byte[] payload) => JsonConvert.DeserializeObject(Encoding.UTF8.GetString(payload), type));
 
             _subject = new Lazy<MemoryMessageBus>(() => new MemoryMessageBus(_settings, _providerSettings));
         }
@@ -42,13 +51,15 @@ namespace SlimMessageBus.Host.Memory.Test
             };
         }
 
-        [Fact]
-        public void PublishDeliversSameMessageInstanceToRespectiveConsumers()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void When_Publish_Given_MessageSerializationSetting_Then_DeliversMessageInstanceToRespectiveConsumers(bool enableMessageSerialization)
         {
             // arrange
-            var topicA = "topic-a";
-            var topicA2 = "topic-a-2";
-            var topicB = "topic-b";
+            const string topicA = "topic-a";
+            const string topicA2 = "topic-a-2";
+            const string topicB = "topic-b";
 
             _settings.Producers.Add(Publisher(typeof(SomeMessageA), topicA));
             _settings.Producers.Add(Publisher(typeof(SomeMessageB), topicB));
@@ -63,7 +74,7 @@ namespace SlimMessageBus.Host.Memory.Test
             _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageAConsumer2))).Returns(aConsumer2Mock.Object);
             _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageBConsumer))).Returns(bConsumerMock.Object);
 
-            _providerSettings.EnableMessageSerialization = false;
+            _providerSettings.EnableMessageSerialization = enableMessageSerialization;
 
             var m = new SomeMessageA();
 
@@ -71,22 +82,70 @@ namespace SlimMessageBus.Host.Memory.Test
             _subject.Value.Publish(m).Wait();
 
             // assert
-            aConsumerMock.Verify(x => x.OnHandle(m, topicA), Times.Once);
+            var messageSpec = enableMessageSerialization ? It.Is<SomeMessageA>(a => a.Equals(m)) : m;
+            aConsumerMock.Verify(x => x.OnHandle(messageSpec, topicA), Times.Once);
             aConsumerMock.VerifyNoOtherCalls();
-            aConsumer2Mock.Verify(x => x.OnHandle(m, topicA2), Times.Never);
+
+            aConsumer2Mock.Verify(x => x.OnHandle(It.IsAny<SomeMessageA>(), topicA2), Times.Never);
             aConsumer2Mock.VerifyNoOtherCalls();
+
             bConsumerMock.Verify(x => x.OnHandle(It.IsAny<SomeMessageB>(), topicB), Times.Never);
             bConsumerMock.VerifyNoOtherCalls();
         }
-
     }
 
     public class SomeMessageA
     {
+        public Guid Value { get; set; }
+
+        #region Equality members
+
+        protected bool Equals(SomeMessageA other)
+        {
+            return Value.Equals(other.Value);
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(null, obj)) return false;
+            if (ReferenceEquals(this, obj)) return true;
+            if (obj.GetType() != this.GetType()) return false;
+            return Equals((SomeMessageA)obj);
+        }
+
+        public override int GetHashCode()
+        {
+            return Value.GetHashCode();
+        }
+
+        #endregion
     }
 
     public class SomeMessageB
     {
+        public Guid Value { get; set; }
+
+        #region Equality members
+
+        protected bool Equals(SomeMessageB other)
+        {
+            return Value.Equals(other.Value);
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(null, obj)) return false;
+            if (ReferenceEquals(this, obj)) return true;
+            if (obj.GetType() != this.GetType()) return false;
+            return Equals((SomeMessageB)obj);
+        }
+
+        public override int GetHashCode()
+        {
+            return Value.GetHashCode();
+        }
+
+        #endregion
     }
 
     public class SomeMessageAConsumer : IConsumer<SomeMessageA>

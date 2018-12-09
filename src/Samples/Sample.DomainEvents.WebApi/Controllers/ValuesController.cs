@@ -1,21 +1,19 @@
-﻿using System.Collections.Generic;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using SlimMessageBus;
-using static Sample.DomainEvents.WebApi.Startup;
 
 namespace Sample.DomainEvents.WebApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class ValuesController : ControllerBase
+    public class ValuesController : Controller
     {
         // GET api/values
         [HttpGet]
-        public ActionResult<IEnumerable<string>> Get()
+        public IActionResult Get()
         {
-            var bus1 = MessageBus.Current as DummyMessageBus;
-            var bus2 = MessageBus.Current as DummyMessageBus;
-            return new string[] { bus1.Id, bus2.Id };
+            var bus1 = MessageBus.Current;
+            var bus2 = MessageBus.Current;
+            return Json(object.ReferenceEquals(bus1, bus2));
         }
 
         // GET api/values/5

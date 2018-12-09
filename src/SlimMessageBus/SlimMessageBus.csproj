@@ -2,17 +2,17 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard1.3</TargetFramework>
-    <Version>1.0.2</Version>
+    <Version>1.1.0</Version>
     <Authors>zarusz</Authors>
     <Company></Company>
     <Copyright>Copyright © 2018</Copyright>
-    <Description>A lightweight message bus interface. The goal of this library is to introduce a slim facade for messaging brokers. Use one of the extensions to add in-process, Apache Kafka or Azure Event Hub messaging.</Description>
+    <Description>A lightweight message bus interface. The goal of this library is to introduce a slim facade for messaging brokers. Use one of the providers to add in-process, Apache Kafka or Azure Event Hub messaging.</Description>
     <NeutralLanguage />
     <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
     <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
     <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.png</PackageIconUrl>
     <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
-    <PackageTags>MessageBus Facade EventBus Broker Events Messages EDA DomainEvents</PackageTags>
+    <PackageTags>MessageBus facade EventBus broker events messages EDA DomainEvents domain DDD</PackageTags>
     <PackageReleaseNotes>Check out https://github.com/zarusz/SlimMessageBus/blob/master/docs/release_notes.md</PackageReleaseNotes>
   </PropertyGroup>
 

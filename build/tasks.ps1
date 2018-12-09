@@ -9,16 +9,16 @@ $dist_folder = "$root\dist"
 $msbuild_verbosity = "n"
 		
 $projects = @(
-#	"SlimMessageBus",
+	"SlimMessageBus",
 	"SlimMessageBus.Host",
-#	"SlimMessageBus.Host.Serialization.Json", 
-#	"SlimMessageBus.Host.ServiceLocator", 
-#	"SlimMessageBus.Host.Autofac",
-#	"SlimMessageBus.Host.Unity",
+	"SlimMessageBus.Host.Serialization.Json", 
+	"SlimMessageBus.Host.ServiceLocator", 
+	"SlimMessageBus.Host.Autofac",
+	"SlimMessageBus.Host.Unity",
+	"SlimMessageBus.Host.AspNetCore",
 #	"SlimMessageBus.Host.Kafka",
 #	"SlimMessageBus.Host.AzureEventHub",
 	"SlimMessageBus.Host.Memory"
-#	"SlimMessageBus.Host.AspNetCore"
 )
 
 # msbuild.exe https://msdn.microsoft.com/pl-pl/library/ms164311(v=vs.80).aspx

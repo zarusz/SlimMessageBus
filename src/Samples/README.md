@@ -1,3 +1,28 @@
+## Sample.Simple.ConsoleApp
+
+This is the simplest, all in one-class code example.
+It shows how it is easy to change providers in one place while having the rest of the code intact.
+
+## Sample.DomainEvents
+
+This sample shows how `SlimMessageBus` can be used to implement domain events.
+
+`Sample.DomainEvents.Domain` project is the domain model that has the `OrderSubmittedEvent` along with its handler `OrderSubmittedHandler`.
+This layer has only dependency on `SlimMessageBus` to be able to publish domain events and consume domain events.
+
+`Sample.DomainEvents.WebApi` project is a ASP.NET Core 2.1 project that configures the `SlimMessageBus.Host.Memory` to enable in-process message passing.
+Notice that the `MessageBus.Current` will resolve the `IMessageBus` instance from the current web request scope. Each handler instance will be scoped to the web request as well.
+The MessageBus instance was made web request scoped, but it could as well be a singleton.
+
+Run the WebApi project and POST (without any payload) to `https://localhost:5001/api/orders`. An order will be submitted:
+
+```
+2018-12-09 23:06:34.4667|INFO|Sample.DomainEvents.Domain.OrderSubmittedHandler|Customer John Whick just placed an order for:
+2018-12-09 23:06:34.4667|INFO|Sample.DomainEvents.Domain.OrderSubmittedHandler|- 2x id_machine_gun
+2018-12-09 23:06:34.4749|INFO|Sample.DomainEvents.Domain.OrderSubmittedHandler|- 4x id_grenade
+2018-12-09 23:06:34.4749|INFO|Sample.DomainEvents.Domain.OrderSubmittedHandler|Generating a shipping order...
+```
+
 ## Sample.Images
 
 Sample project that uses request-response to generate image thumbnails. It consists of two main applications:
