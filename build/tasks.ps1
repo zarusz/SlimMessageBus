@@ -42,7 +42,7 @@ function NuRestore() {
 
 function _MsBuild($target) {
 	_Step "$target solution"
-	& dotnet msbuild $sln_file /t:$target /p:Platform=$sln_platform /p:Configuration=$config /v:$msbuild_verbosity
+	& dotnet build $sln_file -c $config -v $msbuild_verbosity
 	_AssertExec
 }
 
@@ -60,6 +60,18 @@ function Build() {
 	Clean	
 	NuRestore
 	_MsBuild "Build"
+}
+
+function Test() { 
+	_Step "Runnint tests"
+	& dotnet test $sln_file -v $msbuild_verbosity
+	_AssertExec
+}
+
+function TestCi() {
+	_Step "Runnint tests (skipping tests requiring local infrastructure)"
+	& dotnet test $sln_file --filter Category!=Local
+	_AssertExec
 }
 
 function NuPack() {

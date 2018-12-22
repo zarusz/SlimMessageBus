@@ -27,6 +27,8 @@ namespace SlimMessageBus.Host.Kafka.Test
     /// <code>bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --partitions 2 --replication-factor 1 --topic test-echo</code>
     /// </remarks>
     /// </summary>
+    [Trait("Category", "Integration")]
+    [Trait("Category", "Local")]
     public class KafkaMessageBusIt : IDisposable
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
@@ -87,7 +89,6 @@ namespace SlimMessageBus.Host.Kafka.Test
         }
 
         [Fact]
-        [Trait("Category", "Integration")]
         public void BasicPubSub()
         {
             // arrange
@@ -159,7 +160,6 @@ namespace SlimMessageBus.Host.Kafka.Test
         }
 
         [Fact]
-        [Trait("Category", "Integration")]
         public void BasicReqResp()
         {
             // arrange

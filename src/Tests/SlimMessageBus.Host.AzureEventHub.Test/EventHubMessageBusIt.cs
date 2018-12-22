@@ -16,6 +16,7 @@ using SlimMessageBus.Host.DependencyResolver;
 
 namespace SlimMessageBus.Host.AzureEventHub.Test
 {
+    [Trait("Category", "Integration")]
     public class EventHubMessageBusIt : IDisposable
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
@@ -61,7 +62,6 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
         }
 
         [Fact]
-        [Trait("Category", "Integration")]
         public void BasicPubSub()
         {
             // arrange
@@ -116,7 +116,6 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
         }
 
         [Fact]
-        [Trait("Category", "Integration")]
         public void BasicReqResp()
         {
             // arrange

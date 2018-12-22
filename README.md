@@ -1,8 +1,12 @@
 # SlimMessageBus
 
-SlimMessageBus is a client façade for message brokers for .NET. It comes with implementations for specific brokers (Apache Kafka, Azure EventHub, MQTT/Mosquitto, Redis Pub/Sub) and also for in memory message passing (in-process communication). SlimMessageBus additionally provides request-response messaging implementation.
+SlimMessageBus is a client façade for message brokers for .NET. It comes with implementations for specific brokers (Apache Kafka, Azure EventHub, MQTT/Mosquitto, Redis Pub/Sub) and also for in memory message passing (in-process communication). SlimMessageBus additionally provides request-response implementation over message queues.
 
-[![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s/branch/develop?svg=true)](https://ci.appveyor.com/project/zarusz/slimmessagebus/branch/develop)
+| Branch    | Build Status |
+| ----------| --------------------------------|
+| master    | [![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s/branch/master?svg=true)](https://ci.appveyor.com/project/zarusz/slimmessagebus/branch/master) |
+| develop   | [![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s/branch/develop?svg=true)](https://ci.appveyor.com/project/zarusz/slimmessagebus/branch/develop) |
+| all       | [![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s?svg=true)](https://ci.appveyor.com/project/zarusz/slimmessagebus) |
 
 ### Features
 
@@ -53,7 +57,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 | `SlimMessageBus.Host.Redis` (future)     | Provider for Redis                                                  | .                                                                              | .             |
 | `SlimMessageBus.Host.Memory`             | Implementation for in-process (in memory) message passing           | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Memory)             | 1.3           |
 | `SlimMessageBus.Host.ServiceLocator`     | DI adapter for ServiceLocator                                       | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator)     | 1.3           |
-| `SlimMessageBus.Host.Autofac`            | DI adapter for from Autofac container                               | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Autofac)            | 1.3           |
+| `SlimMessageBus.Host.Autofac`            | DI adapter for Autofac container                                    | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Autofac)            | 1.3           |
 | `SlimMessageBus.Host.Unity`              | DI adapter for Unity container                                      | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Unity)              | 1.3           |
 | `SlimMessageBus.Host.AspNetCore`         | Integration for ASP.NET Core 2.1 (DI adapter, config helpers)       | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore)         | 1.3           |
 | `SlimMessageBus.Host.Serialization.Json` | Message serialization adapter for JSON (Json.NET)                   | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json) | 1.3           |
@@ -237,18 +241,22 @@ Examine the complete [sample](/src/Samples#sampledomainevents) for ASP.NET Core 
 
 ## Building
 
-To build:
+Build:
 ```
 .\build\do_build.ps1
 ```
 
-To create NuGet packages (in `dist` folder):
+Test:
+```
+.\build\do_test.ps1
+```
 
+Create NuGet packages (artifacts go to `dist` folder):
 ```
 .\build\do_package.ps1
 ```
 
-To push NuGet packages to `local` repository:
+Push NuGet packages to `local` repository:
 ```
 .\build\do_push_local.ps1
 ```
