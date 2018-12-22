@@ -82,8 +82,14 @@ namespace SlimMessageBus.Host.Memory.Test
             _subject.Value.Publish(m).Wait();
 
             // assert
-            var messageSpec = enableMessageSerialization ? It.Is<SomeMessageA>(a => a.Equals(m)) : m;
-            aConsumerMock.Verify(x => x.OnHandle(messageSpec, topicA), Times.Once);
+            if (enableMessageSerialization)
+            {
+                aConsumerMock.Verify(x => x.OnHandle(It.Is<SomeMessageA>(a => a.Equals(m)), topicA), Times.Once);
+            }
+            else
+            {
+                aConsumerMock.Verify(x => x.OnHandle(m, topicA), Times.Once);
+            }
             aConsumerMock.VerifyNoOtherCalls();
 
             aConsumer2Mock.Verify(x => x.OnHandle(It.IsAny<SomeMessageA>(), topicA2), Times.Never);
