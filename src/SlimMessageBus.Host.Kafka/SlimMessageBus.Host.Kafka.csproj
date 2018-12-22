@@ -7,7 +7,7 @@
     <Description>Apache Kafka provider for SlimMessageBus</Description>
     <Copyright>Copyright © 2018</Copyright>
     <PackageTags>Apache Kafka provider SlimMessageBus MessageBus bus facade</PackageTags>
-    <Version>1.1.0-beta1</Version>
+    <Version>1.1.1-beta1</Version>
     <Product>SlimMessageBus</Product>
     <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>

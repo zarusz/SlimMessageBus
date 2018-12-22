@@ -198,7 +198,7 @@ namespace SlimMessageBus.Host.Kafka
             var deliveryReport = await task.ConfigureAwait(false);
             if (deliveryReport.Error.HasError)
             {
-                throw new PublishMessageBusException($"Error while publish message of type ${messageType.Name} to topic ${topic}. Kafka response code: ${deliveryReport.Error.Code}, reason: ${deliveryReport.Error.Reason}");
+                throw new PublishMessageBusException($"Error while publish message of type {messageType.Name} to topic {topic}. Kafka response code: {deliveryReport.Error.Code}, reason: {deliveryReport.Error.Reason}");
             }
 
             // log some debug information

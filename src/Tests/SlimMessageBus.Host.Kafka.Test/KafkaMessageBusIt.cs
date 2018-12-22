@@ -12,12 +12,20 @@ using Xunit;
 using System.Linq;
 using System.Reflection;
 using Common.Logging.Simple;
-//using Common.Logging.Simple.;
 using Microsoft.Extensions.Configuration;
 using SlimMessageBus.Host.Kafka.Configs;
 
 namespace SlimMessageBus.Host.Kafka.Test
 {
+    /// <summary>
+    /// Performs basic integration test to verify that pub/sub and request-response communication works while concurrent producers pump data.
+    /// <remarks>
+    /// Ensure the topics used in this test (test-ping and test-echo) have 2 partitions, otherwise you will get an exception (Confluent.Kafka.KafkaException : Local: Unknown partition)
+    /// See https://kafka.apache.org/quickstart#quickstart_createtopic
+    /// <code>bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --partitions 2 --replication-factor 1 --topic test-ping</code>
+    /// <code>bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --partitions 2 --replication-factor 1 --topic test-echo</code>
+    /// </remarks>
+    /// </summary>
     public class KafkaMessageBusIt : IDisposable
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
@@ -60,7 +68,7 @@ namespace SlimMessageBus.Host.Kafka.Test
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderKafka(KafkaSettings);
 
-            MessageBus = new Lazy<KafkaMessageBus>(() => (KafkaMessageBus) MessageBusBuilder.Build());
+            MessageBus = new Lazy<KafkaMessageBus>(() => (KafkaMessageBus)MessageBusBuilder.Build());
         }
 
         public void Dispose()
@@ -82,7 +90,7 @@ namespace SlimMessageBus.Host.Kafka.Test
         public void BasicPubSub()
         {
             // arrange
-            
+
             // ensure the topic has 2 partitions
             var topic = "test-ping";
 
@@ -104,7 +112,7 @@ namespace SlimMessageBus.Host.Kafka.Test
                 {
                     if (f == typeof(PingConsumer)) return pingConsumer;
                     throw new InvalidOperationException();
-                }));                                                
+                }));
 
             var kafkaMessageBus = MessageBus.Value;
 
@@ -263,7 +271,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             #endregion
         }
 
-        private class EchoRequest: IRequestMessage<EchoResponse>
+        private class EchoRequest : IRequestMessage<EchoResponse>
         {
             public int Index { get; set; }
             public string Message { get; set; }

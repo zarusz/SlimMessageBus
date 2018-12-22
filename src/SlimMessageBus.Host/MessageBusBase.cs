@@ -217,7 +217,7 @@ namespace SlimMessageBus.Host
             }
             catch (PublishMessageBusException e)
             {
-                Log.DebugFormat(CultureInfo.InvariantCulture, "Publishing of request message failed: {0}", e);
+                Log.DebugFormat(CultureInfo.InvariantCulture, "Publishing of request message failed", e);
                 // remove from registry
                 PendingRequestStore.Remove(requestId);
                 throw;
