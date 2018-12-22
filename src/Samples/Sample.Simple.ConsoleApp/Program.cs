@@ -12,6 +12,7 @@ using System.Threading;
 using Common.Logging;
 using Common.Logging.Configuration;
 using Microsoft.Extensions.Configuration;
+using SlimMessageBus.Host.DependencyResolver;
 
 namespace Sample.Simple.ConsoleApp
 {

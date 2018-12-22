@@ -1,6 +1,7 @@
 ﻿using Common.Logging;
 using System;
 using System.Globalization;
+using SlimMessageBus.Host.DependencyResolver;
 using Unity;
 
 namespace SlimMessageBus.Host.Unity

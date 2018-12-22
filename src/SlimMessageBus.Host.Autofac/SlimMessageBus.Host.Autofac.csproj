@@ -11,7 +11,7 @@
     <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.png</PackageIconUrl>
     <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
     <PackageReleaseNotes>Check out https://github.com/zarusz/SlimMessageBus/blob/master/docs/release_notes.md</PackageReleaseNotes>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
     <Product>SlimMessageBus</Product>
     <PackageTags>SlimMessageBus Autofac</PackageTags>
   </PropertyGroup>

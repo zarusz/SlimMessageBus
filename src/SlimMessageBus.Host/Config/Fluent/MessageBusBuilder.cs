@@ -1,4 +1,6 @@
 using System;
+using SlimMessageBus.Host.DependencyResolver;
+using SlimMessageBus.Host.Serialization;
 
 namespace SlimMessageBus.Host.Config
 {

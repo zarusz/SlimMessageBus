@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Serialization.Json;
 using Xunit;
 

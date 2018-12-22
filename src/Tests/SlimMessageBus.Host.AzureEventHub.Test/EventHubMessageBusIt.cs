@@ -12,6 +12,7 @@ using Xunit;
 using System.Linq;
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
+using SlimMessageBus.Host.DependencyResolver;
 
 namespace SlimMessageBus.Host.AzureEventHub.Test
 {

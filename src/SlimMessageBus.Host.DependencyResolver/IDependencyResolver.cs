@@ -1,14 +1,14 @@
 ﻿using System;
 
-namespace SlimMessageBus.Host
+namespace SlimMessageBus.Host.DependencyResolver
 {
     /// <summary>
-    /// Responsible for resolving the list of handlers (<see cref="IConsumer{TMessage}"/>).
+    /// Responsible for resolving the handlers or consumers.
     /// </summary>
     public interface IDependencyResolver
     {
         /// <summary>
-        /// Resolves the list of handles (<see cref="IConsumer{TMessage}"/>).
+        /// Resolves the message handles or consumers.
         /// </summary>
         /// <returns></returns>
         object Resolve(Type type);

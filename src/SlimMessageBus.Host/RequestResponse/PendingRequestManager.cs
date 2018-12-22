@@ -6,7 +6,7 @@ using Common.Logging;
 namespace SlimMessageBus.Host.RequestResponse
 {
     /// <summary>
-    /// Manages the pending requests - ensure requests whitch exceeded the alloted timeout period are removed.
+    /// Manages the pending requests - ensure requests which exceeded the allotted timeout period are removed.
     /// </summary>
     public class PendingRequestManager : IDisposable
     {

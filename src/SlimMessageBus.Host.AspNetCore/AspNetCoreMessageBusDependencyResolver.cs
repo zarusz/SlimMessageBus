@@ -1,5 +1,6 @@
 ﻿using System;
 using Microsoft.AspNetCore.Http;
+using SlimMessageBus.Host.DependencyResolver;
 
 namespace SlimMessageBus.Host.AspNetCore
 {

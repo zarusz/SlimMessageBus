@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Globalization;
 using Common.Logging;
+using SlimMessageBus.Host.DependencyResolver;
 
 namespace SlimMessageBus.Host.ServiceLocator
 {

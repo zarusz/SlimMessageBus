@@ -1,6 +1,8 @@
 ﻿using Moq;
 using SlimMessageBus.Host.Config;
 using System;
+using SlimMessageBus.Host.DependencyResolver;
+using SlimMessageBus.Host.Serialization;
 
 namespace SlimMessageBus.Host.Kafka.Test
 {

@@ -2,6 +2,7 @@
 using System.Globalization;
 using Autofac;
 using Common.Logging;
+using SlimMessageBus.Host.DependencyResolver;
 
 namespace SlimMessageBus.Host.Autofac
 {

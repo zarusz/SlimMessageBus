@@ -12,7 +12,7 @@ namespace SlimMessageBus.Host
         PendingRequestState GetById(string id);
 
         /// <summary>
-        /// Find all the requests which either expired or cancelation was requested
+        /// Find all the requests which either expired or cancellation was requested
         /// </summary>
         /// <param name="now"></param>
         /// <returns></returns>

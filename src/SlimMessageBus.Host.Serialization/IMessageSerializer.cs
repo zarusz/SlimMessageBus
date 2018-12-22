@@ -1,6 +1,6 @@
 using System;
 
-namespace SlimMessageBus.Host
+namespace SlimMessageBus.Host.Serialization
 {
     public interface IMessageSerializer
     {

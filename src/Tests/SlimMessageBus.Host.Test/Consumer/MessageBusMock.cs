@@ -1,6 +1,8 @@
 using System;
 using Moq;
 using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host.DependencyResolver;
+using SlimMessageBus.Host.Serialization;
 
 namespace SlimMessageBus.Host.Test
 {

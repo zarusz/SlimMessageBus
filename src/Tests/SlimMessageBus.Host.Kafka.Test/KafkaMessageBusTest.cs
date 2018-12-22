@@ -5,6 +5,8 @@ using SlimMessageBus.Host.Config;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using SlimMessageBus.Host.DependencyResolver;
+using SlimMessageBus.Host.Serialization;
 using Xunit;
 
 namespace SlimMessageBus.Host.Kafka.Test

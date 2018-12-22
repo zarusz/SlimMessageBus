@@ -13,6 +13,7 @@ using System.Linq;
 using System.Reflection;
 using Common.Logging.Simple;
 using Microsoft.Extensions.Configuration;
+using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Kafka.Configs;
 
 namespace SlimMessageBus.Host.Kafka.Test

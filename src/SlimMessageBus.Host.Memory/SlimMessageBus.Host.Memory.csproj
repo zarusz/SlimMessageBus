@@ -2,19 +2,20 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard1.3</TargetFramework>
-    <Authors />
+    <Authors>zarusz</Authors>
     <Company>zarusz</Company>
     <Copyright>Copyright © 2018</Copyright>
     <Description>Simple provider for SlimMessageBus for in process message passing. Messages are stored in memory (state is transient).</Description>
     <AssemblyName>SlimMessageBus.Host.Memory</AssemblyName>
     <RootNamespace>SlimMessageBus.Host.Memory</RootNamespace>
-    <Version>1.1.2</Version>
+    <Version>1.2.0</Version>
     <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
     <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.png</PackageIconUrl>
     <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
     <PackageReleaseNotes>Check out https://github.com/zarusz/SlimMessageBus/blob/master/docs/release_notes.md</PackageReleaseNotes>
     <PackageTags>SlimMessageBus MessageBus DomainEvents</PackageTags>
+    <Product>SlimMessageBus</Product>
   </PropertyGroup>
 
   <ItemGroup>

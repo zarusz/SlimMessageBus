@@ -1,10 +1,9 @@
 ﻿using System;
 
-namespace SlimMessageBus.Host
+namespace SlimMessageBus.Host.DependencyResolver
 {
-
     /// <summary>
-    /// Simple implementation for <see cref="IDependencyResolver"/> that used a Func to lookup the depedency.
+    /// Simple implementation for <see cref="IDependencyResolver"/> that used a Func to lookup the dependency.
     /// </summary>
     public class LookupDependencyResolver : IDependencyResolver
     {

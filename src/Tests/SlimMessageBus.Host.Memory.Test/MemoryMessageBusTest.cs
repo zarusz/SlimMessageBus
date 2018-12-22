@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using Moq;
 using Newtonsoft.Json;
 using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host.DependencyResolver;
+using SlimMessageBus.Host.Serialization;
 using Xunit;
 
 namespace SlimMessageBus.Host.Memory.Test
