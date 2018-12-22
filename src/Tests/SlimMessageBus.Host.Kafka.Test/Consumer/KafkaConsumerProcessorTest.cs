@@ -4,6 +4,7 @@ using Moq;
 using SlimMessageBus.Host.Config;
 using System;
 using System.Threading.Tasks;
+using SlimMessageBus.Host.Kafka.Configs;
 using Xunit;
 
 namespace SlimMessageBus.Host.Kafka.Test
@@ -31,15 +32,16 @@ namespace SlimMessageBus.Host.Kafka.Test
                 ConsumerType = typeof(SomeMessageConsumer),
                 ConsumerMode = ConsumerMode.Subscriber
             };
+            consumerSettings.SetGroup("group-a");
 
-            var mssageBusMock = new MessageBusMock();
-            mssageBusMock.BusSettings.Consumers.Add(consumerSettings);
-            mssageBusMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageConsumer))).Returns(_consumer);
+            var massageBusMock = new MessageBusMock();
+            massageBusMock.BusSettings.Consumers.Add(consumerSettings);
+            massageBusMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageConsumer))).Returns(_consumer);
 
             byte[] MessageValueProvider(Message m) => m.Value;
-            var consumerInstancePoolMock = new Mock<ConsumerInstancePool<Message>>(consumerSettings, mssageBusMock.Bus, (Func<Message, byte[]>) MessageValueProvider, null);
+            var consumerInstancePoolMock = new Mock<ConsumerInstancePool<Message>>(consumerSettings, massageBusMock.Bus, (Func<Message, byte[]>) MessageValueProvider, null);
             _messageQueueWorkerMock = new Mock<MessageQueueWorker<Message>>(consumerInstancePoolMock.Object, _checkpointTrigger.Object);
-            _subject = new KafkaConsumerProcessor(consumerSettings, _topicPartition, _commitControllerMock.Object, mssageBusMock.Bus, _messageQueueWorkerMock.Object);
+            _subject = new KafkaConsumerProcessor(consumerSettings, _topicPartition, _commitControllerMock.Object, massageBusMock.Bus, _messageQueueWorkerMock.Object);
         }
 
         public void Dispose()

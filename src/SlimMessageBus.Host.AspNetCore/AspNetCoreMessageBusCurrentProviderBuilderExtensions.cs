@@ -12,7 +12,6 @@ namespace SlimMessageBus.Host.AspNetCore
     /// </summary>
     public static class AspNetCoreMessageBusCurrentProviderBuilderExtensions
     {
-
         public static MessageBusCurrentProviderBuilder FromPerRequestScope(this MessageBusCurrentProviderBuilder builder, IApplicationBuilder app)
         {
             // Set the MessageBus provider to be resolved from the request scope 

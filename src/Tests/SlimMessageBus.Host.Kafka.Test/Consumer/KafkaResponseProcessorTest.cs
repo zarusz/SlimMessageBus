@@ -3,13 +3,14 @@ using FluentAssertions;
 using Moq;
 using SlimMessageBus.Host.Config;
 using System;
+using SlimMessageBus.Host.Kafka.Configs;
 using Xunit;
 
 namespace SlimMessageBus.Host.Kafka.Test
 {
     public class KafkaResponseProcessorTest : IDisposable
     {
-        private readonly MessageBusMock _mssageBusMock;
+        private readonly MessageBusMock _messageBusMock;
         private readonly TopicPartition _topicPartition;
         private readonly Mock<IKafkaCommitController> _commitControllerMock = new Mock<IKafkaCommitController>();
         private readonly Mock<ICheckpointTrigger> _checkpointTrigger = new Mock<ICheckpointTrigger>();
@@ -19,22 +20,25 @@ namespace SlimMessageBus.Host.Kafka.Test
         {
             _topicPartition = new TopicPartition("topic-a", 0);
 
-            _mssageBusMock = new MessageBusMock
+            var requestResponseSettings = new RequestResponseSettings
+            {
+                Topic = "topic-a"
+            };
+            requestResponseSettings.SetGroup("group-a");
+
+            _messageBusMock = new MessageBusMock
             {
                 BusSettings =
                 {
-                    RequestResponse = new RequestResponseSettings
-                    {
-                        Topic = "topic-a"
-                    }
+                    RequestResponse = requestResponseSettings
                 }
             };
 
-            _subject = new KafkaResponseProcessor(_mssageBusMock.BusSettings.RequestResponse, _topicPartition, _commitControllerMock.Object, _mssageBusMock.Bus, _checkpointTrigger.Object);
+            _subject = new KafkaResponseProcessor(_messageBusMock.BusSettings.RequestResponse, _topicPartition, _commitControllerMock.Object, _messageBusMock.Bus, _checkpointTrigger.Object);
         }
 
         [Fact]
-        public void WhenNewInstanceThenTopicPartitonSet()
+        public void WhenNewInstanceThenTopicPartitionSet()
         {
             _subject.TopicPartition.Should().Be(_topicPartition);
         }
@@ -74,7 +78,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             _subject.OnMessage(message).Wait();
 
             // assert
-            _mssageBusMock.BusMock.Verify(x => x.OnResponseArrived(message.Value, message.Topic), Times.Once);
+            _messageBusMock.BusMock.Verify(x => x.OnResponseArrived(message.Value, message.Topic), Times.Once);
         }
 
         [Fact]
@@ -83,15 +87,15 @@ namespace SlimMessageBus.Host.Kafka.Test
             // arrange
             var message = GetSomeMessage();
             var onResponseMessageFaultMock = new Mock<Action<RequestResponseSettings, object, Exception>>();
-            _mssageBusMock.BusSettings.RequestResponse.OnResponseMessageFault = onResponseMessageFaultMock.Object;
+            _messageBusMock.BusSettings.RequestResponse.OnResponseMessageFault = onResponseMessageFaultMock.Object;
             var e = new Exception();
-            _mssageBusMock.BusMock.Setup(x => x.OnResponseArrived(message.Value, message.Topic)).Throws(e);
+            _messageBusMock.BusMock.Setup(x => x.OnResponseArrived(message.Value, message.Topic)).Throws(e);
 
             // act
             _subject.OnMessage(message).Wait();
 
             // assert
-            onResponseMessageFaultMock.Verify(x => x(_mssageBusMock.BusSettings.RequestResponse, message, e), Times.Once);
+            onResponseMessageFaultMock.Verify(x => x(_messageBusMock.BusSettings.RequestResponse, message, e), Times.Once);
             
         }
 

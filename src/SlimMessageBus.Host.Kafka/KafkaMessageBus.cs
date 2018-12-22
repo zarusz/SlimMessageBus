@@ -187,7 +187,7 @@ namespace SlimMessageBus.Host.Kafka
             // calculate partition
             var partition = GetMessagePartition(messageType, message, topic);
 
-            Log.TraceFormat(CultureInfo.InvariantCulture, "Producing message of type {0}, on topic {1}, partition {2}, key length {3}, paylod size {4}", 
+            Log.TraceFormat(CultureInfo.InvariantCulture, "Producing message of type {0}, on topic {1}, partition {2}, key length {3}, payload size {4}", 
                 messageType.Name, topic, partition, key?.Length ?? 0, payload.Length);
 
             // send the message to topic
@@ -214,8 +214,7 @@ namespace SlimMessageBus.Host.Kafka
 
                 if (Log.IsDebugEnabled)
                 {
-                    Log.DebugFormat(CultureInfo.InvariantCulture, "The message type {0} calculated key is {1} (Base64)",
-                        messageType.Name, Convert.ToBase64String(key));
+                    Log.DebugFormat(CultureInfo.InvariantCulture, "The message type {0} calculated key is {1} (Base64)", messageType.Name, Convert.ToBase64String(key));
                 }
             }
             return key;
@@ -232,8 +231,7 @@ namespace SlimMessageBus.Host.Kafka
 
                 if (Log.IsDebugEnabled)
                 {
-                    Log.DebugFormat(CultureInfo.InvariantCulture, "The message type {0} calculated partition is {1}",
-                        messageType.Name, partition);
+                    Log.DebugFormat(CultureInfo.InvariantCulture, "The message type {0} calculated partition is {1}", messageType.Name, partition);
                 }
             }
             return partition;
