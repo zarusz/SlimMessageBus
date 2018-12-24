@@ -11,7 +11,7 @@ namespace SlimMessageBus.Host.Config
         }
 
         /// <summary>
-        /// Configure topic name that incomming requests (<see cref="TRequest"/>) are expected on.
+        /// Configure topic name that incoming requests (<see cref="TRequest"/>) are expected on.
         /// </summary>
         /// <param name="topic">Topic name</param>
         /// <returns></returns>
@@ -21,7 +21,7 @@ namespace SlimMessageBus.Host.Config
         }
 
         /// <summary>
-        /// Configure topic name that incomming requests (<see cref="TRequest"/>) are expected on.
+        /// Configure topic name that incoming requests (<see cref="TRequest"/>) are expected on.
         /// </summary>
         /// <param name="topic">Topic name</param>
         /// <param name="topicConfig"></param>

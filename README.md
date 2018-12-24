@@ -210,7 +210,7 @@ The 'SlimMessageBus' configuration could looks like this:
 // Define the recipie how to create our IMessageBus
 var busBuilder = MessageBusBuilder
 	.Publish<OrderSubmittedEvent>(x => x.DefaultTopic(x.MessageType.Name))
-	.SubscribeTo<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).Group("").WithSubscriber<OrderSubmittedHandler>())
+	.SubscribeTo<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithSubscriber<OrderSubmittedHandler>())
 	.WithDependencyResolverAsAutofac()
 	.WithSerializer(new JsonMessageSerializer()) // Use JSON for message serialization                
 	.WithProviderMemory(new MemoryMessageBusSettings
