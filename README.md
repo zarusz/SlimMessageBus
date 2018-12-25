@@ -204,7 +204,7 @@ order.Submit(); // events fired here
 
 Notice the static `MessageBus.Current` property might actually be configured to resolve a scoped `IMessageBus` instance (web request scoped).
 
-The 'SlimMessageBus' configuration could looks like this:
+The `SlimMessageBus` configuration could looks like this:
 
 ```cs
 // Define the recipie how to create our IMessageBus
