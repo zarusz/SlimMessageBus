@@ -232,7 +232,6 @@ Examine the complete [sample](/src/Samples#sampledomainevents) for ASP.NET Core 
 
 [Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0)
 
-
 ## Docs
 
 * [Release Notes](docs/release_notes.md)
@@ -241,22 +240,12 @@ Examine the complete [sample](/src/Samples#sampledomainevents) for ASP.NET Core 
 
 ## Building
 
-Build:
-```
-.\build\do_build.ps1
-```
+The PowerShell scripts use the `dotnet` CLI.
 
-Test:
-```
-.\build\do_test.ps1
-```
-
-Create NuGet packages (artifacts go to `dist` folder):
-```
-.\build\do_package.ps1
-```
-
-Push NuGet packages to `local` repository:
-```
-.\build\do_push_local.ps1
-```
+| What                                             | Command                     | Comment                                                                                                                                                                                                   |
+|--------------------------------------------------|-----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Build                                            | `.\build\do_build.ps1`      |                                                                                                                                                                                                           |
+| Test                                             | `.\build\do_test.ps1`       | Please note there are integration tests that require local infrastructure (Kafka provider), other use shared clound infrastructre (Azure EventHubs). Consult each provider test to see what is required.  |
+| Test (skip tests requiring local infrastructure) | `.\build\do_test_ci.ps1`    | Executs tests that do not require local infrastructure.                                                                                                                                                   |
+| Package NuGet                                    | `.\build\do_package.ps1`    | Packages go to `dist` folder.                                                                                                                                                                             |
+| Push NuGet                                       | `.\build\do_push_local.ps1` | Pushes packages to nuget repository named `local`.                                                                                                                                                        |
