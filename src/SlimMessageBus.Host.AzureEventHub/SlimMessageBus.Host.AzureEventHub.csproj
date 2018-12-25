@@ -12,13 +12,13 @@
     <Product>SlimMessageBus</Product>
     <Company>zarusz</Company>
     <Authors>zarusz</Authors>
-    <Version>1.2.0-beta1</Version>
+    <Version>1.2.0</Version>
     <Copyright>Copyright © 2018</Copyright>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Common.Logging" Version="3.4.1" />
-    <PackageReference Include="Microsoft.Azure.EventHubs.Processor" Version="1.1.0" />
+    <PackageReference Include="Microsoft.Azure.EventHubs.Processor" Version="2.2.1" />
   </ItemGroup>
 
   <ItemGroup>

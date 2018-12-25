@@ -1,7 +1,5 @@
-﻿using System;
-using System.Globalization;
+﻿using System.Globalization;
 using System.Linq;
-using System.Reflection;
 using Common.Logging;
 using Common.Logging.Configuration;
 using Microsoft.AspNetCore.Builder;

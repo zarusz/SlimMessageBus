@@ -8,11 +8,11 @@ It shows how it is easy to change providers in one place while having the rest o
 This sample shows how `SlimMessageBus` can be used to implement domain events.
 
 `Sample.DomainEvents.Domain` project is the domain model that has the `OrderSubmittedEvent` along with its handler `OrderSubmittedHandler`.
-This layer has only dependency on `SlimMessageBus` to be able to publish domain events and consume domain events.
+This layer has the only dependency on `SlimMessageBus` to be able to publish domain events and consume domain events.
 
 `Sample.DomainEvents.WebApi` project is a ASP.NET Core 2.1 project that configures the `SlimMessageBus.Host.Memory` to enable in-process message passing.
 Notice that the `MessageBus.Current` will resolve the `IMessageBus` instance from the current web request scope. Each handler instance will be scoped to the web request as well.
-The MessageBus instance was made web request scoped, but it could as well be a singleton.
+The MessageBus instance is web request scoped. The scope could as well be a singleton.
 
 Run the WebApi project and POST (without any payload) to `https://localhost:5001/api/orders`. An order will be submitted:
 

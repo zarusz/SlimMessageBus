@@ -57,15 +57,15 @@ namespace Sample.Simple.ConsoleApp
          */
         private static IMessageBus CreateMessageBus(IConfiguration configuration)
         {
-            // ToDo: Choose your provider
+            // Choose your provider
             var provider = Provider.EventHub;
 
-            // ToDo: Provider your event hub names
+            // Provide your event hub names
             var topicForAddCommand = "add-command";
             var topicForMultiplyRequest = "multiply-request";
             // Note: Each running instance (node) of ConsoleApp should have its own unique response queue (i.e. responses-1)
             var topicForResponses = "responses";
-            // ToDo: Provide consumer group name
+            // Provide consumer group name
             var consumerGroup = "consoleapp";
             var responseGroup = "consoleapp-1";
 
@@ -119,7 +119,7 @@ namespace Sample.Simple.ConsoleApp
                     switch (provider)
                     {
                         case Provider.Kafka:
-                            // ToDo: Provide connection string to your event hub namespace
+                            // Provide connection string to your event hub namespace
                             var eventHubConnectionString = configuration["Azure:EventHub"];
                             var storageConnectionString = configuration["Azure:Storage"];
                             var storageContainerName = configuration["Azure:ContainerName"];
@@ -128,7 +128,7 @@ namespace Sample.Simple.ConsoleApp
                             break;
 
                         case Provider.EventHub:
-                            // ToDo: Ensure your Kafka broker is running
+                            // Ensure your Kafka broker is running
                             var kafkaBrokers = configuration["Kafka:Brokers"];
 
                             builder.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)); // Or use Apache Kafka as provider
