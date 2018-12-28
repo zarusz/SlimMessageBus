@@ -1,3 +1,6 @@
+**This page is deprecated.**
+Use the GitHub [releases](https://github.com/zarusz/SlimMessageBus/releases) page.
+
 # Release Notes of SlimMessageBus
 
 ## Version 1.1.0
