@@ -3,13 +3,13 @@
   <PropertyGroup>
     <TargetFramework>netstandard1.3</TargetFramework>
     <Description>Extension to SlimMessageBus that provides JSON serialization based on the Newtonsoft.Json library</Description>
-    <Copyright>Copyright © 2018</Copyright>
+    <Copyright>Copyright © 2019</Copyright>
     <Authors>zarusz</Authors>
     <Company>zarusz</Company>
     <PackageTags>SlimMessageBus JSON Serialization</PackageTags>
-    <PackageReleaseNotes>Check out https://github.com/zarusz/SlimMessageBus/blob/master/docs/release_notes.md</PackageReleaseNotes>
+    <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
     <Product>SlimMessageBus</Product>
-    <Version>1.2.0</Version>
+    <Version>1.2.1</Version>
     <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
     <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.png</PackageIconUrl>

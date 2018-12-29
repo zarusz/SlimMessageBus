@@ -5,9 +5,9 @@
     <Description>A lightweight message bus interface. The goal of this library is to introduce a slim facade for messaging brokers. Use one of the extensions to add in-process, Apache Kafka or Azure Event Hub messaging.</Description>
     <Company>zarusz</Company>
     <Authors>zarusz</Authors>
-    <Copyright>Copyright © 2018</Copyright>
-    <Version>1.2.0</Version>
-    <PackageReleaseNotes>Check out https://github.com/zarusz/SlimMessageBus/blob/master/docs/release_notes.md</PackageReleaseNotes>
+    <Copyright>Copyright © 2019</Copyright>
+    <Version>1.2.1</Version>
+    <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
     <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
     <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
     <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.png</PackageIconUrl>
