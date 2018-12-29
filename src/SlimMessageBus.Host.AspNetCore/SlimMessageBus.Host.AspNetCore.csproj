@@ -6,13 +6,13 @@
     <RootNamespace>SlimMessageBus.Host.AspNetCore</RootNamespace>
     <Version>1.2.1</Version>
     <Description>Extensions for SlimMessageBus to integrate it with ASP.NET Core</Description>
-    <Copyright>Copyright © 2018</Copyright>
+    <Copyright>Copyright © 2019</Copyright>
     <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
     <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.png</PackageIconUrl>
     <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
     <PackageTags>SlimMessageBus MessageBus ASP.Net Core</PackageTags>
-    <PackageReleaseNotes>Check out https://github.com/zarusz/SlimMessageBus/blob/master/docs/release_notes.md</PackageReleaseNotes>
+    <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
