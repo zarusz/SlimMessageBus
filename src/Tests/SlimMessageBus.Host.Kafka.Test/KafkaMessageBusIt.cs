@@ -55,7 +55,10 @@ namespace SlimMessageBus.Host.Kafka.Test
                 {
                     {"socket.blocking.max.ms", 1},
                     {"queue.buffering.max.ms", 1},
-                    {"socket.nagle.disable", true}
+                    {"socket.nagle.disable", true},
+                    {"request.timeout.ms", 2000 }, // when no response within 2 sec of sending a msg, report error
+                    {"message.timeout.ms", 5000 }
+                    //{"delivery.timeout.ms", 10000 } // when no delivery ack within 10 sek, report error
                 },
                 ConsumerConfigFactory = (group) => new Dictionary<string, object>
                 {
@@ -116,7 +119,7 @@ namespace SlimMessageBus.Host.Kafka.Test
                     throw new InvalidOperationException();
                 }));
 
-            var kafkaMessageBus = MessageBus.Value;
+            var messageBus = MessageBus.Value;
 
             // act
 
@@ -130,7 +133,7 @@ namespace SlimMessageBus.Host.Kafka.Test
 
             messages
                 .AsParallel()
-                .ForAll(m => kafkaMessageBus.Publish(m).Wait());
+                .ForAll(m => messageBus.Publish(m).Wait());
 
             stopwatch.Stop();
             Log.InfoFormat(CultureInfo.InvariantCulture, "Published {0} messages in {1}", messages.Count, stopwatch.Elapsed);
@@ -223,9 +226,9 @@ namespace SlimMessageBus.Host.Kafka.Test
             var lastMessageCount = 0;
             var lastMessageStopwatch = Stopwatch.StartNew();
 
-            const int newMessagesAwatingTimeout = 10;
+            const int newMessagesAwaitingTimeout = 10;
 
-            while (lastMessageStopwatch.Elapsed.TotalSeconds < newMessagesAwatingTimeout)
+            while (lastMessageStopwatch.Elapsed.TotalSeconds < newMessagesAwaitingTimeout)
             {
                 Thread.Sleep(200);
 
@@ -243,6 +246,12 @@ namespace SlimMessageBus.Host.Kafka.Test
         {
             public DateTime Timestamp { get; set; }
             public int Counter { get; set; }
+
+            #region Overrides of Object
+
+            public override string ToString() => $"PingMessage(Counter={Counter}, Timestamp={Timestamp})";
+
+            #endregion
         }
 
         private class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
@@ -276,11 +285,23 @@ namespace SlimMessageBus.Host.Kafka.Test
         {
             public int Index { get; set; }
             public string Message { get; set; }
+
+            #region Overrides of Object
+
+            public override string ToString() => $"EchoRequest(Index={Index}, Message={Message})";
+
+            #endregion
         }
 
         private class EchoResponse
         {
             public string Message { get; set; }
+
+            #region Overrides of Object
+
+            public override string ToString() => $"EchoResponse(Message={Message})";
+
+            #endregion
         }
 
         private class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>

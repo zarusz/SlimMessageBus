@@ -152,7 +152,7 @@ namespace SlimMessageBus.Host
 
             var payload = SerializeMessage(messageType, message);
 
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Publishing message of type {0} to topic {1} with payload size {2}", messageType, topic, payload?.Length ?? 0);
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Producing message {0} of type {1} to topic {2} with payload size {3}", message, messageType, topic, payload?.Length ?? 0);
             return PublishToTransport(messageType, message, topic, payload);
         }
 

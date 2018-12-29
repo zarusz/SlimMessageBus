@@ -15,7 +15,7 @@ namespace SlimMessageBus.Host.AzureEventHub
         public EventHubMessageBus MessageBus { get; }
 
         private readonly EventProcessorHost _processorHost;
-        private readonly Func<PartitionConsumer> _processorFactory;
+        private readonly Func<PartitionConsumer> _partitionConsumerFactory;
         private readonly List<PartitionConsumer> _partitionConsumers = new List<PartitionConsumer>();
 
         private readonly TaskMarker _taskMarker = new TaskMarker();
@@ -30,10 +30,10 @@ namespace SlimMessageBus.Host.AzureEventHub
         {
         }
 
-        protected GroupTopicConsumer(EventHubMessageBus messageBus, TopicGroup topicGroup, Func<PartitionConsumer> processorFactory)
+        protected GroupTopicConsumer(EventHubMessageBus messageBus, TopicGroup topicGroup, Func<PartitionConsumer> partitionConsumerFactory)
         {
             MessageBus = messageBus;
-            _processorFactory = processorFactory;
+            _partitionConsumerFactory = partitionConsumerFactory;
 
             Log.InfoFormat(CultureInfo.InvariantCulture, "Creating EventProcessorHost for EventHub with Topic: {0}, Group: {1}", topicGroup.Topic, topicGroup.Group);
             _processorHost = MessageBus.EventHubSettings.EventProcessorHostFactory(topicGroup);
@@ -72,8 +72,12 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         public IEventProcessor CreateEventProcessor(PartitionContext context)
         {
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Creating {0} for {1}", nameof(IEventProcessor), new PartitionContextInfo(context));
-            var ep = _processorFactory();
+            if (Log.IsDebugEnabled)
+            {
+                Log.DebugFormat(CultureInfo.InvariantCulture, "Creating {0} for {1}", nameof(IEventProcessor), new PartitionContextInfo(context));
+            }
+
+            var ep = _partitionConsumerFactory();
             _partitionConsumers.Add(ep);
             return ep;
         }

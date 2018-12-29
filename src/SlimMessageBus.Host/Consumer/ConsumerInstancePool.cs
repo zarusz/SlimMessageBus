@@ -13,7 +13,7 @@ namespace SlimMessageBus.Host
     public class ConsumerInstancePool<TMessage> : IDisposable
         where TMessage : class
     {
-        private readonly ILog _log = LogManager.GetLogger(typeof(ConsumerInstancePool<TMessage>));
+        private readonly ILog _log = LogManager.GetLogger(typeof(ConsumerInstancePool<TMessage>).ToString()); // this will give a more friendly name without the assembly version of the generic param
 
         private readonly List<object> _instances;
         private readonly BufferBlock<object> _instancesQueue;
@@ -60,7 +60,7 @@ namespace SlimMessageBus.Host
 
             if (_instances.Any())
             {
-                // dospose instances that implement IDisposable
+                // dispose instances that implement IDisposable
                 foreach (var instance in _instances.OfType<IDisposable>())
                 {
                     instance.DisposeSilently("Consumer", _log);

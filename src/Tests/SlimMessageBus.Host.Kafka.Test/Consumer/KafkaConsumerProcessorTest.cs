@@ -122,13 +122,12 @@ namespace SlimMessageBus.Host.Kafka.Test
         {
             // arrange
             var offset = new TopicPartitionOffset(_topicPartition, new Offset(10));
-            Message message;
 
             // act
             _subject.Commit(offset).Wait();
 
             // assert
-            _messageQueueWorkerMock.Verify(x => x.WaitAll(out message), Times.Once);
+            _messageQueueWorkerMock.Verify(x => x.WaitAll(), Times.Once);
             _commitControllerMock.Verify(x => x.Commit(offset), Times.Once);
         }
 

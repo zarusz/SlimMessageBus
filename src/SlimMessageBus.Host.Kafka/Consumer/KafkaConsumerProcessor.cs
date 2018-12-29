@@ -96,9 +96,9 @@ namespace SlimMessageBus.Host.Kafka
 
         #endregion
 
-        public Task Commit(TopicPartitionOffset offset)
+        public async Task Commit(TopicPartitionOffset offset)
         {
-            _messageQueueWorker.WaitAll(out var lastGoodMessage);
+            var result = await _messageQueueWorker.WaitAll().ConfigureAwait(false);
             // ToDo: Add retry functionality
             /*
             if (lastGoodMessage == null || lastGoodMessage.TopicPartitionOffset != offset)
@@ -111,7 +111,7 @@ namespace SlimMessageBus.Host.Kafka
                 // ToDo: Add retry functionality
             }
             */
-            return _commitController.Commit(offset);
+            await _commitController.Commit(offset).ConfigureAwait(false);
         }
     }
 }

@@ -48,10 +48,10 @@ namespace SlimMessageBus.Host.Test.Consumer
             }
 
             // act
-            var success = w.WaitAll(out var _);
+            var result = w.WaitAll().Result;
 
             // assert
-            success.Should().BeTrue();
+            result.Success.Should().BeTrue();
             numFinishedMessages.Should().Be(numMessages);
         }
 
@@ -79,11 +79,11 @@ namespace SlimMessageBus.Host.Test.Consumer
             }
 
             // act
-            var success = w.WaitAll(out var lastGoodMessage);
+            var result = w.WaitAll().Result;
 
             // assert
-            success.Should().BeFalse();
-            lastGoodMessage.Should().BeSameAs(messages[1]);
+            result.Success.Should().BeFalse();
+            result.LastSuccessMessage.Should().BeSameAs(messages[1]);
         }
     }
 }

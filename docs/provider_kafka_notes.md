@@ -9,6 +9,10 @@ When troubleshooting or fine tuning it is worth reading the `librdkafka` and `co
 * [Broker version compatibility](https://github.com/edenhill/librdkafka/wiki/Broker-version-compatibility)
 * [Using SSL with librdkafka](https://github.com/edenhill/librdkafka/wiki/Using-SSL-with-librdkafka)
 
+### Configuration properties
+
+Producer, consumer and global configuration properties are described [here](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md).
+
 ### Minimizing message latency
 
 There is a good description [here](https://github.com/edenhill/librdkafka/wiki/How-to-decrease-message-latency) on improving the latency by applying producer/consumer settings on librdkafka. Here is how you enter the settings using SlimMessageBus:

@@ -187,8 +187,8 @@ namespace SlimMessageBus.Host.Kafka
             // calculate partition
             var partition = GetMessagePartition(messageType, message, topic);
 
-            Log.TraceFormat(CultureInfo.InvariantCulture, "Producing message of type {0}, on topic {1}, partition {2}, key length {3}, payload size {4}", 
-                messageType.Name, topic, partition, key?.Length ?? 0, payload.Length);
+            Log.TraceFormat(CultureInfo.InvariantCulture, "Producing message {0} of type {1}, on topic {2}, partition {3}, key length {4}, payload size {5}", 
+                message, messageType.Name, topic, partition, key?.Length ?? 0, payload.Length);
 
             // send the message to topic
             var task = partition == NoPartition
@@ -198,11 +198,11 @@ namespace SlimMessageBus.Host.Kafka
             var deliveryReport = await task.ConfigureAwait(false);
             if (deliveryReport.Error.HasError)
             {
-                throw new PublishMessageBusException($"Error while publish message of type {messageType.Name} to topic {topic}. Kafka response code: {deliveryReport.Error.Code}, reason: {deliveryReport.Error.Reason}");
+                throw new PublishMessageBusException($"Error while publish message {message} of type {messageType.Name} to topic {topic}. Kafka response code: {deliveryReport.Error.Code}, reason: {deliveryReport.Error.Reason}");
             }
 
             // log some debug information
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Message of type {0} delivered to topic-partition-offset {1}", messageType.Name, deliveryReport.TopicPartitionOffset);
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Message {0} of type {1} delivered to topic-partition-offset {2}", message, messageType.Name, deliveryReport.TopicPartitionOffset);
         }
 
         protected byte[] GetMessageKey(Type messageType, object message, string topic)
@@ -214,7 +214,7 @@ namespace SlimMessageBus.Host.Kafka
 
                 if (Log.IsDebugEnabled)
                 {
-                    Log.DebugFormat(CultureInfo.InvariantCulture, "The message type {0} calculated key is {1} (Base64)", messageType.Name, Convert.ToBase64String(key));
+                    Log.DebugFormat(CultureInfo.InvariantCulture, "The message {0} type {1} calculated key is {2} (Base64)", message, messageType.Name, Convert.ToBase64String(key));
                 }
             }
             return key;
@@ -231,7 +231,7 @@ namespace SlimMessageBus.Host.Kafka
 
                 if (Log.IsDebugEnabled)
                 {
-                    Log.DebugFormat(CultureInfo.InvariantCulture, "The message type {0} calculated partition is {1}", messageType.Name, partition);
+                    Log.DebugFormat(CultureInfo.InvariantCulture, "The message {0} type {1} calculated partition is {2}", message, messageType.Name, partition);
                 }
             }
             return partition;
