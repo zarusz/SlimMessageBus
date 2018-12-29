@@ -89,14 +89,14 @@ namespace SlimMessageBus.Host.AzureEventHub
         {
             AssertActive();
 
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Producing message of type {0} on topic {1} with size {2}", messageType.Name, topic, payload.Length);
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Producing message {0} of type {1} on topic {2} with size {3}", message, messageType.Name, topic, payload.Length);
             var producer = _producerByTopic.GetOrAdd(topic);
             
             var ev = new EventData(payload);
             // ToDo: Add support for partition keys
             await producer.SendAsync(ev).ConfigureAwait(false);
 
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Delivered message with: {0}", ev.SystemProperties);
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Delivered message {0} of type {1} on topic {2}", message, messageType.Name, topic);
         }
     }
 }

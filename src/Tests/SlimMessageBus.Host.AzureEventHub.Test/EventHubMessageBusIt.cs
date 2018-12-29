@@ -11,6 +11,7 @@ using SlimMessageBus.Host.Serialization.Json;
 using Xunit;
 using System.Linq;
 using System.Reflection;
+using Common.Logging.Simple;
 using Microsoft.Extensions.Configuration;
 using SlimMessageBus.Host.DependencyResolver;
 
@@ -29,6 +30,8 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
 
         public EventHubMessageBusIt()
         {
+            LogManager.Adapter = new DebugLoggerFactoryAdapter();
+
             var configuration = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")
                 .Build();
@@ -70,10 +73,7 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
             var pingConsumer = new PingConsumer();
 
             MessageBusBuilder
-                .Produce<PingMessage>(x =>
-                {
-                    x.DefaultTopic(topic);
-                })
+                .Produce<PingMessage>(x => x.DefaultTopic(topic))
                 .SubscribeTo<PingMessage>(x => x.Topic(topic)
                                                 .Group("subscriber") // ensure consumer group exists on the event hub
                                                 .WithSubscriber<PingConsumer>()
@@ -145,7 +145,7 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
                     throw new InvalidOperationException();
                 }));
 
-            var kafkaMessageBus = MessageBus.Value;
+            var messageBus = MessageBus.Value;
 
             // act
 
@@ -157,7 +157,7 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
             var responses = new List<Tuple<EchoRequest, EchoResponse>>();
             requests.AsParallel().ForAll(req =>
             {
-                var resp = kafkaMessageBus.Send(req).Result;
+                var resp = messageBus.Send(req).Result;
                 lock (responses)
                 {
                     responses.Add(Tuple.Create(req, resp));
@@ -176,11 +176,11 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
             var lastMessageCount = 0;
             var lastMessageStopwatch = Stopwatch.StartNew();
 
-            const int newMessagesAwatingTimeout = 10;
+            const int newMessagesAwaitingTimeout = 5;
 
-            while (lastMessageStopwatch.Elapsed.TotalSeconds < newMessagesAwatingTimeout)
+            while (lastMessageStopwatch.Elapsed.TotalSeconds < newMessagesAwaitingTimeout)
             {
-                Thread.Sleep(200);
+                Thread.Sleep(100);
 
                 if (pingConsumer.Messages.Count != lastMessageCount)
                 {
@@ -196,6 +196,12 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
         {
             public DateTime Timestamp { get; set; }
             public int Counter { get; set; }
+
+            #region Overrides of Object
+
+            public override string ToString() => $"PingMessage(Counter={Counter}, Timestamp={Timestamp})";
+
+            #endregion
         }
 
         private class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
@@ -225,11 +231,23 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
         {
             public int Index { get; set; }
             public string Message { get; set; }
+
+            #region Overrides of Object
+
+            public override string ToString() => $"EchoRequest(Index={Index}, Message={Message})";
+
+            #endregion
         }
 
         private class EchoResponse
         {
             public string Message { get; set; }
+
+            #region Overrides of Object
+
+            public override string ToString() => $"EchoResponse(Message={Message})";
+
+            #endregion
         }
 
         private class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>

@@ -29,7 +29,7 @@ namespace SlimMessageBus.Host.AzureEventHub
             GC.SuppressFinalize(this);
         }
 
-        protected  virtual void Dispose(bool disposing)
+        protected virtual void Dispose(bool disposing)
         {
             if (disposing)
             {
@@ -43,7 +43,10 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         public Task OpenAsync(PartitionContext context)
         {
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Open lease: {0}", new PartitionContextInfo(context));
+            if (Log.IsDebugEnabled)
+            {
+                Log.DebugFormat(CultureInfo.InvariantCulture, "Open lease: {0}", new PartitionContextInfo(context));
+            }
             return Task.CompletedTask;
         }
 
@@ -102,7 +105,10 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         public Task CloseAsync(PartitionContext context, CloseReason reason)
         {
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Close lease: Reason: {0}, {1}", reason, new PartitionContextInfo(context));
+            if (Log.IsDebugEnabled)
+            {
+                Log.DebugFormat(CultureInfo.InvariantCulture, "Close lease: Reason: {0}, {1}", reason, new PartitionContextInfo(context));
+            }                                                                                                                    
             return Task.CompletedTask;
         }
 
@@ -110,37 +116,36 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         private async Task<EventData> CheckpointSafe(EventData message, PartitionContext context)
         {
-            EventData lastCheckpointMessage;
+            var lastMessageToCheckpoint = message;
 
-            if (OnCommit(out var lastGoodMessage))
-            {
-                // all messages were successful
-                lastCheckpointMessage = message;
-            }
-            else
-            {
+            var commitResult = await OnCommit().ConfigureAwait(false);
+            if (!commitResult.Success)
+            {                             
                 // something went wrong (not all messages were processed with success)
 
                 // checkpoint all the succeeded messages (in order) until the first failed one
-                lastCheckpointMessage = lastGoodMessage;
+                lastMessageToCheckpoint = commitResult.LastSuccessMessage;
 
-                // call the hook of all the ones that failed
+                // call the error hook of all the ones that failed
                 // ToDo: call the hook
             }
-            if (lastCheckpointMessage != null)
+            if (lastMessageToCheckpoint != null)
             {
-                await Checkpoint(lastCheckpointMessage, context).ConfigureAwait(false);
+                await Checkpoint(lastMessageToCheckpoint, context).ConfigureAwait(false);
             }
-            return lastCheckpointMessage;
+            return lastMessageToCheckpoint;
         }
 
         private static Task Checkpoint(EventData message, PartitionContext context)
         {
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Will checkpoint at Offset: {0}, {1}", message.SystemProperties.Offset, new PartitionContextInfo(context));
+            if (Log.IsDebugEnabled)
+            {
+                Log.DebugFormat(CultureInfo.InvariantCulture, "Will checkpoint at Offset: {0}, {1}", message.SystemProperties.Offset, new PartitionContextInfo(context));
+            }
             return context.CheckpointAsync(message);
         }
 
         protected abstract bool OnSubmit(EventData message, PartitionContext context);
-        protected abstract bool OnCommit(out EventData lastGoodMessage);
+        protected abstract Task<MessageQueueResult<EventData>> OnCommit();
     }
 }

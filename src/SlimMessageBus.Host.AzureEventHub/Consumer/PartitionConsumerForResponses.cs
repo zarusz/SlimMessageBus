@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Reflection;
+using System.Threading.Tasks;
 using Common.Logging;
 using Microsoft.Azure.EventHubs;
 using Microsoft.Azure.EventHubs.Processor;
@@ -56,12 +57,11 @@ namespace SlimMessageBus.Host.AzureEventHub
             return _checkpointTrigger.Increment();
         }
 
-        protected override bool OnCommit(out EventData lastGoodMessage)
+        protected override Task<MessageQueueResult<EventData>> OnCommit()
         {
             Log.Debug("Commiting...");
             _checkpointTrigger.Reset();
-            lastGoodMessage = null;
-            return true;
+            return Task.FromResult(new MessageQueueResult<EventData> {Success = true});
         }
 
         #endregion

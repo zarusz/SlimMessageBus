@@ -13,16 +13,15 @@ namespace SlimMessageBus.Host
         private static readonly ILog Log = LogManager.GetLogger(typeof(MessageQueueWorker<TMessage>));
 
         private readonly Queue<MessageProcessingResult<TMessage>> _pendingMessages = new Queue<MessageProcessingResult<TMessage>>();
-        private readonly ConsumerInstancePool<TMessage> _consumerInstancePool;
 
         public int Count => _pendingMessages.Count;
-        public ConsumerInstancePool<TMessage> ConsumerInstancePool => _consumerInstancePool;
+        public ConsumerInstancePool<TMessage> ConsumerInstancePool { get; }
 
         private readonly ICheckpointTrigger _checkpointTrigger;
 
         public MessageQueueWorker(ConsumerInstancePool<TMessage> consumerInstancePool, ICheckpointTrigger checkpointTrigger)
         {
-            _consumerInstancePool = consumerInstancePool;
+            ConsumerInstancePool = consumerInstancePool;
             _checkpointTrigger = checkpointTrigger;
         }
 
@@ -35,7 +34,7 @@ namespace SlimMessageBus.Host
         }
 
         /// <summary>
-        /// Submits an incomming message to the queue to be processed
+        /// Submits an incoming message to the queue to be processed
         /// </summary>
         /// <param name="message">The message to be processed</param>
         /// <returns>True if should Commit() at this point.</returns>
@@ -55,28 +54,28 @@ namespace SlimMessageBus.Host
         }
 
         /// <summary>
-        /// Flushed all the pending messages:
+        /// Wait until all pending message processing is finished:
         /// - checks if any failed
         /// - clears the checkpoint state and internal queue
         /// </summary>
-        /// <param name="lastGoodMessage">If some messages failed, points at the last massage that suceeded</param>
-        /// <returns>True if all messages succeeded, false otherwise</returns>
-        public virtual bool WaitAll(out TMessage lastGoodMessage)
+        public virtual async Task<MessageQueueResult<TMessage>> WaitAll()
         {
-            lastGoodMessage = null;
-            var success = true;
+            var result = new MessageQueueResult<TMessage>
+            {
+                Success = true
+            };
 
             if (_pendingMessages.Count > 0)
             {
                 try
                 {
-                    var tasks = _pendingMessages.Select(x => x.Task).ToArray();
-                    Task.WaitAll(tasks);
+                    var tasks = _pendingMessages.Select(x => x.Task);
+                    await Task.WhenAll(tasks).ConfigureAwait(false);
                 }
-                catch (AggregateException e)
+                catch (Exception e)
                 {
                     // some tasks failed
-                    success = false;
+                    result.Success = false;
                     Log.ErrorFormat(CultureInfo.InvariantCulture, "Errors occured while executing the tasks.", e);
 
                     // grab last message that succeeded (if any)
@@ -87,12 +86,12 @@ namespace SlimMessageBus.Host
                         {
                             break;
                         }
-                        lastGoodMessage = messageProcessingResult.Message;
+                        result.LastSuccessMessage = messageProcessingResult.Message;
                     }
                 }
                 _pendingMessages.Clear();
             }
-            return success;
+            return result;
         }
     }
 }

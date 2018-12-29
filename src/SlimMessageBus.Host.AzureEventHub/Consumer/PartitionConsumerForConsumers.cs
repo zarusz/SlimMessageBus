@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Threading.Tasks;
 using Common.Logging;
 using Microsoft.Azure.EventHubs;
 using Microsoft.Azure.EventHubs.Processor;
@@ -7,7 +8,7 @@ using SlimMessageBus.Host.Config;
 namespace SlimMessageBus.Host.AzureEventHub
 {
     /// <summary>
-    /// <see cref="PartitionConsumer"/> implementation meant for processing messages comming to consumers (<see cref="IConsumer{TMessage}"/>) in pub-sub or handlers (<see cref="IRequestHandler{TRequest,TResponse}"/>) in request-response flows.
+    /// <see cref="PartitionConsumer"/> implementation meant for processing messages coming to consumers (<see cref="IConsumer{TMessage}"/>) in pub-sub or handlers (<see cref="IRequestHandler{TRequest,TResponse}"/>) in request-response flows.
     /// </summary>
     public class PartitionConsumerForConsumers : PartitionConsumer
     {
@@ -39,9 +40,9 @@ namespace SlimMessageBus.Host.AzureEventHub
             return _queueWorker.Submit(message);
         }
 
-        protected override bool OnCommit(out EventData lastGoodMessage)
+        protected override Task<MessageQueueResult<EventData>> OnCommit()
         {
-            return _queueWorker.WaitAll(out lastGoodMessage);
+            return _queueWorker.WaitAll();
         }
 
         #endregion
