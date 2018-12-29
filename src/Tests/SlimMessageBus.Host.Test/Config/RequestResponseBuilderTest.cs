@@ -12,7 +12,6 @@ namespace SlimMessageBus.Host.Test.Config
         {
             // arrange
             var topic = "topic";
-            var group = "group";
             var timeout = TimeSpan.FromSeconds(16);
             var settings = new RequestResponseSettings();
 

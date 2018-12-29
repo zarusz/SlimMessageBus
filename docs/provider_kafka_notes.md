@@ -4,9 +4,10 @@
 
 The SMB Kafka implementation uses [confluent-kafka-dotnet](https://github.com/confluentinc/confluent-kafka-dotnet) .NET wrapper around the native [librdkafka](https://github.com/edenhill/librdkafka) library.
 
-When troubleshooting or fine tuning it is worth reading the `librdkafka` docs:
+When troubleshooting or fine tuning it is worth reading the `librdkafka` and `confluent-kafka-dotnet` docs:
 * [Introduction](https://github.com/edenhill/librdkafka/blob/master/INTRODUCTION.md)
-* [How to decrease message latency](https://github.com/edenhill/librdkafka/wiki/How-to-decrease-message-latency)
+* [Broker version compatibility](https://github.com/edenhill/librdkafka/wiki/Broker-version-compatibility)
+* [Using SSL with librdkafka](https://github.com/edenhill/librdkafka/wiki/Using-SSL-with-librdkafka)
 
 ### Minimizing message latency
 
@@ -34,7 +35,11 @@ var messageBusBuilder = new MessageBusBuilder()
 ```
 There is also a good discussion around latency in [this issue](https://github.com/confluentinc/confluent-kafka-dotnet/issues/89).
 
-### Deploying
+More documentation here:
+* [How to decrease message latency](https://github.com/edenhill/librdkafka/wiki/How-to-decrease-message-latency)
+* [Reduce latency](https://github.com/confluentinc/confluent-kafka-dotnet/wiki/Producing-messages#reduce-latency)
+
+### Deployment
 
 The `librdkafka` distribution for Windows requires [Visual C++ Redistributable for 2013](https://www.microsoft.com/en-US/download/details.aspx?id=40784) installed on the server. More information can be found [here](https://www.microsoft.com/en-US/download/details.aspx?id=40784).
 

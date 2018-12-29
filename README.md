@@ -238,7 +238,7 @@ Examine the complete [sample](/src/Samples#sampledomainevents) for ASP.NET Core 
 * [Apache Kafka Wiki](docs/provider_kafka_notes.md)
 * [Azure EventHubs Wiki](docs/provider_eventhubs_notes.md)
 
-## Building
+## Build
 
 The PowerShell scripts use the `dotnet` CLI.
 
