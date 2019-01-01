@@ -4,18 +4,6 @@ using Microsoft.Azure.EventHubs.Processor;
 
 namespace SlimMessageBus.Host.AzureEventHub
 {
-    public class TopicGroup
-    {
-        public TopicGroup(string topic, string group)
-        {
-            Topic = topic;
-            Group = group;
-        }
-
-        public string Topic { get; set; }
-        public string Group { get; set; }
-    }
-
     public class EventHubMessageBusSettings
     {
         /// <summary>
@@ -66,5 +54,17 @@ namespace SlimMessageBus.Host.AzureEventHub
             EventProcessorOptionsFactory = (consumerSettings) => EventProcessorOptions.DefaultOptions;
             LeaseContainerName = leaseContainerName;
         }
+    }
+
+    public class TopicGroup
+    {
+        public TopicGroup(string topic, string group)
+        {
+            Topic = topic;
+            Group = group;
+        }
+
+        public string Topic { get; set; }
+        public string Group { get; set; }
     }
 }

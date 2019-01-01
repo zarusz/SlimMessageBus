@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Authors>zarusz</Authors>
+    <Product>SlimMessageBus</Product>
+    <Description>Azure ServiceBus provider for SlimMessageBus</Description>
+    <Copyright>Copyright © 2019</Copyright>
+    <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.png</PackageIconUrl>
+    <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
+    <PackageTags>Azure Service Bus provider SlimMessageBus MessageBus bus facade</PackageTags>
+    <Version>1.0.0-alpha1</Version>
+    <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Common.Logging" Version="3.4.1" />
+    <PackageReference Include="Microsoft.Azure.ServiceBus" Version="3.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
+  </ItemGroup>
+
+</Project>

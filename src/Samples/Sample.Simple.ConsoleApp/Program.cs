@@ -2,7 +2,6 @@
 using System.Globalization;
 using System.Threading.Tasks;
 using SlimMessageBus;
-using SlimMessageBus.Host;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.AzureEventHub;

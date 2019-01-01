@@ -2,33 +2,33 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Common.Logging;
+using Common.Logging.Simple;
 using FluentAssertions;
+using Microsoft.Extensions.Configuration;
 using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Serialization.Json;
 using Xunit;
-using System.Linq;
-using System.Reflection;
-using Common.Logging.Simple;
-using Microsoft.Extensions.Configuration;
-using SlimMessageBus.Host.DependencyResolver;
 
-namespace SlimMessageBus.Host.AzureEventHub.Test
+namespace SlimMessageBus.Host.AzureServiceBus.Test
 {
     [Trait("Category", "Integration")]
-    public class EventHubMessageBusIt : IDisposable
+    public class ServiceBusMessageBusIt : IDisposable
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         private const int NumberOfMessages = 77;
 
-        private EventHubMessageBusSettings Settings { get; }
+        private ServiceBusMessageBusSettings Settings { get; }
         private MessageBusBuilder MessageBusBuilder { get; }
-        private Lazy<EventHubMessageBus> MessageBus { get; }
+        private Lazy<ServiceBusMessageBus> MessageBus { get; }
 
-        public EventHubMessageBusIt()
+        public ServiceBusMessageBusIt()
         {
             LogManager.Adapter = new DebugLoggerFactoryAdapter();
 
@@ -36,18 +36,16 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
                 .AddJsonFile("appsettings.json")
                 .Build();
 
-            // connection details to the Azure Event Hub
-            var connectionString = configuration["Azure:EventHub"];
-            var storageConnectionString = configuration["Azure:Storage"];
-            var storageContainerName = configuration["Azure:ContainerName"];
+            var ss = new SecretsStore(@"..\..\..\..\..\secrets.txt");
+            var connectionString = ss.PopulateSecrets(configuration["Azure:ServiceBus"]);
 
-            Settings = new EventHubMessageBusSettings(connectionString, storageConnectionString, storageContainerName);
+            Settings = new ServiceBusMessageBusSettings(connectionString);
 
             MessageBusBuilder = MessageBusBuilder.Create()
                 .WithSerializer(new JsonMessageSerializer())
-                .WithProviderEventHub(Settings);
+                .WithProviderServiceBus(Settings);
 
-            MessageBus = new Lazy<EventHubMessageBus>(() => (EventHubMessageBus) MessageBusBuilder.Build());
+            MessageBus = new Lazy<ServiceBusMessageBus>(() => (ServiceBusMessageBus) MessageBusBuilder.Build());
         }
 
         public void Dispose()
@@ -75,7 +73,7 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
             MessageBusBuilder
                 .Produce<PingMessage>(x => x.DefaultTopic(topic))
                 .SubscribeTo<PingMessage>(x => x.Topic(topic)
-                                                .Group("subscriber") // ensure consumer group exists on the event hub
+                                                .SubscriptionName("subscriber") // ensure subscription exists on the ServiceBus topic
                                                 .WithSubscriber<PingConsumer>()
                                                 .Instances(2))
                 .WithDependencyResolver(new LookupDependencyResolver(f =>
@@ -115,68 +113,12 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
             messagesReceived.Count.Should().Be(messages.Count);           
         }
 
-        [Fact]
-        public void BasicReqResp()
-        {
-            // arrange
-
-            // ensure the topic has 2 partitions
-            var topic = "test-echo";
-            var echoRequestHandler = new EchoRequestHandler();
-
-            MessageBusBuilder
-                .Produce<EchoRequest>(x =>
-                {
-                    x.DefaultTopic(topic);
-                })
-                .Handle<EchoRequest, EchoResponse>(x => x.Topic(topic)
-                                                         .Group("handler") // ensure consumer group exists on the event hub
-                                                         .WithHandler<EchoRequestHandler>()
-                                                         .Instances(2))
-                .ExpectRequestResponses(x =>
-                {
-                    x.ReplyToTopic("test-echo-resp");
-                    x.Group("response-reader"); // ensure consumer group exists on the event hub
-                    x.DefaultTimeout(TimeSpan.FromSeconds(30));
-                })
-                .WithDependencyResolver(new LookupDependencyResolver(f =>
-                {
-                    if (f == typeof(EchoRequestHandler)) return echoRequestHandler;
-                    throw new InvalidOperationException();
-                }));
-
-            var messageBus = MessageBus.Value;
-
-            // act
-
-            var requests = Enumerable
-                .Range(0, NumberOfMessages)
-                .Select(i => new EchoRequest { Index = i, Message = $"Echo {i}" })
-                .ToList();
-
-            var responses = new List<Tuple<EchoRequest, EchoResponse>>();
-            requests.AsParallel().ForAll(req =>
-            {
-                var resp = messageBus.Send(req).Result;
-                lock (responses)
-                {
-                    responses.Add(Tuple.Create(req, resp));
-                }
-            });
-
-            // assert
-
-            // all messages got back
-            responses.Count.Should().Be(NumberOfMessages);
-            responses.All(x => x.Item1.Message == x.Item2.Message).Should().BeTrue();
-        }
-
         private static IList<PingMessage> ConsumeFromTopic(PingConsumer pingConsumer)
         {
             var lastMessageCount = 0;
             var lastMessageStopwatch = Stopwatch.StartNew();
 
-            const int newMessagesAwaitingTimeout = 5;
+            const int newMessagesAwaitingTimeout = 10;
 
             while (lastMessageStopwatch.Elapsed.TotalSeconds < newMessagesAwaitingTimeout)
             {
@@ -225,37 +167,6 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
             }
 
             #endregion
-        }
-
-        private class EchoRequest: IRequestMessage<EchoResponse>
-        {
-            public int Index { get; set; }
-            public string Message { get; set; }
-
-            #region Overrides of Object
-
-            public override string ToString() => $"EchoRequest(Index={Index}, Message={Message})";
-
-            #endregion
-        }
-
-        private class EchoResponse
-        {
-            public string Message { get; set; }
-
-            #region Overrides of Object
-
-            public override string ToString() => $"EchoResponse(Message={Message})";
-
-            #endregion
-        }
-
-        private class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
-        {
-            public Task<EchoResponse> OnHandle(EchoRequest request, string topic)
-            {
-                return Task.FromResult(new EchoResponse { Message = request.Message });
-            }
         }
     }
 }

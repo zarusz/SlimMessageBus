@@ -108,10 +108,18 @@ namespace SlimMessageBus.Host
                 var currentTime = _messageBus.CurrentTime;
                 if (currentTime > expires.Value)
                 {
-                    _log.DebugFormat(CultureInfo.InvariantCulture, "The message arrived too late and is already expired (expires {0}, current {1})", expires.Value, currentTime);
+                    _log.WarnFormat(CultureInfo.InvariantCulture, "The message arrived too late and is already expired (expires {0}, current {1})", expires.Value, currentTime);
 
-                    // Execute the event hook
-                    (_consumerSettings.OnMessageExpired ?? _messageBus.Settings.OnMessageExpired)?.Invoke(_consumerSettings, message);
+                    try
+                    {
+                        // Execute the event hook
+                        (_consumerSettings.OnMessageExpired ?? _messageBus.Settings.OnMessageExpired)?.Invoke(_consumerSettings, message);
+                    }
+                    catch (Exception eh)
+                    {
+                        // When the hook itself error out, catch the exception
+                        _log.ErrorFormat(CultureInfo.InvariantCulture, "{0} method failed", eh, nameof(IConsumerEvents.OnMessageExpired));
+                    }
 
                     // Do not process the expired message
                     return;
@@ -147,7 +155,7 @@ namespace SlimMessageBus.Host
             {
                 if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
                 {
-                    _log.DebugFormat(CultureInfo.InvariantCulture, "Handler execution failed", e);
+                    _log.ErrorFormat(CultureInfo.InvariantCulture, "Handler execution failed", e);
                     // Save the exception
                     responseError = e.ToString();
                 }
@@ -175,7 +183,7 @@ namespace SlimMessageBus.Host
             if (response != null || responseError != null)
             {
                 // send the response (or error response)
-                _log.Debug("Serializing the response...");
+                _log.DebugFormat(CultureInfo.InvariantCulture, "Serializing the response {0} of type {1} for RequestId: {2}...", response, _consumerSettings.ResponseType, requestId);
                 var responsePayload = _messageBus.SerializeResponse(_consumerSettings.ResponseType, response, requestId, responseError);
                 await _messageBus.PublishToTransport(_consumerSettings.ResponseType, response, replyTo, responsePayload).ConfigureAwait(false);
             }
