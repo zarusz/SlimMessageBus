@@ -10,6 +10,7 @@ using Common.Logging;
 using Common.Logging.Simple;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
+using SecretStore;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Serialization.Json;
@@ -36,8 +37,9 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
                 .AddJsonFile("appsettings.json")
                 .Build();
 
-            var ss = new SecretsStore(@"..\..\..\..\..\secrets.txt");
-            var connectionString = ss.PopulateSecrets(configuration["Azure:ServiceBus"]);
+            Secrets.Load(@"..\..\..\..\..\secrets.txt");
+
+            var connectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
 
             Settings = new ServiceBusMessageBusSettings(connectionString);
 

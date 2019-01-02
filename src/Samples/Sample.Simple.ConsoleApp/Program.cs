@@ -11,6 +11,7 @@ using System.Threading;
 using Common.Logging;
 using Common.Logging.Configuration;
 using Microsoft.Extensions.Configuration;
+using SecretStore;
 using SlimMessageBus.Host.DependencyResolver;
 
 namespace Sample.Simple.ConsoleApp
@@ -37,6 +38,8 @@ namespace Sample.Simple.ConsoleApp
             var logConfiguration = new LogConfiguration();
             configuration.GetSection("LogConfiguration").Bind(logConfiguration);
             LogManager.Configure(logConfiguration);
+
+            Secrets.Load(@"..\..\..\..\..\secrets.txt");
 
             using (var messageBus = CreateMessageBus(configuration))
             {
@@ -119,8 +122,8 @@ namespace Sample.Simple.ConsoleApp
                     {
                         case Provider.Kafka:
                             // Provide connection string to your event hub namespace
-                            var eventHubConnectionString = configuration["Azure:EventHub"];
-                            var storageConnectionString = configuration["Azure:Storage"];
+                            var eventHubConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub"]);
+                            var storageConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:Storage"]);
                             var storageContainerName = configuration["Azure:ContainerName"];
 
                             builder.WithProviderEventHub(new EventHubMessageBusSettings(eventHubConnectionString, storageConnectionString, storageContainerName)); // Use Azure Event Hub as provider

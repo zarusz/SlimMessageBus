@@ -13,6 +13,7 @@ using System.Linq;
 using System.Reflection;
 using Common.Logging.Simple;
 using Microsoft.Extensions.Configuration;
+using SecretStore;
 using SlimMessageBus.Host.DependencyResolver;
 
 namespace SlimMessageBus.Host.AzureEventHub.Test
@@ -36,9 +37,11 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
                 .AddJsonFile("appsettings.json")
                 .Build();
 
+            Secrets.Load(@"..\..\..\..\..\secrets.txt");
+
             // connection details to the Azure Event Hub
-            var connectionString = configuration["Azure:EventHub"];
-            var storageConnectionString = configuration["Azure:Storage"];
+            var connectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub"]);
+            var storageConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:Storage"]);
             var storageContainerName = configuration["Azure:ContainerName"];
 
             Settings = new EventHubMessageBusSettings(connectionString, storageConnectionString, storageContainerName);

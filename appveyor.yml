@@ -18,3 +18,10 @@ notifications:
   on_build_success: true
   on_build_failure: true
   on_build_status_changed: true
+environment:
+  azure_servicebus_key:
+      secure: hsBLumILEW2YXIxS7gPLsLQMKBDPpHX2mRKE6NYps7VMKoVmoBDzeAyy+lEHjT3x
+  azure_eventhub_key:
+      secure: i2O5R4KLVHnWd35cavuTA/+oJ3XxdmH+TCV5LaZUu6vk4elmGzf132Ztp9Fb0+J6
+  azure_eventhub_storage_key:
+      secure: cybaD1yhMnYAvuDPZwhMimbo487NFeLwPvHMijKcV/bpCpOxpNrcUGSUH+KmtWWorSsczKh0awuauGvrsDHgNPV8WZzlBGawR6LlgkcK33xwTwKBsnHzsUlw1FCM3VxJ

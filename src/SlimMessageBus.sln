@@ -104,9 +104,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Seriali
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.DependencyResolver", "SlimMessageBus.Host.DependencyResolver\SlimMessageBus.Host.DependencyResolver.csproj", "{47433982-3DBB-4D4E-AC4C-3391BDA09EDA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.AzureServiceBus", "SlimMessageBus.Host.AzureServiceBus\SlimMessageBus.Host.AzureServiceBus.csproj", "{491E5847-4A39-46A6-94F8-DB4BA71AD4E5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.AzureServiceBus", "SlimMessageBus.Host.AzureServiceBus\SlimMessageBus.Host.AzureServiceBus.csproj", "{491E5847-4A39-46A6-94F8-DB4BA71AD4E5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.AzureServiceBus.Test", "Tests\SlimMessageBus.Host.AzureServiceBus.Test\SlimMessageBus.Host.AzureServiceBus.Test.csproj", "{A36ABF79-5E8A-40F1-BF8E-5838D6AE577A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.AzureServiceBus.Test", "Tests\SlimMessageBus.Host.AzureServiceBus.Test\SlimMessageBus.Host.AzureServiceBus.Test.csproj", "{A36ABF79-5E8A-40F1-BF8E-5838D6AE577A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tools", "Tools", "{D3D6FD9A-968A-45BB-86C7-4527C72A057E}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SecretStore", "Tools\SecretStore\SecretStore.csproj", "{641FFF77-D5D2-4A11-B8C3-9607BE962D0B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -218,6 +222,10 @@ Global
 		{A36ABF79-5E8A-40F1-BF8E-5838D6AE577A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A36ABF79-5E8A-40F1-BF8E-5838D6AE577A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A36ABF79-5E8A-40F1-BF8E-5838D6AE577A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{641FFF77-D5D2-4A11-B8C3-9607BE962D0B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{641FFF77-D5D2-4A11-B8C3-9607BE962D0B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{641FFF77-D5D2-4A11-B8C3-9607BE962D0B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{641FFF77-D5D2-4A11-B8C3-9607BE962D0B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -248,6 +256,7 @@ Global
 		{47433982-3DBB-4D4E-AC4C-3391BDA09EDA} = {BC358EE4-734D-4CE3-A053-0A2490A2E39A}
 		{491E5847-4A39-46A6-94F8-DB4BA71AD4E5} = {9291D340-B4FA-44A3-8060-C14743FB1712}
 		{A36ABF79-5E8A-40F1-BF8E-5838D6AE577A} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
+		{641FFF77-D5D2-4A11-B8C3-9607BE962D0B} = {D3D6FD9A-968A-45BB-86C7-4527C72A057E}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {435A0D65-610C-4B84-B1AA-2C7FBE72DB80}
