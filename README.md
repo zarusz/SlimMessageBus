@@ -74,13 +74,14 @@ Check out the [Samples](src/Samples/) folder.
 ### Request-response with Kafka
 
 Use case:
-* The web app has to display thumbnails of large images.
-* The thumbnails are requested in the WebApi and are generated on demand (and saved) by the Worker (unless they exist already).
+* Some front-end web app needs to display downsized image (thumbnails) of large images to speed up page load.
+* The thumbnails are requested in the WebApi and are generated on demand (and cached to disk) by the Worker (unless they exist already).
 * WebApi and Worker exchange messages via Apache Kafka
+* Worker can be scaled out (more instances, more kafka partitions)
 
-Frontend makes a call to resize an image 'DSC0862.jpg' to '120x80' in size, by using this URL:
+Front-end web app makes a call to resize an image 'DSC0862.jpg' to '120x80' in size, by using this URL:
 ```
-http://localhost:50452/api/Image/r/DSC0862.jpg/?w=120&h=80&mode=1
+http://localhost:56788/api/image/DSC3781.jpg/r/?w=120&h=80&mode=1
 ```
 
 This gets handled by the WebApi method of the `ImageController`
