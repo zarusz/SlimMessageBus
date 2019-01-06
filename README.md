@@ -49,19 +49,19 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 
 ## Packages
 
-| Name                                           | Descripton                                                                                       | NuGet                                                                          | .NET Standard |
-|------------------------------------------------|--------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------|---------------|
-| `SlimMessageBus`                               | The interfaces to work with SlimMessageBus                                                       | [NuGet](https://www.nuget.org/packages/SlimMessageBus)                         | 1.3           |
-| `SlimMessageBus.Host.Kafka`                    | Provider for Apache Kafka                                                                        | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)              | 1.3           |
-| `SlimMessageBus.Host.AzureEventHub`            | Provider for Azure Event Hub                                                                     | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)      | 2.0           |
-| `SlimMessageBus.Host.AzureServiceBus` (future) | Provider for Azure Service Bus                                                                   | .                                                                              | .             |
-| `SlimMessageBus.Host.Redis` (future)           | Provider for Redis                                                                               | .                                                                              | .             |
-| `SlimMessageBus.Host.Memory`                   | Implementation for in-process (in memory) message passing (no messaging infrastructure required) | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Memory)             | 1.3           |
-| `SlimMessageBus.Host.Serialization.Json`       | Message serialization adapter for JSON (Json.NET)                                                | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json) | 1.3           |
-| `SlimMessageBus.Host.AspNetCore`               | Integration for ASP.NET Core 2.1 (DI adapter, config helpers)                                    | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore)         | 1.3           |
-| `SlimMessageBus.Host.ServiceLocator`           | DI adapter for ServiceLocator                                                                    | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator)     | 1.3           |
-| `SlimMessageBus.Host.Autofac`                  | DI adapter for Autofac container                                                                 | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Autofac)            | 1.3           |
-| `SlimMessageBus.Host.Unity`                    | DI adapter for Unity container                                                                   | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Unity)              | 1.3           |
+| Name                                            | Descripton                                                                                       | NuGet                                                                          | .NET Standard |
+|-------------------------------------------------|--------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------|---------------|
+| `SlimMessageBus`                                | The interfaces to work with SlimMessageBus                                                       | [NuGet](https://www.nuget.org/packages/SlimMessageBus)                         | 1.3           |
+| `SlimMessageBus.Host.Kafka`                     | Provider for Apache Kafka                                                                        | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)              | 1.3           |
+| `SlimMessageBus.Host.AzureEventHub`             | Provider for Azure Event Hub                                                                     | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)      | 2.0           |
+| `SlimMessageBus.Host.AzureServiceBus` (pending) | Provider for Azure Service Bus                                                                   | .                                                                              | .             |
+| `SlimMessageBus.Host.Redis` (future)            | Provider for Redis                                                                               | .                                                                              | .             |
+| `SlimMessageBus.Host.Memory`                    | Implementation for in-process (in memory) message passing (no messaging infrastructure required) | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Memory)             | 1.3           |
+| `SlimMessageBus.Host.Serialization.Json`        | Message serialization adapter for JSON (Json.NET)                                                | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json) | 1.3           |
+| `SlimMessageBus.Host.AspNetCore`                | Integration for ASP.NET Core 2.1 (DI adapter, config helpers)                                    | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore)         | 1.3           |
+| `SlimMessageBus.Host.ServiceLocator`            | DI adapter for ServiceLocator                                                                    | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator)     | 1.3           |
+| `SlimMessageBus.Host.Autofac`                   | DI adapter for Autofac container                                                                 | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Autofac)            | 1.3           |
+| `SlimMessageBus.Host.Unity`                     | DI adapter for Unity container                                                                   | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Unity)              | 1.3           |
 
 Typically your application components (business logic, domain) only need to depend on `SlimMessageBus` which is the facade, and ultimately your application hosting layer (ASP.NET, Windows Service, Console App) will reference and configure the other packages (`SlimMessageBus.Host.*`) which are the providers and plugins.
 
@@ -71,7 +71,7 @@ Check out the [Samples](src/Samples/) folder.
 
 ### Usage examples
 
-### Request-response with Kafka
+### Request-response over Kafka topics
 
 Use case:
 * Some front-end web app needs to display downsized image (thumbnails) of large images to speed up page load.
@@ -79,7 +79,7 @@ Use case:
 * WebApi and Worker exchange messages via Apache Kafka
 * Worker can be scaled out (more instances, more kafka partitions)
 
-Front-end web app makes a call to resize an image 'DSC0862.jpg' to '120x80' in size, by using this URL:
+Front-end web app makes a call to resize an image `DSC0862.jpg` to `120x80` resolution, by using this URL:
 ```
 http://localhost:56788/api/image/DSC3781.jpg/r/?w=120&h=80&mode=1
 ```
@@ -122,9 +122,74 @@ The response gets replied onto the originating WebApi instance and the Task<Gene
 var thumbGenResponse = await _bus.Send(new GenerateThumbnailRequest(fileId, mode, w, h));
 ```
 
+The message bus configuration for the WebApi:
+```cs
+private IMessageBus BuildMessageBus()
+{
+    // unique id across instances of this application (e.g. 1, 2, 3)
+    var instanceId = Configuration["InstanceId"];
+    var kafkaBrokers = Configuration["Kafka:Brokers"];
+
+    var instanceGroup = $"webapi-{instanceId}";
+    var instanceReplyTo = $"webapi-{instanceId}-response";
+
+    var messageBusBuilder = MessageBusBuilder.Create()
+	.Produce<GenerateThumbnailRequest>(x =>
+	{
+	    //x.DefaultTimeout(TimeSpan.FromSeconds(10)); // Default response timeout for this request type
+	    x.DefaultTopic("thumbnail-generation"); // Use this topic as default when topic is not specified in IMessageBus.Publish() for that message type
+	})
+	.ExpectRequestResponses(x =>
+	{
+	    x.ReplyToTopic(instanceReplyTo); // Expect all responses to my reqests replied to this topic
+	    x.Group(instanceGroup); // Kafka consumer group	    
+	    x.DefaultTimeout(TimeSpan.FromSeconds(30)); // Default global response timeout
+	})
+	.WithDependencyResolverAsAutofac()
+	.WithSerializer(new JsonMessageSerializer())
+	.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
+
+    var messageBus = messageBusBuilder.Build();
+    return messageBus;
+}
+```
+
+The message bus configuration for the Worker:
+
+```cs
+private static IMessageBus BuildMessageBus()
+{
+    // unique id across instances of this application (e.g. 1, 2, 3)
+    var instanceId = Configuration["InstanceId"];
+    var kafkaBrokers = Configuration["Kafka:Brokers"];
+
+    var instanceGroup = $"worker-{instanceId}";
+    var sharedGroup = "workers";
+
+    var messageBusBuilder = MessageBusBuilder.Create()
+	.Handle<GenerateThumbnailRequest, GenerateThumbnailResponse>(s =>
+	{
+	    s.Topic("thumbnail-generation", t =>
+	    {
+		t.Group(sharedGroup) // kafka consumer group
+		    .WithHandler<GenerateThumbnailRequestHandler>()
+		    .Instances(3);
+	    });
+	})
+	.WithDependencyResolverAsAutofac()
+	.WithSerializer(new JsonMessageSerializer())
+	.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
+
+    var messageBus = messageBusBuilder.Build();
+    return messageBus;
+}
+```
+
+Because topics are partitioned in Kafka, requests originating from WebApi instances will be distributed across all Worker instances. However, to fine tune this, message key providers should configured (see Kafka provider wiki and samples).
+
 Check out the complete [sample](/src/Samples#sampleimages) for image resizing.
 
-### Basic in-process messaging (for domain events)
+### Basic in-process pub/sub messaging (for domain events)
 
 This example shows how `SlimMessageBus` and `SlimMessageBus.Host.Memory` can be used to implement Domain Events pattern. The provider passes messages in the same app domain process (no external message broker is required).
 
@@ -206,17 +271,17 @@ order.Submit(); // events fired here
 
 Notice the static `MessageBus.Current` property might actually be configured to resolve a scoped `IMessageBus` instance (web request scoped).
 
-The `SlimMessageBus` configuration could looks like this:
+The `SlimMessageBus` configuration for in-memory provider looks like this:
 
 ```cs
 // Define the recipie how to create our IMessageBus
 var busBuilder = MessageBusBuilder
-	.Publish<OrderSubmittedEvent>(x => x.DefaultTopic(x.MessageType.Name))
+	.Produce<OrderSubmittedEvent>(x => x.DefaultTopic(x.MessageType.Name))
 	.SubscribeTo<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithSubscriber<OrderSubmittedHandler>())
-	.WithDependencyResolverAsAutofac()
-	.WithSerializer(new JsonMessageSerializer()) // Use JSON for message serialization                
+	.WithDependencyResolverAsAutofac()	
 	.WithProviderMemory(new MemoryMessageBusSettings
 	{
+		// supress serialization and pass the same event instance to subscribers (events contain domain objects we do not want serialized, also we gain abit on speed)
 		EnableMessageSerialization = false
 	});
 
@@ -228,7 +293,7 @@ IMessageBus bus = busBuilder
 MessageBus.SetProvider(() => bus);
 ```
 
-Examine the complete [sample](/src/Samples#sampledomainevents) for ASP.NET Core where the handler and bus is web-request scoped.
+See the complete [sample](/src/Samples#sampledomainevents) for ASP.NET Core where the handler and bus is web-request scoped.
 
 ## License
 
