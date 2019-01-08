@@ -38,7 +38,7 @@ namespace Sample.Images.Worker
 
         private static void Configure(ContainerBuilder builder, IConfigurationRoot configuration)
         {
-            var imagesPath = Path.Combine(Directory.GetCurrentDirectory(), "..\\Content");
+            var imagesPath = Path.Combine(Directory.GetCurrentDirectory(), @"..\..\..\..\Content");
             builder.Register(x => new DiskFileStore(imagesPath)).As<IFileStore>().SingleInstance();
             builder.RegisterType<SimpleThumbnailFileIdStrategy>().As<IThumbnailFileIdStrategy>().SingleInstance();
 

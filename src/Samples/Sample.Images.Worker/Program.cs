@@ -25,6 +25,7 @@ namespace Sample.Images.Worker
             Log.Info("Starting worker...");
             using (var container = ContainerSetup.Create(configuration))
             {
+                // eager load the singleton, so that is starts consuming messages
                 var messagBus = container.Resolve<IMessageBus>();
                 Log.Info("Worker ready");
 

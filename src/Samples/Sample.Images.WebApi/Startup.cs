@@ -1,17 +1,17 @@
 ﻿using System;
 using System.IO;
-using Autofac;
 using Common.Logging;
 using Common.Logging.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Sample.Images.FileStore;
 using Sample.Images.FileStore.Disk;
 using Sample.Images.Messages;
 using SlimMessageBus;
-using SlimMessageBus.Host.Autofac;
+using SlimMessageBus.Host.AspNetCore;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Kafka;
 using SlimMessageBus.Host.Kafka.Configs;
@@ -31,42 +31,24 @@ namespace Sample.Images.WebApi
         }
 
         public IConfiguration Configuration { get; }
-
-        public IContainer ApplicationContainer
-        {
-            get => _container;
-            set
-            {
-                _container = value;
-                AutofacMessageBusDependencyResolver.Container = value;
-            }
-        }
-        private IContainer _container;
-
+        
         // This method gets called by the runtime. Use this method to add services to the container.
-        public static void ConfigureServices(IServiceCollection services)
+        public void ConfigureServices(IServiceCollection services)
         {
+            // register services
+            var imagesPath = Path.Combine(Directory.GetCurrentDirectory(), @"..\Content");
+            services.AddSingleton<IFileStore>(x => new DiskFileStore(imagesPath));
+            services.AddSingleton<IThumbnailFileIdStrategy, SimpleThumbnailFileIdStrategy>();
+
+            // register MessageBus  
+            services.AddSingleton<IMessageBus>(svp => BuildMessageBus(svp.GetRequiredService<IHttpContextAccessor>()));
+            services.AddSingleton<IRequestResponseBus>(svp => svp.GetService<IMessageBus>());
+
             services.AddMvc();
+            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
         }
 
-        // ConfigureContainer is where you can register things directly
-        // with Autofac. This runs after ConfigureServices so the things
-        // here will override registrations made in ConfigureServices.
-        // Don't build the container; that gets done for you. If you
-        // need a reference to the container, you need to use the
-        // "Without ConfigureContainer" mechanism shown later.
-        public void ConfigureContainer(ContainerBuilder builder)
-        {
-            var imagesPath = Path.Combine(Directory.GetCurrentDirectory(), "..\\Content");
-            builder.Register(x => new DiskFileStore(imagesPath)).As<IFileStore>().SingleInstance();
-            builder.RegisterType<SimpleThumbnailFileIdStrategy>().As<IThumbnailFileIdStrategy>().SingleInstance();
-
-            // SlimMessageBus
-            var messageBus = BuildMessageBus();
-            builder.RegisterInstance(messageBus).AsImplementedInterfaces();
-        }
-
-        private IMessageBus BuildMessageBus()
+        private IMessageBus BuildMessageBus(IHttpContextAccessor httpContextAccessor)
         {
             // unique id across instances of this application (e.g. 1, 2, 3)
             var instanceId = Configuration["InstanceId"];
@@ -90,7 +72,8 @@ namespace Sample.Images.WebApi
                     x.DefaultTimeout(TimeSpan.FromSeconds(30));
                 })
                 //.WithDependencyResolverAsServiceLocator()
-                .WithDependencyResolverAsAutofac()
+                //.WithDependencyResolverAsAutofac()
+                .WithDependencyResolverAsAspNetCore(httpContextAccessor)
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
 
@@ -108,6 +91,10 @@ namespace Sample.Images.WebApi
             }
 
             app.UseMvc();
+
+            // Force the singleton SMB instance to be created on app start rather than when requested.
+            // We want message to be consumed when right away when WebApi starts (more info https://stackoverflow.com/a/39006021/1906057)
+            var messageBus = app.ApplicationServices.GetService<IMessageBus>();
         }
     }
 }
