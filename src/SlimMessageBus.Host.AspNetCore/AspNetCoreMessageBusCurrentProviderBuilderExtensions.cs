@@ -1,6 +1,5 @@
-﻿using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
+﻿using System;
+using Microsoft.AspNetCore.Builder;
 using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.AspNetCore
@@ -12,19 +11,11 @@ namespace SlimMessageBus.Host.AspNetCore
     /// </summary>
     public static class AspNetCoreMessageBusCurrentProviderBuilderExtensions
     {
-        public static MessageBusCurrentProviderBuilder FromPerRequestScope(this MessageBusCurrentProviderBuilder builder, IApplicationBuilder app)
+        public static MessageBusCurrentProviderBuilder FromPerRequestScope(this MessageBusCurrentProviderBuilder builder, IServiceProvider serviceProvider)
         {
-            // Set the MessageBus provider to be resolved from the request scope 
-            // see https://stackoverflow.com/a/40029302 
-            // see https://docs.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection?view=aspnetcore-2.1#request-services
-            var httpContextAccessor = app.ApplicationServices.GetRequiredService<IHttpContextAccessor>();
+            var adapter = new AspNetCoreMessageBusDependencyResolver(serviceProvider);
 
-            return builder.FromPerRequestScope(httpContextAccessor);
-        }
-
-        public static MessageBusCurrentProviderBuilder FromPerRequestScope(this MessageBusCurrentProviderBuilder builder, IHttpContextAccessor httpContextAccessor)
-        {
-            builder.SetProvider(() => httpContextAccessor.HttpContext.RequestServices.GetService<IMessageBus>());
+            builder.SetProvider(() => (IMessageBus) adapter.Resolve(typeof(IMessageBus)));
 
             return builder;
         }

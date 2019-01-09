@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using System;
+using System.Globalization;
 using System.Linq;
 using Common.Logging;
 using Common.Logging.Configuration;
@@ -38,7 +39,6 @@ namespace Sample.DomainEvents.WebApi
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
-            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
 
             ConfigureMessageBus(services);
         }
@@ -64,14 +64,22 @@ namespace Sample.DomainEvents.WebApi
         public void ConfigureMessageBus(IApplicationBuilder app)
         {
             // Set the MessageBus provider, so that IMessageBus are resolved from the current request scope
-            MessageBus.SetProvider(MessageBusCurrentProviderBuilder.Create().FromPerRequestScope(app).Build());
+            MessageBus.SetProvider(MessageBusCurrentProviderBuilder.Create().FromPerRequestScope(app.ApplicationServices).Build());
         }
 
         public void ConfigureMessageBus(IServiceCollection services)
         {
-            var domainAssembly = typeof(OrderSubmittedEvent).Assembly;
-
             services.AddScoped<OrderSubmittedHandler>();
+
+            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
+
+            // Make the MessageBus per request scope
+            services.AddScoped<IMessageBus>(BuildMessageBus);
+        }
+
+        private IMessageBus BuildMessageBus(IServiceProvider serviceProvider)
+        {
+            var domainAssembly = typeof(OrderSubmittedEvent).Assembly;
 
             var mbb = MessageBusBuilder.Create()
                 // declare that OrderSubmittedEvent will be produced
@@ -87,22 +95,20 @@ namespace Sample.DomainEvents.WebApi
                     .Select(x => new { HandlerType = x.Type, EventType = x.Interface.GetGenericArguments()[0] })
                     .ToList()
                     .ForEach(find =>
-                        {
-                            Log.InfoFormat(CultureInfo.InvariantCulture, "Registering {0} in the bus", find.EventType);
-                            builder.SubscribeTo(find.EventType, x => x.Topic(x.MessageType.Name).WithSubscriber(find.HandlerType));
-                        })
+                    {
+                        Log.InfoFormat(CultureInfo.InvariantCulture, "Registering {0} in the bus", find.EventType);
+                        builder.SubscribeTo(find.EventType, x => x.Topic(x.MessageType.Name).WithSubscriber(find.HandlerType));
+                    })
                 )
                 .WithSerializer(new JsonMessageSerializer()) // Use JSON for message serialization                
+                .WithDependencyResolverAsAspNetCore(serviceProvider)
                 .WithProviderMemory(new MemoryMessageBusSettings
                 {
                     // Don't serialize the domain events and rather pass the same instance across handlers
                     EnableMessageSerialization = false
                 });
 
-            // Make the MessageBus per request scope
-            services.AddScoped<IMessageBus>(svp => mbb
-                .WithDependencyResolver(new AspNetCoreMessageBusDependencyResolver(svp.GetService<IHttpContextAccessor>()))
-                .Build());
+            return mbb.Build();
         }
     }
 }

@@ -41,14 +41,14 @@ namespace Sample.Images.WebApi
             services.AddSingleton<IThumbnailFileIdStrategy, SimpleThumbnailFileIdStrategy>();
 
             // register MessageBus  
-            services.AddSingleton<IMessageBus>(svp => BuildMessageBus(svp.GetRequiredService<IHttpContextAccessor>()));
+            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
+            services.AddSingleton<IMessageBus>(BuildMessageBus);
             services.AddSingleton<IRequestResponseBus>(svp => svp.GetService<IMessageBus>());
 
             services.AddMvc();
-            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
         }
 
-        private IMessageBus BuildMessageBus(IHttpContextAccessor httpContextAccessor)
+        private IMessageBus BuildMessageBus(IServiceProvider serviceProvider)
         {
             // unique id across instances of this application (e.g. 1, 2, 3)
             var instanceId = Configuration["InstanceId"];
@@ -73,7 +73,7 @@ namespace Sample.Images.WebApi
                 })
                 //.WithDependencyResolverAsServiceLocator()
                 //.WithDependencyResolverAsAutofac()
-                .WithDependencyResolverAsAspNetCore(httpContextAccessor)
+                .WithDependencyResolverAsAspNetCore(serviceProvider)
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
 

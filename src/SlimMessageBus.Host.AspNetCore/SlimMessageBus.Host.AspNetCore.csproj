@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <AssemblyName>SlimMessageBus.Host.AspNetCore</AssemblyName>
     <RootNamespace>SlimMessageBus.Host.AspNetCore</RootNamespace>
-    <Version>1.2.0</Version>
+    <Version>1.2.1</Version>
     <Description>Extensions for SlimMessageBus to integrate it with ASP.NET Core</Description>
     <Copyright>Copyright © 2018</Copyright>
     <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
