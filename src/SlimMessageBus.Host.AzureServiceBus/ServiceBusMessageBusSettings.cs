@@ -7,12 +7,14 @@ namespace SlimMessageBus.Host.AzureServiceBus
     {
         public string ServiceBusConnectionString { get; set; }
 
-        public Func<TopicClientFactoryParams, TopicClient> TopicClientFactory { get; set; }
+        public Func<string, TopicClient> TopicClientFactory { get; set; }
+        public Func<string, QueueClient> QueueClientFactory { get; set; }
         public Func<SubscriptionFactoryParams, SubscriptionClient> SubscriptionClientFactory { get; set; }
 
         public ServiceBusMessageBusSettings()
         {
-            TopicClientFactory = x => new TopicClient(ServiceBusConnectionString, x.Path);
+            TopicClientFactory = x => new TopicClient(ServiceBusConnectionString, x);
+            QueueClientFactory = x => new QueueClient(ServiceBusConnectionString, x);
             SubscriptionClientFactory = x => new SubscriptionClient(ServiceBusConnectionString, x.Path, x.SubscriptionName);
         }
 
@@ -20,16 +22,6 @@ namespace SlimMessageBus.Host.AzureServiceBus
             : this()
         {
             ServiceBusConnectionString = serviceBusConnectionString;
-        }
-    }
-
-    public class TopicClientFactoryParams
-    {
-        public string Path { get; set; }
-
-        public TopicClientFactoryParams(string path)
-        {
-            Path = path;
         }
     }
 
