@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Globalization;
 using Common.Logging;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using SlimMessageBus.Host.DependencyResolver;
@@ -15,13 +14,13 @@ namespace SlimMessageBus.Host.AspNetCore
     {
         private static readonly ILog Log = LogManager.GetLogger<AspNetCoreMessageBusDependencyResolver>();
 
-        private readonly IServiceProvider serviceProvider;
-        private readonly IHttpContextAccessor httpContextAccessor;
+        private readonly IServiceProvider _serviceProvider;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         public AspNetCoreMessageBusDependencyResolver(IServiceProvider serviceProvider, IHttpContextAccessor httpContextAccessor)
         {
-            this.serviceProvider = serviceProvider;
-            this.httpContextAccessor = httpContextAccessor;
+            _serviceProvider = serviceProvider;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public AspNetCoreMessageBusDependencyResolver(IServiceProvider serviceProvider)
@@ -39,7 +38,7 @@ namespace SlimMessageBus.Host.AspNetCore
             IServiceProvider currentServiceProvider;
 
             // When the call to resolve the given type is made within an HTTP Request, use the request scope service provider
-            var httpContext = httpContextAccessor?.HttpContext;
+            var httpContext = _httpContextAccessor?.HttpContext;
             if (httpContext != null)
             {
                 Log.DebugFormat(CultureInfo.InvariantCulture, "The service {0} will be requested from the per-request scope", type);
@@ -49,7 +48,7 @@ namespace SlimMessageBus.Host.AspNetCore
             {
                 // otherwise use the app wide scope provider
                 Log.DebugFormat(CultureInfo.InvariantCulture, "The service {0} will be requested from the app scope", type);
-                currentServiceProvider = serviceProvider;
+                currentServiceProvider = _serviceProvider;
             }
 
             return currentServiceProvider.GetService(type);

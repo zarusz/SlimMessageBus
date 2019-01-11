@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NLog.Extensions.Logging;
 using Sample.DomainEvents.Domain;
 using SlimMessageBus;
 using SlimMessageBus.Host.AspNetCore;

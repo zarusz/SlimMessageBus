@@ -1,5 +1,4 @@
 ﻿using System;
-using Microsoft.AspNetCore.Builder;
 using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.AspNetCore

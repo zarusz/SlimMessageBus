@@ -39,7 +39,7 @@ namespace SlimMessageBus.Host
             _consumerWithContext = typeof(IConsumerContextAware).IsAssignableFrom(consumerSettings.ConsumerType);
 
             _instancesQueue = new BufferBlock<object>();
-            _instances = ResolveInstances(consumerSettings, messageBus);
+            _instances = ResolveInstances(consumerSettings);
             _instances.ForEach(x => _instancesQueue.Post(x));
         }
 
@@ -53,35 +53,39 @@ namespace SlimMessageBus.Host
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!disposing)
+            if (disposing)
             {
-                return;
-            }
-
-            if (_instances.Any())
-            {
-                // dospose instances that implement IDisposable
-                foreach (var instance in _instances.OfType<IDisposable>())
+                if (_instances.Count > 0)
                 {
-                    instance.DisposeSilently("Consumer", _log);
+                    // dispose instances that implement IDisposable
+                    foreach (var instance in _instances.OfType<IDisposable>())
+                    {
+                        instance.DisposeSilently("Consumer", _log);
+                    }
+                    _instances.Clear();
                 }
-
-                _instances.Clear();
             }
-
         }
 
         #endregion
 
-        private List<object> ResolveInstances(ConsumerSettings settings, MessageBusBase messageBus)
+        private List<object> ResolveInstances(ConsumerSettings settings)
         {
-            var consumers = new List<object>();
+            var consumers = new List<object>(settings.Instances);
             // Resolve as many instances from DI as requested in settings
             for (var i = 0; i < settings.Instances; i++)
             {
                 _log.DebugFormat(CultureInfo.InvariantCulture, "Resolving Consumer instance {0} of type {1}", i + 1, settings.ConsumerType);
-                var consumer = messageBus.Settings.DependencyResolver.Resolve(settings.ConsumerType);
-                consumers.Add(consumer);
+                try
+                {
+                    var consumer = _messageBus.Settings.DependencyResolver.Resolve(settings.ConsumerType);
+                    consumers.Add(consumer);
+                }
+                catch (Exception ex)
+                {
+                    _log.ErrorFormat(CultureInfo.InvariantCulture, "Error while resolving consumer instance of type {0} from the dependency resolver", ex, settings.ConsumerType);
+                    throw;
+                }
             }
             return consumers;
         }
