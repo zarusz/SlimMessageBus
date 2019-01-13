@@ -18,13 +18,13 @@ namespace SlimMessageBus.Host.AzureServiceBus
 
         public ServiceBusMessageBusSettings ServiceBusSettings { get; }
 
-        private readonly SafeDictionaryWrapper<string, TopicClient> producerByTopic;
-        private readonly List<TopicSubscriptionConsumer> consumers = new List<TopicSubscriptionConsumer>();
+        private readonly SafeDictionaryWrapper<string, TopicClient> _producerByTopic;
+        private readonly SafeDictionaryWrapper<string, QueueClient> _producerByQueue;
 
-        private readonly SafeDictionaryWrapper<string, QueueClient> producerByQueue;
+        private readonly List<BaseConsumer> _consumers = new List<BaseConsumer>();
 
-        private readonly IDictionary<string, PathKind> kindByTopic = new Dictionary<string, PathKind>();
-        private readonly IDictionary<Type, PathKind> kindByMessageType = new Dictionary<Type, PathKind>();
+        private readonly IDictionary<string, PathKind> _kindByTopic = new Dictionary<string, PathKind>();
+        private readonly IDictionary<Type, PathKind> _kindByMessageType = new Dictionary<Type, PathKind>();
 
         public ServiceBusMessageBus(MessageBusSettings settings, ServiceBusMessageBusSettings serviceBusSettings) : base(settings)
         {
@@ -38,7 +38,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
                 var topic = producerSettings.DefaultTopic;
                 if (topic != null)
                 {
-                    if (kindByTopic.TryGetValue(topic, out existingKind))
+                    if (_kindByTopic.TryGetValue(topic, out existingKind))
                     {
                         if (existingKind != producerKind)
                         {
@@ -47,11 +47,11 @@ namespace SlimMessageBus.Host.AzureServiceBus
                     }
                     else
                     {
-                        kindByTopic.Add(topic, producerKind);
+                        _kindByTopic.Add(topic, producerKind);
                     }
                 }
 
-                if (kindByMessageType.TryGetValue(producerSettings.MessageType, out existingKind))
+                if (_kindByMessageType.TryGetValue(producerSettings.MessageType, out existingKind))
                 {
                     if (existingKind != producerKind)
                     {
@@ -60,18 +60,17 @@ namespace SlimMessageBus.Host.AzureServiceBus
                 }
                 else
                 {
-                    kindByMessageType.Add(producerSettings.MessageType, producerKind);
+                    _kindByMessageType.Add(producerSettings.MessageType, producerKind);
                 }
-
             }
 
-            producerByTopic = new SafeDictionaryWrapper<string, TopicClient>(topic =>
+            _producerByTopic = new SafeDictionaryWrapper<string, TopicClient>(topic =>
             {
                 Log.DebugFormat(CultureInfo.InvariantCulture, "Creating TopicClient for path {0}", topic);
                 return serviceBusSettings.TopicClientFactory(topic);
             });
 
-            producerByQueue = new SafeDictionaryWrapper<string, QueueClient>(queue =>
+            _producerByQueue = new SafeDictionaryWrapper<string, QueueClient>(queue =>
             {
                 Log.DebugFormat(CultureInfo.InvariantCulture, "Creating QueueClient for path {0}", queue);
                 return serviceBusSettings.QueueClientFactory(queue);
@@ -81,7 +80,12 @@ namespace SlimMessageBus.Host.AzureServiceBus
             foreach (var consumerSettings in settings.Consumers)
             {
                 Log.InfoFormat(CultureInfo.InvariantCulture, "Creating consumer for {0}", consumerSettings.FormatIf(Log.IsInfoEnabled));
-                consumers.Add(new TopicSubscriptionConsumer(this, consumerSettings));
+
+                var consumer = consumerSettings.GetKind() == PathKind.Topic
+                    ? new TopicSubscriptionConsumer(this, consumerSettings) as BaseConsumer
+                    : new QueueConsumer(this, consumerSettings);
+
+                _consumers.Add(consumer);
             }
         }
 
@@ -89,32 +93,32 @@ namespace SlimMessageBus.Host.AzureServiceBus
 
         protected override void Dispose(bool disposing)
         {
-            if (consumers.Count > 0)
+            if (_consumers.Count > 0)
             {
-                consumers.ForEach(c => c.DisposeSilently("Consumer", Log));
-                consumers.Clear();
+                _consumers.ForEach(c => c.DisposeSilently("Consumer", Log));
+                _consumers.Clear();
             }
 
-            if (producerByQueue.Dictonary.Count > 0)
+            if (_producerByQueue.Dictonary.Count > 0)
             {
-                Task.WaitAll(producerByQueue.Dictonary.Values.Select(x =>
+                Task.WaitAll(_producerByQueue.Dictonary.Values.Select(x =>
                 {
                     Log.DebugFormat(CultureInfo.InvariantCulture, "Closing QueueClient for path {0}", x.Path);
                     return x.CloseAsync();
                 }).ToArray());
 
-                producerByQueue.Clear();
+                _producerByQueue.Clear();
             }
 
-            if (producerByTopic.Dictonary.Count > 0)
+            if (_producerByTopic.Dictonary.Count > 0)
             {
-                Task.WaitAll(producerByTopic.Dictonary.Values.Select(x =>
+                Task.WaitAll(_producerByTopic.Dictonary.Values.Select(x =>
                 {
                     Log.DebugFormat(CultureInfo.InvariantCulture, "Closing TopicClient for path {0}", x.Path);
                     return x.CloseAsync();
                 }).ToArray());
 
-                producerByTopic.Clear();
+                _producerByTopic.Clear();
             }
 
             base.Dispose(disposing);
@@ -125,9 +129,9 @@ namespace SlimMessageBus.Host.AzureServiceBus
             AssertActive();
 
             // determine the SMB topic name if its a Azure SB queue or topic
-            if (!kindByTopic.TryGetValue(topic, out var kind))
+            if (!_kindByTopic.TryGetValue(topic, out var kind))
             {
-                if (!kindByMessageType.TryGetValue(messageType, out kind))
+                if (!_kindByMessageType.TryGetValue(messageType, out kind))
                 {
                     // by default this will be a topic
                     kind = PathKind.Topic;
@@ -143,12 +147,12 @@ namespace SlimMessageBus.Host.AzureServiceBus
 
             if (kind == PathKind.Topic)
             {
-                var topicProducer = producerByTopic.GetOrAdd(topic);
+                var topicProducer = _producerByTopic.GetOrAdd(topic);
                 await topicProducer.SendAsync(m).ConfigureAwait(false);
             }
             else
             {
-                var queueProducer = producerByQueue.GetOrAdd(topic);
+                var queueProducer = _producerByQueue.GetOrAdd(topic);
                 await queueProducer.SendAsync(m).ConfigureAwait(false);
             }
 

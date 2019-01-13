@@ -6,7 +6,7 @@ namespace SlimMessageBus.Host.Config
     {
         public Type MessageType { get; }
 
-        protected MessageBusSettings Settings { get; }
+        public MessageBusSettings Settings { get; }
 
         protected ConsumerBuilder(MessageBusSettings settings)
             : this(settings, typeof(T))

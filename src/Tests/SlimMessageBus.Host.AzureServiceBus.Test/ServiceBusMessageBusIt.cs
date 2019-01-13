@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -11,6 +12,7 @@ using Common.Logging.Simple;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using SecretStore;
+using SlimMessageBus.Host.AzureServiceBus.Config;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Serialization.Json;
@@ -47,7 +49,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderServiceBus(Settings);
 
-            MessageBus = new Lazy<ServiceBusMessageBus>(() => (ServiceBusMessageBus) MessageBusBuilder.Build());
+            MessageBus = new Lazy<ServiceBusMessageBus>(() => (ServiceBusMessageBus)MessageBusBuilder.Build());
         }
 
         public void Dispose()
@@ -65,57 +67,109 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
         }
 
         [Fact]
-        public void BasicPubSub()
+        public async Task BasicPubSubOnTopic()
         {
-            // arrange
+            var concurrency = 2;
+            var subscribers = 2;
             var topic = "test-ping";
-
-            var pingConsumer = new PingConsumer();
 
             MessageBusBuilder
                 .Produce<PingMessage>(x => x.DefaultTopic(topic))
-                .SubscribeTo<PingMessage>(x => x.Topic(topic)
-                                                .SubscriptionName("subscriber") // ensure subscription exists on the ServiceBus topic
-                                                .WithSubscriber<PingConsumer>()
-                                                .Instances(2))
+                .Do(builder => Enumerable.Range(0, subscribers).ToList().ForEach(i =>
+                {
+                    builder.SubscribeTo<PingMessage>(x => x
+                        .Topic(topic)
+                        .SubscriptionName($"subscriber-{i}") // ensure subscription exists on the ServiceBus topic
+                        .WithSubscriber<PingConsumer>()
+                        .Instances(concurrency));
+                }));
+
+            await BasicPubSub(concurrency, subscribers, subscribers).ConfigureAwait(false);
+        }
+
+        [Fact]
+        public async Task BasicPubSubOnQueue()
+        {
+            var concurrency = 2;
+            var subscribers = 2;
+            var queue = "test-ping-queue";
+
+            MessageBusBuilder
+                .Produce<PingMessage>(x => x.DefaultQueue(queue))
+                .Do(builder => Enumerable.Range(0, subscribers).ToList().ForEach(i =>
+                {
+                    builder.SubscribeTo<PingMessage>(x => x
+                        .Queue(queue)
+                        .WithSubscriber<PingConsumer>()
+                        .Instances(concurrency));
+                }));
+
+            await BasicPubSub(concurrency, subscribers, 1).ConfigureAwait(false);
+        }
+
+        private async Task BasicPubSub(int concurrency, int subscribers, int expectedMessageCopies)
+        {
+            // arrange
+            var consumersCreated = new ConcurrentBag<PingConsumer>();
+
+            MessageBusBuilder
                 .WithDependencyResolver(new LookupDependencyResolver(f =>
                 {
-                    if (f == typeof(PingConsumer)) return pingConsumer;
-                    throw new InvalidOperationException();
-                }));                                                
+                    if (f != typeof(PingConsumer)) throw new InvalidOperationException();
+                    var pingConsumer = new PingConsumer();
+                    consumersCreated.Add(pingConsumer);
+                    return pingConsumer;
+                }));
 
-            var kafkaMessageBus = MessageBus.Value;
+            var messageBus = MessageBus.Value;
 
             // act
 
             // publish
             var stopwatch = Stopwatch.StartNew();
 
-            var messages = Enumerable
+            var producedMessages = Enumerable
                 .Range(0, NumberOfMessages)
-                .Select(i => new PingMessage { Counter = i, Timestamp = DateTime.UtcNow })
+                .Select(i => new PingMessage { Counter = i, Value = Guid.NewGuid() })
                 .ToList();
 
-            messages
-                .AsParallel()
-                .ForAll(m => kafkaMessageBus.Publish(m).Wait());
+            var messageTasks = producedMessages.Select(m => messageBus.Publish(m));
+            // wait until all messages are sent
+            await Task.WhenAll(messageTasks).ConfigureAwait(false);
 
             stopwatch.Stop();
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Published {0} messages in {1}", messages.Count, stopwatch.Elapsed);
+            Log.InfoFormat(CultureInfo.InvariantCulture, "Published {0} messages in {1}", producedMessages.Count, stopwatch.Elapsed);
 
             // consume
             stopwatch.Restart();
-            var messagesReceived = ConsumeFromTopic(pingConsumer);
+            var pingConsumerConsumptionTasks = consumersCreated.Select(ConsumeAll);
+            var consumersReceivedMessages = await Task.WhenAll(pingConsumerConsumptionTasks).ConfigureAwait(false);
             stopwatch.Stop();
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Consumed {0} messages in {1}", messagesReceived.Count, stopwatch.Elapsed);
+
+            foreach (var receivedMessages in consumersReceivedMessages)
+            {
+                Log.InfoFormat(CultureInfo.InvariantCulture, "Consumed {0} messages in {1}", receivedMessages.Count, stopwatch.Elapsed);
+            }
 
             // assert
 
-            // all messages got back
-            messagesReceived.Count.Should().Be(messages.Count);           
+            // ensure number of instances of consumers created matches
+            consumersCreated.Count.Should().Be(subscribers * concurrency);
+            consumersReceivedMessages.Length.Should().Be(subscribers * concurrency);
+
+            // ensure all messages arrived 
+            var totalReceivedMessages = consumersReceivedMessages.SelectMany(x => x).ToList();
+            // ... the count should match
+            totalReceivedMessages.Count.Should().Be(expectedMessageCopies * producedMessages.Count);
+            // ... the content should match
+            foreach (var producedMessage in producedMessages)
+            {
+                var messageCopies = totalReceivedMessages.Count(x => x.Counter == producedMessage.Counter && x.Value == producedMessage.Value);
+                messageCopies.Should().Be(expectedMessageCopies);
+            }
         }
 
-        private static IList<PingMessage> ConsumeFromTopic(PingConsumer pingConsumer)
+        private static async Task<IList<PingMessage>> ConsumeAll(PingConsumer pingConsumer)
         {
             var lastMessageCount = 0;
             var lastMessageStopwatch = Stopwatch.StartNew();
@@ -124,7 +178,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
 
             while (lastMessageStopwatch.Elapsed.TotalSeconds < newMessagesAwaitingTimeout)
             {
-                Thread.Sleep(100);
+                await Task.Delay(100).ConfigureAwait(false);
 
                 if (pingConsumer.Messages.Count != lastMessageCount)
                 {
@@ -138,12 +192,12 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
 
         private class PingMessage
         {
-            public DateTime Timestamp { get; set; }
             public int Counter { get; set; }
+            public Guid Value { get; set; }
 
             #region Overrides of Object
 
-            public override string ToString() => $"PingMessage(Counter={Counter}, Timestamp={Timestamp})";
+            public override string ToString() => $"PingMessage(Counter={Counter}, Value={Value})";
 
             #endregion
         }

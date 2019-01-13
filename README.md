@@ -54,7 +54,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 | `SlimMessageBus`                                | The interfaces to work with SlimMessageBus                                                       | [NuGet](https://www.nuget.org/packages/SlimMessageBus)                         | 1.3           |
 | `SlimMessageBus.Host.Kafka`                     | Provider for Apache Kafka                                                                        | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)              | 1.3           |
 | `SlimMessageBus.Host.AzureEventHub`             | Provider for Azure Event Hub                                                                     | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)      | 2.0           |
-| `SlimMessageBus.Host.AzureServiceBus` (pending) | Provider for Azure Service Bus                                                                   | .                                                                              | .             |
+| `SlimMessageBus.Host.AzureServiceBus` (beta)    | Provider for Azure Service Bus                                                                   | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AzureServiceBus)    | 2.0           |
 | `SlimMessageBus.Host.Redis` (future)            | Provider for Redis                                                                               | .                                                                              | .             |
 | `SlimMessageBus.Host.Memory`                    | Implementation for in-process (in memory) message passing (no messaging infrastructure required) | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Memory)             | 1.3           |
 | `SlimMessageBus.Host.Serialization.Json`        | Message serialization adapter for JSON (Json.NET)                                                | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json) | 1.3           |
@@ -303,7 +303,8 @@ See the complete [sample](/src/Samples#sampledomainevents) for ASP.NET Core wher
 
 * [Release Notes](docs/release_notes.md)
 * [Apache Kafka Wiki](docs/provider_kafka_notes.md)
-* [Azure EventHubs Wiki](docs/provider_eventhubs_notes.md)
+* [Azure ServiceBus Wiki](docs/provider_azure_servicebus_notes.md)
+* [Azure EventHubs Wiki](docs/provider_azure_eventhubs_notes.md)
 
 ## Build
 
