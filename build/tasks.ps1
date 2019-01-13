@@ -20,6 +20,7 @@ $projects = @(
 	"SlimMessageBus.Host.AspNetCore",
 	"SlimMessageBus.Host.Kafka",
 	"SlimMessageBus.Host.AzureEventHub",
+	"SlimMessageBus.Host.AzureServiceBus",
 	"SlimMessageBus.Host.Memory"
 )
 

@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard1.3</TargetFramework>
-    <Version>1.1.1</Version>
+    <Version>1.1.1-rc0</Version>
     <Authors>zarusz</Authors>
     <Company></Company>
     <Copyright>Copyright © 2019</Copyright>
