@@ -69,10 +69,10 @@ Publish/subscribe communication is achieved using topics on pretty much all supp
 The app service that produces a given message needs to declare that on the `MessageBusBuilder` using `Produce<TMessage>()` method:
 
 ```cs
-mbb.Produce<AddCommand>(x => 
+mbb.Produce<SomeMessage>(x => 
 {
 	// this is optional
-	x.DefaultTopic(topicForAddCommand);
+	x.DefaultTopic("some-topic");
 })
 ```
 
@@ -128,7 +128,7 @@ Each request message is wrapped by SMB into a special envelope that contains:
 
 ### Produce request message
 
-One requriement is that request messages implement the interface `IRequestMessage<TResponse>`:
+One requirement is that request messages implement the interface `IRequestMessage<TResponse>`:
 
 ```cs
 public class SomeRequest : IRequestMessage<SomeResponse>
@@ -203,23 +203,23 @@ mbb.Handle<SomeRequest, SomeResponse>(x => x
 
 The static `MessageBus.Current` was introduced to obtain either the singleton `IMessageBus` or the current scoped instance (like the `IMessageBus` tied with the currently executing request).
 
-This helps to lookup the `IMessageBus` instance in the domain model layer while doing Domain-Driven Design and specifically to implement domaine events or to externalize infrastucture concerns if anything changes to the domain that would require communication with external systems.
+This helps to lookup the `IMessageBus` instance in the domain model layer while doing Domain-Driven Design and specifically to implement domain events or to externalize infrastructure concerns if anything changes on the domain that would require communication with external systems.
 
 See `DomainEvents` sample how to configure it per-request scope and how to use it for domain events.
 
 ### Dependency resolver
 
 SMB uses dependency resolver to obtain instances of the declared consumers (`IConsumer`, `IHandler`).
-There are few plugins availble that allow to integrate SMB with your favorite DI framework. Consult samples and the [Packages section](../#packages).
+There are few plugins availble that allow to integrate SMB with your favorite DI framework. Consult samples and the [Packages section](../#Packages).
 
 
 ### Provider specific functionality
 
-Providers introduce their own subletlies to the above documentation.
+Providers introduce more settings and some subtleties to the above documentation.
 For example Apache Kafka requires `mbb.Group(string)` for consumers to declare the consumer group, Azure Service Bus uses `mbb.SubscriptionName(string)` to set subscription name of the consumer, while Memory provider does not use anything like it.
 
 Providers:
 * [Apache Kafka](provider_kafka.md)
+* [Azure Service Bus](provider_azure_servicebus.md)
 * [Azure Event Hubs](provider_azure_eventhubs.md)
-* [Azure Servuce Bus](provider_azure_servicebus.md)
 * [Memory](provider_memory.md)

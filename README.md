@@ -49,12 +49,12 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 
 ## Docs
 
-Providers:
 * [Introduction](docs/intro.md)
-* [Apache Kafka](docs/provider_kafka.md)
-* [Azure ServiceBus](docs/provider_azure_servicebus.md)
-* [Azure EventHubs](docs/provider_azure_eventhubs.md)
-* [Memory](docs/provider_memory.md)
+* Providers:
+	* [Apache Kafka](docs/provider_kafka.md)
+	* [Azure ServiceBus](docs/provider_azure_servicebus.md)
+	* [Azure EventHubs](docs/provider_azure_eventhubs.md)
+	* [Memory](docs/provider_memory.md)
 
 ## Packages
 
