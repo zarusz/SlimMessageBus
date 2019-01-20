@@ -47,6 +47,15 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 * Async/Await support
 * Fluent configuration
 
+## Docs
+
+Providers:
+* [Introduction](docs/intro.md)
+* [Apache Kafka](docs/provider_kafka.md)
+* [Azure ServiceBus](docs/provider_azure_servicebus.md)
+* [Azure EventHubs](docs/provider_azure_eventhubs.md)
+* [Memory](docs/provider_memory.md)
+
 ## Packages
 
 | Name                                            | Descripton                                                                                       | NuGet                                                                          | .NET Standard |
@@ -133,7 +142,8 @@ private IMessageBus BuildMessageBus()
     var instanceGroup = $"webapi-{instanceId}";
     var instanceReplyTo = $"webapi-{instanceId}-response";
 
-    var messageBusBuilder = MessageBusBuilder.Create()
+    var mbb = MessageBusBuilder
+	.Create()
 	.Produce<GenerateThumbnailRequest>(x =>
 	{
 	    //x.DefaultTimeout(TimeSpan.FromSeconds(10)); // Default response timeout for this request type
@@ -149,7 +159,7 @@ private IMessageBus BuildMessageBus()
 	.WithSerializer(new JsonMessageSerializer())
 	.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
 
-    var messageBus = messageBusBuilder.Build();
+    var messageBus = mbb.Build();
     return messageBus;
 }
 ```
@@ -166,7 +176,8 @@ private static IMessageBus BuildMessageBus()
     var instanceGroup = $"worker-{instanceId}";
     var sharedGroup = "workers";
 
-    var messageBusBuilder = MessageBusBuilder.Create()
+    var mbb = MessageBusBuilder
+	.Create()
 	.Handle<GenerateThumbnailRequest, GenerateThumbnailResponse>(s =>
 	{
 	    s.Topic("thumbnail-generation", t =>
@@ -180,7 +191,7 @@ private static IMessageBus BuildMessageBus()
 	.WithSerializer(new JsonMessageSerializer())
 	.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
 
-    var messageBus = messageBusBuilder.Build();
+    var messageBus = mbb.Build();
     return messageBus;
 }
 ```
@@ -275,7 +286,8 @@ The `SlimMessageBus` configuration for in-memory provider looks like this:
 
 ```cs
 // Define the recipie how to create our IMessageBus
-var busBuilder = MessageBusBuilder
+var mbb = MessageBusBuilder
+	.Create()
 	.Produce<OrderSubmittedEvent>(x => x.DefaultTopic(x.MessageType.Name))
 	.SubscribeTo<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithSubscriber<OrderSubmittedHandler>())
 	.WithDependencyResolverAsAutofac()	
@@ -286,8 +298,7 @@ var busBuilder = MessageBusBuilder
 	});
 
 // Create the IMessageBus instance from the builder
-IMessageBus bus = busBuilder
-    .Build();
+IMessageBus bus = mbb.Build();
 
 // Set the provider to resolve our bus - this setup will work as a singleton.
 MessageBus.SetProvider(() => bus);
@@ -298,13 +309,6 @@ See the complete [sample](/src/Samples#sampledomainevents) for ASP.NET Core wher
 ## License
 
 [Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0)
-
-## Docs
-
-* [Release Notes](docs/release_notes.md)
-* [Apache Kafka Wiki](docs/provider_kafka_notes.md)
-* [Azure ServiceBus Wiki](docs/provider_azure_servicebus_notes.md)
-* [Azure EventHubs Wiki](docs/provider_azure_eventhubs_notes.md)
 
 ## Build
 

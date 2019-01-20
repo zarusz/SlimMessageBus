@@ -5,19 +5,18 @@
 Azure Service Bus supports topics (that enable pub/sub communicaton) and queues. SMB needs to know wheather you want to produce (and consume) a message to a topic or a queue. This is defined as part of the `MessageBusBuilder` configuration:
 
 ```cs
-var connectionString = // Azure Service Bus connection string
+var connectionString = "" // Azure Service Bus connection string
 
 MessageBusBuilder mbb = MessageBusBuilder
     .Create()
-    // your bus configuration here:
-    // mbb.
+    // your bus configuration here
     .WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString))
     .WithSerializer(new JsonMessageSerializer())
 
 IMessageBus bus = mbb.Build();
 ```
 
-## Producing messages
+### Producing messages
 
 To produce a given `TMessage` to a Azure Serivce Bus queue (or topic) use:
 
@@ -56,7 +55,7 @@ bus.Publish(msg) // msg will go to the "some-queue" queue (or "some-topic")
 Setting the default queue name `DefaultQueue(string)` for a message type will implicitly configure `UseQueue()` for that message type. By default if no configuration is present the runtime assumes a message needs to sent on a topic (and works as if `UseTopic()` was configured).
 
 
-## Consuming messages
+### Consuming messages
 
 To consume `TMessage` by `TConsumer` from `some-topic` Azure SB topic use:
 
@@ -79,6 +78,6 @@ mbb.SubscribeTo<TMessage>(x => x
     .Instances(1));
 ```
 
-## Request-response communication
+### Request-response configuration
 
 ToDo

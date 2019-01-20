@@ -1,6 +1,8 @@
-### SlimMessageBus Notes:
+### SlimMessageBus Documenation:
 
-* [Release Notes](release_notes.md)
+* [Release Notes](/releases)
 * Providers
-    * [Apache Kafka Wiki](provider_kafka_notes.md)
-    * [Azure EventHubs Wiki](provider_eventhubs_notes.md)
+    * [Apache Kafka Wiki](provider_kafka.md)
+    * [Azure Servuce Bus Wiki](provider_servicebus.md)
+    * [Azure Event Hubs Wiki](provider_eventhubs.md)
+    * [Memory Wiki](provider_memory.md)
