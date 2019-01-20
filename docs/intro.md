@@ -26,22 +26,22 @@ var mbb = MessageBusBuilder
 	.Produce<AddCommand>(x => x.DefaultTopic(topicForAddCommand)) // By default AddCommand messages will go to event hub named 'add-command' (or topic if Kafka is chosen)
 	.SubscribeTo<AddCommand>(x => x
 		.Topic(topicForAddCommand)
-		.Group(consumerGroup) // Kafka provider specific setting
+		.Group(consumerGroup) // Kafka Provider specific
 		.WithSubscriber<AddCommandConsumer>())
 
 	// Req/Resp example:	
 	.Produce<MultiplyRequest>(x => x.DefaultTopic(topicForMultiplyRequest)) // By default AddCommand messages will go to event hub named 'multiply-request' (or topic if Kafka is chosen)
 	.Handle<MultiplyRequest, MultiplyResponse>(x => x
 		.Topic(topicForMultiplyRequest) // topic to expect the request messages
-		.Group(consumerGroup)
+		.Group(consumerGroup) // Kafka Provider specific
 		.WithHandler<MultiplyRequestHandler>()
 	)
 	// Configure response message queue (on topic) when using req/resp
 	.ExpectRequestResponses(x =>
 	{
-		x.Group(responseGroup);
 		x.ReplyToTopic(topicForResponses); // All responses from req/resp will return on this topic (the EventHub name)
 		x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
+		x.Group(responseGroup); // Kafka Provider specific
 	})
 	
 	.Do(builder =>
@@ -199,7 +199,6 @@ mbb.Handle<SomeRequest, SomeResponse>(x => x
 	)
 ```
 
-
 ### Static accessor
 
 The static `MessageBus.Current` was introduced to obtain either the singleton `IMessageBus` or the current scoped instance (like the `IMessageBus` tied with the currently executing request).
@@ -207,6 +206,12 @@ The static `MessageBus.Current` was introduced to obtain either the singleton `I
 This helps to lookup the `IMessageBus` instance in the domain model layer while doing Domain-Driven Design and specifically to implement domaine events or to externalize infrastucture concerns if anything changes to the domain that would require communication with external systems.
 
 See `DomainEvents` sample how to configure it per-request scope and how to use it for domain events.
+
+### Dependency resolver
+
+SMB uses dependency resolver to obtain instances of the declared consumers (`IConsumer`, `IHandler`).
+There are few plugins availble that allow to integrate SMB with your favorite DI framework. Consult samples and the [Packages section](../#packages).
+
 
 ### Provider specific functionality
 
