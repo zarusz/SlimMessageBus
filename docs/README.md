@@ -1,4 +1,4 @@
-### SlimMessageBus Documenation:
+### SlimMessageBus Documentation:
 
 * [Introduction](intro.md)
 * Providers
