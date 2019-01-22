@@ -14,18 +14,18 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
         private readonly ILog _log;
 
         public ServiceBusMessageBus MessageBus { get; }
-        public ConsumerSettings ConsumerSettings { get; }
-        protected ConsumerInstancePool<Message> ConsumerInstancePool { get; }
+        public AbstractConsumerSettings ConsumerSettings { get; }
         protected IReceiverClient Client { get; }
+        protected IMessageProcessor<Message> MessageProcessor { get; }
 
-        public BaseConsumer(ServiceBusMessageBus messageBus, ConsumerSettings consumerSettings, IReceiverClient client, ILog log)
+        public BaseConsumer(ServiceBusMessageBus messageBus, AbstractConsumerSettings consumerSettings, IReceiverClient client, IMessageProcessor<Message> messageProcessor, ILog log)
         {
             _log = log;
             MessageBus = messageBus;
             ConsumerSettings = consumerSettings;
             Client = client;
 
-            ConsumerInstancePool = new ConsumerInstancePool<Message>(consumerSettings, messageBus, m => m.Body);
+            MessageProcessor = messageProcessor;
 
             // Configure the message handler options in terms of exception handling, number of concurrent messages to deliver, etc.
             var messageHandlerOptions = new MessageHandlerOptions(ExceptionReceivedHandler)
@@ -49,7 +49,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
         {
             if (disposing)
             {
-                ConsumerInstancePool.Dispose();
+                MessageProcessor.Dispose();
             }
         }
 
@@ -67,7 +67,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
             var mf = ConsumerSettings.FormatIf(message, _log.IsDebugEnabled);
             _log.DebugFormat(CultureInfo.InvariantCulture, "Received message - {0}", mf);
 
-            await ConsumerInstancePool.ProcessMessage(message).ConfigureAwait(false);
+            await MessageProcessor.ProcessMessage(message).ConfigureAwait(false);
 
             if (token.IsCancellationRequested)
             {

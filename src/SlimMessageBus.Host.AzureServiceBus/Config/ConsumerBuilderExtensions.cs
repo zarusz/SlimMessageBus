@@ -18,6 +18,5 @@ namespace SlimMessageBus.Host.AzureServiceBus.Config
             topicConfig(b);
             return b;
         }
-
     }
 }

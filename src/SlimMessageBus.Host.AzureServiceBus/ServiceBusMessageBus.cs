@@ -81,12 +81,26 @@ namespace SlimMessageBus.Host.AzureServiceBus
             {
                 Log.InfoFormat(CultureInfo.InvariantCulture, "Creating consumer for {0}", consumerSettings.FormatIf(Log.IsInfoEnabled));
 
-                var consumer = consumerSettings.GetKind() == PathKind.Topic
-                    ? new TopicSubscriptionConsumer(this, consumerSettings) as BaseConsumer
-                    : new QueueConsumer(this, consumerSettings);
-
-                _consumers.Add(consumer);
+                var messageProcessor = new ConsumerInstancePool<Message>(consumerSettings, this, m => m.Body);
+                AddConsumer(consumerSettings, messageProcessor);
             }
+
+            if (settings.RequestResponse != null)
+            {
+                Log.InfoFormat(CultureInfo.InvariantCulture, "Creating response consumer for {0}", settings.RequestResponse.FormatIf(Log.IsInfoEnabled));
+
+                var messageProcessor = new ResponseMessageProcessor(settings.RequestResponse, this);
+                AddConsumer(settings.RequestResponse, messageProcessor);
+            }
+        }
+
+        private void AddConsumer(AbstractConsumerSettings consumerSettings, IMessageProcessor<Message> messageProcessor)
+        {
+            var consumer = consumerSettings.GetKind() == PathKind.Topic
+                ? new TopicSubscriptionConsumer(this, consumerSettings, messageProcessor) as BaseConsumer
+                : new QueueConsumer(this, consumerSettings, messageProcessor);
+
+            _consumers.Add(consumer);
         }
 
         #region Overrides of MessageBusBase

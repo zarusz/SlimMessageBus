@@ -10,7 +10,7 @@ using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host
 {
-    public class ConsumerInstancePool<TMessage> : IDisposable
+    public class ConsumerInstancePool<TMessage> : IMessageProcessor<TMessage>
         where TMessage : class
     {
         private readonly ILog _log = LogManager.GetLogger(typeof(ConsumerInstancePool<TMessage>).ToString()); // this will give a more friendly name without the assembly version of the generic param

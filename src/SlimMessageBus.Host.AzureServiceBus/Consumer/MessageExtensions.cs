@@ -6,7 +6,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
 {
     internal static class MessageExtensions
     {
-        public static string FormatIf(this ConsumerSettings consumerSettings, Message msg, bool logLevel)
+        public static string FormatIf(this AbstractConsumerSettings consumerSettings, Message msg, bool logLevel)
         {
             if (!logLevel)
             {
@@ -35,5 +35,20 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
 
             return $"Topic: {consumerSettings.Topic}, SubscriptionName: {consumerSettings.GetSubscriptionName()}, MessageType: {consumerSettings.MessageType}";
         }
+
+        public static string FormatIf(this AbstractConsumerSettings settings, bool logLevel)
+        {
+            if (!logLevel)
+            {
+                return string.Empty;
+            }
+
+            if (settings.GetKind() == PathKind.Queue)
+            {
+                return $"Queue: {settings.Topic}";
+            }
+            return $"Topic: {settings.Topic}, SubscriptionName: {settings.GetSubscriptionName()}";
+        }
+
     }
 }

@@ -97,9 +97,11 @@ namespace Sample.Simple.ConsoleApp
                     // Parition selector (this is optional) - assumptions that there are 2 partitions for the topic
                     // x.PartitionProvider((request, topic) => (request.Left + request.Right) % 2);
                 })
-                .Handle<MultiplyRequest, MultiplyResponse>(x => x.Topic(topicForMultiplyRequest) // topic to expect the requests
+                .Handle<MultiplyRequest, MultiplyResponse>(x => x
+                    .Topic(topicForMultiplyRequest) // topic to expect the requests
                     .Group(consumerGroup)
-                    .WithHandler<MultiplyRequestHandler>())
+                    .WithHandler<MultiplyRequestHandler>()
+                )
                 // Configure response message queue (on topic) when using req/resp
                 .ExpectRequestResponses(x =>
                 {

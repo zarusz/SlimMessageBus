@@ -7,10 +7,10 @@ namespace SlimMessageBus.Host.Config
         /// <summary>
         /// Called whenever a consumer receives an expired message.
         /// </summary>
-        Action<ConsumerSettings, object> OnMessageExpired { get; set; }
+        Action<AbstractConsumerSettings, object> OnMessageExpired { get; set; }
         /// <summary>
         /// Called whenever a consumer errors out while processing the message.
         /// </summary>
-        Action<ConsumerSettings, object, Exception> OnMessageFault { get; set; }
+        Action<AbstractConsumerSettings, object, Exception> OnMessageFault { get; set; }
     }
 }

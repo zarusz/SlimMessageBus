@@ -135,7 +135,7 @@ namespace SlimMessageBus.Host.Test
         {
             // arrange
 
-            var onMessageExpiredMock = new Mock<Action<ConsumerSettings, object>>();
+            var onMessageExpiredMock = new Mock<Action<AbstractConsumerSettings, object>>();
             var consumerSettings = new ConsumerSettings
             {
                 Instances = 1,
@@ -169,7 +169,7 @@ namespace SlimMessageBus.Host.Test
         public void WhenRequestFailsThenOnMessageFaultIsCalledAndErrorResponseIsSent()
         {
             // arrange
-            var onMessageFaultMock = new Mock<Action<ConsumerSettings, object, Exception>>();
+            var onMessageFaultMock = new Mock<Action<AbstractConsumerSettings, object, Exception>>();
             var consumerSettings = new ConsumerSettings
             {
                 Instances = 1,
@@ -211,7 +211,7 @@ namespace SlimMessageBus.Host.Test
         public void WhenMessageFailsThenOnMessageFaultIsCalled()
         {
             // arrange
-            var onMessageFaultMock = new Mock<Action<ConsumerSettings, object, Exception>>();
+            var onMessageFaultMock = new Mock<Action<AbstractConsumerSettings, object, Exception>>();
             var consumerSettings = new ConsumerSettings
             {
                 Instances = 1,

@@ -20,8 +20,8 @@ namespace SlimMessageBus.Host.Config
 
         #region Implementation of IConsumerEvents
 
-        public Action<ConsumerSettings, object> OnMessageExpired { get; set; }
-        public Action<ConsumerSettings, object, Exception> OnMessageFault { get; set; }
+        public Action<AbstractConsumerSettings, object> OnMessageExpired { get; set; }
+        public Action<AbstractConsumerSettings, object, Exception> OnMessageFault { get; set; }
 
         #endregion
 

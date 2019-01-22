@@ -8,9 +8,10 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
     {
         private readonly IQueueClient _queueClient;
 
-        public QueueConsumer(ServiceBusMessageBus messageBus, ConsumerSettings consumerSettings) 
+        public QueueConsumer(ServiceBusMessageBus messageBus, AbstractConsumerSettings consumerSettings, IMessageProcessor<Message> messageProcessor) 
             : base(messageBus, consumerSettings,
                 messageBus.ServiceBusSettings.QueueClientFactory(consumerSettings.Topic),
+                messageProcessor,
                 LogManager.GetLogger<QueueConsumer>())
         {
             _queueClient = (IQueueClient) Client;

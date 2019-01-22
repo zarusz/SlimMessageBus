@@ -5,32 +5,26 @@ namespace SlimMessageBus.Host.AzureServiceBus
 {
     public static class SettingsExtensions
     {
-        public static void SetSubscriptionName(this ConsumerSettings consumerSettings, string group)
+        public static void SetSubscriptionName(this AbstractConsumerSettings consumerSettings, string subscriptionName)
         {
-            consumerSettings.Properties["SubscriptionName"] = group;
+            consumerSettings.Properties["SubscriptionName"] = subscriptionName;
         }
 
-        public static string GetSubscriptionName(this ConsumerSettings consumerSettings)
+        public static string GetSubscriptionName(this AbstractConsumerSettings consumerSettings)
         {
             return consumerSettings.Properties["SubscriptionName"] as string;
         }
 
-        public static void SetSubscriptionName(this RequestResponseSettings consumerSettings, string group)
+        private static void AssertIsTopicForSubscriptionName(AbstractConsumerSettings settings)
         {
-            consumerSettings.Properties["SubscriptionName"] = group;
-        }
-
-        public static string GetSubscriptionName(this RequestResponseSettings consumerSettings)
-        {
-            return consumerSettings.Properties["SubscriptionName"] as string;
-        }
-
-        private static void AssertIsTopicForSubscriptionName(ConsumerSettings consumerSettings)
-        {
-            if (consumerSettings.GetKind() == PathKind.Queue)
+            if (settings.GetKind() == PathKind.Queue)
             {
                 var methodName = $".{nameof(SubscriptionName)}(...)";
-                throw new ConfigurationMessageBusException($"The subscription name configuration ({methodName}) does not apply to Azure ServiceBus queues (it only applies to topic consumers). Remove the {methodName} configuration for type {consumerSettings.MessageType} and queue {consumerSettings.Topic} or change the consumer configuration to consume from topic {consumerSettings.Topic} instead.");
+
+                var messageType = settings is ConsumerSettings consumerSettings
+                    ? consumerSettings.MessageType.FullName
+                    : string.Empty;
+                throw new ConfigurationMessageBusException($"The subscription name configuration ({methodName}) does not apply to Azure ServiceBus queues (it only applies to topic consumers). Remove the {methodName} configuration for type {messageType} and queue {settings.Topic} or change the consumer configuration to consume from topic {settings.Topic} instead.");
             }
         }
 
@@ -68,8 +62,17 @@ namespace SlimMessageBus.Host.AzureServiceBus
             return builder;
         }
 
+        /// <summary>
+        /// Configures the subscription name when consuming form Azure ServiceBus topic.
+        /// Not applicable when consuming from Azure ServiceBus queue.
+        /// </summary>
+        /// <param name="builder"></param>
+        /// <param name="subscriptionName"></param>
+        /// <returns></returns>
         public static RequestResponseBuilder SubscriptionName(this RequestResponseBuilder builder, string subscriptionName)
         {
+            AssertIsTopicForSubscriptionName(builder.Settings);
+
             builder.Settings.SetSubscriptionName(subscriptionName);
             return builder;
         }

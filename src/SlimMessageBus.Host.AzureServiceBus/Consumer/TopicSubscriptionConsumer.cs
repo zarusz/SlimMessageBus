@@ -8,9 +8,10 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
     {
         private readonly SubscriptionClient _subscriptionClient;
 
-        public TopicSubscriptionConsumer(ServiceBusMessageBus messageBus, ConsumerSettings consumerSettings) 
+        public TopicSubscriptionConsumer(ServiceBusMessageBus messageBus, AbstractConsumerSettings consumerSettings, IMessageProcessor<Message> messageProcessor) 
             : base(messageBus, consumerSettings,
                 messageBus.ServiceBusSettings.SubscriptionClientFactory(new SubscriptionFactoryParams(consumerSettings.Topic, consumerSettings.GetSubscriptionName())),
+                messageProcessor,
                 LogManager.GetLogger<TopicSubscriptionConsumer>())
         {
             _subscriptionClient = (SubscriptionClient) Client;

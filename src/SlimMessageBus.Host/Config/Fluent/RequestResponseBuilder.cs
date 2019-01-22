@@ -4,7 +4,7 @@ namespace SlimMessageBus.Host.Config
 {
     public class RequestResponseBuilder
     {
-        public RequestResponseSettings Settings;
+        public RequestResponseSettings Settings { get; }
 
         public RequestResponseBuilder(RequestResponseSettings settings)
         {

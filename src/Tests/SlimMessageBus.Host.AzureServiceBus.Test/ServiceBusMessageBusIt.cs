@@ -169,7 +169,72 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             }
         }
 
-        private static async Task<IList<PingMessage>> ConsumeAll(PingConsumer pingConsumer)
+        [Fact]
+        public async Task BasicReqResp()
+        {
+            // arrange
+            var consumersCreated = new ConcurrentBag<EchoRequestHandler>();
+
+            // ensure the topic has 2 partitions
+            var topic = "test-echo";
+
+            MessageBusBuilder
+                .Produce<EchoRequest>(x =>
+                {
+                    x.DefaultTopic(topic);
+                })
+                .Handle<EchoRequest, EchoResponse>(x => x.Topic(topic)
+                                                         .SubscriptionName("handler") // ensure consumer group exists on the event hub
+                                                         .WithHandler<EchoRequestHandler>()
+                                                         .Instances(2))
+                .ExpectRequestResponses(x =>
+                {
+                    x.ReplyToTopic("test-echo-resp");
+                    x.SubscriptionName("response-consumer"); // ensure consumer group exists on the event hub
+                    x.DefaultTimeout(TimeSpan.FromSeconds(60));
+                })
+                .WithDependencyResolver(new LookupDependencyResolver(f =>
+                {
+                    if (f != typeof(EchoRequestHandler)) throw new InvalidOperationException();
+                    var consumer = new EchoRequestHandler();
+                    consumersCreated.Add(consumer);
+                    return consumer;
+                }));
+
+            var messageBus = MessageBus.Value;
+
+            // act
+
+            // publish
+            var stopwatch = Stopwatch.StartNew();
+
+            var requests = Enumerable
+                .Range(0, NumberOfMessages)
+                .Select(i => new EchoRequest { Index = i, Message = $"Echo {i}" })
+                .ToList();
+
+            var responses = new List<Tuple<EchoRequest, EchoResponse>>();
+            var responseTasks = requests.Select(async req =>
+            {
+                var resp = await messageBus.Send(req).ConfigureAwait(false);
+                lock (responses)
+                {
+                    responses.Add(Tuple.Create(req, resp));
+                }
+            });
+            await Task.WhenAll(responseTasks).ConfigureAwait(false);
+
+            stopwatch.Stop();
+            Log.InfoFormat(CultureInfo.InvariantCulture, "Published and received {0} messages in {1}", responses.Count, stopwatch.Elapsed);
+
+            // assert
+
+            // all messages got back
+            responses.Count.Should().Be(NumberOfMessages);
+            responses.All(x => x.Item1.Message == x.Item2.Message).Should().BeTrue();
+        }
+
+        private static async Task<IList<PingMessage>> ConsumeAll(PingConsumer consumer)
         {
             var lastMessageCount = 0;
             var lastMessageStopwatch = Stopwatch.StartNew();
@@ -180,14 +245,14 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             {
                 await Task.Delay(100).ConfigureAwait(false);
 
-                if (pingConsumer.Messages.Count != lastMessageCount)
+                if (consumer.Messages.Count != lastMessageCount)
                 {
-                    lastMessageCount = pingConsumer.Messages.Count;
+                    lastMessageCount = consumer.Messages.Count;
                     lastMessageStopwatch.Restart();
                 }
             }
             lastMessageStopwatch.Stop();
-            return pingConsumer.Messages;
+            return consumer.Messages;
         }
 
         private class PingMessage
@@ -223,6 +288,37 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             }
 
             #endregion
+        }
+
+        private class EchoRequest : IRequestMessage<EchoResponse>
+        {
+            public int Index { get; set; }
+            public string Message { get; set; }
+
+            #region Overrides of Object
+
+            public override string ToString() => $"EchoRequest(Index={Index}, Message={Message})";
+
+            #endregion
+        }
+
+        private class EchoResponse
+        {
+            public string Message { get; set; }
+
+            #region Overrides of Object
+
+            public override string ToString() => $"EchoResponse(Message={Message})";
+
+            #endregion
+        }
+
+        private class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
+        {
+            public Task<EchoResponse> OnHandle(EchoRequest request, string topic)
+            {
+                return Task.FromResult(new EchoResponse { Message = request.Message });
+            }
         }
     }
 }

@@ -4,7 +4,7 @@ using System.Reflection;
 
 namespace SlimMessageBus.Host.Config
 {
-    public class ConsumerSettings : HasProviderExtensions, IConsumerEvents
+    public class ConsumerSettings : AbstractConsumerSettings
     {
         private Type _messageType;
 
@@ -31,14 +31,6 @@ namespace SlimMessageBus.Host.Config
         }
 
         /// <summary>
-        /// The topic name.
-        /// </summary>
-        public string Topic { get; set; }
-        /// <summary>
-        /// Number of consumer instances created for this app domain.
-        /// </summary>
-        public int Instances { get; set; }
-        /// <summary>
         /// The consumer type that will handle the messages. An implementation of <see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest,TResponse}"/>.
         /// </summary>
         public Type ConsumerType { get; set; }
@@ -54,23 +46,5 @@ namespace SlimMessageBus.Host.Config
         /// Determines if the consumer setting is for request/response.
         /// </summary>
         public bool IsRequestMessage => ResponseType != null;
-
-        #region Implementation of IConsumerEvents
-
-        /// <summary>
-        /// Called whenever a consumer receives an expired message.
-        /// </summary>
-        public Action<ConsumerSettings, object> OnMessageExpired { get; set; }
-        /// <summary>
-        /// Called whenever a consumer errors out while processing the message.
-        /// </summary>
-        public Action<ConsumerSettings, object, Exception> OnMessageFault { get; set; }
-
-        #endregion
-
-        public ConsumerSettings()
-        {
-            Instances = 1;
-        }
     }
 }
