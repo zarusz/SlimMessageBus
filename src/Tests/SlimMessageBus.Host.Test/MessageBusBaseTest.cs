@@ -336,7 +336,7 @@ namespace SlimMessageBus.Host.Test
 
         #endregion
 
-        public Func<DateTimeOffset> CurrentTimeProvider { get; set; }
+        public Func<DateTimeOffset> CurrentTimeProvider { get; set; } = () => DateTimeOffset.UtcNow;
 
         public void TriggerPendingRequestCleanup()
         {
