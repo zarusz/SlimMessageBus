@@ -177,7 +177,7 @@ namespace SlimMessageBus.Host.Kafka
             base.Dispose(disposing);
         }
 
-        public override async Task PublishToTransport(Type messageType, object message, string topic, byte[] payload)
+        public override async Task ProduceToTransport(Type messageType, object message, string topic, byte[] payload)
         {
             AssertActive();
 

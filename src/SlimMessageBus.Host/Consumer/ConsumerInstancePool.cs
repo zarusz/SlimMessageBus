@@ -94,13 +94,20 @@ namespace SlimMessageBus.Host
         {
             var msgPayload = _messagePayloadProvider(msg);
 
-            string requestId = null, replyTo = null;
-            DateTimeOffset? expires = null;
+            MessageWithHeaders requestMessage = null;
+            string requestId = null;
+            DateTimeOffset? expires = null;            
 
             _log.Debug("Deserializing message...");
             var message = _consumerSettings.IsRequestMessage
-                ? _messageBus.DeserializeRequest(_consumerSettings.MessageType, msgPayload, out requestId, out replyTo, out expires)
+                ? _messageBus.DeserializeRequest(_consumerSettings.MessageType, msgPayload, out requestMessage)
                 : _messageBus.Settings.Serializer.Deserialize(_consumerSettings.MessageType, msgPayload);
+
+            if (requestMessage != null)
+            {
+                requestMessage.TryGetHeader(ReqRespMessageHeaders.RequestId, out requestId);
+                requestMessage.TryGetHeader(ReqRespMessageHeaders.Expires, out expires);
+            }
 
             // Verify if the request/message is already expired
             if (expires.HasValue)
@@ -184,8 +191,12 @@ namespace SlimMessageBus.Host
             {
                 // send the response (or error response)
                 _log.DebugFormat(CultureInfo.InvariantCulture, "Serializing the response {0} of type {1} for RequestId: {2}...", response, _consumerSettings.ResponseType, requestId);
-                var responsePayload = _messageBus.SerializeResponse(_consumerSettings.ResponseType, response, requestId, responseError);
-                await _messageBus.PublishToTransport(_consumerSettings.ResponseType, response, replyTo, responsePayload).ConfigureAwait(false);
+
+                var responseMessage = new MessageWithHeaders();
+                responseMessage.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
+                responseMessage.SetHeader(ReqRespMessageHeaders.Error, responseError);
+
+                await _messageBus.ProduceResponse(message, requestMessage, response, responseMessage, _consumerSettings).ConfigureAwait(false);
             }
         }
     }

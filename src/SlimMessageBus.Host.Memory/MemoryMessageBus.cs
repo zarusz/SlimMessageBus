@@ -32,7 +32,7 @@ namespace SlimMessageBus.Host.Memory
 
         #region Overrides of MessageBusBase
 
-        public override Task PublishToTransport(Type messageType, object message, string topic, byte[] payload)
+        public override Task ProduceToTransport(Type messageType, object message, string topic, byte[] payload)
         {
             if (!_consumersByTopic.TryGetValue(topic, out var consumers))
             {

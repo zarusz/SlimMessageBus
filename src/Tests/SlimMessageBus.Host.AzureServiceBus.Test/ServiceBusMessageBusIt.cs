@@ -170,29 +170,57 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
         }
 
         [Fact]
-        public async Task BasicReqResp()
+        public async Task BasicReqRespOnTopic()
         {
-            // arrange
-            var consumersCreated = new ConcurrentBag<EchoRequestHandler>();
-
-            // ensure the topic has 2 partitions
             var topic = "test-echo";
 
             MessageBusBuilder
                 .Produce<EchoRequest>(x =>
                 {
-                    x.DefaultTopic(topic);
+                    x.DefaultTopic(topic); 
                 })
                 .Handle<EchoRequest, EchoResponse>(x => x.Topic(topic)
-                                                         .SubscriptionName("handler") // ensure consumer group exists on the event hub
-                                                         .WithHandler<EchoRequestHandler>()
-                                                         .Instances(2))
+                    .SubscriptionName("handler") // ensure consumer group exists on the event hub
+                    .WithHandler<EchoRequestHandler>()
+                    .Instances(2))
                 .ExpectRequestResponses(x =>
                 {
                     x.ReplyToTopic("test-echo-resp");
                     x.SubscriptionName("response-consumer"); // ensure consumer group exists on the event hub
                     x.DefaultTimeout(TimeSpan.FromSeconds(60));
+                });
+
+            await BasicReqResp().ConfigureAwait(false);
+        }
+
+        [Fact]
+        public async Task BasicReqRespOnQueue()
+        {
+            var queue = "test-echo-queue";
+
+            MessageBusBuilder
+                .Produce<EchoRequest>(x =>
+                {
+                    x.DefaultQueue(queue);
                 })
+                .Handle<EchoRequest, EchoResponse>(x => x.Queue(queue)
+                    .WithHandler<EchoRequestHandler>()
+                    .Instances(2))
+                .ExpectRequestResponses(x =>
+                {
+                    x.ReplyToQueue("test-echo-queue-resp");
+                    x.DefaultTimeout(TimeSpan.FromSeconds(60));
+                });
+
+            await BasicReqResp().ConfigureAwait(false);
+        }
+
+        private async Task BasicReqResp()
+        {
+            // arrange
+            var consumersCreated = new ConcurrentBag<EchoRequestHandler>();
+
+            MessageBusBuilder
                 .WithDependencyResolver(new LookupDependencyResolver(f =>
                 {
                     if (f != typeof(EchoRequestHandler)) throw new InvalidOperationException();

@@ -10,24 +10,50 @@ namespace SlimMessageBus.Host
         public byte[] Payload { get; set; }
 
         public MessageWithHeaders()
+            : this(null)
         {
-            Headers = new Dictionary<string, string>();
         }
 
         public MessageWithHeaders(byte[] payload)
+            : this(payload, new Dictionary<string, string>())
         {
-            Headers = new Dictionary<string, string>();
+        }
+
+        public MessageWithHeaders(byte[] payload, IDictionary<string, string> headers)
+        {
+            Headers = headers;
             Payload = payload;
         }
 
         public void SetHeader(string header, string value)
         {
-            Headers[header] = value;
+            if (value != null)
+            {
+                Headers[header] = value;
+            }
+            else
+            {
+                if (Headers.ContainsKey(header))
+                {
+                    Headers.Remove(header);
+                }
+            }
+        }
+
+        public void SetHeader(string header, int value)
+        {
+            Headers[header] = value.ToString(CultureInfo.InvariantCulture);
         }
 
         public void SetHeader(string header, DateTimeOffset dt)
         {
             Headers[header] = dt.ToFileTime().ToString(CultureInfo.InvariantCulture);
+        }
+
+        public int GetHeaderAsInt(string header)
+        {
+            var v = Headers[header];
+            return int.Parse(v, CultureInfo.InvariantCulture);
         }
 
         public bool TryGetHeader(string header, out string value)

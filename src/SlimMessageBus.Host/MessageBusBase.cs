@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using Common.Logging;
@@ -111,7 +112,7 @@ namespace SlimMessageBus.Host
 
         public virtual DateTimeOffset CurrentTime => DateTimeOffset.UtcNow;
 
-        protected ProducerSettings GetPublisherSettings(Type messageType)
+        protected ProducerSettings GetProducerSettings(Type messageType)
         {
             if (!PublisherSettingsByMessageType.TryGetValue(messageType, out var publisherSettings))
             {
@@ -124,7 +125,7 @@ namespace SlimMessageBus.Host
         protected virtual string GetDefaultTopic(Type messageType)
         {
             // when topic was not provided, lookup default topic from configuration
-            var publisherSettings = GetPublisherSettings(messageType);
+            var publisherSettings = GetProducerSettings(messageType);
             return GetDefaultTopic(messageType, publisherSettings);
         }
 
@@ -139,7 +140,7 @@ namespace SlimMessageBus.Host
             return topic;
         }
 
-        public abstract Task PublishToTransport(Type messageType, object message, string topic, byte[] payload);
+        public abstract Task ProduceToTransport(Type messageType, object message, string topic, byte[] payload);
 
         public virtual Task Publish(Type messageType, object message, string topic = null)
         {
@@ -153,7 +154,7 @@ namespace SlimMessageBus.Host
             var payload = SerializeMessage(messageType, message);
 
             Log.DebugFormat(CultureInfo.InvariantCulture, "Producing message {0} of type {1} to topic {2} with payload size {3}", message, messageType, topic, payload?.Length ?? 0);
-            return PublishToTransport(messageType, message, topic, payload);
+            return ProduceToTransport(messageType, message, topic, payload);
         }
 
         #region Implementation of IPublishBus
@@ -181,25 +182,26 @@ namespace SlimMessageBus.Host
             cancellationToken.ThrowIfCancellationRequested();
 
             var requestType = request.GetType();
-            var publisherSettings = GetPublisherSettings(requestType);
+            var producerSettings = GetProducerSettings(requestType);
 
             if (topic == null)
             {
-                topic = GetDefaultTopic(requestType, publisherSettings);
+                topic = GetDefaultTopic(requestType, producerSettings);
             }
 
             if (timeout == null)
             {
-                timeout = GetDefaultRequestTimeout(requestType, publisherSettings);
+                timeout = GetDefaultRequestTimeout(requestType, producerSettings);
             }
 
-            var replyTo = Settings.RequestResponse.Topic;
             var created = CurrentTime;
             var expires = created.Add(timeout.Value);
 
             // generate the request guid
             var requestId = GenerateRequestId();
-            var requestPayload = SerializeRequest(requestType, request, requestId, replyTo, expires);
+            var requestMessage = new MessageWithHeaders();
+            requestMessage.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
+            requestMessage.SetHeader(ReqRespMessageHeaders.Expires, expires);
 
             // record the request state
             var requestState = new PendingRequestState(requestId, request, requestType, typeof(TResponseMessage), created, expires, cancellationToken);
@@ -212,8 +214,8 @@ namespace SlimMessageBus.Host
 
             try
             {
-                Log.DebugFormat(CultureInfo.InvariantCulture, "Sending request message {0} to topic {1} with reply to {2} and payload size {3}", requestState, topic, replyTo, requestPayload.Length);
-                await PublishToTransport(requestType, request, topic, requestPayload).ConfigureAwait(false);
+                Log.DebugFormat(CultureInfo.InvariantCulture, "Sending request message {0} to topic {1} with reply to {2}", requestState, topic, Settings.RequestResponse.Topic);
+                await ProduceRequest(request, requestMessage, topic, producerSettings).ConfigureAwait(false);
             }
             catch (PublishMessageBusException e)
             {
@@ -226,6 +228,25 @@ namespace SlimMessageBus.Host
             // convert Task<object> to Task<TResponseMessage>
             var responseUntyped = await requestState.TaskCompletionSource.Task.ConfigureAwait(true);
             return (TResponseMessage) responseUntyped;
+        }
+
+        public virtual Task ProduceRequest(object request, MessageWithHeaders requestMessage, string topic, ProducerSettings producerSettings)
+        {
+            var requestType = request.GetType();
+
+            requestMessage.SetHeader(ReqRespMessageHeaders.ReplyTo, Settings.RequestResponse.Topic);
+            var requestMessagePayload = SerializeRequest(requestType, request, requestMessage, producerSettings);
+
+            return ProduceToTransport(requestType, request, topic, requestMessagePayload);
+        }
+
+        public virtual Task ProduceResponse(object request, MessageWithHeaders requestMessage, object response, MessageWithHeaders responseMessage, ConsumerSettings consumerSettings)
+        {
+            var replyTo = requestMessage.Headers[ReqRespMessageHeaders.ReplyTo];
+
+            var responseMessagePayload = SerializeResponse(consumerSettings.ResponseType, response, responseMessage);
+
+            return ProduceToTransport(consumerSettings.ResponseType, response, replyTo, responseMessagePayload);
         }
 
         #region Implementation of IRequestResponseBus
@@ -257,48 +278,26 @@ namespace SlimMessageBus.Host
             return Settings.Serializer.Deserialize(messageType, payload);
         }
 
-        public virtual byte[] SerializeRequest(Type requestType, object request, string requestId, string replyTo, DateTimeOffset? expires)
+        public virtual byte[] SerializeRequest(Type requestType, object request, MessageWithHeaders requestMessage, ProducerSettings producerSettings)
         {
             var requestPayload = SerializeMessage(requestType, request);
-
             // create the request wrapper message
-            var requestMessage = new MessageWithHeaders(requestPayload);
-            requestMessage.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
-            requestMessage.SetHeader(ReqRespMessageHeaders.ReplyTo, replyTo);
-            if (expires.HasValue)
-            {
-                requestMessage.SetHeader(ReqRespMessageHeaders.Expires, expires.Value);
-            }
-
-            var requestMessagePayload = Settings.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), requestMessage);
-            return requestMessagePayload;
+            requestMessage.Payload = requestPayload;
+            return Settings.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), requestMessage);
         }
 
-        public virtual object DeserializeRequest(Type requestType, byte[] requestPayload, out string requestId, out string replyTo, out DateTimeOffset? expires)
+        public virtual object DeserializeRequest(Type requestType, byte[] requestMessagePayload, out MessageWithHeaders requestMessage)
         {
-            var requestMessage = (MessageWithHeaders)Settings.MessageWithHeadersSerializer.Deserialize(typeof(MessageWithHeaders), requestPayload);
-            requestMessage.TryGetHeader(ReqRespMessageHeaders.RequestId, out requestId);
-            requestMessage.TryGetHeader(ReqRespMessageHeaders.ReplyTo, out replyTo);
-            requestMessage.TryGetHeader(ReqRespMessageHeaders.Expires, out expires);
-
-            var request = DeserializeMessage(requestType, requestMessage.Payload);
-            return request;
+            requestMessage = (MessageWithHeaders)Settings.MessageWithHeadersSerializer.Deserialize(typeof(MessageWithHeaders), requestMessagePayload);
+            return DeserializeMessage(requestType, requestMessage.Payload);
         }
 
-        public virtual byte[] SerializeResponse(Type responseType, object response, string requestId, string errorMessage)
+        public virtual byte[] SerializeResponse(Type responseType, object response, MessageWithHeaders responseMessage)
         {
-            var responsePayload = errorMessage == null ? Settings.Serializer.Serialize(responseType, response) : null;
-
+            var responsePayload = response != null ? Settings.Serializer.Serialize(responseType, response) : null;
             // create the response wrapper message
-            var responseMessage = new MessageWithHeaders(responsePayload);
-            responseMessage.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
-            if (errorMessage != null)
-            {
-                responseMessage.SetHeader(ReqRespMessageHeaders.Error, errorMessage);
-            }
-
-            var responseMessagePayload = Settings.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), responseMessage);
-            return responseMessagePayload;
+            responseMessage.Payload = responsePayload;
+            return Settings.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), responseMessage);
         }
 
         /// <summary>

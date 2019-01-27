@@ -2,6 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Moq;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Serialization.Json;
@@ -244,17 +245,22 @@ namespace SlimMessageBus.Host.Test
             var rid = "1";
             var replyTo = "some_topic";
             var expires = DateTimeOffset.UtcNow.AddMinutes(2);
+            var reqMessage = new MessageWithHeaders();
+            reqMessage.SetHeader(ReqRespMessageHeaders.ReplyTo, replyTo);
+            reqMessage.SetHeader(ReqRespMessageHeaders.RequestId, rid);
+            reqMessage.SetHeader(ReqRespMessageHeaders.Expires, expires);
 
             // act
-            var payload = _bus.SerializeRequest(typeof(RequestA), r, rid, replyTo, expires);
-
-            _bus.DeserializeRequest(typeof(RequestA), payload, out var rid2, out var replyTo2, out var expires2);
+            var payload = _bus.SerializeRequest(typeof(RequestA), r, reqMessage, new Mock<ProducerSettings>().Object);
+            _bus.DeserializeRequest(typeof(RequestA), payload, out var resMessage);
 
             // assert
-            rid2.Should().Be(rid);
-            replyTo2.Should().Be(replyTo);
-            expires2.Should().HaveValue();
-            expires2.Value.EqualsExact(expires);
+            resMessage.Headers[ReqRespMessageHeaders.RequestId].Should().Be(rid);
+            resMessage.Headers[ReqRespMessageHeaders.ReplyTo].Should().Be(replyTo);        
+            resMessage.TryGetHeader(ReqRespMessageHeaders.Expires, out DateTimeOffset? resExpires);
+
+            resExpires.HasValue.Should().BeTrue();
+            resExpires.Value.ToFileTime().Should().Be(expires.ToFileTime());
         }
 
         [Fact]
@@ -304,9 +310,9 @@ namespace SlimMessageBus.Host.Test
 
         #region Overrides of BaseMessageBus
 
-        public override Task PublishToTransport(Type messageType, object message, string topic, byte[] payload)
+        public override Task ProduceToTransport(Type messageType, object message, string topic, byte[] payload)
         {
-            var req = DeserializeRequest(messageType, payload, out var reqId, out var replyTo, out var expires);
+            var req = DeserializeRequest(messageType, payload, out var requestMessage);
 
             var resp = OnReply(messageType, topic, req);
             if (resp == null)
@@ -314,7 +320,11 @@ namespace SlimMessageBus.Host.Test
                 return Task.CompletedTask;
             }
 
-            var respPayload = SerializeResponse(resp.GetType(), resp, reqId, null);
+            var respMessage = new MessageWithHeaders();
+            respMessage.SetHeader(ReqRespMessageHeaders.RequestId, requestMessage.Headers[ReqRespMessageHeaders.RequestId]);
+            var replyTo = requestMessage.Headers[ReqRespMessageHeaders.ReplyTo];
+
+            var respPayload = SerializeResponse(resp.GetType(), resp, respMessage);
             return OnResponseArrived(respPayload, replyTo);
         }
 

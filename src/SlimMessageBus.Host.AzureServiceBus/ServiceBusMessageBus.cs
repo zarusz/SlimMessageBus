@@ -138,19 +138,9 @@ namespace SlimMessageBus.Host.AzureServiceBus
             base.Dispose(disposing);
         }
 
-        public override async Task PublishToTransport(Type messageType, object message, string topic, byte[] payload)
+        private async Task ProduceToTransport(Type messageType, object message, string topic, byte[] payload, PathKind kind)
         {
             AssertActive();
-
-            // determine the SMB topic name if its a Azure SB queue or topic
-            if (!_kindByTopic.TryGetValue(topic, out var kind))
-            {
-                if (!_kindByMessageType.TryGetValue(messageType, out kind))
-                {
-                    // by default this will be a topic
-                    kind = PathKind.Topic;
-                }
-            }
 
             Log.DebugFormat(CultureInfo.InvariantCulture, "Producing message {0} of type {1} on {2} {3} with size {4}", message, messageType.Name, kind, topic, payload.Length);
 
@@ -171,6 +161,43 @@ namespace SlimMessageBus.Host.AzureServiceBus
             }
 
             Log.DebugFormat(CultureInfo.InvariantCulture, "Delivered message {0} of type {1} on {2} {3}", message, messageType.Name, kind, topic);
+        }
+
+        public override Task ProduceToTransport(Type messageType, object message, string topic, byte[] payload)
+        {
+            // determine the SMB topic name if its a Azure SB queue or topic
+            if (!_kindByTopic.TryGetValue(topic, out var kind))
+            {
+                if (!_kindByMessageType.TryGetValue(messageType, out kind))
+                {
+                    // by default this will be a topic
+                    kind = PathKind.Topic;
+                }
+            }
+
+            return ProduceToTransport(messageType, message, topic, payload, kind);
+        }
+
+        #endregion
+
+        public static readonly string RequestHeaderReplyToKind = "reply-to-kind";
+
+        #region Overrides of MessageBusBase
+
+        public override Task ProduceRequest(object request, MessageWithHeaders requestMessage, string topic, ProducerSettings producerSettings)
+        {
+            requestMessage.SetHeader(RequestHeaderReplyToKind, (int)Settings.RequestResponse.GetKind());
+            return base.ProduceRequest(request, requestMessage, topic, producerSettings);
+        }
+
+        public override Task ProduceResponse(object request, MessageWithHeaders requestMessage, object response, MessageWithHeaders responseMessage, ConsumerSettings consumerSettings)
+        {
+            var replyTo = requestMessage.Headers[ReqRespMessageHeaders.ReplyTo];
+            var kind = (PathKind)requestMessage.GetHeaderAsInt(RequestHeaderReplyToKind);
+
+            var responseMessagePayload = SerializeResponse(consumerSettings.ResponseType, response, responseMessage);
+
+            return ProduceToTransport(consumerSettings.ResponseType, response, replyTo, responseMessagePayload, kind);
         }
 
         #endregion

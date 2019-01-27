@@ -149,18 +149,17 @@ namespace SlimMessageBus.Host.Test
             var p = new ConsumerInstancePool<SomeRequest>(consumerSettings, _busMock.Bus, x => Array.Empty<byte>());
 
             var request = new SomeRequest();
-            string requestId;
-            string replyTo;
-            DateTimeOffset? expires = _busMock.CurrentTime.AddSeconds(-10);
-            _busMock.BusMock.Setup(x => x.DeserializeRequest(typeof(SomeRequest), It.IsAny<byte[]>(), out requestId, out replyTo, out expires))
+            var requestMessage = new MessageWithHeaders();
+            requestMessage.SetHeader(ReqRespMessageHeaders.Expires, _busMock.CurrentTime.AddSeconds(-10));
+
+            _busMock.BusMock.Setup(x => x.DeserializeRequest(typeof(SomeRequest), It.IsAny<byte[]>(), out requestMessage))
                 .Returns(request);
 
             // act
             p.ProcessMessage(request).Wait();
 
             // assert
-            _busMock.HandlerMock.Verify(x => x.OnHandle(It.IsAny<SomeRequest>(), It.IsAny<string>()),
-                Times.Never); // the handler should not be called
+            _busMock.HandlerMock.Verify(x => x.OnHandle(It.IsAny<SomeRequest>(), It.IsAny<string>()), Times.Never); // the handler should not be called
 
             onMessageExpiredMock.Verify(x => x(consumerSettings, request), Times.Once); // callback called once
         }
@@ -183,12 +182,12 @@ namespace SlimMessageBus.Host.Test
             var p = new ConsumerInstancePool<SomeRequest>(consumerSettings, _busMock.Bus, x => Array.Empty<byte>());
 
             var request = new SomeRequest();
-            string requestId;
-            string replyTo = "reply-topic";
-            DateTimeOffset? expires;
-            _busMock.BusMock.Setup(x =>
-                    x.DeserializeRequest(typeof(SomeRequest), It.IsAny<byte[]>(), out requestId, out replyTo,
-                        out expires))
+            var requestMessage = new MessageWithHeaders();
+            var replyTo = "reply-topic";
+            var requestId = "request-id";
+            requestMessage.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
+            requestMessage.SetHeader(ReqRespMessageHeaders.ReplyTo, replyTo);
+            _busMock.BusMock.Setup(x => x.DeserializeRequest(typeof(SomeRequest), It.IsAny<byte[]>(), out requestMessage))
                 .Returns(request);
 
             var ex = new Exception("Something went bad");
@@ -202,9 +201,10 @@ namespace SlimMessageBus.Host.Test
             _busMock.HandlerMock.Verify(x => x.OnHandle(request, consumerSettings.Topic),
                 Times.Once); // handler called once
 
-            onMessageFaultMock.Verify(x => x(consumerSettings, request, ex), Times.Once); // callback called once
-            _busMock.BusMock.Verify(x =>
-                x.PublishToTransport(typeof(SomeResponse), It.IsAny<SomeResponse>(), replyTo, It.IsAny<byte[]>()));
+            onMessageFaultMock.Verify(
+                x => x(consumerSettings, request, ex), Times.Once); // callback called once
+            _busMock.BusMock.Verify(
+                x => x.ProduceResponse(request,  requestMessage, It.IsAny<SomeResponse>(), It.Is<MessageWithHeaders>(m => m.Headers[ReqRespMessageHeaders.RequestId]== requestId), It.IsAny<ConsumerSettings>()));
         }
 
         [Fact]
