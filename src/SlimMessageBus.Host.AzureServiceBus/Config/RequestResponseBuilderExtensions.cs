@@ -1,7 +1,7 @@
 ﻿using System;
 using SlimMessageBus.Host.Config;
 
-namespace SlimMessageBus.Host.AzureServiceBus.Config
+namespace SlimMessageBus.Host.AzureServiceBus
 {
     public static class RequestResponseBuilderExtensions
     {

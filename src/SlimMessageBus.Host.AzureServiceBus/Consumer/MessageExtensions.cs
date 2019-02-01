@@ -1,5 +1,4 @@
 ﻿using Microsoft.Azure.ServiceBus;
-using SlimMessageBus.Host.AzureServiceBus.Config;
 using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.AzureServiceBus.Consumer

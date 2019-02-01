@@ -12,7 +12,6 @@ using Common.Logging.Simple;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using SecretStore;
-using SlimMessageBus.Host.AzureServiceBus.Config;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Serialization.Json;

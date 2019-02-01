@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using Common.Logging;
@@ -17,7 +16,7 @@ namespace SlimMessageBus.Host
 
         public virtual MessageBusSettings Settings { get; }
 
-        protected IDictionary<Type, ProducerSettings> PublisherSettingsByMessageType { get; }
+        protected IDictionary<Type, ProducerSettings> ProducerSettingsByMessageType { get; }
 
         protected IPendingRequestStore PendingRequestStore { get; }
         protected PendingRequestManager PendingRequestManager { get; }
@@ -33,7 +32,7 @@ namespace SlimMessageBus.Host
             AssertSettings(settings);
 
             Settings = settings;
-            PublisherSettingsByMessageType = settings.Producers.ToDictionary(x => x.MessageType);
+            ProducerSettingsByMessageType = settings.Producers.ToDictionary(x => x.MessageType);
 
             PendingRequestStore = new InMemoryPendingRequestStore();
             PendingRequestManager = new PendingRequestManager(PendingRequestStore, () => CurrentTime, TimeSpan.FromSeconds(1), request =>
@@ -114,12 +113,12 @@ namespace SlimMessageBus.Host
 
         protected ProducerSettings GetProducerSettings(Type messageType)
         {
-            if (!PublisherSettingsByMessageType.TryGetValue(messageType, out var publisherSettings))
+            if (!ProducerSettingsByMessageType.TryGetValue(messageType, out var producerSettings))
             {
                 throw new PublishMessageBusException($"Message of type {messageType} was not registered as a supported publish message. Please check your MessageBus configuration and include this type.");
             }
 
-            return publisherSettings;
+            return producerSettings;
         }
 
         protected virtual string GetDefaultTopic(Type messageType)

@@ -1,4 +1,4 @@
-﻿namespace SlimMessageBus.Host.AzureServiceBus.Config
+﻿namespace SlimMessageBus.Host.AzureServiceBus
 {
     internal enum PathKind
     {

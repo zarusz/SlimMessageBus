@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Common.Logging;
 using Microsoft.Azure.ServiceBus;
-using SlimMessageBus.Host.AzureServiceBus.Config;
 using SlimMessageBus.Host.AzureServiceBus.Consumer;
 using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.Config;
@@ -89,7 +88,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
             {
                 Log.InfoFormat(CultureInfo.InvariantCulture, "Creating response consumer for {0}", settings.RequestResponse.FormatIf(Log.IsInfoEnabled));
 
-                var messageProcessor = new ResponseMessageProcessor(settings.RequestResponse, this);
+                var messageProcessor = new ResponseMessageProcessor<Message>(settings.RequestResponse, this, m => m.Body);
                 AddConsumer(settings.RequestResponse, messageProcessor);
             }
         }
