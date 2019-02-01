@@ -6,7 +6,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 
 ## Configuration
 
-Azure Service Bus supports topics and queues. SMB needs to know wheather you want to produce (consume) message to (from) a topic or a queue. This is defined as part of the `MessageBusBuilder` configuration:
+Azure Service Bus provider requires a connection string:
 
 ```cs
 var connectionString = "" // Azure Service Bus connection string
@@ -19,6 +19,10 @@ MessageBusBuilder mbb = MessageBusBuilder
 
 IMessageBus bus = mbb.Build();
 ```
+
+The `ServiceBusMessageBusSettings` has additional settings that allow to override factories for Azure SB client objects. This may be used for some advanced scenarios.
+
+Since Azure SB supports topics and queues, the SMB needs to know wheather you want to produce (consume) message to (from) a topic or a queue. This is defined as part of the `MessageBusBuilder` configuration.
 
 ### Producing Messages
 
@@ -48,7 +52,7 @@ bus.Publish(msg, "some-queue");
 bus.Publish(msg, "some-topic");
 ```
 
-The second parameter will be interpreted as either a queue name or topic name - depending on the bus configuration.
+The second (name) parameter will be interpreted as either a queue name or topic name - depending on the bus configuration.
 
 If you configure the default queue (or default topic) for a message type:
 
@@ -58,7 +62,7 @@ mbb.Produce<TMessage>(x => x.DefaultQueue("some-queue"));
 mbb.Produce<TMessage>(x => x.DefaultTopic("some-topic"));
 ```
 
-and skip the name parameter in `Publish()`, then that default queue (or default topic) name is going to be used:
+and skip the second (name) parameter in `Publish()`, then that default queue (or default topic) name is going to be used:
 
 ```cs
 // msg will go to the "some-queue" queue (or "some-topic")
@@ -118,7 +122,7 @@ mbb.ExpectRequestResponses(x =>
 });
 ```
 
-In either case it is important that each of your micro-service instances have their own dedicated queue (or topic). In the end, when your n-th service instance sends a request, we want the response to arrive back to that n-th service instance. Specifically, this is required so that the internal `Task<TResponse>` of `bus.Send(TRequest)` is resumed and the application can continue doing its logic.
+In either case it is important that each of your micro-service instances have their own dedicated queue (or topic). In the end, when your n-th service instance sends a request, we want the response to arrive back to that n-th service instance. Specifically, this is required so that the internal `Task<TResponse>` of `bus.Send(TRequest)` is resumed and the parent task can continue.
 
 It is preferred to receive responses on queues rather than topics.
 
@@ -141,4 +145,4 @@ mbb.Handle<EchoRequest, EchoResponse>(x => x
         .Instances(2));
 ```
 
-When a request message is send to a queue it has to be handler service has to consume from that queue. Likewise, if you send a request to a topic it has to be consumed from that topic. You cannot mix sending to a topic and consuming from a queue (or vice versa).
+When a request message is send to a queue the handler service has to also consume from that queue. Likewise, if you send a request to a topic it has to be consumed from that topic. You cannot mix sending to a topic and consuming from a queue (or vice versa).
