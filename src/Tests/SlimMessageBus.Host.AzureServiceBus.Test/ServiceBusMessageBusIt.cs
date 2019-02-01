@@ -180,13 +180,13 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
                     x.DefaultTopic(topic); 
                 })
                 .Handle<EchoRequest, EchoResponse>(x => x.Topic(topic)
-                    .SubscriptionName("handler") // ensure consumer group exists on the event hub
+                    .SubscriptionName("handler")
                     .WithHandler<EchoRequestHandler>()
                     .Instances(2))
                 .ExpectRequestResponses(x =>
                 {
                     x.ReplyToTopic("test-echo-resp");
-                    x.SubscriptionName("response-consumer"); // ensure consumer group exists on the event hub
+                    x.SubscriptionName("response-consumer");
                     x.DefaultTimeout(TimeSpan.FromSeconds(60));
                 });
 
