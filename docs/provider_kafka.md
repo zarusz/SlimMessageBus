@@ -1,4 +1,8 @@
-# Apache Kafka notes for SlimMessageBus
+# Apache Kafka Provider for SlimMessageBus
+
+## Introduction
+
+Please read the [Introduction](intro.md) before reading this provider documentation.
 
 ### Underlying client
 
