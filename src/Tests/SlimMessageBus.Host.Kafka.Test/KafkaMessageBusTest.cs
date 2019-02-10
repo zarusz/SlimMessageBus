@@ -49,15 +49,15 @@ namespace SlimMessageBus.Host.Kafka.Test
         public void GetMessageKey()
         {
             // arrange
-            var publisherA = new ProducerSettings();
-            new ProducerBuilder<MessageA>(publisherA)
+            var producerA = new ProducerSettings();
+            new ProducerBuilder<MessageA>(producerA)
                 .KeyProvider((m, t) => m.Key);
 
-            var publisherB = new ProducerSettings();
-            new ProducerBuilder<MessageB>(publisherB);
+            var producerB = new ProducerSettings();
+            new ProducerBuilder<MessageB>(producerB);
 
-            MbSettings.Producers.Add(publisherA);
-            MbSettings.Producers.Add(publisherB);        
+            MbSettings.Producers.Add(producerA);
+            MbSettings.Producers.Add(producerB);        
 
             var msgA = new MessageA();
             var msgB = new MessageB();

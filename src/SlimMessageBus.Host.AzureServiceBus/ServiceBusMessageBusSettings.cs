@@ -7,8 +7,8 @@ namespace SlimMessageBus.Host.AzureServiceBus
     {
         public string ServiceBusConnectionString { get; set; }
 
-        public Func<string, TopicClient> TopicClientFactory { get; set; }
-        public Func<string, QueueClient> QueueClientFactory { get; set; }
+        public Func<string, ITopicClient> TopicClientFactory { get; set; }
+        public Func<string, IQueueClient> QueueClientFactory { get; set; }
         public Func<SubscriptionFactoryParams, SubscriptionClient> SubscriptionClientFactory { get; set; }
 
         public ServiceBusMessageBusSettings()

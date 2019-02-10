@@ -17,8 +17,8 @@ namespace SlimMessageBus.Host.AzureServiceBus
 
         public ServiceBusMessageBusSettings ServiceBusSettings { get; }
 
-        private readonly SafeDictionaryWrapper<string, TopicClient> _producerByTopic;
-        private readonly SafeDictionaryWrapper<string, QueueClient> _producerByQueue;
+        private readonly SafeDictionaryWrapper<string, ITopicClient> _producerByTopic;
+        private readonly SafeDictionaryWrapper<string, IQueueClient> _producerByQueue;
 
         private readonly List<BaseConsumer> _consumers = new List<BaseConsumer>();
 
@@ -63,13 +63,13 @@ namespace SlimMessageBus.Host.AzureServiceBus
                 }
             }
 
-            _producerByTopic = new SafeDictionaryWrapper<string, TopicClient>(topic =>
+            _producerByTopic = new SafeDictionaryWrapper<string, ITopicClient>(topic =>
             {
                 Log.DebugFormat(CultureInfo.InvariantCulture, "Creating TopicClient for path {0}", topic);
                 return serviceBusSettings.TopicClientFactory(topic);
             });
 
-            _producerByQueue = new SafeDictionaryWrapper<string, QueueClient>(queue =>
+            _producerByQueue = new SafeDictionaryWrapper<string, IQueueClient>(queue =>
             {
                 Log.DebugFormat(CultureInfo.InvariantCulture, "Creating QueueClient for path {0}", queue);
                 return serviceBusSettings.QueueClientFactory(queue);
@@ -137,16 +137,26 @@ namespace SlimMessageBus.Host.AzureServiceBus
             base.Dispose(disposing);
         }
 
-        private async Task ProduceToTransport(Type messageType, object message, string topic, byte[] payload, PathKind kind)
+        protected virtual async Task ProduceToTransport(Type messageType, object message, string topic, byte[] payload, PathKind kind)
         {
             AssertActive();
 
             Log.DebugFormat(CultureInfo.InvariantCulture, "Producing message {0} of type {1} on {2} {3} with size {4}", message, messageType.Name, kind, topic, payload.Length);
 
             var m = new Message(payload);
-            // ToDo: add support for partitioning key
-            // ToDo: add support for user properties
-            // ToDo: add support for expiration
+
+            if (ProducerSettingsByMessageType.TryGetValue(messageType, out var producerSettings))
+            {
+                try
+                {
+                    var messageModifier = producerSettings.GetMessageModifier();
+                    messageModifier(message, m);
+                }
+                catch (Exception e)
+                {
+                    Log.WarnFormat(CultureInfo.InvariantCulture, "The configured message modifier failed for message type {0} and message {1}", e, messageType, message);
+                }
+            }
 
             if (kind == PathKind.Topic)
             {

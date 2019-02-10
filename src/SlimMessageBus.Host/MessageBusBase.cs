@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Common.Logging;
@@ -32,7 +31,15 @@ namespace SlimMessageBus.Host
             AssertSettings(settings);
 
             Settings = settings;
-            ProducerSettingsByMessageType = settings.Producers.ToDictionary(x => x.MessageType);
+            ProducerSettingsByMessageType = new Dictionary<Type, ProducerSettings>();
+            foreach (var producerSettings in settings.Producers)
+            {
+                if (ProducerSettingsByMessageType.ContainsKey(producerSettings.MessageType))
+                {
+                    throw new InvalidConfigurationMessageBusException($"The produced message type '{producerSettings.MessageType}' was declared more than once (check the {nameof(MessageBusBuilder.Produce)} configuration)");
+                }
+                ProducerSettingsByMessageType.Add(producerSettings.MessageType, producerSettings);
+            }
 
             PendingRequestStore = new InMemoryPendingRequestStore();
             PendingRequestManager = new PendingRequestManager(PendingRequestStore, () => CurrentTime, TimeSpan.FromSeconds(1), request =>

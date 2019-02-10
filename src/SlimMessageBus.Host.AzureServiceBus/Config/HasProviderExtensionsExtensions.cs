@@ -1,4 +1,6 @@
-﻿using SlimMessageBus.Host.Config;
+﻿using System;
+using Microsoft.Azure.ServiceBus;
+using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.AzureServiceBus
 {
@@ -6,17 +8,24 @@ namespace SlimMessageBus.Host.AzureServiceBus
     {
         internal static HasProviderExtensions SetKind(this HasProviderExtensions producerSettings, PathKind kind)
         {
-            producerSettings.Properties["kind"] = kind;
+            producerSettings.Properties["Kind"] = kind;
             return producerSettings;
         }
 
         internal static PathKind GetKind(this HasProviderExtensions producerSettings)
         {
-            if (producerSettings.Properties.TryGetValue("kind", out var kind))
-            {
-                return (PathKind) kind;
-            }
-            return PathKind.Topic;
+            return producerSettings.GetOrDefault("Kind", PathKind.Topic);
+        }
+
+        internal static HasProviderExtensions SetMessageModifier(this HasProviderExtensions producerSettings, Action<object, Message> messageModifierAction)
+        {
+            producerSettings.Properties["MessageModifier"] = messageModifierAction;
+            return producerSettings;
+        }
+
+        internal static Action<object, Message> GetMessageModifier(this HasProviderExtensions producerSettings)
+        {
+            return producerSettings.GetOrDefault<Action<object, Message>>("MessageModifier", (x, y) => { });
         }
     }
 }

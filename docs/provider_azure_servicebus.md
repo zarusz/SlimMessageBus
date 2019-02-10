@@ -71,6 +71,26 @@ bus.Publish(msg);
 
 Setting the default queue name `DefaultQueue()` for a message type will implicitly configure `UseQueue()` for that message type. By default if no configuration is present the runtime will assume a message needs to be sent on a topic (and works as if `UseTopic()` was configured).
 
+#### Message modifier 
+
+Azure SB client's native message type (`Microsoft.Azure.ServiceBus.Message`) allows to set the partition key, message id or additional key-value properties for a message.
+
+SMB supports setting these values via a message modifier (`.WithModifier()`) configuration:
+
+```cs
+mbb.Produce<PingMessage>(x =>
+{
+    x.DefaultTopic(topic);
+    // this is optional
+    x.WithModifier((message, sbMessage) =>
+    {
+        // set the Azure SB message ID
+        sbMessage.MessageId = $"ID_{message.Counter}";
+        // set the Azure SB message partition key
+        sbMessage.PartitionKey = message.Counter.ToString(CultureInfo.InvariantCulture);
+    });
+})
+```
 
 ### Consuming Messages
 
@@ -84,7 +104,7 @@ mbb.SubscribeTo<TMessage>(x => x
     .Instances(1));
 ```
 
-Notice the subscription name needs to be provided when consuming from a topic. Furthermore, the subscription has to be created in Azue before running your application (it is not automatically created).
+Notice the subscription name needs to be provided when consuming from a topic. Furthermore, the subscription has to be created in Azure before running your application (it is not automatically created).
 
 To consume `TMessage` by `TConsumer` from `some-queue` Azure Service Bus queue use:
 

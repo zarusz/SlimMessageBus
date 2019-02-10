@@ -36,7 +36,9 @@ namespace SlimMessageBus.Host.Test
 
     public class MessageBusBaseTest : IDisposable
     {
-        private readonly MessageBusTested _bus;
+        private MessageBusBuilder BusBuilder { get; }
+        private readonly Lazy<MessageBusTested> _busLazy;
+        private MessageBusTested Bus => _busLazy.Value;
         private readonly DateTimeOffset _timeZero;
         private DateTimeOffset _timeNow;
 
@@ -48,7 +50,7 @@ namespace SlimMessageBus.Host.Test
             _timeZero = DateTimeOffset.Now;
             _timeNow = _timeZero;
 
-            var messageBusBuilder = MessageBusBuilder.Create()
+            BusBuilder = MessageBusBuilder.Create()
                 .Produce<RequestA>(x =>
                 {
                     x.DefaultTopic("a-requests");
@@ -65,12 +67,17 @@ namespace SlimMessageBus.Host.Test
                 })
                 .WithDependencyResolver(new LookupDependencyResolver(t => null))
                 .WithSerializer(new JsonMessageSerializer())
-                .WithProvider(s => new MessageBusTested(s));
+                .WithProvider(s =>
+                {
+                    var bus = new MessageBusTested(s)
+                    {
+                        // provide current time
+                        CurrentTimeProvider = () => _timeNow
+                    };
+                    return bus;
+                });
 
-            _bus = (MessageBusTested)messageBusBuilder.Build();
-
-            // provide current time
-            _bus.CurrentTimeProvider = () => _timeNow;
+            _busLazy = new Lazy<MessageBusTested>(() => (MessageBusTested)BusBuilder.Build());
         }
 
         public void Dispose()
@@ -83,8 +90,33 @@ namespace SlimMessageBus.Host.Test
         {
             if (disposing)
             {
-                _bus.Dispose();
+                if (_busLazy.IsValueCreated)
+                {
+                    _busLazy.Value.Dispose();
+                }
             }
+        }
+
+        [Fact]
+        public void WhenCreateGivenConfigurationThatDeclaresSameMessageTypeMoreThanOnceThenExceptionIsThrown()
+        {
+            // arrange
+            BusBuilder.Produce<RequestA>(x =>
+            {
+                x.DefaultTopic("default-topic");
+            });
+            BusBuilder.Produce<RequestA>(x =>
+            {
+                x.DefaultTopic("default-topic-2");
+            });
+
+            // act
+
+            Action busCreation = () => BusBuilder.Build();
+
+            // assert
+            busCreation.Should().Throw<InvalidConfigurationMessageBusException>()
+                .WithMessage("*was declared more than once*");
         }
 
         [Fact]
@@ -95,14 +127,14 @@ namespace SlimMessageBus.Host.Test
             var rb = new RequestB();
 
             // act
-            var raTask = _bus.Send(ra);
-            var rbTask = _bus.Send(rb);
+            var raTask = Bus.Send(ra);
+            var rbTask = Bus.Send(rb);
 
             WaitForTasks(2000, raTask, rbTask);
 
             // after 10 seconds
             _timeNow = _timeZero.AddSeconds(TimeoutForA10 + 1);
-            _bus.TriggerPendingRequestCleanup();
+            Bus.TriggerPendingRequestCleanup();
 
             // assert
             raTask.IsCanceled.Should().BeTrue();
@@ -110,7 +142,7 @@ namespace SlimMessageBus.Host.Test
 
             // adter 20 seconds
             _timeNow = _timeZero.AddSeconds(TimeoutDefault20 + 1);
-            _bus.TriggerPendingRequestCleanup();
+            Bus.TriggerPendingRequestCleanup();
 
             // assert
             rbTask.IsCanceled.Should().BeTrue();
@@ -122,7 +154,7 @@ namespace SlimMessageBus.Host.Test
             // arrange
             var r = new RequestA();
 
-            _bus.OnReply = (type, topic, request) =>
+            Bus.OnReply = (type, topic, request) =>
             {
                 if (topic == "a-requests")
                 {
@@ -133,15 +165,15 @@ namespace SlimMessageBus.Host.Test
             };
 
             // act
-            var rTask = _bus.Send(r);
+            var rTask = Bus.Send(r);
             WaitForTasks(2000, rTask);
-            _bus.TriggerPendingRequestCleanup();
+            Bus.TriggerPendingRequestCleanup();
 
             // assert
             rTask.IsCompleted.Should().BeTrue("Response should be completed");
             r.Id.Should().Be(rTask.Result.Id);
 
-            _bus.PendingRequestsCount.Should().Be(0, "There should be no pending requests");
+            Bus.PendingRequestsCount.Should().Be(0, "There should be no pending requests");
         }
 
         [Fact]
@@ -152,7 +184,7 @@ namespace SlimMessageBus.Host.Test
             var r2 = new RequestA();
             var r3 = new RequestA();
 
-            _bus.OnReply = (type, topic, request) =>
+            Bus.OnReply = (type, topic, request) =>
             {
                 if (topic == "a-requests")
                 {
@@ -167,13 +199,13 @@ namespace SlimMessageBus.Host.Test
             };
 
             // act
-            var r1Task = _bus.Send(r1);
-            var r2Task = _bus.Send(r2, TimeSpan.FromSeconds(1));
-            var r3Task = _bus.Send(r3);
+            var r1Task = Bus.Send(r1);
+            var r2Task = Bus.Send(r2, TimeSpan.FromSeconds(1));
+            var r3Task = Bus.Send(r3);
 
             // 2 seconds later
             _timeNow = _timeZero.AddSeconds(2);
-            _bus.TriggerPendingRequestCleanup();
+            Bus.TriggerPendingRequestCleanup();
 
             WaitForTasks(2000, r1Task, r2Task, r3Task);
 
@@ -181,7 +213,7 @@ namespace SlimMessageBus.Host.Test
             r1Task.IsCompleted.Should().BeTrue("Response 1 should be completed");
             r2Task.IsCanceled.Should().BeTrue("Response 2 should be canceled");
             r3Task.IsCompleted.Should().BeFalse("Response 3 should still be pending");
-            _bus.PendingRequestsCount.Should().Be(1, "There should be only 1 pending request");
+            Bus.PendingRequestsCount.Should().Be(1, "There should be only 1 pending request");
         }
 
         [Fact]
@@ -194,12 +226,12 @@ namespace SlimMessageBus.Host.Test
             var cts1 = new CancellationTokenSource();
             var cts2 = new CancellationTokenSource();
 
-            var r1Task = _bus.Send(r1, cts1.Token);
-            var r2Task = _bus.Send(r2, cts2.Token);
+            var r1Task = Bus.Send(r1, cts1.Token);
+            var r2Task = Bus.Send(r2, cts2.Token);
 
             // act
             cts2.Cancel();
-            _bus.TriggerPendingRequestCleanup();
+            Bus.TriggerPendingRequestCleanup();
             WaitForAnyTasks(2000, r1Task, r2Task);
 
             // assert
@@ -251,12 +283,12 @@ namespace SlimMessageBus.Host.Test
             reqMessage.SetHeader(ReqRespMessageHeaders.Expires, expires);
 
             // act
-            var payload = _bus.SerializeRequest(typeof(RequestA), r, reqMessage, new Mock<ProducerSettings>().Object);
-            _bus.DeserializeRequest(typeof(RequestA), payload, out var resMessage);
+            var payload = Bus.SerializeRequest(typeof(RequestA), r, reqMessage, new Mock<ProducerSettings>().Object);
+            Bus.DeserializeRequest(typeof(RequestA), payload, out var resMessage);
 
             // assert
             resMessage.Headers[ReqRespMessageHeaders.RequestId].Should().Be(rid);
-            resMessage.Headers[ReqRespMessageHeaders.ReplyTo].Should().Be(replyTo);        
+            resMessage.Headers[ReqRespMessageHeaders.ReplyTo].Should().Be(replyTo);
             resMessage.TryGetHeader(ReqRespMessageHeaders.Expires, out DateTimeOffset? resExpires);
 
             resExpires.HasValue.Should().BeTrue();
@@ -267,11 +299,11 @@ namespace SlimMessageBus.Host.Test
         public void GivenDisposedWhenPublishThenThrowsException()
         {
             // arrange
-            _bus.Dispose();
+            Bus.Dispose();
 
             // act
-            Func<Task> act = async () => await _bus.Publish(new SomeMessage()).ConfigureAwait(false);
-            Func<Task> actWithTopic = async () => await _bus.Publish(new SomeMessage(), "some-topic").ConfigureAwait(false);
+            Func<Task> act = async () => await Bus.Publish(new SomeMessage()).ConfigureAwait(false);
+            Func<Task> actWithTopic = async () => await Bus.Publish(new SomeMessage(), "some-topic").ConfigureAwait(false);
 
             // assert
             act.Should().Throw<MessageBusException>();
@@ -282,22 +314,21 @@ namespace SlimMessageBus.Host.Test
         public void GivenDisposedWhenSendThenThrowsException()
         {
             // arrange
-            _bus.Dispose();
+            Bus.Dispose();
 
             // act
-            Func<Task> act = async () => await _bus.Send(new SomeRequest()).ConfigureAwait(false);
-            Func<Task> actWithTopic = async () => await _bus.Send(new SomeRequest(), "some-topic").ConfigureAwait(false);
+            Func<Task> act = async () => await Bus.Send(new SomeRequest()).ConfigureAwait(false);
+            Func<Task> actWithTopic = async () => await Bus.Send(new SomeRequest(), "some-topic").ConfigureAwait(false);
 
             // assert
             act.Should().Throw<MessageBusException>();
             actWithTopic.Should().Throw<MessageBusException>();
         }
-
     }
 
     public class MessageBusTested : MessageBusBase
     {
-        public MessageBusTested(MessageBusSettings settings) 
+        public MessageBusTested(MessageBusSettings settings)
             : base(settings)
         {
             // by default no responses will arrive

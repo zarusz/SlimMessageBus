@@ -1,4 +1,6 @@
-﻿using SlimMessageBus.Host.Config;
+﻿using System;
+using Microsoft.Azure.ServiceBus;
+using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.AzureServiceBus
 {
@@ -32,6 +34,22 @@ namespace SlimMessageBus.Host.AzureServiceBus
         public static ProducerBuilder<T> ToQueue<T>(this ProducerBuilder<T> producerBuilder)
         {
             producerBuilder.Settings.SetKind(PathKind.Queue);
+            return producerBuilder;
+        }
+
+        /// <summary>
+        /// Allows to set additional properties to the native <see cref="Message"/> when producing the <see cref="T"/> message.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="producerBuilder"></param>
+        /// <param name="modifierAction"></param>
+        /// <returns></returns>
+        public static ProducerBuilder<T> WithModifier<T>(this ProducerBuilder<T> producerBuilder, Action<T, Message> modifierAction)
+        {
+            producerBuilder.Settings.SetMessageModifier((e, m) =>
+            {
+               modifierAction((T) e, m);
+            });
             return producerBuilder;
         }
     }

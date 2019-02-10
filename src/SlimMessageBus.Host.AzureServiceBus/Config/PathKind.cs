@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus
 {
-    internal enum PathKind
+    public enum PathKind
     {
         Topic,
         Queue

@@ -73,7 +73,18 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             var topic = "test-ping";
 
             MessageBusBuilder
-                .Produce<PingMessage>(x => x.DefaultTopic(topic))
+                .Produce<PingMessage>(x =>
+                {
+                    x.DefaultTopic(topic);
+                    // this is optional
+                    x.WithModifier((message, sbMessage) =>
+                    {
+                        // set the Azure SB message ID
+                        sbMessage.MessageId = $"ID_{message.Counter}";
+                        // set the Azure SB message partition key
+                        sbMessage.PartitionKey = message.Counter.ToString(CultureInfo.InvariantCulture);
+                    });
+                })
                 .Do(builder => Enumerable.Range(0, subscribers).ToList().ForEach(i =>
                 {
                     builder.SubscribeTo<PingMessage>(x => x
@@ -94,7 +105,18 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             var queue = "test-ping-queue";
 
             MessageBusBuilder
-                .Produce<PingMessage>(x => x.DefaultQueue(queue))
+                .Produce<PingMessage>(x =>
+                {
+                    x.DefaultQueue(queue);
+                    // this is optional
+                    x.WithModifier((message, sbMessage) =>
+                    {
+                        // set the Azure SB message ID
+                        sbMessage.MessageId = $"ID_{message.Counter}";
+                        // set the Azure SB message partition key
+                        sbMessage.PartitionKey = message.Counter.ToString(CultureInfo.InvariantCulture);
+                    });
+                })
                 .Do(builder => Enumerable.Range(0, subscribers).ToList().ForEach(i =>
                 {
                     builder.SubscribeTo<PingMessage>(x => x
@@ -176,7 +198,15 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             MessageBusBuilder
                 .Produce<EchoRequest>(x =>
                 {
-                    x.DefaultTopic(topic); 
+                    x.DefaultTopic(topic);
+                    // this is optional
+                    x.WithModifier((message, sbMessage) =>
+                    {
+                        // set the Azure SB message ID
+                        sbMessage.MessageId = $"ID_{message.Index}";
+                        // set the Azure SB message partition key
+                        sbMessage.PartitionKey = message.Index.ToString(CultureInfo.InvariantCulture);
+                    });
                 })
                 .Handle<EchoRequest, EchoResponse>(x => x.Topic(topic)
                     .SubscriptionName("handler")
