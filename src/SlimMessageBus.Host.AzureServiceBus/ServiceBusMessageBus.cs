@@ -20,14 +20,26 @@ namespace SlimMessageBus.Host.AzureServiceBus
         private readonly SafeDictionaryWrapper<string, ITopicClient> _producerByTopic;
         private readonly SafeDictionaryWrapper<string, IQueueClient> _producerByQueue;
 
-        private readonly List<BaseConsumer> _consumers = new List<BaseConsumer>();
-
         private readonly IDictionary<string, PathKind> _kindByTopic = new Dictionary<string, PathKind>();
         private readonly IDictionary<Type, PathKind> _kindByMessageType = new Dictionary<Type, PathKind>();
+
+        private readonly List<BaseConsumer> _consumers = new List<BaseConsumer>();
 
         public ServiceBusMessageBus(MessageBusSettings settings, ServiceBusMessageBusSettings serviceBusSettings) : base(settings)
         {
             ServiceBusSettings = serviceBusSettings;
+
+            _producerByTopic = new SafeDictionaryWrapper<string, ITopicClient>(topic =>
+            {
+                Log.DebugFormat(CultureInfo.InvariantCulture, $"Creating {nameof(ITopicClient)} for name {0}", topic);
+                return ServiceBusSettings.TopicClientFactory(topic);
+            });
+
+            _producerByQueue = new SafeDictionaryWrapper<string, IQueueClient>(queue =>
+            {
+                Log.DebugFormat(CultureInfo.InvariantCulture, $"Creating {nameof(IQueueClient)} for name {0}", queue);
+                return ServiceBusSettings.QueueClientFactory(queue);
+            });
 
             foreach (var producerSettings in settings.Producers)
             {
@@ -63,18 +75,6 @@ namespace SlimMessageBus.Host.AzureServiceBus
                 }
             }
 
-            _producerByTopic = new SafeDictionaryWrapper<string, ITopicClient>(topic =>
-            {
-                Log.DebugFormat(CultureInfo.InvariantCulture, "Creating TopicClient for path {0}", topic);
-                return serviceBusSettings.TopicClientFactory(topic);
-            });
-
-            _producerByQueue = new SafeDictionaryWrapper<string, IQueueClient>(queue =>
-            {
-                Log.DebugFormat(CultureInfo.InvariantCulture, "Creating QueueClient for path {0}", queue);
-                return serviceBusSettings.QueueClientFactory(queue);
-            });
-
             Log.Info("Creating consumers");
             foreach (var consumerSettings in settings.Consumers)
             {
@@ -93,7 +93,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
             }
         }
 
-        private void AddConsumer(AbstractConsumerSettings consumerSettings, IMessageProcessor<Message> messageProcessor)
+        protected void AddConsumer(AbstractConsumerSettings consumerSettings, IMessageProcessor<Message> messageProcessor)
         {
             var consumer = consumerSettings.GetKind() == PathKind.Topic
                 ? new TopicSubscriptionConsumer(this, consumerSettings, messageProcessor) as BaseConsumer
@@ -112,27 +112,31 @@ namespace SlimMessageBus.Host.AzureServiceBus
                 _consumers.Clear();
             }
 
+            var disposeTasks = Enumerable.Empty<Task>();
+
             if (_producerByQueue.Dictonary.Count > 0)
             {
-                Task.WaitAll(_producerByQueue.Dictonary.Values.Select(x =>
+                disposeTasks = disposeTasks.Union(_producerByQueue.Dictonary.Values.Select(x =>
                 {
-                    Log.DebugFormat(CultureInfo.InvariantCulture, "Closing QueueClient for path {0}", x.Path);
+                    Log.DebugFormat(CultureInfo.InvariantCulture, $"Closing {nameof(IQueueClient)} for name {0}", x.Path);
                     return x.CloseAsync();
-                }).ToArray());
+                }));
 
                 _producerByQueue.Clear();
             }
 
             if (_producerByTopic.Dictonary.Count > 0)
             {
-                Task.WaitAll(_producerByTopic.Dictonary.Values.Select(x =>
+                disposeTasks = disposeTasks.Union(_producerByTopic.Dictonary.Values.Select(x =>
                 {
-                    Log.DebugFormat(CultureInfo.InvariantCulture, "Closing TopicClient for path {0}", x.Path);
+                    Log.DebugFormat(CultureInfo.InvariantCulture, $"Closing {nameof(ITopicClient)} for name {0}", x.Path);
                     return x.CloseAsync();
-                }).ToArray());
+                }));
 
                 _producerByTopic.Clear();
             }
+
+            Task.WaitAll(disposeTasks.ToArray());
 
             base.Dispose(disposing);
         }
