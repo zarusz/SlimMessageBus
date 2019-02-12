@@ -56,6 +56,4 @@ namespace SlimMessageBus.Host.AspNetCore
 
         #endregion
     }
-
-
 }

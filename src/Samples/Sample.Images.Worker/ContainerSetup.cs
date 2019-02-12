@@ -75,11 +75,11 @@ namespace Sample.Images.Worker
                     });
                 })
                 //.WithDependencyResolverAsServiceLocator()
-                .WithDependencyResolverAsAutofac()
+                .WithDependencyResolver(new AutofacMessageBusDependencyResolver())
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
                 {
-                    ConsumerConfigFactory = (group) => new Dictionary<string, object>
+                    ConsumerConfigFactory = group => new Dictionary<string, object>
                     {
                         {KafkaConfigKeys.ConsumerKeys.AutoCommitEnableMs, 5000},
                         {KafkaConfigKeys.ConsumerKeys.StatisticsIntervalMs, 60000},

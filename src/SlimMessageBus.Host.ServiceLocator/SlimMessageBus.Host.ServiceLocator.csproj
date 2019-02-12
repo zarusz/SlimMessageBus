@@ -6,7 +6,7 @@
     <Authors>zarusz</Authors>
     <Company>zarusz</Company>
     <Copyright>Copyright © 2019</Copyright>
-    <Version>1.2.1</Version>
+    <Version>1.3.0</Version>
     <Product>SlimMessageBus</Product>
     <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
+    <ProjectReference Include="..\SlimMessageBus.Host.DependencyResolver\SlimMessageBus.Host.DependencyResolver.csproj" />
   </ItemGroup>
 
 </Project>

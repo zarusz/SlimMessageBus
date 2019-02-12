@@ -16,8 +16,12 @@ namespace SlimMessageBus.Host.Autofac
 
         public object Resolve(Type type)
         {
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Resolving type {0}", type);
-            Assert.IsTrue(Container != null, () => new ConfigurationMessageBusException($"The {nameof(Container)} property was null at this point"));
+            if (Container == null)
+            {
+                throw new ArgumentNullException($"The {nameof(Container)} property was null at this point");
+            }
+
+            Log.TraceFormat(CultureInfo.InvariantCulture, "Resolving type {0}", type);
             var o = Container.Resolve(type);
             Log.DebugFormat(CultureInfo.InvariantCulture, "Resolved type {0} to object {1}", type, o);
             return o;

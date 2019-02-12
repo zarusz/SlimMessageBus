@@ -13,7 +13,7 @@ namespace SlimMessageBus.Host.ServiceLocator
 
         public object Resolve(Type type)
         {
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Resolving type {0}", type);
+            Log.TraceFormat(CultureInfo.InvariantCulture, "Resolving type {0}", type);
             var o = CommonServiceLocator.ServiceLocator.Current.GetInstance(type);
             Log.DebugFormat(CultureInfo.InvariantCulture, "Resolved type {0} to object {1}", type, o);
             return o;

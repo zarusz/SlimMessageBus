@@ -15,6 +15,7 @@ using Sample.DomainEvents.Domain;
 using SlimMessageBus;
 using SlimMessageBus.Host.AspNetCore;
 using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Memory;
 using SlimMessageBus.Host.Serialization.Json;
 
@@ -65,7 +66,7 @@ namespace Sample.DomainEvents.WebApi
         public void ConfigureMessageBus(IApplicationBuilder app)
         {
             // Set the MessageBus provider, so that IMessageBus are resolved from the current request scope
-            MessageBus.SetProvider(MessageBusCurrentProviderBuilder.Create().FromPerRequestScope(app.ApplicationServices).Build());
+            MessageBus.SetProvider(MessageBusCurrentProviderBuilder.Create().From(app).Build());
         }
 
         public void ConfigureMessageBus(IServiceCollection services)
@@ -102,7 +103,7 @@ namespace Sample.DomainEvents.WebApi
                     })
                 )
                 .WithSerializer(new JsonMessageSerializer()) // Use JSON for message serialization                
-                .WithDependencyResolverAsAspNetCore(serviceProvider)
+                .WithDependencyResolver(new AspNetCoreMessageBusDependencyResolver(serviceProvider))
                 .WithProviderMemory(new MemoryMessageBusSettings
                 {
                     // Don't serialize the domain events and rather pass the same instance across handlers

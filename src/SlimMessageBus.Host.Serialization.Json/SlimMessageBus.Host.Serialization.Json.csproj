@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
+    <ProjectReference Include="..\SlimMessageBus.Host.Serialization\SlimMessageBus.Host.Serialization.csproj" />
   </ItemGroup>
 
 </Project>

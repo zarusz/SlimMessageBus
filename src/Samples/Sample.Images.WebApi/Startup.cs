@@ -73,7 +73,7 @@ namespace Sample.Images.WebApi
                 })
                 //.WithDependencyResolverAsServiceLocator()
                 //.WithDependencyResolverAsAutofac()
-                .WithDependencyResolverAsAspNetCore(serviceProvider)
+                .WithDependencyResolver(new AspNetCoreMessageBusDependencyResolver(serviceProvider))
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
 

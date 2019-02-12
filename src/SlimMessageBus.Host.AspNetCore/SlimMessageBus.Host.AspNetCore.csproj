@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <AssemblyName>SlimMessageBus.Host.AspNetCore</AssemblyName>
     <RootNamespace>SlimMessageBus.Host.AspNetCore</RootNamespace>
-    <Version>1.2.2</Version>
+    <Version>1.3.0</Version>
     <Description>Extensions for SlimMessageBus to integrate it with ASP.NET Core</Description>
     <Copyright>Copyright © 2019</Copyright>
     <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
@@ -20,8 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
-    <ProjectReference Include="..\SlimMessageBus\SlimMessageBus.csproj" />
+    <ProjectReference Include="..\SlimMessageBus.Host.DependencyResolver\SlimMessageBus.Host.DependencyResolver.csproj" />
   </ItemGroup>
 
 </Project>
