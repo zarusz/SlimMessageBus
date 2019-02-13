@@ -144,7 +144,7 @@ namespace SlimMessageBus.Host.Kafka.Test
 
     public class SomeMessageConsumer : IConsumer<SomeMessage>
     {
-        public Task OnHandle(SomeMessage message, string topic)
+        public Task OnHandle(SomeMessage message, string name)
         {
             return Task.CompletedTask;
         }

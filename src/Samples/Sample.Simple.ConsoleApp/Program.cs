@@ -197,7 +197,7 @@ namespace Sample.Simple.ConsoleApp
     {
         #region Implementation of IConsumer<in AddCommand>
 
-        public Task OnHandle(AddCommand message, string topic)
+        public Task OnHandle(AddCommand message, string name)
         {
             Console.WriteLine("Consumer: Adding {0} and {1} gives {2}", message.Left, message.Right, message.Left + message.Right);
             return Task.Delay(50); // Simulate some work
@@ -221,7 +221,7 @@ namespace Sample.Simple.ConsoleApp
     {
         #region Implementation of IRequestHandler<in MultiplyRequest,MultiplyResponse>
 
-        public async Task<MultiplyResponse> OnHandle(MultiplyRequest request, string topic)
+        public async Task<MultiplyResponse> OnHandle(MultiplyRequest request, string name)
         {
             await Task.Delay(50).ConfigureAwait(false); // Simulate some work
             return new MultiplyResponse { Result = request.Left * request.Right };

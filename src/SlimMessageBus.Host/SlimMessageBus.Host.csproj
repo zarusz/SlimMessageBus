@@ -2,15 +2,15 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard1.3</TargetFramework>
-    <Description>A lightweight message bus interface. The goal of this library is to introduce a slim facade for messaging brokers. Use one of the extensions to add in-process, Apache Kafka or Azure Event Hub messaging.</Description>
+    <Description>A lightweight message bus interface for .NET. The goal of this library is to introduce a slim facade for messaging brokers. Use one of the transport providers for in-process (in-memory), Apache Kafka or Azure Service Bus messaging.</Description>
     <Company>zarusz</Company>
     <Authors>zarusz</Authors>
     <Copyright>Copyright © 2019</Copyright>
-    <Version>1.3.0-rc1</Version>
+    <Version>1.3.0-rc0</Version>
     <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
     <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
     <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
-    <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.png</PackageIconUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.svg</PackageIconUrl>
     <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
     <PackageTags>SlimMessageBus Provider MessageBus Facade</PackageTags>
     <Product>SlimMessageBus</Product>

@@ -12,7 +12,7 @@ namespace Sample.DomainEvents.Domain
     {
         private static readonly ILog Log = LogManager.GetLogger(typeof(OrderSubmittedHandler));
 
-        public Task OnHandle(OrderSubmittedEvent e, string topic)
+        public Task OnHandle(OrderSubmittedEvent e, string name)
         {
             Log.InfoFormat(CultureInfo.InvariantCulture, "Customer {0} {1} just placed an order for:", e.Order.Customer.Firstname, e.Order.Customer.Lastname);
             foreach (var orderLine in e.Order.Lines)

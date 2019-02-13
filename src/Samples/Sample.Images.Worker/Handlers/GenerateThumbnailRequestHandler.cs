@@ -23,7 +23,7 @@ namespace Sample.Images.Worker.Handlers
 
         #region Implementation of IRequestHandler<in GenerateThumbnailRequest,GenerateThumbnailResponse>
 
-        public async Task<GenerateThumbnailResponse> OnHandle(GenerateThumbnailRequest request, string topic)
+        public async Task<GenerateThumbnailResponse> OnHandle(GenerateThumbnailRequest request, string name)
         {
             var image = await LoadImage(request.FileId).ConfigureAwait(false);
             if (image == null)

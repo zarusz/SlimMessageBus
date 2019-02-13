@@ -10,9 +10,9 @@
     <Product>SlimMessageBus</Product>
     <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
-    <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.png</PackageIconUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.svg</PackageIconUrl>
     <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
-    <PackageTags>SlimMessageBus Unity</PackageTags>
+    <PackageTags>SlimMessageBus Unity messaging</PackageTags>
     <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
   </PropertyGroup>
 

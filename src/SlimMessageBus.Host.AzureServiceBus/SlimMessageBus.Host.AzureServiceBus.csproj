@@ -8,10 +8,10 @@
     <Copyright>Copyright © 2019</Copyright>
     <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
-    <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.png</PackageIconUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.svg</PackageIconUrl>
     <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
-    <PackageTags>Azure Service Bus provider SlimMessageBus MessageBus bus facade</PackageTags>
-    <Version>1.0.0-rc4</Version>
+    <PackageTags>Azure Service Bus provider SlimMessageBus MessageBus bus facade messaging client</PackageTags>
+    <Version>1.0.0-rc5</Version>
     <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
   </PropertyGroup>
 

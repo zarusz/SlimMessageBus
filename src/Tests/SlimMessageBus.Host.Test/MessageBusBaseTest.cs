@@ -341,11 +341,11 @@ namespace SlimMessageBus.Host.Test
 
         #region Overrides of BaseMessageBus
 
-        public override Task ProduceToTransport(Type messageType, object message, string topic, byte[] payload)
+        public override Task ProduceToTransport(Type messageType, object message, string name, byte[] payload)
         {
             var req = DeserializeRequest(messageType, payload, out var requestMessage);
 
-            var resp = OnReply(messageType, topic, req);
+            var resp = OnReply(messageType, name, req);
             if (resp == null)
             {
                 return Task.CompletedTask;

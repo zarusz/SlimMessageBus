@@ -22,7 +22,7 @@ namespace SlimMessageBus.Host.Test
     {
         #region Implementation of IConsumer<in SomeMessage>
 
-        public Task OnHandle(SomeMessage message, string topic)
+        public Task OnHandle(SomeMessage message, string name)
         {
             throw new NotImplementedException();
         }
@@ -34,7 +34,7 @@ namespace SlimMessageBus.Host.Test
     {
         #region Implementation of IRequestHandler<in SomeRequest,SomeResponse>
 
-        public Task<SomeResponse> OnHandle(SomeRequest request, string topic)
+        public Task<SomeResponse> OnHandle(SomeRequest request, string name)
         {
             throw new NotImplementedException();
         }

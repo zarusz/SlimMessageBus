@@ -141,11 +141,11 @@ namespace SlimMessageBus.Host.AzureServiceBus
             base.Dispose(disposing);
         }
 
-        protected virtual async Task ProduceToTransport(Type messageType, object message, string topic, byte[] payload, PathKind kind)
+        protected virtual async Task ProduceToTransport(Type messageType, object message, string name, byte[] payload, PathKind kind)
         {
             AssertActive();
 
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Producing message {0} of type {1} on {2} {3} with size {4}", message, messageType.Name, kind, topic, payload.Length);
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Producing message {0} of type {1} on {2} {3} with size {4}", message, messageType.Name, kind, name, payload.Length);
 
             var m = new Message(payload);
 
@@ -164,22 +164,22 @@ namespace SlimMessageBus.Host.AzureServiceBus
 
             if (kind == PathKind.Topic)
             {
-                var topicProducer = _producerByTopic.GetOrAdd(topic);
+                var topicProducer = _producerByTopic.GetOrAdd(name);
                 await topicProducer.SendAsync(m).ConfigureAwait(false);
             }
             else
             {
-                var queueProducer = _producerByQueue.GetOrAdd(topic);
+                var queueProducer = _producerByQueue.GetOrAdd(name);
                 await queueProducer.SendAsync(m).ConfigureAwait(false);
             }
 
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Delivered message {0} of type {1} on {2} {3}", message, messageType.Name, kind, topic);
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Delivered message {0} of type {1} on {2} {3}", message, messageType.Name, kind, name);
         }
 
-        public override Task ProduceToTransport(Type messageType, object message, string topic, byte[] payload)
+        public override Task ProduceToTransport(Type messageType, object message, string name, byte[] payload)
         {
             // determine the SMB topic name if its a Azure SB queue or topic
-            if (!_kindByTopic.TryGetValue(topic, out var kind))
+            if (!_kindByTopic.TryGetValue(name, out var kind))
             {
                 if (!_kindByMessageType.TryGetValue(messageType, out kind))
                 {
@@ -188,7 +188,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
                 }
             }
 
-            return ProduceToTransport(messageType, message, topic, payload, kind);
+            return ProduceToTransport(messageType, message, name, payload, kind);
         }
 
         #endregion
@@ -197,10 +197,10 @@ namespace SlimMessageBus.Host.AzureServiceBus
 
         #region Overrides of MessageBusBase
 
-        public override Task ProduceRequest(object request, MessageWithHeaders requestMessage, string topic, ProducerSettings producerSettings)
+        public override Task ProduceRequest(object request, MessageWithHeaders requestMessage, string name, ProducerSettings producerSettings)
         {
             requestMessage.SetHeader(RequestHeaderReplyToKind, (int)Settings.RequestResponse.GetKind());
-            return base.ProduceRequest(request, requestMessage, topic, producerSettings);
+            return base.ProduceRequest(request, requestMessage, name, producerSettings);
         }
 
         public override Task ProduceResponse(object request, MessageWithHeaders requestMessage, object response, MessageWithHeaders responseMessage, ConsumerSettings consumerSettings)

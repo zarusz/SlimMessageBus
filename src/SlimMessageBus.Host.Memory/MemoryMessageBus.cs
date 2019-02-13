@@ -32,11 +32,11 @@ namespace SlimMessageBus.Host.Memory
 
         #region Overrides of MessageBusBase
 
-        public override Task ProduceToTransport(Type messageType, object message, string topic, byte[] payload)
+        public override Task ProduceToTransport(Type messageType, object message, string name, byte[] payload)
         {
-            if (!_consumersByTopic.TryGetValue(topic, out var consumers))
+            if (!_consumersByTopic.TryGetValue(name, out var consumers))
             {
-                Log.DebugFormat(CultureInfo.InvariantCulture, "No consumers interested in event {0} on topic {1}", messageType, topic);
+                Log.DebugFormat(CultureInfo.InvariantCulture, "No consumers interested in event {0} on topic {1}", messageType, name);
                 return Task.CompletedTask;
             }
 

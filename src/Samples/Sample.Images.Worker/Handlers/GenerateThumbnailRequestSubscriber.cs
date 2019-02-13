@@ -22,9 +22,9 @@ namespace Sample.Images.Worker.Handlers
 
         #region Implementation of ISubscriber<in GenerateThumbnailRequest>
 
-        public Task OnHandle(GenerateThumbnailRequest message, string topic)
+        public Task OnHandle(GenerateThumbnailRequest message, string name)
         {
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Handling message on topic {0} ({1})", topic, _instanceId);
+            Log.InfoFormat(CultureInfo.InvariantCulture, "Handling message on topic {0} ({1})", name, _instanceId);
             return Task.CompletedTask;
         }
 

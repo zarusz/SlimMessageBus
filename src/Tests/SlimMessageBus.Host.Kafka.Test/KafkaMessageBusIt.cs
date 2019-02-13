@@ -264,7 +264,7 @@ namespace SlimMessageBus.Host.Kafka.Test
 
             #region Implementation of IConsumer<in PingMessage>
 
-            public Task OnHandle(PingMessage message, string topic)
+            public Task OnHandle(PingMessage message, string name)
             {
                 lock (this)
                 {
@@ -274,7 +274,7 @@ namespace SlimMessageBus.Host.Kafka.Test
                     Messages.Add(Tuple.Create(message, partition));
                 }
 
-                Log.InfoFormat(CultureInfo.InvariantCulture, "Got message {0} on topic {1}.", message.Counter, topic);
+                Log.InfoFormat(CultureInfo.InvariantCulture, "Got message {0} on topic {1}.", message.Counter, name);
                 return Task.CompletedTask;
             }
 
@@ -306,7 +306,7 @@ namespace SlimMessageBus.Host.Kafka.Test
 
         private class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
         {
-            public Task<EchoResponse> OnHandle(EchoRequest request, string topic)
+            public Task<EchoResponse> OnHandle(EchoRequest request, string name)
             {
                 return Task.FromResult(new EchoResponse { Message = request.Message });
             }

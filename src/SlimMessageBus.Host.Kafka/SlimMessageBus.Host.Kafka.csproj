@@ -6,13 +6,13 @@
     <Company>zarusz</Company>
     <Description>Apache Kafka provider for SlimMessageBus</Description>
     <Copyright>Copyright © 2019</Copyright>
-    <PackageTags>Apache Kafka provider SlimMessageBus MessageBus bus facade</PackageTags>
+    <PackageTags>Apache Kafka provider SlimMessageBus MessageBus bus facade messaging</PackageTags>
     <Version>1.2.1-rc2</Version>
     <Product>SlimMessageBus</Product>
     <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
-    <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.png</PackageIconUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.svg</PackageIconUrl>
     <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
   </PropertyGroup>
 

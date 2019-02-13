@@ -83,20 +83,20 @@ namespace SlimMessageBus.Host.AzureEventHub
         /// <param name="messageType"></param>
         /// <param name="payload"></param>
         /// <param name="message"></param>
-        /// <param name="topic"></param>
+        /// <param name="name"></param>
         /// <returns></returns>
-        public override async Task ProduceToTransport(Type messageType, object message, string topic, byte[] payload)
+        public override async Task ProduceToTransport(Type messageType, object message, string name, byte[] payload)
         {
             AssertActive();
 
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Producing message {0} of type {1} on topic {2} with size {3}", message, messageType.Name, topic, payload.Length);
-            var producer = _producerByTopic.GetOrAdd(topic);
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Producing message {0} of type {1} on topic {2} with size {3}", message, messageType.Name, name, payload.Length);
+            var producer = _producerByTopic.GetOrAdd(name);
             
             var ev = new EventData(payload);
             // ToDo: Add support for partition keys
             await producer.SendAsync(ev).ConfigureAwait(false);
 
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Delivered message {0} of type {1} on topic {2}", message, messageType.Name, topic);
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Delivered message {0} of type {1} on topic {2}", message, messageType.Name, name);
         }
     }
 }

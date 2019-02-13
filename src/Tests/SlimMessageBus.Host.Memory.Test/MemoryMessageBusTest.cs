@@ -160,7 +160,7 @@ namespace SlimMessageBus.Host.Memory.Test
     {
         #region Implementation of IConsumer<in SomeMessageA>
 
-        public virtual Task OnHandle(SomeMessageA messageA, string topic)
+        public virtual Task OnHandle(SomeMessageA messageA, string name)
         {
             return Task.CompletedTask;
         }
@@ -172,7 +172,7 @@ namespace SlimMessageBus.Host.Memory.Test
     {
         #region Implementation of IConsumer<in SomeMessageA>
 
-        public virtual Task OnHandle(SomeMessageA messageA, string topic)
+        public virtual Task OnHandle(SomeMessageA messageA, string name)
         {
             return Task.CompletedTask;
         }
@@ -184,7 +184,7 @@ namespace SlimMessageBus.Host.Memory.Test
     {
         #region Implementation of IConsumer<in SomeMessageB>
 
-        public virtual Task OnHandle(SomeMessageB message, string topic)
+        public virtual Task OnHandle(SomeMessageB message, string name)
         {
             return Task.CompletedTask;
         }

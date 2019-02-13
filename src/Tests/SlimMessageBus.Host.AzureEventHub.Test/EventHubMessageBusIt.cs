@@ -216,14 +216,14 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
 
             #region Implementation of IConsumer<in PingMessage>
 
-            public Task OnHandle(PingMessage message, string topic)
+            public Task OnHandle(PingMessage message, string name)
             {
                 lock (this)
                 {
                     Messages.Add(message);
                 }
 
-                Log.InfoFormat(CultureInfo.InvariantCulture, "Got message {0} on topic {1}.", message.Counter, topic);
+                Log.InfoFormat(CultureInfo.InvariantCulture, "Got message {0} on topic {1}.", message.Counter, name);
                 return Task.CompletedTask;
             }
 
@@ -255,7 +255,7 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
 
         private class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
         {
-            public Task<EchoResponse> OnHandle(EchoRequest request, string topic)
+            public Task<EchoResponse> OnHandle(EchoRequest request, string name)
             {
                 return Task.FromResult(new EchoResponse { Message = request.Message });
             }

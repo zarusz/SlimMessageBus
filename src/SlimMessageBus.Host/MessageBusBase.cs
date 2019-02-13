@@ -62,7 +62,7 @@ namespace SlimMessageBus.Host
             if (settings.RequestResponse != null)
             {
                 Assert.IsTrue(settings.RequestResponse.Topic != null,
-                    () => new InvalidConfigurationMessageBusException("Request-response: topic was not set"));
+                    () => new InvalidConfigurationMessageBusException("Request-response: name was not set"));
             }
         }
 
@@ -128,46 +128,46 @@ namespace SlimMessageBus.Host
             return producerSettings;
         }
 
-        protected virtual string GetDefaultTopic(Type messageType)
+        protected virtual string GetDefaultName(Type messageType)
         {
             // when topic was not provided, lookup default topic from configuration
-            var publisherSettings = GetProducerSettings(messageType);
-            return GetDefaultTopic(messageType, publisherSettings);
+            var producerSettings = GetProducerSettings(messageType);
+            return GetDefaultName(messageType, producerSettings);
         }
 
-        protected virtual string GetDefaultTopic(Type messageType, ProducerSettings producerSettings)
+        protected virtual string GetDefaultName(Type messageType, ProducerSettings producerSettings)
         {
-            var topic = producerSettings.DefaultTopic;
-            if (topic == null)
+            var name = producerSettings.DefaultTopic;
+            if (name == null)
             {
-                throw new PublishMessageBusException($"An attempt to produce message of type {messageType} without specifying topic, but there was no default topic configured. Double check your configuration.");
+                throw new PublishMessageBusException($"An attempt to produce message of type {messageType} without specifying name, but there was no default name configured. Double check your configuration.");
             }
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Applying default topic {0} for message type {1}", topic, messageType);
-            return topic;
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Applying default name {0} for message type {1}", name, messageType);
+            return name;
         }
 
-        public abstract Task ProduceToTransport(Type messageType, object message, string topic, byte[] payload);
+        public abstract Task ProduceToTransport(Type messageType, object message, string name, byte[] payload);
 
-        public virtual Task Publish(Type messageType, object message, string topic = null)
+        public virtual Task Publish(Type messageType, object message, string name = null)
         {
             AssertActive();
 
-            if (topic == null)
+            if (name == null)
             {
-                topic = GetDefaultTopic(messageType);
+                name = GetDefaultName(messageType);
             }
 
             var payload = SerializeMessage(messageType, message);
 
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Producing message {0} of type {1} to topic {2} with payload size {3}", message, messageType, topic, payload?.Length ?? 0);
-            return ProduceToTransport(messageType, message, topic, payload);
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Producing message {0} of type {1} to name {2} with payload size {3}", message, messageType, name, payload?.Length ?? 0);
+            return ProduceToTransport(messageType, message, name, payload);
         }
 
         #region Implementation of IPublishBus
 
-        public virtual Task Publish<TMessage>(TMessage message, string topic = null)
+        public virtual Task Publish<TMessage>(TMessage message, string name = null)
         {
-            return Publish(message.GetType(), message, topic);
+            return Publish(message.GetType(), message, name);
         }
 
         #endregion
@@ -179,7 +179,7 @@ namespace SlimMessageBus.Host
             return timeout;
         }
 
-        protected virtual async Task<TResponseMessage> SendInternal<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan? timeout, string topic, CancellationToken cancellationToken)
+        protected virtual async Task<TResponseMessage> SendInternal<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan? timeout, string name, CancellationToken cancellationToken)
         {
             AssertActive();
             AssertRequestResponseConfigured();
@@ -190,9 +190,9 @@ namespace SlimMessageBus.Host
             var requestType = request.GetType();
             var producerSettings = GetProducerSettings(requestType);
 
-            if (topic == null)
+            if (name == null)
             {
-                topic = GetDefaultTopic(requestType, producerSettings);
+                name = GetDefaultName(requestType, producerSettings);
             }
 
             if (timeout == null)
@@ -220,8 +220,8 @@ namespace SlimMessageBus.Host
 
             try
             {
-                Log.DebugFormat(CultureInfo.InvariantCulture, "Sending request message {0} to topic {1} with reply to {2}", requestState, topic, Settings.RequestResponse.Topic);
-                await ProduceRequest(request, requestMessage, topic, producerSettings).ConfigureAwait(false);
+                Log.DebugFormat(CultureInfo.InvariantCulture, "Sending request message {0} to name {1} with reply to {2}", requestState, name, Settings.RequestResponse.Topic);
+                await ProduceRequest(request, requestMessage, name, producerSettings).ConfigureAwait(false);
             }
             catch (PublishMessageBusException e)
             {
@@ -236,14 +236,14 @@ namespace SlimMessageBus.Host
             return (TResponseMessage) responseUntyped;
         }
 
-        public virtual Task ProduceRequest(object request, MessageWithHeaders requestMessage, string topic, ProducerSettings producerSettings)
+        public virtual Task ProduceRequest(object request, MessageWithHeaders requestMessage, string name, ProducerSettings producerSettings)
         {
             var requestType = request.GetType();
 
             requestMessage.SetHeader(ReqRespMessageHeaders.ReplyTo, Settings.RequestResponse.Topic);
             var requestMessagePayload = SerializeRequest(requestType, request, requestMessage, producerSettings);
 
-            return ProduceToTransport(requestType, request, topic, requestMessagePayload);
+            return ProduceToTransport(requestType, request, name, requestMessagePayload);
         }
 
         public virtual Task ProduceResponse(object request, MessageWithHeaders requestMessage, object response, MessageWithHeaders responseMessage, ConsumerSettings consumerSettings)
@@ -262,14 +262,14 @@ namespace SlimMessageBus.Host
             return SendInternal(request, null, null, cancellationToken);
         }
 
-        public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string topic = null, CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string name = null, CancellationToken cancellationToken = default(CancellationToken))
         {
-            return SendInternal(request, null, topic, cancellationToken);
+            return SendInternal(request, null, name, cancellationToken);
         }
 
-        public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string topic = null, CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string name = null, CancellationToken cancellationToken = default(CancellationToken))
         {
-            return SendInternal(request, timeout, topic, cancellationToken);
+            return SendInternal(request, timeout, name, cancellationToken);
         }
 
         #endregion
@@ -310,37 +310,37 @@ namespace SlimMessageBus.Host
         /// Should be invoked by the concrete bus implementation whenever there is a message arrived on the reply to topic.
         /// </summary>
         /// <param name="responsePayload"></param>
-        /// <param name="topic"></param>
+        /// <param name="name"></param>
         /// <returns></returns>
-        public virtual Task OnResponseArrived(byte[] responsePayload, string topic)
+        public virtual Task OnResponseArrived(byte[] responsePayload, string name)
         {
             var responseMessage = (MessageWithHeaders)Settings.MessageWithHeadersSerializer.Deserialize(typeof(MessageWithHeaders), responsePayload);
 
             if (!responseMessage.TryGetHeader(ReqRespMessageHeaders.RequestId, out string requestId))
             {
-                Log.ErrorFormat(CultureInfo.InvariantCulture, "The response message arriving on topic {0} did not have the {1} header. Unable to math the response with the request. This likely indicates a misconfiguration.", topic, ReqRespMessageHeaders.RequestId);
+                Log.ErrorFormat(CultureInfo.InvariantCulture, "The response message arriving on name {0} did not have the {1} header. Unable to math the response with the request. This likely indicates a misconfiguration.", name, ReqRespMessageHeaders.RequestId);
                 return Task.CompletedTask;
             }
 
             responseMessage.TryGetHeader(ReqRespMessageHeaders.Error, out string error);
 
-            return OnResponseArrived(responseMessage.Payload, topic, requestId, error);
+            return OnResponseArrived(responseMessage.Payload, name, requestId, error);
         }
 
         /// <summary>
-        /// Should be invoked by the concrete bus implementation whenever there is a message arrived on the reply to topic.
+        /// Should be invoked by the concrete bus implementation whenever there is a message arrived on the reply to topic name.
         /// </summary>
         /// <param name="payload"></param>
-        /// <param name="topic"></param>
+        /// <param name="name"></param>
         /// <param name="requestId"></param>
         /// <param name="errorMessage"></param>
         /// <returns></returns>
-        public virtual Task OnResponseArrived(byte[] payload, string topic, string requestId, string errorMessage)
+        public virtual Task OnResponseArrived(byte[] payload, string name, string requestId, string errorMessage)
         {
             var requestState = PendingRequestStore.GetById(requestId);
             if (requestState == null)
             {
-                Log.DebugFormat(CultureInfo.InvariantCulture, "The response message for request id {0} arriving on topic {1} will be disregarded. Either the request had already expired, had been cancelled or it was already handled (this response message is a duplicate).", requestId, topic);
+                Log.DebugFormat(CultureInfo.InvariantCulture, "The response message for request id {0} arriving on name {1} will be disregarded. Either the request had already expired, had been cancelled or it was already handled (this response message is a duplicate).", requestId, name);
                 
                 // ToDo: add and API hook to these kind of situation
                 return Task.CompletedTask;
@@ -351,13 +351,13 @@ namespace SlimMessageBus.Host
                 if (Log.IsDebugEnabled)
                 {
                     var tookTimespan = CurrentTime.Subtract(requestState.Created);
-                    Log.DebugFormat(CultureInfo.InvariantCulture, "Response arrived for {0} on topic {1} (time: {2} ms)", requestState, topic, tookTimespan);
+                    Log.DebugFormat(CultureInfo.InvariantCulture, "Response arrived for {0} on name {1} (time: {2} ms)", requestState, name, tookTimespan);
                 }
 
                 if (errorMessage != null)
                 {
                     // error response arrived
-                    Log.DebugFormat(CultureInfo.InvariantCulture, "Response arrived for {0} on topic {1} with error: {2}", requestState, topic, errorMessage);
+                    Log.DebugFormat(CultureInfo.InvariantCulture, "Response arrived for {0} on name {1} with error: {2}", requestState, name, errorMessage);
 
                     var e = new RequestHandlerFaultedMessageBusException(errorMessage);
                     requestState.TaskCompletionSource.TrySetException(e);
@@ -375,7 +375,7 @@ namespace SlimMessageBus.Host
                     }
                     catch (Exception e)
                     {
-                        Log.DebugFormat(CultureInfo.InvariantCulture, "Could not deserialize the response message for {0} arriving on topic {1}: {2}", requestState, topic, e);
+                        Log.DebugFormat(CultureInfo.InvariantCulture, "Could not deserialize the response message for {0} arriving on name {1}: {2}", requestState, name, e);
                         requestState.TaskCompletionSource.TrySetException(e);
                     }
                 }

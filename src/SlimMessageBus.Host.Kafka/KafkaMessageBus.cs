@@ -177,28 +177,28 @@ namespace SlimMessageBus.Host.Kafka
             base.Dispose(disposing);
         }
 
-        public override async Task ProduceToTransport(Type messageType, object message, string topic, byte[] payload)
+        public override async Task ProduceToTransport(Type messageType, object message, string name, byte[] payload)
         {
             AssertActive();
 
             // calculate message key
-            var key = GetMessageKey(messageType, message, topic);
+            var key = GetMessageKey(messageType, message, name);
 
             // calculate partition
-            var partition = GetMessagePartition(messageType, message, topic);
+            var partition = GetMessagePartition(messageType, message, name);
 
             Log.TraceFormat(CultureInfo.InvariantCulture, "Producing message {0} of type {1}, on topic {2}, partition {3}, key length {4}, payload size {5}", 
-                message, messageType.Name, topic, partition, key?.Length ?? 0, payload.Length);
+                message, messageType.Name, name, partition, key?.Length ?? 0, payload.Length);
 
             // send the message to topic
             var task = partition == NoPartition
-                ? _producer.ProduceAsync(topic, key, payload)
-                : _producer.ProduceAsync(topic, key, 0, key?.Length ?? 0, payload, 0, payload.Length, partition);
+                ? _producer.ProduceAsync(name, key, payload)
+                : _producer.ProduceAsync(name, key, 0, key?.Length ?? 0, payload, 0, payload.Length, partition);
             
             var deliveryReport = await task.ConfigureAwait(false);
             if (deliveryReport.Error.HasError)
             {
-                throw new PublishMessageBusException($"Error while publish message {message} of type {messageType.Name} to topic {topic}. Kafka response code: {deliveryReport.Error.Code}, reason: {deliveryReport.Error.Reason}");
+                throw new PublishMessageBusException($"Error while publish message {message} of type {messageType.Name} to topic {name}. Kafka response code: {deliveryReport.Error.Code}, reason: {deliveryReport.Error.Reason}");
             }
 
             // log some debug information

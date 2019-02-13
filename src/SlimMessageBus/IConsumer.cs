@@ -12,8 +12,8 @@ namespace SlimMessageBus
         /// Invoked when a message arrives of type <typeparam name="TMessage"></typeparam>.
         /// </summary>
         /// <param name="message">The arriving message</param>
-        /// <param name="topic">The topic the message arrived on</param>
+        /// <param name="name">Name of the topic (or queue) the message arrived on</param>
         /// <returns></returns>
-        Task OnHandle(TMessage message, string topic);
+        Task OnHandle(TMessage message, string name);
     }
 }
