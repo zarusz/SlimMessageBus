@@ -7,7 +7,7 @@
     <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
     <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
     <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
-    <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.svg</PackageIconUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.png</PackageIconUrl>
     <Description>Azure EventHubs provider for SlimMessageBus</Description>
     <Product>SlimMessageBus</Product>
     <Company>zarusz</Company>

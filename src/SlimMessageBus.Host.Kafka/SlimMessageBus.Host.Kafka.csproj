@@ -12,7 +12,7 @@
     <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
-    <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.svg</PackageIconUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.png</PackageIconUrl>
     <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
   </PropertyGroup>
 
