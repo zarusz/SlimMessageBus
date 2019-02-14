@@ -23,7 +23,7 @@ namespace SlimMessageBus.Host.Test.Consumer
             var consumerSettings = new ConsumerSettings
             {
                 Instances = 2,
-                ConsumerMode = ConsumerMode.Subscriber,
+                ConsumerMode = ConsumerMode.Consumer,
                 ConsumerType = typeof(IConsumer<SomeMessage>),
                 MessageType = typeof(SomeMessage)
             };

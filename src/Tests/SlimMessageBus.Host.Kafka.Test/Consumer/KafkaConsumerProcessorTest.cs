@@ -30,7 +30,7 @@ namespace SlimMessageBus.Host.Kafka.Test
                 MessageType = typeof(SomeMessage),
                 Topic = _topicPartition.Topic,
                 ConsumerType = typeof(SomeMessageConsumer),
-                ConsumerMode = ConsumerMode.Subscriber
+                ConsumerMode = ConsumerMode.Consumer
             };
             consumerSettings.SetGroup("group-a");
 

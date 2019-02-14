@@ -87,10 +87,10 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
                 })
                 .Do(builder => Enumerable.Range(0, subscribers).ToList().ForEach(i =>
                 {
-                    builder.SubscribeTo<PingMessage>(x => x
+                    builder.Consume<PingMessage>(x => x
                         .Topic(topic)
                         .SubscriptionName($"subscriber-{i}") // ensure subscription exists on the ServiceBus topic
-                        .WithSubscriber<PingConsumer>()
+                        .WithConsumer<PingConsumer>()
                         .Instances(concurrency));
                 }));
 
@@ -119,9 +119,9 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
                 })
                 .Do(builder => Enumerable.Range(0, subscribers).ToList().ForEach(i =>
                 {
-                    builder.SubscribeTo<PingMessage>(x => x
+                    builder.Consume<PingMessage>(x => x
                         .Queue(queue)
-                        .WithSubscriber<PingConsumer>()
+                        .WithConsumer<PingConsumer>()
                         .Instances(concurrency));
                 }));
 

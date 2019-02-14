@@ -48,7 +48,7 @@ namespace SlimMessageBus.Host.Memory.Test
             {
                 MessageType = messageType,
                 Topic = topic,
-                ConsumerMode = ConsumerMode.Subscriber,
+                ConsumerMode = ConsumerMode.Consumer,
                 ConsumerType = consumerType
             };
         }

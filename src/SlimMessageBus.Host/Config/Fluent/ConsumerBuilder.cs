@@ -2,21 +2,28 @@ using System;
 
 namespace SlimMessageBus.Host.Config
 {
-    public abstract class ConsumerBuilder<T>
+    public class ConsumerBuilder<T> : AbstractConsumerBuilder<T>
     {
-        public Type MessageType { get; }
-
-        public MessageBusSettings Settings { get; }
-
-        protected ConsumerBuilder(MessageBusSettings settings)
-            : this(settings, typeof(T))
+        public ConsumerBuilder(MessageBusSettings settings)
+            : base(settings)
         {
         }
 
-        protected ConsumerBuilder(MessageBusSettings settings, Type messageType)
+        public ConsumerBuilder(MessageBusSettings settings, Type messageType)
+            : base(settings, messageType)
         {
-            MessageType = messageType;
-            Settings = settings;
+        }
+
+        public TopicConsumerBuilder<T> Topic(string topic)
+        {
+            return new TopicConsumerBuilder<T>(topic, MessageType, Settings);
+        }
+
+        public TopicConsumerBuilder<T> Topic(string topic, Action<TopicConsumerBuilder<T>> topicConfig)
+        {
+            var b = Topic(topic);
+            topicConfig(b);
+            return b;
         }
     }
 }

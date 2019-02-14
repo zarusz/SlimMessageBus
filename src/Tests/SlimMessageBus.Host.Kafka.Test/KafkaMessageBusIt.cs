@@ -109,9 +109,9 @@ namespace SlimMessageBus.Host.Kafka.Test
                     // Partition #1 for odd counters
                     x.PartitionProvider((m, t) => m.Counter % 2);
                 })
-                .SubscribeTo<PingMessage>(x => x.Topic(topic)
+                .Consume<PingMessage>(x => x.Topic(topic)
                                                 .Group("subscriber")
-                                                .WithSubscriber<PingConsumer>()
+                                                .WithConsumer<PingConsumer>()
                                                 .Instances(2))
                 .WithDependencyResolver(new LookupDependencyResolver(f =>
                 {

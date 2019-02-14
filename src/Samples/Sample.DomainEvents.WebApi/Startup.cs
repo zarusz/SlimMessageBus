@@ -10,7 +10,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using NLog.Extensions.Logging;
 using Sample.DomainEvents.Domain;
 using SlimMessageBus;
 using SlimMessageBus.Host.AspNetCore;
@@ -99,7 +98,7 @@ namespace Sample.DomainEvents.WebApi
                     .ForEach(find =>
                     {
                         Log.InfoFormat(CultureInfo.InvariantCulture, "Registering {0} in the bus", find.EventType);
-                        builder.SubscribeTo(find.EventType, x => x.Topic(x.MessageType.Name).WithSubscriber(find.HandlerType));
+                        builder.Consume(find.EventType, x => x.Topic(x.MessageType.Name).WithConsumer(find.HandlerType));
                     })
                 )
                 .WithSerializer(new JsonMessageSerializer()) // Use JSON for message serialization                

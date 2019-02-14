@@ -12,6 +12,7 @@ using Common.Logging;
 using Common.Logging.Configuration;
 using Microsoft.Extensions.Configuration;
 using SecretStore;
+using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.DependencyResolver;
 
 namespace Sample.Simple.ConsoleApp
@@ -19,7 +20,8 @@ namespace Sample.Simple.ConsoleApp
     enum Provider
     {
         Kafka,
-        EventHub
+        AzureServiceBus,
+        AzureEventHub
     }
 
     internal static class Program
@@ -60,9 +62,9 @@ namespace Sample.Simple.ConsoleApp
         private static IMessageBus CreateMessageBus(IConfiguration configuration)
         {
             // Choose your provider
-            var provider = Provider.EventHub;
+            var provider = Provider.AzureServiceBus;
 
-            // Provide your event hub names
+            // Provide your event hub-names OR kafka/service bus topic names
             var topicForAddCommand = "add-command";
             var topicForMultiplyRequest = "multiply-request";
             // Note: Each running instance (node) of ConsoleApp should have its own unique response queue (i.e. responses-1)
@@ -72,41 +74,54 @@ namespace Sample.Simple.ConsoleApp
             var responseGroup = "consoleapp-1";
 
             /*
-            Azure setup notes:
+            
+            Azure Event Hub setup notes:
               Create 3 event hubs in Azure:
                 1. 'add-command' with 'consoleapp' group consumer
                 2. 'multiply-request' with 'consoleapp' group consumer
                 3. 'responses' with 'consoleapp-1' group consumer
-            */
+            
+            Azure Service Bus setup notes:
+              Create 3 topics in Azure:
+                1. 'add-command' with 'consoleapp' subscription
+                2. 'multiply-request' with 'consoleapp' subscription
+                3. 'responses' with 'consoleapp-1' subscription
+            
+             */
 
             // Create message bus using the fluent builder interface
-            IMessageBus messageBus = MessageBusBuilder.Create()
+            IMessageBus messageBus = MessageBusBuilder
+                .Create()
                 // Pub/Sub example
-                .Produce<AddCommand>(x => x.DefaultTopic(topicForAddCommand)) // By default AddCommand messages will go to event hub named 'add-command' (or topic if Kafka is chosen)
-                .SubscribeTo<AddCommand>(x => x
+                .Produce<AddCommand>(x => x.DefaultTopic(topicForAddCommand)) // By default AddCommand messages will go to event-hub/topic named 'add-command'
+                .Consume<AddCommand>(x => x
                     .Topic(topicForAddCommand)
-                    .Group(consumerGroup)
-                    .WithSubscriber<AddCommandConsumer>())
+                    .WithConsumer<AddCommandConsumer>()
+                    .Group(consumerGroup) // for Azure Event Hub
+                    .SubscriptionName(consumerGroup) // for Azure Service Bus
+                )
                 // Req/Resp example
                 .Produce<MultiplyRequest>(x =>
                 {
-                    // By default AddCommand messages will go to event hub named 'multiply-request' (or topic if Kafka is chosen)
+                    // By default AddCommand messages will go to topic/event-hub named 'multiply-request'
                     x.DefaultTopic(topicForMultiplyRequest);
-                    // Message key could be set for the message (this is optional)
+                    // Kafka: Message key could be set for the message (this is optional)
                     x.KeyProvider((request, topic) => Encoding.ASCII.GetBytes((request.Left + request.Right).ToString(CultureInfo.InvariantCulture)));
-                    // Parition selector (this is optional) - assumptions that there are 2 partitions for the topic
+                    // Kafka: Partition selector (this is optional) - assumptions that there are 2 partitions for the topic
                     // x.PartitionProvider((request, topic) => (request.Left + request.Right) % 2);
                 })
                 .Handle<MultiplyRequest, MultiplyResponse>(x => x
                     .Topic(topicForMultiplyRequest) // topic to expect the requests
-                    .Group(consumerGroup)
                     .WithHandler<MultiplyRequestHandler>()
+                    .Group(consumerGroup) // for Azure Event Hub
+                    .SubscriptionName(consumerGroup) // for Azure Service Bus
                 )
                 // Configure response message queue (on topic) when using req/resp
                 .ExpectRequestResponses(x =>
                 {
-                    x.Group(responseGroup);
                     x.ReplyToTopic(topicForResponses); // All responses from req/resp will return on this topic (the EventHub name)
+                    x.Group(responseGroup); // for Azure Event Hub
+                    x.SubscriptionName(responseGroup); // for Azure Service Bus
                     x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
                 })
                 .WithSerializer(new JsonMessageSerializer()) // Use JSON for message serialization                
@@ -122,16 +137,23 @@ namespace Sample.Simple.ConsoleApp
                     Console.WriteLine($"Using {provider} as the transport provider");
                     switch (provider)
                     {
-                        case Provider.Kafka:
+                        case Provider.AzureServiceBus:
+                            // Provide connection string to your Azure SB
+                            var serviceBusConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
+
+                            builder.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString)); // Use Azure Service Bus as provider
+                            break;
+
+                        case Provider.AzureEventHub:
                             // Provide connection string to your event hub namespace
-                            var eventHubConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub"]);
-                            var storageConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:Storage"]);
-                            var storageContainerName = configuration["Azure:ContainerName"];
+                            var eventHubConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub:ConnectionString"]);
+                            var storageConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub:Storage"]);
+                            var storageContainerName = configuration["Azure:EventHub:ContainerName"];
 
                             builder.WithProviderEventHub(new EventHubMessageBusSettings(eventHubConnectionString, storageConnectionString, storageContainerName)); // Use Azure Event Hub as provider
                             break;
 
-                        case Provider.EventHub:
+                        case Provider.Kafka:
                             // Ensure your Kafka broker is running
                             var kafkaBrokers = configuration["Kafka:Brokers"];
 

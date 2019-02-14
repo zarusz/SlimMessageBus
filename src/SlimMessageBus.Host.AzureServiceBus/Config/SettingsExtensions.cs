@@ -4,14 +4,16 @@ namespace SlimMessageBus.Host.AzureServiceBus
 {
     public static class SettingsExtensions
     {
+        private const string SubscriptionNameKey = "SubscriptionName";
+
         public static void SetSubscriptionName(this AbstractConsumerSettings consumerSettings, string subscriptionName)
         {
-            consumerSettings.Properties["SubscriptionName"] = subscriptionName;
+            consumerSettings.Properties[SubscriptionNameKey] = subscriptionName;
         }
 
         public static string GetSubscriptionName(this AbstractConsumerSettings consumerSettings)
         {
-            return consumerSettings.Properties["SubscriptionName"] as string;
+            return consumerSettings.Properties[SubscriptionNameKey] as string;
         }
 
         private static void AssertIsTopicForSubscriptionName(AbstractConsumerSettings settings)
@@ -31,29 +33,11 @@ namespace SlimMessageBus.Host.AzureServiceBus
         /// Configures the subscription name when consuming form Azure ServiceBus topic.
         /// Not applicable when consuming from Azure ServiceBus queue.
         /// </summary>
-        /// <typeparam name="TMessage"></typeparam>
         /// <param name="builder"></param>
         /// <param name="subscriptionName"></param>
         /// <returns></returns>
-        public static TopicSubscriberBuilder<TMessage> SubscriptionName<TMessage>(this TopicSubscriberBuilder<TMessage> builder, string subscriptionName)
-        {
-            AssertIsTopicForSubscriptionName(builder.ConsumerSettings);
-
-            builder.ConsumerSettings.SetSubscriptionName(subscriptionName);
-            return builder;
-        }
-
-        /// <summary>
-        /// Configures the subscription name when consuming form Azure ServiceBus topic.
-        /// Not applicable when consuming from Azure ServiceBus queue.
-        /// </summary>
-        /// <typeparam name="TRequest"></typeparam>
-        /// <typeparam name="TResponse"></typeparam>
-        /// <param name="builder"></param>
-        /// <param name="subscriptionName"></param>
-        /// <returns></returns>
-        public static TopicHandlerBuilder<TRequest, TResponse> SubscriptionName<TRequest, TResponse>(this TopicHandlerBuilder<TRequest, TResponse> builder, string subscriptionName)
-            where TRequest : IRequestMessage<TResponse>
+        public static T SubscriptionName<T>(this T builder, string subscriptionName)
+            where T : AbstractTopicConsumerBuilder
         {
             AssertIsTopicForSubscriptionName(builder.ConsumerSettings);
 

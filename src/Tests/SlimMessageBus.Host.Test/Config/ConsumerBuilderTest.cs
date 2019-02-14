@@ -4,7 +4,7 @@ using Xunit;
 
 namespace SlimMessageBus.Host.Test.Config
 {
-    public class SubscriberBuilderTest
+    public class ConsumerBuilderTest
     {
         [Fact]
         public void BuildsProperSettings()
@@ -14,11 +14,10 @@ namespace SlimMessageBus.Host.Test.Config
             var settings = new MessageBusSettings();            
 
             // act
-            var subject = new SubscriberBuilder<SomeMessage>(settings)
+            var subject = new ConsumerBuilder<SomeMessage>(settings)
                 .Topic(topic)
                 .Instances(3)
-                .WithSubscriber<SomeMessageConsumer>();
-
+                .WithConsumer<SomeMessageConsumer>();
 
             // assert
             subject.ConsumerSettings.MessageType.Should().Be(typeof(SomeMessage));
@@ -27,7 +26,7 @@ namespace SlimMessageBus.Host.Test.Config
             subject.ConsumerSettings.Topic.Should().Be(topic);
             subject.ConsumerSettings.Instances.Should().Be(3);
             subject.ConsumerSettings.ConsumerType.Should().Be(typeof(SomeMessageConsumer));
-            subject.ConsumerSettings.ConsumerMode.Should().Be(ConsumerMode.Subscriber);
+            subject.ConsumerSettings.ConsumerMode.Should().Be(ConsumerMode.Consumer);
             subject.ConsumerSettings.IsRequestMessage.Should().BeFalse();
             subject.ConsumerSettings.ResponseType.Should().BeNull();
         }

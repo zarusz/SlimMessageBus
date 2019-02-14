@@ -30,7 +30,7 @@ namespace SlimMessageBus.Host.Test
             var consumerSettings = new ConsumerSettings
             {
                 Instances = 2,
-                ConsumerMode = ConsumerMode.Subscriber,
+                ConsumerMode = ConsumerMode.Consumer,
                 ConsumerType = typeof(IConsumer<SomeMessage>),
                 MessageType = typeof(SomeMessage)
             };
@@ -73,7 +73,7 @@ namespace SlimMessageBus.Host.Test
             var consumerSettings = new ConsumerSettings
             {
                 Instances = consumerInstances,
-                ConsumerMode = ConsumerMode.Subscriber,
+                ConsumerMode = ConsumerMode.Consumer,
                 ConsumerType = typeof(IConsumer<SomeMessage>),
                 MessageType = typeof(SomeMessage)
             };
@@ -216,7 +216,7 @@ namespace SlimMessageBus.Host.Test
             {
                 Instances = 1,
                 Topic = "topic1",
-                ConsumerMode = ConsumerMode.Subscriber,
+                ConsumerMode = ConsumerMode.Consumer,
                 ConsumerType = typeof(IConsumer<SomeMessage>),
                 MessageType = typeof(SomeMessage),
                 OnMessageFault = onMessageFaultMock.Object

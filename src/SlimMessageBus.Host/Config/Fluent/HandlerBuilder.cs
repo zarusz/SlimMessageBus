@@ -2,7 +2,7 @@ using System;
 
 namespace SlimMessageBus.Host.Config
 {
-    public class HandlerBuilder<TRequest, TResponse> : ConsumerBuilder<TRequest>
+    public class HandlerBuilder<TRequest, TResponse> : AbstractConsumerBuilder<TRequest>
         where TRequest : IRequestMessage<TResponse> 
     {
         public HandlerBuilder(MessageBusSettings settings)

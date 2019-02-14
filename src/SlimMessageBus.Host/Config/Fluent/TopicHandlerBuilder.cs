@@ -2,7 +2,7 @@ using System.Linq;
 
 namespace SlimMessageBus.Host.Config
 {
-    public class TopicHandlerBuilder<TRequest, TResponse> : TopicConsumerBuilder<TRequest>
+    public class TopicHandlerBuilder<TRequest, TResponse> : AbstractTopicConsumerBuilder
         where TRequest : IRequestMessage<TResponse>
     {
         public TopicHandlerBuilder(string topic, MessageBusSettings settings)

@@ -4,34 +4,20 @@ namespace SlimMessageBus.Host.AzureEventHub
 {
     public static class SettingsExtensions
     {
-        public static void SetGroup(this ConsumerSettings consumerSettings, string group)
+        private const string GroupKey = "Group";
+
+        public static void SetGroup(this AbstractConsumerSettings consumerSettings, string group)
         {
-            consumerSettings.Properties["Group"] = group;
+            consumerSettings.Properties[GroupKey] = group;
         }
 
-        public static string GetGroup(this ConsumerSettings consumerSettings)
+        public static string GetGroup(this AbstractConsumerSettings consumerSettings)
         {
-            return consumerSettings.Properties["Group"] as string;
+            return consumerSettings.Properties[GroupKey] as string;
         }
 
-        public static void SetGroup(this RequestResponseSettings consumerSettings, string group)
-        {
-            consumerSettings.Properties["Group"] = group;
-        }
-
-        public static string GetGroup(this RequestResponseSettings consumerSettings)
-        {
-            return consumerSettings.Properties["Group"] as string;
-        }
-
-        public static TopicSubscriberBuilder<TMessage> Group<TMessage>(this TopicSubscriberBuilder<TMessage> builder, string group)
-        {
-            builder.ConsumerSettings.SetGroup(group);
-            return builder;
-        }
-
-        public static TopicHandlerBuilder<TRequest, TResponse> Group<TRequest, TResponse>(this TopicHandlerBuilder<TRequest, TResponse> builder, string group)
-            where TRequest : IRequestMessage<TResponse>
+        public static T Group<T>(this T builder, string group)
+            where T : AbstractTopicConsumerBuilder
         {
             builder.ConsumerSettings.SetGroup(group);
             return builder;

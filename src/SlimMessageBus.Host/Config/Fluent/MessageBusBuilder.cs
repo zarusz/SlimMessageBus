@@ -52,9 +52,9 @@ namespace SlimMessageBus.Host.Config
         /// <typeparam name="TMessage">Type of message</typeparam>
         /// <param name="subscriberBuilder"></param>
         /// <returns></returns>
-        public MessageBusBuilder SubscribeTo<TMessage>(Action<SubscriberBuilder<TMessage>> subscriberBuilder)
+        public MessageBusBuilder Consume<TMessage>(Action<ConsumerBuilder<TMessage>> subscriberBuilder)
         {
-            subscriberBuilder(new SubscriberBuilder<TMessage>(Settings));
+            subscriberBuilder(new ConsumerBuilder<TMessage>(Settings));
             return this;
         }
 
@@ -64,9 +64,9 @@ namespace SlimMessageBus.Host.Config
         /// <param name="messageType">Type of message</param>
         /// <param name="subscriberBuilder"></param>
         /// <returns></returns>
-        public MessageBusBuilder SubscribeTo(Type messageType, Action<SubscriberBuilder<object>> subscriberBuilder)
+        public MessageBusBuilder Consume(Type messageType, Action<ConsumerBuilder<object>> subscriberBuilder)
         {
-            subscriberBuilder(new SubscriberBuilder<object>(Settings, messageType));
+            subscriberBuilder(new ConsumerBuilder<object>(Settings, messageType));
             return this;
         }
 

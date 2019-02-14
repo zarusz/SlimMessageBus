@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 namespace SlimMessageBus
 {
     /// <summary>
-    /// Bus to publish messages (pub/sub)
+    /// Bus to publish messages
     /// </summary>
     public interface IPublishBus
     {

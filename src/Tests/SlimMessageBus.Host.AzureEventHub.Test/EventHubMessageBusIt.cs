@@ -77,9 +77,9 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
 
             MessageBusBuilder
                 .Produce<PingMessage>(x => x.DefaultTopic(topic))
-                .SubscribeTo<PingMessage>(x => x.Topic(topic)
+                .Consume<PingMessage>(x => x.Topic(topic)
                                                 .Group("subscriber") // ensure consumer group exists on the event hub
-                                                .WithSubscriber<PingConsumer>()
+                                                .WithConsumer<PingConsumer>()
                                                 .Instances(2))
                 .WithDependencyResolver(new LookupDependencyResolver(f =>
                 {

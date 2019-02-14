@@ -3,7 +3,7 @@ using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.Kafka
 {
-    public static class KafkaPublisherSettingsExtensions
+    public static class KafkaProducerSettingsExtensions
     {
         internal const string KeyProviderKey = "Kafka_KeyProvider";
         internal const string PartitionProviderKey = "Kafka_PartitionProvider";
