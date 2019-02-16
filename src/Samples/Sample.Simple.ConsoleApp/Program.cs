@@ -27,7 +27,7 @@ namespace Sample.Simple.ConsoleApp
     internal static class Program
     {
         private static readonly Random Random = new Random();
-        private static bool _stop;
+        private static bool _canRun = true;
 
         private static void Main()
         {
@@ -41,8 +41,10 @@ namespace Sample.Simple.ConsoleApp
             configuration.GetSection("LogConfiguration").Bind(logConfiguration);
             LogManager.Configure(logConfiguration);
 
+            // Local file with secrets
             Secrets.Load(@"..\..\..\..\..\secrets.txt");
 
+            // Create the bus and process messages
             using (var messageBus = CreateMessageBus(configuration))
             {
                 var addTask = Task.Factory.StartNew(() => AddLoop(messageBus), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
@@ -51,7 +53,7 @@ namespace Sample.Simple.ConsoleApp
                 Console.WriteLine("Press any key to stop...");
                 Console.ReadKey();
 
-                _stop = true;
+                _canRun = false;
                 Task.WaitAll(addTask, multiplyTask);
             }
         }
@@ -67,7 +69,7 @@ namespace Sample.Simple.ConsoleApp
             // Provide your event hub-names OR kafka/service bus topic names
             var topicForAddCommand = "add-command";
             var topicForMultiplyRequest = "multiply-request";
-            // Note: Each running instance (node) of ConsoleApp should have its own unique response queue (i.e. responses-1)
+            // Note: Each running instance (node) of ConsoleApp should have its own unique response queue/topic (i.e. responses-{n})
             var topicForResponses = "responses";
             // Provide consumer group name
             var consumerGroup = "consoleapp";
@@ -97,7 +99,7 @@ namespace Sample.Simple.ConsoleApp
                 .Consume<AddCommand>(x => x
                     .Topic(topicForAddCommand)
                     .WithConsumer<AddCommandConsumer>()
-                    .Group(consumerGroup) // for Azure Event Hub
+                    .Group(consumerGroup) // for Apache Kafka & Azure Event Hub
                     .SubscriptionName(consumerGroup) // for Azure Service Bus
                 )
                 // Req/Resp example
@@ -105,22 +107,36 @@ namespace Sample.Simple.ConsoleApp
                 {
                     // By default AddCommand messages will go to topic/event-hub named 'multiply-request'
                     x.DefaultTopic(topicForMultiplyRequest);
-                    // Kafka: Message key could be set for the message (this is optional)
-                    x.KeyProvider((request, topic) => Encoding.ASCII.GetBytes((request.Left + request.Right).ToString(CultureInfo.InvariantCulture)));
-                    // Kafka: Partition selector (this is optional) - assumptions that there are 2 partitions for the topic
-                    // x.PartitionProvider((request, topic) => (request.Left + request.Right) % 2);
+
+                    if (provider == Provider.AzureServiceBus) // Azure SB specific
+                    {
+                        x.WithModifier((msg, sbMsg) =>
+                        {
+                            // Assign the Azure SB native message properties that you need
+                            sbMsg.PartitionKey = (msg.Left * msg.Right).ToString(CultureInfo.InvariantCulture);
+                            sbMsg.UserProperties["UserId"] = Guid.NewGuid();
+                        });
+                    }
+
+                    if (provider == Provider.Kafka) // Kafka specific
+                    {
+                        // Message key could be set for the message (this is optional)
+                        x.KeyProvider((request, topic) => Encoding.ASCII.GetBytes((request.Left + request.Right).ToString(CultureInfo.InvariantCulture)));
+                        // Partition selector (this is optional) - assumptions that there are 2 partitions for the topic
+                        // x.PartitionProvider((request, topic) => (request.Left + request.Right) % 2);
+                    }
                 })
                 .Handle<MultiplyRequest, MultiplyResponse>(x => x
                     .Topic(topicForMultiplyRequest) // topic to expect the requests
                     .WithHandler<MultiplyRequestHandler>()
-                    .Group(consumerGroup) // for Azure Event Hub
+                    .Group(consumerGroup) // for Apache Kafka & Azure Event Hub
                     .SubscriptionName(consumerGroup) // for Azure Service Bus
                 )
                 // Configure response message queue (on topic) when using req/resp
                 .ExpectRequestResponses(x =>
                 {
                     x.ReplyToTopic(topicForResponses); // All responses from req/resp will return on this topic (the EventHub name)
-                    x.Group(responseGroup); // for Azure Event Hub
+                    x.Group(responseGroup);  // for Apache Kafka & Azure Event Hub
                     x.SubscriptionName(responseGroup); // for Azure Service Bus
                     x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
                 })
@@ -167,7 +183,7 @@ namespace Sample.Simple.ConsoleApp
 
         static async Task AddLoop(IMessageBus bus)
         {
-            while (!_stop)
+            while (_canRun)
             {
                 var a = Random.Next(100);
                 var b = Random.Next(100);
@@ -188,7 +204,7 @@ namespace Sample.Simple.ConsoleApp
 
         static async Task MultiplyLoop(IMessageBus bus)
         {
-            while (!_stop)
+            while (_canRun)
             {
                 var a = Random.Next(100);
                 var b = Random.Next(100);
@@ -219,10 +235,10 @@ namespace Sample.Simple.ConsoleApp
     {
         #region Implementation of IConsumer<in AddCommand>
 
-        public Task OnHandle(AddCommand message, string name)
+        public async Task OnHandle(AddCommand message, string name)
         {
             Console.WriteLine("Consumer: Adding {0} and {1} gives {2}", message.Left, message.Right, message.Left + message.Right);
-            return Task.Delay(50); // Simulate some work
+            await Task.Delay(50).ConfigureAwait(false); // Simulate some work
         }
 
         #endregion

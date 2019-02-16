@@ -16,6 +16,12 @@ namespace SlimMessageBus.Host.Kafka.Configs
             return consumerSettings.Properties[GroupKey] as string;
         }
 
+        /// <summary>
+        /// Configures the Kafka consumer group.
+        /// </summary>
+        /// <param name="builder"></param>
+        /// <param name="group"></param>
+        /// <returns></returns>
         public static T Group<T>(this T builder, string group)
             where T : AbstractTopicConsumerBuilder
         {
@@ -23,6 +29,12 @@ namespace SlimMessageBus.Host.Kafka.Configs
             return builder;
         }
 
+        /// <summary>
+        /// Configures the Kafka consumer group.
+        /// </summary>
+        /// <param name="builder"></param>
+        /// <param name="group"></param>
+        /// <returns></returns>
         public static RequestResponseBuilder Group(this RequestResponseBuilder builder, string group)
         {
             builder.Settings.SetGroup(group);

@@ -8,20 +8,6 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 | develop   | [![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s/branch/develop?svg=true)](https://ci.appveyor.com/project/zarusz/slimmessagebus/branch/develop) |
 | all       | [![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s?svg=true)](https://ci.appveyor.com/project/zarusz/slimmessagebus) |
 
-### Features
-
-* Types of messaging patterns supported:
-  * Publish-subscribe
-  * Request-response
-  * Queues
-  * Hybrid of the above (e.g. Kafka with multiple topic consumers in one group)
-* Modern async/await syntax and TPL
-* Fluent configuration
-* Because SlimMessageBus is a facade, you have the ability to swap broker implementations
-  * Using nuget pull another broker provider
-  * Reconfigure SlimMessageBus and retest your app
-  * Try out the messaging middleware that works best for your app (Kafka vs. Redis) without having to rewrite your app.
-
 ## Key elements of SlimMessageBus
 * Consumers:
   * `IConsumer<in TMessage>` - subscriber in pub/sub (or queue consumer)
@@ -33,19 +19,6 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 * Misc:
   * `IRequestMessage<TResponse>` - marker for request messages
   * `MessageBus` - static accessor for current context `IMessageBus`
-
-## Principles
-* The core of `SlimMessageBus` is "slim"
-  * Simple, common and friendly API to work with messaging systems
-  * No external dependencies. Logging is done via `Common.Logging`, so that you can connect your favorite logger provider.
-  * The core interface can be used in domain model (e.g. DomainEvents)
-* Plugin architecture:
-  * DI integration (Autofac, CommonServiceLocator, Unity)
-  * Message serialization (JSON, XML)
-  * Use your favorite messaging broker as provider by simply pulling a nuget package
-* No threads created (pure TPL)
-* Async/Await support
-* Fluent configuration
 
 ## Docs
 
@@ -67,7 +40,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 | `SlimMessageBus.Host.Redis` (future)            | Provider for Redis                                                                               | .                                                                              | .             |
 | `SlimMessageBus.Host.Memory`                    | Implementation for in-process (in memory) message passing (no messaging infrastructure required) | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Memory)             | 1.3           |
 | `SlimMessageBus.Host.Serialization.Json`        | Message serialization adapter for JSON (Json.NET)                                                | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json) | 1.3           |
-| `SlimMessageBus.Host.AspNetCore`                | Integration for ASP.NET Core 2.1 (DI adapter, config helpers)                                    | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore)         | 1.3           |
+| `SlimMessageBus.Host.AspNetCore`                | Integration for ASP.NET Core 2.x (DI adapter, config helpers)                                    | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore)         | 1.3           |
 | `SlimMessageBus.Host.ServiceLocator`            | DI adapter for ServiceLocator                                                                    | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator)     | 1.3           |
 | `SlimMessageBus.Host.Autofac`                   | DI adapter for Autofac container                                                                 | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Autofac)            | 1.3           |
 | `SlimMessageBus.Host.Unity`                     | DI adapter for Unity container                                                                   | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Unity)              | 1.3           |
@@ -78,127 +51,62 @@ Typically your application components (business logic, domain) only need to depe
 
 Check out the [Samples](src/Samples/) folder.
 
-### Usage examples
+### Quick example
 
-### Request-response over Kafka topics
+Some service sends a message:
 
-Use case:
-* Some front-end web app needs to display downsized image (thumbnails) of large images to speed up page load.
-* The thumbnails are requested in the WebApi and are generated on demand (and cached to disk) by the Worker (unless they exist already).
-* WebApi and Worker exchange messages via Apache Kafka
-* Worker can be scaled out (more instances, more kafka partitions)
-
-Front-end web app makes a call to resize an image `DSC0862.jpg` to `120x80` resolution, by using this URL:
-```
-http://localhost:56788/api/image/DSC3781.jpg/r/?w=120&h=80&mode=1
-```
-
-This gets handled by the WebApi method of the `ImageController`
 ```cs
-private readonly IRequestResponseBus _bus;
-// ...
-[Route("{fileId}")]
-public async Task<HttpResponseMessage> GetImageThumbnail(string fileId, ThumbnailMode mode, int w, int h)
+IMessageBus bus; // injected
+
+await bus.Publish(new SomeMessage())
+```
+
+Another service handles the message:
+
+```cs
+public class SomeMessageConsumer : IConsumer<SomeMessage>
 {
-    var thumbFileContent = // ... try to load content for the desired thumbnail w/h/mode/fileId
-    if (thumbFileContent == null)
-    {
-        // Task will await until response comes back (or timeout happens). The HTTP request will be queued and IIS processing thread released.
-        var thumbGenResponse = await _bus.Send(new GenerateThumbnailRequest(fileId, mode, w, h));
-        thumbFileContent = await _fileStore.GetFile(thumbGenResponse.FileId);
-    }
-    return ServeStream(thumbFileContent);
+	public async Task OnHandle(SomeMessage message, string topic)
+	{
+		// handle the message
+	}
 }
 ```
 
-The `GenerateThumbnailRequest` request is handled by a handler in one of the pool of Worker console apps.
+The configuration somewhere in your service:
+
 ```cs
-public class GenerateThumbnailRequestHandler : IRequestHandler<GenerateThumbnailRequest, GenerateThumbnailResponse>
-{
-   public async Task<GenerateThumbnailResponse> OnHandle(GenerateThumbnailRequest request, string topic)
-   {
-     // some processing
-     return new GenerateThumbnailResponse
-     {
-         FileId = thumbnailFileId
-     };
-   }
-}
-```
-
-The response gets replied onto the originating WebApi instance and the Task<GenerateThumbnailResponse> resolves causing the queued HTTP request to serve the resized image thumbnail.
-```cs
-var thumbGenResponse = await _bus.Send(new GenerateThumbnailRequest(fileId, mode, w, h));
-```
-
-The message bus configuration for the WebApi:
-```cs
-private IMessageBus BuildMessageBus()
-{
-    // unique id across instances of this application (e.g. 1, 2, 3)
-    var instanceId = Configuration["InstanceId"];
-    var kafkaBrokers = Configuration["Kafka:Brokers"];
-
-    var instanceGroup = $"webapi-{instanceId}";
-    var instanceReplyTo = $"webapi-{instanceId}-response";
-
-    var mbb = MessageBusBuilder
+var mbb = MessageBusBuilder
 	.Create()
-	.Produce<GenerateThumbnailRequest>(x =>
-	{
-	    //x.DefaultTimeout(TimeSpan.FromSeconds(10)); // Default response timeout for this request type
-	    x.DefaultTopic("thumbnail-generation"); // Use this topic as default when topic is not specified in IMessageBus.Publish() for that message type
-	})
-	.ExpectRequestResponses(x =>
-	{
-	    x.ReplyToTopic(instanceReplyTo); // Expect all responses to my reqests replied to this topic
-	    x.Group(instanceGroup); // Kafka consumer group	    
-	    x.DefaultTimeout(TimeSpan.FromSeconds(30)); // Default global response timeout
-	})
-	.WithDependencyResolverAsAutofac()
+	
+	// Use JSON for message serialization                
 	.WithSerializer(new JsonMessageSerializer())
-	.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
+	// Use DI from ASP.NET Core (or Autofac, Unity, ServiceLocator)
+	.WithDependencyResolver(new AspNetCoreMessageBusDependencyResolver(serviceProvider))
+	
+	// Use Apache Kafka transport provider
+	.WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
+	// Use Azure Service Bus transport provider
+	//.WithProviderServiceBus(...)
+	// Use Azure Azure Event Hub transport provider
+	//.WithProviderEventHub(...)
+	// Use in-memory transport provider
+	//.WithProviderMemory(...)
 
-    var messageBus = mbb.Build();
-    return messageBus;
-}
+	// Pub/Sub example:
+	.Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
+	.Consume<SomeMessage>(x => x
+		.Topic("some-topic")
+		.WithConsumer<SomeMessageConsumer>()
+		.Group("some-kafka-consumer-group") // Kafka provider specific
+		//.SubscriptionName("some-azure-sb-topic-subscription") // Azure Service Bus provider specific
+	);
+
+// Build the bus from the builder. Message consumers will start consuming messages from the configured topics/queues of the chosen provider.
+IMessageBus bus = mbb.Build();
 ```
 
-The message bus configuration for the Worker:
-
-```cs
-private static IMessageBus BuildMessageBus()
-{
-    // unique id across instances of this application (e.g. 1, 2, 3)
-    var instanceId = Configuration["InstanceId"];
-    var kafkaBrokers = Configuration["Kafka:Brokers"];
-
-    var instanceGroup = $"worker-{instanceId}";
-    var sharedGroup = "workers";
-
-    var mbb = MessageBusBuilder
-	.Create()
-	.Handle<GenerateThumbnailRequest, GenerateThumbnailResponse>(s =>
-	{
-	    s.Topic("thumbnail-generation", t =>
-	    {
-		t.Group(sharedGroup) // kafka consumer group
-		    .WithHandler<GenerateThumbnailRequestHandler>()
-		    .Instances(3);
-	    });
-	})
-	.WithDependencyResolverAsAutofac()
-	.WithSerializer(new JsonMessageSerializer())
-	.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
-
-    var messageBus = mbb.Build();
-    return messageBus;
-}
-```
-
-Because topics are partitioned in Kafka, requests originating from WebApi instances will be distributed across all Worker instances. However, to fine tune this, message key providers should configured (see Kafka provider wiki and samples).
-
-Check out the complete [sample](/src/Samples#sampleimages) for image resizing.
+The bus will ask the chosen DI to provide the consumer instances (`SomeMessageConsumer`).
 
 ### Basic in-process pub/sub messaging (for domain events)
 
@@ -289,8 +197,8 @@ The `SlimMessageBus` configuration for in-memory provider looks like this:
 var mbb = MessageBusBuilder
 	.Create()
 	.Produce<OrderSubmittedEvent>(x => x.DefaultTopic(x.MessageType.Name))
-	.SubscribeTo<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithSubscriber<OrderSubmittedHandler>())
-	.WithDependencyResolverAsAutofac()	
+	.Consume<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<OrderSubmittedHandler>())
+	.WithDependencyResolver(new AutofacMessageBusDependencyResolver())
 	.WithProviderMemory(new MemoryMessageBusSettings
 	{
 		// supress serialization and pass the same event instance to subscribers (events contain domain objects we do not want serialized, also we gain abit on speed)
@@ -305,6 +213,154 @@ MessageBus.SetProvider(() => bus);
 ```
 
 See the complete [sample](/src/Samples#sampledomainevents) for ASP.NET Core where the handler and bus is web-request scoped.
+
+### Request-response over Kafka topics
+
+Use case:
+* Some front-end web app needs to display downsized image (thumbnails) of large images to speed up page load.
+* The thumbnails are requested in the WebApi and are generated on demand (and cached to disk) by the Worker (unless they exist already).
+* WebApi and Worker exchange messages via Apache Kafka
+* Worker can be scaled out (more instances, more kafka partitions)
+
+Front-end web app makes a call to resize an image `DSC0862.jpg` to `120x80` resolution, by using this URL:
+```
+http://localhost:56788/api/image/DSC3781.jpg/r/?w=120&h=80&mode=1
+```
+
+This gets handled by the WebApi method of the `ImageController`
+```cs
+private readonly IRequestResponseBus _bus;
+// ...
+[Route("{fileId}")]
+public async Task<HttpResponseMessage> GetImageThumbnail(string fileId, ThumbnailMode mode, int w, int h)
+{
+    var thumbFileContent = // ... try to load content for the desired thumbnail w/h/mode/fileId
+    if (thumbFileContent == null)
+    {
+        // Task will await until response comes back (or timeout happens). The HTTP request will be queued and IIS processing thread released.
+        var thumbGenResponse = await _bus.Send(new GenerateThumbnailRequest(fileId, mode, w, h));
+        thumbFileContent = await _fileStore.GetFile(thumbGenResponse.FileId);
+    }
+    return ServeStream(thumbFileContent);
+}
+```
+
+The `GenerateThumbnailRequest` request is handled by a handler in one of the pool of Worker console apps.
+```cs
+public class GenerateThumbnailRequestHandler : IRequestHandler<GenerateThumbnailRequest, GenerateThumbnailResponse>
+{
+   public async Task<GenerateThumbnailResponse> OnHandle(GenerateThumbnailRequest request, string topic)
+   {
+     // some processing
+     return new GenerateThumbnailResponse
+     {
+         FileId = thumbnailFileId
+     };
+   }
+}
+```
+
+The response gets replied onto the originating WebApi instance and the Task<GenerateThumbnailResponse> resolves causing the queued HTTP request to serve the resized image thumbnail.
+```cs
+var thumbGenResponse = await _bus.Send(new GenerateThumbnailRequest(fileId, mode, w, h));
+```
+
+The message bus configuration for the WebApi:
+```cs
+private IMessageBus BuildMessageBus()
+{
+    // unique id across instances of this application (e.g. 1, 2, 3)
+    var instanceId = Configuration["InstanceId"];
+    var kafkaBrokers = Configuration["Kafka:Brokers"];
+
+    var instanceGroup = $"webapi-{instanceId}";
+    var instanceReplyTo = $"webapi-{instanceId}-response";
+
+    var mbb = MessageBusBuilder
+	.Create()
+	.Produce<GenerateThumbnailRequest>(x =>
+	{
+	    //x.DefaultTimeout(TimeSpan.FromSeconds(10)); // Default response timeout for this request type
+	    x.DefaultTopic("thumbnail-generation"); // Use this topic as default when topic is not specified in IMessageBus.Publish() for that message type
+	})
+	.ExpectRequestResponses(x =>
+	{
+	    x.ReplyToTopic(instanceReplyTo); // Expect all responses to my reqests replied to this topic
+	    x.Group(instanceGroup); // Kafka consumer group	    
+	    x.DefaultTimeout(TimeSpan.FromSeconds(30)); // Default global response timeout
+	})
+	.WithDependencyResolver(new AutofacMessageBusDependencyResolver())
+	.WithSerializer(new JsonMessageSerializer())
+	.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
+
+    var messageBus = mbb.Build();
+    return messageBus;
+}
+```
+
+The message bus configuration for the Worker:
+
+```cs
+private static IMessageBus BuildMessageBus()
+{
+    // unique id across instances of this application (e.g. 1, 2, 3)
+    var instanceId = Configuration["InstanceId"];
+    var kafkaBrokers = Configuration["Kafka:Brokers"];
+
+    var instanceGroup = $"worker-{instanceId}";
+    var sharedGroup = "workers";
+
+    var mbb = MessageBusBuilder
+	.Create()
+	.Handle<GenerateThumbnailRequest, GenerateThumbnailResponse>(s =>
+	{
+		s.Topic("thumbnail-generation", t =>
+		{
+			t.WithHandler<GenerateThumbnailRequestHandler>()
+				.Group(sharedGroup) // kafka consumer group
+				.Instances(3);
+		});
+	})
+	.WithDependencyResolver(new AutofacMessageBusDependencyResolver())
+	.WithSerializer(new JsonMessageSerializer())
+	.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
+
+    var messageBus = mbb.Build();
+    return messageBus;
+}
+```
+
+Because topics are partitioned in Kafka, requests originating from WebApi instances will be distributed across all Worker instances. However, to fine tune this, message key providers should configured (see Kafka provider wiki and samples).
+
+Check out the complete [sample](/src/Samples#sampleimages) for image resizing.
+
+## Features
+
+* Types of messaging patterns supported:
+  * Publish-subscribe
+  * Request-response
+  * Queues
+  * Hybrid of the above (e.g. Kafka with multiple topic consumers in one group)
+* Modern async/await syntax and TPL
+* Fluent configuration
+* Because SlimMessageBus is a facade, you have the ability to swap broker implementations
+  * Using nuget pull another broker provider
+  * Reconfigure SlimMessageBus and retest your app
+  * Try out the messaging middleware that works best for your app (Kafka vs. Redis) without having to rewrite your app.
+
+## Principles
+* The core of `SlimMessageBus` is "slim"
+  * Simple, common and friendly API to work with messaging systems
+  * No external dependencies. Logging is done via `Common.Logging`, so that you can connect your favorite logger provider.
+  * The core interface can be used in domain model (e.g. DomainEvents)
+* Plugin architecture:
+  * DI integration (Autofac, CommonServiceLocator, Unity)
+  * Message serialization (JSON, XML)
+  * Use your favorite messaging broker as provider by simply pulling a nuget package
+* No threads created (pure TPL)
+* Async/Await support
+* Fluent configuration
+
 
 ## License
 

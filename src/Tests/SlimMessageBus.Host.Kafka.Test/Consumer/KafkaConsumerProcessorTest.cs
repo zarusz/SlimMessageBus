@@ -59,7 +59,7 @@ namespace SlimMessageBus.Host.Kafka.Test
         }
 
         [Fact]
-        public void WhenNewInstanceThenTopicPartitonSet()
+        public void WhenNewInstanceThenTopicPartitionSet()
         {
             _subject.TopicPartition.Should().Be(_topicPartition);
         }

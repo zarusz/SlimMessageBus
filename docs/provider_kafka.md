@@ -68,7 +68,7 @@ SMB Kafka allows to set a provider (selector) that will assign the message key f
 
 ```cs
 IMessageBus messageBus = new MessageBusBuilder()
-	.Publish<MultiplyRequest>(x => 
+	.Produce<MultiplyRequest>(x => 
 	{
 		x.DefaultTopic("topic1");
 		// Message key could be set for the message
@@ -87,7 +87,7 @@ SMB Kafka allows to set a provider (selector) that will assign the partition num
 
 ```cs
 IMessageBus messageBus = new MessageBusBuilder()
-	.Publish<PingMessage>(x =>
+	.Produce<PingMessage>(x =>
 	{
 		x.DefaultTopic("topic1");
 		// Partition #0 for even counters

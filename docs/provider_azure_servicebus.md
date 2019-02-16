@@ -13,7 +13,7 @@ var connectionString = "" // Azure Service Bus connection string
 
 MessageBusBuilder mbb = MessageBusBuilder
     .Create()
-    // your bus configuration here
+    // the bus configuration here
     .WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString))
     .WithSerializer(new JsonMessageSerializer());
 
@@ -36,7 +36,7 @@ mbb.Produce<TMessage>(x => x.UseQueue());
 mbb.Produce<TMessage>(x => x.UseTopic());
 ```
 
-This configures the runtime that all messages of type `TMessage` should be delivered to a Azure Service Bus queue (topic). 
+This configures the runtime to deliver all messages of type `TMessage` to a Azure Service Bus queue (topic). 
 
 Then anytime you produce a message like this:
 
@@ -62,7 +62,7 @@ mbb.Produce<TMessage>(x => x.DefaultQueue("some-queue"));
 mbb.Produce<TMessage>(x => x.DefaultTopic("some-topic"));
 ```
 
-and skip the second (name) parameter in `Publish()`, then that default queue (or default topic) name is going to be used:
+and skip the second (name) parameter in `bus.Publish()`, then that default queue (or default topic) name is going to be used:
 
 ```cs
 // msg will go to the "some-queue" queue (or "some-topic")
@@ -97,10 +97,10 @@ mbb.Produce<PingMessage>(x =>
 To consume `TMessage` by `TConsumer` from `some-topic` Azure Service Bus topic use:
 
 ```cs
-mbb.SubscribeTo<TMessage>(x => x
+mbb.Consume<TMessage>(x => x
     .Topic("some-topic")
+    .WithConsumer<TConsumer>()
     .SubscriptionName($"subscriber-name")
-    .WithSubscriber<TConsumer>()
     .Instances(1));
 ```
 
@@ -109,9 +109,9 @@ Notice the subscription name needs to be provided when consuming from a topic. F
 To consume `TMessage` by `TConsumer` from `some-queue` Azure Service Bus queue use:
 
 ```cs
-mbb.SubscribeTo<TMessage>(x => x
+mbb.Consume<TMessage>(x => x
+    .WithConsumer<TConsumer>()
     .Queue("some-queue")
-    .WithSubscriber<TConsumer>()
     .Instances(1));
 ```
 

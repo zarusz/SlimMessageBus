@@ -3,12 +3,13 @@
 
 ## Configuration
 
-The configuration starts with `MessageBusBuilder`, which allows us to configure couple of elements:
-* The bus provider (Apache Kafka, Azure Service Bus, ...)
-* The serialization plugin
-* Declaration of messages produced and consumed along with topic/queue names
-* Request-response configuration (if enabled)
-* Provider specific settings
+The configuration starts with `MessageBusBuilder`, which allows to configure couple of elements:
+* The bus transport provider (Apache Kafka, Azure Service Bus, ...).
+* The serialization provider.
+* The dependency injecion provider.
+* Declaration of messages produced and consumed along with topic/queue names.
+* Request-response configuration (if enabled).
+* Additional provider specific settings (message partition key, message id, etc).
 
 Here is a sample:
 
@@ -23,25 +24,26 @@ var mbb = MessageBusBuilder
 	.WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
 
 	// Pub/Sub example:
-	.Produce<AddCommand>(x => x.DefaultTopic(topicForAddCommand)) // By default AddCommand messages will go to event hub named 'add-command' (or topic if Kafka is chosen)
-	.SubscribeTo<AddCommand>(x => x
-		.Topic(topicForAddCommand)
-		.Group(consumerGroup) // Kafka Provider specific
-		.WithSubscriber<AddCommandConsumer>())
+	.Produce<AddCommand>(x => x.DefaultTopic("add-command")) // By default AddCommand messages will go to 'add-command' topic (or hub name when Azure Service Hub provider)
+	.Consume<AddCommand>(x => x
+		.Topic("add-command")
+		.WithConsumer<AddCommandConsumer>()
+		.Group(consumerGroup) // Kafka provider specific
+	)
 
 	// Req/Resp example:	
-	.Produce<MultiplyRequest>(x => x.DefaultTopic(topicForMultiplyRequest)) // By default AddCommand messages will go to event hub named 'multiply-request' (or topic if Kafka is chosen)
+	.Produce<MultiplyRequest>(x => x.DefaultTopic("multiply-request")) // By default AddCommand messages will go to 'multiply-request' topic (or hub name when Azure Service Hub provider)
 	.Handle<MultiplyRequest, MultiplyResponse>(x => x
-		.Topic(topicForMultiplyRequest) // topic to expect the request messages
-		.Group(consumerGroup) // Kafka Provider specific
+		.Topic("multiply-request") // Topic to expect the request messages
 		.WithHandler<MultiplyRequestHandler>()
+		.Group(consumerGroup) // Kafka provider specific
 	)
 	// Configure response message queue (on topic) when using req/resp
 	.ExpectRequestResponses(x =>
 	{
 		x.ReplyToTopic(topicForResponses); // All responses from req/resp will return on this topic (the EventHub name)
 		x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
-		x.Group(responseGroup); // Kafka Provider specific
+		x.Group(responseGroup); // Kafka provider specific
 	})
 	
 	.Do(builder =>
@@ -60,9 +62,9 @@ IMessageBus bus = mbb.Build();
 
 In most scenarios having a singleton `IMessageBus` for your entire application will be sufficient. The provider implementations are thread-safe.
 
-## Pub/Sub communication
+The `IMessageBus` is disposable (implements `IDisposable`).
 
-Publish/subscribe communication is achieved using topics on pretty much all supported messaging system (Apache Kafka, Azure Service Bus, ...).
+## Pub/Sub communication
 
 #### Producer
 
@@ -76,26 +78,28 @@ mbb.Produce<SomeMessage>(x =>
 })
 ```
 
-Then in your app you can publish the message to a topic
+Then your app can publish a message:
 
 ```cs
 var msg = new SomeMessage("ping");
-await bus.Publish(msg, "some-topic");
 
-// or rely on the default topic name
-await bus.Publish(msg);
+// delivered to "some-topic" by default
+await bus.Publish(msg); 
+
+// OR delivered to the specified topic
+await bus.Publish(msg, "other-topic");
 ```
 
 ### Consumer
 
-Consuming the message in your app requires such configuration:
+To consume a message type from a topic declare it using `Consume<TMessage>()` method:
 
 ```cs
-mbb.SubscribeTo<SomeMessage>(x => x
+mbb.Consume<SomeMessage>(x => x
    .Topic("some-topic")
-   .Group("some-consumer-group") // Kafka provider specific setting
-   .WithSubscriber<SomeConsumer>())
+   .WithConsumer<SomeConsumer>()
    .Instances(1)
+   .Group("some-consumer-group")) // Kafka provider specific setting
 ```
 
 The consumer needs to implement the `IConsumer<SomeMessage>` interface:
@@ -103,32 +107,34 @@ The consumer needs to implement the `IConsumer<SomeMessage>` interface:
 ```cs
 public class SomeConsumer : IConsumer<SomeMessage>
 {
-	public async Task OnHandle(SomeMessage msg, string topic)
+	public async Task OnHandle(SomeMessage msg, string name)
 	{
 		// handle the msg
 	}
 }
 ```
 
-The `SomeConsumer` needs to be registered in your DI container. The SMB runtime will ask the chosen DI to provide the desired number of consumer instances.
+The second parameter (`name`) is the topic (or queue) name that the message arrived on.
+
+The `SomeConsumer` needs to be registered in your DI container. The SMB runtime will ask the chosen DI to provide the desired number of consumer instances. Any collaborators of the consumer will be resolved according to your DI configuration.
 
 ## Request-response communication
 
-SMB provides implementation of request-response over topics or queues - depending what the underlying provider supports.
-This allows to asynchronously await a response for a request message in your application.
+SMB provides implementation of request-response over topics (or queues - depending what the underlying provider supports).
+This allows to asynchronously await a response for a request message in your service.
 
-Typically this simplifies your system and allows to achive a reactive architecture that can scale out.
+Typically this simplifies service interactions that need to await for a result and still allows to achive a reactive architecture that can scale out.
 
-The idea is that each of your micro-system instance that sends request messages needs to have its own queue (or topic) onto which other micro-services send the response once the request is processed.
-Each request message is wrapped by SMB into a special envelope that contains:
+The idea is that each of your micro-service instance that sends request messages needs to have its own queue (or topic) onto which other micro-services send the response once the request is processed.
+Each request message is wrapped by SMB into a special envelope that is messaging provider agnostic. The envelope contains:
 * Request send datetime (UTC, in epoch).
 * Request ID, so that the request sender can correlate the arriving responses.
-* ReplyTo topic/queue name, so that the service handling the request knows the to send back the response to.
-* The body of the request message (serialized using the chosen serialization plugin)
+* ReplyTo topic/queue name, so that the service handling the request knows where to send back the response.
+* The body of the request message (serialized using the chosen serialization provider).
 
 ### Produce request message
 
-One requirement is that request messages implement the interface `IRequestMessage<TResponse>`:
+One requirement is that request messages implement the marker interface `IRequestMessage<TResponse>`:
 
 ```cs
 public class SomeRequest : IRequestMessage<SomeResponse>
@@ -143,16 +149,16 @@ public class SomeResponse
 The micro-service that will be sending the request messages needs to enable request-response and configure its topic for response messages to arrive on:
 
 ```cs
-// Configure response message queue (or topic) when using req/resp
+// Configure response message queue (or topic) when using req/resp for the request sending side
 .ExpectRequestResponses(x =>
 {
-	x.ReplyToTopic("servicename-instance1"); // All responses from req/resp will return on this topic (the EventHub name)
+	x.ReplyToTopic("servicename-instance1"); // All responses from req/resp will return on this topic
 	x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
-	x.Group("some-consumer-group"); // This is kafka provider specific setting
+	x.Group("some-consumer-group"); // Kafka provider specific setting
 })
 ```
 
-Then, you need to declare that the `SomeRequest` messages will be sent:
+The request sending side declares the request message using `Produce<TMessage>()` method:
 
 ```cs
 mbb.Produce<SomeRequest>(x => 
@@ -168,7 +174,7 @@ Once things are configured you can send the request message to a topic (or queue
 var req = new SomeRequest("ping");
 var res = await bus.Send(req, "do-other-computation-topic");
 
-// or rely on the default topic name
+// or rely on the default topic (or queue) name
 var res = await bus.Send(req);
 ```
 
@@ -179,7 +185,7 @@ The request handling micro-service needs to have a handler that implements `IReq
 ```cs
 public class SomeRequestHandler : IRequestHandler<SomeRequest, SomeResponse>
 {
-	public async Task<MultiplyResponse> OnHandle(MultiplyRequest request, string topic)
+	public async Task<MultiplyResponse> OnHandle(MultiplyRequest request, string name)
 	{
 		// handle the request	
 		return new SomeResponse("ping");
@@ -187,15 +193,15 @@ public class SomeRequestHandler : IRequestHandler<SomeRequest, SomeResponse>
 }
 ```
 
-This handler needs to be registered in the DI container.
+The handler needs to be registered in the DI container. SMB will ask the DI to provide the handler instances when needed.
 
-Then, we need to configure that request messages are listened for and will be handled:
+Configuration of the request message handling is done using the `Handle<TRequest, TResponse>()` method:
 
 ```cs
 mbb.Handle<SomeRequest, SomeResponse>(x => x
-		.Topic("do-some-computation-topic") // topic to expect the requests
-		.Group("some-consumer-group") // kafka provider specific
+		.Topic("do-some-computation-topic") // Topic to expect the requests on
 		.WithHandler<SomeRequestHandler>()
+		.Group("some-consumer-group") // kafka provider specific
 	)
 ```
 

@@ -6,12 +6,12 @@ namespace SlimMessageBus.Host.AzureServiceBus
     {
         private const string SubscriptionNameKey = "SubscriptionName";
 
-        public static void SetSubscriptionName(this AbstractConsumerSettings consumerSettings, string subscriptionName)
+        internal static void SetSubscriptionName(this AbstractConsumerSettings consumerSettings, string subscriptionName)
         {
             consumerSettings.Properties[SubscriptionNameKey] = subscriptionName;
         }
 
-        public static string GetSubscriptionName(this AbstractConsumerSettings consumerSettings)
+        internal static string GetSubscriptionName(this AbstractConsumerSettings consumerSettings)
         {
             return consumerSettings.Properties[SubscriptionNameKey] as string;
         }

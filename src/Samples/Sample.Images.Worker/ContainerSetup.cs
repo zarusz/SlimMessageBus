@@ -24,15 +24,7 @@ namespace Sample.Images.Worker
             Configure(builder, configuration);
 
             var container = builder.Build();
-
             AutofacMessageBusDependencyResolver.Container = container;
-
-            // Set the service locator to an AutofacServiceLocator.
-            /*
-            var csl = new AutofacServiceLocator(container);
-            ServiceLocator.SetLocatorProvider(() => csl);
-            */
-
             return container;
         }
 
@@ -48,7 +40,6 @@ namespace Sample.Images.Worker
                 .SingleInstance();
 
             builder.RegisterType<GenerateThumbnailRequestHandler>().AsSelf();
-            //builder.RegisterType<GenerateThumbnailRequestSubscriber>().AsSelf();
         }
 
         private static IMessageBus BuildMessageBus(IConfigurationRoot configuration)
@@ -60,21 +51,17 @@ namespace Sample.Images.Worker
             var instanceGroup = $"worker-{instanceId}";
             var sharedGroup = "workers";
 
-            var messageBusBuilder = MessageBusBuilder.Create()
+            var messageBusBuilder = MessageBusBuilder
+                .Create()
                 .Handle<GenerateThumbnailRequest, GenerateThumbnailResponse>(s =>
                 {
                     s.Topic("thumbnail-generation", t =>
                     {
-                        t.Group(sharedGroup)
-                            .WithHandler<GenerateThumbnailRequestHandler>()
+                        t.WithHandler<GenerateThumbnailRequestHandler>()
+                            .Group(sharedGroup)
                             .Instances(3);
-
-                        //t.Group(sharedGroup)
-                        //    .WithConsumer<GenerateThumbnailRequestSubscriber>()
-                        //    .Instances(3);
                     });
                 })
-                //.WithDependencyResolverAsServiceLocator()
                 .WithDependencyResolver(new AutofacMessageBusDependencyResolver())
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
