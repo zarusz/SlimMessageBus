@@ -5,7 +5,7 @@
     <Authors>zarusz</Authors>
     <Company>zarusz</Company>
     <Copyright>Copyright © 2019</Copyright>
-    <Description>Extension to SlimMessageBus that resolves dependencies from Autofac</Description>
+    <Description>Extension to SlimMessageBus that resolves dependencies from Autofac container</Description>
     <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
     <PackageIconUrl>https://raw.githubusercontent.com/zarusz/SlimMessageBus/master/icon.png</PackageIconUrl>

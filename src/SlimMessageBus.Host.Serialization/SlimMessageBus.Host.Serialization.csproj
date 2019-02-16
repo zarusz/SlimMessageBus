@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard1.3</TargetFramework>
-    <Version>1.0.2-rc1</Version>
+    <Version>1.0.2</Version>
     <Authors>zarusz</Authors>
     <Product>SlimMessageBus</Product>
     <Description>Core serialization interfaces of SlimMessageBus</Description>
