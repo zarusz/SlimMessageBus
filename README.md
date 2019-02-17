@@ -28,6 +28,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 	* [Azure ServiceBus](docs/provider_azure_servicebus.md)
 	* [Azure EventHubs](docs/provider_azure_eventhubs.md)
 	* [Memory](docs/provider_memory.md)
+	* [Hybrid](docs/provider_hybrid.md)
 
 ## Packages
 
@@ -39,6 +40,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 | `SlimMessageBus.Host.AzureEventHub`             | Transport provider for Azure Event Hubs                                                          | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)      | 2.0           |
 | `SlimMessageBus.Host.Redis` (future)            | Transport provider for Redis                                                                     | .                                                                              | .             |
 | `SlimMessageBus.Host.Memory`                    | Transport provider implementation for in-process (in memory) message passing (no messaging infrastructure required) | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Memory)             | 1.3           |
+| `SlimMessageBus.Host.Hybrid`                    | Bus implementtion that composes the bus out of other transport provider and performs nessage routing | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Hybrid)         | 1.3           |
 | `SlimMessageBus.Host.Serialization.Json`        | Message serialization adapter for JSON (Json.NET)                                                | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json) | 1.3           |
 | `SlimMessageBus.Host.AspNetCore`                | Integration for ASP.NET Core 2.x (DI adapter, config helpers)                                    | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore)         | 1.3           |
 | `SlimMessageBus.Host.Autofac`                   | DI adapter for Autofac container                                                                 | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Autofac)            | 1.3           |
