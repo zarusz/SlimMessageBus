@@ -108,7 +108,25 @@ var mbb = MessageBusBuilder
 IMessageBus bus = mbb.Build();
 ```
 
-The bus will ask the chosen DI to provide the consumer instances (`SomeMessageConsumer`).
+The bus also supports request-response implemented via queues (or topics - depending what the chosen transport provider supports). The sender side sends a request message:
+
+```cs
+var messageResponse = await bus.Send(new MessageRequest());
+```
+
+The receiving side handles the request and replies back:
+
+```cs
+public class MessageRequestHandler : IRequestHandler<MessageRequest, MessageResponse>
+{
+   public async Task<GenerateThumbnailResponse> OnHandle(GenerateThumbnailRequest request, string name)
+   {
+     // handle the request message and return response
+   }
+}
+```
+
+The bus will ask the chosen DI to provide the consumer instances (`SomeMessageConsumer`, `MessageRequestHandler`).
 
 ### Basic in-process pub/sub messaging (for domain events)
 
