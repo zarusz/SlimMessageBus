@@ -27,6 +27,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 	* [Apache Kafka](docs/provider_kafka.md)
 	* [Azure ServiceBus](docs/provider_azure_servicebus.md)
 	* [Azure EventHubs](docs/provider_azure_eventhubs.md)
+	* [Redis](docs/provider_redis.md)
 	* [Memory](docs/provider_memory.md)
 
 ## Packages
@@ -34,12 +35,15 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 | Name                                            | Descripton                                                                                       | NuGet                                                                          | .NET Standard |
 |-------------------------------------------------|--------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------|---------------|
 | `SlimMessageBus`                                | The core API for SlimMessageBus                                                                  | [NuGet](https://www.nuget.org/packages/SlimMessageBus)                         | 1.3           |
+| Transport providers                             ||||
 | `SlimMessageBus.Host.Kafka`                     | Transport provider for Apache Kafka                                                              | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)              | 1.3           |
 | `SlimMessageBus.Host.AzureServiceBus`           | Transport provider for Azure Service Bus                                                         | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AzureServiceBus)    | 2.0           |
 | `SlimMessageBus.Host.AzureEventHub`             | Transport provider for Azure Event Hubs                                                          | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)      | 2.0           |
 | `SlimMessageBus.Host.Redis` (beta)              | Transport provider for Redis                                                                     | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Redis)              | 2.0           |
 | `SlimMessageBus.Host.Memory`                    | Transport provider implementation for in-process (in memory) message passing (no messaging infrastructure required) | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Memory)             | 1.3           |
+| Serialization                                   ||||
 | `SlimMessageBus.Host.Serialization.Json`        | Message serialization adapter for JSON (Json.NET)                                                | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json) | 1.3           |
+| Container                                       ||||
 | `SlimMessageBus.Host.AspNetCore`                | Integration for ASP.NET Core 2.x (DI adapter, config helpers)                                    | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore)         | 1.3           |
 | `SlimMessageBus.Host.Autofac`                   | DI adapter for Autofac container                                                                 | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Autofac)            | 1.3           |
 | `SlimMessageBus.Host.Unity`                     | DI adapter for Unity container                                                                   | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Unity)              | 1.3           |
@@ -90,6 +94,8 @@ var mbb = MessageBusBuilder
 	//.WithProviderServiceBus(...)
 	// Use Azure Azure Event Hub transport provider
 	//.WithProviderEventHub(...)
+	// Use Redis transport provider
+	//.WithProviderRedis(...)
 	// Use in-memory transport provider
 	//.WithProviderMemory(...)
 
