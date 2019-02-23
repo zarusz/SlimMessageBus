@@ -119,7 +119,7 @@ The receiving side handles the request and replies back:
 ```cs
 public class MessageRequestHandler : IRequestHandler<MessageRequest, MessageResponse>
 {
-   public async Task<GenerateThumbnailResponse> OnHandle(GenerateThumbnailRequest request, string name)
+   public async Task<MessageResponse> OnHandle(MessageRequest request, string name)
    {
      // handle the request message and return response
    }
