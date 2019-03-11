@@ -28,7 +28,7 @@ namespace SlimMessageBus.Host.Serialization.Json
 
         public byte[] Serialize(Type t, object message)
         {
-            var jsonPayload = JsonConvert.SerializeObject(message, _serializerSettings);
+            var jsonPayload = JsonConvert.SerializeObject(message, t, _serializerSettings);
             Log.DebugFormat(CultureInfo.InvariantCulture, "Type {0} serialized from {1} to JSON {2}", t, message, jsonPayload);
 
             var payload = _encoding.GetBytes(jsonPayload);
