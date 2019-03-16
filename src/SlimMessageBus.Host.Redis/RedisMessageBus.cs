@@ -33,7 +33,7 @@ namespace SlimMessageBus.Host.Redis
 
             if (RedisSettings.AutoStartConsumers)
             {
-                Start().GetAwaiter().GetResult();
+                Start().Wait();
             }
         }
 
@@ -47,7 +47,7 @@ namespace SlimMessageBus.Host.Redis
             {
                 if (IsRunning)
                 {
-                    Stop().GetAwaiter().GetResult();
+                    Stop().Wait();
                 }
                 Connection.DisposeSilently(nameof(ConnectionMultiplexer), Log);
             }
@@ -55,13 +55,26 @@ namespace SlimMessageBus.Host.Redis
 
         #endregion
 
+        // ToDo: lift to base class
         public virtual Task Start()
         {
             if (!IsRunning)
             {
-                CreateConsumers();
-
                 IsRunning = true;
+
+                CreateConsumers();
+            }
+            return Task.CompletedTask;
+        }
+
+        // ToDo: lift to base class
+        public virtual Task Stop()
+        {
+            if (IsRunning)
+            {
+                DestroyConsumers();
+
+                IsRunning = false;
             }
             return Task.CompletedTask;
         }
@@ -90,7 +103,7 @@ namespace SlimMessageBus.Host.Redis
         {
             Log.Info("Destroying consumers");
 
-            _consumers.ForEach(consumer => consumer.DisposeSilently("consumer", Log));
+            _consumers.ForEach(consumer => consumer.DisposeSilently(nameof(RedisChannelConsumer), Log));
             _consumers.Clear();
         }
 
@@ -98,17 +111,6 @@ namespace SlimMessageBus.Host.Redis
         {
             var consumer = new RedisChannelConsumer(consumerSettings, subscriber, messageProcessor);
             _consumers.Add(consumer);
-        }
-
-        public virtual Task Stop()
-        {
-            if (IsRunning)
-            {
-                DestroyConsumers();
-
-                IsRunning = false;
-            }
-            return Task.CompletedTask;
         }
 
         #region Overrides of MessageBusBase
