@@ -14,6 +14,7 @@ using Microsoft.Extensions.Configuration;
 using SecretStore;
 using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.DependencyResolver;
+using SlimMessageBus.Host.Redis;
 
 namespace Sample.Simple.ConsoleApp
 {
@@ -21,7 +22,8 @@ namespace Sample.Simple.ConsoleApp
     {
         Kafka,
         AzureServiceBus,
-        AzureEventHub
+        AzureEventHub,
+        Redis   
     }
 
     internal static class Program
@@ -64,7 +66,7 @@ namespace Sample.Simple.ConsoleApp
         private static IMessageBus CreateMessageBus(IConfiguration configuration)
         {
             // Choose your provider
-            var provider = Provider.AzureServiceBus;
+            var provider = Provider.Redis;
 
             // Provide your event hub-names OR kafka/service bus topic names
             var topicForAddCommand = "add-command";
@@ -174,6 +176,13 @@ namespace Sample.Simple.ConsoleApp
                             var kafkaBrokers = configuration["Kafka:Brokers"];
 
                             builder.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)); // Or use Apache Kafka as provider
+                            break;
+
+                        case Provider.Redis:
+                            // Ensure your Kafka broker is running
+                            var redisConnectionString = Secrets.Service.PopulateSecrets(configuration["Redis:ConnectionString"]);
+
+                            builder.WithProviderRedis(new RedisMessageBusSettings(redisConnectionString)); // Or use Redis as provider
                             break;
                     }
                 })
