@@ -11,6 +11,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 [![Gitter](https://badges.gitter.im/SlimMessageBus/community.svg)](https://gitter.im/SlimMessageBus/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 ## Key elements of SlimMessageBus
+
 * Consumers:
   * `IConsumer<in TMessage>` - subscriber in pub/sub (or queue consumer)
   * `IRequestHandler<in TRequest, TResponse>` - request handler in request-response
@@ -26,11 +27,11 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 
 * [Introduction](docs/intro.md)
 * Providers:
-	* [Apache Kafka](docs/provider_kafka.md)
-	* [Azure ServiceBus](docs/provider_azure_servicebus.md)
-	* [Azure EventHubs](docs/provider_azure_eventhubs.md)
-	* [Redis](docs/provider_redis.md)
-	* [Memory](docs/provider_memory.md)
+  * [Apache Kafka](docs/provider_kafka.md)
+  * [Azure ServiceBus](docs/provider_azure_servicebus.md)
+  * [Azure EventHubs](docs/provider_azure_eventhubs.md)
+  * [Redis](docs/provider_redis.md)
+  * [Memory](docs/provider_memory.md)
 
 ## Packages
 
@@ -41,10 +42,11 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 | `SlimMessageBus.Host.Kafka`                     | Transport provider for Apache Kafka                                                              | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)              | 1.3           |
 | `SlimMessageBus.Host.AzureServiceBus`           | Transport provider for Azure Service Bus                                                         | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AzureServiceBus)    | 2.0           |
 | `SlimMessageBus.Host.AzureEventHub`             | Transport provider for Azure Event Hubs                                                          | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)      | 2.0           |
-| `SlimMessageBus.Host.Redis` 		              | Transport provider for Redis                                                                     | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Redis)              | 2.0           |
+| `SlimMessageBus.Host.Redis`                     | Transport provider for Redis                                                                     | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Redis)              | 2.0           |
 | `SlimMessageBus.Host.Memory`                    | Transport provider implementation for in-process (in memory) message passing (no messaging infrastructure required) | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Memory)             | 1.3           |
 | **Serialization**                               ||||
 | `SlimMessageBus.Host.Serialization.Json`        | Message serialization adapter for JSON (Json.NET)                                                | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json) | 1.3           |
+| `SlimMessageBus.Host.Serialization.Avro`        | Message serialization adapter for Avro (Apache.Avro)                                             | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Avro) | 2.0           |
 | **Container**                                   ||||
 | `SlimMessageBus.Host.AspNetCore`                | Integration for ASP.NET Core 2.x (DI adapter, config helpers)                                    | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore)         | 1.3           |
 | `SlimMessageBus.Host.Autofac`                   | DI adapter for Autofac container                                                                 | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Autofac)            | 1.3           |
@@ -170,6 +172,7 @@ public class OrderSubmittedHandler : IConsumer<OrderSubmittedEvent>
 	}
 }
 ```
+
 The domain handler (well, really the consumer) is obtained from dependency resolver at the time of event publication. It can be scoped (per web request, per unit of work) as configured in your favorite DI container.
 
 Somewhere in your domain layer the domain event gets raised:
@@ -243,17 +246,18 @@ See the complete [sample](/src/Samples#sampledomainevents) for ASP.NET Core wher
 ### Request-response over Kafka topics
 
 Use case:
+
 * Some front-end web app needs to display downsized image (thumbnails) of large images to speed up page load.
 * The thumbnails are requested in the WebApi and are generated on demand (and cached to disk) by the Worker (unless they exist already).
 * WebApi and Worker exchange messages via Apache Kafka
 * Worker can be scaled out (more instances, more kafka partitions)
 
 Front-end web app makes a call to resize an image `DSC0862.jpg` to `120x80` resolution, by using this URL:
-```
-http://localhost:56788/api/image/DSC3781.jpg/r/?w=120&h=80&mode=1
-```
+
+`http://localhost:56788/api/image/DSC3781.jpg/r/?w=120&h=80&mode=1`
 
 This gets handled by the WebApi method of the `ImageController`
+
 ```cs
 private readonly IRequestResponseBus _bus;
 // ...
@@ -272,6 +276,7 @@ public async Task<HttpResponseMessage> GetImageThumbnail(string fileId, Thumbnai
 ```
 
 The `GenerateThumbnailRequest` request is handled by a handler in one of the pool of Worker console apps.
+
 ```cs
 public class GenerateThumbnailRequestHandler : IRequestHandler<GenerateThumbnailRequest, GenerateThumbnailResponse>
 {
@@ -287,11 +292,13 @@ public class GenerateThumbnailRequestHandler : IRequestHandler<GenerateThumbnail
 ```
 
 The response gets replied onto the originating WebApi instance and the Task<GenerateThumbnailResponse> resolves causing the queued HTTP request to serve the resized image thumbnail.
+
 ```cs
 var thumbGenResponse = await _bus.Send(new GenerateThumbnailRequest(fileId, mode, w, h));
 ```
 
 The message bus configuration for the WebApi:
+
 ```cs
 private IMessageBus BuildMessageBus()
 {
@@ -322,6 +329,7 @@ private IMessageBus BuildMessageBus()
     var messageBus = mbb.Build();
     return messageBus;
 }
+
 ```
 
 The message bus configuration for the Worker:
@@ -375,6 +383,7 @@ Check out the complete [sample](/src/Samples#sampleimages) for image resizing.
   * Try out the messaging middleware that works best for your app (Kafka vs. Redis) without having to rewrite your app.
 
 ## Principles
+
 * The core of `SlimMessageBus` is "slim"
   * Simple, common and friendly API to work with messaging systems
   * No external dependencies. Logging is done via `Common.Logging`, so that you can connect your favorite logger provider.
@@ -386,7 +395,6 @@ Check out the complete [sample](/src/Samples#sampleimages) for image resizing.
 * No threads created (pure TPL)
 * Async/Await support
 * Fluent configuration
-
 
 ## License
 
