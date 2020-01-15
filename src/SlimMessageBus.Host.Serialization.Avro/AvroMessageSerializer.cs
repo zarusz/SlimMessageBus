@@ -50,6 +50,7 @@ namespace SlimMessageBus.Host.Serialization.Avro
                 try
                 {
                     // by default create types using reflection
+                    Log.DebugFormat(CultureInfo.InvariantCulture, "Instantiating type {0}", type);
                     var constructor = type.GetConstructor(Type.EmptyTypes);
                     return constructor.Invoke(null);
                 }
@@ -59,6 +60,8 @@ namespace SlimMessageBus.Host.Serialization.Avro
                     throw;
                 }
             };
+            WriteSchemaLookup = (Type type) => null;
+            ReadSchemaLookup = (Type type) => null;
         }
 
         public object Deserialize(Type t, byte[] payload)
@@ -70,11 +73,25 @@ namespace SlimMessageBus.Host.Serialization.Avro
                 var message = MessageFactory(t);
 
                 var readerSchema = ReadSchemaLookup(t);
+                AssertSchemaNotNull(t, readerSchema, false);
+
                 var writerSchema = WriteSchemaLookup(t);
+                AssertSchemaNotNull(t, writerSchema, true);
+
+                Log.DebugFormat(CultureInfo.InvariantCulture, "Type {0} writer schema: {1}, reader schema: {2}", t, writerSchema, readerSchema);
 
                 var reader = new SpecificDefaultReader(writerSchema, readerSchema);
                 reader.Read(message, dec);
                 return message;
+            }
+        }
+
+        private static void AssertSchemaNotNull(Type t, Schema schema, bool writerSchema)
+        {
+            if (schema == null)
+            {
+                var role = writerSchema ? "Writer" : "Reader";
+                throw new ArgumentNullException(nameof(schema), $"{role} schema lookup for type {t} returned null");
             }
         }
 
@@ -85,6 +102,9 @@ namespace SlimMessageBus.Host.Serialization.Avro
                 var enc = new BinaryEncoder(ms);
 
                 var writerSchema = WriteSchemaLookup(t);
+                AssertSchemaNotNull(t, writerSchema, true);
+
+                Log.DebugFormat(CultureInfo.InvariantCulture, "Type {0} writer schema: {1}", t, writerSchema);
 
                 var writer = new SpecificDefaultWriter(writerSchema); // Schema comes from pre-compiled, code-gen phase
                 writer.Write(message, enc);
