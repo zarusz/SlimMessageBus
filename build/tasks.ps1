@@ -13,6 +13,7 @@ $projects = @(
 	"SlimMessageBus.Host",
 	"SlimMessageBus.Host.Serialization", 
 	"SlimMessageBus.Host.Serialization.Json", 
+	"SlimMessageBus.Host.Serialization.Avro", 
 	"SlimMessageBus.Host.DependencyResolver", 
 	"SlimMessageBus.Host.ServiceLocator", 
 	"SlimMessageBus.Host.Autofac",
