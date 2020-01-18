@@ -13,7 +13,7 @@
     <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
     <PackageTags>Redis transport provider SlimMessageBus MessageBus bus facade messaging client</PackageTags>
     <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
-    <Version>1.0.1</Version>
+    <Version>1.0.2</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,7 +21,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="StackExchange.Redis" Version="2.0.519" />
+    <PackageReference Include="StackExchange.Redis" Version="2.0.601" />
   </ItemGroup>
 
   <ItemGroup>
