@@ -58,7 +58,6 @@ namespace SlimMessageBus.Host.Kafka.Test
                     {"socket.nagle.disable", true},
                     {"request.timeout.ms", 2000 }, // when no response within 2 sec of sending a msg, report error
                     {"message.timeout.ms", 5000 }
-                    //{"delivery.timeout.ms", 10000 } // when no delivery ack within 10 sek, report error
                 },
                 ConsumerConfigFactory = (group) => new Dictionary<string, object>
                 {
@@ -92,7 +91,7 @@ namespace SlimMessageBus.Host.Kafka.Test
         }
 
         [Fact]
-        public void BasicPubSub()
+        public async Task BasicPubSub()
         {
             // arrange
 
@@ -131,9 +130,7 @@ namespace SlimMessageBus.Host.Kafka.Test
                 .Select(i => new PingMessage { Counter = i, Timestamp = DateTime.UtcNow })
                 .ToList();
 
-            messages
-                .AsParallel()
-                .ForAll(m => messageBus.Publish(m).Wait());
+            await Task.WhenAll(messages.Select(m => messageBus.Publish(m)));
 
             stopwatch.Stop();
             Log.InfoFormat(CultureInfo.InvariantCulture, "Published {0} messages in {1}", messages.Count, stopwatch.Elapsed);
@@ -163,7 +160,7 @@ namespace SlimMessageBus.Host.Kafka.Test
         }
 
         [Fact]
-        public void BasicReqResp()
+        public async Task BasicReqResp()
         {
             // arrange
 
@@ -205,14 +202,14 @@ namespace SlimMessageBus.Host.Kafka.Test
                 .ToList();
 
             var responses = new List<Tuple<EchoRequest, EchoResponse>>();
-            requests.AsParallel().ForAll(req =>
+            await Task.WhenAll(requests.Select(async req =>
             {
-                var resp = kafkaMessageBus.Send(req).Result;
+                var resp = await kafkaMessageBus.Send(req);
                 lock (responses)
                 {
                     responses.Add(Tuple.Create(req, resp));
                 }
-            });
+            }));
 
             // assert
 

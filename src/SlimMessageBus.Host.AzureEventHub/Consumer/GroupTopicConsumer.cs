@@ -36,9 +36,9 @@ namespace SlimMessageBus.Host.AzureEventHub
             _partitionConsumerFactory = partitionConsumerFactory;
 
             Log.InfoFormat(CultureInfo.InvariantCulture, "Creating EventProcessorHost for EventHub with Topic: {0}, Group: {1}", topicGroup.Topic, topicGroup.Group);
-            _processorHost = MessageBus.EventHubSettings.EventProcessorHostFactory(topicGroup);
+            _processorHost = MessageBus.ProviderSettings.EventProcessorHostFactory(topicGroup);
 
-            var eventProcessorOptions = MessageBus.EventHubSettings.EventProcessorOptionsFactory(topicGroup);
+            var eventProcessorOptions = MessageBus.ProviderSettings.EventProcessorOptionsFactory(topicGroup);
             _processorHost.RegisterEventProcessorFactoryAsync(this, eventProcessorOptions).Wait();
         }
 

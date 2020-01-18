@@ -16,7 +16,6 @@ using SlimMessageBus.Host.AspNetCore;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Memory;
-using SlimMessageBus.Host.Serialization.Json;
 
 namespace Sample.DomainEvents.WebApi
 {
@@ -101,11 +100,11 @@ namespace Sample.DomainEvents.WebApi
                         builder.Consume(find.EventType, x => x.Topic(x.MessageType.Name).WithConsumer(find.HandlerType));
                     })
                 )
-                .WithSerializer(new JsonMessageSerializer()) // Use JSON for message serialization                
+                //.WithSerializer(new JsonMessageSerializer()) // No need to use the serializer because of `MemoryMessageBusSettings.EnableMessageSerialization = false`
                 .WithDependencyResolver(new AspNetCoreMessageBusDependencyResolver(serviceProvider))
                 .WithProviderMemory(new MemoryMessageBusSettings
                 {
-                    // Don't serialize the domain events and rather pass the same instance across handlers
+                    // Do not serialize the domain events and rather pass the same instance across handlers
                     EnableMessageSerialization = false
                 });
 

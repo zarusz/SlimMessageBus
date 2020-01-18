@@ -17,20 +17,34 @@ namespace SlimMessageBus.Host.Memory
 
         private MemoryMessageBusSettings ProviderSettings { get; }
 
-        private readonly IDictionary<string, List<ConsumerRuntimeInfo>> _consumersByTopic;
+        private IDictionary<string, List<ConsumerRuntimeInfo>> _consumersByTopic;
 
-        public MemoryMessageBus(MessageBusSettings settings, MemoryMessageBusSettings providerSettings) 
+        public MemoryMessageBus(MessageBusSettings settings, MemoryMessageBusSettings providerSettings)
             : base(settings)
         {
             ProviderSettings = providerSettings;
+            OnBuildProvider();
+        }
 
-            var consumers = settings.Consumers.Select(x => new ConsumerRuntimeInfo(x)).ToList();
+        #region Overrides of MessageBusBase
+
+        protected override void AssertSerializerSettings()
+        {
+            if (ProviderSettings.EnableMessageSerialization)
+            {
+                base.AssertSerializerSettings();
+            }
+        }
+
+        protected override void Build()
+        {
+            base.Build();
+
+            var consumers = Settings.Consumers.Select(x => new ConsumerRuntimeInfo(x)).ToList();
             _consumersByTopic = consumers
                 .GroupBy(x => x.ConsumerSettings.Topic)
                 .ToDictionary(x => x.Key, x => x.ToList());
         }
-
-        #region Overrides of MessageBusBase
 
         public override Task ProduceToTransport(Type messageType, object message, string name, byte[] payload)
         {

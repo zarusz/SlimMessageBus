@@ -15,10 +15,10 @@ namespace SlimMessageBus.Host
 
         public virtual MessageBusSettings Settings { get; }
 
-        protected IDictionary<Type, ProducerSettings> ProducerSettingsByMessageType { get; }
+        protected IDictionary<Type, ProducerSettings> ProducerSettingsByMessageType { get; set; }
 
-        protected IPendingRequestStore PendingRequestStore { get; }
-        protected PendingRequestManager PendingRequestManager { get; }
+        protected IPendingRequestStore PendingRequestStore { get; set; }
+        protected PendingRequestManager PendingRequestManager { get; set; }
 
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         public CancellationToken CancellationToken => _cancellationTokenSource.Token;
@@ -28,11 +28,22 @@ namespace SlimMessageBus.Host
 
         protected MessageBusBase(MessageBusSettings settings)
         {
-            AssertSettings(settings);
-
             Settings = settings;
+        }
+
+        /// <summary>
+        /// Called by the provider to initialize the bus.
+        /// </summary>
+        protected void OnBuildProvider()
+        {
+            AssertSettings();
+            Build();
+        }
+
+        protected virtual void Build()
+        {
             ProducerSettingsByMessageType = new Dictionary<Type, ProducerSettings>();
-            foreach (var producerSettings in settings.Producers)
+            foreach (var producerSettings in Settings.Producers)
             {
                 if (ProducerSettingsByMessageType.ContainsKey(producerSettings.MessageType))
                 {
@@ -51,17 +62,30 @@ namespace SlimMessageBus.Host
             PendingRequestManager.Start();
         }
 
-        private static void AssertSettings(MessageBusSettings settings)
+        protected virtual void AssertSettings()
         {
-            Assert.IsTrue(settings.Serializer != null, 
-                () => new InvalidConfigurationMessageBusException($"{nameof(MessageBusSettings.Serializer)} was not set on {nameof(MessageBusSettings)} object"));
+            AssertSerializerSettings();
+            AssertDepencendyResolverSettings();
+            AssertRequestResponseSettings();
+        }
 
-            Assert.IsTrue(settings.DependencyResolver != null,
-                () => new InvalidConfigurationMessageBusException($"{nameof(MessageBusSettings.DependencyResolver)} was not set on {nameof(MessageBusSettings)} object"));
+        protected virtual void AssertSerializerSettings()
+        {
+            Assert.IsTrue(Settings.Serializer != null,
+                () => new InvalidConfigurationMessageBusException($"The {nameof(MessageBusSettings)}.{nameof(MessageBusSettings.Serializer)} is not set"));
+        }
 
-            if (settings.RequestResponse != null)
+        protected virtual void AssertDepencendyResolverSettings()
+        {
+            Assert.IsTrue(Settings.DependencyResolver != null,
+                () => new InvalidConfigurationMessageBusException($"The {nameof(MessageBusSettings)}.{nameof(MessageBusSettings.DependencyResolver)} is not set"));
+        }
+
+        protected virtual void AssertRequestResponseSettings()
+        {
+            if (Settings.RequestResponse != null)
             {
-                Assert.IsTrue(settings.RequestResponse.Topic != null,
+                Assert.IsTrue(Settings.RequestResponse.Topic != null,
                     () => new InvalidConfigurationMessageBusException("Request-response: name was not set"));
             }
         }
@@ -74,7 +98,7 @@ namespace SlimMessageBus.Host
             }
         }
 
-        protected void AssertRequestResponseConfigured()
+        protected virtual void AssertRequestResponseConfigured()
         {
             if (Settings.RequestResponse == null)
             {
@@ -233,7 +257,7 @@ namespace SlimMessageBus.Host
 
             // convert Task<object> to Task<TResponseMessage>
             var responseUntyped = await requestState.TaskCompletionSource.Task.ConfigureAwait(true);
-            return (TResponseMessage) responseUntyped;
+            return (TResponseMessage)responseUntyped;
         }
 
         public virtual Task ProduceRequest(object request, MessageWithHeaders requestMessage, string name, ProducerSettings producerSettings)
@@ -341,7 +365,7 @@ namespace SlimMessageBus.Host
             if (requestState == null)
             {
                 Log.DebugFormat(CultureInfo.InvariantCulture, "The response message for request id {0} arriving on name {1} will be disregarded. Either the request had already expired, had been cancelled or it was already handled (this response message is a duplicate).", requestId, name);
-                
+
                 // ToDo: add and API hook to these kind of situation
                 return Task.CompletedTask;
             }

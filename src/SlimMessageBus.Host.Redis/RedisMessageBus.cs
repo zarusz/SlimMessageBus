@@ -13,9 +13,9 @@ namespace SlimMessageBus.Host.Redis
     {
         private static readonly ILog Log = LogManager.GetLogger<RedisMessageBus>();
 
-        public RedisMessageBusSettings RedisSettings { get; }
+        public RedisMessageBusSettings ProviderSettings { get; }
 
-        public bool IsRunning { get; private set; }
+        public bool IsRunning { get; private set; } = false;
 
         protected ConnectionMultiplexer Connection { get; private set; }
         protected IDatabase Database { get; private set; }
@@ -25,19 +25,24 @@ namespace SlimMessageBus.Host.Redis
         public RedisMessageBus(MessageBusSettings settings, RedisMessageBusSettings redisSettings)
             : base(settings)
         {
-            RedisSettings = redisSettings;
-            IsRunning = false;
+            ProviderSettings = redisSettings;
+            OnBuildProvider();
+        }
 
-            Connection = RedisSettings.ConnectionFactory();
+        #region Overrides of MessageBusBase
+
+        protected override void Build()
+        {
+            base.Build();
+
+            Connection = ProviderSettings.ConnectionFactory();
             Database = Connection.GetDatabase();
 
-            if (RedisSettings.AutoStartConsumers)
+            if (ProviderSettings.AutoStartConsumers)
             {
                 Start().Wait();
             }
         }
-
-        #region Overrides of MessageBusBase
 
         protected override void Dispose(bool disposing)
         {

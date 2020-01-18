@@ -10,7 +10,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
 
         public TopicSubscriptionConsumer(ServiceBusMessageBus messageBus, AbstractConsumerSettings consumerSettings, IMessageProcessor<Message> messageProcessor) 
             : base(messageBus, consumerSettings,
-                messageBus.ServiceBusSettings.SubscriptionClientFactory(new SubscriptionFactoryParams(consumerSettings.Topic, consumerSettings.GetSubscriptionName())),
+                messageBus.ProviderSettings.SubscriptionClientFactory(new SubscriptionFactoryParams(consumerSettings.Topic, consumerSettings.GetSubscriptionName())),
                 messageProcessor,
                 LogManager.GetLogger<TopicSubscriptionConsumer>())
         {
