@@ -394,12 +394,25 @@ Check out the complete [sample](/src/Samples#sampleimages) for image resizing.
 
 ## Build
 
-The PowerShell scripts use the `dotnet` CLI.
+```cmd
+cd src
+dotnet build
+dotnet pack --output ../dist
+```
 
-| What                                             | Command                     | Comment                                                                                                                                                                                                   |
-|--------------------------------------------------|-----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Build                                            | `.\build\do_build.ps1`      |                                                                                                                                                                                                           |
-| Test                                             | `.\build\do_test.ps1`       | Please note there are integration tests that require local infrastructure (Kafka provider), other use shared clound infrastructre (Azure EventHubs). Consult each provider test to see what is required.  |
-| Test (skip tests requiring local infrastructure) | `.\build\do_test_ci.ps1`    | Executs tests that do not require local infrastructure.                                                                                                                                                   |
-| Package NuGet                                    | `.\build\do_package.ps1`    | Packages go to `dist` folder.                                                                                                                                                                             |
-| Push NuGet                                       | `.\build\do_push_local.ps1` | Pushes packages to nuget repository named `local`.                                                                                                                                                        |
+NuGet packaged end up in `dist` folder
+
+## Testing
+
+To run tests you need to update the respective `appsettings.json` to match your own cloud infrstructure or local infrastructure.
+SMB has some message brokers setup on Azure for integration tests (secrets not shared).
+
+Run all tests:
+```cmd
+dotnet test
+```
+
+Run all tests except  integration tests which require local/cloud infrastructure:
+```cmd
+dotnet test --filter Category!=Integration
+```
