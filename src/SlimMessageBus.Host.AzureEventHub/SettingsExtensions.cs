@@ -15,18 +15,5 @@ namespace SlimMessageBus.Host.AzureEventHub
         {
             return consumerSettings.Properties[GroupKey] as string;
         }
-
-        public static T Group<T>(this T builder, string group)
-            where T : AbstractTopicConsumerBuilder
-        {
-            builder.ConsumerSettings.SetGroup(group);
-            return builder;
-        }
-
-        public static RequestResponseBuilder Group(this RequestResponseBuilder builder, string group)
-        {
-            builder.Settings.SetGroup(group);
-            return builder;
-        }
     }
 }

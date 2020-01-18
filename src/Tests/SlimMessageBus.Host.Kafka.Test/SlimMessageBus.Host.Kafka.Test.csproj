@@ -25,6 +25,7 @@
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Json\SlimMessageBus.Host.Serialization.Json.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus\SlimMessageBus.csproj" />
+    <ProjectReference Include="..\..\Tools\SecretStore\SecretStore.csproj" />
   </ItemGroup>
 
   <ItemGroup>
