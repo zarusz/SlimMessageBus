@@ -14,11 +14,10 @@ using Microsoft.Extensions.Configuration;
 using SecretStore;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.Redis;
 using SlimMessageBus.Host.Serialization.Json;
 using Xunit;
 
-namespace SlimMessageBus.Host.AzureServiceBus.Test
+namespace SlimMessageBus.Host.Redis.Test
 {
     [Trait("Category", "Integration")]
     [Trait("Category", "Local")]
