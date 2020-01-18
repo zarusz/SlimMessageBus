@@ -333,6 +333,8 @@ namespace SlimMessageBus.Host.Test
         {
             // by default no responses will arrive
             OnReply = (type, payload, req) => null;
+
+            OnBuildProvider();
         }
 
         public int PendingRequestsCount => PendingRequestStore.GetCount();

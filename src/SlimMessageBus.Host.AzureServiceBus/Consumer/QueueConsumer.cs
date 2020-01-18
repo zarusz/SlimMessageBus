@@ -10,7 +10,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
 
         public QueueConsumer(ServiceBusMessageBus messageBus, AbstractConsumerSettings consumerSettings, IMessageProcessor<Message> messageProcessor) 
             : base(messageBus, consumerSettings,
-                messageBus.ServiceBusSettings.QueueClientFactory(consumerSettings.Topic),
+                messageBus.ProviderSettings.QueueClientFactory(consumerSettings.Topic),
                 messageProcessor,
                 LogManager.GetLogger<QueueConsumer>())
         {
