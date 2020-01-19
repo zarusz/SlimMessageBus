@@ -15,24 +15,26 @@ namespace SecretStore
 
         public string PopulateSecrets(string value)
         {
-            var index = 0;
-            Match match;
-            do
+            if (!string.IsNullOrEmpty(value))
             {
-                match = _placeholder.Match(value, index);
-                if (match.Success)
+                var index = 0;
+                Match match;
+                do
                 {
-                    var secretName = match.Groups[1].Value;
-                    var secretValue = _secretStore.GetSecret(secretName);
-                    if (secretValue == null)
+                    match = _placeholder.Match(value, index);
+                    if (match.Success)
                     {
-                        throw new ApplicationException($"The secret name '{secretName}' was not present in vault. Ensure that you have a local secrets.txt file in the src folder.");
+                        var secretName = match.Groups[1].Value;
+                        var secretValue = _secretStore.GetSecret(secretName);
+                        if (secretValue == null)
+                        {
+                            throw new ApplicationException($"The secret name '{secretName}' was not present in vault. Ensure that you have a local secrets.txt file in the src folder.");
+                        }
+                        value = value.Replace(match.Value, secretValue, StringComparison.InvariantCulture);
+                        index = match.Index + 1;
                     }
-                    value = value.Replace(match.Value, secretValue, StringComparison.InvariantCulture);
-                    index = match.Index + 1;
-                }
-            } while (match.Success);
-
+                } while (match.Success);
+            }
             return value;
         }
     }

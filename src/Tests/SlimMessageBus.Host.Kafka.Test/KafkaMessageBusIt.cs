@@ -15,6 +15,8 @@ using Common.Logging.Simple;
 using Microsoft.Extensions.Configuration;
 using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Kafka.Configs;
+using SecretStore;
+using System.Collections.Concurrent;
 
 namespace SlimMessageBus.Host.Kafka.Test
 {
@@ -42,12 +44,17 @@ namespace SlimMessageBus.Host.Kafka.Test
         public KafkaMessageBusIt()
         {
             LogManager.Adapter = new DebugLoggerFactoryAdapter();
+            //LogManager.Adapter = new NoOpLoggerFactoryAdapter();
 
             var configuration = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")
                 .Build();
 
+            Secrets.Load(@"..\..\..\..\..\secrets.txt");
+
             var kafkaBrokers = configuration["Kafka:Brokers"];
+            var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
+            var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
 
             KafkaSettings = new KafkaMessageBusSettings(kafkaBrokers)
             {
@@ -56,8 +63,7 @@ namespace SlimMessageBus.Host.Kafka.Test
                     {"socket.blocking.max.ms", 1},
                     {"queue.buffering.max.ms", 1},
                     {"socket.nagle.disable", true},
-                    {"request.timeout.ms", 2000 }, // when no response within 2 sec of sending a msg, report error
-                    {"message.timeout.ms", 5000 }
+                    //{"request.required.acks", 0}
                 },
                 ConsumerConfigFactory = (group) => new Dictionary<string, object>
                 {
@@ -68,7 +74,6 @@ namespace SlimMessageBus.Host.Kafka.Test
                     {KafkaConfigKeys.ConsumerKeys.AutoOffsetReset, KafkaConfigValues.AutoOffsetReset.Earliest}
                 }
             };
-
             MessageBusBuilder = MessageBusBuilder.Create()
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderKafka(KafkaSettings);
@@ -108,10 +113,14 @@ namespace SlimMessageBus.Host.Kafka.Test
                     // Partition #1 for odd counters
                     x.PartitionProvider((m, t) => m.Counter % 2);
                 })
-                .Consume<PingMessage>(x => x.Topic(topic)
-                                                .Group("subscriber")
-                                                .WithConsumer<PingConsumer>()
-                                                .Instances(2))
+                .Consume<PingMessage>(x => {
+                    x.Topic(topic)
+                        .WithConsumer<PingConsumer>()
+                        .Group("subscriber")
+                        .Instances(2)
+                        .CheckpointEvery(1000)
+                        .CheckpointAfter(TimeSpan.FromSeconds(600));
+                })
                 .WithDependencyResolver(new LookupDependencyResolver(f =>
                 {
                     if (f == typeof(PingConsumer)) return pingConsumer;
@@ -137,7 +146,10 @@ namespace SlimMessageBus.Host.Kafka.Test
 
             // consume
             stopwatch.Restart();
-            var messagesReceived = ConsumeFromTopic(pingConsumer);
+            
+            await WaitWhileMessagesAreFlowing(() => pingConsumer.Messages.Count);
+            var messagesReceived = pingConsumer.Messages;
+
             stopwatch.Stop();
             Log.InfoFormat(CultureInfo.InvariantCulture, "Consumed {0} messages in {1}", messagesReceived.Count, stopwatch.Elapsed);
 
@@ -177,14 +189,19 @@ namespace SlimMessageBus.Host.Kafka.Test
                     x.PartitionProvider((m, t) => m.Index % 2);
                 })
                 .Handle<EchoRequest, EchoResponse>(x => x.Topic(topic)
-                                                         .Group("handler")
                                                          .WithHandler<EchoRequestHandler>()
-                                                         .Instances(2))
+                                                         .Group("handler")
+                                                         .Instances(2)
+                                                         .CheckpointEvery(1000)
+                                                         .CheckpointAfter(TimeSpan.FromSeconds(60)))
                 .ExpectRequestResponses(x =>
                 {
                     x.ReplyToTopic("test-echo-resp");
                     x.Group("response-reader");
-                    x.DefaultTimeout(TimeSpan.FromSeconds(30));
+                    // for subsequent test runs allow enough time for kafka to reassign the partitions
+                    x.DefaultTimeout(TimeSpan.FromSeconds(60));
+                    x.CheckpointEvery(100);
+                    x.CheckpointAfter(TimeSpan.FromSeconds(10));
                 })
                 .WithDependencyResolver(new LookupDependencyResolver(f =>
                 {
@@ -201,15 +218,14 @@ namespace SlimMessageBus.Host.Kafka.Test
                 .Select(i => new EchoRequest { Index = i, Message = $"Echo {i}" })
                 .ToList();
 
-            var responses = new List<Tuple<EchoRequest, EchoResponse>>();
+            var responses = new ConcurrentBag<ValueTuple<EchoRequest, EchoResponse>>();
             await Task.WhenAll(requests.Select(async req =>
             {
                 var resp = await kafkaMessageBus.Send(req);
-                lock (responses)
-                {
-                    responses.Add(Tuple.Create(req, resp));
-                }
+                responses.Add((req, resp));
             }));
+
+            await WaitWhileMessagesAreFlowing(() => responses.Count);
 
             // assert
 
@@ -218,7 +234,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             responses.All(x => x.Item1.Message == x.Item2.Message).Should().BeTrue();
         }
 
-        private static IList<Tuple<PingMessage, int>> ConsumeFromTopic(PingConsumer pingConsumer)
+        private static async Task WaitWhileMessagesAreFlowing(Func<int> counterFunc)
         {
             var lastMessageCount = 0;
             var lastMessageStopwatch = Stopwatch.StartNew();
@@ -227,16 +243,15 @@ namespace SlimMessageBus.Host.Kafka.Test
 
             while (lastMessageStopwatch.Elapsed.TotalSeconds < newMessagesAwaitingTimeout)
             {
-                Thread.Sleep(200);
+                await Task.Delay(200);
 
-                if (pingConsumer.Messages.Count != lastMessageCount)
+                if (counterFunc() != lastMessageCount)
                 {
-                    lastMessageCount = pingConsumer.Messages.Count;
+                    lastMessageCount = counterFunc();
                     lastMessageStopwatch.Restart();
                 }
             }
             lastMessageStopwatch.Stop();
-            return pingConsumer.Messages;
         }
 
         private class PingMessage
@@ -257,19 +272,16 @@ namespace SlimMessageBus.Host.Kafka.Test
             private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
             public AsyncLocal<ConsumerContext> Context { get; } = new AsyncLocal<ConsumerContext>();
-            public IList<Tuple<PingMessage, int>> Messages { get; } = new List<Tuple<PingMessage, int>>();
+            public ConcurrentBag<ValueTuple<PingMessage, int>> Messages { get; } = new ConcurrentBag<ValueTuple<PingMessage, int>>();
 
             #region Implementation of IConsumer<in PingMessage>
 
             public Task OnHandle(PingMessage message, string name)
             {
-                lock (this)
-                {
-                    var transportMessage = Context.Value.GetTransportMessage();
-                    var partition = transportMessage.TopicPartition.Partition;
+                var transportMessage = Context.Value.GetTransportMessage();
+                var partition = transportMessage.TopicPartition.Partition;
 
-                    Messages.Add(Tuple.Create(message, partition));
-                }
+                Messages.Add((message, partition));
 
                 Log.InfoFormat(CultureInfo.InvariantCulture, "Got message {0} on topic {1}.", message.Counter, name);
                 return Task.CompletedTask;
