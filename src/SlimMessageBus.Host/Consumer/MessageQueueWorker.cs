@@ -15,14 +15,14 @@ namespace SlimMessageBus.Host
         private readonly Queue<MessageProcessingResult<TMessage>> _pendingMessages = new Queue<MessageProcessingResult<TMessage>>();
 
         public int Count => _pendingMessages.Count;
-        public ConsumerInstancePool<TMessage> ConsumerInstancePool { get; }
+        public ConsumerInstancePoolMessageProcessor<TMessage> ConsumerInstancePool { get; }
 
         private readonly ICheckpointTrigger _checkpointTrigger;
 
-        public MessageQueueWorker(ConsumerInstancePool<TMessage> consumerInstancePool, ICheckpointTrigger checkpointTrigger)
+        public MessageQueueWorker(ConsumerInstancePoolMessageProcessor<TMessage> consumerInstancePool, ICheckpointTrigger checkpointTrigger)
         {
-            ConsumerInstancePool = consumerInstancePool;
-            _checkpointTrigger = checkpointTrigger;
+            ConsumerInstancePool = consumerInstancePool ?? throw new ArgumentNullException(nameof(consumerInstancePool));
+            _checkpointTrigger = checkpointTrigger ?? throw new ArgumentNullException(nameof(checkpointTrigger));
         }
 
         /// <summary>

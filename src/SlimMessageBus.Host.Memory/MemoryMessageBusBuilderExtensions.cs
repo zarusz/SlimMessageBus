@@ -1,4 +1,5 @@
 ﻿using SlimMessageBus.Host.Config;
+using System;
 
 namespace SlimMessageBus.Host.Memory
 {
@@ -6,6 +7,7 @@ namespace SlimMessageBus.Host.Memory
     {
         public static MessageBusBuilder WithProviderMemory(this MessageBusBuilder mbb, MemoryMessageBusSettings providerSettings)
         {
+            if (mbb == null) throw new ArgumentNullException(nameof(mbb));
             return mbb.WithProvider(settings => new MemoryMessageBus(settings, providerSettings));
         }
     }

@@ -36,7 +36,7 @@ namespace SlimMessageBus.Host.Test
             };
 
             // act
-            var p = new ConsumerInstancePool<SomeMessage>(consumerSettings, _busMock.Bus, x => Array.Empty<byte>());
+            var p = new ConsumerInstancePoolMessageProcessor<SomeMessage>(consumerSettings, _busMock.Bus, x => Array.Empty<byte>());
 
             // assert
             _busMock.DependencyResolverMock.Verify(x => x.Resolve(typeof(IConsumer<SomeMessage>)), Times.Exactly(consumerSettings.Instances));
@@ -55,7 +55,7 @@ namespace SlimMessageBus.Host.Test
             };
 
             // act
-            var p = new ConsumerInstancePool<SomeRequest>(consumerSettings, _busMock.Bus, x => Array.Empty<byte>());
+            var p = new ConsumerInstancePoolMessageProcessor<SomeRequest>(consumerSettings, _busMock.Bus, x => Array.Empty<byte>());
 
             // assert
             _busMock.DependencyResolverMock.Verify(x => x.Resolve(typeof(IRequestHandler<SomeRequest, SomeResponse>)),
@@ -103,7 +103,7 @@ namespace SlimMessageBus.Host.Test
                         }, TaskScheduler.Current);
                 });
 
-            var p = new ConsumerInstancePool<SomeMessage>(consumerSettings, _busMock.Bus, x => Array.Empty<byte>());
+            var p = new ConsumerInstancePoolMessageProcessor<SomeMessage>(consumerSettings, _busMock.Bus, x => Array.Empty<byte>());
 
             // act
             var time = Stopwatch.StartNew();
@@ -146,7 +146,7 @@ namespace SlimMessageBus.Host.Test
                 OnMessageExpired = onMessageExpiredMock.Object
             };
 
-            var p = new ConsumerInstancePool<SomeRequest>(consumerSettings, _busMock.Bus, x => Array.Empty<byte>());
+            var p = new ConsumerInstancePoolMessageProcessor<SomeRequest>(consumerSettings, _busMock.Bus, x => Array.Empty<byte>());
 
             var request = new SomeRequest();
             var requestMessage = new MessageWithHeaders();
@@ -179,7 +179,7 @@ namespace SlimMessageBus.Host.Test
                 OnMessageFault = onMessageFaultMock.Object
             };
 
-            var p = new ConsumerInstancePool<SomeRequest>(consumerSettings, _busMock.Bus, x => Array.Empty<byte>());
+            var p = new ConsumerInstancePoolMessageProcessor<SomeRequest>(consumerSettings, _busMock.Bus, x => Array.Empty<byte>());
 
             var request = new SomeRequest();
             var requestMessage = new MessageWithHeaders();
@@ -222,7 +222,7 @@ namespace SlimMessageBus.Host.Test
                 OnMessageFault = onMessageFaultMock.Object
             };
 
-            var p = new ConsumerInstancePool<SomeMessage>(consumerSettings, _busMock.Bus, x => Array.Empty<byte>());
+            var p = new ConsumerInstancePoolMessageProcessor<SomeMessage>(consumerSettings, _busMock.Bus, x => Array.Empty<byte>());
 
             var message = new SomeMessage();
             _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeMessage), It.IsAny<byte[]>())).Returns(message);

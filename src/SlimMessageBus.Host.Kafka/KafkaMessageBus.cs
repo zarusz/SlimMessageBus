@@ -25,10 +25,10 @@ namespace SlimMessageBus.Host.Kafka
         private readonly IDictionary<Type, Func<object, string, byte[]>> _keyProviders = new Dictionary<Type, Func<object, string, byte[]>>();
         private readonly IDictionary<Type, Func<object, string, int>> _partitionProviders = new Dictionary<Type, Func<object, string, int>>();
 
-        public KafkaMessageBus(MessageBusSettings settings, KafkaMessageBusSettings kafkaSettings)
+        public KafkaMessageBus(MessageBusSettings settings, KafkaMessageBusSettings providerSettings)
             : base(settings)
         {
-            ProviderSettings = kafkaSettings;
+            ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
 
             OnBuildProvider();
 

@@ -13,9 +13,9 @@ namespace SlimMessageBus.Host
 
         public ResponseMessageProcessor(RequestResponseSettings requestResponseSettings, MessageBusBase messageBus, Func<TMessage, byte[]> messagePayloadProvider)
         {
-            _requestResponseSettings = requestResponseSettings;
-            _messageBus = messageBus;
-            _messagePayloadProvider = messagePayloadProvider;
+            _requestResponseSettings = requestResponseSettings ?? throw new ArgumentNullException(nameof(requestResponseSettings));
+            _messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
+            _messagePayloadProvider = messagePayloadProvider ?? throw new ArgumentNullException(nameof(messagePayloadProvider));
         }
 
         public Task ProcessMessage(TMessage message)

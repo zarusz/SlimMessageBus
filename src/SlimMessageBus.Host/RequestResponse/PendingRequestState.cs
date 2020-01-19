@@ -17,10 +17,10 @@ namespace SlimMessageBus.Host
 
         public PendingRequestState(string id, object request, Type requestType, Type responseType, DateTimeOffset created, DateTimeOffset expires, CancellationToken cancellationToken)
         {
-            Id = id;
-            Request = request;
-            RequestType = requestType;
-            ResponseType = responseType;
+            Id = id ?? throw new ArgumentNullException(nameof(id));
+            Request = request ?? throw new ArgumentNullException(nameof(request));
+            RequestType = requestType ?? throw new ArgumentNullException(nameof(requestType));
+            ResponseType = responseType ?? throw new ArgumentNullException(nameof(responseType));
             Created = created;
             Expires = expires;
             // https://blogs.msdn.microsoft.com/pfxteam/2009/06/02/the-nature-of-taskcompletionsourcetresult/

@@ -17,12 +17,12 @@ namespace SlimMessageBus.Host.Memory
 
         private MemoryMessageBusSettings ProviderSettings { get; }
 
-        private IDictionary<string, List<ConsumerRuntimeInfo>> _consumersByTopic;
+        private IDictionary<string, List<ConsumerWrapper>> _consumersByTopic;
 
         public MemoryMessageBus(MessageBusSettings settings, MemoryMessageBusSettings providerSettings)
             : base(settings)
         {
-            ProviderSettings = providerSettings;
+            ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
             OnBuildProvider();
         }
 
@@ -40,7 +40,7 @@ namespace SlimMessageBus.Host.Memory
         {
             base.Build();
 
-            var consumers = Settings.Consumers.Select(x => new ConsumerRuntimeInfo(x)).ToList();
+            var consumers = Settings.Consumers.Select(x => new ConsumerWrapper(x)).ToList();
             _consumersByTopic = consumers
                 .GroupBy(x => x.ConsumerSettings.Topic)
                 .ToDictionary(x => x.Key, x => x.ToList());

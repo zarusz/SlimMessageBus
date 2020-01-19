@@ -12,7 +12,7 @@ namespace SlimMessageBus.Host.Test.Consumer
 {
     public class MessageQueueWorkerTest
     {
-        private readonly Mock<ConsumerInstancePool<SomeMessage>> _consumerInstancePoolMock;
+        private readonly Mock<ConsumerInstancePoolMessageProcessor<SomeMessage>> _consumerInstancePoolMock;
         private readonly Mock<ICheckpointTrigger> _checkpointTriggerMock;
 
         public MessageQueueWorkerTest()
@@ -29,7 +29,7 @@ namespace SlimMessageBus.Host.Test.Consumer
             };
 
             byte[] PayloadProvider(SomeMessage m) => Array.Empty<byte>();
-            _consumerInstancePoolMock = new Mock<ConsumerInstancePool<SomeMessage>>(consumerSettings, busMock.BusMock.Object, (Func<SomeMessage, byte[]>) PayloadProvider, null);
+            _consumerInstancePoolMock = new Mock<ConsumerInstancePoolMessageProcessor<SomeMessage>>(consumerSettings, busMock.BusMock.Object, (Func<SomeMessage, byte[]>) PayloadProvider, null);
         }
 
         [Fact]

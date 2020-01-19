@@ -98,7 +98,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
             {
                 Log.InfoFormat(CultureInfo.InvariantCulture, "Creating consumer for {0}", consumerSettings.FormatIf(Log.IsInfoEnabled));
 
-                var messageProcessor = new ConsumerInstancePool<Message>(consumerSettings, this, m => m.Body);
+                var messageProcessor = new ConsumerInstancePoolMessageProcessor<Message>(consumerSettings, this, m => m.Body);
                 AddConsumer(consumerSettings, messageProcessor);
             }
 

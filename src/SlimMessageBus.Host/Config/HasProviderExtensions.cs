@@ -7,12 +7,7 @@ namespace SlimMessageBus.Host.Config
         /// <summary>
         /// Provider specific properties bag.
         /// </summary>
-        public IDictionary<string, object> Properties { get; protected set; }
-
-        protected HasProviderExtensions()
-        {
-            Properties = new Dictionary<string, object>();
-        }
+        public IDictionary<string, object> Properties { get; } = new Dictionary<string, object>();
 
         public T GetOrDefault<T>(string key, T defaultValue)
         {

@@ -1,0 +1,5 @@
+﻿[*.cs]
+
+# CA1303: Do not pass literals as localized parameters
+dotnet_diagnostic.CA1303.severity = suggestion
+dotnet_code_quality.CA2000.excluded_symbol_names = ConsumerInstancePoolMessageProcessor,ResponseMessageProcessor

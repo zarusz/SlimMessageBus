@@ -39,7 +39,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             massageBusMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageConsumer))).Returns(_consumer);
 
             byte[] MessageValueProvider(Message m) => m.Value;
-            var consumerInstancePoolMock = new Mock<ConsumerInstancePool<Message>>(consumerSettings, massageBusMock.Bus, (Func<Message, byte[]>) MessageValueProvider, null);
+            var consumerInstancePoolMock = new Mock<ConsumerInstancePoolMessageProcessor<Message>>(consumerSettings, massageBusMock.Bus, (Func<Message, byte[]>) MessageValueProvider, null);
             _messageQueueWorkerMock = new Mock<MessageQueueWorker<Message>>(consumerInstancePoolMock.Object, _checkpointTrigger.Object);
             _subject = new KafkaConsumerProcessor(consumerSettings, _topicPartition, _commitControllerMock.Object, massageBusMock.Bus, _messageQueueWorkerMock.Object);
         }
