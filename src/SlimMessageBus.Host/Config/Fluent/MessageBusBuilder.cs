@@ -26,6 +26,8 @@ namespace SlimMessageBus.Host.Config
         /// <returns></returns>
         public MessageBusBuilder Produce<T>(Action<ProducerBuilder<T>> producerBuilder)
         {
+            if (producerBuilder == null) throw new ArgumentNullException(nameof(producerBuilder));
+
             var item = new ProducerSettings();
             producerBuilder(new ProducerBuilder<T>(item));
             Settings.Producers.Add(item);
@@ -40,6 +42,8 @@ namespace SlimMessageBus.Host.Config
         /// <returns></returns>
         public MessageBusBuilder Produce(Type messageType, Action<ProducerBuilder<object>> producerBuilder)
         {
+            if (producerBuilder == null) throw new ArgumentNullException(nameof(producerBuilder));
+
             var item = new ProducerSettings();
             producerBuilder(new ProducerBuilder<object>(item, messageType));
             Settings.Producers.Add(item);
@@ -50,11 +54,13 @@ namespace SlimMessageBus.Host.Config
         /// Configures (declares) the subscriber of given message types in pub/sub communication.
         /// </summary>
         /// <typeparam name="TMessage">Type of message</typeparam>
-        /// <param name="subscriberBuilder"></param>
+        /// <param name="consumerBuilder"></param>
         /// <returns></returns>
-        public MessageBusBuilder Consume<TMessage>(Action<ConsumerBuilder<TMessage>> subscriberBuilder)
+        public MessageBusBuilder Consume<TMessage>(Action<ConsumerBuilder<TMessage>> consumerBuilder)
         {
-            subscriberBuilder(new ConsumerBuilder<TMessage>(Settings));
+            if (consumerBuilder == null) throw new ArgumentNullException(nameof(consumerBuilder));
+
+            consumerBuilder(new ConsumerBuilder<TMessage>(Settings));
             return this;
         }
 
@@ -62,11 +68,13 @@ namespace SlimMessageBus.Host.Config
         /// Configures (declares) the subscriber of given message types in pub/sub communication.
         /// </summary>
         /// <param name="messageType">Type of message</param>
-        /// <param name="subscriberBuilder"></param>
+        /// <param name="consumerBuilder"></param>
         /// <returns></returns>
-        public MessageBusBuilder Consume(Type messageType, Action<ConsumerBuilder<object>> subscriberBuilder)
+        public MessageBusBuilder Consume(Type messageType, Action<ConsumerBuilder<object>> consumerBuilder)
         {
-            subscriberBuilder(new ConsumerBuilder<object>(Settings, messageType));
+            if (consumerBuilder == null) throw new ArgumentNullException(nameof(consumerBuilder));
+
+            consumerBuilder(new ConsumerBuilder<object>(Settings, messageType));
             return this;
         }
 
@@ -80,12 +88,16 @@ namespace SlimMessageBus.Host.Config
         public MessageBusBuilder Handle<TRequest, TResponse>(Action<HandlerBuilder<TRequest, TResponse>> handlerBuilder)
             where TRequest : IRequestMessage<TResponse>
         {
+            if (handlerBuilder == null) throw new ArgumentNullException(nameof(handlerBuilder));
+
             handlerBuilder(new HandlerBuilder<TRequest, TResponse>(Settings));
             return this;
         }
 
         public MessageBusBuilder ExpectRequestResponses(Action<RequestResponseBuilder> reqRespBuilder)
         {
+            if (reqRespBuilder == null) throw new ArgumentNullException(nameof(reqRespBuilder));
+
             var item = new RequestResponseSettings();
             reqRespBuilder(new RequestResponseBuilder(item));
             Settings.RequestResponse = item;
@@ -112,6 +124,8 @@ namespace SlimMessageBus.Host.Config
 
         public MessageBusBuilder Do(Action<MessageBusBuilder> builder)
         {
+            if (builder == null) throw new ArgumentNullException(nameof(builder));
+
             builder(this);
             return this;
         }

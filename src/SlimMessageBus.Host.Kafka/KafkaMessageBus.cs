@@ -150,10 +150,10 @@ namespace SlimMessageBus.Host.Kafka
             if (Settings.RequestResponse != null)
             {
                 Assert.IsTrue(Settings.RequestResponse.GetGroup() != null,
-                    () => new InvalidConfigurationMessageBusException("Request-response: group was not provided"));
+                    () => new ConfigurationMessageBusException("Request-response: group was not provided"));
 
                 Assert.IsFalse(Settings.Consumers.Any(x => x.GetGroup() == Settings.RequestResponse.GetGroup() && x.Topic == Settings.RequestResponse.Topic),
-                    () => new InvalidConfigurationMessageBusException("Request-response: cannot use topic that is already being used by a consumer"));
+                    () => new ConfigurationMessageBusException("Request-response: cannot use topic that is already being used by a consumer"));
             }
         }
 

@@ -46,7 +46,7 @@ namespace SlimMessageBus.Host
             {
                 if (ProducerSettingsByMessageType.ContainsKey(producerSettings.MessageType))
                 {
-                    throw new InvalidConfigurationMessageBusException($"The produced message type '{producerSettings.MessageType}' was declared more than once (check the {nameof(MessageBusBuilder.Produce)} configuration)");
+                    throw new ConfigurationMessageBusException($"The produced message type '{producerSettings.MessageType}' was declared more than once (check the {nameof(MessageBusBuilder.Produce)} configuration)");
                 }
                 ProducerSettingsByMessageType.Add(producerSettings.MessageType, producerSettings);
             }
@@ -63,21 +63,48 @@ namespace SlimMessageBus.Host
 
         protected virtual void AssertSettings()
         {
+            foreach (var consumerSettings in Settings.Consumers)
+            {
+                AssertConsumerSettings(consumerSettings);
+            }            
             AssertSerializerSettings();
             AssertDepencendyResolverSettings();
             AssertRequestResponseSettings();
         }
 
+        protected virtual void AssertConsumerSettings(ConsumerSettings consumerSettings)
+        {
+            if (consumerSettings == null) throw new ArgumentNullException(nameof(consumerSettings));
+
+            Assert.IsNotNull(consumerSettings.Topic,
+                () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.Topic)} is not set"));
+            Assert.IsNotNull(consumerSettings.MessageType,
+                () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.MessageType)} is not set"));
+            Assert.IsNotNull(consumerSettings.ConsumerType,
+                () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.ConsumerType)} is not set"));
+            Assert.IsNotNull(consumerSettings.ConsumerMethod,
+                () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.ConsumerMethod)} is not set"));
+
+            if (consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
+            {
+                Assert.IsNotNull(consumerSettings.ResponseType,
+                    () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.ResponseType)} is not set"));
+
+                Assert.IsNotNull(consumerSettings.ConsumerMethodResult,
+                    () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.ConsumerMethodResult)} is not set"));
+            }
+        }
+
         protected virtual void AssertSerializerSettings()
         {
             Assert.IsNotNull(Settings.Serializer,
-                () => new InvalidConfigurationMessageBusException($"The {nameof(MessageBusSettings)}.{nameof(MessageBusSettings.Serializer)} is not set"));
+                () => new ConfigurationMessageBusException($"The {nameof(MessageBusSettings)}.{nameof(MessageBusSettings.Serializer)} is not set"));
         }
 
         protected virtual void AssertDepencendyResolverSettings()
         {
             Assert.IsNotNull(Settings.DependencyResolver,
-                () => new InvalidConfigurationMessageBusException($"The {nameof(MessageBusSettings)}.{nameof(MessageBusSettings.DependencyResolver)} is not set"));
+                () => new ConfigurationMessageBusException($"The {nameof(MessageBusSettings)}.{nameof(MessageBusSettings.DependencyResolver)} is not set"));
         }
 
         protected virtual void AssertRequestResponseSettings()
@@ -85,7 +112,7 @@ namespace SlimMessageBus.Host
             if (Settings.RequestResponse != null)
             {
                 Assert.IsNotNull(Settings.RequestResponse.Topic,
-                    () => new InvalidConfigurationMessageBusException("Request-response: name was not set"));
+                    () => new ConfigurationMessageBusException("Request-response: name was not set"));
             }
         }
 

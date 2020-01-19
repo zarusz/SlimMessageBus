@@ -27,13 +27,7 @@ namespace SlimMessageBus.Host.Test
         public void WhenNewInstanceThenResolvesNInstancesOfConsumer()
         {
             // arrange
-            var consumerSettings = new ConsumerSettings
-            {
-                Instances = 2,
-                ConsumerMode = ConsumerMode.Consumer,
-                ConsumerType = typeof(IConsumer<SomeMessage>),
-                MessageType = typeof(SomeMessage)
-            };
+            var consumerSettings = new ConsumerBuilder<SomeMessage>(new MessageBusSettings()).Topic(null).WithConsumer<IConsumer<SomeMessage>>().Instances(2).ConsumerSettings;
 
             // act
             var p = new ConsumerInstancePoolMessageProcessor<SomeMessage>(consumerSettings, _busMock.Bus, x => Array.Empty<byte>());
@@ -46,13 +40,7 @@ namespace SlimMessageBus.Host.Test
         public void WhenNewInstanceThenResolvesNInstancesOfHandler()
         {
             // arrange
-            var consumerSettings = new ConsumerSettings
-            {
-                Instances = 2,
-                ConsumerMode = ConsumerMode.RequestResponse,
-                ConsumerType = typeof(IRequestHandler<SomeRequest, SomeResponse>),
-                MessageType = typeof(SomeRequest)
-            };
+            var consumerSettings = new HandlerBuilder<SomeRequest, SomeResponse>(new MessageBusSettings()).Topic(null).WithHandler<IRequestHandler<SomeRequest, SomeResponse>>().Instances(2).ConsumerSettings;
 
             // act
             var p = new ConsumerInstancePoolMessageProcessor<SomeRequest>(consumerSettings, _busMock.Bus, x => Array.Empty<byte>());
@@ -70,13 +58,7 @@ namespace SlimMessageBus.Host.Test
             const int messageCount = 500;
 
             // arrange
-            var consumerSettings = new ConsumerSettings
-            {
-                Instances = consumerInstances,
-                ConsumerMode = ConsumerMode.Consumer,
-                ConsumerType = typeof(IConsumer<SomeMessage>),
-                MessageType = typeof(SomeMessage)
-            };
+            var consumerSettings = new ConsumerBuilder<SomeMessage>(new MessageBusSettings()).Topic(null).WithConsumer<IConsumer<SomeMessage>>().Instances(consumerInstances).ConsumerSettings;
 
             var activeInstances = 0;
             var processedMessageCount = 0;
@@ -134,17 +116,9 @@ namespace SlimMessageBus.Host.Test
         public void WhenRequestExpiredThenOnMessageExpiredIsCalled()
         {
             // arrange
-
             var onMessageExpiredMock = new Mock<Action<AbstractConsumerSettings, object>>();
-            var consumerSettings = new ConsumerSettings
-            {
-                Instances = 1,
-                Topic = "topic1",
-                ConsumerMode = ConsumerMode.RequestResponse,
-                ConsumerType = typeof(IRequestHandler<SomeRequest, SomeResponse>),
-                MessageType = typeof(SomeRequest),
-                OnMessageExpired = onMessageExpiredMock.Object
-            };
+            var consumerSettings = new HandlerBuilder<SomeRequest, SomeResponse>(new MessageBusSettings()).Topic(null).WithHandler<IRequestHandler<SomeRequest, SomeResponse>>().Instances(1).ConsumerSettings;
+            consumerSettings.OnMessageExpired = onMessageExpiredMock.Object;
 
             var p = new ConsumerInstancePoolMessageProcessor<SomeRequest>(consumerSettings, _busMock.Bus, x => Array.Empty<byte>());
 
@@ -169,15 +143,8 @@ namespace SlimMessageBus.Host.Test
         {
             // arrange
             var onMessageFaultMock = new Mock<Action<AbstractConsumerSettings, object, Exception>>();
-            var consumerSettings = new ConsumerSettings
-            {
-                Instances = 1,
-                Topic = "topic1",
-                ConsumerMode = ConsumerMode.RequestResponse,
-                ConsumerType = typeof(IRequestHandler<SomeRequest, SomeResponse>),
-                MessageType = typeof(SomeRequest),
-                OnMessageFault = onMessageFaultMock.Object
-            };
+            var consumerSettings = new HandlerBuilder<SomeRequest, SomeResponse>(new MessageBusSettings()).Topic(null).WithHandler<IRequestHandler<SomeRequest, SomeResponse>>().Instances(1).ConsumerSettings;
+            consumerSettings.OnMessageFault = onMessageFaultMock.Object;
 
             var p = new ConsumerInstancePoolMessageProcessor<SomeRequest>(consumerSettings, _busMock.Bus, x => Array.Empty<byte>());
 
@@ -204,7 +171,7 @@ namespace SlimMessageBus.Host.Test
             onMessageFaultMock.Verify(
                 x => x(consumerSettings, request, ex), Times.Once); // callback called once
             _busMock.BusMock.Verify(
-                x => x.ProduceResponse(request,  requestMessage, It.IsAny<SomeResponse>(), It.Is<MessageWithHeaders>(m => m.Headers[ReqRespMessageHeaders.RequestId]== requestId), It.IsAny<ConsumerSettings>()));
+                x => x.ProduceResponse(request, requestMessage, It.IsAny<SomeResponse>(), It.Is<MessageWithHeaders>(m => m.Headers[ReqRespMessageHeaders.RequestId] == requestId), It.IsAny<ConsumerSettings>()));
         }
 
         [Fact]
@@ -212,15 +179,8 @@ namespace SlimMessageBus.Host.Test
         {
             // arrange
             var onMessageFaultMock = new Mock<Action<AbstractConsumerSettings, object, Exception>>();
-            var consumerSettings = new ConsumerSettings
-            {
-                Instances = 1,
-                Topic = "topic1",
-                ConsumerMode = ConsumerMode.Consumer,
-                ConsumerType = typeof(IConsumer<SomeMessage>),
-                MessageType = typeof(SomeMessage),
-                OnMessageFault = onMessageFaultMock.Object
-            };
+            var consumerSettings = new ConsumerBuilder<SomeMessage>(new MessageBusSettings()).Topic("topic1").WithConsumer<IConsumer<SomeMessage>>().Instances(1).ConsumerSettings;
+            consumerSettings.OnMessageFault = onMessageFaultMock.Object;
 
             var p = new ConsumerInstancePoolMessageProcessor<SomeMessage>(consumerSettings, _busMock.Bus, x => Array.Empty<byte>());
 

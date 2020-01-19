@@ -4,7 +4,8 @@
 ## Configuration
 
 The configuration starts with `MessageBusBuilder`, which allows to configure couple of elements:
-* The bus transport provider (Apache Kafka, Azure Service Bus, ...).
+
+* The bus transport provider (Apache Kafka, Azure Service Bus, Memory).
 * The serialization provider.
 * The dependency injecion provider.
 * Declaration of messages produced and consumed along with topic/queue names.
@@ -31,7 +32,7 @@ var mbb = MessageBusBuilder
 		.Group(consumerGroup) // Kafka provider specific
 	)
 
-	// Req/Resp example:	
+	// Req/Resp example:
 	.Produce<MultiplyRequest>(x => x.DefaultTopic("multiply-request")) // By default AddCommand messages will go to 'multiply-request' topic (or hub name when Azure Service Hub provider)
 	.Handle<MultiplyRequest, MultiplyResponse>(x => x
 		.Topic("multiply-request") // Topic to expect the request messages
@@ -71,7 +72,7 @@ The `IMessageBus` is disposable (implements `IDisposable`).
 The app service that produces a given message needs to declare that on the `MessageBusBuilder` using `Produce<TMessage>()` method:
 
 ```cs
-mbb.Produce<SomeMessage>(x => 
+mbb.Produce<SomeMessage>(x =>
 {
 	// this is optional
 	x.DefaultTopic("some-topic");
@@ -84,7 +85,7 @@ Then your app can publish a message:
 var msg = new SomeMessage("ping");
 
 // delivered to "some-topic" by default
-await bus.Publish(msg); 
+await bus.Publish(msg);
 
 // OR delivered to the specified topic
 await bus.Publish(msg, "other-topic");
@@ -92,17 +93,20 @@ await bus.Publish(msg, "other-topic");
 
 ### Consumer
 
-To consume a message type from a topic declare it using `Consume<TMessage>()` method:
+To consume a message type from a topic/queue, declare it using `Consume<TMessage>()` method:
 
 ```cs
 mbb.Consume<SomeMessage>(x => x
-   .Topic("some-topic")
-   .WithConsumer<SomeConsumer>()
+   .Topic("some-topic") // or queue name
+   .WithConsumer<SomeConsumer>() // (1)
+   // if you do not want to implement the IConsumer<T> interface
+   // .WithConsumer<AddCommandConsumer>(nameof(AddCommandConsumer.MyHandleMethod)) // (2) uses reflection
+   // .WithConsumer<AddCommandConsumer>((consumer, message, name) => consumer.MyHandleMethod(message, name)) // (3) uses a delegate
    .Instances(1)
    .Group("some-consumer-group")) // Kafka provider specific setting
 ```
 
-The consumer needs to implement the `IConsumer<SomeMessage>` interface:
+When the consumer implements the `IConsumer<SomeMessage>` interface:
 
 ```cs
 public class SomeConsumer : IConsumer<SomeMessage>
@@ -117,6 +121,24 @@ public class SomeConsumer : IConsumer<SomeMessage>
 The second parameter (`name`) is the topic (or queue) name that the message arrived on.
 
 The `SomeConsumer` needs to be registered in your DI container. The SMB runtime will ask the chosen DI to provide the desired number of consumer instances. Any collaborators of the consumer will be resolved according to your DI configuration.
+
+Alternatively, if you do not want to implement the `IConsumer<SomeMessage>`, then you can provide the method (2) name or a delegate how to call your consumer (3):
+
+```cs
+public class SomeConsumer
+{
+	public async Task MyHandleMethod(SomeMessage msg, string name)
+	{
+		// handle the msg
+	}
+
+    // This is also possible: 
+	// private async Task MyHandleMethod(SomeMessage msg)
+	// {
+	// }
+}
+```
+
 
 ## Request-response communication
 

@@ -115,7 +115,7 @@ namespace SlimMessageBus.Host.Test
             Action busCreation = () => BusBuilder.Build();
 
             // assert
-            busCreation.Should().Throw<InvalidConfigurationMessageBusException>()
+            busCreation.Should().Throw<ConfigurationMessageBusException>()
                 .WithMessage("*was declared more than once*");
         }
 

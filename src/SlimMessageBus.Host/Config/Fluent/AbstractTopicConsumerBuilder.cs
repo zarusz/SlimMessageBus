@@ -20,7 +20,7 @@ namespace SlimMessageBus.Host.Config
                 Topic = topic,
                 MessageType = messageType
             };
-            settings.Consumers.Add(ConsumerSettings);
+            Settings.Consumers.Add(ConsumerSettings);
         }
     }
 }

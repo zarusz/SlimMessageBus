@@ -102,6 +102,8 @@ namespace Sample.Simple.ConsoleApp
                 .Consume<AddCommand>(x => x
                     .Topic(topicForAddCommand)
                     .WithConsumer<AddCommandConsumer>()
+                    //.WithConsumer<AddCommandConsumer>(nameof(AddCommandConsumer.OnHandle))
+                    //.WithConsumer<AddCommandConsumer>((consumer, message, name) => consumer.OnHandle(message, name))
                     .Group(consumerGroup) // for Apache Kafka & Azure Event Hub
                     .SubscriptionName(consumerGroup) // for Azure Service Bus
                 )
@@ -131,7 +133,7 @@ namespace Sample.Simple.ConsoleApp
                 })
                 .Handle<MultiplyRequest, MultiplyResponse>(x => x
                     .Topic(topicForMultiplyRequest) // topic to expect the requests
-                    .WithHandler<MultiplyRequestHandler>()
+                    .WithHandler<MultiplyRequestHandler>()                    
                     .Group(consumerGroup) // for Apache Kafka & Azure Event Hub
                     .SubscriptionName(consumerGroup) // for Azure Service Bus
                 )

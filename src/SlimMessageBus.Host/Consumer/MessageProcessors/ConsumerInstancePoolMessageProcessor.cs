@@ -24,7 +24,6 @@ namespace SlimMessageBus.Host
 
         private readonly MessageBusBase _messageBus;
         private readonly ConsumerSettings _consumerSettings;
-        private readonly ConsumerWrapper _consumerWrapper;
 
         private readonly Func<TMessage, byte[]> _messagePayloadProvider;
 
@@ -34,10 +33,9 @@ namespace SlimMessageBus.Host
         public ConsumerInstancePoolMessageProcessor(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, byte[]> messagePayloadProvider, Action<TMessage, ConsumerContext> consumerContextInitializer = null)
         {
             _consumerSettings = consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings));
-            _messageBus = messageBus;
+            _messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
             _messagePayloadProvider = messagePayloadProvider ?? throw new ArgumentNullException(nameof(messagePayloadProvider));
 
-            _consumerWrapper = new ConsumerWrapper(consumerSettings);
             _consumerContextInitializer = consumerContextInitializer;
             _consumerWithContext = typeof(IConsumerContextAware).IsAssignableFrom(consumerSettings.ConsumerType);
 
@@ -157,13 +155,13 @@ namespace SlimMessageBus.Host
                 }
 
                 // the consumer just subscribes to the message
-                var task = _consumerWrapper.OnHandle(consumerInstance, message);
+                var task = _consumerSettings.ConsumerMethod(consumerInstance, message, _consumerSettings.Topic);
                 await task.ConfigureAwait(false);
 
                 if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
                 {
                     // the consumer handles the request (and replies)
-                    response = _consumerWrapper.GetResponseValue(task);
+                    response = _consumerSettings.ConsumerMethodResult(task);
                 }
             }
             catch (Exception e)

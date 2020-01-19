@@ -13,13 +13,13 @@ namespace SlimMessageBus.Host.Config
 
         public ProducerBuilder(ProducerSettings settings, Type messageType)
         {
-            Settings = settings;
+            Settings = settings ?? throw new ArgumentNullException(nameof(settings));
             Settings.MessageType = messageType;
         }
 
         public ProducerBuilder<T> DefaultTopic(string name)
         {
-            Settings.DefaultTopic = name;
+            Settings.DefaultTopic = name ?? throw new ArgumentNullException(nameof(name));
             return this;
         }
 

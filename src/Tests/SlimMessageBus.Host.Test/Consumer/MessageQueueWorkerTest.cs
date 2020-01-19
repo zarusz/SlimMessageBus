@@ -20,20 +20,14 @@ namespace SlimMessageBus.Host.Test.Consumer
             var busMock = new MessageBusMock();
             _checkpointTriggerMock = new Mock<ICheckpointTrigger>();
 
-            var consumerSettings = new ConsumerSettings
-            {
-                Instances = 2,
-                ConsumerMode = ConsumerMode.Consumer,
-                ConsumerType = typeof(IConsumer<SomeMessage>),
-                MessageType = typeof(SomeMessage)
-            };
+            var consumerSettings = new ConsumerBuilder<SomeMessage>(new MessageBusSettings()).Topic(null).WithConsumer<IConsumer<SomeMessage>>().Instances(2).ConsumerSettings;
 
             byte[] PayloadProvider(SomeMessage m) => Array.Empty<byte>();
             _consumerInstancePoolMock = new Mock<ConsumerInstancePoolMessageProcessor<SomeMessage>>(consumerSettings, busMock.BusMock.Object, (Func<SomeMessage, byte[]>) PayloadProvider, null);
         }
 
         [Fact]
-        public void WhenCommitThenWaitsOnAllMessagesToComplete()
+        public void WhenCommitThenWaitsOnAllMessagesToCgomplete()
         {
             // arrange
             var w = new MessageQueueWorker<SomeMessage>(_consumerInstancePoolMock.Object, _checkpointTriggerMock.Object);

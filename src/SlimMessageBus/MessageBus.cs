@@ -7,7 +7,7 @@ namespace SlimMessageBus
     /// </summary>
     public static class MessageBus
     {
-        private static readonly Func<IMessageBus> ProviderDefault = () => throw new InvalidConfigurationMessageBusException("The provider was not set");
+        private static readonly Func<IMessageBus> ProviderDefault = () => throw new MessageBusException("The provider was not set");
 
         private static Func<IMessageBus> _provider = ProviderDefault;
 
