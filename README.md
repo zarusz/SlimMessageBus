@@ -79,7 +79,7 @@ public class SomeMessageConsumer : IConsumer<SomeMessage>
 }
 ```
 
-Note: It is also possible to avoid having to implement the interface `IConsumer<T>` (see [here](docs/Intro.md#Consumer)).
+Note: It is also possible to avoid having to implement the interface `IConsumer<T>` (see [here](docs/intro.md#consumer)).
 
 The configuration somewhere in your service:
 
