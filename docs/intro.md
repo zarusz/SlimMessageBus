@@ -97,13 +97,13 @@ To consume a message type from a topic/queue, declare it using `Consume<TMessage
 
 ```cs
 mbb.Consume<SomeMessage>(x => x
-   .Topic("some-topic") // or queue name
-   .WithConsumer<SomeConsumer>() // (1)
-   // if you do not want to implement the IConsumer<T> interface
-   // .WithConsumer<AddCommandConsumer>(nameof(AddCommandConsumer.MyHandleMethod)) // (2) uses reflection
-   // .WithConsumer<AddCommandConsumer>((consumer, message, name) => consumer.MyHandleMethod(message, name)) // (3) uses a delegate
-   .Instances(1)
-   .Group("some-consumer-group")) // Kafka provider specific setting
+	.Topic("some-topic") // or queue name
+	.WithConsumer<SomeConsumer>() // (1)
+	// if you do not want to implement the IConsumer<T> interface
+	// .WithConsumer<AddCommandConsumer>(nameof(AddCommandConsumer.MyHandleMethod)) // (2) uses reflection
+	// .WithConsumer<AddCommandConsumer>((consumer, message, name) => consumer.MyHandleMethod(message, name)) // (3) uses a delegate
+	.Instances(1)
+	.Group("some-consumer-group")) // Kafka provider specific setting
 ```
 
 When the consumer implements the `IConsumer<SomeMessage>` interface:
@@ -122,7 +122,7 @@ The second parameter (`name`) is the topic (or queue) name that the message arri
 
 The `SomeConsumer` needs to be registered in your DI container. The SMB runtime will ask the chosen DI to provide the desired number of consumer instances. Any collaborators of the consumer will be resolved according to your DI configuration.
 
-Alternatively, if you do not want to implement the `IConsumer<SomeMessage>`, then you can provide the method (2) name or a delegate how to call your consumer (3):
+Alternatively, if you do not want to implement the `IConsumer<SomeMessage>`, then you can provide the method name (2) or a delegate that calls the consumer method (3):
 
 ```cs
 public class SomeConsumer
@@ -132,7 +132,7 @@ public class SomeConsumer
 		// handle the msg
 	}
 
-    // This is also possible: 
+	// This is also possible: 
 	// private async Task MyHandleMethod(SomeMessage msg)
 	// {
 	// }
