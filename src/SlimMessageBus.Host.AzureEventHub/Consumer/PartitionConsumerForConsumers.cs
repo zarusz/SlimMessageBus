@@ -14,13 +14,13 @@ namespace SlimMessageBus.Host.AzureEventHub
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        private readonly ConsumerInstancePool<EventData> _instancePool;
+        private readonly ConsumerInstancePoolMessageProcessor<EventData> _instancePool;
         private readonly MessageQueueWorker<EventData> _queueWorker; 
 
         public PartitionConsumerForConsumers(EventHubMessageBus messageBus, ConsumerSettings consumerSettings)
             : base(messageBus)
         {
-            _instancePool = new ConsumerInstancePool<EventData>(consumerSettings, messageBus, e => e.Body.Array);
+            _instancePool = new ConsumerInstancePoolMessageProcessor<EventData>(consumerSettings, messageBus, e => e.Body.Array);
             _queueWorker = new MessageQueueWorker<EventData>(_instancePool, new CheckpointTrigger(consumerSettings));
         }
 
@@ -30,7 +30,7 @@ namespace SlimMessageBus.Host.AzureEventHub
         {
             if (disposing)
             {
-                _instancePool.DisposeSilently(nameof(ConsumerInstancePool<EventData>), Log);
+                _instancePool.DisposeSilently(nameof(ConsumerInstancePoolMessageProcessor<EventData>), Log);
             }
             base.Dispose(disposing);
         }

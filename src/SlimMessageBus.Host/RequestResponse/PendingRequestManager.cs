@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Threading;
 using Common.Logging;
 
-namespace SlimMessageBus.Host.RequestResponse
+namespace SlimMessageBus.Host
 {
     /// <summary>
     /// Manages the pending requests - ensure requests which exceeded the allotted timeout period are removed.

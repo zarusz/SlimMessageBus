@@ -1,4 +1,5 @@
 using SlimMessageBus.Host.Config;
+using System;
 
 namespace SlimMessageBus.Host.Redis
 {
@@ -6,6 +7,7 @@ namespace SlimMessageBus.Host.Redis
     {
         public static MessageBusBuilder WithProviderRedis(this MessageBusBuilder mbb, RedisMessageBusSettings redisSettings)
         {
+            if (mbb == null) throw new ArgumentNullException(nameof(mbb));
             return mbb.WithProvider(settings => new RedisMessageBus(settings, redisSettings));
         }
     }

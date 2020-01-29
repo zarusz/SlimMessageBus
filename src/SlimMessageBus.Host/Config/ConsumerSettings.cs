@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace SlimMessageBus.Host.Config
 {
@@ -30,14 +31,21 @@ namespace SlimMessageBus.Host.Config
                 .SingleOrDefault();
         }
 
+        /// Type of consumer that is configured (subscriber or request handler).
+        /// </summary>
+        public ConsumerMode ConsumerMode { get; set; }
         /// <summary>
         /// The consumer type that will handle the messages. An implementation of <see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest,TResponse}"/>.
         /// </summary>
         public Type ConsumerType { get; set; }
         /// <summary>
-        /// Type of consumer that is configured (subscriber or request handler).
+        /// The delegate to the consumer method responsible for accepting messages.
         /// </summary>
-        public ConsumerMode ConsumerMode { get; set; }
+        public Func<object, object, string, Task> ConsumerMethod { get; set; }
+        /// <summary>
+        /// The delegate to the consumer method responsible for accepting messages.
+        /// </summary>
+        public Func<Task, object> ConsumerMethodResult { get; set; }
         /// <summary>
         /// The response message that will be sent as a response to the arriving message (if request/response). Null when message type is not a request.
         /// </summary>

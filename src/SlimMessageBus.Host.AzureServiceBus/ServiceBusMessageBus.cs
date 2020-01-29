@@ -71,7 +71,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
                     {
                         if (existingKind != producerKind)
                         {
-                            throw new InvalidConfigurationMessageBusException($"The same name '{topic}' was used for queue and topic. You cannot share one name for a topic and queue. Please fix your configuration.");
+                            throw new ConfigurationMessageBusException($"The same name '{topic}' was used for queue and topic. You cannot share one name for a topic and queue. Please fix your configuration.");
                         }
                     }
                     else
@@ -84,7 +84,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
                 {
                     if (existingKind != producerKind)
                     {
-                        throw new InvalidConfigurationMessageBusException($"The same message type '{producerSettings.MessageType}' was used for queue and topic. You cannot share one message type for a topic and queue. Please fix your configuration.");
+                        throw new ConfigurationMessageBusException($"The same message type '{producerSettings.MessageType}' was used for queue and topic. You cannot share one message type for a topic and queue. Please fix your configuration.");
                     }
                 }
                 else
@@ -98,7 +98,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
             {
                 Log.InfoFormat(CultureInfo.InvariantCulture, "Creating consumer for {0}", consumerSettings.FormatIf(Log.IsInfoEnabled));
 
-                var messageProcessor = new ConsumerInstancePool<Message>(consumerSettings, this, m => m.Body);
+                var messageProcessor = new ConsumerInstancePoolMessageProcessor<Message>(consumerSettings, this, m => m.Body);
                 AddConsumer(consumerSettings, messageProcessor);
             }
 

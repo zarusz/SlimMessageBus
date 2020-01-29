@@ -27,7 +27,7 @@ namespace SlimMessageBus.Host.Kafka
                    commitController,
                    messageBus,
                    new MessageQueueWorker<Message>(
-                       new ConsumerInstancePool<Message>(consumerSettings, messageBus, m => m.Value, (m, ctx) => ctx.SetTransportMessage(m)),
+                       new ConsumerInstancePoolMessageProcessor<Message>(consumerSettings, messageBus, m => m.Value, (m, ctx) => ctx.SetTransportMessage(m)),
                        new CheckpointTrigger(consumerSettings)))
         {
         }

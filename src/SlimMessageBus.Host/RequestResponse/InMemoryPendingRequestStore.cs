@@ -17,6 +17,8 @@ namespace SlimMessageBus.Host
 
         public void Add(PendingRequestState requestState)
         {
+            Assert.IsNotNull(requestState, () => new ArgumentNullException(nameof(requestState)));
+
             lock (_itemsLock)
             {
                 _items.Add(requestState.Id, requestState);
@@ -51,7 +53,7 @@ namespace SlimMessageBus.Host
         {
             lock (_itemsLock)
             {
-                return _items.TryGetValue(id, out PendingRequestState requestState) ? requestState : null;
+                return _items.TryGetValue(id, out var requestState) ? requestState : null;
             }
         }
 

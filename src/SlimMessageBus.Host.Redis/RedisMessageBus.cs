@@ -22,10 +22,10 @@ namespace SlimMessageBus.Host.Redis
 
         private readonly List<RedisChannelConsumer> _consumers = new List<RedisChannelConsumer>();
 
-        public RedisMessageBus(MessageBusSettings settings, RedisMessageBusSettings redisSettings)
+        public RedisMessageBus(MessageBusSettings settings, RedisMessageBusSettings providerSettings)
             : base(settings)
         {
-            ProviderSettings = redisSettings;
+            ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
             OnBuildProvider();
         }
 
@@ -92,7 +92,7 @@ namespace SlimMessageBus.Host.Redis
             foreach (var consumerSettings in Settings.Consumers)
             {
                 Log.InfoFormat(CultureInfo.InvariantCulture, "Creating consumer for {0}", consumerSettings.FormatIf(Log.IsInfoEnabled));
-                var messageProcessor = new ConsumerInstancePool<byte[]>(consumerSettings, this, m => m);
+                var messageProcessor = new ConsumerInstancePoolMessageProcessor<byte[]>(consumerSettings, this, m => m);
                 AddConsumer(consumerSettings, subscriber, messageProcessor);
             }
 

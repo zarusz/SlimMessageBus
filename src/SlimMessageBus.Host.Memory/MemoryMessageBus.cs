@@ -17,12 +17,12 @@ namespace SlimMessageBus.Host.Memory
 
         private MemoryMessageBusSettings ProviderSettings { get; }
 
-        private IDictionary<string, List<ConsumerRuntimeInfo>> _consumersByTopic;
+        private IDictionary<string, List<ConsumerSettings>> _consumersByTopic;
 
         public MemoryMessageBus(MessageBusSettings settings, MemoryMessageBusSettings providerSettings)
             : base(settings)
         {
-            ProviderSettings = providerSettings;
+            ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
             OnBuildProvider();
         }
 
@@ -40,9 +40,8 @@ namespace SlimMessageBus.Host.Memory
         {
             base.Build();
 
-            var consumers = Settings.Consumers.Select(x => new ConsumerRuntimeInfo(x)).ToList();
-            _consumersByTopic = consumers
-                .GroupBy(x => x.ConsumerSettings.Topic)
+            _consumersByTopic = Settings.Consumers
+                .GroupBy(x => x.Topic)
                 .ToDictionary(x => x.Key, x => x.ToList());
         }
 
@@ -58,15 +57,15 @@ namespace SlimMessageBus.Host.Memory
             foreach (var consumer in consumers)
             {
                 // obtain the consumer from DI
-                Log.DebugFormat(CultureInfo.InvariantCulture, "Resolving consumer type {0}", consumer.ConsumerSettings.ConsumerType);
-                var consumerInstance = Settings.DependencyResolver.Resolve(consumer.ConsumerSettings.ConsumerType);
+                Log.DebugFormat(CultureInfo.InvariantCulture, "Resolving consumer type {0}", consumer.ConsumerType);
+                var consumerInstance = Settings.DependencyResolver.Resolve(consumer.ConsumerType);
                 if (consumerInstance == null)
                 {
-                    Log.WarnFormat(CultureInfo.InvariantCulture, "The dependency resolver did not yield any instance of {0}", consumer.ConsumerSettings.ConsumerType);
+                    Log.WarnFormat(CultureInfo.InvariantCulture, "The dependency resolver did not yield any instance of {0}", consumer.ConsumerType);
                     continue;
                 }
 
-                if (consumer.ConsumerSettings.IsRequestMessage)
+                if (consumer.IsRequestMessage)
                 {
                     Log.Warn("The in memory provider only supports pub-sub communication for now");
                     continue;
@@ -77,7 +76,7 @@ namespace SlimMessageBus.Host.Memory
                     : message; // prevent deep copy of the message
 
                 Log.DebugFormat(CultureInfo.InvariantCulture, "Invoking consumer {0}", consumerInstance.GetType());
-                var task = consumer.OnHandle(consumerInstance, messageForConsumer);
+                var task = consumer.ConsumerMethod(consumerInstance, message, consumer.Topic);
 
                 tasks.AddLast(task);
             }
