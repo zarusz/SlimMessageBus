@@ -1,0 +1,11 @@
+@namespace("Sample.AvroSer.Messages")
+
+protocol SampleProtocol {
+
+	record AddCommand {		
+		string OperationId;
+		int Left;
+		int Right;	
+	}
+
+}

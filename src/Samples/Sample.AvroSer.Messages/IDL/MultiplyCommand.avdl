@@ -1,0 +1,11 @@
+@namespace("Sample.AvroSer.Messages")
+
+protocol SampleProtocol {
+
+	record MultiplyCommand {
+		string OperationId;
+		int Left;
+		int Right;
+	}
+
+}

@@ -1,0 +1,6 @@
+@namespace("Sample.AvroSer.Messages")
+
+protocol SampleProtocol {
+	import idl "AddCommand.avdl";
+    import idl "MultiplyCommand.avdl";  
+}

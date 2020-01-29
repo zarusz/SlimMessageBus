@@ -116,12 +116,16 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Redis",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Redis.Test", "Tests\SlimMessageBus.Host.Redis.Test\SlimMessageBus.Host.Redis.Test.csproj", "{93157E11-D59A-45CE-8EFF-220048A75276}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.Serialization.Avro", "SlimMessageBus.Host.Serialization.Avro\SlimMessageBus.Host.Serialization.Avro.csproj", "{6AF37CE1-4074-467B-91E2-7FA5CF6D6CB4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Serialization.Avro", "SlimMessageBus.Host.Serialization.Avro\SlimMessageBus.Host.Serialization.Avro.csproj", "{6AF37CE1-4074-467B-91E2-7FA5CF6D6CB4}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A6C28448-3839-490C-BE30-580C1A45E225}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
 	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sample.AvroSer.Messages", "Samples\Sample.AvroSer.Messages\Sample.AvroSer.Messages.csproj", "{D58D7232-E4BB-411B-AD6B-535F6B9ED8B3}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sample.AvroSer.ConsoleApp", "Samples\Sample.AvroSer.ConsoleApp\Sample.AvroSer.ConsoleApp.csproj", "{14E51EED-157D-41A4-86F9-A2C5CF51EB7F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -249,6 +253,14 @@ Global
 		{6AF37CE1-4074-467B-91E2-7FA5CF6D6CB4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6AF37CE1-4074-467B-91E2-7FA5CF6D6CB4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6AF37CE1-4074-467B-91E2-7FA5CF6D6CB4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D58D7232-E4BB-411B-AD6B-535F6B9ED8B3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D58D7232-E4BB-411B-AD6B-535F6B9ED8B3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D58D7232-E4BB-411B-AD6B-535F6B9ED8B3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D58D7232-E4BB-411B-AD6B-535F6B9ED8B3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{14E51EED-157D-41A4-86F9-A2C5CF51EB7F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{14E51EED-157D-41A4-86F9-A2C5CF51EB7F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{14E51EED-157D-41A4-86F9-A2C5CF51EB7F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{14E51EED-157D-41A4-86F9-A2C5CF51EB7F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -283,6 +295,8 @@ Global
 		{FD8B70D1-7F20-424D-9012-800D9166229D} = {9291D340-B4FA-44A3-8060-C14743FB1712}
 		{93157E11-D59A-45CE-8EFF-220048A75276} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
 		{6AF37CE1-4074-467B-91E2-7FA5CF6D6CB4} = {75BDDBB5-8DB8-4893-BD89-8FFC6C42244D}
+		{D58D7232-E4BB-411B-AD6B-535F6B9ED8B3} = {A5B15524-93B8-4CCE-AC6D-A22984498BA0}
+		{14E51EED-157D-41A4-86F9-A2C5CF51EB7F} = {A5B15524-93B8-4CCE-AC6D-A22984498BA0}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {435A0D65-610C-4B84-B1AA-2C7FBE72DB80}

@@ -1,0 +1,32 @@
+{
+  "protocol" : "SampleProtocol",
+  "namespace" : "Sample.AvroSer.Messages",
+  "types" : [ {
+    "type" : "record",
+    "name" : "AddCommand",
+    "fields" : [ {
+      "name" : "OperationId",
+      "type" : "string"
+    }, {
+      "name" : "Left",
+      "type" : "int"
+    }, {
+      "name" : "Right",
+      "type" : "int"
+    } ]
+  }, {
+    "type" : "record",
+    "name" : "MultiplyCommand",
+    "fields" : [ {
+      "name" : "OperationId",
+      "type" : "string"
+    }, {
+      "name" : "Left",
+      "type" : "int"
+    }, {
+      "name" : "Right",
+      "type" : "int"
+    } ]
+  } ],
+  "messages" : { }
+}
