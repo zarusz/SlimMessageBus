@@ -5,7 +5,7 @@
 //    is regenerated
 // </auto-generated>
 // ------------------------------------------------------------------------------
-namespace Sample.AvroSer.Messages
+namespace Sample.AvroSer.Messages.ContractFirst
 {
 	using System;
 	using System.Collections.Generic;

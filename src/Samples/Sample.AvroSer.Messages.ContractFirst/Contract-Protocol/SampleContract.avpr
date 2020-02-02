@@ -1,6 +1,6 @@
 {
   "protocol" : "SampleProtocol",
-  "namespace" : "Sample.AvroSer.Messages",
+  "namespace" : "Sample.AvroSer.Messages.ContractFirst",
   "types" : [ {
     "type" : "record",
     "name" : "AddCommand",

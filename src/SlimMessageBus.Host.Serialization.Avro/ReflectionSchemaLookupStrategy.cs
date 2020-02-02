@@ -27,23 +27,32 @@ namespace SlimMessageBus.Host.Serialization.Avro
         {
             if (!_registry.TryGetValue(type, out var schema))
             {
-                var field = type.GetField(_fieldName, BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
-                if (field == null || field.FieldType != typeof(Schema))
-                {
-                    var msg = $"The type {type} does not have a static {_fieldName} field of type {typeof(Schema)}. Check your configuration.";
-                    Log.Error(msg);
-                    throw new InvalidOperationException(msg);
-                }
-
-                schema = (Schema)field.GetValue(null);
-
                 lock (_registryLock)
                 {
-                    // Note: It's fine if the assignment happens more than one time in case multiple threads would be stopped on the lock statement.
-                    _registry[type] = schema;
+                    // Note: Check again in case multiple threads have been waiting
+                    if (!_registry.TryGetValue(type, out schema))
+                    {
+                        schema = CreateSchema(type);
+                        _registry[type] = schema;
+                    }
                 }
             }
 
+            return schema;
+        }
+
+        protected virtual Schema CreateSchema(Type type)
+        {
+            Schema schema;
+            var field = type.GetField(_fieldName, BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
+            if (field == null || field.FieldType != typeof(Schema))
+            {
+                var msg = $"The type {type} does not have a static {_fieldName} field of type {typeof(Schema)}. Check your configuration.";
+                Log.Error(msg);
+                throw new InvalidOperationException(msg);
+            }
+
+            schema = (Schema)field.GetValue(null);
             return schema;
         }
     }

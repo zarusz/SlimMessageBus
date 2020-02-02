@@ -6,8 +6,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="AvroConvert" Version="2.2.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="3.1.1" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="3.1.1" />
+    <PackageReference Include="System.Collections" Version="4.3.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -15,9 +17,12 @@
     <ProjectReference Include="..\..\SlimMessageBus.Host.Kafka\SlimMessageBus.Host.Kafka.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Memory\SlimMessageBus.Host.Memory.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Redis\SlimMessageBus.Host.Redis.csproj" />
+    <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.AvroConvert\SlimMessageBus.Host.Serialization.AvroConvert.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Avro\SlimMessageBus.Host.Serialization.Avro.csproj" />
+    <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Routing\SlimMessageBus.Host.Serialization.Routing.csproj" />
     <ProjectReference Include="..\..\Tools\SecretStore\SecretStore.csproj" />
-    <ProjectReference Include="..\Sample.AvroSer.Messages\Sample.AvroSer.Messages.csproj" />
+    <ProjectReference Include="..\Sample.AvroSer.Messages.CodeFirst\Sample.AvroSer.Messages.CodeFirst.csproj" />
+    <ProjectReference Include="..\Sample.AvroSer.Messages.ContractFirst\Sample.AvroSer.Messages.ContractFirst.csproj" />
   </ItemGroup>
 
   <ItemGroup>

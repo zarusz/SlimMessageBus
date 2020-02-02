@@ -5,7 +5,7 @@
 //    is regenerated
 // </auto-generated>
 // ------------------------------------------------------------------------------
-namespace Sample.AvroSer.Messages
+namespace Sample.AvroSer.Messages.ContractFirst
 {
 	using System;
 	using System.Collections.Generic;
@@ -13,18 +13,19 @@ namespace Sample.AvroSer.Messages
 	using Avro;
 	using Avro.Specific;
 	
-	public partial class MultiplyResponse : ISpecificRecord
+	public partial class MultiplyRequest : ISpecificRecord
 	{
-		public static Schema _SCHEMA = Avro.Schema.Parse("{\"type\":\"record\",\"name\":\"MultiplyResponse\",\"namespace\":\"Sample.AvroSer.Messages\"," +
-				"\"fields\":[{\"name\":\"OperationId\",\"type\":\"string\"},{\"name\":\"Result\",\"type\":\"int\"}]" +
-				"}");
+		public static Schema _SCHEMA = Avro.Schema.Parse("{\"type\":\"record\",\"name\":\"MultiplyRequest\",\"namespace\":\"Sample.AvroSer.Messages.Co" +
+				"ntractFirst\",\"fields\":[{\"name\":\"OperationId\",\"type\":\"string\"},{\"name\":\"Left\",\"ty" +
+				"pe\":\"int\"},{\"name\":\"Right\",\"type\":\"int\"}]}");
 		private string _OperationId;
-		private int _Result;
+		private int _Left;
+		private int _Right;
 		public virtual Schema Schema
 		{
 			get
 			{
-				return MultiplyResponse._SCHEMA;
+				return MultiplyRequest._SCHEMA;
 			}
 		}
 		public string OperationId
@@ -38,15 +39,26 @@ namespace Sample.AvroSer.Messages
 				this._OperationId = value;
 			}
 		}
-		public int Result
+		public int Left
 		{
 			get
 			{
-				return this._Result;
+				return this._Left;
 			}
 			set
 			{
-				this._Result = value;
+				this._Left = value;
+			}
+		}
+		public int Right
+		{
+			get
+			{
+				return this._Right;
+			}
+			set
+			{
+				this._Right = value;
 			}
 		}
 		public virtual object Get(int fieldPos)
@@ -54,7 +66,8 @@ namespace Sample.AvroSer.Messages
 			switch (fieldPos)
 			{
 			case 0: return this.OperationId;
-			case 1: return this.Result;
+			case 1: return this.Left;
+			case 2: return this.Right;
 			default: throw new AvroRuntimeException("Bad index " + fieldPos + " in Get()");
 			};
 		}
@@ -63,7 +76,8 @@ namespace Sample.AvroSer.Messages
 			switch (fieldPos)
 			{
 			case 0: this.OperationId = (System.String)fieldValue; break;
-			case 1: this.Result = (System.Int32)fieldValue; break;
+			case 1: this.Left = (System.Int32)fieldValue; break;
+			case 2: this.Right = (System.Int32)fieldValue; break;
 			default: throw new AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};
 		}

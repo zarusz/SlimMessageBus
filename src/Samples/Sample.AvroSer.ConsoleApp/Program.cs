@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
-using Sample.AvroSer.Messages;
+using Sample.AvroSer.Messages.ContractFirst;
+using Sample.AvroSer.Messages.CodeFirst;
 using SecretStore;
 using SlimMessageBus;
 using SlimMessageBus.Host.Config;
@@ -8,8 +9,12 @@ using SlimMessageBus.Host.Kafka;
 using SlimMessageBus.Host.Kafka.Configs;
 using SlimMessageBus.Host.Memory;
 using SlimMessageBus.Host.Redis;
+using SlimMessageBus.Host.Serialization;
 using SlimMessageBus.Host.Serialization.Avro;
+using SlimMessageBus.Host.Serialization.AvroConvert;
+using SlimMessageBus.Host.Serialization.Routing;
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -24,6 +29,12 @@ namespace Sample.Avro.ConsoleApp
         Memory
     }
 
+    /// <summary>
+    /// This sample shows:
+    /// 1. How tu use the Avro serializer (for contract IDL first apprach)
+    /// 2. How to use the AvroConvert serializer (for C# code first approach)
+    /// 3. How to combine two serializer approaches in one app (using the Routing serializer).
+    /// </summary>
     class Program
     {
         static async Task Main(string[] args)
@@ -44,6 +55,7 @@ namespace Sample.Avro.ConsoleApp
             // Note: remember that Memory provider does not support req-resp yet.
             var provider = Provider.Memory;
 
+            /*
             var sl = new DictionarySchemaLookupStrategy();
             /// register all your types
             sl.Add(typeof(AddCommand), AddCommand._SCHEMA);
@@ -55,15 +67,32 @@ namespace Sample.Avro.ConsoleApp
             mf.Add(typeof(AddCommand), () => new AddCommand());
             mf.Add(typeof(MultiplyRequest), () => new MultiplyRequest());
             mf.Add(typeof(MultiplyResponse), () => new MultiplyResponse());
-
+            
+            // longer approach, but should be faster as it's not using reflection
             var avroSerializer = new AvroMessageSerializer(mf, sl);
+            */
 
             // alternatively a simpler approach, but using the slower ReflectionMessageCreationStategy and ReflectionSchemaLookupStrategy
-            //var avroSerializer = new AvroMessageSerializer(); 
+            var avroSerializer = new AvroMessageSerializer();
+
+            // Avro serialized using the AvroConvert library - no schema generation neeeded upfront.
+            var avroConvertSerializer = new AvroConvertMessageSerializer();
+
+            // Note: Certain messages will be serialized by one Avro serializer, other using the other Avro serializer
+            var routingSerializer = new RoutingMessageSerializer(new Dictionary<IMessageSerializer, Type[]>
+            {
+                [avroConvertSerializer] = new Type[] { typeof(SubtractCommand) }, // the first one will be the default serializer, no need to declare types here
+                [avroSerializer] = new Type[] { typeof(AddCommand), typeof(MultiplyRequest), typeof(MultiplyResponse) },
+            });
 
             return MessageBusBuilder.Create()
                 .Produce<AddCommand>(x => x.DefaultTopic("AddCommand"))
                 .Consume<AddCommand>(x => x.Topic("AddCommand").WithConsumer<AddCommandConsumer>()
+                    .Group("ConsoleApp") // for Kafka only
+                )
+
+                .Produce<SubtractCommand>(x => x.DefaultTopic("SubtractCommand"))
+                .Consume<SubtractCommand>(x => x.Topic("SubtractCommand").WithConsumer<SubtractCommandConsumer>()
                     .Group("ConsoleApp") // for Kafka only
                 )
 
@@ -76,11 +105,12 @@ namespace Sample.Avro.ConsoleApp
                     .Group("ConsoleApp") // for Kafka only
                 )
 
-                .WithSerializer(avroSerializer) // Use Avro for message serialization                
+                .WithSerializer(routingSerializer) // Use Avro for message serialization                
                 .WithDependencyResolver(new LookupDependencyResolver(type =>
                 {
                     // Simulate a dependency container
                     if (type == typeof(AddCommandConsumer)) return new AddCommandConsumer();
+                    if (type == typeof(SubtractCommandConsumer)) return new SubtractCommandConsumer();
                     if (type == typeof(MultiplyRequestHandler)) return new MultiplyRequestHandler();
                     throw new InvalidOperationException();
                 }))
@@ -163,11 +193,13 @@ namespace Sample.Avro.ConsoleApp
             {
                 var a = _random.Next(100);
                 var b = _random.Next(100);
+                var opId = Guid.NewGuid().ToString();
 
                 Console.WriteLine("Producer: Sending numbers {0} and {1}", a, b);
                 try
                 {
-                    await _bus.Publish(new AddCommand { OperationId = Guid.NewGuid().ToString(), Left = a, Right = b });
+                    await _bus.Publish(new AddCommand { OperationId = opId, Left = a, Right = b });
+                    await _bus.Publish(new SubtractCommand { OperationId = opId, Left = a, Right = b });
                 }
                 catch (Exception e)
                 {
@@ -177,7 +209,6 @@ namespace Sample.Avro.ConsoleApp
                 await Task.Delay(50); // Simulate some delay
             }
         }
-
 
         protected async Task MultiplyLoop()
         {
@@ -207,6 +238,15 @@ namespace Sample.Avro.ConsoleApp
         public async Task OnHandle(AddCommand message, string name)
         {
             Console.WriteLine("Consumer: Adding {0} and {1} gives {2}", message.Left, message.Right, message.Left + message.Right);
+            await Task.Delay(50); // Simulate some work
+        }
+    }
+
+    public class SubtractCommandConsumer : IConsumer<SubtractCommand>
+    {
+        public async Task OnHandle(SubtractCommand message, string name)
+        {
+            Console.WriteLine("Consumer: Subracting {0} and {1} gives {2}", message.Left, message.Right, message.Left - message.Right);
             await Task.Delay(50); // Simulate some work
         }
     }

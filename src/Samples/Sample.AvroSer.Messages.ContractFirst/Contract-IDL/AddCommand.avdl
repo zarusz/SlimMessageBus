@@ -1,4 +1,4 @@
-@namespace("Sample.AvroSer.Messages")
+@namespace("Sample.AvroSer.Messages.ContractFirst")
 
 protocol SampleProtocol {
 

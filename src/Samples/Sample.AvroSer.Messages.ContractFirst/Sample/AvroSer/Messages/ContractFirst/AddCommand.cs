@@ -5,7 +5,7 @@
 //    is regenerated
 // </auto-generated>
 // ------------------------------------------------------------------------------
-namespace Sample.AvroSer.Messages
+namespace Sample.AvroSer.Messages.ContractFirst
 {
 	using System;
 	using System.Collections.Generic;
@@ -15,9 +15,9 @@ namespace Sample.AvroSer.Messages
 	
 	public partial class AddCommand : ISpecificRecord
 	{
-		public static Schema _SCHEMA = Avro.Schema.Parse("{\"type\":\"record\",\"name\":\"AddCommand\",\"namespace\":\"Sample.AvroSer.Messages\",\"field" +
-				"s\":[{\"name\":\"OperationId\",\"type\":\"string\"},{\"name\":\"Left\",\"type\":\"int\"},{\"name\":" +
-				"\"Right\",\"type\":\"int\"}]}");
+		public static Schema _SCHEMA = Avro.Schema.Parse("{\"type\":\"record\",\"name\":\"AddCommand\",\"namespace\":\"Sample.AvroSer.Messages.Contrac" +
+				"tFirst\",\"fields\":[{\"name\":\"OperationId\",\"type\":\"string\"},{\"name\":\"Left\",\"type\":\"" +
+				"int\"},{\"name\":\"Right\",\"type\":\"int\"}]}");
 		private string _OperationId;
 		private int _Left;
 		private int _Right;

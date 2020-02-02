@@ -1,22 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <AssemblyName>Sample.AvroSer.Messages</AssemblyName>
-    <RootNamespace>Sample.AvroSer.Messages</RootNamespace>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <Folder Include="Contract-Protocol\" />
-    <Folder Include="Sample\AvroSer\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Apache.Avro" Version="1.9.1" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\SlimMessageBus\SlimMessageBus.csproj" />
-  </ItemGroup>
-
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup />
 </Project>
