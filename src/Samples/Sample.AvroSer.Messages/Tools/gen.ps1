@@ -1,4 +1,10 @@
-﻿$FILE = 'avro-tools.jar'
+﻿#
+# SlimMessageBus
+# Small script to help with Avro *.avdl to C# classes generation.
+# Feel free to copy and use with your projects.
+#
+
+$FILE = 'avro-tools.jar'
 $VERSION = '1.9.1'
 
 # download the avro tools (if havent done so already)
