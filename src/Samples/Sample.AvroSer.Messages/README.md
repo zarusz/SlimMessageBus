@@ -11,7 +11,7 @@ Install Avro dotnet tools for code generation:
 dotnet tool install -g Apache.Avro.Tools
 ```
 
-Install Java SDK (1.8).
+Install [Java SDK (1.8)](https://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html).
 
 # Usage
 
