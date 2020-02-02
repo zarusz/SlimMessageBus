@@ -1,8 +1,8 @@
 ﻿# What
 
-The Avro contract is defined in [Avro IDL](https://avro.apache.org/docs/current/idl.html#overview_usage) (*.avdl).
-Then it is transformed into the Avro Protocol (*.avpr) - using the java tool.
-Then we generated C# classes - using the dotnet avro tool.
+* The Avro contract is defined in [Avro IDL](https://avro.apache.org/docs/current/idl.html#overview_usage) (*.avdl).
+* Then it is transformed into the Avro Protocol (*.avpr) - using the java tool.
+* Then we generated C# classes - using the dotnet avro tool.
 
 # Prerequisites
 
@@ -15,9 +15,9 @@ Install Java SDK (1.8).
 
 # Usage
 
-In powershell:
+In PowerShell:
 ```cmd
-cd Sample.Avro.Messages.Tools
+cd Tools
 .\gen.ps1
 ```
 
