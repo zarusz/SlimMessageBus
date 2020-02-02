@@ -7,12 +7,16 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Protocol\" />
+    <Folder Include="Contract-Protocol\" />
     <Folder Include="Sample\AvroSer\" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Apache.Avro" Version="1.9.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\SlimMessageBus\SlimMessageBus.csproj" />
   </ItemGroup>
 
 </Project>

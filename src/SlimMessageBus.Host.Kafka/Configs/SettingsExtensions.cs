@@ -1,4 +1,5 @@
 ﻿using SlimMessageBus.Host.Config;
+using System;
 
 namespace SlimMessageBus.Host.Kafka.Configs
 {
@@ -8,12 +9,20 @@ namespace SlimMessageBus.Host.Kafka.Configs
 
         public static void SetGroup(this AbstractConsumerSettings consumerSettings, string group)
         {
+            if (consumerSettings == null) throw new ArgumentNullException(nameof(consumerSettings));
+
             consumerSettings.Properties[GroupKey] = group;
         }
 
         public static string GetGroup(this AbstractConsumerSettings consumerSettings)
         {
-            return consumerSettings.Properties[GroupKey] as string;
+            if (consumerSettings == null) throw new ArgumentNullException(nameof(consumerSettings));
+
+            if (!consumerSettings.Properties.TryGetValue(GroupKey, out var group))
+            {
+                return null;
+            }
+            return group as string;
         }
     }
 }

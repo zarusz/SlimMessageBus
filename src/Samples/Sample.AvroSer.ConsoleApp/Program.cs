@@ -1,8 +1,13 @@
-﻿using Sample.AvroSer.Messages;
+﻿using Microsoft.Extensions.Configuration;
+using Sample.AvroSer.Messages;
+using SecretStore;
 using SlimMessageBus;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.DependencyResolver;
+using SlimMessageBus.Host.Kafka;
+using SlimMessageBus.Host.Kafka.Configs;
 using SlimMessageBus.Host.Memory;
+using SlimMessageBus.Host.Redis;
 using SlimMessageBus.Host.Serialization.Avro;
 using System;
 using System.Threading;
@@ -13,8 +18,8 @@ namespace Sample.Avro.ConsoleApp
     enum Provider
     {
         Kafka,
-        AzureServiceBus,
-        AzureEventHub,
+        //AzureServiceBus,
+        //AzureEventHub,
         Redis,
         Memory
     }
@@ -23,14 +28,20 @@ namespace Sample.Avro.ConsoleApp
     {
         static async Task Main(string[] args)
         {
-            using var bus = CreateBus();
+            // Load configuration
+            var configuration = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
+            // Local file with secrets
+            Secrets.Load(@"..\..\..\..\..\secrets.txt");
+
+            using var bus = CreateBus(configuration);
             var program = new MainProgram(bus);
 
             await program.Run();
         }
 
-        private static IMessageBus CreateBus()
+        private static IMessageBus CreateBus(IConfiguration configuration)
         {
+            // Note: remember that Memory provider does not support req-resp yet.
             var provider = Provider.Memory;
 
             var sl = new DictionarySchemaLookupStrategy();
@@ -46,18 +57,31 @@ namespace Sample.Avro.ConsoleApp
             mf.Add(typeof(MultiplyResponse), () => new MultiplyResponse());
 
             var avroSerializer = new AvroMessageSerializer(mf, sl);
-            
+
             // alternatively a simpler approach, but using the slower ReflectionMessageCreationStategy and ReflectionSchemaLookupStrategy
             //var avroSerializer = new AvroMessageSerializer(); 
 
             return MessageBusBuilder.Create()
                 .Produce<AddCommand>(x => x.DefaultTopic("AddCommand"))
-                .Consume<AddCommand>(x => x.Topic("AddCommand").WithConsumer<AddCommandConsumer>())
+                .Consume<AddCommand>(x => x.Topic("AddCommand").WithConsumer<AddCommandConsumer>()
+                    .Group("ConsoleApp") // for Kafka only
+                )
+
+                .Produce<MultiplyRequest>(x => x.DefaultTopic("MultiplyRequest"))
+                .Handle<MultiplyRequest, MultiplyResponse>(x => x.Topic("MultiplyRequest").WithHandler<MultiplyRequestHandler>()
+                    .Group("ConsoleApp") // for Kafka only
+                )
+
+                .ExpectRequestResponses(x => x.ReplyToTopic("ConsoleApp")
+                    .Group("ConsoleApp") // for Kafka only
+                )
+
                 .WithSerializer(avroSerializer) // Use Avro for message serialization                
                 .WithDependencyResolver(new LookupDependencyResolver(type =>
                 {
                     // Simulate a dependency container
                     if (type == typeof(AddCommandConsumer)) return new AddCommandConsumer();
+                    if (type == typeof(MultiplyRequestHandler)) return new MultiplyRequestHandler();
                     throw new InvalidOperationException();
                 }))
                 .Do(builder =>
@@ -88,21 +112,21 @@ namespace Sample.Avro.ConsoleApp
                         //    builder.WithProviderEventHub(new EventHubMessageBusSettings(eventHubConnectionString, storageConnectionString, storageContainerName)); // Use Azure Event Hub as provider
                         //    break;
 
-                        //case Provider.Kafka:
-                        //    // Ensure your Kafka broker is running
-                        //    var kafkaBrokers = configuration["Kafka:Brokers"];
-                        //    var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
-                        //    var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
+                        case Provider.Kafka:
+                            // Ensure your Kafka broker is running
+                            var kafkaBrokers = configuration["Kafka:Brokers"];
+                            var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
+                            var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
 
-                        //    builder.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)); // Or use Apache Kafka as provider
-                        //    break;
+                            builder.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)); // Or use Apache Kafka as provider
+                            break;
 
-                        //case Provider.Redis:
-                        //    // Ensure your Kafka broker is running
-                        //    var redisConnectionString = Secrets.Service.PopulateSecrets(configuration["Redis:ConnectionString"]);
+                        case Provider.Redis:
+                            // Ensure your Kafka broker is running
+                            var redisConnectionString = Secrets.Service.PopulateSecrets(configuration["Redis:ConnectionString"]);
 
-                        //    builder.WithProviderRedis(new RedisMessageBusSettings(redisConnectionString)); // Or use Redis as provider
-                        //    break;
+                            builder.WithProviderRedis(new RedisMessageBusSettings(redisConnectionString)); // Or use Redis as provider
+                            break;
                     }
                 })
                 .Build();
@@ -123,6 +147,7 @@ namespace Sample.Avro.ConsoleApp
         public async Task Run()
         {
             var addTask = Task.Factory.StartNew(AddLoop, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            var multiplyTask = Task.Factory.StartNew(MultiplyLoop, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
             Console.WriteLine("Press any key to stop...");
             Console.ReadKey();
@@ -142,7 +167,7 @@ namespace Sample.Avro.ConsoleApp
                 Console.WriteLine("Producer: Sending numbers {0} and {1}", a, b);
                 try
                 {
-                    await _bus.Publish(new AddCommand { OperationId = Guid.NewGuid().ToString("N"), Left = a, Right = b });
+                    await _bus.Publish(new AddCommand { OperationId = Guid.NewGuid().ToString(), Left = a, Right = b });
                 }
                 catch (Exception e)
                 {
@@ -153,6 +178,28 @@ namespace Sample.Avro.ConsoleApp
             }
         }
 
+
+        protected async Task MultiplyLoop()
+        {
+            while (_canRun)
+            {
+                var a = _random.Next(100);
+                var b = _random.Next(100);
+
+                Console.WriteLine("Sender: Sending numbers {0} and {1}", a, b);
+                try
+                {
+                    var response = await _bus.Send(new MultiplyRequest { OperationId = Guid.NewGuid().ToString(), Left = a, Right = b });
+                    Console.WriteLine("Sender: Got response back with result {0}", response.Result);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Sender: request error or timeout: " + e);
+                }
+
+                await Task.Delay(50); // Simulate some work
+            }
+        }
     }
 
     public class AddCommandConsumer : IConsumer<AddCommand>
@@ -161,6 +208,15 @@ namespace Sample.Avro.ConsoleApp
         {
             Console.WriteLine("Consumer: Adding {0} and {1} gives {2}", message.Left, message.Right, message.Left + message.Right);
             await Task.Delay(50); // Simulate some work
+        }
+    }
+
+    public class MultiplyRequestHandler : IRequestHandler<MultiplyRequest, MultiplyResponse>
+    {
+        public async Task<MultiplyResponse> OnHandle(MultiplyRequest request, string name)
+        {
+            await Task.Delay(50); // Simulate some work
+            return new MultiplyResponse { Result = request.Left * request.Right, OperationId = request.OperationId };
         }
     }
 }

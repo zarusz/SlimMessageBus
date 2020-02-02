@@ -147,6 +147,12 @@ namespace SlimMessageBus.Host.Kafka
         {
             base.AssertSettings();
 
+            foreach(var consumer in Settings.Consumers)
+            {
+                Assert.IsTrue(consumer.GetGroup() != null,
+                    () => new ConfigurationMessageBusException($"Consumer ({consumer.MessageType}): group was not provided"));
+            }
+
             if (Settings.RequestResponse != null)
             {
                 Assert.IsTrue(Settings.RequestResponse.GetGroup() != null,
