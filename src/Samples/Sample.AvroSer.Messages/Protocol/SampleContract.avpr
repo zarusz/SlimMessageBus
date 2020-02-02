@@ -16,7 +16,7 @@
     } ]
   }, {
     "type" : "record",
-    "name" : "MultiplyCommand",
+    "name" : "MultiplyRequest",
     "fields" : [ {
       "name" : "OperationId",
       "type" : "string"
@@ -25,6 +25,16 @@
       "type" : "int"
     }, {
       "name" : "Right",
+      "type" : "int"
+    } ]
+  }, {
+    "type" : "record",
+    "name" : "MultiplyResponse",
+    "fields" : [ {
+      "name" : "OperationId",
+      "type" : "string"
+    }, {
+      "name" : "Result",
       "type" : "int"
     } ]
   } ],

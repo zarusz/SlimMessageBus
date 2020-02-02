@@ -5,6 +5,7 @@ using Common.Logging;
 using System;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 
 namespace SlimMessageBus.Host.Serialization.Avro
 {
@@ -13,7 +14,7 @@ namespace SlimMessageBus.Host.Serialization.Avro
     /// </summary>
     public class AvroMessageSerializer : IMessageSerializer
     {
-        private static readonly ILog Log = LogManager.GetLogger<AvroMessageSerializer>();
+        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         /// <summary>
         /// Allows to customize how are the <see cref="MemoryStream"/>s created and potentially introduce a strategy to reuse them.
@@ -40,28 +41,34 @@ namespace SlimMessageBus.Host.Serialization.Avro
         /// </summary>
         public Func<Type, Schema> ReadSchemaLookup { get; set; }
 
+        /// <summary>
+        /// By default MessageFactory is set to use the <see cref="ReflectionMessageCreationStategy"/> strategy, WriteSchemaLookup and ReadSchemaLookup is set to use <see cref="ReflectionSchemaLookupStrategy"/>.
+        /// </summary>
         public AvroMessageSerializer()
         {
             // Apply defaults
             WriteMemoryStreamFactory = () => new MemoryStream();
             ReadMemoryStreamFactory = (byte[] payload) => new MemoryStream(payload);
-            MessageFactory = (Type type) =>
-            {
-                try
-                {
-                    // by default create types using reflection
-                    Log.DebugFormat(CultureInfo.InvariantCulture, "Instantiating type {0}", type);
-                    var constructor = type.GetConstructor(Type.EmptyTypes);
-                    return constructor.Invoke(null);
-                }
-                catch (Exception e)
-                {
-                    Log.ErrorFormat(CultureInfo.InvariantCulture, "Error intantiating message type {0}. Ensure it has a public and paremeterless constructor", e, type);
-                    throw;
-                }
-            };
-            WriteSchemaLookup = (Type type) => null;
-            ReadSchemaLookup = (Type type) => null;
+
+            var mf = new ReflectionMessageCreationStategy();
+            var ml = new ReflectionSchemaLookupStrategy();
+
+            MessageFactory = (Type type) => mf.Create(type);
+            WriteSchemaLookup = (Type type) => ml.Lookup(type);
+            ReadSchemaLookup = WriteSchemaLookup;
+        }
+
+        public AvroMessageSerializer(IMessageCreationStrategy messageCreationStrategy, ISchemaLookupStrategy writerAndReaderSchemaLookupStrategy)
+            : this(messageCreationStrategy, writerAndReaderSchemaLookupStrategy, writerAndReaderSchemaLookupStrategy)
+        {
+        }
+
+        public AvroMessageSerializer(IMessageCreationStrategy messageCreationStrategy, ISchemaLookupStrategy writerSchemaLookupStrategy, ISchemaLookupStrategy readerSchemaLookupStrategy)
+            : this()
+        {
+            MessageFactory = (Type type) => messageCreationStrategy.Create(type);
+            WriteSchemaLookup = (Type type) => writerSchemaLookupStrategy.Lookup(type);
+            ReadSchemaLookup = (Type type) => readerSchemaLookupStrategy.Lookup(type);
         }
 
         public object Deserialize(Type t, byte[] payload)

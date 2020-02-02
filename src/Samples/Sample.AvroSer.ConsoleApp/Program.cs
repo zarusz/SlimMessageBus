@@ -33,11 +33,22 @@ namespace Sample.Avro.ConsoleApp
         {
             var provider = Provider.Memory;
 
-            var avroSerializer = new AvroMessageSerializer
-            {
-                ReadSchemaLookup = type => AddCommand._SCHEMA,
-                WriteSchemaLookup = type => AddCommand._SCHEMA           
-            };
+            var sl = new DictionarySchemaLookupStrategy();
+            /// register all your types
+            sl.Add(typeof(AddCommand), AddCommand._SCHEMA);
+            sl.Add(typeof(MultiplyRequest), MultiplyRequest._SCHEMA);
+            sl.Add(typeof(MultiplyResponse), MultiplyResponse._SCHEMA);
+
+            var mf = new DictionaryMessageCreationStategy();
+            /// register all your types
+            mf.Add(typeof(AddCommand), () => new AddCommand());
+            mf.Add(typeof(MultiplyRequest), () => new MultiplyRequest());
+            mf.Add(typeof(MultiplyResponse), () => new MultiplyResponse());
+
+            var avroSerializer = new AvroMessageSerializer(mf, sl);
+            
+            // alternatively a simpler approach, but using the slower ReflectionMessageCreationStategy and ReflectionSchemaLookupStrategy
+            //var avroSerializer = new AvroMessageSerializer(); 
 
             return MessageBusBuilder.Create()
                 .Produce<AddCommand>(x => x.DefaultTopic("AddCommand"))

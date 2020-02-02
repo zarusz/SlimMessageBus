@@ -13,6 +13,7 @@ if(!(Test-Path -Path $FILE -PathType leaf))
 	wget "http://apache.mirrors.tworzy.net/avro/avro-$VERSION/java/avro-tools-$VERSION.jar" -outfile $FILE
 }
 
+Remove-Item –path ../Protocol/ -Filter *.avpr -whatif
 # generate avro protocol from avro IDL
 & java -jar $FILE idl ../IDL/SampleContract.avdl ../Protocol/SampleContract.avpr
 

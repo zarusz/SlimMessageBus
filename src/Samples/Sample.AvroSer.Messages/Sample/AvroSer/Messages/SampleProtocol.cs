@@ -15,7 +15,7 @@ namespace Sample.AvroSer.Messages
 	
 	public abstract class SampleProtocol : Avro.Specific.ISpecificProtocol
 	{
-		private static readonly Avro.Protocol protocol = Avro.Protocol.Parse(@"{""protocol"":""SampleProtocol"",""namespace"":""Sample.AvroSer.Messages"",""types"":[{""type"":""record"",""name"":""AddCommand"",""namespace"":""Sample.AvroSer.Messages"",""fields"":[{""name"":""OperationId"",""type"":""string""},{""name"":""Left"",""type"":""int""},{""name"":""Right"",""type"":""int""}]},{""type"":""record"",""name"":""MultiplyCommand"",""namespace"":""Sample.AvroSer.Messages"",""fields"":[{""name"":""OperationId"",""type"":""string""},{""name"":""Left"",""type"":""int""},{""name"":""Right"",""type"":""int""}]}],""messages"":{}}");
+		private static readonly Avro.Protocol protocol = Avro.Protocol.Parse(@"{""protocol"":""SampleProtocol"",""namespace"":""Sample.AvroSer.Messages"",""types"":[{""type"":""record"",""name"":""AddCommand"",""namespace"":""Sample.AvroSer.Messages"",""fields"":[{""name"":""OperationId"",""type"":""string""},{""name"":""Left"",""type"":""int""},{""name"":""Right"",""type"":""int""}]},{""type"":""record"",""name"":""MultiplyRequest"",""namespace"":""Sample.AvroSer.Messages"",""fields"":[{""name"":""OperationId"",""type"":""string""},{""name"":""Left"",""type"":""int""},{""name"":""Right"",""type"":""int""}]},{""type"":""record"",""name"":""MultiplyResponse"",""namespace"":""Sample.AvroSer.Messages"",""fields"":[{""name"":""OperationId"",""type"":""string""},{""name"":""Result"",""type"":""int""}]}],""messages"":{}}");
 		public Avro.Protocol Protocol
 		{
 			get

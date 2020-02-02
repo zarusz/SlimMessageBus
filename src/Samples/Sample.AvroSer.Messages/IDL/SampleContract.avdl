@@ -2,5 +2,5 @@
 
 protocol SampleProtocol {
 	import idl "AddCommand.avdl";
-    import idl "MultiplyCommand.avdl";  
+    import idl "MultiplyRequest.avdl";  
 }

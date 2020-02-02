@@ -2,10 +2,15 @@
 
 protocol SampleProtocol {
 
-	record MultiplyCommand {
+	record MultiplyRequest {
 		string OperationId;
 		int Left;
 		int Right;
+	}
+
+	record MultiplyResponse {
+		string OperationId;
+		int Result;	
 	}
 
 }

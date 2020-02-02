@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <Folder Include="Protocol\" />
+    <Folder Include="Sample\AvroSer\" />
   </ItemGroup>
 
   <ItemGroup>

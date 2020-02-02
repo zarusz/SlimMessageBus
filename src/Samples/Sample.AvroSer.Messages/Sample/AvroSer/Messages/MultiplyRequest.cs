@@ -13,9 +13,9 @@ namespace Sample.AvroSer.Messages
 	using Avro;
 	using Avro.Specific;
 	
-	public partial class MultiplyCommand : ISpecificRecord
+	public partial class MultiplyRequest : ISpecificRecord
 	{
-		public static Schema _SCHEMA = Avro.Schema.Parse("{\"type\":\"record\",\"name\":\"MultiplyCommand\",\"namespace\":\"Sample.AvroSer.Messages\",\"" +
+		public static Schema _SCHEMA = Avro.Schema.Parse("{\"type\":\"record\",\"name\":\"MultiplyRequest\",\"namespace\":\"Sample.AvroSer.Messages\",\"" +
 				"fields\":[{\"name\":\"OperationId\",\"type\":\"string\"},{\"name\":\"Left\",\"type\":\"int\"},{\"n" +
 				"ame\":\"Right\",\"type\":\"int\"}]}");
 		private string _OperationId;
@@ -25,7 +25,7 @@ namespace Sample.AvroSer.Messages
 		{
 			get
 			{
-				return MultiplyCommand._SCHEMA;
+				return MultiplyRequest._SCHEMA;
 			}
 		}
 		public string OperationId
