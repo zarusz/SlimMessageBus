@@ -93,9 +93,6 @@ namespace Sample.Avro.ConsoleApp
                             builder.WithProviderMemory(new MemoryMessageBusSettings { EnableMessageSerialization = true });
                             break;
 
-                        default:
-                            throw new NotSupportedException();
-
                         //case Provider.AzureServiceBus:
                         //    // Provide connection string to your Azure SB
                         //    var serviceBusConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
@@ -122,11 +119,14 @@ namespace Sample.Avro.ConsoleApp
                             break;
 
                         case Provider.Redis:
-                            // Ensure your Kafka broker is running
+                            // Ensure your Redis broker is running
                             var redisConnectionString = Secrets.Service.PopulateSecrets(configuration["Redis:ConnectionString"]);
 
                             builder.WithProviderRedis(new RedisMessageBusSettings(redisConnectionString)); // Or use Redis as provider
                             break;
+
+                        default:
+                            throw new NotSupportedException();
                     }
                 })
                 .Build();
