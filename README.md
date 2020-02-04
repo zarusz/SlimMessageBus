@@ -59,7 +59,7 @@ Check out the [Samples](src/Samples/) folder.
 
 ### Quick example
 
-Some service sends a message:
+Some service (or domain layer) sends a message:
 
 ```cs
 IMessageBus bus; // injected
@@ -67,7 +67,7 @@ IMessageBus bus; // injected
 await bus.Publish(new SomeMessage())
 ```
 
-Another service handles the message:
+Another service (or application layer) handles the message:
 
 ```cs
 public class SomeMessageConsumer : IConsumer<SomeMessage>
@@ -79,42 +79,7 @@ public class SomeMessageConsumer : IConsumer<SomeMessage>
 }
 ```
 
-Note: It is also possible to avoid having to implement the interface `IConsumer<T>` (see [here](docs/intro.md#consumer)).
-
-The configuration somewhere in your service:
-
-```cs
-var mbb = MessageBusBuilder
-	.Create()
-	
-	// Use JSON for message serialization                
-	.WithSerializer(new JsonMessageSerializer())
-	// Use DI from ASP.NET Core (or Autofac, Unity, ServiceLocator)
-	.WithDependencyResolver(new AspNetCoreMessageBusDependencyResolver(serviceProvider))
-	
-	// Use Apache Kafka transport provider
-	.WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
-	// Use Azure Service Bus transport provider
-	//.WithProviderServiceBus(...)
-	// Use Azure Azure Event Hub transport provider
-	//.WithProviderEventHub(...)
-	// Use Redis transport provider
-	//.WithProviderRedis(...)
-	// Use in-memory transport provider
-	//.WithProviderMemory(...)
-
-	// Pub/Sub example:
-	.Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
-	.Consume<SomeMessage>(x => x
-		.Topic("some-topic")
-		.WithConsumer<SomeMessageConsumer>()
-		.Group("some-kafka-consumer-group") // Kafka provider specific
-		//.SubscriptionName("some-azure-sb-topic-subscription") // Azure Service Bus provider specific
-	);
-
-// Build the bus from the builder. Message consumers will start consuming messages from the configured topics/queues of the chosen provider.
-IMessageBus bus = mbb.Build();
-```
+> Note: It is also possible to avoid having to implement the interface `IConsumer<T>` (see [here](docs/intro.md#consumer)).
 
 The bus also supports request-response implemented via queues (or topics - depending what the chosen transport provider supports). The sender side sends a request message:
 
@@ -135,6 +100,42 @@ public class MessageRequestHandler : IRequestHandler<MessageRequest, MessageResp
 ```
 
 The bus will ask the chosen DI to provide the consumer instances (`SomeMessageConsumer`, `MessageRequestHandler`).
+
+The configuration somewhere in your service:
+
+```cs
+var builder = MessageBusBuilder.Create()
+	
+	// Pub/Sub example:
+	.Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
+	.Consume<SomeMessage>(x => x
+		.Topic("some-topic")
+		.WithConsumer<SomeMessageConsumer>()
+		//.Group("some-kafka-consumer-group") //  Kafka provider specific
+		//.SubscriptionName("some-azure-sb-topic-subscription") // Azure ServiceBus provider specific
+	)
+	
+	// Use JSON for message serialization                
+	.WithSerializer(new JsonMessageSerializer())
+	// Use DI from ASP.NET Core (or Autofac, Unity, ServiceLocator)
+	.WithDependencyResolver(new AspNetCoreMessageBusDependencyResolver(serviceProvider))
+	
+	// Use Apache Kafka transport provider
+	.WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
+	// Use Azure Service Bus transport provider
+	//.WithProviderServiceBus(...)
+	// Use Azure Azure Event Hub transport provider
+	//.WithProviderEventHub(...)
+	// Use Redis transport provider
+	//.WithProviderRedis(...)
+	// Use in-memory transport provider
+	//.WithProviderMemory(...)
+
+// Build the bus from the builder. Message consumers will start consuming messages from the configured topics/queues of the chosen provider.
+IMessageBus bus = builder.Build();
+
+// Register bus in your DI
+```
 
 ### Basic in-process pub/sub messaging (for domain events)
 
@@ -159,7 +160,7 @@ The event handler implements the `IConsumer<T>` interface:
 // domain event handler
 public class OrderSubmittedHandler : IConsumer<OrderSubmittedEvent>
 {
-	public Task OnHandle(OrderSubmittedEvent e, string topic)
+	public Task OnHandle(OrderSubmittedEvent e, string name)
 	{
 		Console.WriteLine("Customer {0} {1} just placed an order for:", e.Order.Customer.Firstname, e.Order.Customer.Lastname);
 		foreach (var orderLine in e.Order.Lines)
