@@ -2,13 +2,14 @@
 
 SlimMessageBus is a client façade for message brokers for .NET. It comes with implementations for specific brokers (Apache Kafka, Azure EventHub, MQTT/Mosquitto, Redis Pub/Sub) and also for in memory message passing (in-process communication). SlimMessageBus additionally provides request-response implementation over message queues.
 
+[![Gitter](https://badges.gitter.im/SlimMessageBus/community.svg)](https://gitter.im/SlimMessageBus/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[![GitHub license](https://img.shields.io/github/license/zarusz/SlimMessageBus)](https://github.com/zarusz/SlimMessageBus/blob/master/LICENSE)
+
 | Branch    | Build Status |
 | ----------| --------------------------------|
 | master    | [![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s/branch/master?svg=true)](https://ci.appveyor.com/project/zarusz/slimmessagebus/branch/master) |
 | develop   | [![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s/branch/develop?svg=true)](https://ci.appveyor.com/project/zarusz/slimmessagebus/branch/develop) |
 | other     | [![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s?svg=true)](https://ci.appveyor.com/project/zarusz/slimmessagebus) |
-
-[![Gitter](https://badges.gitter.im/SlimMessageBus/community.svg)](https://gitter.im/SlimMessageBus/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 ## Key elements of SlimMessageBus
 
@@ -63,7 +64,7 @@ Check out the [Samples](src/Samples/) folder.
 
 ### Quick example
 
-Some service sends a message:
+Some service (or domain layer) sends a message:
 
 ```cs
 IMessageBus bus; // injected
@@ -71,7 +72,7 @@ IMessageBus bus; // injected
 await bus.Publish(new SomeMessage())
 ```
 
-Another service handles the message:
+Another service (or application layer) handles the message:
 
 ```cs
 public class SomeMessageConsumer : IConsumer<SomeMessage>
@@ -83,13 +84,43 @@ public class SomeMessageConsumer : IConsumer<SomeMessage>
 }
 ```
 
-Note: It is also possible to avoid having to implement the interface `IConsumer<T>` (see [here](docs/intro.md#consumer)).
+> Note: It is also possible to avoid having to implement the interface `IConsumer<T>` (see [here](docs/intro.md#consumer)).
+
+The bus also supports request-response implemented via queues (or topics - depending what the chosen transport provider supports). The sender side sends a request message:
+
+```cs
+var messageResponse = await bus.Send(new MessageRequest());
+```
+
+> Note: It is possible to configure the bus to timeout a request when the response does not arrive within alloted time (see [here](docs/intro.md#produce-request-message)).
+
+The receiving side handles the request and replies back:
+
+```cs
+public class MessageRequestHandler : IRequestHandler<MessageRequest, MessageResponse>
+{
+   public async Task<MessageResponse> OnHandle(MessageRequest request, string name)
+   {
+     // handle the request message and return response
+   }
+}
+```
+
+The bus will ask the chosen DI to provide the consumer instances (`SomeMessageConsumer`, `MessageRequestHandler`).
 
 The configuration somewhere in your service:
 
 ```cs
-var mbb = MessageBusBuilder
-	.Create()
+var builder = MessageBusBuilder.Create()
+	
+	// Pub/Sub example:
+	.Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
+	.Consume<SomeMessage>(x => x
+		.Topic("some-topic")
+		.WithConsumer<SomeMessageConsumer>()
+		//.Group("some-kafka-consumer-group") //  Kafka provider specific
+		//.SubscriptionName("some-azure-sb-topic-subscription") // Azure ServiceBus provider specific
+	)
 	
 	// Use JSON for message serialization                
 	.WithSerializer(new JsonMessageSerializer())
@@ -107,38 +138,11 @@ var mbb = MessageBusBuilder
 	// Use in-memory transport provider
 	//.WithProviderMemory(...)
 
-	// Pub/Sub example:
-	.Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
-	.Consume<SomeMessage>(x => x
-		.Topic("some-topic")
-		.WithConsumer<SomeMessageConsumer>()
-		.Group("some-kafka-consumer-group") // Kafka provider specific
-		//.SubscriptionName("some-azure-sb-topic-subscription") // Azure Service Bus provider specific
-	);
-
 // Build the bus from the builder. Message consumers will start consuming messages from the configured topics/queues of the chosen provider.
-IMessageBus bus = mbb.Build();
+IMessageBus bus = builder.Build();
+
+// Register bus in your DI
 ```
-
-The bus also supports request-response implemented via queues (or topics - depending what the chosen transport provider supports). The sender side sends a request message:
-
-```cs
-var messageResponse = await bus.Send(new MessageRequest());
-```
-
-The receiving side handles the request and replies back:
-
-```cs
-public class MessageRequestHandler : IRequestHandler<MessageRequest, MessageResponse>
-{
-   public async Task<MessageResponse> OnHandle(MessageRequest request, string name)
-   {
-     // handle the request message and return response
-   }
-}
-```
-
-The bus will ask the chosen DI to provide the consumer instances (`SomeMessageConsumer`, `MessageRequestHandler`).
 
 ### Basic in-process pub/sub messaging (for domain events)
 
@@ -163,7 +167,7 @@ The event handler implements the `IConsumer<T>` interface:
 // domain event handler
 public class OrderSubmittedHandler : IConsumer<OrderSubmittedEvent>
 {
-	public Task OnHandle(OrderSubmittedEvent e, string topic)
+	public Task OnHandle(OrderSubmittedEvent e, string name)
 	{
 		Console.WriteLine("Customer {0} {1} just placed an order for:", e.Order.Customer.Firstname, e.Order.Customer.Lastname);
 		foreach (var orderLine in e.Order.Lines)
