@@ -129,9 +129,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Seriali
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Serialization.Routing", "SlimMessageBus.Host.Serialization.Routing\SlimMessageBus.Host.Serialization.Routing.csproj", "{1AFD2010-14F6-4E5D-AF23-BFF29DEFD87D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sample.AvroSer.Messages.CodeFirst", "Samples\Sample.AvroSer.Messages.CodeFirst\Sample.AvroSer.Messages.CodeFirst.csproj", "{F91E0286-BFB3-47BA-AF47-DB0D8BB63630}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sample.AvroSer.Messages.CodeFirst", "Samples\Sample.AvroSer.Messages.CodeFirst\Sample.AvroSer.Messages.CodeFirst.csproj", "{F91E0286-BFB3-47BA-AF47-DB0D8BB63630}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sample.AvroSer.Messages.ContractFirst", "Samples\Sample.AvroSer.Messages.ContractFirst\Sample.AvroSer.Messages.ContractFirst.csproj", "{4D982EBB-0319-489F-80E1-4C7388DB3785}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sample.AvroSer.Messages.ContractFirst", "Samples\Sample.AvroSer.Messages.ContractFirst\Sample.AvroSer.Messages.ContractFirst.csproj", "{4D982EBB-0319-489F-80E1-4C7388DB3785}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.Serialization.Benchmark", "Tests\SlimMessageBus.Host.Serialization.Benchmark\SlimMessageBus.Host.Serialization.Benchmark.csproj", "{88D66F27-B71C-44B6-8F73-C412FA20F065}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -421,6 +423,14 @@ Global
 		{4D982EBB-0319-489F-80E1-4C7388DB3785}.Release|Any CPU.Build.0 = Release|Any CPU
 		{4D982EBB-0319-489F-80E1-4C7388DB3785}.Release|x86.ActiveCfg = Release|Any CPU
 		{4D982EBB-0319-489F-80E1-4C7388DB3785}.Release|x86.Build.0 = Release|Any CPU
+		{88D66F27-B71C-44B6-8F73-C412FA20F065}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{88D66F27-B71C-44B6-8F73-C412FA20F065}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{88D66F27-B71C-44B6-8F73-C412FA20F065}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{88D66F27-B71C-44B6-8F73-C412FA20F065}.Debug|x86.Build.0 = Debug|Any CPU
+		{88D66F27-B71C-44B6-8F73-C412FA20F065}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{88D66F27-B71C-44B6-8F73-C412FA20F065}.Release|Any CPU.Build.0 = Release|Any CPU
+		{88D66F27-B71C-44B6-8F73-C412FA20F065}.Release|x86.ActiveCfg = Release|Any CPU
+		{88D66F27-B71C-44B6-8F73-C412FA20F065}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -460,6 +470,7 @@ Global
 		{1AFD2010-14F6-4E5D-AF23-BFF29DEFD87D} = {75BDDBB5-8DB8-4893-BD89-8FFC6C42244D}
 		{F91E0286-BFB3-47BA-AF47-DB0D8BB63630} = {A5B15524-93B8-4CCE-AC6D-A22984498BA0}
 		{4D982EBB-0319-489F-80E1-4C7388DB3785} = {A5B15524-93B8-4CCE-AC6D-A22984498BA0}
+		{88D66F27-B71C-44B6-8F73-C412FA20F065} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {435A0D65-610C-4B84-B1AA-2C7FBE72DB80}
