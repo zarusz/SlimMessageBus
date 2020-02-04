@@ -87,6 +87,8 @@ The bus also supports request-response implemented via queues (or topics - depen
 var messageResponse = await bus.Send(new MessageRequest());
 ```
 
+> Note: It is possible to configure the bus to timeout a request when the response does not arrive within alloted time (see [here](docs/intro.md#produce-request-message)).
+
 The receiving side handles the request and replies back:
 
 ```cs
