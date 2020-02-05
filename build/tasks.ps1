@@ -21,7 +21,8 @@ $projects = @(
 	"SlimMessageBus.Host.Kafka",
 	"SlimMessageBus.Host.AzureEventHub",
 	"SlimMessageBus.Host.AzureServiceBus",
-	"SlimMessageBus.Host.Memory"
+	"SlimMessageBus.Host.Memory",
+	"SlimMessageBus.Host.Redis"
 )
 
 # msbuild.exe https://msdn.microsoft.com/pl-pl/library/ms164311(v=vs.80).aspx

@@ -15,82 +15,21 @@ namespace SlimMessageBus.Host.AzureServiceBus
     {
         private static readonly ILog Log = LogManager.GetLogger<ServiceBusMessageBus>();
 
-        public ServiceBusMessageBusSettings ServiceBusSettings { get; }
+        public ServiceBusMessageBusSettings ProviderSettings { get; }
 
-        private readonly SafeDictionaryWrapper<string, ITopicClient> _producerByTopic;
-        private readonly SafeDictionaryWrapper<string, IQueueClient> _producerByQueue;
+        private SafeDictionaryWrapper<string, ITopicClient> _producerByTopic;
+        private SafeDictionaryWrapper<string, IQueueClient> _producerByQueue;
 
         private readonly IDictionary<string, PathKind> _kindByTopic = new Dictionary<string, PathKind>();
         private readonly IDictionary<Type, PathKind> _kindByMessageType = new Dictionary<Type, PathKind>();
 
         private readonly List<BaseConsumer> _consumers = new List<BaseConsumer>();
 
-        public ServiceBusMessageBus(MessageBusSettings settings, ServiceBusMessageBusSettings serviceBusSettings) : base(settings)
+        public ServiceBusMessageBus(MessageBusSettings settings, ServiceBusMessageBusSettings serviceBusSettings) 
+            : base(settings)
         {
-            ServiceBusSettings = serviceBusSettings;
-
-            _producerByTopic = new SafeDictionaryWrapper<string, ITopicClient>(topic =>
-            {
-                Log.DebugFormat(CultureInfo.InvariantCulture, $"Creating {nameof(ITopicClient)} for name {0}", topic);
-                return ServiceBusSettings.TopicClientFactory(topic);
-            });
-
-            _producerByQueue = new SafeDictionaryWrapper<string, IQueueClient>(queue =>
-            {
-                Log.DebugFormat(CultureInfo.InvariantCulture, $"Creating {nameof(IQueueClient)} for name {0}", queue);
-                return ServiceBusSettings.QueueClientFactory(queue);
-            });
-
-            foreach (var producerSettings in settings.Producers)
-            {
-                var producerKind = producerSettings.GetKind();
-                PathKind existingKind;
-
-                var topic = producerSettings.DefaultTopic;
-                if (topic != null)
-                {
-                    if (_kindByTopic.TryGetValue(topic, out existingKind))
-                    {
-                        if (existingKind != producerKind)
-                        {
-                            throw new InvalidConfigurationMessageBusException($"The same name '{topic}' was used for queue and topic. You cannot share one name for a topic and queue. Please fix your configuration.");
-                        }
-                    }
-                    else
-                    {
-                        _kindByTopic.Add(topic, producerKind);
-                    }
-                }
-
-                if (_kindByMessageType.TryGetValue(producerSettings.MessageType, out existingKind))
-                {
-                    if (existingKind != producerKind)
-                    {
-                        throw new InvalidConfigurationMessageBusException($"The same message type '{producerSettings.MessageType}' was used for queue and topic. You cannot share one message type for a topic and queue. Please fix your configuration.");
-                    }
-                }
-                else
-                {
-                    _kindByMessageType.Add(producerSettings.MessageType, producerKind);
-                }
-            }
-
-            Log.Info("Creating consumers");
-            foreach (var consumerSettings in settings.Consumers)
-            {
-                Log.InfoFormat(CultureInfo.InvariantCulture, "Creating consumer for {0}", consumerSettings.FormatIf(Log.IsInfoEnabled));
-
-                var messageProcessor = new ConsumerInstancePool<Message>(consumerSettings, this, m => m.Body);
-                AddConsumer(consumerSettings, messageProcessor);
-            }
-
-            if (settings.RequestResponse != null)
-            {
-                Log.InfoFormat(CultureInfo.InvariantCulture, "Creating response consumer for {0}", settings.RequestResponse.FormatIf(Log.IsInfoEnabled));
-
-                var messageProcessor = new ResponseMessageProcessor<Message>(settings.RequestResponse, this, m => m.Body);
-                AddConsumer(settings.RequestResponse, messageProcessor);
-            }
+            ProviderSettings = serviceBusSettings;
+            OnBuildProvider();
         }
 
         protected void AddConsumer(AbstractConsumerSettings consumerSettings, IMessageProcessor<Message> messageProcessor)
@@ -103,6 +42,74 @@ namespace SlimMessageBus.Host.AzureServiceBus
         }
 
         #region Overrides of MessageBusBase
+
+        protected override void Build()
+        {
+            base.Build();
+
+            _producerByTopic = new SafeDictionaryWrapper<string, ITopicClient>(topic =>
+            {
+                Log.DebugFormat(CultureInfo.InvariantCulture, $"Creating {nameof(ITopicClient)} for name {0}", topic);
+                return ProviderSettings.TopicClientFactory(topic);
+            });
+
+            _producerByQueue = new SafeDictionaryWrapper<string, IQueueClient>(queue =>
+            {
+                Log.DebugFormat(CultureInfo.InvariantCulture, $"Creating {nameof(IQueueClient)} for name {0}", queue);
+                return ProviderSettings.QueueClientFactory(queue);
+            });
+
+            foreach (var producerSettings in Settings.Producers)
+            {
+                var producerKind = producerSettings.GetKind();
+                PathKind existingKind;
+
+                var topic = producerSettings.DefaultTopic;
+                if (topic != null)
+                {
+                    if (_kindByTopic.TryGetValue(topic, out existingKind))
+                    {
+                        if (existingKind != producerKind)
+                        {
+                            throw new ConfigurationMessageBusException($"The same name '{topic}' was used for queue and topic. You cannot share one name for a topic and queue. Please fix your configuration.");
+                        }
+                    }
+                    else
+                    {
+                        _kindByTopic.Add(topic, producerKind);
+                    }
+                }
+
+                if (_kindByMessageType.TryGetValue(producerSettings.MessageType, out existingKind))
+                {
+                    if (existingKind != producerKind)
+                    {
+                        throw new ConfigurationMessageBusException($"The same message type '{producerSettings.MessageType}' was used for queue and topic. You cannot share one message type for a topic and queue. Please fix your configuration.");
+                    }
+                }
+                else
+                {
+                    _kindByMessageType.Add(producerSettings.MessageType, producerKind);
+                }
+            }
+
+            Log.Info("Creating consumers");
+            foreach (var consumerSettings in Settings.Consumers)
+            {
+                Log.InfoFormat(CultureInfo.InvariantCulture, "Creating consumer for {0}", consumerSettings.FormatIf(Log.IsInfoEnabled));
+
+                var messageProcessor = new ConsumerInstancePoolMessageProcessor<Message>(consumerSettings, this, m => m.Body);
+                AddConsumer(consumerSettings, messageProcessor);
+            }
+
+            if (Settings.RequestResponse != null)
+            {
+                Log.InfoFormat(CultureInfo.InvariantCulture, "Creating response consumer for {0}", Settings.RequestResponse.FormatIf(Log.IsInfoEnabled));
+
+                var messageProcessor = new ResponseMessageProcessor<Message>(Settings.RequestResponse, this, m => m.Body);
+                AddConsumer(Settings.RequestResponse, messageProcessor);
+            }
+        }
 
         protected override void Dispose(bool disposing)
         {
@@ -191,11 +198,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
             return ProduceToTransport(messageType, message, name, payload, kind);
         }
 
-        #endregion
-
         public static readonly string RequestHeaderReplyToKind = "reply-to-kind";
-
-        #region Overrides of MessageBusBase
 
         public override Task ProduceRequest(object request, MessageWithHeaders requestMessage, string name, ProducerSettings producerSettings)
         {

@@ -74,12 +74,12 @@ namespace SlimMessageBus.Host.Kafka
 
         protected Consumer CreateConsumer(string group)
         {
-            var config = MessageBus.KafkaSettings.ConsumerConfigFactory(group);
-            config[KafkaConfigKeys.Servers] = MessageBus.KafkaSettings.BrokerList;
+            var config = MessageBus.ProviderSettings.ConsumerConfigFactory(group);
+            config[KafkaConfigKeys.Servers] = MessageBus.ProviderSettings.BrokerList;
             config[KafkaConfigKeys.ConsumerKeys.GroupId] = group;
             // ToDo: add support for auto commit
             config[KafkaConfigKeys.ConsumerKeys.EnableAutoCommit] = false;
-            var consumer = MessageBus.KafkaSettings.ConsumerFactory(group, config);
+            var consumer = MessageBus.ProviderSettings.ConsumerFactory(group, config);
             return consumer;
         }
 
@@ -105,8 +105,8 @@ namespace SlimMessageBus.Host.Kafka
             Log.InfoFormat(CultureInfo.InvariantCulture, "Group [{0}]: Consumer loop started", Group);
             try
             {
-                var pollInterval = MessageBus.KafkaSettings.ConsumerPollInterval;
-                var pollRetryInterval = MessageBus.KafkaSettings.ConsumerPollRetryInterval;
+                var pollInterval = MessageBus.ProviderSettings.ConsumerPollInterval;
+                var pollRetryInterval = MessageBus.ProviderSettings.ConsumerPollRetryInterval;
 
                 for(var ct = _consumerCts.Token; !ct.IsCancellationRequested; )
                 {

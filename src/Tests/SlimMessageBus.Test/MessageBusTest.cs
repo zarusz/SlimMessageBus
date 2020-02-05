@@ -44,7 +44,7 @@ namespace SlimMessageBus.Test
             };
 
             // assert
-            getCurrent.Should().Throw<InvalidConfigurationMessageBusException>();
+            getCurrent.Should().Throw<MessageBusException>();
             MessageBus.IsProviderSet().Should().BeFalse();
         }
     }

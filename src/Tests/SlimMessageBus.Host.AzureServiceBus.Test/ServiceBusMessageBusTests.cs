@@ -120,7 +120,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             Func<IMessageBus> creation = () => BusBuilder.Build();
 
             // assert
-            creation.Should().Throw<InvalidConfigurationMessageBusException>()
+            creation.Should().Throw<ConfigurationMessageBusException>()
                 .WithMessage($"The produced message type '{typeof(SomeMessage).FullName}' was declared more than once*");
         }
 
@@ -136,7 +136,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             Func<IMessageBus> creation = () => BusBuilder.Build();
 
             // assert
-            creation.Should().Throw<InvalidConfigurationMessageBusException>()
+            creation.Should().Throw<ConfigurationMessageBusException>()
                 .WithMessage($"The same name '{name}' was used for queue and topic*");
         }
 

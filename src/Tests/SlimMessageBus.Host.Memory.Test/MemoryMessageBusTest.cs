@@ -1,6 +1,7 @@
 using System;
 using System.Text;
 using System.Threading.Tasks;
+using FluentAssertions;
 using Moq;
 using Newtonsoft.Json;
 using SlimMessageBus.Host.Config;
@@ -33,7 +34,7 @@ namespace SlimMessageBus.Host.Memory.Test
             _subject = new Lazy<MemoryMessageBus>(() => new MemoryMessageBus(_settings, _providerSettings));
         }
 
-        private static ProducerSettings Publisher(Type messageType, string defaultTopic)
+        private static ProducerSettings Producer(Type messageType, string defaultTopic)
         {
             return new ProducerSettings
             {
@@ -44,13 +45,35 @@ namespace SlimMessageBus.Host.Memory.Test
 
         private static ConsumerSettings Consumer(Type messageType, string topic, Type consumerType)
         {
-            return new ConsumerSettings
-            {
-                MessageType = messageType,
-                Topic = topic,
-                ConsumerMode = ConsumerMode.Consumer,
-                ConsumerType = consumerType
-            };
+            return new ConsumerBuilder<object>(new MessageBusSettings(), messageType).Topic(topic).WithConsumer(consumerType).ConsumerSettings;
+        }
+
+        [Fact]
+        public void When_Create_Given_MessageSerializationDisabled_And_NoSerializerProvided_Then_NoException()
+        {
+            // arrange
+            _settings.Serializer = null;
+            _providerSettings.EnableMessageSerialization = false;
+
+            // act
+            Action act = () => { var _ = _subject.Value; };
+
+            // assert            
+            act.Should().NotThrow<ConfigurationMessageBusException>();
+        }
+
+        [Fact]
+        public void When_Create_Given_MessageSerializationEnabled_And_NoSerializerProvided_Then_ThrowsException()
+        {
+            // arrange
+            _settings.Serializer = null;
+            _providerSettings.EnableMessageSerialization = true;
+
+            // act
+            Action act = () => { var _ = _subject.Value; };
+
+            // assert          
+            act.Should().Throw<ConfigurationMessageBusException>();
         }
 
         [Theory]
@@ -63,8 +86,8 @@ namespace SlimMessageBus.Host.Memory.Test
             const string topicA2 = "topic-a-2";
             const string topicB = "topic-b";
 
-            _settings.Producers.Add(Publisher(typeof(SomeMessageA), topicA));
-            _settings.Producers.Add(Publisher(typeof(SomeMessageB), topicB));
+            _settings.Producers.Add(Producer(typeof(SomeMessageA), topicA));
+            _settings.Producers.Add(Producer(typeof(SomeMessageB), topicB));
             _settings.Consumers.Add(Consumer(typeof(SomeMessageA), topicA, typeof(SomeMessageAConsumer)));
             _settings.Consumers.Add(Consumer(typeof(SomeMessageA), topicA2, typeof(SomeMessageAConsumer2)));
             _settings.Consumers.Add(Consumer(typeof(SomeMessageB), topicB, typeof(SomeMessageBConsumer)));

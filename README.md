@@ -2,11 +2,14 @@
 
 SlimMessageBus is a client façade for message brokers for .NET. It comes with implementations for specific brokers (Apache Kafka, Azure EventHub, MQTT/Mosquitto, Redis Pub/Sub) and also for in memory message passing (in-process communication). SlimMessageBus additionally provides request-response implementation over message queues.
 
+[![Gitter](https://badges.gitter.im/SlimMessageBus/community.svg)](https://gitter.im/SlimMessageBus/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[![GitHub license](https://img.shields.io/github/license/zarusz/SlimMessageBus)](https://github.com/zarusz/SlimMessageBus/blob/master/LICENSE)
+
 | Branch    | Build Status |
 | ----------| --------------------------------|
 | master    | [![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s/branch/master?svg=true)](https://ci.appveyor.com/project/zarusz/slimmessagebus/branch/master) |
 | develop   | [![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s/branch/develop?svg=true)](https://ci.appveyor.com/project/zarusz/slimmessagebus/branch/develop) |
-| all       | [![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s?svg=true)](https://ci.appveyor.com/project/zarusz/slimmessagebus) |
+| other     | [![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s?svg=true)](https://ci.appveyor.com/project/zarusz/slimmessagebus) |
 
 ## Key elements of SlimMessageBus
 * Consumers:
@@ -27,25 +30,29 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 	* [Apache Kafka](docs/provider_kafka.md)
 	* [Azure ServiceBus](docs/provider_azure_servicebus.md)
 	* [Azure EventHubs](docs/provider_azure_eventhubs.md)
+	* [Redis](docs/provider_redis.md)
 	* [Memory](docs/provider_memory.md)
 	* [Hybrid](docs/provider_hybrid.md)
 
 ## Packages
 
-| Name                                            | Descripton                                                                                       | NuGet                                                                          | .NET Standard |
-|-------------------------------------------------|--------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------|---------------|
-| `SlimMessageBus`                                | The core API for SlimMessageBus                                                                  | [NuGet](https://www.nuget.org/packages/SlimMessageBus)                         | 1.3           |
-| `SlimMessageBus.Host.Kafka`                     | Transport provider for Apache Kafka                                                              | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)              | 1.3           |
-| `SlimMessageBus.Host.AzureServiceBus`           | Transport provider for Azure Service Bus                                                         | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AzureServiceBus)    | 2.0           |
-| `SlimMessageBus.Host.AzureEventHub`             | Transport provider for Azure Event Hubs                                                          | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)      | 2.0           |
-| `SlimMessageBus.Host.Redis` (future)            | Transport provider for Redis                                                                     | .                                                                              | .             |
-| `SlimMessageBus.Host.Memory`                    | Transport provider implementation for in-process (in memory) message passing (no messaging infrastructure required) | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Memory)             | 1.3           |
-| `SlimMessageBus.Host.Hybrid`                    | Bus implementtion that composes the bus out of other transport provider and performs nessage routing | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Hybrid)         | 1.3           |
-| `SlimMessageBus.Host.Serialization.Json`        | Message serialization adapter for JSON (Json.NET)                                                | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json) | 1.3           |
-| `SlimMessageBus.Host.AspNetCore`                | Integration for ASP.NET Core 2.x (DI adapter, config helpers)                                    | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore)         | 1.3           |
-| `SlimMessageBus.Host.Autofac`                   | DI adapter for Autofac container                                                                 | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Autofac)            | 1.3           |
-| `SlimMessageBus.Host.Unity`                     | DI adapter for Unity container                                                                   | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.Unity)              | 1.3           |
-| `SlimMessageBus.Host.ServiceLocator`            | DI adapter for CommonServiceLocator                                                              | [NuGet](https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator)     | 1.3           |
+| Name                                     | Descripton                                                                                                          | NuGet                                                                                                                                                        |
+|------------------------------------------|---------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `SlimMessageBus`                         | The core API for SlimMessageBus                                                                                     | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.svg)](https://www.nuget.org/packages/SlimMessageBus)                                                 |
+| **Transport providers**                  |                                                                                                                     |                                                                                                                                                              |
+| `SlimMessageBus.Host.Kafka`              | Transport provider for Apache Kafka                                                                                 | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Kafka.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)                           |
+| `SlimMessageBus.Host.AzureServiceBus`    | Transport provider for Azure Service Bus                                                                            | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AzureServiceBus.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AzureServiceBus)       |
+| `SlimMessageBus.Host.AzureEventHub`      | Transport provider for Azure Event Hubs                                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AzureEventHub.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)           |
+| `SlimMessageBus.Host.Redis`              | Transport provider for Redis                                                                                        | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Redis.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Redis)                           |
+| `SlimMessageBus.Host.Hybrid`             | Bus implementtion that composes the bus out of other transport provider and performs nessage routing                | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Hybrid.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Hybrid)                         |
+| `SlimMessageBus.Host.Memory`             | Transport provider implementation for in-process (in memory) message passing (no messaging infrastructure required) | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Memory.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Memory)                         |
+| **Serialization**                        |                                                                                                                     |                                                                                                                                                              |
+| `SlimMessageBus.Host.Serialization.Json` | Message serialization adapter for JSON (Json.NET)                                                                   | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Serialization.Json.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json) |
+| **Container**                            |                                                                                                                     |                                                                                                                                                              |
+| `SlimMessageBus.Host.AspNetCore`         | Integration for ASP.NET Core 2.x (DI adapter, config helpers)                                                       | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AspNetCore.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore)                 |
+| `SlimMessageBus.Host.Autofac`            | DI adapter for Autofac container                                                                                    | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Autofac.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Autofac)                       |
+| `SlimMessageBus.Host.Unity`              | DI adapter for Unity container                                                                                      | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Unity.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Unity)                           |
+| `SlimMessageBus.Host.ServiceLocator`     | DI adapter for CommonServiceLocator                                                                                 | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.ServiceLocator.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.ServiceLocator)         |
 
 Typically your application components (business logic, domain) only need to depend on `SlimMessageBus` which is the facade, and ultimately your application hosting layer (ASP.NET, Windows Service, Console App) will reference and configure the other packages (`SlimMessageBus.Host.*`) which are the providers and plugins.
 
@@ -55,7 +62,7 @@ Check out the [Samples](src/Samples/) folder.
 
 ### Quick example
 
-Some service sends a message:
+Some service (or domain layer) sends a message:
 
 ```cs
 IMessageBus bus; // injected
@@ -63,7 +70,7 @@ IMessageBus bus; // injected
 await bus.Publish(new SomeMessage())
 ```
 
-Another service handles the message:
+Another service (or application layer) handles the message:
 
 ```cs
 public class SomeMessageConsumer : IConsumer<SomeMessage>
@@ -75,44 +82,15 @@ public class SomeMessageConsumer : IConsumer<SomeMessage>
 }
 ```
 
-The configuration somewhere in your service:
-
-```cs
-var mbb = MessageBusBuilder
-	.Create()
-	
-	// Use JSON for message serialization                
-	.WithSerializer(new JsonMessageSerializer())
-	// Use DI from ASP.NET Core (or Autofac, Unity, ServiceLocator)
-	.WithDependencyResolver(new AspNetCoreMessageBusDependencyResolver(serviceProvider))
-	
-	// Use Apache Kafka transport provider
-	.WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
-	// Use Azure Service Bus transport provider
-	//.WithProviderServiceBus(...)
-	// Use Azure Azure Event Hub transport provider
-	//.WithProviderEventHub(...)
-	// Use in-memory transport provider
-	//.WithProviderMemory(...)
-
-	// Pub/Sub example:
-	.Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
-	.Consume<SomeMessage>(x => x
-		.Topic("some-topic")
-		.WithConsumer<SomeMessageConsumer>()
-		.Group("some-kafka-consumer-group") // Kafka provider specific
-		//.SubscriptionName("some-azure-sb-topic-subscription") // Azure Service Bus provider specific
-	);
-
-// Build the bus from the builder. Message consumers will start consuming messages from the configured topics/queues of the chosen provider.
-IMessageBus bus = mbb.Build();
-```
+> Note: It is also possible to avoid having to implement the interface `IConsumer<T>` (see [here](docs/intro.md#consumer)).
 
 The bus also supports request-response implemented via queues (or topics - depending what the chosen transport provider supports). The sender side sends a request message:
 
 ```cs
 var messageResponse = await bus.Send(new MessageRequest());
 ```
+
+> Note: It is possible to configure the bus to timeout a request when the response does not arrive within alloted time (see [here](docs/intro.md#produce-request-message)).
 
 The receiving side handles the request and replies back:
 
@@ -127,6 +105,42 @@ public class MessageRequestHandler : IRequestHandler<MessageRequest, MessageResp
 ```
 
 The bus will ask the chosen DI to provide the consumer instances (`SomeMessageConsumer`, `MessageRequestHandler`).
+
+The configuration somewhere in your service:
+
+```cs
+var builder = MessageBusBuilder.Create()
+	
+	// Pub/Sub example:
+	.Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
+	.Consume<SomeMessage>(x => x
+		.Topic("some-topic")
+		.WithConsumer<SomeMessageConsumer>()
+		//.Group("some-kafka-consumer-group") //  Kafka provider specific
+		//.SubscriptionName("some-azure-sb-topic-subscription") // Azure ServiceBus provider specific
+	)
+	
+	// Use JSON for message serialization                
+	.WithSerializer(new JsonMessageSerializer())
+	// Use DI from ASP.NET Core (or Autofac, Unity, ServiceLocator)
+	.WithDependencyResolver(new AspNetCoreMessageBusDependencyResolver(serviceProvider))
+	
+	// Use Apache Kafka transport provider
+	.WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
+	// Use Azure Service Bus transport provider
+	//.WithProviderServiceBus(...)
+	// Use Azure Azure Event Hub transport provider
+	//.WithProviderEventHub(...)
+	// Use Redis transport provider
+	//.WithProviderRedis(...)
+	// Use in-memory transport provider
+	//.WithProviderMemory(...)
+
+// Build the bus from the builder. Message consumers will start consuming messages from the configured topics/queues of the chosen provider.
+IMessageBus bus = builder.Build();
+
+// Register bus in your DI
+```
 
 ### Basic in-process pub/sub messaging (for domain events)
 
@@ -151,7 +165,7 @@ The event handler implements the `IConsumer<T>` interface:
 // domain event handler
 public class OrderSubmittedHandler : IConsumer<OrderSubmittedEvent>
 {
-	public Task OnHandle(OrderSubmittedEvent e, string topic)
+	public Task OnHandle(OrderSubmittedEvent e, string name)
 	{
 		Console.WriteLine("Customer {0} {1} just placed an order for:", e.Order.Customer.Firstname, e.Order.Customer.Lastname);
 		foreach (var orderLine in e.Order.Lines)
@@ -388,12 +402,25 @@ Check out the complete [sample](/src/Samples#sampleimages) for image resizing.
 
 ## Build
 
-The PowerShell scripts use the `dotnet` CLI.
+```cmd
+cd src
+dotnet build
+dotnet pack --output ../dist
+```
 
-| What                                             | Command                     | Comment                                                                                                                                                                                                   |
-|--------------------------------------------------|-----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Build                                            | `.\build\do_build.ps1`      |                                                                                                                                                                                                           |
-| Test                                             | `.\build\do_test.ps1`       | Please note there are integration tests that require local infrastructure (Kafka provider), other use shared clound infrastructre (Azure EventHubs). Consult each provider test to see what is required.  |
-| Test (skip tests requiring local infrastructure) | `.\build\do_test_ci.ps1`    | Executs tests that do not require local infrastructure.                                                                                                                                                   |
-| Package NuGet                                    | `.\build\do_package.ps1`    | Packages go to `dist` folder.                                                                                                                                                                             |
-| Push NuGet                                       | `.\build\do_push_local.ps1` | Pushes packages to nuget repository named `local`.                                                                                                                                                        |
+NuGet packaged end up in `dist` folder
+
+## Testing
+
+To run tests you need to update the respective `appsettings.json` to match your own cloud infrstructure or local infrastructure.
+SMB has some message brokers setup on Azure for integration tests (secrets not shared).
+
+Run all tests:
+```cmd
+dotnet test
+```
+
+Run all tests except  integration tests which require local/cloud infrastructure:
+```cmd
+dotnet test --filter Category!=Integration
+```

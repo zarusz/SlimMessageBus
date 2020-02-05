@@ -10,30 +10,31 @@ using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host
 {
-    public class ConsumerInstancePool<TMessage> : IMessageProcessor<TMessage>
+    /// <summary>
+    /// Represents a pool of consumer instance that compete to handle a message.
+    /// </summary>
+    /// <typeparam name="TMessage"></typeparam>
+    public class ConsumerInstancePoolMessageProcessor<TMessage> : IMessageProcessor<TMessage>
         where TMessage : class
     {
-        private readonly ILog _log = LogManager.GetLogger(typeof(ConsumerInstancePool<TMessage>).ToString()); // this will give a more friendly name without the assembly version of the generic param
+        private readonly ILog _log = LogManager.GetLogger(typeof(ConsumerInstancePoolMessageProcessor<TMessage>).ToString()); // this will give a more friendly name without the assembly version of the generic param
 
         private readonly List<object> _instances;
         private readonly BufferBlock<object> _instancesQueue;
 
         private readonly MessageBusBase _messageBus;
         private readonly ConsumerSettings _consumerSettings;
-        private readonly ConsumerRuntimeInfo _consumerRuntimeInfo;
 
         private readonly Func<TMessage, byte[]> _messagePayloadProvider;
 
         private readonly bool _consumerWithContext;
         private readonly Action<TMessage, ConsumerContext> _consumerContextInitializer;
 
-        public ConsumerInstancePool(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, byte[]> messagePayloadProvider, Action<TMessage, ConsumerContext> consumerContextInitializer = null)
+        public ConsumerInstancePoolMessageProcessor(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, byte[]> messagePayloadProvider, Action<TMessage, ConsumerContext> consumerContextInitializer = null)
         {
-            _consumerSettings = consumerSettings;
-            _consumerRuntimeInfo = new ConsumerRuntimeInfo(consumerSettings);
-
-            _messageBus = messageBus;
-            _messagePayloadProvider = messagePayloadProvider;
+            _consumerSettings = consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings));
+            _messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
+            _messagePayloadProvider = messagePayloadProvider ?? throw new ArgumentNullException(nameof(messagePayloadProvider));
 
             _consumerContextInitializer = consumerContextInitializer;
             _consumerWithContext = typeof(IConsumerContextAware).IsAssignableFrom(consumerSettings.ConsumerType);
@@ -69,6 +70,11 @@ namespace SlimMessageBus.Host
 
         #endregion
 
+        /// <summary>
+        /// Resolve N instances of consumer from the DI
+        /// </summary>
+        /// <param name="settings"></param>
+        /// <returns></returns>
         private List<object> ResolveInstances(ConsumerSettings settings)
         {
             var consumers = new List<object>(settings.Instances);
@@ -149,13 +155,13 @@ namespace SlimMessageBus.Host
                 }
 
                 // the consumer just subscribes to the message
-                var task = _consumerRuntimeInfo.OnHandle(consumerInstance, message);
+                var task = _consumerSettings.ConsumerMethod(consumerInstance, message, _consumerSettings.Topic);
                 await task.ConfigureAwait(false);
 
                 if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
                 {
                     // the consumer handles the request (and replies)
-                    response = _consumerRuntimeInfo.GetResponseValue(task);
+                    response = _consumerSettings.ConsumerMethodResult(task);
                 }
             }
             catch (Exception e)

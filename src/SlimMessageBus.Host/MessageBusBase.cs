@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Common.Logging;
 using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.RequestResponse;
 
 namespace SlimMessageBus.Host
 {
@@ -15,10 +14,10 @@ namespace SlimMessageBus.Host
 
         public virtual MessageBusSettings Settings { get; }
 
-        protected IDictionary<Type, ProducerSettings> ProducerSettingsByMessageType { get; }
+        protected IDictionary<Type, ProducerSettings> ProducerSettingsByMessageType { get; set; }
 
-        protected IPendingRequestStore PendingRequestStore { get; }
-        protected PendingRequestManager PendingRequestManager { get; }
+        protected IPendingRequestStore PendingRequestStore { get; set; }
+        protected PendingRequestManager PendingRequestManager { get; set; }
 
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         public CancellationToken CancellationToken => _cancellationTokenSource.Token;
@@ -28,15 +27,26 @@ namespace SlimMessageBus.Host
 
         protected MessageBusBase(MessageBusSettings settings)
         {
-            AssertSettings(settings);
-
             Settings = settings;
+        }
+
+        /// <summary>
+        /// Called by the provider to initialize the bus.
+        /// </summary>
+        protected void OnBuildProvider()
+        {
+            AssertSettings();
+            Build();
+        }
+
+        protected virtual void Build()
+        {
             ProducerSettingsByMessageType = new Dictionary<Type, ProducerSettings>();
-            foreach (var producerSettings in settings.Producers)
+            foreach (var producerSettings in Settings.Producers)
             {
                 if (ProducerSettingsByMessageType.ContainsKey(producerSettings.MessageType))
                 {
-                    throw new InvalidConfigurationMessageBusException($"The produced message type '{producerSettings.MessageType}' was declared more than once (check the {nameof(MessageBusBuilder.Produce)} configuration)");
+                    throw new ConfigurationMessageBusException($"The produced message type '{producerSettings.MessageType}' was declared more than once (check the {nameof(MessageBusBuilder.Produce)} configuration)");
                 }
                 ProducerSettingsByMessageType.Add(producerSettings.MessageType, producerSettings);
             }
@@ -51,18 +61,58 @@ namespace SlimMessageBus.Host
             PendingRequestManager.Start();
         }
 
-        private static void AssertSettings(MessageBusSettings settings)
+        protected virtual void AssertSettings()
         {
-            Assert.IsTrue(settings.Serializer != null, 
-                () => new InvalidConfigurationMessageBusException($"{nameof(MessageBusSettings.Serializer)} was not set on {nameof(MessageBusSettings)} object"));
-
-            Assert.IsTrue(settings.DependencyResolver != null,
-                () => new InvalidConfigurationMessageBusException($"{nameof(MessageBusSettings.DependencyResolver)} was not set on {nameof(MessageBusSettings)} object"));
-
-            if (settings.RequestResponse != null)
+            foreach (var consumerSettings in Settings.Consumers)
             {
-                Assert.IsTrue(settings.RequestResponse.Topic != null,
-                    () => new InvalidConfigurationMessageBusException("Request-response: name was not set"));
+                AssertConsumerSettings(consumerSettings);
+            }            
+            AssertSerializerSettings();
+            AssertDepencendyResolverSettings();
+            AssertRequestResponseSettings();
+        }
+
+        protected virtual void AssertConsumerSettings(ConsumerSettings consumerSettings)
+        {
+            if (consumerSettings == null) throw new ArgumentNullException(nameof(consumerSettings));
+
+            Assert.IsNotNull(consumerSettings.Topic,
+                () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.Topic)} is not set"));
+            Assert.IsNotNull(consumerSettings.MessageType,
+                () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.MessageType)} is not set"));
+            Assert.IsNotNull(consumerSettings.ConsumerType,
+                () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.ConsumerType)} is not set"));
+            Assert.IsNotNull(consumerSettings.ConsumerMethod,
+                () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.ConsumerMethod)} is not set"));
+
+            if (consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
+            {
+                Assert.IsNotNull(consumerSettings.ResponseType,
+                    () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.ResponseType)} is not set"));
+
+                Assert.IsNotNull(consumerSettings.ConsumerMethodResult,
+                    () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.ConsumerMethodResult)} is not set"));
+            }
+        }
+
+        protected virtual void AssertSerializerSettings()
+        {
+            Assert.IsNotNull(Settings.Serializer,
+                () => new ConfigurationMessageBusException($"The {nameof(MessageBusSettings)}.{nameof(MessageBusSettings.Serializer)} is not set"));
+        }
+
+        protected virtual void AssertDepencendyResolverSettings()
+        {
+            Assert.IsNotNull(Settings.DependencyResolver,
+                () => new ConfigurationMessageBusException($"The {nameof(MessageBusSettings)}.{nameof(MessageBusSettings.DependencyResolver)} is not set"));
+        }
+
+        protected virtual void AssertRequestResponseSettings()
+        {
+            if (Settings.RequestResponse != null)
+            {
+                Assert.IsNotNull(Settings.RequestResponse.Topic,
+                    () => new ConfigurationMessageBusException("Request-response: name was not set"));
             }
         }
 
@@ -74,7 +124,7 @@ namespace SlimMessageBus.Host
             }
         }
 
-        protected void AssertRequestResponseConfigured()
+        protected virtual void AssertRequestResponseConfigured()
         {
             if (Settings.RequestResponse == null)
             {
@@ -137,11 +187,14 @@ namespace SlimMessageBus.Host
 
         protected virtual string GetDefaultName(Type messageType, ProducerSettings producerSettings)
         {
+            if (producerSettings == null) throw new ArgumentNullException(nameof(producerSettings));
+
             var name = producerSettings.DefaultTopic;
             if (name == null)
             {
                 throw new PublishMessageBusException($"An attempt to produce message of type {messageType} without specifying name, but there was no default name configured. Double check your configuration.");
             }
+
             Log.DebugFormat(CultureInfo.InvariantCulture, "Applying default name {0} for message type {1}", name, messageType);
             return name;
         }
@@ -174,6 +227,8 @@ namespace SlimMessageBus.Host
 
         protected virtual TimeSpan GetDefaultRequestTimeout(Type requestType, ProducerSettings producerSettings)
         {
+            if (producerSettings == null) throw new ArgumentNullException(nameof(producerSettings));
+
             var timeout = producerSettings.Timeout ?? Settings.RequestResponse.Timeout;
             Log.DebugFormat(CultureInfo.InvariantCulture, "Applying default timeout {0} for message type {1}", timeout, requestType);
             return timeout;
@@ -181,6 +236,7 @@ namespace SlimMessageBus.Host
 
         protected virtual async Task<TResponseMessage> SendInternal<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan? timeout, string name, CancellationToken cancellationToken)
         {
+            if (request == null) throw new ArgumentNullException(nameof(request));
             AssertActive();
             AssertRequestResponseConfigured();
 
@@ -233,11 +289,14 @@ namespace SlimMessageBus.Host
 
             // convert Task<object> to Task<TResponseMessage>
             var responseUntyped = await requestState.TaskCompletionSource.Task.ConfigureAwait(true);
-            return (TResponseMessage) responseUntyped;
+            return (TResponseMessage)responseUntyped;
         }
 
         public virtual Task ProduceRequest(object request, MessageWithHeaders requestMessage, string name, ProducerSettings producerSettings)
         {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            if (requestMessage == null) throw new ArgumentNullException(nameof(requestMessage));
+
             var requestType = request.GetType();
 
             requestMessage.SetHeader(ReqRespMessageHeaders.ReplyTo, Settings.RequestResponse.Topic);
@@ -248,6 +307,9 @@ namespace SlimMessageBus.Host
 
         public virtual Task ProduceResponse(object request, MessageWithHeaders requestMessage, object response, MessageWithHeaders responseMessage, ConsumerSettings consumerSettings)
         {
+            if (requestMessage == null) throw new ArgumentNullException(nameof(requestMessage));
+            if (consumerSettings == null) throw new ArgumentNullException(nameof(consumerSettings));
+
             var replyTo = requestMessage.Headers[ReqRespMessageHeaders.ReplyTo];
 
             var responseMessagePayload = SerializeResponse(consumerSettings.ResponseType, response, responseMessage);
@@ -286,6 +348,8 @@ namespace SlimMessageBus.Host
 
         public virtual byte[] SerializeRequest(Type requestType, object request, MessageWithHeaders requestMessage, ProducerSettings producerSettings)
         {
+            if (requestMessage == null) throw new ArgumentNullException(nameof(requestMessage));
+
             var requestPayload = SerializeMessage(requestType, request);
             // create the request wrapper message
             requestMessage.Payload = requestPayload;
@@ -300,6 +364,8 @@ namespace SlimMessageBus.Host
 
         public virtual byte[] SerializeResponse(Type responseType, object response, MessageWithHeaders responseMessage)
         {
+            if (responseMessage == null) throw new ArgumentNullException(nameof(responseMessage));
+
             var responsePayload = response != null ? Settings.Serializer.Serialize(responseType, response) : null;
             // create the response wrapper message
             responseMessage.Payload = responsePayload;
@@ -341,7 +407,7 @@ namespace SlimMessageBus.Host
             if (requestState == null)
             {
                 Log.DebugFormat(CultureInfo.InvariantCulture, "The response message for request id {0} arriving on name {1} will be disregarded. Either the request had already expired, had been cancelled or it was already handled (this response message is a duplicate).", requestId, name);
-                
+
                 // ToDo: add and API hook to these kind of situation
                 return Task.CompletedTask;
             }

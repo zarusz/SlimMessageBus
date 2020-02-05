@@ -18,42 +18,47 @@ namespace SlimMessageBus.Host.Kafka
     {
         private static readonly ILog Log = LogManager.GetLogger<KafkaMessageBus>();
 
-        public KafkaMessageBusSettings KafkaSettings { get; }
+        public KafkaMessageBusSettings ProviderSettings { get; }
 
         private Producer _producer;
         private readonly IList<KafkaGroupConsumer> _groupConsumers = new List<KafkaGroupConsumer>();
         private readonly IDictionary<Type, Func<object, string, byte[]>> _keyProviders = new Dictionary<Type, Func<object, string, byte[]>>();
         private readonly IDictionary<Type, Func<object, string, int>> _partitionProviders = new Dictionary<Type, Func<object, string, int>>();
 
-        public Producer CreateProducerInternal()
-        {
-            Log.Trace("Creating producer settings");
-            var config = KafkaSettings.ProducerConfigFactory();
-            config[KafkaConfigKeys.Servers] = KafkaSettings.BrokerList;
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Producer settings: {0}", config);
-            var producer = KafkaSettings.ProducerFactory(config);
-            return producer;
-        }
-
-        public KafkaMessageBus(MessageBusSettings settings, KafkaMessageBusSettings kafkaSettings)
+        public KafkaMessageBus(MessageBusSettings settings, KafkaMessageBusSettings providerSettings)
             : base(settings)
         {
-            AssertSettings(settings);
+            ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
 
-            KafkaSettings = kafkaSettings;
-
-            CreateProducer();
-            CreateGroupConsumers(settings);
-            CreateProviders();
+            OnBuildProvider();
 
             // TODO: Auto start should be a setting
             Start();
+        }
+
+        protected override void Build()
+        {
+            base.Build();
+
+            CreateProducer();
+            CreateGroupConsumers();
+            CreateProviders();
         }
 
         public Task Flush()
         {
             AssertActive();
             return Task.Run(() => _producer.Flush(-1));
+        }
+
+        public Producer CreateProducerInternal()
+        {
+            Log.Trace("Creating producer settings");
+            var config = ProviderSettings.ProducerConfigFactory();
+            config[KafkaConfigKeys.Servers] = ProviderSettings.BrokerList;
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Producer settings: {0}", config);
+            var producer = ProviderSettings.ProducerFactory(config);
+            return producer;
         }
 
         private void CreateProviders()
@@ -81,15 +86,15 @@ namespace SlimMessageBus.Host.Kafka
             Log.InfoFormat(CultureInfo.InvariantCulture, "Created producer {0}", _producer.Name);
         }
 
-        private void CreateGroupConsumers(MessageBusSettings settings)
+        private void CreateGroupConsumers()
         {
             Log.Info("Creating group consumers...");
 
             var responseConsumerCreated = false;
 
-            IKafkaTopicPartitionProcessor ResponseProcessorFactory(TopicPartition tp, IKafkaCommitController cc) => new KafkaResponseProcessor(settings.RequestResponse, tp, cc, this);
+            IKafkaTopicPartitionProcessor ResponseProcessorFactory(TopicPartition tp, IKafkaCommitController cc) => new KafkaResponseProcessor(Settings.RequestResponse, tp, cc, this);
 
-            foreach (var consumersByGroup in settings.Consumers.GroupBy(x => x.GetGroup()))
+            foreach (var consumersByGroup in Settings.Consumers.GroupBy(x => x.GetGroup()))
             {
                 var group = consumersByGroup.Key;
                 var consumerByTopic = consumersByGroup.ToDictionary(x => x.Topic);
@@ -100,12 +105,12 @@ namespace SlimMessageBus.Host.Kafka
                 var processorFactory = (Func<TopicPartition, IKafkaCommitController, IKafkaTopicPartitionProcessor>) ConsumerProcessorFactory;
 
                 // if responses are used and shared with the regular consumers group
-                if (settings.RequestResponse != null && group == settings.RequestResponse.GetGroup())
+                if (Settings.RequestResponse != null && group == Settings.RequestResponse.GetGroup())
                 {
                     // Note: response topic cannot be used in consumer topics - this is enforced in AssertSettings method
-                    topics.Add(settings.RequestResponse.Topic);
+                    topics.Add(Settings.RequestResponse.Topic);
 
-                    processorFactory = (tp, cc) => tp.Topic == settings.RequestResponse.Topic
+                    processorFactory = (tp, cc) => tp.Topic == Settings.RequestResponse.Topic
                         ? ResponseProcessorFactory(tp, cc)
                         : ConsumerProcessorFactory(tp, cc);
 
@@ -115,9 +120,9 @@ namespace SlimMessageBus.Host.Kafka
                 AddGroupConsumer(group, topics.ToArray(), processorFactory);
             }
 
-            if (settings.RequestResponse != null && !responseConsumerCreated)
+            if (Settings.RequestResponse != null && !responseConsumerCreated)
             {
-                AddGroupConsumer(settings.RequestResponse.GetGroup(), new[] { settings.RequestResponse.Topic }, ResponseProcessorFactory);
+                AddGroupConsumer(Settings.RequestResponse.GetGroup(), new[] { Settings.RequestResponse.Topic }, ResponseProcessorFactory);
             }
 
             Log.InfoFormat(CultureInfo.InvariantCulture, "Created {0} group consumers", _groupConsumers.Count);
@@ -138,15 +143,17 @@ namespace SlimMessageBus.Host.Kafka
             _groupConsumers.Add(new KafkaGroupConsumer(this, group, topics, processorFactory));
         }
 
-        private static void AssertSettings(MessageBusSettings settings)
+        protected override void AssertSettings()
         {
-            if (settings.RequestResponse != null)
-            {
-                Assert.IsTrue(settings.RequestResponse.GetGroup() != null,
-                    () => new InvalidConfigurationMessageBusException("Request-response: group was not provided"));
+            base.AssertSettings();
 
-                Assert.IsFalse(settings.Consumers.Any(x => x.GetGroup() == settings.RequestResponse.GetGroup() && x.Topic == settings.RequestResponse.Topic),
-                    () => new InvalidConfigurationMessageBusException("Request-response: cannot use topic that is already being used by a consumer"));
+            if (Settings.RequestResponse != null)
+            {
+                Assert.IsTrue(Settings.RequestResponse.GetGroup() != null,
+                    () => new ConfigurationMessageBusException("Request-response: group was not provided"));
+
+                Assert.IsFalse(Settings.Consumers.Any(x => x.GetGroup() == Settings.RequestResponse.GetGroup() && x.Topic == Settings.RequestResponse.Topic),
+                    () => new ConfigurationMessageBusException("Request-response: cannot use topic that is already being used by a consumer"));
             }
         }
 

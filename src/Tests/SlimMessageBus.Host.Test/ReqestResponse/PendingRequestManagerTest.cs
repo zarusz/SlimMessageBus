@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Threading;
 using Moq;
-using SlimMessageBus.Host.RequestResponse;
 using Xunit;
 
 namespace SlimMessageBus.Host.Test

@@ -2,7 +2,7 @@ namespace SlimMessageBus.Host.Kafka
 {
     public static class KafkaConfigKeys
     {
-        public const string Servers = "bootstrap.servers";
+        public const string Servers = "metadata.broker.list"; //"bootstrap.servers";
 
         public static class ConsumerKeys
         {

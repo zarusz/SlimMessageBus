@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <PackageReference Include="Common.Logging.NLog444" Version="3.4.1" />
+    <PackageReference Include="Microsoft.AspNetCore.All" Version="2.1.13" />
     <PackageReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.AspNetCore.Razor.Design" Version="2.1.2" PrivateAssets="All" />
     <PackageReference Include="NLog" Version="4.5.11" />

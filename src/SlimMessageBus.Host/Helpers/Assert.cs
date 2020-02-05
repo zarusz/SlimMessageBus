@@ -6,6 +6,11 @@ namespace SlimMessageBus.Host
     {
         public static void IsTrue(bool value, Func<Exception> exceptionFactory)
         {
+            if (exceptionFactory == null)
+            {
+                throw new ArgumentNullException(nameof(exceptionFactory));
+            }
+
             if (!value)
             {
                 var e = exceptionFactory();

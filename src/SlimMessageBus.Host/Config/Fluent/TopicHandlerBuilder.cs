@@ -1,4 +1,6 @@
+using System;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace SlimMessageBus.Host.Config
 {
@@ -8,6 +10,8 @@ namespace SlimMessageBus.Host.Config
         public TopicHandlerBuilder(string topic, MessageBusSettings settings)
             : base(topic, typeof(TRequest), settings)
         {
+            if (settings == null) throw new ArgumentNullException(nameof(settings));
+
             ConsumerSettings.ResponseType = typeof(TResponse);
 
             var consumerSettingsExist = settings.Consumers.Any(x => x.Topic == topic && x.ConsumerMode == ConsumerMode.RequestResponse);
@@ -18,8 +22,14 @@ namespace SlimMessageBus.Host.Config
         public TopicHandlerBuilder<TRequest, TResponse> WithHandler<THandler>()
             where THandler : IRequestHandler<TRequest, TResponse>
         {
-            ConsumerSettings.ConsumerType = typeof(THandler);
+            Assert.IsNotNull(ConsumerSettings.ResponseType,
+                () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(ConsumerSettings.ResponseType)} is not set"));
+
             ConsumerSettings.ConsumerMode = ConsumerMode.RequestResponse;
+            ConsumerSettings.ConsumerType = typeof(THandler);
+            ConsumerSettings.ConsumerMethod = (consumer, message, name) => ((THandler)consumer).OnHandle((TRequest)message, name);
+            ConsumerSettings.ConsumerMethodResult = (task) => ((Task<TResponse>)task).Result;
+
             return this;
         }
 

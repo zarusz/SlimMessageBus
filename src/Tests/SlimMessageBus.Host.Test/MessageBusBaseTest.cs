@@ -115,7 +115,7 @@ namespace SlimMessageBus.Host.Test
             Action busCreation = () => BusBuilder.Build();
 
             // assert
-            busCreation.Should().Throw<InvalidConfigurationMessageBusException>()
+            busCreation.Should().Throw<ConfigurationMessageBusException>()
                 .WithMessage("*was declared more than once*");
         }
 
@@ -217,7 +217,7 @@ namespace SlimMessageBus.Host.Test
         }
 
         [Fact]
-        public void WhenCancellationTokenCancelledThenCancellsPendingRequest()
+        public async Task WhenCancellationTokenCancelledThenCancellsPendingRequest()
         {
             // arrange
             var r1 = new RequestA();
@@ -226,13 +226,13 @@ namespace SlimMessageBus.Host.Test
             var cts1 = new CancellationTokenSource();
             var cts2 = new CancellationTokenSource();
 
+            cts2.Cancel();
             var r1Task = Bus.Send(r1, cts1.Token);
             var r2Task = Bus.Send(r2, cts2.Token);
 
             // act
-            cts2.Cancel();
             Bus.TriggerPendingRequestCleanup();
-            WaitForAnyTasks(2000, r1Task, r2Task);
+            await Task.WhenAny(r1Task, r2Task);
 
             // assert
             r1Task.IsCompleted.Should().BeFalse("Request 1 is still pending");
@@ -255,19 +255,6 @@ namespace SlimMessageBus.Host.Test
                 // swallow
             }
         }
-
-        private static void WaitForAnyTasks(int millis, params Task[] tasks)
-        {
-            try
-            {
-                Task.WaitAny(tasks, millis);
-            }
-            catch (AggregateException)
-            {
-                // swallow
-            }
-        }
-
 
         [Fact]
         public void WhenRequestMessageSerializedThenDeserializeGivesSameObject()
@@ -333,6 +320,8 @@ namespace SlimMessageBus.Host.Test
         {
             // by default no responses will arrive
             OnReply = (type, payload, req) => null;
+
+            OnBuildProvider();
         }
 
         public int PendingRequestsCount => PendingRequestStore.GetCount();
