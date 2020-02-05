@@ -1,13 +1,18 @@
 ﻿using System;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Sample.Hybrid.ConsoleApp.DomainModel;
 
 namespace Sample.Hybrid.ConsoleApp
 {
     class Program
     {
-        static void Main(string[] args)
+        private static volatile bool CanRun = true;
+
+        static async Task Main(string[] args)
         {
             Console.WriteLine("Initializing...");
 
@@ -31,6 +36,25 @@ namespace Sample.Hybrid.ConsoleApp
             {
                 // Run the application
                 scope.ServiceProvider.GetService<Application>().Run();
+
+                var task = Task.Factory.StartNew(CustomerDoesSomeStuff, TaskCreationOptions.LongRunning);
+
+                // Wait until user hits any key
+                Console.ReadKey();
+
+                CanRun = false;
+                await task;
+            }
+
+        }
+        public static void CustomerDoesSomeStuff()
+        {
+            while (CanRun)
+            {
+                var customer = new Customer("John", "Doe");
+                customer.ChangeEmail("john@doe.com");
+
+                Thread.Sleep(2000);
             }
         }
     }
