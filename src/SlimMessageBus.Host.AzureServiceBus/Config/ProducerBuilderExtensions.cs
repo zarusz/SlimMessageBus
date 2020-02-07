@@ -8,6 +8,9 @@ namespace SlimMessageBus.Host.AzureServiceBus
     {
         public static ProducerBuilder<T> DefaultQueue<T>(this ProducerBuilder<T> producerBuilder, string queue)
         {
+            if (producerBuilder is null) throw new ArgumentNullException(nameof(producerBuilder));
+            if (queue is null) throw new ArgumentNullException(nameof(queue));
+
             producerBuilder.DefaultTopic(queue);
             producerBuilder.ToQueue();
             return producerBuilder;
@@ -21,6 +24,8 @@ namespace SlimMessageBus.Host.AzureServiceBus
         /// <returns></returns>
         public static ProducerBuilder<T> ToTopic<T>(this ProducerBuilder<T> producerBuilder)
         {
+            if (producerBuilder is null) throw new ArgumentNullException(nameof(producerBuilder));
+
             producerBuilder.Settings.SetKind(PathKind.Topic);
             return producerBuilder;
         }
@@ -33,6 +38,8 @@ namespace SlimMessageBus.Host.AzureServiceBus
         /// <returns></returns>
         public static ProducerBuilder<T> ToQueue<T>(this ProducerBuilder<T> producerBuilder)
         {
+            if (producerBuilder is null) throw new ArgumentNullException(nameof(producerBuilder));
+
             producerBuilder.Settings.SetKind(PathKind.Queue);
             return producerBuilder;
         }
@@ -46,9 +53,12 @@ namespace SlimMessageBus.Host.AzureServiceBus
         /// <returns></returns>
         public static ProducerBuilder<T> WithModifier<T>(this ProducerBuilder<T> producerBuilder, Action<T, Message> modifierAction)
         {
+            if (producerBuilder is null) throw new ArgumentNullException(nameof(producerBuilder));
+            if (modifierAction is null) throw new ArgumentNullException(nameof(modifierAction));
+
             producerBuilder.Settings.SetMessageModifier((e, m) =>
             {
-               modifierAction((T) e, m);
+                modifierAction((T)e, m);
             });
             return producerBuilder;
         }

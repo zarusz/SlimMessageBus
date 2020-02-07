@@ -21,11 +21,11 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
         public BaseConsumer(ServiceBusMessageBus messageBus, AbstractConsumerSettings consumerSettings, IReceiverClient client, IMessageProcessor<Message> messageProcessor, ILog log)
         {
             _log = log;
-            MessageBus = messageBus;
-            ConsumerSettings = consumerSettings;
-            Client = client;
+            MessageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
+            ConsumerSettings = consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings));
+            Client = client ?? throw new ArgumentNullException(nameof(client));
 
-            MessageProcessor = messageProcessor;
+            MessageProcessor = messageProcessor ?? throw new ArgumentNullException(nameof(messageProcessor));
 
             // Configure the message handler options in terms of exception handling, number of concurrent messages to deliver, etc.
             var messageHandlerOptions = new MessageHandlerOptions(ExceptionReceivedHandler)
@@ -63,6 +63,8 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
 
         protected async Task ProcessMessagesAsync(Message message, CancellationToken token)
         {
+            if (message is null) throw new ArgumentNullException(nameof(message));
+
             // Process the message.
             var mf = ConsumerSettings.FormatIf(message, _log.IsDebugEnabled);
             _log.DebugFormat(CultureInfo.InvariantCulture, "Received message - {0}", mf);
