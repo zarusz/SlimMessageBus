@@ -220,7 +220,7 @@ namespace SlimMessageBus.Host
 
         public virtual Task Publish<TMessage>(TMessage message, string name = null)
         {
-            return Publish(message.GetType(), message, name);
+            return Publish(typeof(TMessage), message, name);
         }
 
         #endregion
