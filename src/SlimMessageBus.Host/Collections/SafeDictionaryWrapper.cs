@@ -47,9 +47,11 @@ namespace SlimMessageBus.Host.Collections
 
         public TValue GetOrAdd(TKey key, Func<TKey, TValue> factory)
         {
+            if (factory is null) throw new ArgumentNullException(nameof(factory));
+
             // check if we have the value already for the key
             // ReSharper disable once InconsistentlySynchronizedField
-            if (!_mutableDict.TryGetValue(key, out TValue value))
+            if (!_mutableDict.TryGetValue(key, out var value))
             {
                 lock (this)
                 {

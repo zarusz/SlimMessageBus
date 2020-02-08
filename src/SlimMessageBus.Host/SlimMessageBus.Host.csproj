@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard1.3</TargetFramework>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <Description>A lightweight message bus interface for .NET. The goal of this library is to introduce a slim facade for messaging brokers. Use one of the transport providers for in-process (in-memory), Apache Kafka or Azure Service Bus messaging.</Description>
     <Company>zarusz</Company>
     <Authors>zarusz</Authors>

@@ -155,6 +155,9 @@ namespace SlimMessageBus.Host.AzureServiceBus
 
         protected virtual async Task ProduceToTransport(Type messageType, object message, string name, byte[] payload, PathKind kind)
         {
+            if (messageType is null) throw new ArgumentNullException(nameof(messageType));
+            if (payload is null) throw new ArgumentNullException(nameof(payload));
+
             AssertActive();
 
             Log.DebugFormat(CultureInfo.InvariantCulture, "Producing message {0} of type {1} on {2} {3} with size {4}", message, messageType.Name, kind, name, payload.Length);

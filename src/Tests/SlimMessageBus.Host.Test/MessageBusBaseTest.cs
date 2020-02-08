@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -45,10 +47,14 @@ namespace SlimMessageBus.Host.Test
         private const int TimeoutForA10 = 10;
         private const int TimeoutDefault20 = 20;
 
+        public IList<(Type messageType, string name, object message)> _producedMessages;
+
         public MessageBusBaseTest()
         {
             _timeZero = DateTimeOffset.Now;
             _timeNow = _timeZero;
+
+            _producedMessages = new List<(Type messageType, string name, object message)>();
 
             BusBuilder = MessageBusBuilder.Create()
                 .Produce<RequestA>(x =>
@@ -72,7 +78,8 @@ namespace SlimMessageBus.Host.Test
                     var bus = new MessageBusTested(s)
                     {
                         // provide current time
-                        CurrentTimeProvider = () => _timeNow
+                        CurrentTimeProvider = () => _timeNow,
+                        OnProduced = (mt, n, m) => _producedMessages.Add((mt, n, m))
                     };
                     return bus;
                 });
@@ -283,6 +290,59 @@ namespace SlimMessageBus.Host.Test
         }
 
         [Fact]
+        public async Task When_Produce_DerivedMessage_Given_OnlyBaseMessageConfigured_Then_BaseMessageProducerConfigUsed()
+        {
+            // arrange
+            var someMessageTopic = "some-messages";
+
+            BusBuilder
+                .Produce<SomeMessage>(x =>
+                {
+                    x.DefaultTopic(someMessageTopic);
+                });
+
+            var m = new SomeDerivedMessage();
+
+            // act
+            await Bus.Publish(m);
+
+            // assert
+            _producedMessages.Count.Should().Be(1);
+            _producedMessages[0].messageType.Should().Be(typeof(SomeMessage));
+            _producedMessages[0].message.Should().Be(m);
+            _producedMessages[0].name.Should().Be(someMessageTopic);
+        }
+
+        [Fact]
+        public async Task When_Produce_DerivedMessage_Given_DeriveMessageConfigured_Then_DerivedMessageProducerConfigUsed()
+        {
+            // arrange
+            var someMessageTopic = "some-messages";
+            var someMessageDerived2Topic = "some-messages-2";
+
+            BusBuilder
+                .Produce<SomeMessage>(x =>
+                {
+                    x.DefaultTopic(someMessageTopic);
+                })
+                .Produce<SomeDerived2Message>(x =>
+                {
+                    x.DefaultTopic(someMessageDerived2Topic);
+                });
+
+            var m = new SomeDerived2Message();
+
+            // act
+            await Bus.Publish(m);
+
+            // assert
+            _producedMessages.Count.Should().Be(1);
+            _producedMessages[0].messageType.Should().Be(typeof(SomeDerived2Message));
+            _producedMessages[0].message.Should().Be(m);
+            _producedMessages[0].name.Should().Be(someMessageDerived2Topic);
+        }
+
+        [Fact]
         public void GivenDisposedWhenPublishThenThrowsException()
         {
             // arrange
@@ -327,25 +387,33 @@ namespace SlimMessageBus.Host.Test
         public int PendingRequestsCount => PendingRequestStore.GetCount();
 
         public Func<Type, string, object, object> OnReply { get; set; }
+        public Action<Type, string, object> OnProduced { get; set; }
 
         #region Overrides of BaseMessageBus
 
         public override Task ProduceToTransport(Type messageType, object message, string name, byte[] payload)
         {
-            var req = DeserializeRequest(messageType, payload, out var requestMessage);
+            OnProduced(messageType, name, message);
 
-            var resp = OnReply(messageType, name, req);
-            if (resp == null)
+            if (messageType.GetInterfaces().Any(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IRequestMessage<>)))
             {
-                return Task.CompletedTask;
+                var req = DeserializeRequest(messageType, payload, out var requestMessage);
+
+                var resp = OnReply(messageType, name, req);
+                if (resp == null)
+                {
+                    return Task.CompletedTask;
+                }
+
+                var respMessage = new MessageWithHeaders();
+                respMessage.SetHeader(ReqRespMessageHeaders.RequestId, requestMessage.Headers[ReqRespMessageHeaders.RequestId]);
+                var replyTo = requestMessage.Headers[ReqRespMessageHeaders.ReplyTo];
+
+                var respPayload = SerializeResponse(resp.GetType(), resp, respMessage);
+                return OnResponseArrived(respPayload, replyTo);
             }
 
-            var respMessage = new MessageWithHeaders();
-            respMessage.SetHeader(ReqRespMessageHeaders.RequestId, requestMessage.Headers[ReqRespMessageHeaders.RequestId]);
-            var replyTo = requestMessage.Headers[ReqRespMessageHeaders.ReplyTo];
-
-            var respPayload = SerializeResponse(resp.GetType(), resp, respMessage);
-            return OnResponseArrived(respPayload, replyTo);
+            return Task.CompletedTask;
         }
 
         #endregion
