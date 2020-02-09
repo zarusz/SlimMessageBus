@@ -96,7 +96,7 @@ await bus.Publish(msg, "other-topic");
 
 #### Polymorphic messages
 
-Consider the following messages types that can be produced:
+Consider the following message types that can be produced:
 
 ```cs
 public class CustomerEvent
@@ -116,7 +116,8 @@ If we want the bus to deliver all 3 messages types into the same topic (or queue
 mbb.Produce<CustomerEvent>(x => x.DefaultTopic("customer-events"));
 ```
 
-Then all of the following messages will follow the base class producer configuration and in the example above, will be delivered to topic `customer-events`):
+Then all of the those message types will follow the base message type producer configuration. 
+In this example, all messages will be delivered to topic `customer-events`:
 
 ```cs
 await bus.Publish(new CustomerEvent { });
