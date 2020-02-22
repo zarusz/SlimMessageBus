@@ -5,7 +5,7 @@
 //    is regenerated
 // </auto-generated>
 // ------------------------------------------------------------------------------
-namespace Sample.AvroSer.Messages.ContractFirst
+namespace Sample.Serialization.MessagesAvro
 {
 	using System;
 	using System.Collections.Generic;
@@ -13,11 +13,11 @@ namespace Sample.AvroSer.Messages.ContractFirst
 	using Avro;
 	using Avro.Specific;
 	
-	public partial class AddCommand : ISpecificRecord
+	public partial class MultiplyRequest : ISpecificRecord
 	{
-		public static Schema _SCHEMA = Avro.Schema.Parse("{\"type\":\"record\",\"name\":\"AddCommand\",\"namespace\":\"Sample.AvroSer.Messages.Contrac" +
-				"tFirst\",\"fields\":[{\"name\":\"OperationId\",\"type\":\"string\"},{\"name\":\"Left\",\"type\":\"" +
-				"int\"},{\"name\":\"Right\",\"type\":\"int\"}]}");
+		public static Schema _SCHEMA = Avro.Schema.Parse("{\"type\":\"record\",\"name\":\"MultiplyRequest\",\"namespace\":\"Sample.Serialization.Messa" +
+				"gesAvro\",\"fields\":[{\"name\":\"OperationId\",\"type\":\"string\"},{\"name\":\"Left\",\"type\":" +
+				"\"int\"},{\"name\":\"Right\",\"type\":\"int\"}]}");
 		private string _OperationId;
 		private int _Left;
 		private int _Right;
@@ -25,7 +25,7 @@ namespace Sample.AvroSer.Messages.ContractFirst
 		{
 			get
 			{
-				return AddCommand._SCHEMA;
+				return MultiplyRequest._SCHEMA;
 			}
 		}
 		public string OperationId

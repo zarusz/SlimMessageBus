@@ -10,9 +10,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Samples\Sample.AvroSer.Messages.CodeFirst\Sample.AvroSer.Messages.CodeFirst.csproj" />
-    <ProjectReference Include="..\..\Samples\Sample.AvroSer.Messages.ContractFirst\Sample.AvroSer.Messages.ContractFirst.csproj" />
-    <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.AvroConvert\SlimMessageBus.Host.Serialization.AvroConvert.csproj" />
+    <ProjectReference Include="..\..\Samples\Sample.AvroSer.Messages.ContractFirst\Sample.AvroSer.Messages.csproj" />
+    <ProjectReference Include="..\..\Samples\Sample.Serialization.MessagesAvro\Sample.Serialization.MessagesAvro.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Avro\SlimMessageBus.Host.Serialization.Avro.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Json\SlimMessageBus.Host.Serialization.Json.csproj" />
   </ItemGroup>

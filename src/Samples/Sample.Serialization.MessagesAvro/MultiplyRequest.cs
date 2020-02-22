@@ -1,6 +1,6 @@
 ﻿using SlimMessageBus;
 
-namespace Sample.AvroSer.Messages.ContractFirst
+namespace Sample.Serialization.MessagesAvro
 {
     /// <summary>
     /// Adds the marker interface to the generated class <see cref="MultiplyRequest"/>.

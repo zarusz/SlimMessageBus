@@ -2,14 +2,14 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Description>Extension to SlimMessageBus that provides JSON serialization based on the Json.NET library</Description>
+    <Description>Plugin for SlimMessageBus that provides JSON serialization based on the Json.NET library</Description>
     <Copyright>Copyright © 2020</Copyright>
     <Authors>zarusz</Authors>
     <Company>zarusz</Company>
     <PackageTags>SlimMessageBus JSON Serialization messaging</PackageTags>
     <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
     <Product>SlimMessageBus</Product>
-    <Version>1.3.5</Version>
+    <Version>1.3.6</Version>
     <PackageLicenseUrl></PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
     <PackageIconUrl></PackageIconUrl>

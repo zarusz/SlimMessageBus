@@ -5,12 +5,13 @@
 #
 
 $FILE = 'avro-tools.jar'
-$VERSION = '1.9.1'
+$VERSION = '1.9.2'
 
 # download the avro tools (if havent done so already)
 if(!(Test-Path -Path $FILE -PathType leaf)) 
 {
-	wget "http://apache.mirrors.tworzy.net/avro/avro-$VERSION/java/avro-tools-$VERSION.jar" -outfile $FILE
+	# if the link doesn't work check latest mirror link here: http://avro.apache.org/releases.html#Download
+	wget "http://archive.apache.org/dist/avro/avro-$VERSION/java/avro-tools-$VERSION.jar" -outfile $FILE
 }
 
 Remove-Item –path ../Contract-Protocol/* -Filter *.avpr

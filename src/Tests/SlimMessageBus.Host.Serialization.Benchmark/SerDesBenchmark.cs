@@ -2,9 +2,7 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
 using SlimMessageBus.Host.Serialization.Avro;
-using SlimMessageBus.Host.Serialization.AvroConvert;
 using SlimMessageBus.Host.Serialization.Json;
-using SolTechnology.Avro.Codec;
 using System;
 using System.Collections.Generic;
 
@@ -23,22 +21,19 @@ namespace SlimMessageBus.Host.Serialization.Benchmark
             new Scenario("Json",
                 new AddCommand { OperationId = Guid.NewGuid().ToString(), Left = 100, Right = 200 },
                 new JsonMessageSerializer()),
-            new Scenario("AvroConvert_Default",
-                new AddCommand { OperationId = Guid.NewGuid().ToString(), Left = 100, Right = 200 },
-                new AvroConvertMessageSerializer()),
             new Scenario("Avro_Default",
-                new Sample.AvroSer.Messages.ContractFirst.AddCommand { OperationId = Guid.NewGuid().ToString(), Left = 100, Right = 200 },
+                new Sample.Serialization.MessagesAvro.AddCommand { OperationId = Guid.NewGuid().ToString(), Left = 100, Right = 200 },
                 new AvroMessageSerializer()),
             new Scenario("Avro_NoReflection",
-                new Sample.AvroSer.Messages.ContractFirst.AddCommand { OperationId = Guid.NewGuid().ToString(), Left = 100, Right = 200 },
+                new Sample.Serialization.MessagesAvro.AddCommand { OperationId = Guid.NewGuid().ToString(), Left = 100, Right = 200 },
                 new AvroMessageSerializer(
                     new DictionaryMessageCreationStategy(new Dictionary<Type, Func<object>>
                     {
-                        [typeof(Sample.AvroSer.Messages.ContractFirst.AddCommand)] = () => new Sample.AvroSer.Messages.ContractFirst.AddCommand()
+                        [typeof(Sample.Serialization.MessagesAvro.AddCommand)] = () => new Sample.Serialization.MessagesAvro.AddCommand()
                     }),
                     new DictionarySchemaLookupStrategy(new Dictionary<Type, Schema>
                     {
-                        [typeof(Sample.AvroSer.Messages.ContractFirst.AddCommand)] = Sample.AvroSer.Messages.ContractFirst.AddCommand._SCHEMA
+                        [typeof(Sample.Serialization.MessagesAvro.AddCommand)] = Sample.Serialization.MessagesAvro.AddCommand._SCHEMA
                     })
                 ))
         };

@@ -1,4 +1,4 @@
-@namespace("Sample.AvroSer.Messages.ContractFirst")
+@namespace("Sample.Serialization.MessagesAvro")
 
 protocol SampleProtocol {
 	import idl "AddCommand.avdl";

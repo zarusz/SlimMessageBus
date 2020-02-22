@@ -2,11 +2,11 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Version>1.0.0-beta4</Version>
+    <Version>1.0.0</Version>
     <Authors>zarusz</Authors>
     <Company>zarusz</Company>
     <Product>SlimMessageBus</Product>
-    <Description>Extension to SlimMessageBus that provides Apache Avro serialization</Description>
+    <Description>Plugin for SlimMessageBus that provides Apache.Avro serialization.</Description>
     <Copyright>Copyright © 2020</Copyright>
     <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
@@ -19,7 +19,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Apache.Avro" Version="1.9.1" />
+    <PackageReference Include="Apache.Avro" Version="1.9.2" />
     <PackageReference Include="Common.Logging" Version="3.4.1" />
   </ItemGroup>
 

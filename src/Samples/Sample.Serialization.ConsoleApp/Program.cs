@@ -1,18 +1,15 @@
 ﻿using Microsoft.Extensions.Configuration;
-using Sample.AvroSer.Messages.ContractFirst;
-using Sample.AvroSer.Messages.CodeFirst;
+using Sample.Serialization.MessagesAvro;
 using SecretStore;
 using SlimMessageBus;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.Kafka;
-using SlimMessageBus.Host.Kafka.Configs;
 using SlimMessageBus.Host.Memory;
 using SlimMessageBus.Host.Redis;
 using SlimMessageBus.Host.Serialization;
 using SlimMessageBus.Host.Serialization.Avro;
-using SlimMessageBus.Host.Serialization.AvroConvert;
-using SlimMessageBus.Host.Serialization.Routing;
+using SlimMessageBus.Host.Serialization.Hybrid;
+using SlimMessageBus.Host.Serialization.Json;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -22,7 +19,7 @@ namespace Sample.Avro.ConsoleApp
 {
     enum Provider
     {
-        Kafka,
+        //Kafka,
         //AzureServiceBus,
         //AzureEventHub,
         Redis,
@@ -31,9 +28,8 @@ namespace Sample.Avro.ConsoleApp
 
     /// <summary>
     /// This sample shows:
-    /// 1. How tu use the Avro serializer (for contract IDL first apprach)
-    /// 2. How to use the AvroConvert serializer (for C# code first approach)
-    /// 3. How to combine two serializer approaches in one app (using the Routing serializer).
+    /// 1. How tu use the Avro serializer (for contract Avro IDL first apprach to generate C# code)
+    /// 2. How to combine two serializer approaches in one app (using the Hybrid serializer).
     /// </summary>
     class Program
     {
@@ -53,7 +49,7 @@ namespace Sample.Avro.ConsoleApp
         private static IMessageBus CreateBus(IConfiguration configuration)
         {
             // Note: remember that Memory provider does not support req-resp yet.
-            var provider = Provider.Memory;
+            var provider = Provider.Redis;
 
             /*
             var sl = new DictionarySchemaLookupStrategy();
@@ -76,34 +72,27 @@ namespace Sample.Avro.ConsoleApp
             var avroSerializer = new AvroMessageSerializer();
 
             // Avro serialized using the AvroConvert library - no schema generation neeeded upfront.
-            var avroConvertSerializer = new AvroConvertMessageSerializer();
+            var jsonSerializer = new JsonMessageSerializer();
 
-            // Note: Certain messages will be serialized by one Avro serializer, other using the other Avro serializer
-            var routingSerializer = new RoutingMessageSerializer(new Dictionary<IMessageSerializer, Type[]>
+            // Note: Certain messages will be serialized by one Avro serializer, other using the Json serializer
+            var routingSerializer = new HybridMessageSerializer(new Dictionary<IMessageSerializer, Type[]>
             {
-                [avroConvertSerializer] = new Type[] { typeof(SubtractCommand) }, // the first one will be the default serializer, no need to declare types here
-                [avroSerializer] = new Type[] { typeof(AddCommand), typeof(MultiplyRequest), typeof(MultiplyResponse) },
+                [jsonSerializer] = new[] { typeof(SubtractCommand) }, // the first one will be the default serializer, no need to declare types here
+                [avroSerializer] = new[] { typeof(AddCommand), typeof(MultiplyRequest), typeof(MultiplyResponse) },
             });
 
             return MessageBusBuilder.Create()
                 .Produce<AddCommand>(x => x.DefaultTopic("AddCommand"))
-                .Consume<AddCommand>(x => x.Topic("AddCommand").WithConsumer<AddCommandConsumer>()
-                    .Group("ConsoleApp") // for Kafka only
-                )
+                .Consume<AddCommand>(x => x.Topic("AddCommand").WithConsumer<AddCommandConsumer>())
 
                 .Produce<SubtractCommand>(x => x.DefaultTopic("SubtractCommand"))
-                .Consume<SubtractCommand>(x => x.Topic("SubtractCommand").WithConsumer<SubtractCommandConsumer>()
-                    .Group("ConsoleApp") // for Kafka only
-                )
+                .Consume<SubtractCommand>(x => x.Topic("SubtractCommand").WithConsumer<SubtractCommandConsumer>())
 
                 .Produce<MultiplyRequest>(x => x.DefaultTopic("MultiplyRequest"))
-                .Handle<MultiplyRequest, MultiplyResponse>(x => x.Topic("MultiplyRequest").WithHandler<MultiplyRequestHandler>()
-                    .Group("ConsoleApp") // for Kafka only
-                )
+                .Handle<MultiplyRequest, MultiplyResponse>(x => x.Topic("MultiplyRequest").WithHandler<MultiplyRequestHandler>())
 
-                .ExpectRequestResponses(x => x.ReplyToTopic("ConsoleApp")
-                    .Group("ConsoleApp") // for Kafka only
-                )
+
+                .ExpectRequestResponses(x => x.ReplyToTopic("ConsoleApp"))
 
                 .WithSerializer(routingSerializer) // Use Avro for message serialization                
                 .WithDependencyResolver(new LookupDependencyResolver(type =>
@@ -139,14 +128,14 @@ namespace Sample.Avro.ConsoleApp
                         //    builder.WithProviderEventHub(new EventHubMessageBusSettings(eventHubConnectionString, storageConnectionString, storageContainerName)); // Use Azure Event Hub as provider
                         //    break;
 
-                        case Provider.Kafka:
-                            // Ensure your Kafka broker is running
-                            var kafkaBrokers = configuration["Kafka:Brokers"];
-                            var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
-                            var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
+                        //case Provider.Kafka:
+                        //    // Ensure your Kafka broker is running
+                        //    var kafkaBrokers = configuration["Kafka:Brokers"];
+                        //    var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
+                        //    var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
 
-                            builder.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)); // Or use Apache Kafka as provider
-                            break;
+                        //    builder.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)); // Or use Apache Kafka as provider
+                        //    break;
 
                         case Provider.Redis:
                             // Ensure your Redis broker is running
@@ -258,5 +247,15 @@ namespace Sample.Avro.ConsoleApp
             await Task.Delay(50); // Simulate some work
             return new MultiplyResponse { Result = request.Left * request.Right, OperationId = request.OperationId };
         }
+    }
+
+    /// <summary>
+    /// This will be serialized as JSON.
+    /// </summary>
+    public class SubtractCommand
+    {
+        public string OperationId { get; set; }
+        public int Left { get; set; }
+        public int Right { get; set; }
     }
 }

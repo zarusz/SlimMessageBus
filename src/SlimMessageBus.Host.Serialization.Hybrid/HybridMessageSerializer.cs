@@ -4,12 +4,12 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Reflection;
 
-namespace SlimMessageBus.Host.Serialization.Routing
+namespace SlimMessageBus.Host.Serialization.Hybrid
 {
     /// <summary>
     /// <see cref="IMessageSerializer"/> implementation that delegates (routes) the serialization to the respective serializer based on message type.
     /// </summary>
-    public class RoutingMessageSerializer : IMessageSerializer
+    public class HybridMessageSerializer : IMessageSerializer
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -17,11 +17,11 @@ namespace SlimMessageBus.Host.Serialization.Routing
         private readonly IDictionary<Type, IMessageSerializer> _serializerByType = new Dictionary<Type, IMessageSerializer>();
         public IMessageSerializer DefaultSerializer { get; set; }
 
-        public RoutingMessageSerializer()
+        public HybridMessageSerializer()
         {
         }
 
-        public RoutingMessageSerializer(IDictionary<IMessageSerializer, Type[]> registration)
+        public HybridMessageSerializer(IDictionary<IMessageSerializer, Type[]> registration)
         {
             foreach (var entry in registration)
             {

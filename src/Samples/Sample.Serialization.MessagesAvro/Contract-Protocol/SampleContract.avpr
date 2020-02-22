@@ -1,6 +1,6 @@
 {
   "protocol" : "SampleProtocol",
-  "namespace" : "Sample.AvroSer.Messages.ContractFirst",
+  "namespace" : "Sample.Serialization.MessagesAvro",
   "types" : [ {
     "type" : "record",
     "name" : "AddCommand",

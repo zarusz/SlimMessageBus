@@ -2,24 +2,28 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Description>Extension to SlimMessageBus that provides Avro serialization based on the AvroConvert library</Description>
-    <Product>SlimMessageBus</Product>
-    <Copyright>Copyright © 2020</Copyright>
-    <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
-    <PackageTags>SlimMessageBus Avro Apache Serialization messaging AvroConvert</PackageTags>
-    <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
-    <Version>1.0.0-beta4</Version>
     <Authors>zarusz</Authors>
-    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <Company>zarusz</Company>
+    <Version>1.0.0</Version>
+    <Description>Extension to SlimMessageBus that delegates serialization to the respective serialization plugin based on message type.</Description>
+    <Copyright>Copyright © 2020</Copyright>
+    <Product>SlimMessageBus</Product>
+    <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
+    <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
+    <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
+    <PackageTags>SlimMessageBus Serialization messaging</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
     <PackageIconUrl />
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AvroConvert" Version="2.2.0" />
     <PackageReference Include="Common.Logging" Version="3.4.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SlimMessageBus.Host.Serialization\SlimMessageBus.Host.Serialization.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -27,10 +31,6 @@
       <Pack>True</Pack>
       <PackagePath></PackagePath>
     </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\SlimMessageBus.Host.Serialization\SlimMessageBus.Host.Serialization.csproj" />
   </ItemGroup>
 
 </Project>

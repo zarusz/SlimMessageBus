@@ -5,7 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Apache.Avro" Version="1.9.1" />
+    <PackageReference Include="Apache.Avro" Version="1.9.2" />
   </ItemGroup>
 
   <ItemGroup>
