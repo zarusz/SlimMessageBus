@@ -1,14 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard1.3</TargetFramework>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <Authors>zarusz</Authors>
     <Company>zarusz</Company>
     <Copyright>Copyright © 2020</Copyright>
     <Description>Simple provider for SlimMessageBus for in process message passing. Messages are stored in memory (state is transient).</Description>
     <AssemblyName>SlimMessageBus.Host.Memory</AssemblyName>
     <RootNamespace>SlimMessageBus.Host.Memory</RootNamespace>
-    <Version>1.4.0</Version>
+    <Version>1.4.1</Version>
     <PackageLicenseUrl></PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
     <PackageIconUrl></PackageIconUrl>

@@ -132,6 +132,11 @@ namespace SlimMessageBus.Host.Config
 
         public IMessageBus Build()
         {
+            if (_factory is null)
+            {
+                throw new ConfigurationMessageBusException("The bus provider was not configured. Check your MessageBus configuration.");
+            }
+
             return _factory(Settings);
         }
     }

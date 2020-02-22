@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Common.Logging;
+using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host
@@ -21,6 +22,8 @@ namespace SlimMessageBus.Host
 
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         public CancellationToken CancellationToken => _cancellationTokenSource.Token;
+
+        private readonly SafeDictionaryWrapper<Type, Type> _messageTypeToBaseType = new SafeDictionaryWrapper<Type, Type>();
 
         protected bool IsDisposing { get; private set; }
         protected bool IsDisposed { get; private set; }
@@ -66,7 +69,7 @@ namespace SlimMessageBus.Host
             foreach (var consumerSettings in Settings.Consumers)
             {
                 AssertConsumerSettings(consumerSettings);
-            }            
+            }
             AssertSerializerSettings();
             AssertDepencendyResolverSettings();
             AssertRequestResponseSettings();
@@ -172,7 +175,34 @@ namespace SlimMessageBus.Host
         {
             if (!ProducerSettingsByMessageType.TryGetValue(messageType, out var producerSettings))
             {
-                throw new PublishMessageBusException($"Message of type {messageType} was not registered as a supported publish message. Please check your MessageBus configuration and include this type.");
+                var baseMessageType = _messageTypeToBaseType.GetOrAdd(messageType, mt =>
+                {
+                    var baseType = mt;
+                    do
+                    {
+                        baseType = mt.BaseType;
+                    }
+                    while (baseType != null && !ProducerSettingsByMessageType.ContainsKey(baseType));
+
+                    if (baseType != null)
+                    {
+                        Log.DebugFormat(CultureInfo.InvariantCulture, "Found a base type of {0} that is configured in the bus: {1}", mt, baseType);
+                    }
+                    else
+                    {
+                        Log.DebugFormat(CultureInfo.InvariantCulture, "Did not find any base type of {0} that is configured in the bus", mt);
+                    }
+
+                    // Note: Nulls are also added to dictionary, so that we don't look them up using reflection next time (cached).
+                    return baseType;
+                });
+
+                if (baseMessageType == null)
+                {
+                    throw new PublishMessageBusException($"Message of type {messageType} was not registered as a supported publish message. Please check your MessageBus configuration and include this type.");
+                }
+
+                producerSettings = ProducerSettingsByMessageType[baseMessageType];
             }
 
             return producerSettings;
@@ -205,22 +235,24 @@ namespace SlimMessageBus.Host
         {
             AssertActive();
 
+            var producerSettings = GetProducerSettings(messageType);
+
             if (name == null)
             {
-                name = GetDefaultName(messageType);
+                name = GetDefaultName(producerSettings.MessageType, producerSettings);
             }
 
-            var payload = SerializeMessage(messageType, message);
+            var payload = SerializeMessage(producerSettings.MessageType, message);
 
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Producing message {0} of type {1} to name {2} with payload size {3}", message, messageType, name, payload?.Length ?? 0);
-            return ProduceToTransport(messageType, message, name, payload);
+            Log.DebugFormat(CultureInfo.InvariantCulture, "Producing message {0} of type {1} to name {2} with payload size {3}", message, producerSettings.MessageType, name, payload?.Length ?? 0);
+            return ProduceToTransport(producerSettings.MessageType, message, name, payload);
         }
 
         #region Implementation of IPublishBus
 
         public virtual Task Publish<TMessage>(TMessage message, string name = null)
         {
-            return Publish(message.GetType(), message, name);
+            return Publish(typeof(TMessage), message, name);
         }
 
         #endregion
@@ -458,9 +490,6 @@ namespace SlimMessageBus.Host
         /// Generates unique request IDs
         /// </summary>
         /// <returns></returns>
-        protected virtual string GenerateRequestId()
-        {
-            return Guid.NewGuid().ToString("N");
-        }
+        protected virtual string GenerateRequestId() => Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
     }
 }

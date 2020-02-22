@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using Common.Logging;
 using Microsoft.Azure.ServiceBus;
@@ -13,7 +14,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
 {
     public class ServiceBusMessageBus : MessageBusBase
     {
-        private static readonly ILog Log = LogManager.GetLogger<ServiceBusMessageBus>();
+        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         public ServiceBusMessageBusSettings ProviderSettings { get; }
 
@@ -25,15 +26,17 @@ namespace SlimMessageBus.Host.AzureServiceBus
 
         private readonly List<BaseConsumer> _consumers = new List<BaseConsumer>();
 
-        public ServiceBusMessageBus(MessageBusSettings settings, ServiceBusMessageBusSettings serviceBusSettings) 
+        public ServiceBusMessageBus(MessageBusSettings settings, ServiceBusMessageBusSettings providerSettings)
             : base(settings)
         {
-            ProviderSettings = serviceBusSettings;
+            ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
             OnBuildProvider();
         }
 
         protected void AddConsumer(AbstractConsumerSettings consumerSettings, IMessageProcessor<Message> messageProcessor)
         {
+            if (consumerSettings is null) throw new ArgumentNullException(nameof(consumerSettings));
+
             var consumer = consumerSettings.GetKind() == PathKind.Topic
                 ? new TopicSubscriptionConsumer(this, consumerSettings, messageProcessor) as BaseConsumer
                 : new QueueConsumer(this, consumerSettings, messageProcessor);
@@ -49,13 +52,13 @@ namespace SlimMessageBus.Host.AzureServiceBus
 
             _producerByTopic = new SafeDictionaryWrapper<string, ITopicClient>(topic =>
             {
-                Log.DebugFormat(CultureInfo.InvariantCulture, $"Creating {nameof(ITopicClient)} for name {0}", topic);
+                Log.DebugFormat(CultureInfo.InvariantCulture, "Creating {0} for name {1}", nameof(ITopicClient), topic);
                 return ProviderSettings.TopicClientFactory(topic);
             });
 
             _producerByQueue = new SafeDictionaryWrapper<string, IQueueClient>(queue =>
             {
-                Log.DebugFormat(CultureInfo.InvariantCulture, $"Creating {nameof(IQueueClient)} for name {0}", queue);
+                Log.DebugFormat(CultureInfo.InvariantCulture, "Creating {0} for name {1}", nameof(IQueueClient), queue);
                 return ProviderSettings.QueueClientFactory(queue);
             });
 
@@ -93,12 +96,14 @@ namespace SlimMessageBus.Host.AzureServiceBus
                 }
             }
 
+            byte[] getPayload(Message m) => m.Body;
+
             Log.Info("Creating consumers");
             foreach (var consumerSettings in Settings.Consumers)
             {
                 Log.InfoFormat(CultureInfo.InvariantCulture, "Creating consumer for {0}", consumerSettings.FormatIf(Log.IsInfoEnabled));
 
-                var messageProcessor = new ConsumerInstancePoolMessageProcessor<Message>(consumerSettings, this, m => m.Body);
+                var messageProcessor = new ConsumerInstancePoolMessageProcessor<Message>(consumerSettings, this, getPayload);
                 AddConsumer(consumerSettings, messageProcessor);
             }
 
@@ -106,7 +111,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
             {
                 Log.InfoFormat(CultureInfo.InvariantCulture, "Creating response consumer for {0}", Settings.RequestResponse.FormatIf(Log.IsInfoEnabled));
 
-                var messageProcessor = new ResponseMessageProcessor<Message>(Settings.RequestResponse, this, m => m.Body);
+                var messageProcessor = new ResponseMessageProcessor<Message>(Settings.RequestResponse, this, getPayload);
                 AddConsumer(Settings.RequestResponse, messageProcessor);
             }
         }
@@ -123,9 +128,9 @@ namespace SlimMessageBus.Host.AzureServiceBus
 
             if (_producerByQueue.Dictonary.Count > 0)
             {
-                disposeTasks = disposeTasks.Union(_producerByQueue.Dictonary.Values.Select(x =>
+                disposeTasks = disposeTasks.Concat(_producerByQueue.Dictonary.Values.Select(x =>
                 {
-                    Log.DebugFormat(CultureInfo.InvariantCulture, $"Closing {nameof(IQueueClient)} for name {0}", x.Path);
+                    Log.DebugFormat(CultureInfo.InvariantCulture, "Closing {0} for name {1}", nameof(IQueueClient), x.Path);
                     return x.CloseAsync();
                 }));
 
@@ -134,9 +139,9 @@ namespace SlimMessageBus.Host.AzureServiceBus
 
             if (_producerByTopic.Dictonary.Count > 0)
             {
-                disposeTasks = disposeTasks.Union(_producerByTopic.Dictonary.Values.Select(x =>
+                disposeTasks = disposeTasks.Concat(_producerByTopic.Dictonary.Values.Select(x =>
                 {
-                    Log.DebugFormat(CultureInfo.InvariantCulture, $"Closing {nameof(ITopicClient)} for name {0}", x.Path);
+                    Log.DebugFormat(CultureInfo.InvariantCulture, "Closing {0} for name {1}", nameof(ITopicClient), x.Path);
                     return x.CloseAsync();
                 }));
 
@@ -150,6 +155,9 @@ namespace SlimMessageBus.Host.AzureServiceBus
 
         protected virtual async Task ProduceToTransport(Type messageType, object message, string name, byte[] payload, PathKind kind)
         {
+            if (messageType is null) throw new ArgumentNullException(nameof(messageType));
+            if (payload is null) throw new ArgumentNullException(nameof(payload));
+
             AssertActive();
 
             Log.DebugFormat(CultureInfo.InvariantCulture, "Producing message {0} of type {1} on {2} {3} with size {4}", message, messageType.Name, kind, name, payload.Length);
@@ -202,12 +210,17 @@ namespace SlimMessageBus.Host.AzureServiceBus
 
         public override Task ProduceRequest(object request, MessageWithHeaders requestMessage, string name, ProducerSettings producerSettings)
         {
+            if (requestMessage is null) throw new ArgumentNullException(nameof(requestMessage));
+
             requestMessage.SetHeader(RequestHeaderReplyToKind, (int)Settings.RequestResponse.GetKind());
             return base.ProduceRequest(request, requestMessage, name, producerSettings);
         }
 
         public override Task ProduceResponse(object request, MessageWithHeaders requestMessage, object response, MessageWithHeaders responseMessage, ConsumerSettings consumerSettings)
         {
+            if (requestMessage is null) throw new ArgumentNullException(nameof(requestMessage));
+            if (consumerSettings is null) throw new ArgumentNullException(nameof(consumerSettings));
+
             var replyTo = requestMessage.Headers[ReqRespMessageHeaders.ReplyTo];
             var kind = (PathKind)requestMessage.GetHeaderAsInt(RequestHeaderReplyToKind);
 
