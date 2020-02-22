@@ -191,7 +191,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
             Log.DebugFormat(CultureInfo.InvariantCulture, "Delivered message {0} of type {1} on {2} {3}", message, messageType.Name, kind, name);
         }
 
-        public override Task ProduceToTransport(Type messageType, object message, string name, byte[] payload)
+        public override Task ProduceToTransport(Type messageType, object message, string name, byte[] payload, MessageWithHeaders messageWithHeaders = null)
         {
             // determine the SMB topic name if its a Azure SB queue or topic
             if (!_kindByTopic.TryGetValue(name, out var kind))

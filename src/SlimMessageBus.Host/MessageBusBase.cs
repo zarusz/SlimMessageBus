@@ -229,7 +229,7 @@ namespace SlimMessageBus.Host
             return name;
         }
 
-        public abstract Task ProduceToTransport(Type messageType, object message, string name, byte[] payload);
+        public abstract Task ProduceToTransport(Type messageType, object message, string name, byte[] messagePayload, MessageWithHeaders messageWithHeaders = null);
 
         public virtual Task Publish(Type messageType, object message, string name = null)
         {
@@ -334,7 +334,7 @@ namespace SlimMessageBus.Host
             requestMessage.SetHeader(ReqRespMessageHeaders.ReplyTo, Settings.RequestResponse.Topic);
             var requestMessagePayload = SerializeRequest(requestType, request, requestMessage, producerSettings);
 
-            return ProduceToTransport(requestType, request, name, requestMessagePayload);
+            return ProduceToTransport(requestType, request, name, requestMessagePayload, requestMessage);
         }
 
         public virtual Task ProduceResponse(object request, MessageWithHeaders requestMessage, object response, MessageWithHeaders responseMessage, ConsumerSettings consumerSettings)
@@ -404,6 +404,11 @@ namespace SlimMessageBus.Host
             return Settings.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), responseMessage);
         }
 
+        public virtual object DeserializeResponse(Type responseType, byte[] responsePayload)
+        {
+            return Settings.Serializer.Deserialize(responseType, responsePayload);
+        }
+
         /// <summary>
         /// Should be invoked by the concrete bus implementation whenever there is a message arrived on the reply to topic.
         /// </summary>
@@ -428,12 +433,12 @@ namespace SlimMessageBus.Host
         /// <summary>
         /// Should be invoked by the concrete bus implementation whenever there is a message arrived on the reply to topic name.
         /// </summary>
-        /// <param name="payload"></param>
+        /// <param name="reponse"></param>
         /// <param name="name"></param>
         /// <param name="requestId"></param>
         /// <param name="errorMessage"></param>
         /// <returns></returns>
-        public virtual Task OnResponseArrived(byte[] payload, string name, string requestId, string errorMessage)
+        public virtual Task OnResponseArrived(byte[] responsePayload, string name, string requestId, string errorMessage, object response = null)
         {
             var requestState = PendingRequestStore.GetById(requestId);
             if (requestState == null)
@@ -466,7 +471,7 @@ namespace SlimMessageBus.Host
                     try
                     {
                         // deserialize the response message
-                        var response = Settings.Serializer.Deserialize(requestState.ResponseType, payload);
+                        response = responsePayload != null ? DeserializeResponse(requestState.ResponseType, responsePayload) : response;
 
                         // resolve the response
                         requestState.TaskCompletionSource.TrySetResult(response);

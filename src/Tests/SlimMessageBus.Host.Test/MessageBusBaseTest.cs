@@ -391,7 +391,7 @@ namespace SlimMessageBus.Host.Test
 
         #region Overrides of BaseMessageBus
 
-        public override Task ProduceToTransport(Type messageType, object message, string name, byte[] payload)
+        public override Task ProduceToTransport(Type messageType, object message, string name, byte[] payload, MessageWithHeaders messageWithHeaders = null)
         {
             OnProduced(messageType, name, message);
 

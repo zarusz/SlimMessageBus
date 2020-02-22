@@ -15,6 +15,7 @@ using SecretStore;
 using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Redis;
+using SlimMessageBus.Host.Memory;
 
 namespace Sample.Simple.ConsoleApp
 {
@@ -23,7 +24,8 @@ namespace Sample.Simple.ConsoleApp
         Kafka,
         AzureServiceBus,
         AzureEventHub,
-        Redis
+        Redis,
+        Memory,
     }
 
     internal static class Program
@@ -66,7 +68,7 @@ namespace Sample.Simple.ConsoleApp
         private static IMessageBus CreateMessageBus(IConfiguration configuration)
         {
             // Choose your provider
-            var provider = Provider.Kafka;
+            var provider = Provider.Memory;
 
             // Provide your event hub-names OR kafka/service bus topic names
             var topicForAddCommand = "add-command";
@@ -157,6 +159,10 @@ namespace Sample.Simple.ConsoleApp
                     Console.WriteLine($"Using {provider} as the transport provider");
                     switch (provider)
                     {
+                        case Provider.Memory:
+                            builder.WithProviderMemory(new MemoryMessageBusSettings()); // Use Azure Service Bus as provider
+                            break;
+
                         case Provider.AzureServiceBus:
                             // Provide connection string to your Azure SB
                             var serviceBusConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
