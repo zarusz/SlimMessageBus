@@ -29,7 +29,7 @@ IMessageBus bus = mbb.Build();
 
 Since messages are passed within the same process, serializing and deserializing them might be redundant or a desired performance optimization. Serialization can be disabled:
 
-```
+```cs
 MessageBusBuilder mbb = MessageBusBuilder
    .Create()
    .WithProviderMemory(new MemoryMessageBusSettings
