@@ -7,4 +7,5 @@
     * [Azure Event Hubs](provider_azure_eventhubs.md)
     * [Redis](provider_redis.md)
     * [Memory](provider_memory.md)
+* [Serialization Plugins](serialization.md)
 * [Release Notes](/releases)
