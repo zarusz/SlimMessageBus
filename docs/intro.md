@@ -29,7 +29,7 @@ var mbb = MessageBusBuilder
   .Consume<AddCommand>(x => x
     .Topic("add-command")
     .WithConsumer<AddCommandConsumer>()
-    .Group(consumerGroup) // Kafka provider specific
+    //.Group(consumerGroup) // Kafka provider specific (Kafka consumer group name)
   )
 
   // Req/Resp example:
@@ -37,14 +37,14 @@ var mbb = MessageBusBuilder
   .Handle<MultiplyRequest, MultiplyResponse>(x => x
     .Topic("multiply-request") // Topic to expect the request messages
     .WithHandler<MultiplyRequestHandler>()
-    .Group(consumerGroup) // Kafka provider specific
+    //.Group(consumerGroup) // Kafka provider specific (Kafka consumer group name)
   )
   // Configure response message queue (on topic) when using req/resp
   .ExpectRequestResponses(x =>
   {
     x.ReplyToTopic(topicForResponses); // All responses from req/resp will return on this topic (the EventHub name)
     x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
-    x.Group(responseGroup); // Kafka provider specific
+    //x.Group(responseGroup); // Kafka provider specific (Kafka consumer group)
   })
   
   .Do(builder =>
@@ -63,7 +63,8 @@ IMessageBus bus = mbb.Build();
 
 In most scenarios having a singleton `IMessageBus` for your entire application will be sufficient. The provider implementations are thread-safe.
 
-The `IMessageBus` is disposable (implements `IDisposable`).
+> The `IMessageBus` is disposable (implements `IDisposable`).
+
 
 ## Pub/Sub communication
 
