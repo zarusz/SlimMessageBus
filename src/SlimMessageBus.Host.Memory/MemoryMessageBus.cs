@@ -65,9 +65,11 @@ namespace SlimMessageBus.Host.Memory
                     continue;
                 }
 
-                var messageForConsumer = ProviderSettings.EnableMessageSerialization
-                    ? DeserializeMessage(messageType, messagePayload) // will pass a deep copy of the message
-                    : message; // prevent deep copy of the message
+                var messageForConsumer = !ProviderSettings.EnableMessageSerialization
+                    ? message // prevent deep copy of the message
+                    : consumer.ConsumerMode == ConsumerMode.RequestResponse
+                        ? DeserializeRequest(messageType, messagePayload, out var _) // will pass a deep copy of the message
+                        : DeserializeMessage(messageType, messagePayload); // will pass a deep copy of the message
 
                 Log.DebugFormat(CultureInfo.InvariantCulture, "Invoking {0} {1}", consumer.ConsumerMode == ConsumerMode.Consumer ? "consumer" : "handler", consumerInstance.GetType());
                 var task = consumer.ConsumerMethod(consumerInstance, messageForConsumer, consumer.Topic);
