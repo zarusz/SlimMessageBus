@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <Version>1.0.0</Version>
-    <Authors>zarusz</Authors>
+    <Authors>zarusz, beto580, fgparamio</Authors>
     <Company>zarusz</Company>
     <Product>SlimMessageBus</Product>
     <Description>Plugin for SlimMessageBus that provides Apache.Avro serialization.</Description>
