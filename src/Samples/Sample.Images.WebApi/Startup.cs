@@ -4,9 +4,9 @@ using Common.Logging;
 using Common.Logging.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Sample.Images.FileStore;
 using Sample.Images.FileStore.Disk;
 using Sample.Images.Messages;
@@ -32,20 +32,30 @@ namespace Sample.Images.WebApi
 
         public IConfiguration Configuration { get; }
         
+
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddControllers();
+
             // register services
             var imagesPath = Path.Combine(Directory.GetCurrentDirectory(), @"..\Content");
             services.AddSingleton<IFileStore>(x => new DiskFileStore(imagesPath));
             services.AddSingleton<IThumbnailFileIdStrategy, SimpleThumbnailFileIdStrategy>();
 
             // register MessageBus  
-            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
+            ConfigureMessageBus(services);
+        }
+
+        private void ConfigureMessageBus(IServiceCollection services)
+        {
+            services.AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
+
             services.AddSingleton<IMessageBus>(BuildMessageBus);
+            
             services.AddSingleton<IRequestResponseBus>(svp => svp.GetService<IMessageBus>());
 
-            services.AddMvc();
+            // register any consumers (IConsumer<>) or handlers (IHandler<>) - if any
         }
 
         private IMessageBus BuildMessageBus(IServiceProvider serviceProvider)
@@ -83,18 +93,35 @@ namespace Sample.Images.WebApi
 
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
             }
+            else
+            {
+                app.UseExceptionHandler("/Error");
+                app.UseHsts();
+            }
 
-            app.UseMvc();
+            app.UseHttpsRedirection();
+            app.UseStaticFiles();
+
+            app.UseRouting();
+            //app.UseCors();
+
+            //app.UseAuthentication();
+            //app.UseAuthorization();
+
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapDefaultControllerRoute();
+            });
 
             // Force the singleton SMB instance to be created on app start rather than when requested.
             // We want message to be consumed when right away when WebApi starts (more info https://stackoverflow.com/a/39006021/1906057)
-            var messageBus = app.ApplicationServices.GetService<IMessageBus>();
+            var messageBus = app.ApplicationServices.GetRequiredService<IMessageBus>();
         }
     }
 }

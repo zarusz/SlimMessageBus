@@ -5,10 +5,9 @@ using Common.Logging;
 using Common.Logging.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Sample.DomainEvents.Domain;
 using SlimMessageBus;
@@ -38,13 +37,13 @@ namespace Sample.DomainEvents.WebApi
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+            services.AddControllers();
 
             ConfigureMessageBus(services);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILoggerFactory loggerFactory)
         {
             if (env.IsDevelopment())
             {
@@ -52,11 +51,24 @@ namespace Sample.DomainEvents.WebApi
             }
             else
             {
+                app.UseExceptionHandler("/Error");
                 app.UseHsts();
             }
 
             app.UseHttpsRedirection();
-            app.UseMvc();
+
+            app.UseStaticFiles();
+
+            app.UseRouting();
+            //app.UseCors();
+
+            //app.UseAuthentication();
+            //app.UseAuthorization();
+
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapDefaultControllerRoute();
+            });
 
             ConfigureMessageBus(app);
         }
@@ -71,7 +83,7 @@ namespace Sample.DomainEvents.WebApi
         {
             services.AddScoped<OrderSubmittedHandler>();
 
-            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
+            services.AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
 
             // Make the MessageBus per request scope
             services.AddScoped<IMessageBus>(BuildMessageBus);

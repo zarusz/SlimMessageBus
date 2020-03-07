@@ -1,0 +1,17 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Trace"
+    }
+  },
+  "LogConfiguration": {
+    "factoryAdapter": {
+      "type": "Common.Logging.NLog.NLogLoggerFactoryAdapter, Common.Logging.NLog444",
+      "arguments": {
+        "configType": "FILE",
+        "configFile": "~/nlog.config"
+      }
+    }
+  },
+  "AllowedHosts": "*"
+}
