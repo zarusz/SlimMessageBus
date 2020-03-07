@@ -1,22 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <Import Project="../Common.Properties.xml" />
+
   <PropertyGroup>
     <TargetFramework>netstandard1.3</TargetFramework>
-    <Copyright>Copyright © 2020</Copyright>
-    <Authors>zarusz</Authors>
-    <Company>zarusz</Company>
     <Description>Extension to SlimMessageBus that resolves dependencies from Unity container</Description>
     <Version>1.3.3</Version>
-    <Product>SlimMessageBus</Product>
-    <PackageLicenseUrl></PackageLicenseUrl>
-    <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
-    <PackageIconUrl></PackageIconUrl>
-    <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
     <PackageTags>SlimMessageBus Unity messaging</PackageTags>
-    <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
-    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
   </PropertyGroup>
 
   <ItemGroup>

@@ -53,6 +53,9 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Plugins", "Plugins", "{75BDDBB5-8DB8-4893-BD89-8FFC6C42244D}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Transport", "Transport", "{9291D340-B4FA-44A3-8060-C14743FB1712}"
+	ProjectSection(SolutionItems) = preProject
+		Host.Transport.Properties.xml = Host.Transport.Properties.xml
+	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus", "SlimMessageBus\SlimMessageBus.csproj", "{C47CFB84-E5AC-4539-822D-6612D671CA6C}"
 EndProject
@@ -121,6 +124,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A6C28448-3839-490C-BE30-580C1A45E225}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
+		Common.Properties.xml = Common.Properties.xml
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Serialization.Benchmark", "Tests\SlimMessageBus.Host.Serialization.Benchmark\SlimMessageBus.Host.Serialization.Benchmark.csproj", "{88D66F27-B71C-44B6-8F73-C412FA20F065}"
@@ -417,6 +421,7 @@ Global
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{8835721D-ECA4-42CB-BA8B-F8C1A06340EC} = {A5B15524-93B8-4CCE-AC6D-A22984498BA0}
+		{CA4F7162-B1FA-4236-92A7-FE26150F848B} = {9291D340-B4FA-44A3-8060-C14743FB1712}
 		{4522DD48-C123-453D-8982-B50F334FB710} = {75BDDBB5-8DB8-4893-BD89-8FFC6C42244D}
 		{0AEDF16E-2259-45C8-A9CE-1F20DC10A07B} = {75BDDBB5-8DB8-4893-BD89-8FFC6C42244D}
 		{3298D5AF-CDBA-49BE-AB1F-D8045786AE8C} = {75BDDBB5-8DB8-4893-BD89-8FFC6C42244D}

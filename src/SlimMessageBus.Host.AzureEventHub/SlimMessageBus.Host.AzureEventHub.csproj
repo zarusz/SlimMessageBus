@@ -1,22 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <Import Project="../Host.Transport.Properties.xml" />
+
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <PackageTags>Azure Event Hubs provider SlimMessageBus MessageBus bus facade messaging</PackageTags>
     <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
-    <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
-    <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
-    <PackageLicenseUrl></PackageLicenseUrl>
-    <PackageIconUrl></PackageIconUrl>
     <Description>Azure Event Hubs provider for SlimMessageBus</Description>
-    <Product>SlimMessageBus</Product>
-    <Company>zarusz</Company>
-    <Authors>zarusz</Authors>
-    <Version>1.3.5</Version>
-    <Copyright>Copyright © 2020</Copyright>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
   </PropertyGroup>
 
   <ItemGroup>

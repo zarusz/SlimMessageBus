@@ -1,21 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <Import Project="../Common.Properties.xml" />
+
   <PropertyGroup>
     <TargetFramework>netstandard1.3</TargetFramework>
     <Version>1.0.4</Version>
-    <Authors>zarusz</Authors>
-    <Product>SlimMessageBus</Product>
     <Description>Core serialization interfaces of SlimMessageBus</Description>
-    <Copyright>Copyright © 2020</Copyright>
-    <PackageLicenseUrl></PackageLicenseUrl>
-    <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
-    <PackageIconUrl></PackageIconUrl>
-    <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
     <PackageTags>SlimMessageBus</PackageTags>
-    <AssemblyVersion>1.2.0.0</AssemblyVersion>
-    <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
-    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
 

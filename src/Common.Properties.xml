@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Product>SlimMessageBus</Product>
+    <Company>zarusz</Company>
+    <Authors>zarusz</Authors>
+    <Copyright>Copyright © 2020</Copyright>
+    <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
+    <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+  </PropertyGroup>
+</Project>

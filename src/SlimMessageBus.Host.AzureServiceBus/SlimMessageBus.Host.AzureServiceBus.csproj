@@ -1,21 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <Import Project="../Host.Transport.Properties.xml" />
+
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Authors>zarusz</Authors>
-    <Product>SlimMessageBus</Product>
     <Description>Azure Service Bus provider for SlimMessageBus</Description>
-    <Copyright>Copyright © 2020</Copyright>
-    <PackageLicenseUrl></PackageLicenseUrl>
-    <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
-    <PackageIconUrl></PackageIconUrl>
-    <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
     <PackageTags>Azure Service Bus provider SlimMessageBus MessageBus bus facade messaging client</PackageTags>
-    <Version>1.0.6</Version>
-    <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
-    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <PackageReleaseNotes />
   </PropertyGroup>
 
   <ItemGroup>

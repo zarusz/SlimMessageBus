@@ -1,21 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <Import Project="../Common.Properties.xml" />
+
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Authors>zarusz</Authors>
-    <Company>zarusz</Company>
     <Version>1.0.0</Version>
     <Description>Extension to SlimMessageBus that delegates serialization to the respective serialization plugin based on message type.</Description>
-    <Copyright>Copyright © 2020</Copyright>
-    <Product>SlimMessageBus</Product>
-    <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
-    <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
-    <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
     <PackageTags>SlimMessageBus Serialization messaging</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageIconUrl />
-    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>

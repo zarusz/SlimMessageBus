@@ -1,22 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <Import Project="../Common.Properties.xml" />
+
   <PropertyGroup>
     <TargetFramework>netstandard1.3</TargetFramework>
     <Version>1.2.0</Version>
-    <Authors>zarusz</Authors>
-    <Company></Company>
-    <Copyright>Copyright © 2020</Copyright>
     <Description>A lightweight message bus interface for .NET. The goal of this library is to introduce a slim facade for messaging brokers. Use one of the transport providers for in-process (in-memory), Apache Kafka or Azure Service Bus messaging.</Description>
     <NeutralLanguage />
-    <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
-    <PackageLicenseUrl></PackageLicenseUrl>
-    <PackageIconUrl></PackageIconUrl>
-    <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
     <PackageTags>MessageBus facade EventBus broker events messages message bus DomainEvents domain DDD messaging EDA</PackageTags>
-    <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
-    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
