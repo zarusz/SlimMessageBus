@@ -261,7 +261,7 @@ Use case:
 
 Front-end web app makes a call to resize an image `DSC0862.jpg` to `120x80` resolution, by using this URL:
 
-`http://localhost:56788/api/image/DSC3781.jpg/r/?w=120&h=80&mode=1`
+`https://localhost:56788/api/image/DSC3781.jpg/r/?w=120&h=80&mode=1`
 
 This gets handled by the WebApi method of the `ImageController`
 
@@ -400,7 +400,7 @@ Check out the complete [sample](/src/Samples#sampleimages) for image resizing.
 
 ## License
 
-[Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0)
+[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
 
 ## Build
 
