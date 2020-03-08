@@ -1,18 +1,15 @@
 ﻿using System;
 using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Sample.Hybrid.ConsoleApp.DomainModel;
+using SecretStore;
+using SlimMessageBus;
 
 namespace Sample.Hybrid.ConsoleApp
 {
     class Program
     {
-        private static volatile bool CanRun = true;
-
-        static async Task Main(string[] args)
+        static void Main(string[] args)
         {
             Console.WriteLine("Initializing...");
 
@@ -20,6 +17,9 @@ namespace Sample.Hybrid.ConsoleApp
                 .SetBasePath(Directory.GetCurrentDirectory())
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                 .AddEnvironmentVariables();
+
+            // Local file with secrets
+            Secrets.Load(@"..\..\..\..\..\secrets.txt");
 
             var configuration = builder.Build();
 
@@ -32,30 +32,12 @@ namespace Sample.Hybrid.ConsoleApp
             // Build the our IServiceProvider
             var serviceProvider = serviceCollection.BuildServiceProvider();
 
-            using (var scope = serviceProvider.CreateScope())
-            {
-                // Run the application
-                scope.ServiceProvider.GetService<Application>().Run();
+            using var scope = serviceProvider.CreateScope();
 
-                var task = Task.Factory.StartNew(CustomerDoesSomeStuff, TaskCreationOptions.LongRunning);
-
-                // Wait until user hits any key
-                Console.ReadKey();
-
-                CanRun = false;
-                await task;
-            }
-
-        }
-        public static void CustomerDoesSomeStuff()
-        {
-            while (CanRun)
-            {
-                var customer = new Customer("John", "Doe");
-                customer.ChangeEmail("john@doe.com");
-
-                Thread.Sleep(2000);
-            }
+            MessageBus.SetProvider(() => scope.ServiceProvider.GetRequiredService<IMessageBus>());
+            
+            // Run the application
+            scope.ServiceProvider.GetRequiredService<Application>().Run();
         }
     }
 }

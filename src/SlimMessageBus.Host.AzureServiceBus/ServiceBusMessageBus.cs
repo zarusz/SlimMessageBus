@@ -33,6 +33,16 @@ namespace SlimMessageBus.Host.AzureServiceBus
             OnBuildProvider();
         }
 
+        protected override void AssertConsumerSettings(ConsumerSettings consumerSettings)
+        {
+            if (consumerSettings is null) throw new ArgumentNullException(nameof(consumerSettings));
+
+            base.AssertConsumerSettings(consumerSettings);
+
+            Assert.IsTrue(consumerSettings.GetKind() != PathKind.Topic || consumerSettings.GetSubscriptionName(required: false) != null,
+                () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(SettingsExtensions.SubscriptionName)} is not set on topic {consumerSettings.Topic}"));
+        }
+
         protected void AddConsumer(AbstractConsumerSettings consumerSettings, IMessageProcessor<Message> messageProcessor)
         {
             if (consumerSettings is null) throw new ArgumentNullException(nameof(consumerSettings));

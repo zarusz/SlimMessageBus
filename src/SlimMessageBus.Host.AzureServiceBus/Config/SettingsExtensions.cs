@@ -14,8 +14,12 @@ namespace SlimMessageBus.Host.AzureServiceBus
             consumerSettings.Properties[SubscriptionNameKey] = subscriptionName;
         }
 
-        internal static string GetSubscriptionName(this AbstractConsumerSettings consumerSettings)
+        internal static string GetSubscriptionName(this AbstractConsumerSettings consumerSettings, bool required = true)
         {
+            if (!consumerSettings.Properties.ContainsKey(SubscriptionNameKey) && !required)
+            {
+                return null;
+            }
             return consumerSettings.Properties[SubscriptionNameKey] as string;
         }
 

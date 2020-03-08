@@ -31,5 +31,56 @@ namespace SlimMessageBus.Host.Config
             Consumers = new List<ConsumerSettings>();
             MessageWithHeadersSerializer = new MessageWithHeadersSerializer();
         }
+
+        public virtual void MergeFrom(MessageBusSettings settings)
+        {
+            if (settings is null) throw new ArgumentNullException(nameof(settings));
+
+            if (settings.Producers.Count > 0)
+            {
+                foreach (var p in settings.Producers)
+                {
+                    Producers.Add(p);
+                }
+            }
+
+            if (settings.Consumers.Count > 0)
+            {
+                foreach (var c in settings.Consumers)
+                {
+                    Consumers.Add(c);
+                }
+            }
+
+            if (Serializer == null && settings.Serializer != null)
+            {
+                Serializer = settings.Serializer;
+            }
+
+            if (RequestResponse == null && settings.RequestResponse != null)
+            {
+                RequestResponse = settings.RequestResponse;
+            }
+
+            if (Serializer == null && settings.Serializer != null)
+            {
+                Serializer = settings.Serializer;
+            }
+
+            if (DependencyResolver == null && settings.DependencyResolver != null)
+            {
+                DependencyResolver = settings.DependencyResolver;
+            }
+
+            if (OnMessageExpired == null && settings.OnMessageExpired != null)
+            {
+                OnMessageExpired = settings.OnMessageExpired;
+            }
+
+            if (OnMessageFault == null && settings.OnMessageFault != null)
+            {
+                OnMessageFault = settings.OnMessageFault;
+            }
+        }
     }
 }

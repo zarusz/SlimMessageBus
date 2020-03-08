@@ -44,9 +44,11 @@ namespace SlimMessageBus.Host.Hybrid
         protected virtual MessageBusBase BuildBus(Action<MessageBusBuilder> builderFunc)
         {
             var builder = MessageBusBuilder.Create();
-            // ToDo: clone the settings
+            builder.MergeFrom(Settings);
             builderFunc(builder);
+
             var bus = builder.Build();
+            
             return (MessageBusBase) bus;
         }
 

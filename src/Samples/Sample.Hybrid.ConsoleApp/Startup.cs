@@ -38,6 +38,7 @@ namespace Sample.Hybrid.ConsoleApp
         {
             var hybridBusSettings = new HybridMessageBusSettings
             {
+                // Bus 1
                 ["Memory"] = builder =>
                 {
                     builder
@@ -45,20 +46,21 @@ namespace Sample.Hybrid.ConsoleApp
                         .Consume<CustomerEmailChangedEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<CustomerChangedEventHandler>())
                         .WithProviderMemory(new MemoryMessageBusSettings { EnableMessageSerialization = false });
                 },
+                // Bus 2
                 ["AzureSB"] = builder =>
                 {
                     var serviceBusConnectionString = Secrets.Service.PopulateSecrets(Configuration["Azure:ServiceBus"]);
                     builder
-                        .Produce<SendEmailCommand>(x => x.DefaultTopic("test-ping-queue").ToQueue())
-                        .Consume<SendEmailCommand>(x => x.Topic("test-ping-queue").WithConsumer<SmtpEmailService>())
+                        .Produce<SendEmailCommand>(x => x.DefaultQueue("test-ping-queue"))
+                        .Consume<SendEmailCommand>(x => x.Queue("test-ping-queue").WithConsumer<SmtpEmailService>())
                         .WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString));
                 }
             };
 
             var mbb = MessageBusBuilder.Create()
                 .WithDependencyResolver(new LookupDependencyResolver(svp.GetRequiredService)) // DI setup will be shared
-                .WithSerializer(new JsonMessageSerializer()) // serialization setup will be shared
-                .WithProviderHybrid(hybridBusSettings);
+                .WithSerializer(new JsonMessageSerializer()) // serialization setup will be shared between bus 1 and 2
+                .WithProviderHybrid(hybridBusSettings); 
 
             // In summary:
             // - The CustomerChangedEvent messages will be going through the SMB Memory provider.

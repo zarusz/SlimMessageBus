@@ -18,6 +18,14 @@ namespace SlimMessageBus.Host.Config
             return new MessageBusBuilder();
         }
 
+        public MessageBusBuilder MergeFrom(MessageBusSettings settings)
+        {
+            if (settings is null) throw new ArgumentNullException(nameof(settings));
+
+            Settings.MergeFrom(settings);
+            return this;
+        }
+
         /// <summary>
         /// Configures (declares) the production (publishing for pub/sub or request sending in request/response) of a message 
         /// </summary>

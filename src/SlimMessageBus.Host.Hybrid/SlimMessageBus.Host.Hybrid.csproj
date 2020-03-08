@@ -7,6 +7,7 @@
     <Description>Hybrid bus implementation that composes other transport providers</Description>
     <PackageTags>SlimMessageBus Hybrid</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
+    <Version>1.0.0-rc1</Version>
   </PropertyGroup>
 
   <ItemGroup>
