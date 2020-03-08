@@ -9,6 +9,8 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 The Hybrid bus enables a composition of other available transport providers into one bus that your entire application / service uses.
 This allows different layers of your service to work with just one `IMessageBus` interface, and relaying on the Hybrid bus to route your message to the respective transport provider based on configuration.
 
+Package: [SlimMessageBus.Host.Hybrid](https://www.nuget.org/packages/SlimMessageBus.Host.Hybrid/)
+
 ![](provider_hybrid_1.png)
 
 ## Use cases
@@ -59,7 +61,7 @@ public IMessageBus CreateMessageBus(IServiceProvider svp)
 }
 ```
 
-Above we define the hybrid bus as consisting of two transports - Memory and Azure Service Bus.
+Above we define the hybrid bus as consisting of two transports - Memory and Azure Service Bus:
 
 * The message type `CustomerEmailChangedEvent` published will be routed to the memory bus for delivery.
 * Converely, the `SendEmailCommand` will be routed to the Azure Service Bus transport.
@@ -76,4 +78,4 @@ Any setting applied at the hybrid bus builder level will be inherited by ech chi
 
 Individual child busses can provide their own serialization (or any other setting) and effectively override the serialization (or any other setting).
 
-> The Hybrid bus builder configurations of the producer (`Produce()`) and consumer (`Consume()`) will be added into every the child bus producer/consumer registration list.
+> The Hybrid bus builder configurations of the producer (`Produce()`) and consumer (`Consume()`) will be added into every child bus producer/consumer registration list.
