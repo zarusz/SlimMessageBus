@@ -1,0 +1,11 @@
+@namespace("Sample.Serialization.MessagesAvro")
+
+protocol SampleProtocol {
+
+	record AddCommand {		
+		string OperationId;
+		int Left;
+		int Right;	
+	}
+
+}

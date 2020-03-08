@@ -45,11 +45,11 @@ namespace SlimMessageBus.Host.Memory
                 .ToDictionary(x => x.Key, x => x.ToList());
         }
 
-        public override Task ProduceToTransport(Type messageType, object message, string name, byte[] payload)
+        public override Task ProduceToTransport(Type messageType, object message, string name, byte[] messagePayload, MessageWithHeaders messageWithHeaders = null)
         {
             if (!_consumersByTopic.TryGetValue(name, out var consumers))
             {
-                Log.DebugFormat(CultureInfo.InvariantCulture, "No consumers interested in event {0} on topic {1}", messageType, name);
+                Log.DebugFormat(CultureInfo.InvariantCulture, "No consumers interested in message type {0} on topic {1}", messageType, name);
                 return Task.CompletedTask;
             }
 
@@ -65,18 +65,33 @@ namespace SlimMessageBus.Host.Memory
                     continue;
                 }
 
-                if (consumer.IsRequestMessage)
+                var messageForConsumer = !ProviderSettings.EnableMessageSerialization
+                    ? message // prevent deep copy of the message
+                    : consumer.ConsumerMode == ConsumerMode.RequestResponse
+                        ? DeserializeRequest(messageType, messagePayload, out var _) // will pass a deep copy of the message
+                        : DeserializeMessage(messageType, messagePayload); // will pass a deep copy of the message
+
+                Log.DebugFormat(CultureInfo.InvariantCulture, "Invoking {0} {1}", consumer.ConsumerMode == ConsumerMode.Consumer ? "consumer" : "handler", consumerInstance.GetType());
+                var task = consumer.ConsumerMethod(consumerInstance, messageForConsumer, consumer.Topic);
+
+                if (consumer.ConsumerMode == ConsumerMode.RequestResponse)
                 {
-                    Log.Warn("The in memory provider only supports pub-sub communication for now");
-                    continue;
+                    var requestId = messageWithHeaders.Headers[ReqRespMessageHeaders.RequestId];
+
+                    task = task.ContinueWith(x =>
+                    {
+                        if (x.IsFaulted || x.IsCanceled)
+                        {
+                            return OnResponseArrived(null, name, requestId, x.IsCanceled ? "Cancelled" : x.Exception.Message, null);
+                        }
+
+                        var response = consumer.ConsumerMethodResult(x);
+                        var responsePayload = SerializeMessage(consumer.ResponseType, response);
+
+                        return OnResponseArrived(responsePayload, name, requestId, null, response);
+
+                    }, TaskScheduler.Current).Unwrap();
                 }
-
-                var messageForConsumer = ProviderSettings.EnableMessageSerialization
-                    ? DeserializeMessage(messageType, payload) // will pass a deep copy of the message
-                    : message; // prevent deep copy of the message
-
-                Log.DebugFormat(CultureInfo.InvariantCulture, "Invoking consumer {0}", consumerInstance.GetType());
-                var task = consumer.ConsumerMethod(consumerInstance, message, consumer.Topic);
 
                 tasks.AddLast(task);
             }
@@ -87,12 +102,35 @@ namespace SlimMessageBus.Host.Memory
 
         public override byte[] SerializeMessage(Type messageType, object message)
         {
-            if (ProviderSettings.EnableMessageSerialization)
+            if (!ProviderSettings.EnableMessageSerialization)
             {
-                return base.SerializeMessage(messageType, message);
+                // the serialized payload is not going to be used
+                return null;
             }
-            // the serialized payload is not going to be used
-            return null;
+
+            return base.SerializeMessage(messageType, message);
+        }
+
+        public override byte[] SerializeRequest(Type requestType, object request, MessageWithHeaders requestMessage, ProducerSettings producerSettings)
+        {
+            if (!ProviderSettings.EnableMessageSerialization)
+            {
+                // the serialized payload is not going to be used
+                return null;
+            }
+
+            return base.SerializeRequest(requestType, request, requestMessage, producerSettings);
+        }
+
+        public override byte[] SerializeResponse(Type responseType, object response, MessageWithHeaders responseMessage)
+        {
+            if (!ProviderSettings.EnableMessageSerialization)
+            {
+                // the serialized payload is not going to be used
+                return null;
+            }
+
+            return base.SerializeResponse(responseType, response, responseMessage);
         }
 
         #endregion

@@ -147,6 +147,12 @@ namespace SlimMessageBus.Host.Kafka
         {
             base.AssertSettings();
 
+            foreach(var consumer in Settings.Consumers)
+            {
+                Assert.IsTrue(consumer.GetGroup() != null,
+                    () => new ConfigurationMessageBusException($"Consumer ({consumer.MessageType}): group was not provided"));
+            }
+
             if (Settings.RequestResponse != null)
             {
                 Assert.IsTrue(Settings.RequestResponse.GetGroup() != null,
@@ -184,7 +190,7 @@ namespace SlimMessageBus.Host.Kafka
             base.Dispose(disposing);
         }
 
-        public override async Task ProduceToTransport(Type messageType, object message, string name, byte[] payload)
+        public override async Task ProduceToTransport(Type messageType, object message, string name, byte[] payload, MessageWithHeaders messageWithHeaders = null)
         {
             AssertActive();
 

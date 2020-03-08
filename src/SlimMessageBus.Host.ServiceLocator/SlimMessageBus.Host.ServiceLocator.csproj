@@ -1,21 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <Import Project="../Common.Properties.xml" />
+
   <PropertyGroup>
     <TargetFramework>netstandard1.3</TargetFramework>
     <Description>Extension to SlimMessageBus that resolves dependencies from CommonServiceLocator</Description>
-    <Authors>zarusz</Authors>
-    <Company>zarusz</Company>
-    <Copyright>Copyright © 2020</Copyright>
     <Version>1.3.3</Version>
-    <Product>SlimMessageBus</Product>
-    <PackageLicenseUrl></PackageLicenseUrl>
-    <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
-    <PackageIconUrl></PackageIconUrl>
-    <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
     <PackageTags>SlimMessageBus CommonServiceLocator ServiceLocator messaging</PackageTags>
-    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
 

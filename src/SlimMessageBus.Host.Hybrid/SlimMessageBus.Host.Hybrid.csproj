@@ -1,7 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <Import Project="../Host.Transport.Properties.xml" />
+
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <Description>Hybrid bus implementation that composes other transport providers</Description>
+    <PackageTags>SlimMessageBus Hybrid</PackageTags>
+    <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup>

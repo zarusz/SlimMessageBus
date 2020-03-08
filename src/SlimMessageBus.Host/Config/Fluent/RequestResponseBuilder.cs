@@ -17,9 +17,10 @@ namespace SlimMessageBus.Host.Config
             return this;
         }
 
-        public void ReplyToTopic(string topic)
+        public RequestResponseBuilder ReplyToTopic(string topic)
         {
             Settings.Topic = topic;
+            return this;
         }
     }
 }

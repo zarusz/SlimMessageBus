@@ -1,21 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <Import Project="../Host.Transport.Properties.xml" />
+
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Authors>zarusz</Authors>
-    <Company>zarusz</Company>
-    <Product>SlimMessageBus</Product>
     <Description>Redis transport provider for SlimMessageBus</Description>
-    <Copyright>Copyright © 2020</Copyright>
-    <PackageLicenseUrl></PackageLicenseUrl>
-    <PackageProjectUrl>https://github.com/zarusz/SlimMessageBus</PackageProjectUrl>
-    <PackageIconUrl></PackageIconUrl>
-    <RepositoryUrl>https://github.com/zarusz/SlimMessageBus</RepositoryUrl>
     <PackageTags>Redis transport provider SlimMessageBus MessageBus bus facade messaging client</PackageTags>
-    <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
-    <Version>1.0.4</Version>
-    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageIcon>icon.png</PackageIcon>
+    <PackageReleaseNotes />
   </PropertyGroup>
 
   <ItemGroup>

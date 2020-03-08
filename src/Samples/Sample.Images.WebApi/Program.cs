@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
 
 namespace Sample.Images.WebApi
 {
@@ -7,13 +8,19 @@ namespace Sample.Images.WebApi
     {
         public static void Main(string[] args)
         {
-            CreateWebHostBuilder(args)
-                .Build()
-                .Run();
+            var host = CreateHostBuilder(args).Build();
+            host.Run();
         }
 
-        public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
-            WebHost.CreateDefaultBuilder(args)
-                .UseStartup<Startup>();
+        public static IHostBuilder CreateHostBuilder(string[] args) =>
+            Host.CreateDefaultBuilder(args)
+             .ConfigureWebHostDefaults(webBuilder =>
+             {
+                 webBuilder.ConfigureKestrel(serverOptions =>
+                 {
+                     // Set properties and call methods on options
+                 })
+                 .UseStartup<Startup>();
+             });
     }
 }

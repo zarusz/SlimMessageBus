@@ -1,12 +1,15 @@
 using SlimMessageBus.Host.Config;
+using System;
 
 namespace SlimMessageBus.Host.AzureServiceBus
 {
     public static class MessageBusBuilderExtensions
     {
-        public static MessageBusBuilder WithProviderServiceBus(this MessageBusBuilder mbb, ServiceBusMessageBusSettings serviceBusSettings)
+        public static MessageBusBuilder WithProviderServiceBus(this MessageBusBuilder mbb, ServiceBusMessageBusSettings providerSettings)
         {
-            return mbb.WithProvider(settings => new ServiceBusMessageBus(settings, serviceBusSettings));
+            if (mbb is null) throw new ArgumentNullException(nameof(mbb));
+
+            return mbb.WithProvider(settings => new ServiceBusMessageBus(settings, providerSettings));
         }
     }
 }

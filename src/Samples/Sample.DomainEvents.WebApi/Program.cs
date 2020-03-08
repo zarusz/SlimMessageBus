@@ -1,5 +1,5 @@
-﻿using Microsoft.AspNetCore;
-using Microsoft.AspNetCore.Hosting;
+﻿using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
 using NLog.Web;
 
 namespace Sample.DomainEvents.WebApi
@@ -8,14 +8,20 @@ namespace Sample.DomainEvents.WebApi
     {
         public static void Main(string[] args)
         {
-            CreateWebHostBuilder(args)
-                .Build()
-                .Run();
+            var host = CreateHostBuilder(args).Build();
+            host.Run();
         }
 
-        public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
-            WebHost.CreateDefaultBuilder(args)
-                .UseStartup<Startup>()
-                .UseNLog();
+        public static IHostBuilder CreateHostBuilder(string[] args) =>
+         Host.CreateDefaultBuilder(args)
+             .ConfigureWebHostDefaults(webBuilder =>
+             {
+                 webBuilder.ConfigureKestrel(serverOptions =>
+                 {
+                     // Set properties and call methods on options
+                 })
+                 .UseStartup<Startup>()
+                 .UseNLog();
+             });
     }
 }

@@ -1,0 +1,16 @@
+@namespace("Sample.Serialization.MessagesAvro")
+
+protocol SampleProtocol {
+
+	record MultiplyRequest {
+		string OperationId;
+		int Left;
+		int Right;
+	}
+
+	record MultiplyResponse {
+		string OperationId;
+		int Result;	
+	}
+
+}

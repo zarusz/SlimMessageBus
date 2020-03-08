@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.12.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Samples\Sample.Serialization.MessagesAvro\Sample.Serialization.MessagesAvro.csproj" />
+    <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Avro\SlimMessageBus.Host.Serialization.Avro.csproj" />
+    <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Json\SlimMessageBus.Host.Serialization.Json.csproj" />
+  </ItemGroup>
+
+</Project>

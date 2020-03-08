@@ -120,7 +120,7 @@ namespace SlimMessageBus.Host.Redis
 
         #region Overrides of MessageBusBase
 
-        public override async Task ProduceToTransport(Type messageType, object message, string name, byte[] payload)
+        public override async Task ProduceToTransport(Type messageType, object message, string name, byte[] payload, MessageWithHeaders messageWithHeaders = null)
         {
             var result = await Database.PublishAsync(name, payload).ConfigureAwait(false);
             Log.DebugFormat(CultureInfo.InvariantCulture, "Produced message {0} of type {1} to redis channel {2} with result {3}", message, messageType, name, result);

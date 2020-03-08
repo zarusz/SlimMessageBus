@@ -1,0 +1,6 @@
+@namespace("Sample.Serialization.MessagesAvro")
+
+protocol SampleProtocol {
+	import idl "AddCommand.avdl";
+    import idl "MultiplyRequest.avdl";  
+}

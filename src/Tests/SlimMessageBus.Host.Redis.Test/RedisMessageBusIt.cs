@@ -83,21 +83,19 @@ namespace SlimMessageBus.Host.Redis.Test
                         .Instances(concurrency));
                 }));
 
-            await BasicPubSub(concurrency, subscribers, subscribers).ConfigureAwait(false);
+            await BasicPubSub(concurrency, subscribers).ConfigureAwait(false);
         }
 
-        private async Task BasicPubSub(int concurrency, int subscribers, int expectedMessageCopies)
+        private async Task BasicPubSub(int concurrency, int subscribers)
         {
             // arrange
-            var consumersCreated = new ConcurrentBag<PingConsumer>();
+            var pingConsumer = new PingConsumer();
 
             MessageBusBuilder
                 .WithDependencyResolver(new LookupDependencyResolver(f =>
                 {
-                    if (f != typeof(PingConsumer)) throw new InvalidOperationException();
-                    var pingConsumer = new PingConsumer();
-                    consumersCreated.Add(pingConsumer);
-                    return pingConsumer;
+                    if (f == typeof(PingConsumer)) return pingConsumer;
+                    throw new InvalidOperationException();
                 }));
 
             var messageBus = MessageBus.Value;
@@ -121,30 +119,24 @@ namespace SlimMessageBus.Host.Redis.Test
 
             // consume
             stopwatch.Restart();
-            var pingConsumerConsumptionTasks = consumersCreated.Select(ConsumeAll);
-            var consumersReceivedMessages = await Task.WhenAll(pingConsumerConsumptionTasks).ConfigureAwait(false);
+            var consumersReceivedMessages = await ConsumeAll(pingConsumer, subscribers * producedMessages.Count);
             stopwatch.Stop();
 
-            foreach (var receivedMessages in consumersReceivedMessages)
-            {
-                Log.InfoFormat(CultureInfo.InvariantCulture, "Consumed {0} messages in {1}", receivedMessages.Count, stopwatch.Elapsed);
-            }
+            Log.InfoFormat(CultureInfo.InvariantCulture, "Consumed {0} messages in {1}", consumersReceivedMessages.Count, stopwatch.Elapsed);
 
             // assert
 
             // ensure number of instances of consumers created matches
-            consumersCreated.Count.Should().Be(subscribers * concurrency);
-            consumersReceivedMessages.Length.Should().Be(subscribers * concurrency);
+            consumersReceivedMessages.Count.Should().Be(subscribers * producedMessages.Count);
 
             // ensure all messages arrived 
-            var totalReceivedMessages = consumersReceivedMessages.SelectMany(x => x).ToList();
             // ... the count should match
-            totalReceivedMessages.Count.Should().Be(expectedMessageCopies * producedMessages.Count);
+            consumersReceivedMessages.Count.Should().Be(subscribers * producedMessages.Count);
             // ... the content should match
             foreach (var producedMessage in producedMessages)
             {
-                var messageCopies = totalReceivedMessages.Count(x => x.Counter == producedMessage.Counter && x.Value == producedMessage.Value);
-                messageCopies.Should().Be(expectedMessageCopies);
+                var messageCopies = consumersReceivedMessages.Count(x => x.Counter == producedMessage.Counter && x.Value == producedMessage.Value);
+                messageCopies.Should().Be(subscribers);
             }
         }
 
@@ -173,15 +165,13 @@ namespace SlimMessageBus.Host.Redis.Test
         private async Task BasicReqResp()
         {
             // arrange
-            var consumersCreated = new ConcurrentBag<EchoRequestHandler>();
+            var consumer = new EchoRequestHandler();
 
             MessageBusBuilder
                 .WithDependencyResolver(new LookupDependencyResolver(f =>
                 {
-                    if (f != typeof(EchoRequestHandler)) throw new InvalidOperationException();
-                    var consumer = new EchoRequestHandler();
-                    consumersCreated.Add(consumer);
-                    return consumer;
+                    if (f == typeof(EchoRequestHandler)) return consumer;
+                    throw new InvalidOperationException();
                 }));
 
             var messageBus = MessageBus.Value;
@@ -217,14 +207,14 @@ namespace SlimMessageBus.Host.Redis.Test
             responses.All(x => x.Item1.Message == x.Item2.Message).Should().BeTrue();
         }
 
-        private static async Task<IList<PingMessage>> ConsumeAll(PingConsumer consumer)
+        private static async Task<IList<PingMessage>> ConsumeAll(PingConsumer consumer, int expectedCount)
         {
             var lastMessageCount = 0;
             var lastMessageStopwatch = Stopwatch.StartNew();
 
-            const int newMessagesAwaitingTimeout = 10;
+            const int newMessagesAwaitingTimeout = 5;
 
-            while (lastMessageStopwatch.Elapsed.TotalSeconds < newMessagesAwaitingTimeout)
+            while (lastMessageStopwatch.Elapsed.TotalSeconds < newMessagesAwaitingTimeout && expectedCount != consumer.Messages.Count)
             {
                 await Task.Delay(100).ConfigureAwait(false);
 

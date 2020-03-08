@@ -15,7 +15,7 @@ using SecretStore;
 using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Redis;
-using System.Collections.Generic;
+using SlimMessageBus.Host.Memory;
 
 namespace Sample.Simple.ConsoleApp
 {
@@ -24,7 +24,8 @@ namespace Sample.Simple.ConsoleApp
         Kafka,
         AzureServiceBus,
         AzureEventHub,
-        Redis
+        Redis,
+        Memory,
     }
 
     internal static class Program
@@ -67,7 +68,7 @@ namespace Sample.Simple.ConsoleApp
         private static IMessageBus CreateMessageBus(IConfiguration configuration)
         {
             // Choose your provider
-            var provider = Provider.Kafka;
+            var provider = Provider.Memory;
 
             // Provide your event hub-names OR kafka/service bus topic names
             var topicForAddCommand = "add-command";
@@ -158,6 +159,10 @@ namespace Sample.Simple.ConsoleApp
                     Console.WriteLine($"Using {provider} as the transport provider");
                     switch (provider)
                     {
+                        case Provider.Memory:
+                            builder.WithProviderMemory(new MemoryMessageBusSettings()); // Use Azure Service Bus as provider
+                            break;
+
                         case Provider.AzureServiceBus:
                             // Provide connection string to your Azure SB
                             var serviceBusConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
@@ -205,14 +210,14 @@ namespace Sample.Simple.ConsoleApp
                 Console.WriteLine("Producer: Sending numbers {0} and {1}", a, b);
                 try
                 {
-                    await bus.Publish(new AddCommand { Left = a, Right = b }).ConfigureAwait(false);
+                    await bus.Publish(new AddCommand { Left = a, Right = b });
                 }
                 catch (Exception)
                 {
                     Console.WriteLine("Producer: publish error");
                 }
 
-                await Task.Delay(50).ConfigureAwait(false); // Simulate some delay
+                await Task.Delay(50); // Simulate some delay
             }
         }
 
@@ -226,7 +231,7 @@ namespace Sample.Simple.ConsoleApp
                 Console.WriteLine("Sender: Sending numbers {0} and {1}", a, b);
                 try
                 {
-                    var response = await bus.Send(new MultiplyRequest { Left = a, Right = b }).ConfigureAwait(false);
+                    var response = await bus.Send(new MultiplyRequest { Left = a, Right = b });
                     Console.WriteLine("Sender: Got response back with result {0}", response.Result);
                 }
                 catch (Exception e)
@@ -234,7 +239,7 @@ namespace Sample.Simple.ConsoleApp
                     Console.WriteLine("Sender: request error or timeout: " + e);
                 }
 
-                await Task.Delay(50).ConfigureAwait(false); // Simulate some work
+                await Task.Delay(50); // Simulate some work
             }
         }
     }
@@ -252,7 +257,7 @@ namespace Sample.Simple.ConsoleApp
         public async Task OnHandle(AddCommand message, string name)
         {
             Console.WriteLine("Consumer: Adding {0} and {1} gives {2}", message.Left, message.Right, message.Left + message.Right);
-            await Task.Delay(50).ConfigureAwait(false); // Simulate some work
+            await Task.Delay(50); // Simulate some work
         }
 
         #endregion
@@ -275,7 +280,7 @@ namespace Sample.Simple.ConsoleApp
 
         public async Task<MultiplyResponse> OnHandle(MultiplyRequest request, string name)
         {
-            await Task.Delay(50).ConfigureAwait(false); // Simulate some work
+            await Task.Delay(50); // Simulate some work
             return new MultiplyResponse { Result = request.Left * request.Right };
         }
 

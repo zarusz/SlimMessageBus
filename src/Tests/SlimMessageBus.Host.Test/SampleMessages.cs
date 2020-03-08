@@ -15,7 +15,7 @@ namespace SlimMessageBus.Host.Test
 
     public class SomeResponse
     {
-        
+
     }
 
     public class SomeMessageConsumer : IConsumer<SomeMessage>
@@ -40,5 +40,13 @@ namespace SlimMessageBus.Host.Test
         }
 
         #endregion
+    }
+
+    public class SomeDerivedMessage : SomeMessage
+    {
+    }
+
+    public class SomeDerived2Message : SomeMessage
+    {
     }
 }

@@ -1,4 +1,5 @@
 ﻿using SlimMessageBus.Host.Config;
+using System;
 
 namespace SlimMessageBus.Host.AzureServiceBus
 {
@@ -8,6 +9,8 @@ namespace SlimMessageBus.Host.AzureServiceBus
 
         internal static void SetSubscriptionName(this AbstractConsumerSettings consumerSettings, string subscriptionName)
         {
+            if (subscriptionName is null) throw new ArgumentNullException(nameof(subscriptionName));
+
             consumerSettings.Properties[SubscriptionNameKey] = subscriptionName;
         }
 
@@ -18,6 +21,8 @@ namespace SlimMessageBus.Host.AzureServiceBus
 
         private static void AssertIsTopicForSubscriptionName(AbstractConsumerSettings settings)
         {
+            if (settings is null) throw new ArgumentNullException(nameof(settings));
+
             if (settings.GetKind() == PathKind.Queue)
             {
                 var methodName = $".{nameof(SubscriptionName)}(...)";
@@ -25,6 +30,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
                 var messageType = settings is ConsumerSettings consumerSettings
                     ? consumerSettings.MessageType.FullName
                     : string.Empty;
+
                 throw new ConfigurationMessageBusException($"The subscription name configuration ({methodName}) does not apply to Azure ServiceBus queues (it only applies to topic consumers). Remove the {methodName} configuration for type {messageType} and queue {settings.Topic} or change the consumer configuration to consume from topic {settings.Topic} instead.");
             }
         }
@@ -39,6 +45,9 @@ namespace SlimMessageBus.Host.AzureServiceBus
         public static T SubscriptionName<T>(this T builder, string subscriptionName)
             where T : AbstractTopicConsumerBuilder
         {
+            if (builder is null) throw new ArgumentNullException(nameof(builder));
+            if (subscriptionName is null) throw new ArgumentNullException(nameof(subscriptionName));
+
             AssertIsTopicForSubscriptionName(builder.ConsumerSettings);
 
             builder.ConsumerSettings.SetSubscriptionName(subscriptionName);
@@ -54,6 +63,9 @@ namespace SlimMessageBus.Host.AzureServiceBus
         /// <returns></returns>
         public static RequestResponseBuilder SubscriptionName(this RequestResponseBuilder builder, string subscriptionName)
         {
+            if (builder is null) throw new ArgumentNullException(nameof(builder));
+            if (subscriptionName is null) throw new ArgumentNullException(nameof(subscriptionName));
+
             AssertIsTopicForSubscriptionName(builder.Settings);
 
             builder.Settings.SetSubscriptionName(subscriptionName);
