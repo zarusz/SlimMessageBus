@@ -30,7 +30,6 @@ namespace SlimMessageBus.Host.Kafka.Test
     /// </remarks>
     /// </summary>
     [Trait("Category", "Integration")]
-    [Trait("Category", "Local")]
     public class KafkaMessageBusIt : IDisposable
     {
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
@@ -40,6 +39,19 @@ namespace SlimMessageBus.Host.Kafka.Test
         private KafkaMessageBusSettings KafkaSettings { get; }
         private MessageBusBuilder MessageBusBuilder { get; }
         private Lazy<KafkaMessageBus> MessageBus { get; }
+
+        private static IDictionary<string, object> AddSsl(string username, string password, IDictionary<string, object> d)
+        {
+            // cloudkarafka.com uses SSL with SASL authentication
+            d.Add("security.protocol", "SASL_SSL");
+            d.Add("sasl.username", username);
+            d.Add("sasl.password", password);
+            d.Add("sasl.mechanism", "SCRAM-SHA-256");
+            d.Add("ssl.ca.location", @"cloudkarafka-ca-root.crt");
+            return d;
+        }
+
+        private string TopicPrefix { get; }
 
         public KafkaMessageBusIt()
         {
@@ -56,24 +68,28 @@ namespace SlimMessageBus.Host.Kafka.Test
             var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
             var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
 
+            // Topics on cloudkarafka.com are prefixed with username
+            TopicPrefix = $"{kafkaUsername}-";
+
             KafkaSettings = new KafkaMessageBusSettings(kafkaBrokers)
             {
-                ProducerConfigFactory = () => new Dictionary<string, object>
+                ProducerConfigFactory = () => AddSsl(kafkaUsername, kafkaPassword, new Dictionary<string, object>
                 {
                     {"socket.blocking.max.ms", 1},
                     {"queue.buffering.max.ms", 1},
                     {"socket.nagle.disable", true},
                     //{"request.required.acks", 0}
-                },
-                ConsumerConfigFactory = (group) => new Dictionary<string, object>
+                }),
+                ConsumerConfigFactory = (group) => AddSsl(kafkaUsername, kafkaPassword, new Dictionary<string, object>
                 {
                     {"socket.blocking.max.ms", 1},
                     {"fetch.error.backoff.ms", 1},
                     {"statistics.interval.ms", 500000},
                     {"socket.nagle.disable", true},
                     {KafkaConfigKeys.ConsumerKeys.AutoOffsetReset, KafkaConfigValues.AutoOffsetReset.Earliest}
-                }
+                })
             };
+
             MessageBusBuilder = MessageBusBuilder.Create()
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderKafka(KafkaSettings);
@@ -101,7 +117,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             // arrange
 
             // ensure the topic has 2 partitions
-            var topic = "test-ping";
+            var topic = $"{TopicPrefix}test-ping";
 
             var pingConsumer = new PingConsumer();
 
@@ -113,7 +129,8 @@ namespace SlimMessageBus.Host.Kafka.Test
                     // Partition #1 for odd counters
                     x.PartitionProvider((m, t) => m.Counter % 2);
                 })
-                .Consume<PingMessage>(x => {
+                .Consume<PingMessage>(x =>
+                {
                     x.Topic(topic)
                         .WithConsumer<PingConsumer>()
                         .Group("subscriber")
@@ -146,7 +163,7 @@ namespace SlimMessageBus.Host.Kafka.Test
 
             // consume
             stopwatch.Restart();
-            
+
             await WaitWhileMessagesAreFlowing(() => pingConsumer.Messages.Count);
             var messagesReceived = pingConsumer.Messages;
 
@@ -177,7 +194,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             // arrange
 
             // ensure the topic has 2 partitions
-            var topic = "test-echo";
+            var topic = $"{TopicPrefix}test-echo";
             var echoRequestHandler = new EchoRequestHandler();
 
             MessageBusBuilder
@@ -196,7 +213,7 @@ namespace SlimMessageBus.Host.Kafka.Test
                                                          .CheckpointAfter(TimeSpan.FromSeconds(60)))
                 .ExpectRequestResponses(x =>
                 {
-                    x.ReplyToTopic("test-echo-resp");
+                    x.ReplyToTopic($"{TopicPrefix}test-echo-resp");
                     x.Group("response-reader");
                     // for subsequent test runs allow enough time for kafka to reassign the partitions
                     x.DefaultTimeout(TimeSpan.FromSeconds(60));
