@@ -202,7 +202,7 @@ The implementation requires that each micro-service instance that intends to sen
 Beside the request (or reponse) message payload, the SMB implementation needs to pass additional metadata information to make the request-response work.
 Since, SMB needs to work across different transport providers and some do not support message headers, each request (or response) message is wrapped by SMB into a special envelope which makes the implementation transport provider agnostic. 
 
-The envelope is binary and should be fast. See the for low level details `MessageWithHeadersSerializer`.
+The envelope is binary and should be fast. See the [`MessageWithHeadersSerializer`](https://github.com/zarusz/SlimMessageBus/blob/master/src/SlimMessageBus.Host/RequestResponse/MessageWithHeadersSerializer.cs) for low level details.
 
 The request envelope contains:
 
@@ -297,7 +297,7 @@ The static `MessageBus.Current` was introduced to obtain either the singleton `I
 
 This helps to lookup the `IMessageBus` instance in the domain model layer while doing Domain-Driven Design and specifically to implement domain events or to externalize infrastructure concerns if anything changes on the domain that would require communication with external systems.
 
-See `DomainEvents` sample how to configure it per-request scope and how to use it for domain events.
+See [`DomainEvents`](../src/Samples/Sample.DomainEvents.WebApi/Startup.cs#L79) sample how to configure it per-request scope and how to use it for domain events.
 
 ### Dependency resolver
 
