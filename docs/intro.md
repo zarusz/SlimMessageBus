@@ -178,18 +178,45 @@ public class SomeConsumer
 
 ## Request-response communication
 
-SMB provides implementation of request-response over topics (or queues - depending what the underlying provider supports).
-This allows to asynchronously await a response for a request message in your service.
+SMB provides implementation of request-response over topics or queues - depending what the underlying provider supports.
+This allows to asynchronously await a response for a request message that your service sent.
 
-Typically this simplifies service interactions that need to await for a result and still allows to achive a reactive architecture that can scale out.
+Typically this simplifies service interactions that need to await for a result. To make your app scallable, there is no need to rewrite the interaction as fire and forget style, with storing the state, and writing another consumer that resumes processing when the response arrives.
 
-The idea is that each of your micro-service instance that sends request messages needs to have its own queue (or topic) onto which other micro-services send the response once the request is processed.
-Each request message is wrapped by SMB into a special envelope that is messaging provider agnostic. The envelope contains:
+### Delivery quarantees
 
-* Request send datetime (UTC, in epoch).
+Since the response is asynchronously awaited, upon arrival the processing context is available (references to objects, other tasks etc) and the service can resume right away. On top of that, since the interaction is asynchronous this allows to achive a reactive architecture that can scale out - the request handling service will process when available, and the requesting service releases any threads. 
+
+The only overhead is memory and resources kept while the sender is awaiting for the response. There is an easy way to set timeouts for request messages in case the response would not arrive in an expected window. Timeout is configured globally, or per each request message type.
+
+> Please note that if the sending service instance dies while awaiting a response, then after restart the service instance won't resume from that await point as all the context and TPL task will be long gone. If you cannot affort for this to happen consider using [Saga pattern](https://microservices.io/patterns/data/saga.html) instead of request-response.
+
+### Dedicated reply queue/topic
+
+The implementation requires that each micro-service instance that intends to sends request messages needs to have its *own and dedicated* queue (or topic) onto which other request handling micro-services send the response once they process the request.
+
+> It is important that each request sending service instance has its own dedicated topic (or queue) for receiving replies. Please also consult the transport provider documentation too.
+
+### Envelope
+
+Beside the request (or reponse) message payload, the SMB implementation needs to pass additional metadata information to make the request-response work.
+Since, SMB needs to work across different transport providers and some do not support message headers, each request (or response) message is wrapped by SMB into a special envelope which makes the implementation transport provider agnostic. 
+
+The envelope is binary and should be fast. See the for low level details `MessageWithHeadersSerializer`.
+
+The request envelope contains:
+
 * Request ID, so that the request sender can correlate the arriving responses.
+* Request send datetime (UTC, in epoch).
 * ReplyTo topic/queue name, so that the service handling the request knows where to send back the response.
 * The body of the request message (serialized using the chosen serialization provider).
+
+The response envelope contains:
+
+* Request ID, so that the request sender can correlate the arriving responses.
+* Error message, in case the request message processing failed (so that we can fail fast and know the particular error).
+
+In the future SMB might introduce an optimization that will leverage transport native headers (e.g. UserProperties for Azure Service Bus) to avoid the envelope altogether.
 
 ### Produce request message
 
