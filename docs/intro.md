@@ -271,10 +271,10 @@ The request handling micro-service needs to have a handler that implements `IReq
 ```cs
 public class SomeRequestHandler : IRequestHandler<SomeRequest, SomeResponse>
 {
-  public async Task<MultiplyResponse> OnHandle(MultiplyRequest request, string name)
+  public async Task<SomeResponse> OnHandle(SomeRequest request, string name)
   {
     // handle the request  
-    return new SomeResponse("ping");
+    return new SomeResponse();
   }
 }
 ```
