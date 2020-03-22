@@ -5,7 +5,7 @@ using SlimMessageBus.Host.Serialization;
 
 namespace SlimMessageBus.Host.Config
 {
-    public class MessageBusSettings : IConsumerEvents
+    public class MessageBusSettings : IConsumerEvents, IProducerEvents
     {
         public IList<ProducerSettings> Producers { get; }
         public IList<ConsumerSettings> Consumers { get; }
@@ -19,9 +19,23 @@ namespace SlimMessageBus.Host.Config
         public IDependencyResolver DependencyResolver { get; set; }
 
         #region Implementation of IConsumerEvents
+        ///
+        /// <inheritdoc/>
+        ///
+        public Action<IMessageBus, AbstractConsumerSettings, object, string> OnMessageArrived { get; set; }
+        ///
+        /// <inheritdoc/>
+        ///
+        public Action<IMessageBus, AbstractConsumerSettings, object> OnMessageExpired { get; set; }
+        ///
+        /// <inheritdoc/>
+        ///
+        public Action<IMessageBus, AbstractConsumerSettings, object, Exception> OnMessageFault { get; set; }
+        #endregion
 
-        public Action<AbstractConsumerSettings, object> OnMessageExpired { get; set; }
-        public Action<AbstractConsumerSettings, object, Exception> OnMessageFault { get; set; }
+        #region Implementation of IConsumerEvents
+
+        public Action<IMessageBus, ProducerSettings, object, string> OnMessageProduced { get; set; }
 
         #endregion
 
@@ -72,6 +86,11 @@ namespace SlimMessageBus.Host.Config
                 DependencyResolver = settings.DependencyResolver;
             }
 
+            if (OnMessageArrived == null && settings.OnMessageArrived != null)
+            {
+                OnMessageArrived = settings.OnMessageArrived;
+            }
+
             if (OnMessageExpired == null && settings.OnMessageExpired != null)
             {
                 OnMessageExpired = settings.OnMessageExpired;
@@ -80,6 +99,11 @@ namespace SlimMessageBus.Host.Config
             if (OnMessageFault == null && settings.OnMessageFault != null)
             {
                 OnMessageFault = settings.OnMessageFault;
+            }
+
+            if (OnMessageProduced == null && settings.OnMessageProduced != null)
+            {
+                OnMessageProduced = settings.OnMessageProduced;
             }
         }
     }

@@ -16,14 +16,18 @@ namespace SlimMessageBus.Host.Config
 
         #region Implementation of IConsumerEvents
 
-        /// <summary>
-        /// Called whenever a consumer receives an expired message.
-        /// </summary>
-        public Action<AbstractConsumerSettings, object> OnMessageExpired { get; set; }
-        /// <summary>
-        /// Called whenever a consumer errors out while processing the message.
-        /// </summary>
-        public Action<AbstractConsumerSettings, object, Exception> OnMessageFault { get; set; }
+        ///
+        /// <inheritdoc/>
+        ///
+        public Action<IMessageBus, AbstractConsumerSettings, object, string> OnMessageArrived { get; set; }
+        ///
+        /// <inheritdoc/>
+        ///
+        public Action<IMessageBus, AbstractConsumerSettings, object> OnMessageExpired { get; set; }
+        ///
+        /// <inheritdoc/>
+        ///
+        public Action<IMessageBus, AbstractConsumerSettings, object, Exception> OnMessageFault { get; set; }
 
         #endregion
 

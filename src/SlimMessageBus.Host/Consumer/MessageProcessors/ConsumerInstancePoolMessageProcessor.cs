@@ -102,7 +102,7 @@ namespace SlimMessageBus.Host
 
             MessageWithHeaders requestMessage = null;
             string requestId = null;
-            DateTimeOffset? expires = null;            
+            DateTimeOffset? expires = null;
 
             _log.Debug("Deserializing message...");
             var message = _consumerSettings.IsRequestMessage
@@ -126,12 +126,11 @@ namespace SlimMessageBus.Host
                     try
                     {
                         // Execute the event hook
-                        (_consumerSettings.OnMessageExpired ?? _messageBus.Settings.OnMessageExpired)?.Invoke(_consumerSettings, message);
+                        (_consumerSettings.OnMessageExpired ?? _messageBus.Settings.OnMessageExpired)?.Invoke(_messageBus, _consumerSettings, message);
                     }
                     catch (Exception eh)
                     {
-                        // When the hook itself error out, catch the exception
-                        _log.ErrorFormat(CultureInfo.InvariantCulture, "{0} method failed", eh, nameof(IConsumerEvents.OnMessageExpired));
+                        MessageBusBase.HookFailed(_log, eh, nameof(IConsumerEvents.OnMessageExpired));
                     }
 
                     // Do not process the expired message
@@ -180,12 +179,11 @@ namespace SlimMessageBus.Host
                 try
                 {
                     // Execute the event hook
-                    (_consumerSettings.OnMessageFault ?? _messageBus.Settings.OnMessageFault)?.Invoke(_consumerSettings, message, e);
+                    (_consumerSettings.OnMessageFault ?? _messageBus.Settings.OnMessageFault)?.Invoke(_messageBus, _consumerSettings, message, e);
                 }
                 catch (Exception eh)
                 {
-                    // When the hook itself error out, catch the exception
-                    _log.ErrorFormat(CultureInfo.InvariantCulture, "{0} method failed", eh, nameof(IConsumerEvents.OnMessageFault));
+                    MessageBusBase.HookFailed(_log, eh, nameof(IConsumerEvents.OnMessageFault));
                 }
             }
             finally

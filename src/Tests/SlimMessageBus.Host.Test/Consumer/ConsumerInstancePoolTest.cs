@@ -116,7 +116,7 @@ namespace SlimMessageBus.Host.Test
         public void WhenRequestExpiredThenOnMessageExpiredIsCalled()
         {
             // arrange
-            var onMessageExpiredMock = new Mock<Action<AbstractConsumerSettings, object>>();
+            var onMessageExpiredMock = new Mock<Action<IMessageBus, AbstractConsumerSettings, object>>();
             var consumerSettings = new HandlerBuilder<SomeRequest, SomeResponse>(new MessageBusSettings()).Topic(null).WithHandler<IRequestHandler<SomeRequest, SomeResponse>>().Instances(1).ConsumerSettings;
             consumerSettings.OnMessageExpired = onMessageExpiredMock.Object;
 
@@ -135,14 +135,14 @@ namespace SlimMessageBus.Host.Test
             // assert
             _busMock.HandlerMock.Verify(x => x.OnHandle(It.IsAny<SomeRequest>(), It.IsAny<string>()), Times.Never); // the handler should not be called
 
-            onMessageExpiredMock.Verify(x => x(consumerSettings, request), Times.Once); // callback called once
+            onMessageExpiredMock.Verify(x => x(_busMock.Bus, consumerSettings, request), Times.Once); // callback called once
         }
 
         [Fact]
         public void WhenRequestFailsThenOnMessageFaultIsCalledAndErrorResponseIsSent()
         {
             // arrange
-            var onMessageFaultMock = new Mock<Action<AbstractConsumerSettings, object, Exception>>();
+            var onMessageFaultMock = new Mock<Action<IMessageBus, AbstractConsumerSettings, object, Exception>>();
             var consumerSettings = new HandlerBuilder<SomeRequest, SomeResponse>(new MessageBusSettings()).Topic(null).WithHandler<IRequestHandler<SomeRequest, SomeResponse>>().Instances(1).ConsumerSettings;
             consumerSettings.OnMessageFault = onMessageFaultMock.Object;
 
@@ -169,7 +169,7 @@ namespace SlimMessageBus.Host.Test
                 Times.Once); // handler called once
 
             onMessageFaultMock.Verify(
-                x => x(consumerSettings, request, ex), Times.Once); // callback called once
+                x => x(_busMock.Bus, consumerSettings, request, ex), Times.Once); // callback called once
             _busMock.BusMock.Verify(
                 x => x.ProduceResponse(request, requestMessage, It.IsAny<SomeResponse>(), It.Is<MessageWithHeaders>(m => m.Headers[ReqRespMessageHeaders.RequestId] == requestId), It.IsAny<ConsumerSettings>()));
         }
@@ -178,7 +178,7 @@ namespace SlimMessageBus.Host.Test
         public void WhenMessageFailsThenOnMessageFaultIsCalled()
         {
             // arrange
-            var onMessageFaultMock = new Mock<Action<AbstractConsumerSettings, object, Exception>>();
+            var onMessageFaultMock = new Mock<Action<IMessageBus, AbstractConsumerSettings, object, Exception>>();
             var consumerSettings = new ConsumerBuilder<SomeMessage>(new MessageBusSettings()).Topic("topic1").WithConsumer<IConsumer<SomeMessage>>().Instances(1).ConsumerSettings;
             consumerSettings.OnMessageFault = onMessageFaultMock.Object;
 
@@ -198,7 +198,7 @@ namespace SlimMessageBus.Host.Test
             _busMock.ConsumerMock.Verify(x => x.OnHandle(message, consumerSettings.Topic),
                 Times.Once); // handler called once
 
-            onMessageFaultMock.Verify(x => x(consumerSettings, message, ex), Times.Once); // callback called once
+            onMessageFaultMock.Verify(x => x(_busMock.Bus, consumerSettings, message, ex), Times.Once); // callback called once
         }
     }
 }

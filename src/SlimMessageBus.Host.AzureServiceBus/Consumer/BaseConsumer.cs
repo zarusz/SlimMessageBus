@@ -94,12 +94,11 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
             try
             {
                 // Execute the event hook
-                (ConsumerSettings.OnMessageFault ?? MessageBus.Settings.OnMessageFault)?.Invoke(ConsumerSettings, exceptionReceivedEventArgs, exceptionReceivedEventArgs.Exception);
+                (ConsumerSettings.OnMessageFault ?? MessageBus.Settings.OnMessageFault)?.Invoke(MessageBus, ConsumerSettings, exceptionReceivedEventArgs, exceptionReceivedEventArgs.Exception);
             }
             catch (Exception eh)
             {
-                // When the hook itself error out, catch the exception
-                _log.ErrorFormat(CultureInfo.InvariantCulture, "{0} method failed", eh, nameof(IConsumerEvents.OnMessageFault));
+                MessageBusBase.HookFailed(_log, eh, nameof(IConsumerEvents.OnMessageFault));                
             }
             return Task.CompletedTask;
         }

@@ -58,10 +58,22 @@ namespace SlimMessageBus.Host
             PendingRequestManager = new PendingRequestManager(PendingRequestStore, () => CurrentTime, TimeSpan.FromSeconds(1), request =>
             {
                 // Execute the event hook
-                // ToDo: sort out the ConsumerSettings arg for req/resp, for now pass null
-                (Settings.RequestResponse.OnMessageExpired ?? Settings.OnMessageExpired)?.Invoke(null, request);
+                try
+                {
+                    (Settings.RequestResponse.OnMessageExpired ?? Settings.OnMessageExpired)?.Invoke(this, Settings.RequestResponse, request);
+                }
+                catch (Exception eh)
+                {
+                    HookFailed(Log, eh, nameof(IConsumerEvents.OnMessageExpired));
+                }
             });
             PendingRequestManager.Start();
+        }
+
+        public static void HookFailed(ILog log, Exception eh, string name)
+        {
+            // When the hook itself error out, catch the exception
+            log.ErrorFormat(CultureInfo.InvariantCulture, "{0} method failed", eh, name);
         }
 
         protected virtual void AssertSettings()
