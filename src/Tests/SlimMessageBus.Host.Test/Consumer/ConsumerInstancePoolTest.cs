@@ -113,7 +113,7 @@ namespace SlimMessageBus.Host.Test
         }
 
         [Fact]
-        public void WhenRequestExpiredThenOnMessageExpiredIsCalled()
+        public void When_RequestExpired_Then_OnMessageExpiredIsCalled()
         {
             // arrange
             var onMessageExpiredMock = new Mock<Action<IMessageBus, AbstractConsumerSettings, object>>();
@@ -175,7 +175,7 @@ namespace SlimMessageBus.Host.Test
         }
 
         [Fact]
-        public void WhenMessageFailsThenOnMessageFaultIsCalled()
+        public void When_MessageFails_Then_OnMessageFaultIsCalled()
         {
             // arrange
             var onMessageFaultMock = new Mock<Action<IMessageBus, AbstractConsumerSettings, object, Exception>>();

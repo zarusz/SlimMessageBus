@@ -194,7 +194,7 @@ namespace SlimMessageBus.Host
                     {
                         baseType = mt.BaseType;
                     }
-                    while (baseType != null && !ProducerSettingsByMessageType.ContainsKey(baseType));
+                    while (baseType != null && baseType != typeof(object) && !ProducerSettingsByMessageType.ContainsKey(baseType));
 
                     if (baseType != null)
                     {
@@ -254,6 +254,8 @@ namespace SlimMessageBus.Host
                 name = GetDefaultName(producerSettings.MessageType, producerSettings);
             }
 
+            OnProducedHook(message, name, producerSettings);
+
             var payload = SerializeMessage(producerSettings.MessageType, message);
 
             Log.DebugFormat(CultureInfo.InvariantCulture, "Producing message {0} of type {1} to name {2} with payload size {3}", message, producerSettings.MessageType, name, payload?.Length ?? 0);
@@ -295,6 +297,8 @@ namespace SlimMessageBus.Host
                 name = GetDefaultName(requestType, producerSettings);
             }
 
+            OnProducedHook(request, name, producerSettings);
+
             if (timeout == null)
             {
                 timeout = GetDefaultRequestTimeout(requestType, producerSettings);
@@ -334,6 +338,19 @@ namespace SlimMessageBus.Host
             // convert Task<object> to Task<TResponseMessage>
             var responseUntyped = await requestState.TaskCompletionSource.Task.ConfigureAwait(true);
             return (TResponseMessage)responseUntyped;
+        }
+
+        private void OnProducedHook(object message, string name, ProducerSettings producerSettings)
+        {
+            try
+            {
+                producerSettings.OnMessageProduced?.Invoke(this, producerSettings, message, name);
+                Settings.OnMessageProduced?.Invoke(this, producerSettings, message, name);
+            }
+            catch (Exception eh)
+            {
+                HookFailed(Log, eh, nameof(IProducerEvents.OnMessageProduced));
+            }
         }
 
         public virtual Task ProduceRequest(object request, MessageWithHeaders requestMessage, string name, ProducerSettings producerSettings)

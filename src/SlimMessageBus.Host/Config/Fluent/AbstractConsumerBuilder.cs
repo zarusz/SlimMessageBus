@@ -18,5 +18,14 @@ namespace SlimMessageBus.Host.Config
             MessageType = messageType;
             Settings = settings;
         }
+
+        public TBuilder AttachEvents<TBuilder>(Action<IConsumerEvents> eventsConfig)
+            where TBuilder : AbstractConsumerBuilder<T>
+        {
+            if (eventsConfig == null) throw new ArgumentNullException(nameof(eventsConfig));
+
+            eventsConfig(Settings);
+            return (TBuilder)this;
+        }
     }
 }

@@ -13,7 +13,7 @@ namespace SlimMessageBus.Host.Config
         {
             Topic = topic;
             MessageType = messageType;
-            Settings = settings;
+            Settings = settings ?? throw new ArgumentNullException(nameof(settings));
 
             ConsumerSettings = new ConsumerSettings
             {

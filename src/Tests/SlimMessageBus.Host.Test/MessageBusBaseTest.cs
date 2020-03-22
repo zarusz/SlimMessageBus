@@ -371,6 +371,63 @@ namespace SlimMessageBus.Host.Test
             act.Should().Throw<MessageBusException>();
             actWithTopic.Should().Throw<MessageBusException>();
         }
+
+        [Fact]
+        public async Task When_Publish_Or_Send_Then_OnMessageProducedIsCalled_AtTheProducerLevel_And_AtTheBusLevel()
+        {
+            // arrange
+            var someMessageTopic = "some-messages";
+            var someRequestTopic = "some-requests";
+
+            var onMessageProducedMock = new Mock<Action<IMessageBus, ProducerSettings, object, string>>();
+
+            BusBuilder
+                .Produce<SomeMessage>(x =>
+                {
+                    x.DefaultTopic(someMessageTopic);
+                    x.AttachEvents(events =>
+                    {
+                        events.OnMessageProduced = onMessageProducedMock.Object;
+                    });
+                })
+                .Produce<SomeRequest>(x =>
+                {
+                    x.DefaultTopic(someRequestTopic);
+                    x.AttachEvents(events =>
+                    {
+                        events.OnMessageProduced = onMessageProducedMock.Object;
+                    });
+                })
+                .AttachEvents(events =>
+                {
+                    events.OnMessageProduced = onMessageProducedMock.Object;
+                });
+
+            Bus.OnReply = (type, topic, request) =>
+            {
+                if (topic == someRequestTopic)
+                {
+                    return new SomeResponse();
+                }
+                return null;
+            };
+
+            var m = new SomeMessage();
+            var r = new SomeRequest();
+
+            // act
+
+            // act
+            await Bus.Publish(m);
+            await Bus.Send(r);
+
+            // assert
+            onMessageProducedMock.Verify(
+                x => x(Bus, It.IsAny<ProducerSettings>(), m, someMessageTopic), Times.Exactly(2)); // callback twice - at the producer and bus level
+
+            onMessageProducedMock.Verify(
+                x => x(Bus, It.IsAny<ProducerSettings>(), r, someRequestTopic), Times.Exactly(2)); // callback twice - at the producer and bus level
+        }
     }
 
     public class MessageBusTested : MessageBusBase

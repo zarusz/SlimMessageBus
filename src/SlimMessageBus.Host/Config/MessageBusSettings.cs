@@ -5,7 +5,7 @@ using SlimMessageBus.Host.Serialization;
 
 namespace SlimMessageBus.Host.Config
 {
-    public class MessageBusSettings : IConsumerEvents, IProducerEvents
+    public class MessageBusSettings : IBusEvents
     {
         public IList<ProducerSettings> Producers { get; }
         public IList<ConsumerSettings> Consumers { get; }
@@ -33,7 +33,7 @@ namespace SlimMessageBus.Host.Config
         public Action<IMessageBus, AbstractConsumerSettings, object, Exception> OnMessageFault { get; set; }
         #endregion
 
-        #region Implementation of IConsumerEvents
+        #region Implementation of IProducerEvents
 
         public Action<IMessageBus, ProducerSettings, object, string> OnMessageProduced { get; set; }
 

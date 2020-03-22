@@ -138,6 +138,30 @@ namespace SlimMessageBus.Host.Config
             return this;
         }
 
+        public MessageBusBuilder AttachEvents(Action<IProducerEvents> eventsConfig)
+        {
+            if (eventsConfig == null) throw new ArgumentNullException(nameof(eventsConfig));
+            
+            eventsConfig(Settings);
+            return this;
+        }
+
+        public MessageBusBuilder AttachEvents(Action<IConsumerEvents> eventsConfig)
+        {
+            if (eventsConfig == null) throw new ArgumentNullException(nameof(eventsConfig));
+
+            eventsConfig(Settings);
+            return this;
+        }
+
+        public MessageBusBuilder AttachEvents(Action<IBusEvents> eventsConfig)
+        {
+            if (eventsConfig == null) throw new ArgumentNullException(nameof(eventsConfig));
+
+            eventsConfig(Settings);
+            return this;
+        }
+
         public IMessageBus Build()
         {
             if (_factory is null)

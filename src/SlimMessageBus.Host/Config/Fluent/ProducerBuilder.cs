@@ -28,5 +28,13 @@ namespace SlimMessageBus.Host.Config
             Settings.Timeout = timeout;
             return this;
         }
+
+        public ProducerBuilder<T> AttachEvents(Action<IProducerEvents> eventsConfig)
+        {
+            if (eventsConfig == null) throw new ArgumentNullException(nameof(eventsConfig));
+
+            eventsConfig(Settings);
+            return this;
+        }
     }
 }

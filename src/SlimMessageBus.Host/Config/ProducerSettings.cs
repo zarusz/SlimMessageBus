@@ -2,7 +2,7 @@
 
 namespace SlimMessageBus.Host.Config
 {
-    public class ProducerSettings : HasProviderExtensions
+    public class ProducerSettings : HasProviderExtensions, IProducerEvents
     {
         /// <summary>
         /// Message type that will be published.
@@ -16,5 +16,12 @@ namespace SlimMessageBus.Host.Config
         /// Timeout after which this message should be considered as expired by the consumer.
         /// </summary>
         public TimeSpan? Timeout { get; set; }
+        
+        #region IProducerEvents
+
+        /// <inheritdoc/>
+        public Action<IMessageBus, ProducerSettings, object, string> OnMessageProduced { get; set; }
+
+        #endregion
     }
 }
