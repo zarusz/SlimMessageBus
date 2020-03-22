@@ -128,6 +128,38 @@ await bus.Publish(new CustomerChangedEvent { });
 
 > Sending messages of different types into the same topic (or queue) makes sense if the underlying serializer (e.g. Newtonsoft.Json) supports polimorphic serialization. In such case a message type discriminator (e.g. `$type` property for Newtonsoft.Json) will be added by the serializer, so that the consumer end knows to what derived type to deserialize the message to.
 
+#### Producer hooks
+
+When you need to intercept a message that is being published or sent via the bus, you can use the available producer hooks:
+
+```
+mbb
+	.Produce<SomeMessage>(x =>
+	{
+		x.DefaultTopic(someMessageTopic);
+		x.AttachEvents(events =>
+		{
+			// Invoke the action for the specified message type published/sent via the bus:
+			events.OnMessageProduced = (bus, producerSettings, message, name) => {
+			   Console.WriteLine("The SomeMessage: {0} was sent to topic/queue {1}", message, name);
+		    }
+		});
+	})
+	.AttachEvents(events =>
+	{
+	    // Invoke the action for any message type published/sent via the bus:
+		events.OnMessageProduced = (bus, producerSettings, message, name) => {
+			Console.WriteLine("The message: {0} was sent to topic/queue {1}", message, name);
+		};
+	});
+
+```
+
+The hook can be applied at the specified producer, or the whole bus.
+
+> The user specified `Action<>` methods need to be thread-safe.
+
+
 ### Consumer
 
 To consume a message type from a topic/queue, declare it using `Consume<TMessage>()` method:
@@ -175,6 +207,45 @@ public class SomeConsumer
   // }
 }
 ```
+
+#### Consumer hooks
+
+When you need to intercept a message that is delivered to a consumer, you can use the available consumer hooks:
+
+```
+mbb
+	.Consumer<SomeMessage>(x =>
+	{
+		x.Topic("some-topic");
+		x.AttachEvents(events =>
+		{
+			// Invoke the action for the specified message type when arrived on the bus:
+			events.OnMessageArrived = (bus, consumerSettings, message, name) => {
+			   Console.WriteLine("The SomeMessage: {0} arrived on the topic/queue {1}", message, name);
+		    }
+			
+			events.OnMessageFault = (bus, consumerSettings, message, ex) => {
+
+			};
+		});
+	})
+	.AttachEvents(events =>
+	{
+	    // Invoke the action for the specified message type when sent via the bus:
+		events.OnMessageArrived = (bus, consumerSettings, message, name) => {
+			Console.WriteLine("The message: {0} arrived on the topic/queue {1}", message, name);
+		};
+		
+	    events.OnMessageFault = (bus, consumerSettings, message, ex) => {
+
+		};
+	});
+
+```
+
+The hook can be applied at the specified consumer, or the whole bus.
+
+> The user specified `Action<>` methods need to be thread-safe.
 
 ## Request-response communication
 
