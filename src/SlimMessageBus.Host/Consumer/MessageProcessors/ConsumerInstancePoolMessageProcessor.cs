@@ -126,7 +126,8 @@ namespace SlimMessageBus.Host
                     try
                     {
                         // Execute the event hook
-                        (_consumerSettings.OnMessageExpired ?? _messageBus.Settings.OnMessageExpired)?.Invoke(_messageBus, _consumerSettings, message);
+                        _consumerSettings.OnMessageExpired?.Invoke(_messageBus, _consumerSettings, message);
+                        _messageBus.Settings.OnMessageExpired?.Invoke(_messageBus, _consumerSettings, message);
                     }
                     catch (Exception eh)
                     {
@@ -151,6 +152,17 @@ namespace SlimMessageBus.Host
 
                     var consumerWithContext = (IConsumerContextAware)consumerInstance;
                     consumerWithContext.Context.Value = consumerContext;
+                }
+
+                try
+                {
+                    // Execute the event hook
+                    _consumerSettings.OnMessageArrived?.Invoke(_messageBus, _consumerSettings, message, _consumerSettings.Topic);
+                    _messageBus.Settings.OnMessageArrived?.Invoke(_messageBus, _consumerSettings, message, _consumerSettings.Topic);
+                }
+                catch (Exception eh)
+                {
+                    MessageBusBase.HookFailed(_log, eh, nameof(IConsumerEvents.OnMessageArrived));
                 }
 
                 // the consumer just subscribes to the message
@@ -179,7 +191,8 @@ namespace SlimMessageBus.Host
                 try
                 {
                     // Execute the event hook
-                    (_consumerSettings.OnMessageFault ?? _messageBus.Settings.OnMessageFault)?.Invoke(_messageBus, _consumerSettings, message, e);
+                    _consumerSettings.OnMessageFault?.Invoke(_messageBus, _consumerSettings, message, e);
+                    _messageBus.Settings.OnMessageFault?.Invoke(_messageBus, _consumerSettings, message, e);
                 }
                 catch (Exception eh)
                 {

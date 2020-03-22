@@ -200,5 +200,36 @@ namespace SlimMessageBus.Host.Test
 
             onMessageFaultMock.Verify(x => x(_busMock.Bus, consumerSettings, message, ex), Times.Once); // callback called once
         }
+
+        [Fact]
+        public void When_MessageArrives_Then_OnMessageArrivedIsCalled()
+        {
+            // arrange
+            var onMessageArrivedMock = new Mock<Action<IMessageBus, AbstractConsumerSettings, object, string>>();
+
+            var topic = "topic1";
+
+            _busMock.Bus.Settings.OnMessageArrived = onMessageArrivedMock.Object;
+
+            var consumerSettings = new ConsumerBuilder<SomeMessage>(_busMock.Bus.Settings).Topic(topic).WithConsumer<IConsumer<SomeMessage>>().Instances(1).ConsumerSettings;
+            consumerSettings.OnMessageArrived = onMessageArrivedMock.Object;
+
+            var p = new ConsumerInstancePoolMessageProcessor<SomeMessage>(consumerSettings, _busMock.Bus, x => Array.Empty<byte>());
+
+            var message = new SomeMessage();
+            _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeMessage), It.IsAny<byte[]>())).Returns(message);
+
+            _busMock.ConsumerMock.Setup(x => x.OnHandle(message, consumerSettings.Topic))
+                .Returns(Task.CompletedTask);
+
+            // act
+            p.ProcessMessage(message).Wait();
+
+            // assert
+            _busMock.ConsumerMock.Verify(x => x.OnHandle(message, consumerSettings.Topic),
+                Times.Once); // handler called once
+
+            onMessageArrivedMock.Verify(x => x(_busMock.Bus, consumerSettings, message, topic), Times.Exactly(2)); // callback called once for consumer and bus level
+        }
     }
 }
