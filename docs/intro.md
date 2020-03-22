@@ -132,8 +132,7 @@ await bus.Publish(new CustomerChangedEvent { });
 
 When you need to intercept a message that is being published or sent via the bus, you can use the available producer hooks:
 
-cs
-```
+```cs
 mbb
    .Produce<SomeMessage>(x =>
    {
@@ -212,8 +211,7 @@ public class SomeConsumer
 
 When you need to intercept a message that is delivered to a consumer, you can use the available consumer hooks:
 
-cs
-```
+```cs
 mbb
    .Consume<SomeMessage>(x =>
    {
