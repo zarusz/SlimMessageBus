@@ -132,27 +132,27 @@ await bus.Publish(new CustomerChangedEvent { });
 
 When you need to intercept a message that is being published or sent via the bus, you can use the available producer hooks:
 
+cs
 ```
 mbb
-	.Produce<SomeMessage>(x =>
-	{
-		x.DefaultTopic(someMessageTopic);
-		x.AttachEvents(events =>
-		{
-			// Invoke the action for the specified message type published/sent via the bus:
-			events.OnMessageProduced = (bus, producerSettings, message, name) => {
-			   Console.WriteLine("The SomeMessage: {0} was sent to topic/queue {1}", message, name);
-		    }
-		});
-	})
-	.AttachEvents(events =>
-	{
-	    // Invoke the action for any message type published/sent via the bus:
-		events.OnMessageProduced = (bus, producerSettings, message, name) => {
-			Console.WriteLine("The message: {0} was sent to topic/queue {1}", message, name);
-		};
-	});
-
+   .Produce<SomeMessage>(x =>
+   {
+      x.DefaultTopic(someMessageTopic);
+      x.AttachEvents(events =>
+      {
+         // Invoke the action for the specified message type published/sent via the bus:
+         events.OnMessageProduced = (bus, producerSettings, message, name) => {
+            Console.WriteLine("The SomeMessage: {0} was sent to topic/queue {1}", message, name);
+         }
+      });
+   })
+   .AttachEvents(events =>
+   {
+      // Invoke the action for any message type published/sent via the bus:
+      events.OnMessageProduced = (bus, producerSettings, message, name) => {
+         Console.WriteLine("The message: {0} was sent to topic/queue {1}", message, name);
+      };
+   });
 ```
 
 The hook can be applied at the specified producer, or the whole bus.
@@ -212,35 +212,35 @@ public class SomeConsumer
 
 When you need to intercept a message that is delivered to a consumer, you can use the available consumer hooks:
 
+cs
 ```
 mbb
-	.Consumer<SomeMessage>(x =>
-	{
-		x.Topic("some-topic");
-		x.AttachEvents(events =>
-		{
-			// Invoke the action for the specified message type when arrived on the bus:
-			events.OnMessageArrived = (bus, consumerSettings, message, name) => {
-			   Console.WriteLine("The SomeMessage: {0} arrived on the topic/queue {1}", message, name);
-		    }
+   .Consume<SomeMessage>(x =>
+   {
+       x.Topic("some-topic");
+       x.AttachEvents(events =>
+       {
+          // Invoke the action for the specified message type when arrived on the bus:
+          events.OnMessageArrived = (bus, consumerSettings, message, name) => {
+             Console.WriteLine("The SomeMessage: {0} arrived on the topic/queue {1}", message, name);
+          }
 			
-			events.OnMessageFault = (bus, consumerSettings, message, ex) => {
+          events.OnMessageFault = (bus, consumerSettings, message, ex) => {
 
-			};
-		});
-	})
-	.AttachEvents(events =>
-	{
-	    // Invoke the action for the specified message type when sent via the bus:
-		events.OnMessageArrived = (bus, consumerSettings, message, name) => {
-			Console.WriteLine("The message: {0} arrived on the topic/queue {1}", message, name);
-		};
+          };
+       });
+    })
+    .AttachEvents(events =>
+    {
+        // Invoke the action for the specified message type when sent via the bus:
+        events.OnMessageArrived = (bus, consumerSettings, message, name) => {
+           Console.WriteLine("The message: {0} arrived on the topic/queue {1}", message, name);
+        };
 		
-	    events.OnMessageFault = (bus, consumerSettings, message, ex) => {
+        events.OnMessageFault = (bus, consumerSettings, message, ex) => {
 
-		};
-	});
-
+	};
+   });
 ```
 
 The hook can be applied at the specified consumer, or the whole bus.
