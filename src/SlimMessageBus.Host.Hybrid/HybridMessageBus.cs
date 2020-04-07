@@ -90,9 +90,9 @@ namespace SlimMessageBus.Host.Hybrid
         }
         #endregion
 
-        protected virtual IMessageBus Route<TMessage>(TMessage message, string name)
+        protected virtual IMessageBus Route(object message, string name)
         {
-            var messageType = typeof(TMessage);
+            var messageType = message.GetType();
 
             if (_routeByMessageType.TryGetValue(messageType, out var busName))
             {
