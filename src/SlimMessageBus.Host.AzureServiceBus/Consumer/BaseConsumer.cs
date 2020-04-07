@@ -94,7 +94,8 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
             try
             {
                 // Execute the event hook
-                (ConsumerSettings.OnMessageFault ?? MessageBus.Settings.OnMessageFault)?.Invoke(MessageBus, ConsumerSettings, exceptionReceivedEventArgs, exceptionReceivedEventArgs.Exception);
+                ConsumerSettings.OnMessageFault?.Invoke(MessageBus, ConsumerSettings, exceptionReceivedEventArgs, exceptionReceivedEventArgs.Exception);
+                MessageBus.Settings.OnMessageFault?.Invoke(MessageBus, ConsumerSettings, exceptionReceivedEventArgs, exceptionReceivedEventArgs.Exception);
             }
             catch (Exception eh)
             {
