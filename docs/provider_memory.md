@@ -4,13 +4,13 @@ If you are new to SMB, consider reading the [Introduction](intro.md) documentati
 
 ## Introduction
 
-Memory transport provider can be used for internal communication (in the same process). It is the simplest transport provider and does not require any external messaging infrastructure. 
+The Memory transport provider can be used for internal communication within the same process. It is the simplest transport provider and does not require any external messaging infrastructure. 
 
 > Since messages are passed in memory and never persisted, they will be lost if your app dies while consuming these messages.
 
-Good use case for in memory communication is to integrate your domain layer with other application layers via domain events.
+A fitting use case for in memory communication is to integrate your domain layer with other application layers via domain events.
 
-> The request-response has not yet been implemented for the SMB memory provider (#7).
+> The request-response has been implemented with completion of issue #7.
 
 ## Configuration
 
@@ -46,7 +46,7 @@ IMessageBus bus = mbb.Build();
 
 ### Virtual Topics
 
-Unlike other transport providers, the memory transport does not have true notion of topics (or queues). However, it is still required to use topic names. This is required, so that the bus knows on which virtual topic to deliver the message to and from what virtual topic to consume. 
+Unlike other transport providers, the memory transport does not have true notion of topics (or queues). However, it is still required to use topic names. This is required, so that the bus knows on which virtual topic to deliver the message to and from what virtual topic to consume.
 
 Here is an example for the producer side:
 
