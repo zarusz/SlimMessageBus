@@ -222,7 +222,6 @@ mbb
           events.OnMessageArrived = (bus, consumerSettings, message, name) => {
              Console.WriteLine("The SomeMessage: {0} arrived on the topic/queue {1}", message, name);
           }
-			
           events.OnMessageFault = (bus, consumerSettings, message, ex) => {
 
           };
@@ -234,16 +233,39 @@ mbb
         events.OnMessageArrived = (bus, consumerSettings, message, name) => {
            Console.WriteLine("The message: {0} arrived on the topic/queue {1}", message, name);
         };
-		
         events.OnMessageFault = (bus, consumerSettings, message, ex) => {
 
-	};
+        };
    });
 ```
 
 The hook can be applied at the specified consumer, or the whole bus.
 
 > The user specified `Action<>` methods need to be thread-safe.
+
+### Consumer context
+
+The consumer can access the `ConsumerContext` object which enable the chosen transport provider to pass additional message information specific to the chosen transport. Examples of such information are the Azure Service Bus UserProperties, or Kafka Topic-Partition offset.
+
+To get access the consumer has to implement the `IConsumerContextAware` interface:
+
+```cs
+public class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
+{
+   public AsyncLocal<ConsumerContext> Context { get; } = new AsyncLocal<ConsumerContext>();
+
+   public Task OnHandle(PingMessage message, string name)
+   {
+      var messageContext = Context.Value;
+
+      // Kafka transport specific extension:
+      var transportMessage = messageContext.GetTransportMessage();
+      var partition = transportMessage.TopicPartition.Partition;
+   }
+}
+```
+
+Please consult the individual transport provider documentation to see what is available.
 
 ## Request-response communication
 

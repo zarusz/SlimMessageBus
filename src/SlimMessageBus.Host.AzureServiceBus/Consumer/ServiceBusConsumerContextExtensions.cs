@@ -1,11 +1,11 @@
-﻿using Confluent.Kafka;
+﻿using Microsoft.Azure.ServiceBus;
 using System;
 
-namespace SlimMessageBus.Host.Kafka
+namespace SlimMessageBus.Host.AzureServiceBus
 {
-    public static class KafkaConsumerContextExtensions
+    public static class ServiceBusConsumerContextExtensions
     {
-        private const string MessageKey = "Kafka_Message";
+        private const string MessageKey = "ServiceBus_Message";
 
         public static Message GetTransportMessage(this ConsumerContext context)
         {
