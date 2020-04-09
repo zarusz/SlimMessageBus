@@ -243,7 +243,7 @@ The hook can be applied at the specified consumer, or the whole bus.
 
 > The user specified `Action<>` methods need to be thread-safe.
 
-### Consumer context
+#### Consumer context
 
 The consumer can access the `ConsumerContext` object which enable the chosen transport provider to pass additional message information specific to the chosen transport. Examples of such information are the Azure Service Bus UserProperties, or Kafka Topic-Partition offset.
 

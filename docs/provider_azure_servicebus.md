@@ -130,7 +130,6 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
 
       // Azure SB transport specific extension:
       var transportMessage = messageContext.GetTransportMessage();
-      var partition = transportMessage.TopicPartition.Partition;
    }
 }
 ```

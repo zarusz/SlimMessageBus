@@ -59,8 +59,9 @@ There are two possible options:
 
 #### Default partitioner with message key
 
-Currently the [confluent-kafka-dotnet](https://github.com/confluentinc/confluent-kafka-dotnet) does not support custom partitioners (see [here](https://github.com/confluentinc/confluent-kafka-dotnet/issues/343)). 
+Currently the [confluent-kafka-dotnet](https://github.com/confluentinc/confluent-kafka-dotnet) does not support custom partitioners (see [here](https://github.com/confluentinc/confluent-kafka-dotnet/issues/343)).
 The default partitioner is supported, which works in this way:
+
 * when message key is not provided then partition is assigned using round-robin,
 * when message key is provided then same partition is assigned to same key
 
