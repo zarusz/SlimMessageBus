@@ -71,7 +71,7 @@ bus.Publish(msg);
 
 Setting the default queue name `DefaultQueue()` for a message type will implicitly configure `UseQueue()` for that message type. By default if no configuration is present the runtime will assume a message needs to be sent on a topic (and works as if `UseTopic()` was configured).
 
-#### Message modifier 
+#### Message modifier
 
 Azure SB client's native message type (`Microsoft.Azure.ServiceBus.Message`) allows to set the partition key, message id or additional key-value properties for a message.
 
@@ -114,6 +114,28 @@ mbb.Consume<TMessage>(x => x
     .Queue("some-queue")
     .Instances(1));
 ```
+
+#### Consumer context
+
+The consumer can implement the `IConsumerContextAware` interface to access the Azure Service Bus native message:
+
+```cs
+public class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
+{
+   public AsyncLocal<ConsumerContext> Context { get; } = new AsyncLocal<ConsumerContext>();
+
+   public Task OnHandle(PingMessage message, string name)
+   {
+      var messageContext = Context.Value;
+
+      // Azure SB transport specific extension:
+      var transportMessage = messageContext.GetTransportMessage();
+      var partition = transportMessage.TopicPartition.Partition;
+   }
+}
+```
+
+This could be useful to extract the message's `CorrelationId` or `UserProperties`.
 
 ### Request-Response Configuration
 

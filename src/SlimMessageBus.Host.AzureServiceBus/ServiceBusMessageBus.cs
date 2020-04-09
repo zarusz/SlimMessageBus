@@ -107,13 +107,14 @@ namespace SlimMessageBus.Host.AzureServiceBus
             }
 
             byte[] getPayload(Message m) => m.Body;
+            void initConsumerContext(Message m, ConsumerContext ctx) => ctx.SetTransportMessage(m);
 
             Log.Info("Creating consumers");
             foreach (var consumerSettings in Settings.Consumers)
             {
                 Log.InfoFormat(CultureInfo.InvariantCulture, "Creating consumer for {0}", consumerSettings.FormatIf(Log.IsInfoEnabled));
 
-                var messageProcessor = new ConsumerInstancePoolMessageProcessor<Message>(consumerSettings, this, getPayload);
+                var messageProcessor = new ConsumerInstancePoolMessageProcessor<Message>(consumerSettings, this, getPayload, initConsumerContext);
                 AddConsumer(consumerSettings, messageProcessor);
             }
 

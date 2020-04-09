@@ -112,7 +112,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
                     x.WithModifier((message, sbMessage) =>
                     {
                         // set the Azure SB message ID
-                        sbMessage.MessageId = $"ID_{message.Counter}";
+                        sbMessage.MessageId = GetMessageId(message);
                         // set the Azure SB message partition key
                         sbMessage.PartitionKey = message.Counter.ToString(CultureInfo.InvariantCulture);
                     });
@@ -127,6 +127,8 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
 
             await BasicPubSub(concurrency, subscribers, 1).ConfigureAwait(false);
         }
+
+        private string GetMessageId(PingMessage message) => $"ID_{message.Counter}";
 
         private async Task BasicPubSub(int concurrency, int subscribers, int expectedMessageCopies)
         {
@@ -185,7 +187,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             // ... the content should match
             foreach (var producedMessage in producedMessages)
             {
-                var messageCopies = totalReceivedMessages.Count(x => x.Counter == producedMessage.Counter && x.Value == producedMessage.Value);
+                var messageCopies = totalReceivedMessages.Count(x => x.Message.Counter == producedMessage.Counter && x.Message.Value == producedMessage.Value && x.MessageId == GetMessageId(x.Message));
                 messageCopies.Should().Be(expectedMessageCopies);
             }
         }
@@ -291,7 +293,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             responses.All(x => x.Item1.Message == x.Item2.Message).Should().BeTrue();
         }
 
-        private static async Task<IList<PingMessage>> ConsumeAll(PingConsumer consumer)
+        private static async Task<IList<(PingMessage Message, string MessageId)>> ConsumeAll(PingConsumer consumer)
         {
             var lastMessageCount = 0;
             var lastMessageStopwatch = Stopwatch.StartNew();
@@ -329,7 +331,8 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
             public AsyncLocal<ConsumerContext> Context { get; } = new AsyncLocal<ConsumerContext>();
-            public IList<PingMessage> Messages { get; } = new List<PingMessage>();
+
+            public IList<(PingMessage, string)> Messages { get; } = new List<(PingMessage, string)>();
 
             #region Implementation of IConsumer<in PingMessage>
 
@@ -337,7 +340,9 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             {
                 lock (this)
                 {
-                    Messages.Add(message);
+                    var sbMessage = Context.Value.GetTransportMessage();
+
+                    Messages.Add((message, sbMessage.MessageId));
                 }
 
                 Log.InfoFormat(CultureInfo.InvariantCulture, "Got message {0} on topic {1}.", message.Counter, name);

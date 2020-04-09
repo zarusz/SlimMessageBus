@@ -9,6 +9,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 The SMB Kafka implementation uses [confluent-kafka-dotnet](https://github.com/confluentinc/confluent-kafka-dotnet) .NET wrapper around the native [librdkafka](https://github.com/edenhill/librdkafka) library.
 
 When troubleshooting or fine tuning it is worth reading the `librdkafka` and `confluent-kafka-dotnet` docs:
+
 * [Introduction](https://github.com/edenhill/librdkafka/blob/master/INTRODUCTION.md)
 * [Broker version compatibility](https://github.com/edenhill/librdkafka/wiki/Broker-version-compatibility)
 * [Using SSL with librdkafka](https://github.com/edenhill/librdkafka/wiki/Using-SSL-with-librdkafka)
@@ -50,7 +51,6 @@ More documentation here:
 ### Deployment
 
 The `librdkafka` distribution for Windows requires [Visual C++ Redistributable for 2013](https://www.microsoft.com/en-US/download/details.aspx?id=40784) installed on the server. More information can be found [here](https://www.microsoft.com/en-US/download/details.aspx?id=40784).
-
 
 ### Selecting message partition for topic producer
 
@@ -99,3 +99,25 @@ IMessageBus messageBus = new MessageBusBuilder()
 ```
 
 With this approach your provider needs to know the number of partitions for a topic.
+
+### Consumer context
+
+The consumer can implement the `IConsumerContextAware` interface to access the Kafka native message:
+
+```cs
+public class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
+{
+   public AsyncLocal<ConsumerContext> Context { get; } = new AsyncLocal<ConsumerContext>();
+
+   public Task OnHandle(PingMessage message, string name)
+   {
+      var messageContext = Context.Value;
+
+      // Kafka transport specific extension:
+      var transportMessage = messageContext.GetTransportMessage();
+      var partition = transportMessage.TopicPartition.Partition;
+   }
+}
+```
+
+This could be useful to extract the message's offset or partition.
