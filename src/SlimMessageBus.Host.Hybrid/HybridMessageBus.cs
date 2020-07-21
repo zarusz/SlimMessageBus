@@ -48,13 +48,13 @@ namespace SlimMessageBus.Host.Hybrid
             builderFunc(builder);
 
             var bus = builder.Build();
-            
-            return (MessageBusBase) bus;
+
+            return (MessageBusBase)bus;
         }
 
         private void BuildAutoRouting(string name, MessageBusBase bus)
         {
-            foreach(var producer in bus.Settings.Producers)
+            foreach (var producer in bus.Settings.Producers)
             {
                 _routeByMessageType.Add(producer.MessageType, name);
             }
@@ -94,13 +94,21 @@ namespace SlimMessageBus.Host.Hybrid
         {
             var messageType = message.GetType();
 
-            if (_routeByMessageType.TryGetValue(messageType, out var busName))
+            // Until we reached the object in class hierarchy
+            while (messageType != null)
             {
-                Log.DebugFormat(CultureInfo.InvariantCulture, "Resolved bus {0} for message type: {1} and name {2}", busName, messageType, name);
-                
-                return _busByName[busName];
+                if (_routeByMessageType.TryGetValue(messageType, out var busName))
+                {
+                    Log.DebugFormat(CultureInfo.InvariantCulture, "Resolved bus {0} for message type: {1} and name {2}", busName, messageType, name);
+
+                    return _busByName[busName];
+                }
+
+                // Check base type
+                messageType = messageType.BaseType;
             }
-            throw new ConfigurationMessageBusException($"Could not find route for message type: {messageType} and name: {name}");
+
+            throw new ConfigurationMessageBusException($"Could not find route for message type: {message.GetType()} and name: {name}");
         }
 
         #region Implementation of IRequestResponseBus
