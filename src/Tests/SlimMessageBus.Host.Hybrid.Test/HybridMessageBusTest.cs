@@ -64,24 +64,37 @@ namespace SlimMessageBus.Host.Hybrid.Test
             };
 
             var someMessage = new SomeMessage();
+            var someDerivedMessage = new SomeDerivedMessage();
             var someRequest = new SomeRequest();
+            var someDerivedRequest = new SomeDerivedRequest();
 
             // act
             await _subject.Value.Publish(someMessage);
+            await _subject.Value.Publish(someDerivedMessage);
             await _subject.Value.Send(someRequest);
+            await _subject.Value.Send(someDerivedRequest);
 
             // assert
             bus1Mock.Verify(x => x.Publish(someMessage, null), Times.Once);
+            bus1Mock.Verify(x => x.Publish<SomeMessage>(someDerivedMessage, null), Times.Once);
             bus2Mock.Verify(x => x.Send(someRequest, null, default), Times.Once);
+            bus2Mock.Verify(x => x.Send(someDerivedRequest, null, default), Times.Once);
         }
 
         public class SomeMessage
         {
         }
 
+        public class SomeDerivedMessage : SomeMessage
+        {
+        }
+
         public class SomeRequest : IRequestMessage<SomeResponse>
         {
+        }
 
+        public class SomeDerivedRequest : SomeRequest
+        {
         }
 
         public class SomeResponse
