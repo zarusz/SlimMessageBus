@@ -382,7 +382,7 @@ mbb.Handle<SomeRequest, SomeResponse>(x => x
   )
 ```
 
-### Static accessor
+## Static accessor
 
 The static `MessageBus.Current` was introduced to obtain either the singleton `IMessageBus` or the current scoped instance (like the `IMessageBus` tied with the currently executing request).
 
@@ -390,13 +390,20 @@ This helps to lookup the `IMessageBus` instance in the domain model layer while 
 
 See [`DomainEvents`](../src/Samples/Sample.DomainEvents.WebApi/Startup.cs#L79) sample how to configure it per-request scope and how to use it for domain events.
 
-### Dependency resolver
+## Dependency resolver
 
-SMB uses dependency resolver to obtain instances of the declared consumers (`IConsumer`, `IHandler`).
-There are few plugins availble that allow to integrate SMB with your favorite DI framework. Consult samples and the [Packages section](../#Packages).
+SMB uses dependency resolver to obtain instances of the declared consumers (class instances that implement `IConsumer<>`, `IHandler<>`).
+There are few plugins availble that allow to integrate SMB with your favorite DI framework. 
 
+See samples and the [Packages section](../#Packages).
 
-### Provider specific functionality
+## Serialization
+
+SMB uses serialization plugins to serialize (and deserialize) the messages into the desired format.
+
+See [Serialization](serialization.md) page.
+
+## Provider specific functionality
 
 Providers introduce more settings and some subtleties to the above documentation.
 For example Apache Kafka requires `mbb.Group(string)` for consumers to declare the consumer group, Azure Service Bus uses `mbb.SubscriptionName(string)` to set subscription name of the consumer, while Memory provider does not use anything like it.
