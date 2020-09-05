@@ -139,9 +139,7 @@ This could be useful to extract the message's `CorrelationId` or `UserProperties
 #### Exception Handling for Consumers
 
 In case the consumer throws and exception while processing a message, SMB marks the message as abandoned.
-
-This results in a message delivery retry performed by Azure SB (potentially event in another running instance of your service). By default Azure SB retries 10, after last attempt the message Azure SB moves the message to a dead letter queue (DLQ).
-More information [here](https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-dead-letter-queues).
+This results in a message delivery retry performed by Azure SB (potentially event in another running instance of your service). By default Azure SB retries 10 times. After last attempt the message Azure SB moves the message to a dead letter queue (DLQ). More information [here](https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-dead-letter-queues).
 
 If you need to send only selected messages to DLQ, wrap the body of your consumer method in a `try-catch` block and retrow the exception for only the messages you want to be moved to DLQ (after the retry limit is reached).
 
