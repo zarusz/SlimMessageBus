@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -69,8 +70,6 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
             var mf = ConsumerSettings.FormatIf(message, _log.IsDebugEnabled);
             _log.DebugFormat(CultureInfo.InvariantCulture, "Received message - {0}", mf);
 
-            await MessageProcessor.ProcessMessage(message).ConfigureAwait(false);
-
             if (token.IsCancellationRequested)
             {
                 // Note: Use the cancellationToken passed as necessary to determine if the subscriptionClient has already been closed.
@@ -78,14 +77,33 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
                 // to avoid unnecessary exceptions.
                 _log.DebugFormat(CultureInfo.InvariantCulture, "Abandon message - {0}", mf);
                 await Client.AbandonAsync(message.SystemProperties.LockToken).ConfigureAwait(false);
+
+                return;
             }
-            else
+
+            var exception = await MessageProcessor.ProcessMessage(message).ConfigureAwait(false);
+            if (exception != null)
             {
-                // Complete the message so that it is not received again.
-                // This can be done only if the subscriptionClient is created in ReceiveMode.PeekLock mode (which is the default).
-                _log.DebugFormat(CultureInfo.InvariantCulture, "Complete message - {0}", mf);
-                await Client.CompleteAsync(message.SystemProperties.LockToken).ConfigureAwait(false);
+                if (mf == null)
+                {
+                    mf = ConsumerSettings.FormatIf(message, true);
+                }
+                _log.ErrorFormat(CultureInfo.InvariantCulture, "Abandon message (exception occured while processing) - {0}", exception, mf);
+
+                var messageProperties = new Dictionary<string, object>
+                {
+                    // Set the exception message
+                    ["SMB.Exception"] = exception.Message
+                };
+                await Client.AbandonAsync(message.SystemProperties.LockToken, messageProperties).ConfigureAwait(false);
+
+                return;
             }
+
+            // Complete the message so that it is not received again.
+            // This can be done only if the subscriptionClient is created in ReceiveMode.PeekLock mode (which is the default).
+            _log.DebugFormat(CultureInfo.InvariantCulture, "Complete message - {0}", mf);
+            await Client.CompleteAsync(message.SystemProperties.LockToken).ConfigureAwait(false);
         }
 
         // Use this handler to examine the exceptions received on the message pump.
@@ -99,7 +117,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
             }
             catch (Exception eh)
             {
-                MessageBusBase.HookFailed(_log, eh, nameof(IConsumerEvents.OnMessageFault));                
+                MessageBusBase.HookFailed(_log, eh, nameof(IConsumerEvents.OnMessageFault));
             }
             return Task.CompletedTask;
         }

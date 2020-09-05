@@ -444,14 +444,14 @@ namespace SlimMessageBus.Host
         /// <param name="responsePayload"></param>
         /// <param name="name"></param>
         /// <returns></returns>
-        public virtual Task OnResponseArrived(byte[] responsePayload, string name)
+        public virtual Task<Exception> OnResponseArrived(byte[] responsePayload, string name)
         {
             var responseMessage = (MessageWithHeaders)Settings.MessageWithHeadersSerializer.Deserialize(typeof(MessageWithHeaders), responsePayload);
 
             if (!responseMessage.TryGetHeader(ReqRespMessageHeaders.RequestId, out string requestId))
             {
                 Log.ErrorFormat(CultureInfo.InvariantCulture, "The response message arriving on name {0} did not have the {1} header. Unable to math the response with the request. This likely indicates a misconfiguration.", name, ReqRespMessageHeaders.RequestId);
-                return Task.CompletedTask;
+                return Task.FromResult<Exception>(null);
             }
 
             responseMessage.TryGetHeader(ReqRespMessageHeaders.Error, out string error);
@@ -467,7 +467,7 @@ namespace SlimMessageBus.Host
         /// <param name="requestId"></param>
         /// <param name="errorMessage"></param>
         /// <returns></returns>
-        public virtual Task OnResponseArrived(byte[] responsePayload, string name, string requestId, string errorMessage, object response = null)
+        public virtual Task<Exception> OnResponseArrived(byte[] responsePayload, string name, string requestId, string errorMessage, object response = null)
         {
             var requestState = PendingRequestStore.GetById(requestId);
             if (requestState == null)
@@ -475,7 +475,7 @@ namespace SlimMessageBus.Host
                 Log.DebugFormat(CultureInfo.InvariantCulture, "The response message for request id {0} arriving on name {1} will be disregarded. Either the request had already expired, had been cancelled or it was already handled (this response message is a duplicate).", requestId, name);
 
                 // ToDo: add and API hook to these kind of situation
-                return Task.CompletedTask;
+                return Task.FromResult<Exception>(null);
             }
 
             try
@@ -517,7 +517,7 @@ namespace SlimMessageBus.Host
                 // remove the request from the queue
                 PendingRequestStore.Remove(requestId);
             }
-            return Task.CompletedTask;
+            return Task.FromResult<Exception>(null);
         }
 
         /// <summary>

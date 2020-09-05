@@ -23,17 +23,17 @@ namespace SlimMessageBus.Host.Test.Consumer
             var consumerSettings = new ConsumerBuilder<SomeMessage>(new MessageBusSettings()).Topic(null).WithConsumer<IConsumer<SomeMessage>>().Instances(2).ConsumerSettings;
 
             byte[] PayloadProvider(SomeMessage m) => Array.Empty<byte>();
-            _consumerInstancePoolMock = new Mock<ConsumerInstancePoolMessageProcessor<SomeMessage>>(consumerSettings, busMock.BusMock.Object, (Func<SomeMessage, byte[]>) PayloadProvider, null);
+            _consumerInstancePoolMock = new Mock<ConsumerInstancePoolMessageProcessor<SomeMessage>>(consumerSettings, busMock.BusMock.Object, (Func<SomeMessage, byte[]>)PayloadProvider, null);
         }
 
         [Fact]
-        public void WhenCommitThenWaitsOnAllMessagesToCgomplete()
+        public void WhenCommitThenWaitsOnAllMessagesToComplete()
         {
             // arrange
             var w = new MessageQueueWorker<SomeMessage>(_consumerInstancePoolMock.Object, _checkpointTriggerMock.Object);
 
             var numFinishedMessages = 0;
-            _consumerInstancePoolMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>())).Returns(() => Task.Delay(50).ContinueWith(t => Interlocked.Increment(ref numFinishedMessages), TaskScheduler.Current));
+            _consumerInstancePoolMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>())).Returns(() => Task.Delay(50).ContinueWith(t => { Interlocked.Increment(ref numFinishedMessages); return (Exception)null; }, TaskScheduler.Current));
 
             const int numMessages = 100;
             for (var i = 0; i < numMessages; i++)
@@ -55,13 +55,13 @@ namespace SlimMessageBus.Host.Test.Consumer
             // arrange
             var w = new MessageQueueWorker<SomeMessage>(_consumerInstancePoolMock.Object, _checkpointTriggerMock.Object);
 
-            var taskQueue = new Queue<Task>();
-            taskQueue.Enqueue(Task.CompletedTask);
-            taskQueue.Enqueue(Task.Delay(3000));
-            taskQueue.Enqueue(Task.FromException(new Exception()));
-            taskQueue.Enqueue(Task.CompletedTask);
-            taskQueue.Enqueue(Task.FromException(new Exception()));
-            taskQueue.Enqueue(Task.CompletedTask);
+            var taskQueue = new Queue<Task<Exception>>();
+            taskQueue.Enqueue(Task.FromResult<Exception>(null));
+            taskQueue.Enqueue(Task.Delay(3000).ContinueWith(x => (Exception)null));
+            taskQueue.Enqueue(Task.FromException<Exception>(new Exception()));
+            taskQueue.Enqueue(Task.FromResult<Exception>(null));
+            taskQueue.Enqueue(Task.FromException<Exception>(new Exception()));
+            taskQueue.Enqueue(Task.FromResult<Exception>(null));
 
             var messages = taskQueue.Select(x => new SomeMessage()).ToArray();
 

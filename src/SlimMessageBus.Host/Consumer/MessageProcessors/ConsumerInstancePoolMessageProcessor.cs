@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Common.Logging;
@@ -14,8 +13,7 @@ namespace SlimMessageBus.Host
     /// Represents a pool of consumer instance that compete to handle a message.
     /// </summary>
     /// <typeparam name="TMessage"></typeparam>
-    public class ConsumerInstancePoolMessageProcessor<TMessage> : IMessageProcessor<TMessage>
-        where TMessage : class
+    public class ConsumerInstancePoolMessageProcessor<TMessage> : IMessageProcessor<TMessage> where TMessage : class
     {
         private readonly ILog _log = LogManager.GetLogger(typeof(ConsumerInstancePoolMessageProcessor<TMessage>).ToString()); // this will give a more friendly name without the assembly version of the generic param
 
@@ -96,16 +94,133 @@ namespace SlimMessageBus.Host
             return consumers;
         }
 
-        public virtual async Task ProcessMessage(TMessage msg)
+        public virtual async Task<Exception> ProcessMessage(TMessage msg)
+        {
+            try
+            {
+                DeserializeMessage(msg, out var requestMessage, out var requestId, out var expires, out var message);
+
+                // Verify if the request/message is already expired
+                if (expires != null)
+                {
+                    var currentTime = _messageBus.CurrentTime;
+                    if (currentTime > expires.Value)
+                    {
+                        _log.WarnFormat(CultureInfo.InvariantCulture, "The message arrived too late and is already expired (expires {0}, current {1})", expires.Value, currentTime);
+
+                        try
+                        {
+                            // Execute the event hook
+                            _consumerSettings.OnMessageExpired?.Invoke(_messageBus, _consumerSettings, message);
+                            _messageBus.Settings.OnMessageExpired?.Invoke(_messageBus, _consumerSettings, message);
+                        }
+                        catch (Exception eh)
+                        {
+                            MessageBusBase.HookFailed(_log, eh, nameof(IConsumerEvents.OnMessageExpired));
+                        }
+
+                        // Do not process the expired message
+                        return null;
+                    }
+                }
+
+                object response = null;
+                string responseError = null;
+
+                var consumerInstance = await _instancesQueue.ReceiveAsync(_messageBus.CancellationToken).ConfigureAwait(false);
+                try
+                {
+                    if (_consumerWithContext && _consumerContextInitializer != null)
+                    {
+                        var consumerContext = new ConsumerContext();
+                        _consumerContextInitializer(msg, consumerContext);
+
+                        var consumerWithContext = (IConsumerContextAware)consumerInstance;
+                        consumerWithContext.Context.Value = consumerContext;
+                    }
+
+                    try
+                    {
+                        // Execute the event hook
+                        _consumerSettings.OnMessageArrived?.Invoke(_messageBus, _consumerSettings, message, _consumerSettings.Topic);
+                        _messageBus.Settings.OnMessageArrived?.Invoke(_messageBus, _consumerSettings, message, _consumerSettings.Topic);
+                    }
+                    catch (Exception eh)
+                    {
+                        MessageBusBase.HookFailed(_log, eh, nameof(IConsumerEvents.OnMessageArrived));
+                    }
+
+                    // the consumer just subscribes to the message
+                    var task = _consumerSettings.ConsumerMethod(consumerInstance, message, _consumerSettings.Topic);
+                    await task.ConfigureAwait(false);
+
+                    if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
+                    {
+                        // the consumer handles the request (and replies)
+                        response = _consumerSettings.ConsumerMethodResult(task);
+                    }
+                }
+                catch (Exception e)
+                {
+                    if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
+                    {
+                        _log.ErrorFormat(CultureInfo.InvariantCulture, "Handler execution failed", e);
+                        // Save the exception
+                        responseError = e.ToString();
+                    }
+                    else
+                    {
+                        _log.ErrorFormat(CultureInfo.InvariantCulture, "Consumer execution failed", e);
+                    }
+
+                    try
+                    {
+                        // Execute the event hook
+                        _consumerSettings.OnMessageFault?.Invoke(_messageBus, _consumerSettings, message, e);
+                        _messageBus.Settings.OnMessageFault?.Invoke(_messageBus, _consumerSettings, message, e);
+                    }
+                    catch (Exception eh)
+                    {
+                        MessageBusBase.HookFailed(_log, eh, nameof(IConsumerEvents.OnMessageFault));
+                    }
+
+                    return e;
+                }
+                finally
+                {
+                    await _instancesQueue.SendAsync(consumerInstance).ConfigureAwait(false);
+                }
+
+                if (response != null || responseError != null)
+                {
+                    // send the response (or error response)
+                    _log.DebugFormat(CultureInfo.InvariantCulture, "Serializing the response {0} of type {1} for RequestId: {2}...", response, _consumerSettings.ResponseType, requestId);
+
+                    var responseMessage = new MessageWithHeaders();
+                    responseMessage.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
+                    responseMessage.SetHeader(ReqRespMessageHeaders.Error, responseError);
+
+                    await _messageBus.ProduceResponse(message, requestMessage, response, responseMessage, _consumerSettings).ConfigureAwait(false);
+                }
+            }
+            catch (Exception e)
+            {
+                _log.ErrorFormat(CultureInfo.InvariantCulture, "Processing of the message {0} of type {1} failed", e, msg, _consumerSettings.MessageType);
+            }
+            return null;
+        }
+
+        protected void DeserializeMessage(TMessage msg, out MessageWithHeaders requestMessage, out string requestId, out DateTimeOffset? expires, out object message)
         {
             var msgPayload = _messagePayloadProvider(msg);
 
-            MessageWithHeaders requestMessage = null;
-            string requestId = null;
-            DateTimeOffset? expires = null;
+            requestMessage = null;
+            requestId = null;
+            expires = null;
 
             _log.Debug("Deserializing message...");
-            var message = _consumerSettings.IsRequestMessage
+
+            message = _consumerSettings.IsRequestMessage
                 ? _messageBus.DeserializeRequest(_consumerSettings.MessageType, msgPayload, out requestMessage)
                 : _messageBus.Settings.Serializer.Deserialize(_consumerSettings.MessageType, msgPayload);
 
@@ -113,107 +228,6 @@ namespace SlimMessageBus.Host
             {
                 requestMessage.TryGetHeader(ReqRespMessageHeaders.RequestId, out requestId);
                 requestMessage.TryGetHeader(ReqRespMessageHeaders.Expires, out expires);
-            }
-
-            // Verify if the request/message is already expired
-            if (expires.HasValue)
-            {
-                var currentTime = _messageBus.CurrentTime;
-                if (currentTime > expires.Value)
-                {
-                    _log.WarnFormat(CultureInfo.InvariantCulture, "The message arrived too late and is already expired (expires {0}, current {1})", expires.Value, currentTime);
-
-                    try
-                    {
-                        // Execute the event hook
-                        _consumerSettings.OnMessageExpired?.Invoke(_messageBus, _consumerSettings, message);
-                        _messageBus.Settings.OnMessageExpired?.Invoke(_messageBus, _consumerSettings, message);
-                    }
-                    catch (Exception eh)
-                    {
-                        MessageBusBase.HookFailed(_log, eh, nameof(IConsumerEvents.OnMessageExpired));
-                    }
-
-                    // Do not process the expired message
-                    return;
-                }
-            }
-
-            object response = null;
-            string responseError = null;
-
-            var consumerInstance = await _instancesQueue.ReceiveAsync(_messageBus.CancellationToken).ConfigureAwait(false);
-            try
-            {
-                if (_consumerWithContext && _consumerContextInitializer != null)
-                {
-                    var consumerContext = new ConsumerContext();
-                    _consumerContextInitializer(msg, consumerContext);
-
-                    var consumerWithContext = (IConsumerContextAware)consumerInstance;
-                    consumerWithContext.Context.Value = consumerContext;
-                }
-
-                try
-                {
-                    // Execute the event hook
-                    _consumerSettings.OnMessageArrived?.Invoke(_messageBus, _consumerSettings, message, _consumerSettings.Topic);
-                    _messageBus.Settings.OnMessageArrived?.Invoke(_messageBus, _consumerSettings, message, _consumerSettings.Topic);
-                }
-                catch (Exception eh)
-                {
-                    MessageBusBase.HookFailed(_log, eh, nameof(IConsumerEvents.OnMessageArrived));
-                }
-
-                // the consumer just subscribes to the message
-                var task = _consumerSettings.ConsumerMethod(consumerInstance, message, _consumerSettings.Topic);
-                await task.ConfigureAwait(false);
-
-                if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
-                {
-                    // the consumer handles the request (and replies)
-                    response = _consumerSettings.ConsumerMethodResult(task);
-                }
-            }
-            catch (Exception e)
-            {
-                if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
-                {
-                    _log.ErrorFormat(CultureInfo.InvariantCulture, "Handler execution failed", e);
-                    // Save the exception
-                    responseError = e.ToString();
-                }
-                else
-                {
-                    _log.ErrorFormat(CultureInfo.InvariantCulture, "Consumer execution failed", e);
-                }
-
-                try
-                {
-                    // Execute the event hook
-                    _consumerSettings.OnMessageFault?.Invoke(_messageBus, _consumerSettings, message, e);
-                    _messageBus.Settings.OnMessageFault?.Invoke(_messageBus, _consumerSettings, message, e);
-                }
-                catch (Exception eh)
-                {
-                    MessageBusBase.HookFailed(_log, eh, nameof(IConsumerEvents.OnMessageFault));
-                }
-            }
-            finally
-            {
-                await _instancesQueue.SendAsync(consumerInstance).ConfigureAwait(false);
-            }
-
-            if (response != null || responseError != null)
-            {
-                // send the response (or error response)
-                _log.DebugFormat(CultureInfo.InvariantCulture, "Serializing the response {0} of type {1} for RequestId: {2}...", response, _consumerSettings.ResponseType, requestId);
-
-                var responseMessage = new MessageWithHeaders();
-                responseMessage.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
-                responseMessage.SetHeader(ReqRespMessageHeaders.Error, responseError);
-
-                await _messageBus.ProduceResponse(message, requestMessage, response, responseMessage, _consumerSettings).ConfigureAwait(false);
             }
         }
     }

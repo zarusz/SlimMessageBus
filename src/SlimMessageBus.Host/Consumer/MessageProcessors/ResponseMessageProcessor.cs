@@ -18,7 +18,7 @@ namespace SlimMessageBus.Host
             _messagePayloadProvider = messagePayloadProvider ?? throw new ArgumentNullException(nameof(messagePayloadProvider));
         }
 
-        public Task ProcessMessage(TMessage message)
+        public Task<Exception> ProcessMessage(TMessage message)
         {
             var payload = _messagePayloadProvider(message);
             return _messageBus.OnResponseArrived(payload, _requestResponseSettings.Topic);
