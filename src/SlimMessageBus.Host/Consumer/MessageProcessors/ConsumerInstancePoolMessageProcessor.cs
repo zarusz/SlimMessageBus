@@ -96,6 +96,7 @@ namespace SlimMessageBus.Host
 
         public virtual async Task<Exception> ProcessMessage(TMessage msg)
         {
+            Exception exceptionResult = null;
             try
             {
                 DeserializeMessage(msg, out var requestMessage, out var requestId, out var expires, out var message);
@@ -184,7 +185,7 @@ namespace SlimMessageBus.Host
                         MessageBusBase.HookFailed(_log, eh, nameof(IConsumerEvents.OnMessageFault));
                     }
 
-                    return e;
+                    exceptionResult = e;
                 }
                 finally
                 {
@@ -206,8 +207,10 @@ namespace SlimMessageBus.Host
             catch (Exception e)
             {
                 _log.ErrorFormat(CultureInfo.InvariantCulture, "Processing of the message {0} of type {1} failed", e, msg, _consumerSettings.MessageType);
+                exceptionResult = e;
+
             }
-            return null;
+            return exceptionResult;
         }
 
         protected void DeserializeMessage(TMessage msg, out MessageWithHeaders requestMessage, out string requestId, out DateTimeOffset? expires, out object message)
