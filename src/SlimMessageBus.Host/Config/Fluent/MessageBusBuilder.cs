@@ -1,4 +1,5 @@
 using System;
+using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Serialization;
 
@@ -109,6 +110,12 @@ namespace SlimMessageBus.Host.Config
             var item = new RequestResponseSettings();
             reqRespBuilder(new RequestResponseBuilder(item));
             Settings.RequestResponse = item;
+            return this;
+        }
+
+        public MessageBusBuilder WithLoggerFacory(ILoggerFactory loggerFactory)
+        {
+            Settings.LoggerFactory = loggerFactory;
             return this;
         }
 

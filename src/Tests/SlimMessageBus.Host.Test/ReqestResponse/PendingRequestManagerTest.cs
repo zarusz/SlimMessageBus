@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -23,7 +24,7 @@ namespace SlimMessageBus.Host.Test
             _store = new Mock<IPendingRequestStore>();
             _timeoutCallback = new Mock<Action<object>>();
 
-            _subject = new PendingRequestManager(_store.Object, () => _timeNow, _cleanInterval, _timeoutCallback.Object);
+            _subject = new PendingRequestManager(_store.Object, () => _timeNow, _cleanInterval, NullLoggerFactory.Instance, _timeoutCallback.Object);
         }
 
         [Fact]

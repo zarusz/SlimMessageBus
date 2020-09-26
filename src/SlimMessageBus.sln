@@ -126,8 +126,10 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A6C28448-3839-490C-BE30-580C1A45E225}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
-		cloudkarafka-ca-root.crt = cloudkarafka-ca-root.crt
+		cloudkarafka_2020-12.ca = cloudkarafka_2020-12.ca
 		Common.Properties.xml = Common.Properties.xml
+		..\CONTRIBUTING.md = ..\CONTRIBUTING.md
+		..\README.md = ..\README.md
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Serialization.Benchmark", "Tests\SlimMessageBus.Host.Serialization.Benchmark\SlimMessageBus.Host.Serialization.Benchmark.csproj", "{88D66F27-B71C-44B6-8F73-C412FA20F065}"
@@ -138,7 +140,23 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sample.Serialization.Messag
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Serialization.Hybrid", "SlimMessageBus.Host.Serialization.Hybrid\SlimMessageBus.Host.Serialization.Hybrid.csproj", "{A6E0EF17-5D09-481A-90F9-16FC24E12AA8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.Hybrid.Test", "Tests\SlimMessageBus.Host.Hybrid.Test\SlimMessageBus.Host.Hybrid.Test.csproj", "{7E18058A-55F3-4342-A27E-F9E4A3BF2A54}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Hybrid.Test", "Tests\SlimMessageBus.Host.Hybrid.Test\SlimMessageBus.Host.Hybrid.Test.csproj", "{7E18058A-55F3-4342-A27E-F9E4A3BF2A54}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{CBE53E71-7F48-415C-BD43-B812EC207BC6}"
+	ProjectSection(SolutionItems) = preProject
+		..\docs\intro.md = ..\docs\intro.md
+		..\docs\provider_azure_eventhubs.md = ..\docs\provider_azure_eventhubs.md
+		..\docs\provider_azure_servicebus.md = ..\docs\provider_azure_servicebus.md
+		..\docs\provider_hybrid.md = ..\docs\provider_hybrid.md
+		..\docs\provider_kafka.md = ..\docs\provider_kafka.md
+		..\docs\provider_memory.md = ..\docs\provider_memory.md
+		..\docs\provider_redis.md = ..\docs\provider_redis.md
+		..\docs\README.md = ..\docs\README.md
+		..\docs\release_notes.md = ..\docs\release_notes.md
+		..\docs\serialization.md = ..\docs\serialization.md
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Redis", "SlimMessageBus.Host.Redis\SlimMessageBus.Host.Redis.csproj", "{5F0638BD-2967-4257-A73D-80C45F40CE4F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -436,6 +454,14 @@ Global
 		{7E18058A-55F3-4342-A27E-F9E4A3BF2A54}.Release|Any CPU.Build.0 = Release|Any CPU
 		{7E18058A-55F3-4342-A27E-F9E4A3BF2A54}.Release|x86.ActiveCfg = Release|Any CPU
 		{7E18058A-55F3-4342-A27E-F9E4A3BF2A54}.Release|x86.Build.0 = Release|Any CPU
+		{5F0638BD-2967-4257-A73D-80C45F40CE4F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5F0638BD-2967-4257-A73D-80C45F40CE4F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5F0638BD-2967-4257-A73D-80C45F40CE4F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5F0638BD-2967-4257-A73D-80C45F40CE4F}.Debug|x86.Build.0 = Debug|Any CPU
+		{5F0638BD-2967-4257-A73D-80C45F40CE4F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5F0638BD-2967-4257-A73D-80C45F40CE4F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5F0638BD-2967-4257-A73D-80C45F40CE4F}.Release|x86.ActiveCfg = Release|Any CPU
+		{5F0638BD-2967-4257-A73D-80C45F40CE4F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -477,6 +503,7 @@ Global
 		{81D3FE99-67E6-40AC-A893-AAC4002A30B1} = {A5B15524-93B8-4CCE-AC6D-A22984498BA0}
 		{A6E0EF17-5D09-481A-90F9-16FC24E12AA8} = {75BDDBB5-8DB8-4893-BD89-8FFC6C42244D}
 		{7E18058A-55F3-4342-A27E-F9E4A3BF2A54} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
+		{5F0638BD-2967-4257-A73D-80C45F40CE4F} = {9291D340-B4FA-44A3-8060-C14743FB1712}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {435A0D65-610C-4B84-B1AA-2C7FBE72DB80}

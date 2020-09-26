@@ -2,10 +2,9 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
-using Common.Logging;
 using Microsoft.Azure.ServiceBus;
+using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.AzureServiceBus.Consumer;
 using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.Config;
@@ -14,7 +13,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
 {
     public class ServiceBusMessageBus : MessageBusBase
     {
-        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        private readonly ILogger _logger;
 
         public ServiceBusMessageBusSettings ProviderSettings { get; }
 
@@ -29,7 +28,9 @@ namespace SlimMessageBus.Host.AzureServiceBus
         public ServiceBusMessageBus(MessageBusSettings settings, ServiceBusMessageBusSettings providerSettings)
             : base(settings)
         {
+            _logger = LoggerFactory.CreateLogger<ServiceBusMessageBus>();
             ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
+
             OnBuildProvider();
         }
 
@@ -62,13 +63,13 @@ namespace SlimMessageBus.Host.AzureServiceBus
 
             _producerByTopic = new SafeDictionaryWrapper<string, ITopicClient>(topic =>
             {
-                Log.DebugFormat(CultureInfo.InvariantCulture, "Creating {0} for name {1}", nameof(ITopicClient), topic);
+                _logger.LogDebug("Creating {0} for name {1}", nameof(ITopicClient), topic);
                 return ProviderSettings.TopicClientFactory(topic);
             });
 
             _producerByQueue = new SafeDictionaryWrapper<string, IQueueClient>(queue =>
             {
-                Log.DebugFormat(CultureInfo.InvariantCulture, "Creating {0} for name {1}", nameof(IQueueClient), queue);
+                _logger.LogDebug("Creating {0} for name {1}", nameof(IQueueClient), queue);
                 return ProviderSettings.QueueClientFactory(queue);
             });
 
@@ -109,10 +110,10 @@ namespace SlimMessageBus.Host.AzureServiceBus
             byte[] getPayload(Message m) => m.Body;
             void initConsumerContext(Message m, ConsumerContext ctx) => ctx.SetTransportMessage(m);
 
-            Log.Info("Creating consumers");
+            _logger.LogInformation("Creating consumers");
             foreach (var consumerSettings in Settings.Consumers)
             {
-                Log.InfoFormat(CultureInfo.InvariantCulture, "Creating consumer for {0}", consumerSettings.FormatIf(Log.IsInfoEnabled));
+                _logger.LogInformation("Creating consumer for {0}", consumerSettings.FormatIf(_logger.IsEnabled(LogLevel.Information)));
 
                 var messageProcessor = new ConsumerInstancePoolMessageProcessor<Message>(consumerSettings, this, getPayload, initConsumerContext);
                 AddConsumer(consumerSettings, messageProcessor);
@@ -120,7 +121,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
 
             if (Settings.RequestResponse != null)
             {
-                Log.InfoFormat(CultureInfo.InvariantCulture, "Creating response consumer for {0}", Settings.RequestResponse.FormatIf(Log.IsInfoEnabled));
+                _logger.LogInformation("Creating response consumer for {0}", Settings.RequestResponse.FormatIf(_logger.IsEnabled(LogLevel.Information)));
 
                 var messageProcessor = new ResponseMessageProcessor<Message>(Settings.RequestResponse, this, getPayload);
                 AddConsumer(Settings.RequestResponse, messageProcessor);
@@ -131,7 +132,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
         {
             if (_consumers.Count > 0)
             {
-                _consumers.ForEach(c => c.DisposeSilently("Consumer", Log));
+                _consumers.ForEach(c => c.DisposeSilently("Consumer", _logger));
                 _consumers.Clear();
             }
 
@@ -141,7 +142,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
             {
                 disposeTasks = disposeTasks.Concat(_producerByQueue.Dictonary.Values.Select(x =>
                 {
-                    Log.DebugFormat(CultureInfo.InvariantCulture, "Closing {0} for name {1}", nameof(IQueueClient), x.Path);
+                    _logger.LogDebug("Closing {0} for name {1}", nameof(IQueueClient), x.Path);
                     return x.CloseAsync();
                 }));
 
@@ -152,7 +153,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
             {
                 disposeTasks = disposeTasks.Concat(_producerByTopic.Dictonary.Values.Select(x =>
                 {
-                    Log.DebugFormat(CultureInfo.InvariantCulture, "Closing {0} for name {1}", nameof(ITopicClient), x.Path);
+                    _logger.LogDebug("Closing {0} for name {1}", nameof(ITopicClient), x.Path);
                     return x.CloseAsync();
                 }));
 
@@ -171,7 +172,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
 
             AssertActive();
 
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Producing message {0} of type {1} on {2} {3} with size {4}", message, messageType.Name, kind, name, payload.Length);
+            _logger.LogDebug("Producing message {0} of type {1} on {2} {3} with size {4}", message, messageType.Name, kind, name, payload.Length);
 
             var m = new Message(payload);
 
@@ -184,7 +185,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
                 }
                 catch (Exception e)
                 {
-                    Log.WarnFormat(CultureInfo.InvariantCulture, "The configured message modifier failed for message type {0} and message {1}", e, messageType, message);
+                    _logger.LogWarning(e, "The configured message modifier failed for message type {0} and message {1}", messageType, message);
                 }
             }
 
@@ -199,7 +200,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
                 await queueProducer.SendAsync(m).ConfigureAwait(false);
             }
 
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Delivered message {0} of type {1} on {2} {3}", message, messageType.Name, kind, name);
+            _logger.LogDebug("Delivered message {0} of type {1} on {2} {3}", message, messageType.Name, kind, name);
         }
 
         public override Task ProduceToTransport(Type messageType, object message, string name, byte[] payload, MessageWithHeaders messageWithHeaders = null)

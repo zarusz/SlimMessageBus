@@ -7,7 +7,7 @@ namespace SlimMessageBus.Host.Memory
     {
         public static MessageBusBuilder WithProviderMemory(this MessageBusBuilder mbb, MemoryMessageBusSettings providerSettings)
         {
-            if (mbb == null) throw new ArgumentNullException(nameof(mbb));
+            if (mbb is null) throw new ArgumentNullException(nameof(mbb));
             return mbb.WithProvider(settings => new MemoryMessageBus(settings, providerSettings));
         }
     }

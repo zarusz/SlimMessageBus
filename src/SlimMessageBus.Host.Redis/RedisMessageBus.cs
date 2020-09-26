@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
-using Common.Logging;
+using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.AzureServiceBus.Consumer;
 using SlimMessageBus.Host.Config;
 using StackExchange.Redis;
@@ -11,7 +11,7 @@ namespace SlimMessageBus.Host.Redis
 {
     public class RedisMessageBus : MessageBusBase
     {
-        private static readonly ILog Log = LogManager.GetLogger<RedisMessageBus>();
+        private readonly ILogger _logger;
 
         public RedisMessageBusSettings ProviderSettings { get; }
 
@@ -25,6 +25,7 @@ namespace SlimMessageBus.Host.Redis
         public RedisMessageBus(MessageBusSettings settings, RedisMessageBusSettings providerSettings)
             : base(settings)
         {
+            _logger = LoggerFactory.CreateLogger<RedisMessageBus>();
             ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
             OnBuildProvider();
         }
@@ -54,7 +55,7 @@ namespace SlimMessageBus.Host.Redis
                 {
                     Stop().Wait();
                 }
-                Connection.DisposeSilently(nameof(ConnectionMultiplexer), Log);
+                Connection.DisposeSilently(nameof(ConnectionMultiplexer), _logger);
             }
         }
 
@@ -88,17 +89,17 @@ namespace SlimMessageBus.Host.Redis
         {
             var subscriber = Connection.GetSubscriber();
 
-            Log.Info("Creating consumers");
+            _logger.LogInformation("Creating consumers");
             foreach (var consumerSettings in Settings.Consumers)
             {
-                Log.InfoFormat(CultureInfo.InvariantCulture, "Creating consumer for {0}", consumerSettings.FormatIf(Log.IsInfoEnabled));
+                _logger.LogInformation("Creating consumer for {0}", consumerSettings.FormatIf(_logger.IsEnabled(LogLevel.Information)));
                 var messageProcessor = new ConsumerInstancePoolMessageProcessor<byte[]>(consumerSettings, this, m => m);
                 AddConsumer(consumerSettings, subscriber, messageProcessor);
             }
 
             if (Settings.RequestResponse != null)
             {
-                Log.InfoFormat(CultureInfo.InvariantCulture, "Creating response consumer for {0}", Settings.RequestResponse.FormatIf(Log.IsInfoEnabled));
+                _logger.LogInformation("Creating response consumer for {0}", Settings.RequestResponse.FormatIf(_logger.IsEnabled(LogLevel.Information)));
                 var messageProcessor = new ResponseMessageProcessor<byte[]>(Settings.RequestResponse, this, m => m);
                 AddConsumer(Settings.RequestResponse, subscriber, messageProcessor);
             }
@@ -106,9 +107,9 @@ namespace SlimMessageBus.Host.Redis
 
         protected void DestroyConsumers()
         {
-            Log.Info("Destroying consumers");
+            _logger.LogInformation("Destroying consumers");
 
-            _consumers.ForEach(consumer => consumer.DisposeSilently(nameof(RedisChannelConsumer), Log));
+            _consumers.ForEach(consumer => consumer.DisposeSilently(nameof(RedisChannelConsumer), _logger));
             _consumers.Clear();
         }
 
@@ -123,7 +124,7 @@ namespace SlimMessageBus.Host.Redis
         public override async Task ProduceToTransport(Type messageType, object message, string name, byte[] payload, MessageWithHeaders messageWithHeaders = null)
         {
             var result = await Database.PublishAsync(name, payload).ConfigureAwait(false);
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Produced message {0} of type {1} to redis channel {2} with result {3}", message, messageType, name, result);
+            _logger.LogDebug("Produced message {0} of type {1} to redis channel {2} with result {3}", message, messageType, name, result);
         }
 
         #endregion

@@ -1,8 +1,7 @@
-using System.Reflection;
 using System.Threading.Tasks;
-using Common.Logging;
 using Microsoft.Azure.EventHubs;
 using Microsoft.Azure.EventHubs.Processor;
+using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.AzureEventHub
@@ -12,16 +11,16 @@ namespace SlimMessageBus.Host.AzureEventHub
     /// </summary>
     public class PartitionConsumerForConsumers : PartitionConsumer
     {
-        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
+        private readonly ILogger _logger;
         private readonly ConsumerInstancePoolMessageProcessor<EventData> _instancePool;
         private readonly MessageQueueWorker<EventData> _queueWorker; 
 
         public PartitionConsumerForConsumers(EventHubMessageBus messageBus, ConsumerSettings consumerSettings)
             : base(messageBus)
         {
+            _logger = messageBus.LoggerFactory.CreateLogger<PartitionConsumerForConsumers>();
             _instancePool = new ConsumerInstancePoolMessageProcessor<EventData>(consumerSettings, messageBus, e => e.Body.Array);
-            _queueWorker = new MessageQueueWorker<EventData>(_instancePool, new CheckpointTrigger(consumerSettings));
+            _queueWorker = new MessageQueueWorker<EventData>(_instancePool, new CheckpointTrigger(consumerSettings), messageBus.LoggerFactory);
         }
 
         #region Overrides of EventProcessor
@@ -30,7 +29,7 @@ namespace SlimMessageBus.Host.AzureEventHub
         {
             if (disposing)
             {
-                _instancePool.DisposeSilently(nameof(ConsumerInstancePoolMessageProcessor<EventData>), Log);
+                _instancePool.DisposeSilently(nameof(ConsumerInstancePoolMessageProcessor<EventData>), _logger);
             }
             base.Dispose(disposing);
         }

@@ -1,8 +1,7 @@
 ﻿using System;
-using System.Globalization;
-using Common.Logging;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.DependencyResolver;
 
 namespace SlimMessageBus.Host.AspNetCore
@@ -12,19 +11,19 @@ namespace SlimMessageBus.Host.AspNetCore
     /// </summary>
     public class AspNetCoreMessageBusDependencyResolver : IDependencyResolver
     {
-        private static readonly ILog Log = LogManager.GetLogger<AspNetCoreMessageBusDependencyResolver>();
-
+        private readonly ILogger _logger;
         private readonly IServiceProvider _serviceProvider;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public AspNetCoreMessageBusDependencyResolver(IServiceProvider serviceProvider, IHttpContextAccessor httpContextAccessor)
+        public AspNetCoreMessageBusDependencyResolver(IServiceProvider serviceProvider, ILoggerFactory loggerFactory, IHttpContextAccessor httpContextAccessor)
         {
+            _logger = loggerFactory.CreateLogger<AspNetCoreMessageBusDependencyResolver>();
             _serviceProvider = serviceProvider;
             _httpContextAccessor = httpContextAccessor;
         }
 
         public AspNetCoreMessageBusDependencyResolver(IServiceProvider serviceProvider)
-            : this(serviceProvider, serviceProvider.GetRequiredService<IHttpContextAccessor>())
+            : this(serviceProvider, serviceProvider.GetRequiredService<ILoggerFactory>(), serviceProvider.GetRequiredService<IHttpContextAccessor>())
         {
             // Set the MessageBus provider to be resolved from the request scope 
             // see https://stackoverflow.com/a/40029302 
@@ -41,13 +40,13 @@ namespace SlimMessageBus.Host.AspNetCore
             var httpContext = _httpContextAccessor?.HttpContext;
             if (httpContext != null)
             {
-                Log.DebugFormat(CultureInfo.InvariantCulture, "The service {0} will be requested from the per-request scope", type);
+                _logger.LogDebug("The service {0} will be requested from the per-request scope", type);
                 currentServiceProvider = httpContext.RequestServices;
             }
             else
             {
                 // otherwise use the app wide scope provider
-                Log.DebugFormat(CultureInfo.InvariantCulture, "The service {0} will be requested from the app scope", type);
+                _logger.LogDebug("The service {0} will be requested from the app scope", type);
                 currentServiceProvider = _serviceProvider;
             }
 

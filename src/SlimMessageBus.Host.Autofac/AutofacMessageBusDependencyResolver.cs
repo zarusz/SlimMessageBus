@@ -1,14 +1,18 @@
 ﻿using System;
-using System.Globalization;
 using Autofac;
-using Common.Logging;
+using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.DependencyResolver;
 
 namespace SlimMessageBus.Host.Autofac
 {
     public class AutofacMessageBusDependencyResolver : IDependencyResolver
     {
-        private static readonly ILog Log = LogManager.GetLogger<AutofacMessageBusDependencyResolver>();
+        private readonly ILogger _logger;
+
+        public AutofacMessageBusDependencyResolver(ILogger<AutofacMessageBusDependencyResolver> logger)
+        {
+            _logger = logger;
+        }
 
         public static IComponentContext Container { get; set; }
 
@@ -21,9 +25,9 @@ namespace SlimMessageBus.Host.Autofac
                 throw new ArgumentNullException($"The {nameof(Container)} property was null at this point");
             }
 
-            Log.TraceFormat(CultureInfo.InvariantCulture, "Resolving type {0}", type);
+            _logger.LogTrace("Resolving type {type}", type);
             var o = Container.Resolve(type);
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Resolved type {0} to object {1}", type, o);
+            _logger.LogTrace("Resolved type {type} to instance {instance}", type, o);
             return o;
         }
 

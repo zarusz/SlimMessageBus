@@ -403,6 +403,26 @@ SMB uses serialization plugins to serialize (and deserialize) the messages into 
 
 See [Serialization](serialization.md) page.
 
+## Logging
+
+SlimMessageBus uses [Microsoft.Extensions.Logging.Abstractions](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Abstractions).
+
+The `ILoggerFactory` will be resolved from the dependency injecton container or it can be taken from the `MessageBusBuilder` configuraton:
+
+```cs
+ILoggerFactory loggerFactory;    
+
+IMessageBus messageBus = MessageBusBuilder
+    .Create()
+    // other setup
+    .WithLoggerFacory(loggerFactory)
+    // other setup
+    .Build();
+```
+
+When the `ILoggerFactory` is not configured nor available in the DI container SMB will use `NullLoggerFactory.Instance`.
+The `.WithLoggerFactory(...)` takes takes precedence over the instance available in the DI container.
+
 ## Provider specific functionality
 
 Providers introduce more settings and some subtleties to the above documentation.

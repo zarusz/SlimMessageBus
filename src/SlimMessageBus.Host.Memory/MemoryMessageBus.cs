@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
-using Common.Logging;
+using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.Memory
@@ -13,16 +12,17 @@ namespace SlimMessageBus.Host.Memory
     /// </summary>
     public class MemoryMessageBus : MessageBusBase
     {
-        private static readonly ILog Log = LogManager.GetLogger<MemoryMessageBus>();
+        private readonly ILogger _logger;
 
         private MemoryMessageBusSettings ProviderSettings { get; }
 
         private IDictionary<string, List<ConsumerSettings>> _consumersByTopic;
 
-        public MemoryMessageBus(MessageBusSettings settings, MemoryMessageBusSettings providerSettings)
-            : base(settings)
+        public MemoryMessageBus(MessageBusSettings settings, MemoryMessageBusSettings providerSettings) : base(settings)
         {
+            _logger = LoggerFactory.CreateLogger<MemoryMessageBus>();
             ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
+            
             OnBuildProvider();
         }
 
@@ -49,7 +49,7 @@ namespace SlimMessageBus.Host.Memory
         {
             if (!_consumersByTopic.TryGetValue(name, out var consumers))
             {
-                Log.DebugFormat(CultureInfo.InvariantCulture, "No consumers interested in message type {0} on topic {1}", messageType, name);
+                _logger.LogDebug("No consumers interested in message type {0} on topic {1}", messageType, name);
                 return Task.CompletedTask;
             }
 
@@ -57,11 +57,11 @@ namespace SlimMessageBus.Host.Memory
             foreach (var consumer in consumers)
             {
                 // obtain the consumer from DI
-                Log.DebugFormat(CultureInfo.InvariantCulture, "Resolving consumer type {0}", consumer.ConsumerType);
+                _logger.LogDebug("Resolving consumer type {0}", consumer.ConsumerType);
                 var consumerInstance = Settings.DependencyResolver.Resolve(consumer.ConsumerType);
                 if (consumerInstance == null)
                 {
-                    Log.WarnFormat(CultureInfo.InvariantCulture, "The dependency resolver did not yield any instance of {0}", consumer.ConsumerType);
+                    _logger.LogWarning("The dependency resolver does not know how to create an instance of {0} - the consumer will be skipped", consumer.ConsumerType);
                     continue;
                 }
 
@@ -71,7 +71,7 @@ namespace SlimMessageBus.Host.Memory
                         ? DeserializeRequest(messageType, messagePayload, out var _) // will pass a deep copy of the message
                         : DeserializeMessage(messageType, messagePayload); // will pass a deep copy of the message
 
-                Log.DebugFormat(CultureInfo.InvariantCulture, "Invoking {0} {1}", consumer.ConsumerMode == ConsumerMode.Consumer ? "consumer" : "handler", consumerInstance.GetType());
+                _logger.LogDebug("Invoking {0} {1}", consumer.ConsumerMode == ConsumerMode.Consumer ? "consumer" : "handler", consumerInstance.GetType());
                 var task = consumer.ConsumerMethod(consumerInstance, messageForConsumer, consumer.Topic);
 
                 if (consumer.ConsumerMode == ConsumerMode.RequestResponse)
@@ -96,7 +96,7 @@ namespace SlimMessageBus.Host.Memory
                 tasks.AddLast(task);
             }
 
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Waiting on {0} consumer tasks", tasks.Count);
+            _logger.LogDebug("Waiting on {0} consumer tasks", tasks.Count);
             return Task.WhenAll(tasks);
         }
 

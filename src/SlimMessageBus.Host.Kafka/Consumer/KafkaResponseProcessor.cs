@@ -1,8 +1,8 @@
 using System;
 using System.Globalization;
 using System.Threading.Tasks;
-using Common.Logging;
 using Confluent.Kafka;
+using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Kafka.Configs;
 
@@ -14,7 +14,7 @@ namespace SlimMessageBus.Host.Kafka
     /// </summary>
     public class KafkaResponseProcessor : IKafkaTopicPartitionProcessor
     {
-        private static readonly ILog Log = LogManager.GetLogger<KafkaResponseProcessor>();
+        private readonly ILogger _logger;
 
         private readonly RequestResponseSettings _requestResponseSettings;
         private readonly MessageBusBase _messageBus;
@@ -23,13 +23,14 @@ namespace SlimMessageBus.Host.Kafka
 
         public KafkaResponseProcessor(RequestResponseSettings requestResponseSettings, TopicPartition topicPartition, IKafkaCommitController commitController, MessageBusBase messageBus, ICheckpointTrigger checkpointTrigger)
         {
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Creating for Group: {0}, Topic: {1}, Partition: {2}", requestResponseSettings.GetGroup(), requestResponseSettings.Topic, topicPartition);
-
+            _messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
             _requestResponseSettings = requestResponseSettings;
             TopicPartition = topicPartition;
             _commitController = commitController;
-            _messageBus = messageBus;
             _checkpointTrigger = checkpointTrigger;
+
+            _logger = messageBus.LoggerFactory.CreateLogger<KafkaResponseProcessor>();
+            _logger.LogInformation("Creating for Group: {0}, Topic: {1}, Partition: {2}", requestResponseSettings.GetGroup(), requestResponseSettings.Topic, topicPartition);
         }
 
         public KafkaResponseProcessor(RequestResponseSettings requestResponseSettings, TopicPartition topicPartition, IKafkaCommitController commitController, MessageBusBase messageBus)
@@ -63,8 +64,8 @@ namespace SlimMessageBus.Host.Kafka
             }
             catch (Exception e)
             {
-                if (Log.IsErrorEnabled)
-                    Log.ErrorFormat(CultureInfo.InvariantCulture, "Error occured while consuming response message: {0}", e, new MessageContextInfo(_requestResponseSettings.GetGroup(), message));
+                if (_logger.IsEnabled(LogLevel.Error))
+                    _logger.LogError(e, "Error occured while consuming response message: {0}", new MessageContextInfo(_requestResponseSettings.GetGroup(), message));
 
                 // For response messages we can only continue and process all messages in the lease
                 // ToDo: Add support for retry ?
@@ -72,14 +73,14 @@ namespace SlimMessageBus.Host.Kafka
                 if (_requestResponseSettings.OnResponseMessageFault != null)
                 {
                     // Call the hook
-                    Log.TraceFormat(CultureInfo.InvariantCulture, "Executing the attached hook from {0}", nameof(_requestResponseSettings.OnResponseMessageFault));
+                    _logger.LogTrace("Executing the attached hook from {0}", nameof(_requestResponseSettings.OnResponseMessageFault));
                     try
                     {
                         _requestResponseSettings.OnResponseMessageFault(_requestResponseSettings, message, e);
                     }
                     catch (Exception e2)
                     {
-                        Log.WarnFormat(CultureInfo.InvariantCulture, "Error handling hook failed for message: {0}", e2, new MessageContextInfo(_requestResponseSettings.GetGroup(), message));
+                        _logger.LogWarning(e2, "Error handling hook failed for message: {0}", new MessageContextInfo(_requestResponseSettings.GetGroup(), message));
                     }
                 }
             }

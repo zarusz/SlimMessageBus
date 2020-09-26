@@ -8,14 +8,13 @@ using SlimMessageBus.Host.AzureEventHub;
 using SlimMessageBus.Host.Kafka;
 using System.Text;
 using System.Threading;
-using Common.Logging;
-using Common.Logging.Configuration;
 using Microsoft.Extensions.Configuration;
 using SecretStore;
 using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Redis;
 using SlimMessageBus.Host.Memory;
+using Microsoft.Extensions.Logging;
 
 namespace Sample.Simple.ConsoleApp
 {
@@ -33,39 +32,34 @@ namespace Sample.Simple.ConsoleApp
         private static readonly Random Random = new Random();
         private static bool _canRun = true;
 
-        private static void Main()
+        private static async Task Main()
         {
             // Load configuration
-            var configuration = new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json")
-                .Build();
+            var configuration = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
 
             // Setup logger
-            var logConfiguration = new LogConfiguration();
-            configuration.GetSection("LogConfiguration").Bind(logConfiguration);
-            LogManager.Configure(logConfiguration);
+            var loggerFactory = LoggerFactory.Create(cfg => cfg.AddConfiguration(configuration.GetSection("Logging")).AddConsole());
 
             // Local file with secrets
             Secrets.Load(@"..\..\..\..\..\secrets.txt");
 
             // Create the bus and process messages
-            using (var messageBus = CreateMessageBus(configuration))
-            {
-                var addTask = Task.Factory.StartNew(() => AddLoop(messageBus), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
-                var multiplyTask = Task.Factory.StartNew(() => MultiplyLoop(messageBus), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            using var messageBus = CreateMessageBus(configuration, loggerFactory);
 
-                Console.WriteLine("Press any key to stop...");
-                Console.ReadKey();
+            var addTask = Task.Factory.StartNew(() => AddLoop(messageBus), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            var multiplyTask = Task.Factory.StartNew(() => MultiplyLoop(messageBus), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
-                _canRun = false;
-                Task.WaitAll(addTask, multiplyTask);
-            }
+            Console.WriteLine("Press any key to stop...");
+            Console.ReadKey();
+
+            _canRun = false;
+            await Task.WhenAll(addTask, multiplyTask);
         }
 
         /**
          * Performs IMessageBus creation & configuration
          */
-        private static IMessageBus CreateMessageBus(IConfiguration configuration)
+        private static IMessageBus CreateMessageBus(IConfiguration configuration, ILoggerFactory loggerFactory)
         {
             // Choose your provider
             var provider = Provider.Memory;
@@ -134,7 +128,7 @@ namespace Sample.Simple.ConsoleApp
                 })
                 .Handle<MultiplyRequest, MultiplyResponse>(x => x
                     .Topic(topicForMultiplyRequest) // topic to expect the requests
-                    .WithHandler<MultiplyRequestHandler>()                    
+                    .WithHandler<MultiplyRequestHandler>()
                     .Group(consumerGroup) // for Apache Kafka & Azure Event Hub
                     .SubscriptionName(consumerGroup) // for Azure Service Bus
                 )
@@ -146,6 +140,7 @@ namespace Sample.Simple.ConsoleApp
                     x.SubscriptionName(responseGroup); // for Azure Service Bus
                     x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
                 })
+                .WithLoggerFacory(loggerFactory)
                 .WithSerializer(new JsonMessageSerializer()) // Use JSON for message serialization                
                 .WithDependencyResolver(new LookupDependencyResolver(type =>
                 {

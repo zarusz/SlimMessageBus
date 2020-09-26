@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
-using Common.Logging;
 using Confluent.Kafka;
+using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Kafka.Configs;
 
@@ -16,7 +16,7 @@ namespace SlimMessageBus.Host.Kafka
     /// </summary>
     public class KafkaMessageBus : MessageBusBase
     {
-        private static readonly ILog Log = LogManager.GetLogger<KafkaMessageBus>();
+        private readonly ILogger _logger;
 
         public KafkaMessageBusSettings ProviderSettings { get; }
 
@@ -28,6 +28,7 @@ namespace SlimMessageBus.Host.Kafka
         public KafkaMessageBus(MessageBusSettings settings, KafkaMessageBusSettings providerSettings)
             : base(settings)
         {
+            _logger = LoggerFactory.CreateLogger<KafkaMessageBus>();
             ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
 
             OnBuildProvider();
@@ -53,42 +54,42 @@ namespace SlimMessageBus.Host.Kafka
 
         public Producer CreateProducerInternal()
         {
-            Log.Trace("Creating producer settings");
+            _logger.LogTrace("Creating producer settings");
             var config = ProviderSettings.ProducerConfigFactory();
             config[KafkaConfigKeys.Servers] = ProviderSettings.BrokerList;
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Producer settings: {0}", config);
+            _logger.LogDebug("Producer settings: {0}", config);
             var producer = ProviderSettings.ProducerFactory(config);
             return producer;
         }
 
         private void CreateProviders()
         {
-            foreach (var publisherSettings in Settings.Producers)
+            foreach (var producerSettings in Settings.Producers)
             {
-                var keyProvider = publisherSettings.GetKeyProvider();
+                var keyProvider = producerSettings.GetKeyProvider();
                 if (keyProvider != null)
                 {
-                    _keyProviders.Add(publisherSettings.MessageType, keyProvider);
+                    _keyProviders.Add(producerSettings.MessageType, keyProvider);
                 }
 
-                var partitionProvider = publisherSettings.GetPartitionProvider();
+                var partitionProvider = producerSettings.GetPartitionProvider();
                 if (partitionProvider != null)
                 {
-                    _partitionProviders.Add(publisherSettings.MessageType, partitionProvider);
+                    _partitionProviders.Add(producerSettings.MessageType, partitionProvider);
                 }
             }
         }
 
         private void CreateProducer()
         {
-            Log.Info("Creating producer...");
+            _logger.LogInformation("Creating producer...");
             _producer = CreateProducerInternal();
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Created producer {0}", _producer.Name);
+            _logger.LogInformation("Created producer {0}", _producer.Name);
         }
 
         private void CreateGroupConsumers()
         {
-            Log.Info("Creating group consumers...");
+            _logger.LogInformation("Creating group consumers...");
 
             var responseConsumerCreated = false;
 
@@ -102,7 +103,7 @@ namespace SlimMessageBus.Host.Kafka
                 IKafkaTopicPartitionProcessor ConsumerProcessorFactory(TopicPartition tp, IKafkaCommitController cc) => new KafkaConsumerProcessor(consumerByTopic[tp.Topic], tp, cc, this);
 
                 var topics = consumerByTopic.Keys.ToList();
-                var processorFactory = (Func<TopicPartition, IKafkaCommitController, IKafkaTopicPartitionProcessor>) ConsumerProcessorFactory;
+                var processorFactory = (Func<TopicPartition, IKafkaCommitController, IKafkaTopicPartitionProcessor>)ConsumerProcessorFactory;
 
                 // if responses are used and shared with the regular consumers group
                 if (Settings.RequestResponse != null && group == Settings.RequestResponse.GetGroup())
@@ -125,17 +126,17 @@ namespace SlimMessageBus.Host.Kafka
                 AddGroupConsumer(Settings.RequestResponse.GetGroup(), new[] { Settings.RequestResponse.Topic }, ResponseProcessorFactory);
             }
 
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Created {0} group consumers", _groupConsumers.Count);
+            _logger.LogInformation("Created {0} group consumers", _groupConsumers.Count);
         }
 
         private void Start()
         {
-            Log.Info("Starting group consumers...");
+            _logger.LogInformation("Group consumers starting...");
             foreach (var groupConsumer in _groupConsumers)
             {
                 groupConsumer.Start();
             }
-            Log.Info("Group consumers started");
+            _logger.LogInformation("Group consumers started");
         }
 
         private void AddGroupConsumer(string group, string[] topics, Func<TopicPartition, IKafkaCommitController, IKafkaTopicPartitionProcessor> processorFactory)
@@ -147,7 +148,7 @@ namespace SlimMessageBus.Host.Kafka
         {
             base.AssertSettings();
 
-            foreach(var consumer in Settings.Consumers)
+            foreach (var consumer in Settings.Consumers)
             {
                 Assert.IsTrue(consumer.GetGroup() != null,
                     () => new ConfigurationMessageBusException($"Consumer ({consumer.MessageType}): group was not provided"));
@@ -175,7 +176,7 @@ namespace SlimMessageBus.Host.Kafka
                 {
                     foreach (var groupConsumer in _groupConsumers)
                     {
-                        groupConsumer.DisposeSilently(() => $"consumer group {groupConsumer.Group}", Log);
+                        groupConsumer.DisposeSilently(() => $"consumer group {groupConsumer.Group}", _logger);
                     }
 
                     _groupConsumers.Clear();
@@ -183,7 +184,7 @@ namespace SlimMessageBus.Host.Kafka
 
                 if (_producer != null)
                 {
-                    _producer.DisposeSilently("producer", Log);
+                    _producer.DisposeSilently("producer", _logger);
                     _producer = null;
                 }
             }
@@ -200,14 +201,14 @@ namespace SlimMessageBus.Host.Kafka
             // calculate partition
             var partition = GetMessagePartition(messageType, message, name);
 
-            Log.TraceFormat(CultureInfo.InvariantCulture, "Producing message {0} of type {1}, on topic {2}, partition {3}, key length {4}, payload size {5}", 
+            _logger.LogTrace("Producing message {0} of type {1}, on topic {2}, partition {3}, key length {4}, payload size {5}",
                 message, messageType.Name, name, partition, key?.Length ?? 0, payload.Length);
 
             // send the message to topic
             var task = partition == NoPartition
                 ? _producer.ProduceAsync(name, key, payload)
                 : _producer.ProduceAsync(name, key, 0, key?.Length ?? 0, payload, 0, payload.Length, partition);
-            
+
             var deliveryReport = await task.ConfigureAwait(false);
             if (deliveryReport.Error.HasError)
             {
@@ -215,7 +216,7 @@ namespace SlimMessageBus.Host.Kafka
             }
 
             // log some debug information
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Message {0} of type {1} delivered to topic-partition-offset {2}", message, messageType.Name, deliveryReport.TopicPartitionOffset);
+            _logger.LogDebug("Message {0} of type {1} delivered to topic-partition-offset {2}", message, messageType.Name, deliveryReport.TopicPartitionOffset);
         }
 
         protected byte[] GetMessageKey(Type messageType, object message, string topic)
@@ -225,9 +226,9 @@ namespace SlimMessageBus.Host.Kafka
             {
                 key = keyProvider(message, topic);
 
-                if (Log.IsDebugEnabled)
+                if (_logger.IsEnabled(LogLevel.Debug))
                 {
-                    Log.DebugFormat(CultureInfo.InvariantCulture, "The message {0} type {1} calculated key is {2} (Base64)", message, messageType.Name, Convert.ToBase64String(key));
+                    _logger.LogDebug("The message {0} type {1} calculated key is {2} (Base64)", message, messageType.Name, Convert.ToBase64String(key));
                 }
             }
             return key;
@@ -242,9 +243,9 @@ namespace SlimMessageBus.Host.Kafka
             {
                 partition = partitionProvider(message, topic);
 
-                if (Log.IsDebugEnabled)
+                if (_logger.IsEnabled(LogLevel.Debug))
                 {
-                    Log.DebugFormat(CultureInfo.InvariantCulture, "The message {0} type {1} calculated partition is {2}", message, messageType.Name, partition);
+                    _logger.LogDebug("The message {0} type {1} calculated partition is {2}", message, messageType.Name, partition);
                 }
             }
             return partition;

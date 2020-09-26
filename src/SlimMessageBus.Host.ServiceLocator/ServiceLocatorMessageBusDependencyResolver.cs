@@ -1,21 +1,25 @@
 ﻿using System;
-using System.Globalization;
-using Common.Logging;
+using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.DependencyResolver;
 
 namespace SlimMessageBus.Host.ServiceLocator
 {
     public class ServiceLocatorMessageBusDependencyResolver : IDependencyResolver
     {
-        private static readonly ILog Log = LogManager.GetLogger<ServiceLocatorMessageBusDependencyResolver>();
+        private readonly ILogger _logger;
+
+        public ServiceLocatorMessageBusDependencyResolver(ILogger logger)
+        {
+            _logger = logger;
+        }
 
         #region Implementation of IDependencyResolver
 
         public object Resolve(Type type)
         {
-            Log.TraceFormat(CultureInfo.InvariantCulture, "Resolving type {0}", type);
+            _logger.LogTrace("Resolving type {type}", type);
             var o = CommonServiceLocator.ServiceLocator.Current.GetInstance(type);
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Resolved type {0} to object {1}", type, o);
+            _logger.LogTrace("Resolved type {type} to instance {instance}", type, o);
             return o;
         }
 

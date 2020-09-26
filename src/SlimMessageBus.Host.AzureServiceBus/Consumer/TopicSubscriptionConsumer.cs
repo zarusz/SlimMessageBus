@@ -1,5 +1,5 @@
-﻿using Common.Logging;
-using Microsoft.Azure.ServiceBus;
+﻿using Microsoft.Azure.ServiceBus;
+using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.AzureServiceBus.Consumer
@@ -12,7 +12,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
             : base(messageBus, consumerSettings,
                 messageBus.ProviderSettings.SubscriptionClientFactory(new SubscriptionFactoryParams(consumerSettings.Topic, consumerSettings.GetSubscriptionName())),
                 messageProcessor,
-                LogManager.GetLogger<TopicSubscriptionConsumer>())
+                messageBus.LoggerFactory.CreateLogger<TopicSubscriptionConsumer>())
         {
             _subscriptionClient = (SubscriptionClient) Client;
         }

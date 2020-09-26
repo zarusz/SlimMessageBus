@@ -1,10 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Globalization;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using Common.Logging;
 using FluentAssertions;
 using Moq;
 using SlimMessageBus.Host.Config;
@@ -14,8 +11,6 @@ namespace SlimMessageBus.Host.Test
 {
     public class ConsumerInstancePoolTest
     {
-        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
         private readonly MessageBusMock _busMock;
 
         public ConsumerInstancePoolTest()
@@ -108,7 +103,7 @@ namespace SlimMessageBus.Host.Test
             time.ElapsedMilliseconds.Should().BeInRange(minPossibleTime, maxPossibleTime);
 
             var percent = Math.Round(100f * (time.ElapsedMilliseconds - minPossibleTime) / (maxPossibleTime - minPossibleTime), 2);
-            Log.InfoFormat(CultureInfo.InvariantCulture, "The execution time was {0}% away from the best possible time", percent); // smallest number is better
+            Console.WriteLine("The execution time was {0}% away from the best possible time", percent); // smallest number is better
         }
 
         [Fact]

@@ -3,28 +3,28 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
-using Common.Logging;
 using Microsoft.Azure.ServiceBus;
 using Microsoft.Azure.ServiceBus.Core;
+using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.AzureServiceBus.Consumer
 {
     public class BaseConsumer : IDisposable
     {
-        private readonly ILog _log;
+        private readonly ILogger _logger;
 
         public ServiceBusMessageBus MessageBus { get; }
         public AbstractConsumerSettings ConsumerSettings { get; }
         protected IReceiverClient Client { get; }
         protected IMessageProcessor<Message> MessageProcessor { get; }
 
-        public BaseConsumer(ServiceBusMessageBus messageBus, AbstractConsumerSettings consumerSettings, IReceiverClient client, IMessageProcessor<Message> messageProcessor, ILog log)
+        public BaseConsumer(ServiceBusMessageBus messageBus, AbstractConsumerSettings consumerSettings, IReceiverClient client, IMessageProcessor<Message> messageProcessor, ILogger logger)
         {
-            _log = log;
             MessageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
             ConsumerSettings = consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings));
             Client = client ?? throw new ArgumentNullException(nameof(client));
+            _logger = logger;
 
             MessageProcessor = messageProcessor ?? throw new ArgumentNullException(nameof(messageProcessor));
 
@@ -67,15 +67,15 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
             if (message is null) throw new ArgumentNullException(nameof(message));
 
             // Process the message.
-            var mf = ConsumerSettings.FormatIf(message, _log.IsDebugEnabled);
-            _log.DebugFormat(CultureInfo.InvariantCulture, "Received message - {0}", mf);
+            var mf = ConsumerSettings.FormatIf(message, _logger.IsEnabled(LogLevel.Debug));
+            _logger.LogDebug("Received message - {0}", mf);
 
             if (token.IsCancellationRequested)
             {
                 // Note: Use the cancellationToken passed as necessary to determine if the subscriptionClient has already been closed.
                 // If subscriptionClient has already been closed, you can choose to not call CompleteAsync() or AbandonAsync() etc.
                 // to avoid unnecessary exceptions.
-                _log.DebugFormat(CultureInfo.InvariantCulture, "Abandon message - {0}", mf);
+                _logger.LogDebug("Abandon message - {0}", mf);
                 await Client.AbandonAsync(message.SystemProperties.LockToken).ConfigureAwait(false);
 
                 return;
@@ -88,7 +88,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
                 {
                     mf = ConsumerSettings.FormatIf(message, true);
                 }
-                _log.ErrorFormat(CultureInfo.InvariantCulture, "Abandon message (exception occured while processing) - {0}", exception, mf);
+                _logger.LogError(exception, "Abandon message (exception occured while processing) - {0}", mf);
 
                 var messageProperties = new Dictionary<string, object>
                 {
@@ -102,7 +102,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
 
             // Complete the message so that it is not received again.
             // This can be done only if the subscriptionClient is created in ReceiveMode.PeekLock mode (which is the default).
-            _log.DebugFormat(CultureInfo.InvariantCulture, "Complete message - {0}", mf);
+            _logger.LogDebug("Complete message - {0}", mf);
             await Client.CompleteAsync(message.SystemProperties.LockToken).ConfigureAwait(false);
         }
 
@@ -117,7 +117,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
             }
             catch (Exception eh)
             {
-                MessageBusBase.HookFailed(_log, eh, nameof(IConsumerEvents.OnMessageFault));
+                MessageBusBase.HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageFault));
             }
             return Task.CompletedTask;
         }

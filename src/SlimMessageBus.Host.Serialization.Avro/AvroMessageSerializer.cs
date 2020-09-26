@@ -1,11 +1,9 @@
 ﻿using Avro;
 using Avro.IO;
 using Avro.Specific;
-using Common.Logging;
+using Microsoft.Extensions.Logging;
 using System;
-using System.Globalization;
 using System.IO;
-using System.Reflection;
 
 namespace SlimMessageBus.Host.Serialization.Avro
 {
@@ -14,7 +12,7 @@ namespace SlimMessageBus.Host.Serialization.Avro
     /// </summary>
     public class AvroMessageSerializer : IMessageSerializer
     {
-        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        private readonly ILogger _logger;
 
         /// <summary>
         /// Allows to customize how are the <see cref="MemoryStream"/>s created and potentially introduce a strategy to reuse them.
@@ -44,27 +42,29 @@ namespace SlimMessageBus.Host.Serialization.Avro
         /// <summary>
         /// By default MessageFactory is set to use the <see cref="ReflectionMessageCreationStategy"/> strategy, WriteSchemaLookup and ReadSchemaLookup is set to use <see cref="ReflectionSchemaLookupStrategy"/>.
         /// </summary>
-        public AvroMessageSerializer()
+        public AvroMessageSerializer(ILoggerFactory loggerFactory)
         {
+            _logger = loggerFactory.CreateLogger<AvroMessageSerializer>();
+
             // Apply defaults
             WriteMemoryStreamFactory = () => new MemoryStream();
             ReadMemoryStreamFactory = (byte[] payload) => new MemoryStream(payload);
 
-            var mf = new ReflectionMessageCreationStategy();
-            var ml = new ReflectionSchemaLookupStrategy();
+            var mf = new ReflectionMessageCreationStategy(loggerFactory.CreateLogger<ReflectionMessageCreationStategy>());
+            var ml = new ReflectionSchemaLookupStrategy(loggerFactory.CreateLogger<ReflectionSchemaLookupStrategy>());
 
             MessageFactory = (Type type) => mf.Create(type);
             WriteSchemaLookup = (Type type) => ml.Lookup(type);
             ReadSchemaLookup = WriteSchemaLookup;
         }
 
-        public AvroMessageSerializer(IMessageCreationStrategy messageCreationStrategy, ISchemaLookupStrategy writerAndReaderSchemaLookupStrategy)
-            : this(messageCreationStrategy, writerAndReaderSchemaLookupStrategy, writerAndReaderSchemaLookupStrategy)
+        public AvroMessageSerializer(ILoggerFactory loggerFactory, IMessageCreationStrategy messageCreationStrategy, ISchemaLookupStrategy writerAndReaderSchemaLookupStrategy)
+            : this(loggerFactory, messageCreationStrategy, writerAndReaderSchemaLookupStrategy, writerAndReaderSchemaLookupStrategy)
         {
         }
 
-        public AvroMessageSerializer(IMessageCreationStrategy messageCreationStrategy, ISchemaLookupStrategy writerSchemaLookupStrategy, ISchemaLookupStrategy readerSchemaLookupStrategy)
-            : this()
+        public AvroMessageSerializer(ILoggerFactory loggerFactory, IMessageCreationStrategy messageCreationStrategy, ISchemaLookupStrategy writerSchemaLookupStrategy, ISchemaLookupStrategy readerSchemaLookupStrategy)
+            : this(loggerFactory)
         {
             MessageFactory = (Type type) => messageCreationStrategy.Create(type);
             WriteSchemaLookup = (Type type) => writerSchemaLookupStrategy.Lookup(type);
@@ -85,7 +85,7 @@ namespace SlimMessageBus.Host.Serialization.Avro
                 var writerSchema = WriteSchemaLookup(t);
                 AssertSchemaNotNull(t, writerSchema, true);
 
-                Log.DebugFormat(CultureInfo.InvariantCulture, "Type {0} writer schema: {1}, reader schema: {2}", t, writerSchema, readerSchema);
+                _logger.LogDebug("Type {0} writer schema: {1}, reader schema: {2}", t, writerSchema, readerSchema);
 
                 var reader = new SpecificDefaultReader(writerSchema, readerSchema);
                 reader.Read(message, dec);
@@ -111,7 +111,7 @@ namespace SlimMessageBus.Host.Serialization.Avro
                 var writerSchema = WriteSchemaLookup(t);
                 AssertSchemaNotNull(t, writerSchema, true);
 
-                Log.DebugFormat(CultureInfo.InvariantCulture, "Type {0} writer schema: {1}", t, writerSchema);
+                _logger.LogDebug("Type {0} writer schema: {1}", t, writerSchema);
 
                 var writer = new SpecificDefaultWriter(writerSchema); // Schema comes from pre-compiled, code-gen phase
                 writer.Write(message, enc);

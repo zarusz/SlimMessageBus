@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
-using NLog.Web;
 
 namespace Sample.DomainEvents.WebApi
 {
@@ -20,8 +19,7 @@ namespace Sample.DomainEvents.WebApi
                  {
                      // Set properties and call methods on options
                  })
-                 .UseStartup<Startup>()
-                 .UseNLog();
+                 .UseStartup<Startup>();
              });
     }
 }

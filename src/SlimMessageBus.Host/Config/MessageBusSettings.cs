@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Serialization;
 
@@ -7,6 +8,7 @@ namespace SlimMessageBus.Host.Config
 {
     public class MessageBusSettings : IBusEvents
     {
+        public ILoggerFactory LoggerFactory { get; set; }
         public IList<ProducerSettings> Producers { get; }
         public IList<ConsumerSettings> Consumers { get; }
         public RequestResponseSettings RequestResponse { get; set; }
@@ -49,6 +51,11 @@ namespace SlimMessageBus.Host.Config
         public virtual void MergeFrom(MessageBusSettings settings)
         {
             if (settings is null) throw new ArgumentNullException(nameof(settings));
+
+            if (LoggerFactory == null && settings.LoggerFactory != null)
+            {
+                LoggerFactory = settings.LoggerFactory;
+            }
 
             if (settings.Producers.Count > 0)
             {

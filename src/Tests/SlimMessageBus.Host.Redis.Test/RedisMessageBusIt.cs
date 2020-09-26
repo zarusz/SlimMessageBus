@@ -1,16 +1,13 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using Common.Logging;
-using Common.Logging.Simple;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using SecretStore;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.DependencyResolver;
@@ -20,19 +17,20 @@ using Xunit;
 namespace SlimMessageBus.Host.Redis.Test
 {
     [Trait("Category", "Integration")]
-    [Trait("Category", "Local")]
     public class RedisMessageBusIt : IDisposable
     {
-        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
         private const int NumberOfMessages = 77;
+
+        private readonly ILoggerFactory _loggerFactory;
+        private readonly ILogger _logger;
 
         private MessageBusBuilder MessageBusBuilder { get; }
         private Lazy<RedisMessageBus> MessageBus { get; }
 
         public RedisMessageBusIt()
         {
-            LogManager.Adapter = new DebugLoggerFactoryAdapter();
+            _loggerFactory = NullLoggerFactory.Instance;
+            _logger = _loggerFactory.CreateLogger<RedisMessageBusIt>();
 
             var configuration = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")
@@ -43,6 +41,7 @@ namespace SlimMessageBus.Host.Redis.Test
             var connectionString = Secrets.Service.PopulateSecrets(configuration["Redis:ConnectionString"]);
 
             MessageBusBuilder = MessageBusBuilder.Create()
+                .WithLoggerFacory(_loggerFactory)
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderRedis(new RedisMessageBusSettings(connectionString));
 
@@ -89,12 +88,13 @@ namespace SlimMessageBus.Host.Redis.Test
         private async Task BasicPubSub(int concurrency, int subscribers)
         {
             // arrange
-            var pingConsumer = new PingConsumer();
+            var pingConsumer = new PingConsumer(_loggerFactory.CreateLogger<PingConsumer>());
 
             MessageBusBuilder
                 .WithDependencyResolver(new LookupDependencyResolver(f =>
                 {
                     if (f == typeof(PingConsumer)) return pingConsumer;
+                    if (f == typeof(ILoggerFactory)) return null;
                     throw new InvalidOperationException();
                 }));
 
@@ -115,14 +115,14 @@ namespace SlimMessageBus.Host.Redis.Test
             await Task.WhenAll(messageTasks).ConfigureAwait(false);
 
             stopwatch.Stop();
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Published {0} messages in {1}", producedMessages.Count, stopwatch.Elapsed);
+            _logger.LogInformation("Published {0} messages in {1}", producedMessages.Count, stopwatch.Elapsed);
 
             // consume
             stopwatch.Restart();
             var consumersReceivedMessages = await ConsumeAll(pingConsumer, subscribers * producedMessages.Count);
             stopwatch.Stop();
 
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Consumed {0} messages in {1}", consumersReceivedMessages.Count, stopwatch.Elapsed);
+            _logger.LogInformation("Consumed {0} messages in {1}", consumersReceivedMessages.Count, stopwatch.Elapsed);
 
             // assert
 
@@ -198,7 +198,7 @@ namespace SlimMessageBus.Host.Redis.Test
             await Task.WhenAll(responseTasks).ConfigureAwait(false);
 
             stopwatch.Stop();
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Published and received {0} messages in {1}", responses.Count, stopwatch.Elapsed);
+            _logger.LogInformation("Published and received {0} messages in {1}", responses.Count, stopwatch.Elapsed);
 
             // assert
 
@@ -242,7 +242,12 @@ namespace SlimMessageBus.Host.Redis.Test
 
         private class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
         {
-            private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+            private readonly ILogger _logger;
+
+            public PingConsumer(ILogger logger)
+            {
+                _logger = logger;
+            }
 
             public AsyncLocal<ConsumerContext> Context { get; } = new AsyncLocal<ConsumerContext>();
             public IList<PingMessage> Messages { get; } = new List<PingMessage>();
@@ -256,7 +261,7 @@ namespace SlimMessageBus.Host.Redis.Test
                     Messages.Add(message);
                 }
 
-                Log.InfoFormat(CultureInfo.InvariantCulture, "Got message {0} on topic {1}.", message.Counter, name);
+                _logger.LogInformation("Got message {0} on topic {1}.", message.Counter, name);
                 return Task.CompletedTask;
             }
 

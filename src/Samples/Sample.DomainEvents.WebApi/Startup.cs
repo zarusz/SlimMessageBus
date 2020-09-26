@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Globalization;
 using System.Linq;
-using Common.Logging;
-using Common.Logging.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -20,16 +17,9 @@ namespace Sample.DomainEvents.WebApi
 {
     public class Startup
     {
-        private static readonly ILog Log = LogManager.GetLogger(typeof(Startup));
-
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
-
-            // Setup Common.Logging
-            var logConfiguration = new LogConfiguration();
-            configuration.GetSection("LogConfiguration").Bind(logConfiguration);
-            LogManager.Configure(logConfiguration);
         }
 
         public IConfiguration Configuration { get; }
@@ -37,6 +27,12 @@ namespace Sample.DomainEvents.WebApi
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddLogging(cfg =>
+            {
+                cfg.AddConfiguration(Configuration);
+                cfg.AddConsole();
+            });
+
             services.AddControllers();
 
             ConfigureMessageBus(services);
@@ -108,7 +104,6 @@ namespace Sample.DomainEvents.WebApi
                     .ToList()
                     .ForEach(find =>
                     {
-                        Log.InfoFormat(CultureInfo.InvariantCulture, "Registering {0} in the bus", find.EventType);
                         builder.Consume(find.EventType, x => x.Topic(x.MessageType.Name).WithConsumer(find.HandlerType));
                     })
                 )
