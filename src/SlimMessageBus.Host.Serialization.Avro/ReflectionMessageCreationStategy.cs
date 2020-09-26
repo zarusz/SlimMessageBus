@@ -1,7 +1,6 @@
-﻿using Common.Logging;
+﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Reflection;
 
 namespace SlimMessageBus.Host.Serialization.Avro
@@ -12,10 +11,14 @@ namespace SlimMessageBus.Host.Serialization.Avro
     /// </summary>
     public class ReflectionMessageCreationStategy : IMessageCreationStrategy
     {
-        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
+        private readonly ILogger _logger;
         private readonly IDictionary<Type, ConstructorInfo> _constructorByType = new Dictionary<Type, ConstructorInfo>();
         private readonly object _constructorByTypeLock = new object();
+
+        public ReflectionMessageCreationStategy(ILogger logger)
+        {
+            _logger = logger;
+        }
 
         protected virtual ConstructorInfo GetTypeConstructorSafe(Type type)
         {
@@ -42,14 +45,14 @@ namespace SlimMessageBus.Host.Serialization.Avro
             try
             {
                 // by default create types using reflection
-                Log.DebugFormat(CultureInfo.InvariantCulture, "Instantiating type {0}", type);
+                _logger.LogDebug("Instantiating type {0}", type);
 
                 var constructor = GetTypeConstructorSafe(type);
                 return constructor.Invoke(null);
             }
             catch (Exception e)
             {
-                Log.ErrorFormat(CultureInfo.InvariantCulture, "Error intantiating message type {0}", e, type);
+                _logger.LogError(e, "Error intantiating message type {0}", type);
                 throw;
             }
         }

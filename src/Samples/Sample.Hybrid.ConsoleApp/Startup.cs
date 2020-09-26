@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Sample.Hybrid.ConsoleApp.ApplicationLayer;
 using Sample.Hybrid.ConsoleApp.DomainModel;
 using Sample.Hybrid.ConsoleApp.EmailService;
@@ -27,6 +28,12 @@ namespace Sample.Hybrid.ConsoleApp
 
         public void ConfigureServices(ServiceCollection services)
         {
+            services.AddLogging(cfg =>
+            {
+                cfg.AddConfiguration(Configuration);
+                cfg.AddConsole();
+            });
+
             services.AddSingleton<Application>();
             services.AddSingleton(CreateMessageBus);
 

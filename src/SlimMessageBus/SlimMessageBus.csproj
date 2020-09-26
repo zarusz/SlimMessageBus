@@ -4,7 +4,7 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard1.3</TargetFramework>
-    <Version>1.2.0</Version>
+    <Version>1.3.0-beta1</Version>
     <Description>A lightweight message bus interface for .NET. The goal of this library is to introduce a slim facade for messaging brokers. Use one of the transport providers for in-process (in-memory), Apache Kafka or Azure Service Bus messaging.</Description>
     <NeutralLanguage />
     <PackageTags>MessageBus facade EventBus broker events messages message bus DomainEvents domain DDD messaging EDA</PackageTags>
@@ -24,7 +24,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Common.Logging" Version="3.4.1" />
     <PackageReference Include="Microsoft.CodeAnalysis.FxCopAnalyzers" Version="2.9.8">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>

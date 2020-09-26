@@ -1,8 +1,7 @@
 using System;
-using System.Globalization;
 using System.Threading.Tasks;
-using Common.Logging;
 using Confluent.Kafka;
+using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Kafka.Configs;
 
@@ -14,7 +13,7 @@ namespace SlimMessageBus.Host.Kafka
     /// </summary>
     public class KafkaConsumerProcessor : IKafkaTopicPartitionProcessor
     {
-        private static readonly ILog Log = LogManager.GetLogger<KafkaConsumerProcessor>();
+        private readonly ILogger _logger;
 
         private readonly MessageBusBase _messageBus;
         private readonly ConsumerSettings _consumerSettings;
@@ -28,15 +27,17 @@ namespace SlimMessageBus.Host.Kafka
                    messageBus,
                    new MessageQueueWorker<Message>(
                        new ConsumerInstancePoolMessageProcessor<Message>(consumerSettings, messageBus, m => m.Value, (m, ctx) => ctx.SetTransportMessage(m)),
-                       new CheckpointTrigger(consumerSettings)))
+                       new CheckpointTrigger(consumerSettings), messageBus.LoggerFactory))
         {
         }
 
         public KafkaConsumerProcessor(ConsumerSettings consumerSettings, TopicPartition topicPartition, IKafkaCommitController commitController, MessageBusBase messageBus, MessageQueueWorker<Message> messageQueueWorker)
         {
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Creating for Group: {0}, Topic: {1}, Partition: {2}, MessageType: {3}", consumerSettings.GetGroup(), consumerSettings.Topic, topicPartition, consumerSettings.MessageType);
+            _messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
 
-            _messageBus = messageBus;
+            _logger = _messageBus.LoggerFactory.CreateLogger<KafkaConsumerProcessor>();
+            _logger.LogInformation("Creating for Group: {0}, Topic: {1}, Partition: {2}, MessageType: {3}", consumerSettings.GetGroup(), consumerSettings.Topic, topicPartition, consumerSettings.MessageType);
+
             _consumerSettings = consumerSettings;
             TopicPartition = topicPartition;
             _commitController = commitController;
@@ -71,13 +72,13 @@ namespace SlimMessageBus.Host.Kafka
             {
                 if (_messageQueueWorker.Submit(message))
                 {
-                    Log.DebugFormat(CultureInfo.InvariantCulture, "Group [{0}]: Will commit at offset {1}", _consumerSettings.GetGroup(), message.TopicPartitionOffset);
+                    _logger.LogDebug("Group [{0}]: Will commit at offset {1}", _consumerSettings.GetGroup(), message.TopicPartitionOffset);
                     return Commit(message.TopicPartitionOffset);
                 }
             }
             catch (Exception e)
             {
-                Log.ErrorFormat(CultureInfo.InvariantCulture, "Group [{0}]: Error occured while consuming a message: {0}, of type {1}", e, _consumerSettings.GetGroup(), message.TopicPartitionOffset, _consumerSettings.MessageType);
+                _logger.LogError(e, "Group [{0}]: Error occured while consuming a message: {0}, of type {1}", _consumerSettings.GetGroup(), message.TopicPartitionOffset, _consumerSettings.MessageType);
                 throw;
             }
             return Task.CompletedTask;

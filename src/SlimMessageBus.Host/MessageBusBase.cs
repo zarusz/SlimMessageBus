@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
-using Common.Logging;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.Config;
 
@@ -11,26 +12,33 @@ namespace SlimMessageBus.Host
 {
     public abstract class MessageBusBase : IMessageBus
     {
-        private static readonly ILog Log = LogManager.GetLogger<MessageBusBase>();
+        private readonly ILogger _logger;
+        private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
+        private readonly SafeDictionaryWrapper<Type, Type> _messageTypeToBaseType = new SafeDictionaryWrapper<Type, Type>();
+
+        public ILoggerFactory LoggerFactory { get; }
 
         public virtual MessageBusSettings Settings { get; }
 
-        protected IDictionary<Type, ProducerSettings> ProducerSettingsByMessageType { get; set; }
-
+        protected IDictionary<Type, ProducerSettings> ProducerSettingsByMessageType { get; private set; }
         protected IPendingRequestStore PendingRequestStore { get; set; }
         protected PendingRequestManager PendingRequestManager { get; set; }
 
-        private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         public CancellationToken CancellationToken => _cancellationTokenSource.Token;
-
-        private readonly SafeDictionaryWrapper<Type, Type> _messageTypeToBaseType = new SafeDictionaryWrapper<Type, Type>();
 
         protected bool IsDisposing { get; private set; }
         protected bool IsDisposed { get; private set; }
 
         protected MessageBusBase(MessageBusSettings settings)
         {
-            Settings = settings;
+            Settings = settings ?? throw new ArgumentNullException(nameof(settings));
+
+            // Use the configured logger factory, if not provided try to resolve from DI, if also not available supress logging using the NullLoggerFactory
+            LoggerFactory = settings.LoggerFactory 
+                ?? (ILoggerFactory)settings.DependencyResolver?.Resolve(typeof(ILoggerFactory)) 
+                ?? NullLoggerFactory.Instance;
+
+            _logger = LoggerFactory.CreateLogger<MessageBusBase>();
         }
 
         /// <summary>
@@ -55,7 +63,7 @@ namespace SlimMessageBus.Host
             }
 
             PendingRequestStore = new InMemoryPendingRequestStore();
-            PendingRequestManager = new PendingRequestManager(PendingRequestStore, () => CurrentTime, TimeSpan.FromSeconds(1), request =>
+            PendingRequestManager = new PendingRequestManager(PendingRequestStore, () => CurrentTime, TimeSpan.FromSeconds(1), LoggerFactory, request =>
             {
                 // Execute the event hook
                 try
@@ -64,16 +72,16 @@ namespace SlimMessageBus.Host
                 }
                 catch (Exception eh)
                 {
-                    HookFailed(Log, eh, nameof(IConsumerEvents.OnMessageExpired));
+                    HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageExpired));
                 }
             });
             PendingRequestManager.Start();
         }
 
-        public static void HookFailed(ILog log, Exception eh, string name)
+        public static void HookFailed(ILogger logger, Exception eh, string name)
         {
             // When the hook itself error out, catch the exception
-            log.ErrorFormat(CultureInfo.InvariantCulture, "{0} method failed", eh, name);
+            logger.LogError(eh, "{0} method failed", name);
         }
 
         protected virtual void AssertSettings()
@@ -198,11 +206,11 @@ namespace SlimMessageBus.Host
 
                     if (baseType != null)
                     {
-                        Log.DebugFormat(CultureInfo.InvariantCulture, "Found a base type of {0} that is configured in the bus: {1}", mt, baseType);
+                        _logger.LogDebug("Found a base type of {0} that is configured in the bus: {1}", mt, baseType);
                     }
                     else
                     {
-                        Log.DebugFormat(CultureInfo.InvariantCulture, "Did not find any base type of {0} that is configured in the bus", mt);
+                        _logger.LogDebug("Did not find any base type of {0} that is configured in the bus", mt);
                     }
 
                     // Note: Nulls are also added to dictionary, so that we don't look them up using reflection next time (cached).
@@ -237,7 +245,7 @@ namespace SlimMessageBus.Host
                 throw new PublishMessageBusException($"An attempt to produce message of type {messageType} without specifying name, but there was no default name configured. Double check your configuration.");
             }
 
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Applying default name {0} for message type {1}", name, messageType);
+            _logger.LogDebug("Applying default name {0} for message type {1}", name, messageType);
             return name;
         }
 
@@ -258,7 +266,7 @@ namespace SlimMessageBus.Host
 
             var payload = SerializeMessage(producerSettings.MessageType, message);
 
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Producing message {0} of type {1} to name {2} with payload size {3}", message, producerSettings.MessageType, name, payload?.Length ?? 0);
+            _logger.LogDebug("Producing message {0} of type {1} to name {2} with payload size {3}", message, producerSettings.MessageType, name, payload?.Length ?? 0);
             return ProduceToTransport(producerSettings.MessageType, message, name, payload);
         }
 
@@ -276,7 +284,7 @@ namespace SlimMessageBus.Host
             if (producerSettings == null) throw new ArgumentNullException(nameof(producerSettings));
 
             var timeout = producerSettings.Timeout ?? Settings.RequestResponse.Timeout;
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Applying default timeout {0} for message type {1}", timeout, requestType);
+            _logger.LogDebug("Applying default timeout {0} for message type {1}", timeout, requestType);
             return timeout;
         }
 
@@ -317,19 +325,19 @@ namespace SlimMessageBus.Host
             var requestState = new PendingRequestState(requestId, request, requestType, typeof(TResponseMessage), created, expires, cancellationToken);
             PendingRequestStore.Add(requestState);
 
-            if (Log.IsTraceEnabled)
+            if (_logger.IsEnabled(LogLevel.Trace))
             {
-                Log.TraceFormat(CultureInfo.InvariantCulture, "Added to PendingRequests, total is {0}", PendingRequestStore.GetCount());
+                _logger.LogTrace("Added to PendingRequests, total is {0}", PendingRequestStore.GetCount());
             }
 
             try
             {
-                Log.DebugFormat(CultureInfo.InvariantCulture, "Sending request message {0} to name {1} with reply to {2}", requestState, name, Settings.RequestResponse.Topic);
+                _logger.LogDebug("Sending request message {0} to name {1} with reply to {2}", requestState, name, Settings.RequestResponse.Topic);
                 await ProduceRequest(request, requestMessage, name, producerSettings).ConfigureAwait(false);
             }
             catch (PublishMessageBusException e)
             {
-                Log.DebugFormat(CultureInfo.InvariantCulture, "Publishing of request message failed", e);
+                _logger.LogDebug("Publishing of request message failed", e);
                 // remove from registry
                 PendingRequestStore.Remove(requestId);
                 throw;
@@ -349,7 +357,7 @@ namespace SlimMessageBus.Host
             }
             catch (Exception eh)
             {
-                HookFailed(Log, eh, nameof(IProducerEvents.OnMessageProduced));
+                HookFailed(_logger, eh, nameof(IProducerEvents.OnMessageProduced));
             }
         }
 
@@ -450,7 +458,7 @@ namespace SlimMessageBus.Host
 
             if (!responseMessage.TryGetHeader(ReqRespMessageHeaders.RequestId, out string requestId))
             {
-                Log.ErrorFormat(CultureInfo.InvariantCulture, "The response message arriving on name {0} did not have the {1} header. Unable to math the response with the request. This likely indicates a misconfiguration.", name, ReqRespMessageHeaders.RequestId);
+                _logger.LogError("The response message arriving on name {0} did not have the {1} header. Unable to math the response with the request. This likely indicates a misconfiguration.", name, ReqRespMessageHeaders.RequestId);
                 return Task.FromResult<Exception>(null);
             }
 
@@ -472,7 +480,7 @@ namespace SlimMessageBus.Host
             var requestState = PendingRequestStore.GetById(requestId);
             if (requestState == null)
             {
-                Log.DebugFormat(CultureInfo.InvariantCulture, "The response message for request id {0} arriving on name {1} will be disregarded. Either the request had already expired, had been cancelled or it was already handled (this response message is a duplicate).", requestId, name);
+                _logger.LogDebug("The response message for request id {0} arriving on name {1} will be disregarded. Either the request had already expired, had been cancelled or it was already handled (this response message is a duplicate).", requestId, name);
 
                 // ToDo: add and API hook to these kind of situation
                 return Task.FromResult<Exception>(null);
@@ -480,16 +488,16 @@ namespace SlimMessageBus.Host
 
             try
             {
-                if (Log.IsDebugEnabled)
+                if (_logger.IsEnabled(LogLevel.Debug))
                 {
                     var tookTimespan = CurrentTime.Subtract(requestState.Created);
-                    Log.DebugFormat(CultureInfo.InvariantCulture, "Response arrived for {0} on name {1} (time: {2} ms)", requestState, name, tookTimespan);
+                    _logger.LogDebug("Response arrived for {0} on name {1} (time: {2} ms)", requestState, name, tookTimespan);
                 }
 
                 if (errorMessage != null)
                 {
                     // error response arrived
-                    Log.DebugFormat(CultureInfo.InvariantCulture, "Response arrived for {0} on name {1} with error: {2}", requestState, name, errorMessage);
+                    _logger.LogDebug("Response arrived for {0} on name {1} with error: {2}", requestState, name, errorMessage);
 
                     var e = new RequestHandlerFaultedMessageBusException(errorMessage);
                     requestState.TaskCompletionSource.TrySetException(e);
@@ -507,7 +515,7 @@ namespace SlimMessageBus.Host
                     }
                     catch (Exception e)
                     {
-                        Log.DebugFormat(CultureInfo.InvariantCulture, "Could not deserialize the response message for {0} arriving on name {1}: {2}", requestState, name, e);
+                        _logger.LogDebug("Could not deserialize the response message for {0} arriving on name {1}: {2}", requestState, name, e);
                         requestState.TaskCompletionSource.TrySetException(e);
                     }
                 }

@@ -1,40 +1,35 @@
 ﻿using System;
-using System.Reflection;
 using Autofac;
-using Common.Logging;
-using Common.Logging.Configuration;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using SlimMessageBus;
 
 namespace Sample.Images.Worker
 {
-    internal static class Program
+    public class Program
     {
-        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
         public static void Main()
         {
             var configuration = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")
                 .Build();
 
-            var logConfiguration = new LogConfiguration();
-            configuration.GetSection("LogConfiguration").Bind(logConfiguration);
-            LogManager.Configure(logConfiguration);
+            var loggerFactory = LoggerFactory.Create(cfg => cfg.AddConfiguration(configuration.GetSection("Logging")).AddConsole());
+            var logger = loggerFactory.CreateLogger<Program>();
 
-            Log.Info("Starting worker...");
-            using (var container = ContainerSetup.Create(configuration))
+            logger.LogInformation("Starting worker...");
+            using (var container = ContainerSetup.Create(configuration, loggerFactory))
             {
                 // eager load the singleton, so that is starts consuming messages
                 var messageBus = container.Resolve<IMessageBus>();
-                Log.Info("Worker ready");
+                logger.LogInformation("Worker ready");
 
                 Console.WriteLine("Press enter to stop the application...");
                 Console.ReadLine();
 
-                Log.Info("Stopping worker...");
+                logger.LogInformation("Stopping worker...");
             }
-            Log.Info("Worker stopped");
+            logger.LogInformation("Worker stopped");
         }
     }
 }

@@ -1,22 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
-using Common.Logging;
 using FluentAssertions;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization.Json;
 using Xunit;
 using System.Linq;
-using System.Reflection;
-using Common.Logging.Simple;
 using Microsoft.Extensions.Configuration;
 using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Kafka.Configs;
 using SecretStore;
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace SlimMessageBus.Host.Kafka.Test
 {
@@ -32,9 +31,9 @@ namespace SlimMessageBus.Host.Kafka.Test
     [Trait("Category", "Integration")]
     public class KafkaMessageBusIt : IDisposable
     {
-        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
         private const int NumberOfMessages = 77;
+        private readonly ILoggerFactory _loggerFactory;
+        private readonly ILogger _logger;
 
         private KafkaMessageBusSettings KafkaSettings { get; }
         private MessageBusBuilder MessageBusBuilder { get; }
@@ -47,7 +46,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             d.Add("sasl.username", username);
             d.Add("sasl.password", password);
             d.Add("sasl.mechanism", "SCRAM-SHA-256");
-            d.Add("ssl.ca.location", @"cloudkarafka-ca-root.crt");
+            d.Add("ssl.ca.location", "cloudkarafka_2020-12.ca");          
             return d;
         }
 
@@ -55,8 +54,8 @@ namespace SlimMessageBus.Host.Kafka.Test
 
         public KafkaMessageBusIt()
         {
-            LogManager.Adapter = new DebugLoggerFactoryAdapter();
-            //LogManager.Adapter = new NoOpLoggerFactoryAdapter();
+            _loggerFactory = NullLoggerFactory.Instance;
+            _logger = _loggerFactory.CreateLogger<KafkaMessageBusIt>();
 
             var configuration = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")
@@ -91,6 +90,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             };
 
             MessageBusBuilder = MessageBusBuilder.Create()
+                .WithLoggerFacory(_loggerFactory)
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderKafka(KafkaSettings);
 
@@ -119,7 +119,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             // ensure the topic has 2 partitions
             var topic = $"{TopicPrefix}test-ping";
 
-            var pingConsumer = new PingConsumer();
+            var pingConsumer = new PingConsumer(_loggerFactory.CreateLogger<PingConsumer>());
 
             MessageBusBuilder
                 .Produce<PingMessage>(x =>
@@ -159,7 +159,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             await Task.WhenAll(messages.Select(m => messageBus.Publish(m)));
 
             stopwatch.Stop();
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Published {0} messages in {1}", messages.Count, stopwatch.Elapsed);
+            _logger.LogInformation("Published {0} messages in {1}", messages.Count, stopwatch.Elapsed);
 
             // consume
             stopwatch.Restart();
@@ -168,7 +168,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             var messagesReceived = pingConsumer.Messages;
 
             stopwatch.Stop();
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Consumed {0} messages in {1}", messagesReceived.Count, stopwatch.Elapsed);
+            _logger.LogInformation("Consumed {0} messages in {1}", messagesReceived.Count, stopwatch.Elapsed);
 
             // assert
 
@@ -285,8 +285,12 @@ namespace SlimMessageBus.Host.Kafka.Test
 
         private class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
         {
-            // ReSharper disable once MemberHidesStaticFromOuterClass
-            private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+            private readonly ILogger _logger;
+
+            public PingConsumer(ILogger logger)
+            {
+                _logger = logger;
+            }
 
             public AsyncLocal<ConsumerContext> Context { get; } = new AsyncLocal<ConsumerContext>();
             public ConcurrentBag<ValueTuple<PingMessage, int>> Messages { get; } = new ConcurrentBag<ValueTuple<PingMessage, int>>();
@@ -300,7 +304,7 @@ namespace SlimMessageBus.Host.Kafka.Test
 
                 Messages.Add((message, partition));
 
-                Log.InfoFormat(CultureInfo.InvariantCulture, "Got message {0} on topic {1}.", message.Counter, name);
+                _logger.LogInformation("Got message {0} on topic {1}.", message.Counter, name);
                 return Task.CompletedTask;
             }
 

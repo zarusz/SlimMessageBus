@@ -4,13 +4,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using Common.Logging;
-using Common.Logging.Simple;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using SecretStore;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.DependencyResolver;
@@ -22,9 +21,10 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
     [Trait("Category", "Integration")]
     public class ServiceBusMessageBusIt : IDisposable
     {
-        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
         private const int NumberOfMessages = 77;
+        
+        private readonly ILoggerFactory _loggerFactory;
+        private readonly ILogger _logger;
 
         private ServiceBusMessageBusSettings Settings { get; }
         private MessageBusBuilder MessageBusBuilder { get; }
@@ -32,7 +32,8 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
 
         public ServiceBusMessageBusIt()
         {
-            LogManager.Adapter = new DebugLoggerFactoryAdapter();
+            _loggerFactory = NullLoggerFactory.Instance;
+            _logger = _loggerFactory.CreateLogger<ServiceBusMessageBusIt>();
 
             var configuration = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")
@@ -45,6 +46,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             Settings = new ServiceBusMessageBusSettings(connectionString);
 
             MessageBusBuilder = MessageBusBuilder.Create()
+                .WithLoggerFacory(_loggerFactory)
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderServiceBus(Settings);
 
@@ -139,7 +141,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
                 .WithDependencyResolver(new LookupDependencyResolver(f =>
                 {
                     if (f != typeof(PingConsumer)) throw new InvalidOperationException();
-                    var pingConsumer = new PingConsumer();
+                    var pingConsumer = new PingConsumer(_loggerFactory.CreateLogger<PingConsumer>());
                     consumersCreated.Add(pingConsumer);
                     return pingConsumer;
                 }));
@@ -161,7 +163,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             await Task.WhenAll(messageTasks).ConfigureAwait(false);
 
             stopwatch.Stop();
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Published {0} messages in {1}", producedMessages.Count, stopwatch.Elapsed);
+            _logger.LogInformation("Published {0} messages in {1}", producedMessages.Count, stopwatch.Elapsed);
 
             // consume
             stopwatch.Restart();
@@ -171,7 +173,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
 
             foreach (var receivedMessages in consumersReceivedMessages)
             {
-                Log.InfoFormat(CultureInfo.InvariantCulture, "Consumed {0} messages in {1}", receivedMessages.Count, stopwatch.Elapsed);
+                _logger.LogInformation("Consumed {0} messages in {1}", receivedMessages.Count, stopwatch.Elapsed);
             }
 
             // assert
@@ -284,7 +286,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             await Task.WhenAll(responseTasks).ConfigureAwait(false);
 
             stopwatch.Stop();
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Published and received {0} messages in {1}", responses.Count, stopwatch.Elapsed);
+            _logger.LogInformation("Published and received {0} messages in {1}", responses.Count, stopwatch.Elapsed);
 
             // assert
 
@@ -328,11 +330,16 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
 
         private class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
         {
-            private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+            private readonly ILogger _logger;
+
+            public PingConsumer(ILogger logger)
+            {
+                _logger = logger;
+            }
 
             public AsyncLocal<ConsumerContext> Context { get; } = new AsyncLocal<ConsumerContext>();
 
-            public IList<(PingMessage, string)> Messages { get; } = new List<(PingMessage, string)>();
+            public IList<(PingMessage, string)> Messages { get; } = new List<(PingMessage, string)>();           
 
             #region Implementation of IConsumer<in PingMessage>
 
@@ -345,7 +352,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
                     Messages.Add((message, sbMessage.MessageId));
                 }
 
-                Log.InfoFormat(CultureInfo.InvariantCulture, "Got message {0} on topic {1}.", message.Counter, name);
+                _logger.LogInformation("Got message {0} on topic {1}.", message.Counter, name);
                 return Task.CompletedTask;
             }
 

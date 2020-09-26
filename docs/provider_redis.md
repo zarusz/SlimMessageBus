@@ -22,7 +22,11 @@ IMessageBus bus = mbb.Build();
 
 The `RedisMessageBusSettings` has additional settings that allow to override factories for the `ConnectionMultiplexer`. This may be used for some advanced scenarios.
 
+## Connection string parameters
+
+The list of all configuration parameters for the connectiong string can be found here:
+https://stackexchange.github.io/StackExchange.Redis/Configuration
+
 ## Underlying Redis client
 
 This transport porider uses [StackExchange.Redis](https://stackexchange.github.io/StackExchange.Redis)
-

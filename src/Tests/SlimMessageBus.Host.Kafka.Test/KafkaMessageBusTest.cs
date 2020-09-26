@@ -8,6 +8,7 @@ using System.Linq;
 using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Serialization;
 using Xunit;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace SlimMessageBus.Host.Kafka.Test
 {
@@ -22,7 +23,8 @@ namespace SlimMessageBus.Host.Kafka.Test
             MbSettings = new MessageBusSettings
             {
                 Serializer = new Mock<IMessageSerializer>().Object,
-                DependencyResolver = new Mock<IDependencyResolver>().Object
+                DependencyResolver = new Mock<IDependencyResolver>().Object,
+                LoggerFactory = NullLoggerFactory.Instance
             };
             KafkaMbSettings = new KafkaMessageBusSettings("host")
             {

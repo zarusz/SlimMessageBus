@@ -1,16 +1,15 @@
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
-using Common.Logging;
 
 namespace SlimMessageBus.Host
 {
-    public class MessageQueueWorker<TMessage>
-        where TMessage : class
+    public class MessageQueueWorker<TMessage> where TMessage : class
     {
-        private static readonly ILog Log = LogManager.GetLogger(typeof(MessageQueueWorker<TMessage>));
+        private readonly ILogger _logger;
 
         private readonly Queue<MessageProcessingResult<TMessage>> _pendingMessages = new Queue<MessageProcessingResult<TMessage>>();
 
@@ -19,8 +18,9 @@ namespace SlimMessageBus.Host
 
         private readonly ICheckpointTrigger _checkpointTrigger;
 
-        public MessageQueueWorker(ConsumerInstancePoolMessageProcessor<TMessage> consumerInstancePool, ICheckpointTrigger checkpointTrigger)
+        public MessageQueueWorker(ConsumerInstancePoolMessageProcessor<TMessage> consumerInstancePool, ICheckpointTrigger checkpointTrigger, ILoggerFactory loggerFactory)
         {
+            _logger = loggerFactory.CreateLogger<MessageQueueWorker<TMessage>>();
             ConsumerInstancePool = consumerInstancePool ?? throw new ArgumentNullException(nameof(consumerInstancePool));
             _checkpointTrigger = checkpointTrigger ?? throw new ArgumentNullException(nameof(checkpointTrigger));
         }
@@ -76,7 +76,7 @@ namespace SlimMessageBus.Host
                 {
                     // some tasks failed
                     result.Success = false;
-                    Log.ErrorFormat(CultureInfo.InvariantCulture, "Errors occured while executing the tasks.", e);
+                    _logger.LogError(e, "Errors occured while executing the tasks");
 
                     // grab last message that succeeded (if any)
                     // Note: Assumption that that messages in queue follow the partition offset.

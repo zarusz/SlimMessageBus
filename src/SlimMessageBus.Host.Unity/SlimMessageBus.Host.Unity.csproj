@@ -3,19 +3,19 @@
   <Import Project="../Common.Properties.xml" />
 
   <PropertyGroup>
-    <TargetFramework>netstandard1.3</TargetFramework>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <Description>Extension to SlimMessageBus that resolves dependencies from Unity container</Description>
-    <Version>1.3.3</Version>
+    <Version>1.4.0-rc1</Version>
     <PackageTags>SlimMessageBus Unity messaging</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Common.Logging" Version="3.4.1" />
     <PackageReference Include="Microsoft.CodeAnalysis.FxCopAnalyzers" Version="2.9.8">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.1.8" />
     <PackageReference Include="Unity" Version="5.11.3" />
   </ItemGroup>
 

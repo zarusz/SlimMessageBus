@@ -1,6 +1,5 @@
-﻿using System.Globalization;
-using System.Threading.Tasks;
-using Common.Logging;
+﻿using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using SlimMessageBus;
 
 namespace Sample.DomainEvents.Domain
@@ -10,17 +9,22 @@ namespace Sample.DomainEvents.Domain
     /// </summary>
     public class OrderSubmittedHandler : IConsumer<OrderSubmittedEvent>
     {
-        private static readonly ILog Log = LogManager.GetLogger(typeof(OrderSubmittedHandler));
+        private readonly ILogger _logger;
+
+        public OrderSubmittedHandler(ILogger<OrderSubmittedHandler> logger)
+        {
+            _logger = logger;
+        }
 
         public Task OnHandle(OrderSubmittedEvent e, string name)
         {
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Customer {0} {1} just placed an order for:", e.Order.Customer.Firstname, e.Order.Customer.Lastname);
+            _logger.LogInformation("Customer {0} {1} just placed an order for:", e.Order.Customer.Firstname, e.Order.Customer.Lastname);
             foreach (var orderLine in e.Order.Lines)
             {
-                Log.InfoFormat(CultureInfo.InvariantCulture, "- {0}x {1}", orderLine.Quantity, orderLine.ProductId);
+                _logger.LogInformation("- {0}x {1}", orderLine.Quantity, orderLine.ProductId);
             }
 
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Generating a shipping order...");
+            _logger.LogInformation("Generating a shipping order...");
             return Task.Delay(1000);
         }
     }

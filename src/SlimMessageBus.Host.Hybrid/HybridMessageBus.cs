@@ -1,28 +1,38 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using Common.Logging;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.Hybrid
 {
     public class HybridMessageBus : IMessageBus
     {
-        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        private readonly ILogger _logger;
+        
+        public ILoggerFactory LoggerFactory { get; }
 
         public MessageBusSettings Settings { get; }
         public HybridMessageBusSettings ProviderSettings { get; }
 
         private readonly IDictionary<Type, string> _routeByMessageType;
         private readonly IDictionary<string, MessageBusBase> _busByName;
+        
 
         public HybridMessageBus(MessageBusSettings settings, HybridMessageBusSettings providerSettings)
         {
-            Settings = settings;
-            ProviderSettings = providerSettings;
+            Settings = settings ?? throw new ArgumentNullException(nameof(settings));
+            ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
+
+            // Use the configured logger factory, if not provided try to resolve from DI, if also not available supress logging using the NullLoggerFactory
+            LoggerFactory = settings.LoggerFactory
+                ?? (ILoggerFactory)settings.DependencyResolver?.Resolve(typeof(ILoggerFactory))
+                ?? NullLoggerFactory.Instance;
+
+            _logger = LoggerFactory.CreateLogger<HybridMessageBus>();
 
             _routeByMessageType = new Dictionary<Type, string>();
 
@@ -73,7 +83,7 @@ namespace SlimMessageBus.Host.Hybrid
                     {
                         var bus = _busByName[name];
 
-                        bus.DisposeSilently(() => $"Error dispsing name bus: {name}", Log);
+                        bus.DisposeSilently(() => $"Error dispsing name bus: {name}", _logger);
                     }
                     _busByName.Clear();
                 }
@@ -95,11 +105,11 @@ namespace SlimMessageBus.Host.Hybrid
             var messageType = message.GetType();
 
             // Until we reached the object in class hierarchy
-            while (messageType != null)
+            while (messageType != null && messageType != typeof(object))
             {
                 if (_routeByMessageType.TryGetValue(messageType, out var busName))
                 {
-                    Log.DebugFormat(CultureInfo.InvariantCulture, "Resolved bus {0} for message type: {1} and name {2}", busName, messageType, name);
+                    _logger.LogDebug("Resolved bus {0} for message type: {1} and name {2}", busName, messageType, name);
 
                     return _busByName[busName];
                 }

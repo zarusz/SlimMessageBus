@@ -1,5 +1,5 @@
 ﻿using Avro;
-using Common.Logging;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -11,15 +11,15 @@ namespace SlimMessageBus.Host.Serialization.Avro
     /// </summary>
     public class ReflectionSchemaLookupStrategy : ISchemaLookupStrategy
     {
-        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
+        private readonly ILogger _logger;
         private readonly IDictionary<Type, Schema> _registry = new Dictionary<Type, Schema>();
         private readonly object _registryLock = new object();
 
         private readonly string _fieldName;
 
-        public ReflectionSchemaLookupStrategy(string fieldName = "_SCHEMA")
+        public ReflectionSchemaLookupStrategy(ILogger<ReflectionSchemaLookupStrategy> logger, string fieldName = "_SCHEMA")
         {
+            _logger = logger;
             _fieldName = fieldName;
         }
 
@@ -48,7 +48,7 @@ namespace SlimMessageBus.Host.Serialization.Avro
             if (field == null || field.FieldType != typeof(Schema))
             {
                 var msg = $"The type {type} does not have a static {_fieldName} field of type {typeof(Schema)}. Check your configuration.";
-                Log.Error(msg);
+                _logger.LogError(msg);
                 throw new InvalidOperationException(msg);
             }
 

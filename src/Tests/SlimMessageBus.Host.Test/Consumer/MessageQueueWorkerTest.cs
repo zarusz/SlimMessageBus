@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SlimMessageBus.Host.Config;
 using Xunit;
@@ -30,7 +31,7 @@ namespace SlimMessageBus.Host.Test.Consumer
         public void WhenCommitThenWaitsOnAllMessagesToComplete()
         {
             // arrange
-            var w = new MessageQueueWorker<SomeMessage>(_consumerInstancePoolMock.Object, _checkpointTriggerMock.Object);
+            var w = new MessageQueueWorker<SomeMessage>(_consumerInstancePoolMock.Object, _checkpointTriggerMock.Object, NullLoggerFactory.Instance);
 
             var numFinishedMessages = 0;
             _consumerInstancePoolMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>())).Returns(() => Task.Delay(50).ContinueWith(t => { Interlocked.Increment(ref numFinishedMessages); return (Exception)null; }, TaskScheduler.Current));
@@ -53,7 +54,7 @@ namespace SlimMessageBus.Host.Test.Consumer
         public void GivenIfSomeMessageFailsWhenCommitThenReturnsFirstNonFailedMessage()
         {
             // arrange
-            var w = new MessageQueueWorker<SomeMessage>(_consumerInstancePoolMock.Object, _checkpointTriggerMock.Object);
+            var w = new MessageQueueWorker<SomeMessage>(_consumerInstancePoolMock.Object, _checkpointTriggerMock.Object, NullLoggerFactory.Instance);
 
             var taskQueue = new Queue<Task<Exception>>();
             taskQueue.Enqueue(Task.FromResult<Exception>(null));

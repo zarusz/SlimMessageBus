@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Sample.Serialization.MessagesAvro;
 using SecretStore;
 using SlimMessageBus;
@@ -69,7 +71,7 @@ namespace Sample.Avro.ConsoleApp
             */
 
             // alternatively a simpler approach, but using the slower ReflectionMessageCreationStategy and ReflectionSchemaLookupStrategy
-            var avroSerializer = new AvroMessageSerializer();
+            var avroSerializer = new AvroMessageSerializer(NullLoggerFactory.Instance);
 
             // Avro serialized using the AvroConvert library - no schema generation neeeded upfront.
             var jsonSerializer = new JsonMessageSerializer();
@@ -79,7 +81,7 @@ namespace Sample.Avro.ConsoleApp
             {
                 [jsonSerializer] = new[] { typeof(SubtractCommand) }, // the first one will be the default serializer, no need to declare types here
                 [avroSerializer] = new[] { typeof(AddCommand), typeof(MultiplyRequest), typeof(MultiplyResponse) },
-            });
+            }, NullLogger<HybridMessageSerializer>.Instance);
 
             return MessageBusBuilder.Create()
                 .Produce<AddCommand>(x => x.DefaultTopic("AddCommand"))
@@ -101,6 +103,7 @@ namespace Sample.Avro.ConsoleApp
                     if (type == typeof(AddCommandConsumer)) return new AddCommandConsumer();
                     if (type == typeof(SubtractCommandConsumer)) return new SubtractCommandConsumer();
                     if (type == typeof(MultiplyRequestHandler)) return new MultiplyRequestHandler();
+                    if (type == typeof(ILoggerFactory)) return null;
                     throw new InvalidOperationException();
                 }))
                 .Do(builder =>

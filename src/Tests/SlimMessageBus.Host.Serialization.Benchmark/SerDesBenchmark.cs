@@ -1,6 +1,7 @@
 ﻿using Avro;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
+using Microsoft.Extensions.Logging.Abstractions;
 using SlimMessageBus.Host.Serialization.Avro;
 using SlimMessageBus.Host.Serialization.Json;
 using System;
@@ -23,15 +24,15 @@ namespace SlimMessageBus.Host.Serialization.Benchmark
                 new JsonMessageSerializer()),
             new Scenario("Avro_Default",
                 new Sample.Serialization.MessagesAvro.AddCommand { OperationId = Guid.NewGuid().ToString(), Left = 100, Right = 200 },
-                new AvroMessageSerializer()),
+                new AvroMessageSerializer(NullLoggerFactory.Instance)),
             new Scenario("Avro_NoReflection",
                 new Sample.Serialization.MessagesAvro.AddCommand { OperationId = Guid.NewGuid().ToString(), Left = 100, Right = 200 },
-                new AvroMessageSerializer(
-                    new DictionaryMessageCreationStategy(new Dictionary<Type, Func<object>>
+                new AvroMessageSerializer(NullLoggerFactory.Instance,
+                    new DictionaryMessageCreationStategy(NullLogger<DictionaryMessageCreationStategy>.Instance, new Dictionary<Type, Func<object>>
                     {
                         [typeof(Sample.Serialization.MessagesAvro.AddCommand)] = () => new Sample.Serialization.MessagesAvro.AddCommand()
                     }),
-                    new DictionarySchemaLookupStrategy(new Dictionary<Type, Schema>
+                    new DictionarySchemaLookupStrategy(NullLogger<DictionarySchemaLookupStrategy>.Instance, new Dictionary<Type, Schema>
                     {
                         [typeof(Sample.Serialization.MessagesAvro.AddCommand)] = Sample.Serialization.MessagesAvro.AddCommand._SCHEMA
                     })

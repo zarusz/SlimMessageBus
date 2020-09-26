@@ -1,12 +1,11 @@
 ﻿using System;
 using System.IO;
-using Common.Logging;
-using Common.Logging.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Sample.Images.FileStore;
 using Sample.Images.FileStore.Disk;
 using Sample.Images.Messages;
@@ -24,10 +23,6 @@ namespace Sample.Images.WebApi
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
-
-            var logConfiguration = new LogConfiguration();
-            configuration.GetSection("LogConfiguration").Bind(logConfiguration);
-            LogManager.Configure(logConfiguration);
         }
 
         public IConfiguration Configuration { get; }
@@ -36,6 +31,12 @@ namespace Sample.Images.WebApi
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddLogging(cfg =>
+            {
+                cfg.AddConfiguration(Configuration);
+                cfg.AddConsole();
+            });
+
             services.AddControllers();
 
             // register services

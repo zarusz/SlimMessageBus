@@ -1,5 +1,5 @@
-﻿using Common.Logging;
-using Microsoft.Azure.ServiceBus;
+﻿using Microsoft.Azure.ServiceBus;
+using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.Config;
 using System;
 
@@ -14,7 +14,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
                   consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings)),
                   messageBus.ProviderSettings.QueueClientFactory(consumerSettings.Topic),
                   messageProcessor,
-                  LogManager.GetLogger<QueueConsumer>())
+                  messageBus.LoggerFactory.CreateLogger<QueueConsumer>())
         {
             _queueClient = (IQueueClient) Client;
         }

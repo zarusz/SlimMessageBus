@@ -1,8 +1,7 @@
-﻿using Common.Logging;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.Reflection;
 
 namespace SlimMessageBus.Host.Serialization.Hybrid
 {
@@ -11,18 +10,19 @@ namespace SlimMessageBus.Host.Serialization.Hybrid
     /// </summary>
     public class HybridMessageSerializer : IMessageSerializer
     {
-        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
+        private readonly ILogger _logger;
         private readonly IList<IMessageSerializer> _serializers = new List<IMessageSerializer>();
         private readonly IDictionary<Type, IMessageSerializer> _serializerByType = new Dictionary<Type, IMessageSerializer>();
         public IMessageSerializer DefaultSerializer { get; set; }
 
         public HybridMessageSerializer()
         {
+            _logger = NullLogger<HybridMessageSerializer>.Instance;
         }
 
-        public HybridMessageSerializer(IDictionary<IMessageSerializer, Type[]> registration)
+        public HybridMessageSerializer(IDictionary<IMessageSerializer, Type[]> registration, ILogger<HybridMessageSerializer> logger)
         {
+            _logger = logger;
             foreach (var entry in registration)
             {
                 Add(entry.Key, entry.Value);
@@ -53,11 +53,11 @@ namespace SlimMessageBus.Host.Serialization.Hybrid
             if (!_serializerByType.TryGetValue(t, out var serializer))
             {
                 // use first as default
-                Log.TraceFormat(CultureInfo.InvariantCulture, "Serializer for type {0} not registered, will use default serializer", t);
+                _logger.LogTrace("Serializer for type {0} not registered, will use default serializer", t);
                 serializer = DefaultSerializer;
             }
 
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Serializer for type {0} will be {1}", t, serializer);
+            _logger.LogDebug("Serializer for type {0} will be {1}", t, serializer);
             return serializer;
         }
 

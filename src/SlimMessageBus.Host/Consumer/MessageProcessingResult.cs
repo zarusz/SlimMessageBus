@@ -2,8 +2,7 @@ using System.Threading.Tasks;
 
 namespace SlimMessageBus.Host
 {
-    public class MessageProcessingResult<TMessage>
-        where TMessage : class
+    public class MessageProcessingResult<TMessage> where TMessage : class
     {
         public Task Task { get; }
         public TMessage Message { get; }

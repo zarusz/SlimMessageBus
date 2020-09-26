@@ -1,14 +1,18 @@
-﻿using Common.Logging;
-using System;
-using System.Globalization;
+﻿using System;
 using SlimMessageBus.Host.DependencyResolver;
 using Unity;
+using Microsoft.Extensions.Logging;
 
 namespace SlimMessageBus.Host.Unity
 {
     public class UnityMessageBusDependencyResolver : IDependencyResolver
     {
-        private static readonly ILog Log = LogManager.GetLogger<UnityMessageBusDependencyResolver>();
+        private readonly ILogger _logger;
+
+        public UnityMessageBusDependencyResolver(ILogger logger)
+        {
+            _logger = logger;
+        }
 
         public static IUnityContainer Container { get; set; }
 
@@ -21,9 +25,9 @@ namespace SlimMessageBus.Host.Unity
                 throw new ArgumentNullException($"The {nameof(Container)} property was null at this point");
             }
 
-            Log.TraceFormat(CultureInfo.InvariantCulture, "Resolving type {0}", type);
+            _logger.LogTrace("Resolving type {type}", type);
             var o = Container.Resolve(type);
-            Log.DebugFormat(CultureInfo.InvariantCulture, "Resolved type {0} to object {1}", type, o);
+            _logger.LogTrace("Resolved type {type} to instance {instance}", type, o);
             return o;
         }
 

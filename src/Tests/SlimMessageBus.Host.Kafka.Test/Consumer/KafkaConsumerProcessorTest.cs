@@ -6,12 +6,15 @@ using System;
 using System.Threading.Tasks;
 using SlimMessageBus.Host.Kafka.Configs;
 using Xunit;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace SlimMessageBus.Host.Kafka.Test
 {
     public class KafkaConsumerProcessorTest : IDisposable
     {
         private readonly TopicPartition _topicPartition;
+        private readonly ILoggerFactory _loggerFactory;
 
         private readonly Mock<IKafkaCommitController> _commitControllerMock = new Mock<IKafkaCommitController>();
         private readonly Mock<ICheckpointTrigger> _checkpointTrigger = new Mock<ICheckpointTrigger>();
@@ -23,6 +26,8 @@ namespace SlimMessageBus.Host.Kafka.Test
 
         public KafkaConsumerProcessorTest()
         {
+            _loggerFactory = NullLoggerFactory.Instance;
+
             _topicPartition = new TopicPartition("topic-a", 0);
 
             var consumerSettings = new ConsumerSettings
@@ -30,17 +35,18 @@ namespace SlimMessageBus.Host.Kafka.Test
                 MessageType = typeof(SomeMessage),
                 Topic = _topicPartition.Topic,
                 ConsumerType = typeof(SomeMessageConsumer),
-                ConsumerMode = ConsumerMode.Consumer
+                ConsumerMode = ConsumerMode.Consumer,
             };
             consumerSettings.SetGroup("group-a");
 
             var massageBusMock = new MessageBusMock();
             massageBusMock.BusSettings.Consumers.Add(consumerSettings);
             massageBusMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageConsumer))).Returns(_consumer);
+            massageBusMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(ILoggerFactory))).Returns(_loggerFactory);
 
-            byte[] MessageValueProvider(Message m) => m.Value;
-            var consumerInstancePoolMock = new Mock<ConsumerInstancePoolMessageProcessor<Message>>(consumerSettings, massageBusMock.Bus, (Func<Message, byte[]>) MessageValueProvider, null);
-            _messageQueueWorkerMock = new Mock<MessageQueueWorker<Message>>(consumerInstancePoolMock.Object, _checkpointTrigger.Object);
+            static byte[] MessageValueProvider(Message m) => m.Value;
+            var consumerInstancePoolMock = new Mock<ConsumerInstancePoolMessageProcessor<Message>>(consumerSettings, massageBusMock.Bus, (Func<Message, byte[]>)MessageValueProvider, null);
+            _messageQueueWorkerMock = new Mock<MessageQueueWorker<Message>>(consumerInstancePoolMock.Object, _checkpointTrigger.Object, _loggerFactory);
             _subject = new KafkaConsumerProcessor(consumerSettings, _topicPartition, _commitControllerMock.Object, massageBusMock.Bus, _messageQueueWorkerMock.Object);
         }
 

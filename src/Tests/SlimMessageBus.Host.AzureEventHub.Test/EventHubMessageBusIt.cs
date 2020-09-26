@@ -1,29 +1,28 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
-using Common.Logging;
 using FluentAssertions;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization.Json;
 using Xunit;
 using System.Linq;
-using System.Reflection;
-using Common.Logging.Simple;
 using Microsoft.Extensions.Configuration;
 using SecretStore;
 using SlimMessageBus.Host.DependencyResolver;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace SlimMessageBus.Host.AzureEventHub.Test
 {
     [Trait("Category", "Integration")]
     public class EventHubMessageBusIt : IDisposable
     {
-        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
         private const int NumberOfMessages = 77;
+
+        private readonly ILoggerFactory _loggerFactory;
+        private readonly ILogger _logger;
 
         private EventHubMessageBusSettings Settings { get; }
         private MessageBusBuilder MessageBusBuilder { get; }
@@ -31,7 +30,8 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
 
         public EventHubMessageBusIt()
         {
-            LogManager.Adapter = new DebugLoggerFactoryAdapter();
+            _loggerFactory = NullLoggerFactory.Instance;
+            _logger = _loggerFactory.CreateLogger<EventHubMessageBusIt>();
 
             var configuration = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")
@@ -47,6 +47,7 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
             Settings = new EventHubMessageBusSettings(connectionString, storageConnectionString, storageContainerName);
 
             MessageBusBuilder = MessageBusBuilder.Create()
+                .WithLoggerFacory(_loggerFactory)
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderEventHub(Settings);
 
@@ -73,7 +74,7 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
             // arrange
             var topic = "test-ping";
 
-            var pingConsumer = new PingConsumer();
+            var pingConsumer = new PingConsumer(_loggerFactory.CreateLogger<PingConsumer>());
 
             MessageBusBuilder
                 .Produce<PingMessage>(x => x.DefaultTopic(topic))
@@ -104,13 +105,13 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
                 .ForAll(m => kafkaMessageBus.Publish(m).Wait());
 
             stopwatch.Stop();
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Published {0} messages in {1}", messages.Count, stopwatch.Elapsed);
+            _logger.LogInformation("Published {0} messages in {1}", messages.Count, stopwatch.Elapsed);
 
             // consume
             stopwatch.Restart();
             var messagesReceived = ConsumeFromTopic(pingConsumer);
             stopwatch.Stop();
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Consumed {0} messages in {1}", messagesReceived.Count, stopwatch.Elapsed);
+            _logger.LogInformation("Consumed {0} messages in {1}", messagesReceived.Count, stopwatch.Elapsed);
 
             // assert
 
@@ -209,7 +210,12 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
 
         private class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
         {
-            private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+            private readonly ILogger _logger;
+
+            public PingConsumer(ILogger logger)
+            {
+                _logger = logger;
+            }
 
             public AsyncLocal<ConsumerContext> Context { get; } = new AsyncLocal<ConsumerContext>();
             public IList<PingMessage> Messages { get; } = new List<PingMessage>();
@@ -223,7 +229,7 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
                     Messages.Add(message);
                 }
 
-                Log.InfoFormat(CultureInfo.InvariantCulture, "Got message {0} on topic {1}.", message.Counter, name);
+                _logger.LogInformation("Got message {0} on topic {1}.", message.Counter, name);
                 return Task.CompletedTask;
             }
 

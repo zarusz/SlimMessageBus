@@ -1,6 +1,5 @@
 using System;
-using System.Globalization;
-using Common.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace SlimMessageBus.Host
 {
@@ -14,18 +13,22 @@ namespace SlimMessageBus.Host
             }
             catch (Exception e)
             {
-                failed(e);
+                if (failed != null)
+                {
+                    failed(e);
+
+                }
             }
         }
 
-        public static void DisposeSilently(this IDisposable disposable, string name, ILog log)
+        public static void DisposeSilently(this IDisposable disposable, string name, ILogger logger)
         {
-            disposable.DisposeSilently(e => log.WarnFormat(CultureInfo.InvariantCulture, "Error occured while disposing {0}. {1}", name, e));
+            disposable.DisposeSilently(e => logger.LogWarning(e, "Error occured while disposing {0}", name));
         }
 
-        public static void DisposeSilently(this IDisposable disposable, Func<string> nameFunc, ILog log)
+        public static void DisposeSilently(this IDisposable disposable, Func<string> nameFunc, ILogger logger)
         {
-            disposable.DisposeSilently(e => log.WarnFormat(CultureInfo.InvariantCulture, "Error occured while disposing {0}. {1}", nameFunc(), e));
+            disposable.DisposeSilently(e => logger.LogWarning(e, "Error occured while disposing {0}", nameFunc()));
         }
     }
 }

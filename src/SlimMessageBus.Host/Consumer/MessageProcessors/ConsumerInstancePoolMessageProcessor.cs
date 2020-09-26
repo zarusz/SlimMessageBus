@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
-using Common.Logging;
+using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host
@@ -15,7 +15,7 @@ namespace SlimMessageBus.Host
     /// <typeparam name="TMessage"></typeparam>
     public class ConsumerInstancePoolMessageProcessor<TMessage> : IMessageProcessor<TMessage> where TMessage : class
     {
-        private readonly ILog _log = LogManager.GetLogger(typeof(ConsumerInstancePoolMessageProcessor<TMessage>).ToString()); // this will give a more friendly name without the assembly version of the generic param
+        private readonly ILogger _logger;
 
         private readonly List<object> _instances;
         private readonly BufferBlock<object> _instancesQueue;
@@ -30,6 +30,9 @@ namespace SlimMessageBus.Host
 
         public ConsumerInstancePoolMessageProcessor(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, byte[]> messagePayloadProvider, Action<TMessage, ConsumerContext> consumerContextInitializer = null)
         {
+            if (messageBus is null) throw new ArgumentNullException(nameof(messageBus));
+
+            _logger = messageBus.LoggerFactory.CreateLogger<ConsumerInstancePoolMessageProcessor<TMessage>>();
             _consumerSettings = consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings));
             _messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
             _messagePayloadProvider = messagePayloadProvider ?? throw new ArgumentNullException(nameof(messagePayloadProvider));
@@ -59,7 +62,7 @@ namespace SlimMessageBus.Host
                     // dispose instances that implement IDisposable
                     foreach (var instance in _instances.OfType<IDisposable>())
                     {
-                        instance.DisposeSilently("Consumer", _log);
+                        instance.DisposeSilently("Consumer", _logger);
                     }
                     _instances.Clear();
                 }
@@ -79,7 +82,7 @@ namespace SlimMessageBus.Host
             // Resolve as many instances from DI as requested in settings
             for (var i = 0; i < settings.Instances; i++)
             {
-                _log.DebugFormat(CultureInfo.InvariantCulture, "Resolving Consumer instance {0} of type {1}", i + 1, settings.ConsumerType);
+                _logger.LogDebug("Resolving Consumer instance {0} of type {1}", i + 1, settings.ConsumerType);
                 try
                 {
                     var consumer = _messageBus.Settings.DependencyResolver.Resolve(settings.ConsumerType);
@@ -87,7 +90,7 @@ namespace SlimMessageBus.Host
                 }
                 catch (Exception ex)
                 {
-                    _log.ErrorFormat(CultureInfo.InvariantCulture, "Error while resolving consumer instance of type {0} from the dependency resolver", ex, settings.ConsumerType);
+                    _logger.LogError(ex, "Error while resolving consumer instance of type {0} from the dependency resolver", settings.ConsumerType);
                     throw;
                 }
             }
@@ -107,7 +110,7 @@ namespace SlimMessageBus.Host
                     var currentTime = _messageBus.CurrentTime;
                     if (currentTime > expires.Value)
                     {
-                        _log.WarnFormat(CultureInfo.InvariantCulture, "The message arrived too late and is already expired (expires {0}, current {1})", expires.Value, currentTime);
+                        _logger.LogWarning("The message arrived too late and is already expired (expires {0}, current {1})", expires.Value, currentTime);
 
                         try
                         {
@@ -117,7 +120,7 @@ namespace SlimMessageBus.Host
                         }
                         catch (Exception eh)
                         {
-                            MessageBusBase.HookFailed(_log, eh, nameof(IConsumerEvents.OnMessageExpired));
+                            MessageBusBase.HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageExpired));
                         }
 
                         // Do not process the expired message
@@ -148,7 +151,7 @@ namespace SlimMessageBus.Host
                     }
                     catch (Exception eh)
                     {
-                        MessageBusBase.HookFailed(_log, eh, nameof(IConsumerEvents.OnMessageArrived));
+                        MessageBusBase.HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageArrived));
                     }
 
                     // the consumer just subscribes to the message
@@ -165,13 +168,13 @@ namespace SlimMessageBus.Host
                 {
                     if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
                     {
-                        _log.ErrorFormat(CultureInfo.InvariantCulture, "Handler execution failed", e);
+                        _logger.LogError(e, "Handler execution failed");
                         // Save the exception
                         responseError = e.ToString();
                     }
                     else
                     {
-                        _log.ErrorFormat(CultureInfo.InvariantCulture, "Consumer execution failed", e);
+                        _logger.LogError(e, "Consumer execution failed");
                     }
 
                     try
@@ -182,7 +185,7 @@ namespace SlimMessageBus.Host
                     }
                     catch (Exception eh)
                     {
-                        MessageBusBase.HookFailed(_log, eh, nameof(IConsumerEvents.OnMessageFault));
+                        MessageBusBase.HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageFault));
                     }
 
                     exceptionResult = e;
@@ -195,7 +198,7 @@ namespace SlimMessageBus.Host
                 if (response != null || responseError != null)
                 {
                     // send the response (or error response)
-                    _log.DebugFormat(CultureInfo.InvariantCulture, "Serializing the response {0} of type {1} for RequestId: {2}...", response, _consumerSettings.ResponseType, requestId);
+                    _logger.LogDebug("Serializing the response {0} of type {1} for RequestId: {2}...", response, _consumerSettings.ResponseType, requestId);
 
                     var responseMessage = new MessageWithHeaders();
                     responseMessage.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
@@ -206,7 +209,7 @@ namespace SlimMessageBus.Host
             }
             catch (Exception e)
             {
-                _log.ErrorFormat(CultureInfo.InvariantCulture, "Processing of the message {0} of type {1} failed", e, msg, _consumerSettings.MessageType);
+                _logger.LogError(e, "Processing of the message {0} of type {1} failed", msg, _consumerSettings.MessageType);
                 exceptionResult = e;
 
             }
@@ -221,7 +224,7 @@ namespace SlimMessageBus.Host
             requestId = null;
             expires = null;
 
-            _log.Debug("Deserializing message...");
+            _logger.LogDebug("Deserializing message...");
 
             message = _consumerSettings.IsRequestMessage
                 ? _messageBus.DeserializeRequest(_consumerSettings.MessageType, msgPayload, out requestMessage)

@@ -1,16 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Reflection;
-using Common.Logging;
 using Microsoft.Azure.EventHubs.Processor;
+using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host.AzureEventHub
 {
     public class GroupTopicConsumer : IDisposable, IEventProcessorFactory
     {
-        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        private readonly ILogger _logger;
 
         public EventHubMessageBus MessageBus { get; }
 
@@ -22,7 +21,7 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         public GroupTopicConsumer(EventHubMessageBus messageBus, ConsumerSettings consumerSettings)
             : this(messageBus, new TopicGroup(consumerSettings.Topic, consumerSettings.GetGroup()), () => new PartitionConsumerForConsumers(messageBus, consumerSettings))
-        {
+        {            
         }
 
         public GroupTopicConsumer(EventHubMessageBus messageBus, RequestResponseSettings requestResponseSettings)
@@ -32,10 +31,13 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         protected GroupTopicConsumer(EventHubMessageBus messageBus, TopicGroup topicGroup, Func<PartitionConsumer> partitionConsumerFactory)
         {
-            MessageBus = messageBus;
-            _partitionConsumerFactory = partitionConsumerFactory;
+            if (topicGroup is null) throw new ArgumentNullException(nameof(topicGroup));
 
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Creating EventProcessorHost for EventHub with Topic: {0}, Group: {1}", topicGroup.Topic, topicGroup.Group);
+            MessageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
+            _logger = messageBus.LoggerFactory.CreateLogger<GroupTopicConsumer>();
+            _partitionConsumerFactory = partitionConsumerFactory ?? throw new ArgumentNullException(nameof(partitionConsumerFactory));
+
+            _logger.LogInformation("Creating EventProcessorHost for EventHub with Topic: {0}, Group: {1}", topicGroup.Topic, topicGroup.Group);
             _processorHost = MessageBus.ProviderSettings.EventProcessorHostFactory(topicGroup);
 
             var eventProcessorOptions = MessageBus.ProviderSettings.EventProcessorOptionsFactory(topicGroup);
@@ -60,7 +62,7 @@ namespace SlimMessageBus.Host.AzureEventHub
 
                 if (_partitionConsumers.Count > 0)
                 {
-                    _partitionConsumers.ForEach(ep => ep.DisposeSilently("EventProcessor", Log));
+                    _partitionConsumers.ForEach(ep => ep.DisposeSilently("EventProcessor", _logger));
                     _partitionConsumers.Clear();
                 }
             }
@@ -72,9 +74,9 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         public IEventProcessor CreateEventProcessor(PartitionContext context)
         {
-            if (Log.IsDebugEnabled)
+            if (_logger.IsEnabled(LogLevel.Debug))
             {
-                Log.DebugFormat(CultureInfo.InvariantCulture, "Creating {0} for {1}", nameof(IEventProcessor), new PartitionContextInfo(context));
+                _logger.LogDebug("Creating {0} for {1}", nameof(IEventProcessor), new PartitionContextInfo(context));
             }
 
             var ep = _partitionConsumerFactory();

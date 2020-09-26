@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Globalization;
 using System.Threading;
-using Common.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace SlimMessageBus.Host
 {
@@ -10,7 +10,7 @@ namespace SlimMessageBus.Host
     /// </summary>
     public class PendingRequestManager : IDisposable
     {
-        private static readonly ILog Log = LogManager.GetLogger<PendingRequestManager>();
+        private readonly ILogger _logger;
 
         private readonly Timer _timer;
         private readonly object _timerSync = new object();
@@ -22,8 +22,9 @@ namespace SlimMessageBus.Host
 
         public IPendingRequestStore Store { get; }
 
-        public PendingRequestManager(IPendingRequestStore store, Func<DateTimeOffset> timeProvider, TimeSpan interval, Action<object> onRequestTimeout)
+        public PendingRequestManager(IPendingRequestStore store, Func<DateTimeOffset> timeProvider, TimeSpan interval, ILoggerFactory loggerFactory, Action<object> onRequestTimeout)
         {
+            _logger = loggerFactory.CreateLogger<PendingRequestManager>();
             Store = store;
 
             _onRequestTimeout = onRequestTimeout;
@@ -94,7 +95,7 @@ namespace SlimMessageBus.Host
 
                 if (Store.Remove(requestState.Id) && canceled)
                 {
-                    Log.DebugFormat(CultureInfo.InvariantCulture, "Pending request timed-out: {0}, now: {1}", requestState, now);
+                    _logger.LogDebug("Pending request timed-out: {0}, now: {1}", requestState, now);
                     _onRequestTimeout(requestState.Request);
                 }
             }

@@ -1,24 +1,23 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.Reflection;
 using System.Threading.Tasks;
-using Common.Logging;
 using Microsoft.Azure.EventHubs;
 using Microsoft.Azure.EventHubs.Processor;
+using Microsoft.Extensions.Logging;
 
 namespace SlimMessageBus.Host.AzureEventHub
 {
     public abstract class PartitionConsumer : IEventProcessor, IDisposable
     {
-        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        private readonly ILogger _logger;
 
         protected EventHubMessageBus MessageBus { get; }
         protected TaskMarker TaskMarker { get; } = new TaskMarker();
 
         protected PartitionConsumer(EventHubMessageBus messageBus)
         {
-            MessageBus = messageBus;
+            MessageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
+            _logger = messageBus.LoggerFactory.CreateLogger<PartitionConsumer>();
         }
 
         #region Implementation of IDisposable
@@ -43,9 +42,9 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         public Task OpenAsync(PartitionContext context)
         {
-            if (Log.IsDebugEnabled)
+            if (_logger.IsEnabled(LogLevel.Debug))
             {
-                Log.DebugFormat(CultureInfo.InvariantCulture, "Open lease: {0}", new PartitionContextInfo(context));
+                _logger.LogDebug("Open lease: {0}", new PartitionContextInfo(context));
             }
             return Task.CompletedTask;
         }
@@ -99,15 +98,15 @@ namespace SlimMessageBus.Host.AzureEventHub
         public Task ProcessErrorAsync(PartitionContext context, Exception error)
         {
             // ToDo: improve error handling
-            Log.ErrorFormat(CultureInfo.InvariantCulture, "Partition {0} error", error, new PartitionContextInfo(context));
+            _logger.LogError(error, "Partition {0} error", new PartitionContextInfo(context));
             return Task.CompletedTask;
         }
 
         public Task CloseAsync(PartitionContext context, CloseReason reason)
         {
-            if (Log.IsDebugEnabled)
+            if (_logger.IsEnabled(LogLevel.Debug))
             {
-                Log.DebugFormat(CultureInfo.InvariantCulture, "Close lease: Reason: {0}, {1}", reason, new PartitionContextInfo(context));
+                _logger.LogDebug("Close lease: Reason: {0}, {1}", reason, new PartitionContextInfo(context));
             }                                                                                                                    
             return Task.CompletedTask;
         }
@@ -136,11 +135,11 @@ namespace SlimMessageBus.Host.AzureEventHub
             return lastMessageToCheckpoint;
         }
 
-        private static Task Checkpoint(EventData message, PartitionContext context)
+        private Task Checkpoint(EventData message, PartitionContext context)
         {
-            if (Log.IsDebugEnabled)
+            if (_logger.IsEnabled(LogLevel.Debug))
             {
-                Log.DebugFormat(CultureInfo.InvariantCulture, "Will checkpoint at Offset: {0}, {1}", message.SystemProperties.Offset, new PartitionContextInfo(context));
+                _logger.LogDebug("Will checkpoint at Offset: {0}, {1}", message.SystemProperties.Offset, new PartitionContextInfo(context));
             }
             return context.CheckpointAsync(message);
         }

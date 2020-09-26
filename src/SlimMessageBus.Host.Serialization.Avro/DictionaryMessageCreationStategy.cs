@@ -1,7 +1,6 @@
-﻿using Common.Logging;
+﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 
 namespace SlimMessageBus.Host.Serialization.Avro
 {
@@ -11,17 +10,17 @@ namespace SlimMessageBus.Host.Serialization.Avro
     /// </summary>
     public class DictionaryMessageCreationStategy : IMessageCreationStrategy
     {
-        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
+        private readonly ILogger _logger;
         private readonly IDictionary<Type, Func<object>> _registry;
 
-        public DictionaryMessageCreationStategy()
-            : this(new Dictionary<Type, Func<object>>())
+        public DictionaryMessageCreationStategy(ILogger<DictionaryMessageCreationStategy> logger)
+            : this(logger, new Dictionary<Type, Func<object>>())
         {
         }
 
-        public DictionaryMessageCreationStategy(IDictionary<Type, Func<object>> registry)
+        public DictionaryMessageCreationStategy(ILogger<DictionaryMessageCreationStategy> logger, IDictionary<Type, Func<object>> registry)
         {
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         }
 
@@ -35,10 +34,10 @@ namespace SlimMessageBus.Host.Serialization.Avro
             if (!_registry.TryGetValue(type, out var factory))
             {
                 var msg = $"The type {type} does not have a factory registered. Check your configuration.";
-                Log.Error(msg);
+                _logger.LogError(msg);
                 throw new InvalidOperationException(msg);
             }
             return factory();
         }
-    }   
+    }
 }

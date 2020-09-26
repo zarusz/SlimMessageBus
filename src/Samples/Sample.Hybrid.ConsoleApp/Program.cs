@@ -2,6 +2,7 @@
 using System.IO;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using SecretStore;
 using SlimMessageBus;
 
@@ -18,10 +19,12 @@ namespace Sample.Hybrid.ConsoleApp
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                 .AddEnvironmentVariables();
 
+            var configuration = builder.Build();
+
+            var loggerFactory = LoggerFactory.Create(cfg => cfg.AddConfiguration(configuration.GetSection("Logging")).AddConsole());
+
             // Local file with secrets
             Secrets.Load(@"..\..\..\..\..\secrets.txt");
-
-            var configuration = builder.Build();
 
             // Create a service collection and configure dependencies
             var serviceCollection = new ServiceCollection();

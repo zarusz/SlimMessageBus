@@ -4,8 +4,7 @@ using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host
 {
-    public class ResponseMessageProcessor<TMessage> : IMessageProcessor<TMessage> 
-        where TMessage : class
+    public class ResponseMessageProcessor<TMessage> : IMessageProcessor<TMessage> where TMessage : class
     {
         private readonly RequestResponseSettings _requestResponseSettings;
         private readonly MessageBusBase _messageBus;
