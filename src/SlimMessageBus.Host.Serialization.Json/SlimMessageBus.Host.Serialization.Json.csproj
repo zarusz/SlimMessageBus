@@ -6,7 +6,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <Description>Plugin for SlimMessageBus that provides JSON serialization based on the Json.NET library</Description>
     <PackageTags>SlimMessageBus JSON Serialization messaging</PackageTags>
-    <Version>1.4.0-rc1</Version>
+    <Version>1.4.0</Version>
     <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
 

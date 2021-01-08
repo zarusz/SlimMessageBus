@@ -6,7 +6,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <Description>Extension to SlimMessageBus that resolves dependencies from Autofac container</Description>
     <PackageTags>SlimMessageBus Autofac messaging</PackageTags>
-    <Version>1.4.0-rc1</Version>
+    <Version>1.4.0</Version>
     <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
 

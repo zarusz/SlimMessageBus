@@ -4,7 +4,7 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Version>1.4.0-rc1</Version>
+    <Version>1.4.0</Version>
     <Description>Extension to SlimMessageBus that delegates serialization to the respective serialization plugin based on message type.</Description>
     <PackageTags>SlimMessageBus Serialization messaging</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
