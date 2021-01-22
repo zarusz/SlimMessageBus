@@ -5,6 +5,8 @@ using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Kafka.Configs;
 
+using Message = Confluent.Kafka.Message<Confluent.Kafka.Ignore, byte[]>;
+
 namespace SlimMessageBus.Host.Kafka
 {
     /// <summary>

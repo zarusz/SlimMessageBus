@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Confluent.Kafka;
 using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Kafka.Configs;
+using Message = Confluent.Kafka.Message<byte[], byte[]>;
+using IProducer = Confluent.Kafka.IProducer<byte[], byte[]>;
+using IConsumer = Confluent.Kafka.IConsumer<Confluent.Kafka.Ignore, byte[]>;
 
 namespace SlimMessageBus.Host.Kafka
 {
@@ -20,7 +22,7 @@ namespace SlimMessageBus.Host.Kafka
 
         public KafkaMessageBusSettings ProviderSettings { get; }
 
-        private Producer _producer;
+        private IProducer _producer;
         private readonly IList<KafkaGroupConsumer> _groupConsumers = new List<KafkaGroupConsumer>();
         private readonly IDictionary<Type, Func<object, string, byte[]>> _keyProviders = new Dictionary<Type, Func<object, string, byte[]>>();
         private readonly IDictionary<Type, Func<object, string, int>> _partitionProviders = new Dictionary<Type, Func<object, string, int>>();
@@ -52,11 +54,11 @@ namespace SlimMessageBus.Host.Kafka
             return Task.Run(() => _producer.Flush(-1));
         }
 
-        public Producer CreateProducerInternal()
+        public IProducer CreateProducerInternal()
         {
             _logger.LogTrace("Creating producer settings");
             var config = ProviderSettings.ProducerConfigFactory();
-            config[KafkaConfigKeys.Servers] = ProviderSettings.BrokerList;
+            config.BootstrapServers = ProviderSettings.BrokerList;
             _logger.LogDebug("Producer settings: {0}", config);
             var producer = ProviderSettings.ProducerFactory(config);
             return producer;
@@ -197,6 +199,7 @@ namespace SlimMessageBus.Host.Kafka
 
             // calculate message key
             var key = GetMessageKey(messageType, message, name);
+            var kafkaMessage = new Message { Key = key, Value = payload };            
 
             // calculate partition
             var partition = GetMessagePartition(messageType, message, name);
@@ -206,13 +209,13 @@ namespace SlimMessageBus.Host.Kafka
 
             // send the message to topic
             var task = partition == NoPartition
-                ? _producer.ProduceAsync(name, key, payload)
-                : _producer.ProduceAsync(name, key, 0, key?.Length ?? 0, payload, 0, payload.Length, partition);
+                ? _producer.ProduceAsync(name, kafkaMessage)
+                : _producer.ProduceAsync(new TopicPartition(name, new Partition(partition)), kafkaMessage);
 
             var deliveryReport = await task.ConfigureAwait(false);
-            if (deliveryReport.Error.HasError)
+            if (deliveryReport.Status == PersistenceStatus.NotPersisted)
             {
-                throw new PublishMessageBusException($"Error while publish message {message} of type {messageType.Name} to topic {name}. Kafka response code: {deliveryReport.Error.Code}, reason: {deliveryReport.Error.Reason}");
+                throw new PublishMessageBusException($"Error while publish message {message} of type {messageType.Name} to topic {name}. Kafka persistence status: {deliveryReport.Status}");
             }
 
             // log some debug information

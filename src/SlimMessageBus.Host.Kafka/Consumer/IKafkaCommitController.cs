@@ -5,6 +5,6 @@ namespace SlimMessageBus.Host.Kafka
 {
     public interface IKafkaCommitController
     {
-        Task Commit(TopicPartitionOffset offset);
+        ValueTask Commit(TopicPartitionOffset offset);
     }
 }

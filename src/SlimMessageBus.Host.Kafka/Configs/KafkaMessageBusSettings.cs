@@ -1,6 +1,7 @@
 using System;
-using System.Collections.Generic;
 using Confluent.Kafka;
+using IProducer = Confluent.Kafka.IProducer<byte[], byte[]>;
+using IConsumer = Confluent.Kafka.IConsumer<Confluent.Kafka.Ignore, byte[]>;
 
 namespace SlimMessageBus.Host.Kafka
 {
@@ -13,21 +14,21 @@ namespace SlimMessageBus.Host.Kafka
         /// <summary>
         /// Factory method that creates a <see cref="Producer"/> based on the supplied settings.
         /// </summary>
-        public Func<IDictionary<string, object>, Producer> ProducerFactory { get; set; }
+        public Func<ProducerConfig, IProducer> ProducerFactory { get; set; }
         /// <summary>
         /// Factory method that created a <see cref="Producer"/>.
         /// See also: https://kafka.apache.org/documentation/#producerconfigs
         /// </summary>
-        public Func<IDictionary<string, object>> ProducerConfigFactory { get; set; }
+        public Func<ProducerConfig> ProducerConfigFactory { get; set; }
         /// <summary>
         /// Factory method that creates a <see cref="Consumer"/> based on the supplied settings and consumer GroupId. 
         /// </summary>
-        public Func<string, IDictionary<string, object>, Consumer> ConsumerFactory { get; set; }
+        public Func<string, ConsumerConfig, IConsumer> ConsumerFactory { get; set; }
         /// <summary>
         /// Factory method that creates settings based on the consumer GroupId.
         /// See also: https://kafka.apache.org/documentation/#newconsumerconfigs
         /// </summary>
-        public Func<string, IDictionary<string, object>> ConsumerConfigFactory { get; set; }
+        public Func<string, ConsumerConfig> ConsumerConfigFactory { get; set; }
         /// <summary>
         /// The timespan of the Poll kafka consumer operation before it times out.
         /// </summary>
@@ -40,10 +41,10 @@ namespace SlimMessageBus.Host.Kafka
         public KafkaMessageBusSettings(string brokerList)
         {
             BrokerList = brokerList;
-            ProducerConfigFactory = () => new Dictionary<string, object>();
-            ProducerFactory = (config) => new Producer(config);
-            ConsumerConfigFactory = (group) => new Dictionary<string, object>();
-            ConsumerFactory = (group, config) => new Consumer(config);
+            ProducerConfigFactory = () => new ProducerConfig();
+            ProducerFactory = (config) => new ProducerBuilder<byte[], byte[]>(config).Build();
+            ConsumerConfigFactory = (group) => new ConsumerConfig { GroupId = group };
+            ConsumerFactory = (group, config) => new ConsumerBuilder<Ignore, byte[]>(config).Build();
             ConsumerPollInterval = TimeSpan.FromSeconds(2);
             ConsumerPollRetryInterval = TimeSpan.FromSeconds(2);
         }

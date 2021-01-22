@@ -1,10 +1,10 @@
 using System;
-using System.Globalization;
 using System.Threading.Tasks;
 using Confluent.Kafka;
 using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Kafka.Configs;
+using Message = Confluent.Kafka.Message<Confluent.Kafka.Ignore, byte[]>;
 
 namespace SlimMessageBus.Host.Kafka
 {
@@ -90,9 +90,9 @@ namespace SlimMessageBus.Host.Kafka
             }
         }
 
-        public Task OnPartitionEndReached(TopicPartitionOffset offset)
+        public async Task OnPartitionEndReached(TopicPartitionOffset offset)
         {
-            return _commitController.Commit(offset);
+            _commitController.Commit(offset);
         }
 
         public Task OnPartitionRevoked()

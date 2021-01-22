@@ -7,14 +7,14 @@ namespace SlimMessageBus.Host.Kafka
     {
         private const string MessageKey = "Kafka_Message";
 
-        public static Message GetTransportMessage(this ConsumerContext context)
+        public static Message<Null, byte[]> GetTransportMessage(this ConsumerContext context)
         {
             if (context is null) throw new ArgumentNullException(nameof(context));
 
-            return context.GetOrDefault<Message>(MessageKey, null);
+            return context.GetOrDefault<Message<Null, byte[]>>(MessageKey, null);
         }
 
-        public static void SetTransportMessage(this ConsumerContext context, Message message)
+        public static void SetTransportMessage(this ConsumerContext context, Message<Null, byte[]> message)
         {
             if (context is null) throw new ArgumentNullException(nameof(context));
 

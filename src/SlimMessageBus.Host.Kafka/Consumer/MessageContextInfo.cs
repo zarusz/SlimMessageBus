@@ -1,4 +1,4 @@
-﻿using Confluent.Kafka;
+﻿using Message = Confluent.Kafka.Message<Confluent.Kafka.Null, byte[]>;
 
 namespace SlimMessageBus.Host.Kafka
 {

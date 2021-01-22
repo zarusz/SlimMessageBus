@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Confluent.Kafka;
+using Message = Confluent.Kafka.Message<Confluent.Kafka.Ignore, byte[]>;
 
 namespace SlimMessageBus.Host.Kafka
 {

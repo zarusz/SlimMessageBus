@@ -3,7 +3,7 @@
   <Import Project="../Host.Transport.Properties.xml" />
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <Description>Apache Kafka provider for SlimMessageBus</Description>
     <PackageTags>Apache Kafka provider SlimMessageBus MessageBus bus facade messaging</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
@@ -11,7 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Confluent.Kafka" Version="0.11.6" />
+    <PackageReference Include="Confluent.Kafka" Version="1.5.3" />
     <PackageReference Include="Microsoft.CodeAnalysis.FxCopAnalyzers" Version="3.3.2">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>

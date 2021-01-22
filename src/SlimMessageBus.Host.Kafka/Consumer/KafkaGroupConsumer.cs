@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Confluent.Kafka;
 using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.Collections;
+using Message = Confluent.Kafka.Message<byte[], byte[]>;
+using IProducer = Confluent.Kafka.IProducer<byte[], byte[]>;
+using IConsumer = Confluent.Kafka.IConsumer<Confluent.Kafka.Ignore, byte[]>;
 
 namespace SlimMessageBus.Host.Kafka
 {
@@ -18,7 +20,7 @@ namespace SlimMessageBus.Host.Kafka
         public ICollection<string> Topics { get; }
 
         private readonly SafeDictionaryWrapper<TopicPartition, IKafkaTopicPartitionProcessor> _processors;
-        private Consumer _consumer;
+        private IConsumer _consumer;
 
         private Task _consumerTask;
         private CancellationTokenSource _consumerCts;
@@ -74,13 +76,13 @@ namespace SlimMessageBus.Host.Kafka
 
         #endregion
 
-        protected Consumer CreateConsumer(string group)
+        protected IConsumer CreateConsumer(string group)
         {
             var config = MessageBus.ProviderSettings.ConsumerConfigFactory(group);
-            config[KafkaConfigKeys.Servers] = MessageBus.ProviderSettings.BrokerList;
-            config[KafkaConfigKeys.ConsumerKeys.GroupId] = group;
+            config.BootstrapServers = MessageBus.ProviderSettings.BrokerList;
+            config.GroupId = group;
             // ToDo: add support for auto commit
-            config[KafkaConfigKeys.ConsumerKeys.EnableAutoCommit] = false;
+            config.EnableAutoCommit = false;
             var consumer = MessageBus.ProviderSettings.ConsumerFactory(group, config);
             return consumer;
         }
@@ -224,10 +226,10 @@ namespace SlimMessageBus.Host.Kafka
 
         #region Implementation of IKafkaCoordinator
 
-        public Task Commit(TopicPartitionOffset offset)
+        public async ValueTask Commit(TopicPartitionOffset offset)
         {
             _logger.LogDebug("Group [{0}]: Commit offset: {1}", Group, offset);
-            return _consumer.CommitAsync(new List<TopicPartitionOffset> { offset });
+            _consumer.Commit(new[] { offset });
         }
 
         #endregion
