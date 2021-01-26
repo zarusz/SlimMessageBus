@@ -104,6 +104,7 @@ namespace Sample.DomainEvents.WebApi
                     .ToList()
                     .ForEach(find =>
                     {
+                        builder.Produce(find.EventType, x => x.DefaultTopic(x.Settings.MessageType.Name));
                         builder.Consume(find.EventType, x => x.Topic(x.MessageType.Name).WithConsumer(find.HandlerType));
                     })
                 )
