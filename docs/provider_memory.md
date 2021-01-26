@@ -88,6 +88,7 @@ mbb.Do(builder => applicationLayer.GetTypes().Where(t => t.IsClass && !t.IsAbstr
                     .ForEach(find =>
                     {
                         Log.InfoFormat(CultureInfo.InvariantCulture, "Registering {0} in the bus", find.EventType);
+                        builder.Produce(find.EventType, x => x.DefaultTopic(x.Settings.MessageType.Name));
                         builder.Consume(find.EventType, x => x.Topic(x.MessageType.Name).WithConsumer(find.HandlerType));
                     })
                 );
