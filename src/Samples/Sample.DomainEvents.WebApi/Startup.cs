@@ -90,11 +90,12 @@ namespace Sample.DomainEvents.WebApi
             var domainAssembly = typeof(OrderSubmittedEvent).Assembly;
 
             var mbb = MessageBusBuilder.Create()
-                // declare that OrderSubmittedEvent will be produced
-                .Produce<OrderSubmittedEvent>(x => x.DefaultTopic(x.Settings.MessageType.Name))
-                // declare that OrderSubmittedEvent will be consumed by OrderSubmittedHandler
-                //.SubscribeTo<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithSubscriber<OrderSubmittedHandler>())
-                // Note: we could discover messages and handlers using reflection and register them automatically
+                // declare that OrderSubmittedEvent will be produced (option 1 - explicit declaration)
+                //.Produce<OrderSubmittedEvent>(x => x.DefaultTopic(x.Settings.MessageType.Name))
+                // declare that OrderSubmittedEvent will be consumed by OrderSubmittedHandler (option 1 - explicit declaration)
+                //.Consume<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithSubscriber<OrderSubmittedHandler>())
+                
+                // Note: we could discover messages and handlers using reflection and register them automatically (option 2 - auto discovery)
                 .Do(builder => domainAssembly
                     .GetTypes()
                     .Where(t => t.IsClass && !t.IsAbstract)
