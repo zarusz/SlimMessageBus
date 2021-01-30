@@ -1,7 +1,8 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using Confluent.Kafka;
-using Message = Confluent.Kafka.Message<Confluent.Kafka.Ignore, byte[]>;
+using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
 
 namespace SlimMessageBus.Host.Kafka
 {
@@ -12,8 +13,8 @@ namespace SlimMessageBus.Host.Kafka
     {        
         TopicPartition TopicPartition { get; }
 
-        Task OnMessage(Message message);
-        Task OnPartitionEndReached(TopicPartitionOffset offset);
-        Task OnPartitionRevoked();
+        ValueTask OnMessage([NotNull] ConsumeResult message);
+        ValueTask OnPartitionEndReached([NotNull] TopicPartitionOffset offset);
+        ValueTask OnPartitionRevoked();
     }
 }

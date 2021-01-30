@@ -9,6 +9,7 @@ using SlimMessageBus.Host.Kafka.Configs;
 using Message = Confluent.Kafka.Message<byte[], byte[]>;
 using IProducer = Confluent.Kafka.IProducer<byte[], byte[]>;
 using IConsumer = Confluent.Kafka.IConsumer<Confluent.Kafka.Ignore, byte[]>;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SlimMessageBus.Host.Kafka
 {
@@ -48,10 +49,10 @@ namespace SlimMessageBus.Host.Kafka
             CreateProviders();
         }
 
-        public Task Flush()
+        public void Flush()
         {
             AssertActive();
-            return Task.Run(() => _producer.Flush(-1));
+            _producer.Flush();
         }
 
         public IProducer CreateProducerInternal()
@@ -172,7 +173,7 @@ namespace SlimMessageBus.Host.Kafka
         {
             if (disposing)
             {
-                Flush().Wait();
+                Flush();
 
                 if (_groupConsumers.Count > 0)
                 {
@@ -193,33 +194,36 @@ namespace SlimMessageBus.Host.Kafka
             base.Dispose(disposing);
         }
 
-        public override async Task ProduceToTransport(Type messageType, object message, string name, byte[] payload, MessageWithHeaders messageWithHeaders = null)
+        public override async Task ProduceToTransport([NotNull] Type messageType, object message, string name, [NotNull] byte[] messagePayload, MessageWithHeaders messageWithHeaders = null)
         {
             AssertActive();
 
             // calculate message key
             var key = GetMessageKey(messageType, message, name);
-            var kafkaMessage = new Message { Key = key, Value = payload };            
+            var kafkaMessage = new Message { Key = key, Value = messagePayload };            
 
             // calculate partition
             var partition = GetMessagePartition(messageType, message, name);
 
-            _logger.LogTrace("Producing message {0} of type {1}, on topic {2}, partition {3}, key length {4}, payload size {5}",
-                message, messageType.Name, name, partition, key?.Length ?? 0, payload.Length);
+            _logger.LogTrace("Producing message {message} of type {messageType}, on topic {topic}, partition {partition}, key size {keySize}, payload size {messageSize}",
+                message, messageType.Name, name, partition, key?.Length ?? 0, messagePayload.Length);
 
             // send the message to topic
             var task = partition == NoPartition
                 ? _producer.ProduceAsync(name, kafkaMessage)
                 : _producer.ProduceAsync(new TopicPartition(name, new Partition(partition)), kafkaMessage);
 
-            var deliveryReport = await task.ConfigureAwait(false);
-            if (deliveryReport.Status == PersistenceStatus.NotPersisted)
+            // ToDo: Introduce support for not awaited produce
+
+            var deliveryResult = await task.ConfigureAwait(false);
+            if (deliveryResult.Status == PersistenceStatus.NotPersisted)
             {
-                throw new PublishMessageBusException($"Error while publish message {message} of type {messageType.Name} to topic {name}. Kafka persistence status: {deliveryReport.Status}");
+                throw new PublishMessageBusException($"Error while publish message {message} of type {messageType.Name} to topic {name}. Kafka persistence status: {deliveryResult.Status}");
             }
 
             // log some debug information
-            _logger.LogDebug("Message {0} of type {1} delivered to topic-partition-offset {2}", message, messageType.Name, deliveryReport.TopicPartitionOffset);
+            _logger.LogDebug("Message {message} of type {messageType} delivered to topic-partition-offset {topicPartitionOffset}", 
+                message, messageType.Name, deliveryResult.TopicPartitionOffset);
         }
 
         protected byte[] GetMessageKey(Type messageType, object message, string topic)
@@ -239,7 +243,7 @@ namespace SlimMessageBus.Host.Kafka
 
         private const int NoPartition = -1;
 
-        protected int GetMessagePartition(Type messageType, object message, string topic)
+        protected int GetMessagePartition([NotNull] Type messageType, object message, string topic)
         {
             var partition = NoPartition;
             if (_partitionProviders.TryGetValue(messageType, out var partitionProvider))

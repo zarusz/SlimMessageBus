@@ -1,11 +1,12 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using Confluent.Kafka;
 using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Kafka.Configs;
 
-using Message = Confluent.Kafka.Message<Confluent.Kafka.Ignore, byte[]>;
+using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
 
 namespace SlimMessageBus.Host.Kafka
 {
@@ -20,20 +21,20 @@ namespace SlimMessageBus.Host.Kafka
         private readonly MessageBusBase _messageBus;
         private readonly ConsumerSettings _consumerSettings;
         private readonly IKafkaCommitController _commitController;
-        private readonly MessageQueueWorker<Message> _messageQueueWorker;
+        private readonly MessageQueueWorker<ConsumeResult> _messageQueueWorker;
 
         public KafkaConsumerProcessor(ConsumerSettings consumerSettings, TopicPartition topicPartition, IKafkaCommitController commitController, MessageBusBase messageBus)
             : this(consumerSettings,
                    topicPartition,
                    commitController,
                    messageBus,
-                   new MessageQueueWorker<Message>(
-                       new ConsumerInstancePoolMessageProcessor<Message>(consumerSettings, messageBus, m => m.Value, (m, ctx) => ctx.SetTransportMessage(m)),
+                   new MessageQueueWorker<ConsumeResult>(
+                       new ConsumerInstancePoolMessageProcessor<ConsumeResult>(consumerSettings, messageBus, m => m.Message.Value, (m, ctx) => ctx.SetTransportMessage(m)),
                        new CheckpointTrigger(consumerSettings), messageBus.LoggerFactory))
         {
         }
 
-        public KafkaConsumerProcessor(ConsumerSettings consumerSettings, TopicPartition topicPartition, IKafkaCommitController commitController, MessageBusBase messageBus, MessageQueueWorker<Message> messageQueueWorker)
+        public KafkaConsumerProcessor(ConsumerSettings consumerSettings, TopicPartition topicPartition, IKafkaCommitController commitController, MessageBusBase messageBus, MessageQueueWorker<ConsumeResult> messageQueueWorker)
         {
             _messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
 
@@ -68,38 +69,36 @@ namespace SlimMessageBus.Host.Kafka
 
         public TopicPartition TopicPartition { get; }
 
-        public Task OnMessage(Message message)
+        public async ValueTask OnMessage([NotNull] ConsumeResult message)
         {
             try
             {
                 if (_messageQueueWorker.Submit(message))
                 {
-                    _logger.LogDebug("Group [{0}]: Will commit at offset {1}", _consumerSettings.GetGroup(), message.TopicPartitionOffset);
-                    return Commit(message.TopicPartitionOffset);
+                    _logger.LogDebug("Group [{group}]: Will commit at offset {offset}", _consumerSettings.GetGroup(), message.TopicPartitionOffset);
+                    await Commit(message.TopicPartitionOffset).ConfigureAwait(false);
                 }
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Group [{0}]: Error occured while consuming a message: {0}, of type {1}", _consumerSettings.GetGroup(), message.TopicPartitionOffset, _consumerSettings.MessageType);
+                _logger.LogError(e, "Group [{group}]: Error occured while consuming a message at offset: {offset}, of type {messageType}", _consumerSettings.GetGroup(), message.TopicPartitionOffset, _consumerSettings.MessageType);
                 throw;
             }
-            return Task.CompletedTask;
         }
 
-        public Task OnPartitionEndReached(TopicPartitionOffset offset)
+        public async ValueTask OnPartitionEndReached(TopicPartitionOffset offset)
         {
-            return Commit(offset);
+            await Commit(offset).ConfigureAwait(false);
         }
 
-        public Task OnPartitionRevoked()
+        public async ValueTask OnPartitionRevoked()
         {
             _messageQueueWorker.Clear();
-            return Task.CompletedTask;
         }
 
         #endregion
 
-        public async Task Commit(TopicPartitionOffset offset)
+        public async ValueTask Commit(TopicPartitionOffset offset)
         {
             var result = await _messageQueueWorker.WaitAll().ConfigureAwait(false);
             // ToDo: Add retry functionality

@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Confluent.Kafka;
 using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.Collections;
-using Message = Confluent.Kafka.Message<byte[], byte[]>;
-using IProducer = Confluent.Kafka.IProducer<byte[], byte[]>;
+using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
 using IConsumer = Confluent.Kafka.IConsumer<Confluent.Kafka.Ignore, byte[]>;
 
 namespace SlimMessageBus.Host.Kafka
@@ -94,7 +94,7 @@ namespace SlimMessageBus.Host.Kafka
                 throw new MessageBusException($"Consumer for group {Group} already started");
             }
 
-            _logger.LogInformation("Group [{0}]: Subscribing to topics: {1}", Group, string.Join(", ", Topics));
+            _logger.LogInformation("Group [{group}]: Subscribing to topics: {topics}", Group, string.Join(", ", Topics));
             _consumer.Subscribe(Topics);
 
             _consumerCts = new CancellationTokenSource();
@@ -104,9 +104,9 @@ namespace SlimMessageBus.Host.Kafka
         /// <summary>
         /// The consumer group loop
         /// </summary>
-        protected virtual void ConsumerLoop()
+        protected virtual async Task ConsumerLoop()
         {
-            _logger.LogInformation("Group [{0}]: Consumer loop started", Group);
+            _logger.LogInformation("Group [{group}]: Consumer loop started", Group);
             try
             {
                 var pollInterval = MessageBus.ProviderSettings.ConsumerPollInterval;
@@ -116,23 +116,37 @@ namespace SlimMessageBus.Host.Kafka
                 {
                     try
                     {
-                        _logger.LogTrace("Group [{0}]: Polling consumer", Group);
-                        _consumer.Poll(pollInterval);
+                        _logger.LogTrace("Group [{group}]: Polling consumer", Group);
+                        var cr = _consumer.Consume(pollInterval);
+
+                        if (cr.IsPartitionEOF)
+                        {
+                            await OnPartitionEndReached(cr.TopicPartitionOffset).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await OnMessage(cr).ConfigureAwait(false);
+
+                        }
+
                     }
                     catch (Exception e)
                     {
-                        _logger.LogError(e, "Group [{0}]: Error occured while polling new messages (will retry in {1})", Group, pollRetryInterval);
-                        Task.Delay(pollRetryInterval, _consumerCts.Token).Wait(_consumerCts.Token);
+                        _logger.LogError(e, "Group [{group}]: Error occured while polling new messages (will retry in {retryInterval})", Group, pollRetryInterval);
+                        await Task.Delay(pollRetryInterval, _consumerCts.Token).ConfigureAwait(false);
                     }
                 }
+
+                // Ensure the consumer leaves the group cleanly and final offsets are committed.
+                _consumer.Close();
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Group [{0}]: Error occured in group loop (terminated)", e, Group);
+                _logger.LogError(e, "Group [{group}]: Error occured in group loop (terminated)", e, Group);
             }
             finally
             {
-                _logger.LogInformation("Group [{0}]: Consumer loop finished", Group);
+                _logger.LogInformation("Group [{group}]: Consumer loop finished", Group);
             }
         }
 
@@ -143,11 +157,13 @@ namespace SlimMessageBus.Host.Kafka
                 throw new MessageBusException($"Consumer for group {Group} not yet started");
             }
 
-            _logger.LogInformation("Group [{0}]: Unassigning partitions", Group);
+            /*
+            _logger.LogInformation("Group [{group}]: Unassigning partitions", Group);
             _consumer.Unassign();
 
-            _logger.LogInformation("Group [{0}]: Unsubscribing from topics", Group);
+            _logger.LogInformation("Group [{group}]: Unsubscribing from topics", Group);
             _consumer.Unsubscribe();
+            */
 
             _consumerCts.Cancel();
             try
@@ -165,7 +181,7 @@ namespace SlimMessageBus.Host.Kafka
         {
             if (_logger.IsEnabled(LogLevel.Debug))
             {
-                _logger.LogDebug("Group [{0}]: Assigned partitions: {1}", Group, string.Join(", ", partitions));
+                _logger.LogDebug("Group [{group}]: Assigned partitions: {1}", Group, string.Join(", ", partitions));
             }
 
             // Ensure processors exist for each assigned topic-partition
@@ -186,33 +202,33 @@ namespace SlimMessageBus.Host.Kafka
             _consumer?.Unassign();
         }
 
-        protected virtual void OnPartitionEndReached(object sender, TopicPartitionOffset offset)
+        protected virtual async ValueTask OnPartitionEndReached([NotNull] TopicPartitionOffset offset)
         {
-            _logger.LogDebug("Group [{0}]: Reached end of partition: {1}, next message will be at offset: {2}", Group, offset.TopicPartition, offset.Offset);
+            _logger.LogDebug("Group [{group}]: Reached end of partition: {partition}, next message will be at offset: {offset}", Group, offset.TopicPartition, offset.Offset);
 
             var processor = _processors.Dictonary[offset.TopicPartition];
-            processor.OnPartitionEndReached(offset).Wait();
+            await processor.OnPartitionEndReached(offset).ConfigureAwait(false);
         }
 
-        protected virtual void OnMessage(object sender, Message message)
+        protected virtual async ValueTask OnMessage([NotNull] ConsumeResult message)
         {
-            _logger.LogDebug("Group [{0}]: Received message with offset: {1}, payload size: {2}", Group, message.TopicPartitionOffset, message.Value.Length);
+            _logger.LogDebug("Group [{group}]: Received message with offset: {offset}, payload size: {messageSize}", Group, message.TopicPartitionOffset, message.Message.Value?.Length ?? 0);
 
             var processor = _processors.Dictonary[message.TopicPartition];
-            processor.OnMessage(message).Wait();
+            await processor.OnMessage(message).ConfigureAwait(false);
         }
 
         protected virtual void OnOffsetsCommitted(object sender, CommittedOffsets e)
         {
-            if (e.Error)
+            if (e.Error.IsError || e.Error.IsFatal)
             {
                 if (_logger.IsEnabled(LogLevel.Warning))
-                    _logger.LogWarning("Group [{0}]: Failed to commit offsets: [{1}], error: {2}", Group, string.Join(", ", e.Offsets), e.Error);
+                    _logger.LogWarning("Group [{group}]: Failed to commit offsets: [{offsets}], error: {error}", Group, string.Join(", ", e.Offsets), e.Error.Reason);
             }
             else
             {
                 if (_logger.IsEnabled(LogLevel.Trace))
-                    _logger.LogTrace("Group [{0}]: Successfully committed offsets: [{1}]", Group, string.Join(", ", e.Offsets));
+                    _logger.LogTrace("Group [{group}]: Successfully committed offsets: [{offsets}]", Group, string.Join(", ", e.Offsets));
             }
         }
 

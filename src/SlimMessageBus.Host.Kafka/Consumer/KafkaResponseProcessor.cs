@@ -1,10 +1,11 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using Confluent.Kafka;
 using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Kafka.Configs;
-using Message = Confluent.Kafka.Message<Confluent.Kafka.Ignore, byte[]>;
+using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
 
 namespace SlimMessageBus.Host.Kafka
 {
@@ -56,17 +57,18 @@ namespace SlimMessageBus.Host.Kafka
 
         public TopicPartition TopicPartition { get; }
 
-        public async Task OnMessage(Message message)
+        public async ValueTask OnMessage([NotNull] ConsumeResult message)
         {
             try
             {
-                await _messageBus.OnResponseArrived(message.Value, _requestResponseSettings.Topic).ConfigureAwait(false);
+                await _messageBus.OnResponseArrived(message.Message.Value, _requestResponseSettings.Topic).ConfigureAwait(false);
             }
             catch (Exception e)
             {
                 if (_logger.IsEnabled(LogLevel.Error))
-                    _logger.LogError(e, "Error occured while consuming response message: {0}", new MessageContextInfo(_requestResponseSettings.GetGroup(), message));
-
+                {
+                    _logger.LogError(e, "Error occured while consuming response message: {0}", new MessageContextInfo(_requestResponseSettings.GetGroup(), message.TopicPartitionOffset));
+                }
                 // For response messages we can only continue and process all messages in the lease
                 // ToDo: Add support for retry ?
 
@@ -80,7 +82,7 @@ namespace SlimMessageBus.Host.Kafka
                     }
                     catch (Exception e2)
                     {
-                        _logger.LogWarning(e2, "Error handling hook failed for message: {0}", new MessageContextInfo(_requestResponseSettings.GetGroup(), message));
+                        _logger.LogWarning(e2, "Error handling hook failed for message: {0}", new MessageContextInfo(_requestResponseSettings.GetGroup(), message.TopicPartitionOffset));
                     }
                 }
             }
@@ -90,15 +92,14 @@ namespace SlimMessageBus.Host.Kafka
             }
         }
 
-        public async Task OnPartitionEndReached(TopicPartitionOffset offset)
+        public async ValueTask OnPartitionEndReached(TopicPartitionOffset offset)
         {
-            _commitController.Commit(offset);
+            await _commitController.Commit(offset).ConfigureAwait(false);
         }
 
-        public Task OnPartitionRevoked()
+        public async ValueTask OnPartitionRevoked()
         {
             _checkpointTrigger.Reset();
-            return Task.CompletedTask;
         }
 
         #endregion
