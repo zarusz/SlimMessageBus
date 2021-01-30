@@ -9,6 +9,8 @@ using Xunit;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
+using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
+
 namespace SlimMessageBus.Host.Kafka.Test
 {
     public class KafkaConsumerProcessorTest : IDisposable
@@ -18,7 +20,7 @@ namespace SlimMessageBus.Host.Kafka.Test
 
         private readonly Mock<IKafkaCommitController> _commitControllerMock = new Mock<IKafkaCommitController>();
         private readonly Mock<ICheckpointTrigger> _checkpointTrigger = new Mock<ICheckpointTrigger>();
-        private readonly Mock<MessageQueueWorker<Message>> _messageQueueWorkerMock;
+        private readonly Mock<MessageQueueWorker<ConsumeResult>> _messageQueueWorkerMock;
 
         private readonly SomeMessageConsumer _consumer = new SomeMessageConsumer();
 
@@ -44,9 +46,9 @@ namespace SlimMessageBus.Host.Kafka.Test
             massageBusMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageConsumer))).Returns(_consumer);
             massageBusMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(ILoggerFactory))).Returns(_loggerFactory);
 
-            static byte[] MessageValueProvider(Message m) => m.Value;
-            var consumerInstancePoolMock = new Mock<ConsumerInstancePoolMessageProcessor<Message>>(consumerSettings, massageBusMock.Bus, (Func<Message, byte[]>)MessageValueProvider, null);
-            _messageQueueWorkerMock = new Mock<MessageQueueWorker<Message>>(consumerInstancePoolMock.Object, _checkpointTrigger.Object, _loggerFactory);
+            static byte[] MessageValueProvider(ConsumeResult m) => m.Message.Value;
+            var consumerInstancePoolMock = new Mock<ConsumerInstancePoolMessageProcessor<ConsumeResult>>(consumerSettings, massageBusMock.Bus, (Func<ConsumeResult, byte[]>)MessageValueProvider, null);
+            _messageQueueWorkerMock = new Mock<MessageQueueWorker<ConsumeResult>>(consumerInstancePoolMock.Object, _checkpointTrigger.Object, _loggerFactory);
             _subject = new KafkaConsumerProcessor(consumerSettings, _topicPartition, _commitControllerMock.Object, massageBusMock.Bus, _messageQueueWorkerMock.Object);
         }
 
@@ -71,13 +73,13 @@ namespace SlimMessageBus.Host.Kafka.Test
         }
 
         [Fact]
-        public void WhenOnPartitionEndReachedThenShouldCommit()
+        public async Task WhenOnPartitionEndReachedThenShouldCommit()
         {
             // arrange
             var partition = new TopicPartitionOffset(_topicPartition, new Offset(10));
 
             // act
-            _subject.OnPartitionEndReached(partition).Wait();
+            await _subject.OnPartitionEndReached(partition);
 
             // assert
             _commitControllerMock.Verify(x => x.Commit(partition), Times.Once);
@@ -89,57 +91,64 @@ namespace SlimMessageBus.Host.Kafka.Test
             // arrange
 
             // act
-            _subject.OnPartitionRevoked().Wait();
+            _subject.OnPartitionRevoked();
 
             // assert
             _messageQueueWorkerMock.Verify(x => x.Clear(), Times.Once);
         }
 
         [Fact]
-        public void WhenOnMessageAndWorkerQueueSubmitReturnTrueThenShouldCommit()
+        public async Task WhenOnMessageAndWorkerQueueSubmitReturnTrueThenShouldCommit()
         {
             // arrange
             var message = GetSomeMessage();
             _messageQueueWorkerMock.Setup(x => x.Submit(message)).Returns(true);
 
             // act
-            _subject.OnMessage(message).Wait();
+            await _subject.OnMessage(message);
 
             // assert
             _commitControllerMock.Verify(x => x.Commit(message.TopicPartitionOffset), Times.Once);
         }
 
         [Fact]
-        public void WhenOnMessageAndWorkerQueueSubmitReturnFalseThenShouldNotCommit()
+        public async Task WhenOnMessageAndWorkerQueueSubmitReturnFalseThenShouldNotCommit()
         {
             // arrange
             var message = GetSomeMessage();
             _messageQueueWorkerMock.Setup(x => x.Submit(message)).Returns(false);
 
             // act
-            _subject.OnMessage(message).Wait();
+            await _subject.OnMessage(message);
 
             // assert
             _commitControllerMock.Verify(x => x.Commit(message.TopicPartitionOffset), Times.Never);
         }
 
         [Fact]
-        public void WhenCommitThenShouldSyncPendingMessages()
+        public async Task WhenCommitThenShouldSyncPendingMessages()
         {
             // arrange
             var offset = new TopicPartitionOffset(_topicPartition, new Offset(10));
 
             // act
-            _subject.Commit(offset).Wait();
+            await _subject.Commit(offset);
 
             // assert
             _messageQueueWorkerMock.Verify(x => x.WaitAll(), Times.Once);
             _commitControllerMock.Verify(x => x.Commit(offset), Times.Once);
         }
 
-        private Message GetSomeMessage()
+        private ConsumeResult GetSomeMessage()
         {
-            return new Message(_topicPartition.Topic, _topicPartition.Partition, 10, new byte[] { 10, 20 }, new byte[] { 10, 20 }, new Timestamp(), null);
+            return new ConsumeResult
+            {
+                Topic = _topicPartition.Topic,
+                Partition = _topicPartition.Partition,
+                Offset = 10,
+                Message = new Message<Ignore, byte[]> { Key = null, Value = new byte[] { 10, 20 } },
+                IsPartitionEOF = false,
+            };
         }
     }
 

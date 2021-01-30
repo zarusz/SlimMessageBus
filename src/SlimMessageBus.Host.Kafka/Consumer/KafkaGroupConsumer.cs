@@ -38,12 +38,6 @@ namespace SlimMessageBus.Host.Kafka
             _processors = new SafeDictionaryWrapper<TopicPartition, IKafkaTopicPartitionProcessor>(tp => processorFactory(tp, this));
 
             _consumer = CreateConsumer(group);
-            _consumer.OnMessage += OnMessage;
-            _consumer.OnPartitionsAssigned += OnPartitionAssigned;
-            _consumer.OnPartitionsRevoked += OnPartitionRevoked;
-            _consumer.OnPartitionEOF += OnPartitionEndReached;
-            _consumer.OnOffsetsCommitted += OnOffsetsCommitted;
-            _consumer.OnStatistics += OnStatistics;
         }
 
         #region Implementation of IDisposable
@@ -78,12 +72,23 @@ namespace SlimMessageBus.Host.Kafka
 
         protected IConsumer CreateConsumer(string group)
         {
-            var config = MessageBus.ProviderSettings.ConsumerConfigFactory(group);
-            config.BootstrapServers = MessageBus.ProviderSettings.BrokerList;
-            config.GroupId = group;
+            var config = new ConsumerConfig
+            {
+                GroupId = group,
+                BootstrapServers = MessageBus.ProviderSettings.BrokerList
+            };
+            MessageBus.ProviderSettings.ConsumerConfig(config);
+
             // ToDo: add support for auto commit
             config.EnableAutoCommit = false;
-            var consumer = MessageBus.ProviderSettings.ConsumerFactory(group, config);
+
+            var consumer = MessageBus.ProviderSettings.ConsumerBuilderFactory(config)
+                .SetStatisticsHandler((_, json) => OnStatistics(json))
+                .SetPartitionsAssignedHandler((_, partitions) => OnPartitionAssigned(partitions))
+                .SetPartitionsRevokedHandler((_, partitions) => OnPartitionRevoked(partitions))
+                .SetOffsetsCommittedHandler((_, offsets) => OnOffsetsCommitted(offsets))
+                .Build();
+
             return consumer;
         }
 
@@ -118,21 +123,21 @@ namespace SlimMessageBus.Host.Kafka
                     {
                         _logger.LogTrace("Group [{group}]: Polling consumer", Group);
                         var cr = _consumer.Consume(pollInterval);
-
-                        if (cr.IsPartitionEOF)
+                        if (cr != null)
                         {
-                            await OnPartitionEndReached(cr.TopicPartitionOffset).ConfigureAwait(false);
+                            if (cr.IsPartitionEOF)
+                            {
+                                await OnPartitionEndReached(cr.TopicPartitionOffset).ConfigureAwait(false);
+                            }
+                            else
+                            {
+                                await OnMessage(cr).ConfigureAwait(false);
+                            }
                         }
-                        else
-                        {
-                            await OnMessage(cr).ConfigureAwait(false);
-
-                        }
-
                     }
-                    catch (Exception e)
+                    catch (ConsumeException e)
                     {
-                        _logger.LogError(e, "Group [{group}]: Error occured while polling new messages (will retry in {retryInterval})", Group, pollRetryInterval);
+                        _logger.LogError(e, "Group [{group}]: Error occured while polling new messages (will retry in {retryInterval}) - {reason}", Group, pollRetryInterval, e.Error.Reason);
                         await Task.Delay(pollRetryInterval, _consumerCts.Token).ConfigureAwait(false);
                     }
                 }
@@ -173,11 +178,13 @@ namespace SlimMessageBus.Host.Kafka
             finally
             {
                 _consumerTask = null;
+
+                _consumerCts.DisposeSilently();
                 _consumerCts = null;
             }
         }
 
-        protected virtual void OnPartitionAssigned(object sender, List<TopicPartition> partitions)
+        protected virtual void OnPartitionAssigned([NotNull] ICollection<TopicPartition> partitions)
         {
             if (_logger.IsEnabled(LogLevel.Debug))
             {
@@ -185,21 +192,27 @@ namespace SlimMessageBus.Host.Kafka
             }
 
             // Ensure processors exist for each assigned topic-partition
-            partitions.ForEach(tp => _processors.GetOrAdd(tp));
+            foreach (var partition in partitions)
+            {
+                _processors.GetOrAdd(partition);
+            }
 
-            _consumer?.Assign(partitions);
+            //_consumer?.Assign(partitions);
         }
 
-        protected virtual void OnPartitionRevoked(object sender, List<TopicPartition> partitions)
+        protected virtual void OnPartitionRevoked([NotNull] ICollection<TopicPartitionOffset> partitions)
         {
             if (_logger.IsEnabled(LogLevel.Debug))
             {
-                _logger.LogDebug("Group [{0}]: Revoked partitions: {1}", Group, string.Join(", ", partitions));
+                _logger.LogDebug("Group [{group}]: Revoked partitions: {1}", Group, string.Join(", ", partitions));
             }
 
-            partitions.ForEach(tp => _processors.Dictonary[tp].OnPartitionRevoked().Wait());
+            foreach (var partition in partitions)
+            {
+                _processors.Dictonary[partition.TopicPartition].OnPartitionRevoked();
+            }
 
-            _consumer?.Unassign();
+            //_consumer?.Unassign();
         }
 
         protected virtual async ValueTask OnPartitionEndReached([NotNull] TopicPartitionOffset offset)
@@ -218,33 +231,34 @@ namespace SlimMessageBus.Host.Kafka
             await processor.OnMessage(message).ConfigureAwait(false);
         }
 
-        protected virtual void OnOffsetsCommitted(object sender, CommittedOffsets e)
+        protected virtual void OnOffsetsCommitted([NotNull] CommittedOffsets e)
         {
             if (e.Error.IsError || e.Error.IsFatal)
             {
                 if (_logger.IsEnabled(LogLevel.Warning))
+                {
                     _logger.LogWarning("Group [{group}]: Failed to commit offsets: [{offsets}], error: {error}", Group, string.Join(", ", e.Offsets), e.Error.Reason);
+                }
             }
             else
             {
                 if (_logger.IsEnabled(LogLevel.Trace))
+                {
                     _logger.LogTrace("Group [{group}]: Successfully committed offsets: [{offsets}]", Group, string.Join(", ", e.Offsets));
+                }
             }
         }
 
-        protected virtual void OnStatistics(object sender, string e)
+        protected virtual void OnStatistics(string json)
         {
-            if (_logger.IsEnabled(LogLevel.Trace))
-            {
-                _logger.LogTrace("Group [{0}]: Statistics: {1}", Group, e);
-            }
+            _logger.LogTrace("Group [{group}]: Statistics: {statistics}", Group, json);
         }
 
         #region Implementation of IKafkaCoordinator
 
-        public async ValueTask Commit(TopicPartitionOffset offset)
+        public void Commit(TopicPartitionOffset offset)
         {
-            _logger.LogDebug("Group [{0}]: Commit offset: {1}", Group, offset);
+            _logger.LogDebug("Group [{group}]: Commit offset: {offset}", Group, offset);
             _consumer.Commit(new[] { offset });
         }
 

@@ -28,7 +28,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             };
             KafkaMbSettings = new KafkaMessageBusSettings("host")
             {
-                ProducerFactory = (producerSettings) => new Mock<Producer>(Enumerable.Empty<KeyValuePair<string, object>>()).Object
+                ProducerBuilderFactory = (producerSettings) => new Mock<ProducerBuilder<byte[], byte[]>>(Enumerable.Empty<KeyValuePair<string, object>>()).Object
             };
             KafkaMb = new Lazy<WrappedKafkaMessageBus>(() => new WrappedKafkaMessageBus(MbSettings, KafkaMbSettings));
         }

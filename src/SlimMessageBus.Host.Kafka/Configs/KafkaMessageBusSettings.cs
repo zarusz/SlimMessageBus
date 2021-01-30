@@ -1,7 +1,7 @@
 using System;
 using Confluent.Kafka;
-using IProducer = Confluent.Kafka.IProducer<byte[], byte[]>;
-using IConsumer = Confluent.Kafka.IConsumer<Confluent.Kafka.Ignore, byte[]>;
+using ProducerBuilder = Confluent.Kafka.ProducerBuilder<byte[], byte[]>;
+using ConsumerBuilder = Confluent.Kafka.ConsumerBuilder<Confluent.Kafka.Ignore, byte[]>;
 
 namespace SlimMessageBus.Host.Kafka
 {
@@ -12,23 +12,23 @@ namespace SlimMessageBus.Host.Kafka
         /// </summary>
         public string BrokerList { get; set; }
         /// <summary>
-        /// Factory method that creates a <see cref="Producer"/> based on the supplied settings.
+        /// Factory method that creates a <see cref="ProducerBuilder"/> based on the supplied settings.
         /// </summary>
-        public Func<ProducerConfig, IProducer> ProducerFactory { get; set; }
+        public Func<ProducerConfig, ProducerBuilder> ProducerBuilderFactory { get; set; }
         /// <summary>
         /// Factory method that created a <see cref="Producer"/>.
         /// See also: https://kafka.apache.org/documentation/#producerconfigs
         /// </summary>
-        public Func<ProducerConfig> ProducerConfigFactory { get; set; }
+        public Action<ProducerConfig> ProducerConfig { get; set; }
         /// <summary>
-        /// Factory method that creates a <see cref="Consumer"/> based on the supplied settings and consumer GroupId. 
+        /// Factory method that creates a <see cref="ConsumerBuilder"/> based on the supplied settings and consumer GroupId. 
         /// </summary>
-        public Func<string, ConsumerConfig, IConsumer> ConsumerFactory { get; set; }
+        public Func<ConsumerConfig, ConsumerBuilder> ConsumerBuilderFactory { get; set; }
         /// <summary>
         /// Factory method that creates settings based on the consumer GroupId.
         /// See also: https://kafka.apache.org/documentation/#newconsumerconfigs
         /// </summary>
-        public Func<string, ConsumerConfig> ConsumerConfigFactory { get; set; }
+        public Action< ConsumerConfig> ConsumerConfig { get; set; }
         /// <summary>
         /// The timespan of the Poll kafka consumer operation before it times out.
         /// </summary>
@@ -41,10 +41,10 @@ namespace SlimMessageBus.Host.Kafka
         public KafkaMessageBusSettings(string brokerList)
         {
             BrokerList = brokerList;
-            ProducerConfigFactory = () => new ProducerConfig();
-            ProducerFactory = (config) => new ProducerBuilder<byte[], byte[]>(config).Build();
-            ConsumerConfigFactory = (group) => new ConsumerConfig { GroupId = group };
-            ConsumerFactory = (group, config) => new ConsumerBuilder<Ignore, byte[]>(config).Build();
+            ProducerConfig = (config) => { };
+            ProducerBuilderFactory = (config) => new ProducerBuilder<byte[], byte[]>(config);
+            ConsumerConfig = (config) => { };
+            ConsumerBuilderFactory = (config) => new ConsumerBuilder<Ignore, byte[]>(config);
             ConsumerPollInterval = TimeSpan.FromSeconds(2);
             ConsumerPollRetryInterval = TimeSpan.FromSeconds(2);
         }

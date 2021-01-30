@@ -16,6 +16,7 @@ using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
+using Confluent.Kafka;
 
 namespace SlimMessageBus.Host.Kafka.Test
 {
@@ -39,15 +40,14 @@ namespace SlimMessageBus.Host.Kafka.Test
         private MessageBusBuilder MessageBusBuilder { get; }
         private Lazy<KafkaMessageBus> MessageBus { get; }
 
-        private static IDictionary<string, object> AddSsl(string username, string password, IDictionary<string, object> d)
+        private static void AddSsl(string username, string password, ClientConfig c)
         {
             // cloudkarafka.com uses SSL with SASL authentication
-            d.Add("security.protocol", "SASL_SSL");
-            d.Add("sasl.username", username);
-            d.Add("sasl.password", password);
-            d.Add("sasl.mechanism", "SCRAM-SHA-256");
-            d.Add("ssl.ca.location", "cloudkarafka_2020-12.ca");          
-            return d;
+            c.SecurityProtocol = SecurityProtocol.SaslSsl;
+            c.SaslUsername = username;
+            c.SaslPassword = password;
+            c.SaslMechanism = SaslMechanism.ScramSha256;
+            c.SslCaLocation = "cloudkarafka_2020-12.ca";
         }
 
         private string TopicPrefix { get; }
@@ -72,21 +72,23 @@ namespace SlimMessageBus.Host.Kafka.Test
 
             KafkaSettings = new KafkaMessageBusSettings(kafkaBrokers)
             {
-                ProducerConfigFactory = () => AddSsl(kafkaUsername, kafkaPassword, new Dictionary<string, object>
+                ProducerConfig = (config) =>
                 {
-                    {"socket.blocking.max.ms", 1},
-                    {"queue.buffering.max.ms", 1},
-                    {"socket.nagle.disable", true},
-                    //{"request.required.acks", 0}
-                }),
-                ConsumerConfigFactory = (group) => AddSsl(kafkaUsername, kafkaPassword, new Dictionary<string, object>
-                {
-                    {"socket.blocking.max.ms", 1},
-                    {"fetch.error.backoff.ms", 1},
-                    {"statistics.interval.ms", 500000},
-                    {"socket.nagle.disable", true},
-                    {KafkaConfigKeys.ConsumerKeys.AutoOffsetReset, KafkaConfigValues.AutoOffsetReset.Earliest}
-                })
+                    AddSsl(kafkaUsername, kafkaPassword, config);
+
+                    // {"socket.blocking.max.ms", 1},
+                    // {"queue.buffering.max.ms", 1},
+                    config.SocketNagleDisable = true;
+                },
+                ConsumerConfig = (config) => {
+                    AddSsl(kafkaUsername, kafkaPassword, config);
+
+                    // {"socket.blocking.max.ms", 1},
+                    config.FetchErrorBackoffMs = 1;
+                    config.StatisticsIntervalMs = 500000;
+                    config.SocketNagleDisable = true;
+                    config.AutoOffsetReset = AutoOffsetReset.Earliest;
+                }
             };
 
             MessageBusBuilder = MessageBusBuilder.Create()

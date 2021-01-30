@@ -88,16 +88,16 @@ namespace SlimMessageBus.Host.Kafka
             }
             if (_checkpointTrigger.Increment())
             {
-                await _commitController.Commit(message.TopicPartitionOffset).ConfigureAwait(false);
+                _commitController.Commit(message.TopicPartitionOffset);
             }
         }
 
         public async ValueTask OnPartitionEndReached(TopicPartitionOffset offset)
         {
-            await _commitController.Commit(offset).ConfigureAwait(false);
+            _commitController.Commit(offset);
         }
 
-        public async ValueTask OnPartitionRevoked()
+        public void OnPartitionRevoked()
         {
             _checkpointTrigger.Reset();
         }

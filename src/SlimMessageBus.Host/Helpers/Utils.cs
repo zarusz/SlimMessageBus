@@ -5,7 +5,7 @@ namespace SlimMessageBus.Host
 {
     public static class Utils
     {
-        public static void DisposeSilently(this IDisposable disposable, Action<Exception> failed)
+        public static void DisposeSilently(this IDisposable disposable, Action<Exception> failed = null)
         {
             try
             {
@@ -13,13 +13,10 @@ namespace SlimMessageBus.Host
             }
             catch (Exception e)
             {
-                if (failed != null)
-                {
-                    failed(e);
-
-                }
+                failed?.Invoke(e);
             }
         }
+
 
         public static void DisposeSilently(this IDisposable disposable, string name, ILogger logger)
         {

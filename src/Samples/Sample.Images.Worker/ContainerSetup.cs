@@ -74,16 +74,10 @@ namespace Sample.Images.Worker
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
                 {
-                    ConsumerConfigFactory = group => new Dictionary<string, object>
+                    ConsumerConfig = (config) =>
                     {
-                        {KafkaConfigKeys.ConsumerKeys.AutoCommitEnableMs, 5000},
-                        {KafkaConfigKeys.ConsumerKeys.StatisticsIntervalMs, 60000},
-                        {
-                            "default.topic.config", new Dictionary<string, object>
-                            {
-                                {KafkaConfigKeys.ConsumerKeys.AutoOffsetReset, KafkaConfigValues.AutoOffsetReset.Latest}
-                            }
-                        }
+                        config.StatisticsIntervalMs = 60000;
+                        config.AutoOffsetReset = Confluent.Kafka.AutoOffsetReset.Latest;
                     }
                 });
 

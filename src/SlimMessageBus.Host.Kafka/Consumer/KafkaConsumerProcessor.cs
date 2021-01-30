@@ -91,7 +91,7 @@ namespace SlimMessageBus.Host.Kafka
             await Commit(offset).ConfigureAwait(false);
         }
 
-        public async ValueTask OnPartitionRevoked()
+        public void OnPartitionRevoked()
         {
             _messageQueueWorker.Clear();
         }
@@ -113,7 +113,7 @@ namespace SlimMessageBus.Host.Kafka
                 // ToDo: Add retry functionality
             }
             */
-            await _commitController.Commit(offset).ConfigureAwait(false);
+            _commitController.Commit(offset);
         }
     }
 }

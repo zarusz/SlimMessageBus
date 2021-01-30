@@ -58,10 +58,14 @@ namespace SlimMessageBus.Host.Kafka
         public IProducer CreateProducerInternal()
         {
             _logger.LogTrace("Creating producer settings");
-            var config = ProviderSettings.ProducerConfigFactory();
-            config.BootstrapServers = ProviderSettings.BrokerList;
+            var config = new ProducerConfig()
+            {
+                BootstrapServers = ProviderSettings.BrokerList
+            };
+            ProviderSettings.ProducerConfig(config);
+
             _logger.LogDebug("Producer settings: {0}", config);
-            var producer = ProviderSettings.ProducerFactory(config);
+            var producer = ProviderSettings.ProducerBuilderFactory(config).Build();
             return producer;
         }
 
@@ -200,7 +204,7 @@ namespace SlimMessageBus.Host.Kafka
 
             // calculate message key
             var key = GetMessageKey(messageType, message, name);
-            var kafkaMessage = new Message { Key = key, Value = messagePayload };            
+            var kafkaMessage = new Message { Key = key, Value = messagePayload };
 
             // calculate partition
             var partition = GetMessagePartition(messageType, message, name);
@@ -222,7 +226,7 @@ namespace SlimMessageBus.Host.Kafka
             }
 
             // log some debug information
-            _logger.LogDebug("Message {message} of type {messageType} delivered to topic-partition-offset {topicPartitionOffset}", 
+            _logger.LogDebug("Message {message} of type {messageType} delivered to topic-partition-offset {topicPartitionOffset}",
                 message, messageType.Name, deliveryResult.TopicPartitionOffset);
         }
 

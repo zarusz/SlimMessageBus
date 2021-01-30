@@ -6,6 +6,9 @@ using System;
 using SlimMessageBus.Host.Kafka.Configs;
 using Xunit;
 
+using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
+using System.Threading.Tasks;
+
 namespace SlimMessageBus.Host.Kafka.Test
 {
     public class KafkaResponseProcessorTest : IDisposable
@@ -44,13 +47,13 @@ namespace SlimMessageBus.Host.Kafka.Test
         }
 
         [Fact]
-        public void WhenOnPartitionEndReachedThenShouldCommit()
+        public async Task WhenOnPartitionEndReachedThenShouldCommit()
         {
             // arrange
             var partition = new TopicPartitionOffset(_topicPartition, new Offset(10));
 
             // act
-            _subject.OnPartitionEndReached(partition).Wait();
+            await _subject.OnPartitionEndReached(partition);
 
             // assert
             _commitControllerMock.Verify(x => x.Commit(partition), Times.Once);
@@ -62,74 +65,81 @@ namespace SlimMessageBus.Host.Kafka.Test
             // arrange
 
             // act
-            _subject.OnPartitionRevoked().Wait();
+            _subject.OnPartitionRevoked();
 
             // assert
             _checkpointTrigger.Verify(x => x.Reset(), Times.Once);
         }
 
         [Fact]
-        public void GivenSuccessMessageWhenOnMessageThenOnResponseArrived()
+        public async Task GivenSuccessMessageWhenOnMessageThenOnResponseArrived()
         {
             // arrange
             var message = GetSomeMessage();
 
             // act
-            _subject.OnMessage(message).Wait();
+            await _subject.OnMessage(message);
 
             // assert
-            _messageBusMock.BusMock.Verify(x => x.OnResponseArrived(message.Value, message.Topic), Times.Once);
+            _messageBusMock.BusMock.Verify(x => x.OnResponseArrived(message.Message.Value, message.Topic), Times.Once);
         }
 
         [Fact]
-        public void GivenMessageErrorsWhenOnMessageThenShouldCallHook()
+        public async Task GivenMessageErrorsWhenOnMessageThenShouldCallHook()
         {
             // arrange
             var message = GetSomeMessage();
             var onResponseMessageFaultMock = new Mock<Action<RequestResponseSettings, object, Exception>>();
             _messageBusMock.BusSettings.RequestResponse.OnResponseMessageFault = onResponseMessageFaultMock.Object;
             var e = new Exception();
-            _messageBusMock.BusMock.Setup(x => x.OnResponseArrived(message.Value, message.Topic)).Throws(e);
+            _messageBusMock.BusMock.Setup(x => x.OnResponseArrived(message.Message.Value, message.Topic)).Throws(e);
 
             // act
-            _subject.OnMessage(message).Wait();
+            await _subject.OnMessage(message);
 
             // assert
             onResponseMessageFaultMock.Verify(x => x(_messageBusMock.BusSettings.RequestResponse, message, e), Times.Once);
-            
+
         }
 
         [Fact]
-        public void GivenCheckpointReturnTrueWhenOnMessageThenShouldCommit()
+        public async Task GivenCheckpointReturnTrueWhenOnMessageThenShouldCommit()
         {
             // arrange
             _checkpointTrigger.Setup(x => x.Increment()).Returns(true);
             var message = GetSomeMessage();
 
             // act
-            _subject.OnMessage(message).Wait();
+            await _subject.OnMessage(message);
 
             // assert
             _commitControllerMock.Verify(x => x.Commit(message.TopicPartitionOffset), Times.Once);
         }
 
         [Fact]
-        public void GivenWhenCheckpointReturnFalseWhenOnMessageThenShouldNotCommit()
+        public async Task GivenWhenCheckpointReturnFalseWhenOnMessageThenShouldNotCommit()
         {
             // arrange
             _checkpointTrigger.Setup(x => x.Increment()).Returns(false);
             var message = GetSomeMessage();
 
             // act
-            _subject.OnMessage(message).Wait();
+            await _subject.OnMessage(message);
 
             // assert
             _commitControllerMock.Verify(x => x.Commit(It.IsAny<TopicPartitionOffset>()), Times.Never);
         }
 
-        private Message GetSomeMessage()
+        private ConsumeResult GetSomeMessage()
         {
-            return new Message(_topicPartition.Topic, _topicPartition.Partition, 10, new byte[] { 10, 20 }, new byte[] { 10, 20 }, new Timestamp(), null);
+            return new ConsumeResult
+            {
+                Topic = _topicPartition.Topic,
+                Partition = _topicPartition.Partition,
+                Offset = 10,
+                Message = new Message<Ignore, byte[]> { Key = null, Value = new byte[] { 10, 20 } },
+                IsPartitionEOF = false,
+            };
         }
 
         public void Dispose()

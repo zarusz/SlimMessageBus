@@ -15,6 +15,6 @@ namespace SlimMessageBus.Host.Kafka
 
         ValueTask OnMessage([NotNull] ConsumeResult message);
         ValueTask OnPartitionEndReached([NotNull] TopicPartitionOffset offset);
-        ValueTask OnPartitionRevoked();
+        void OnPartitionRevoked();
     }
 }
