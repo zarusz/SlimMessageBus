@@ -3,8 +3,6 @@ using FluentAssertions;
 using Moq;
 using SlimMessageBus.Host.Config;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Serialization;
 using Xunit;
@@ -20,6 +18,12 @@ namespace SlimMessageBus.Host.Kafka.Test
 
         public KafkaMessageBusTest()
         {
+            var producerMock = new Mock<IProducer<byte[], byte[]>>();
+            producerMock.SetupGet(x => x.Name).Returns("Producer Name");
+
+            var producerBuilderMock = new Mock<ProducerBuilder<byte[], byte[]>>(new ProducerConfig());
+            producerBuilderMock.Setup(x => x.Build()).Returns(producerMock.Object);
+
             MbSettings = new MessageBusSettings
             {
                 Serializer = new Mock<IMessageSerializer>().Object,
@@ -28,7 +32,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             };
             KafkaMbSettings = new KafkaMessageBusSettings("host")
             {
-                ProducerBuilderFactory = (producerSettings) => new Mock<ProducerBuilder<byte[], byte[]>>(Enumerable.Empty<KeyValuePair<string, object>>()).Object
+                ProducerBuilderFactory = (config) => producerBuilderMock.Object
             };
             KafkaMb = new Lazy<WrappedKafkaMessageBus>(() => new WrappedKafkaMessageBus(MbSettings, KafkaMbSettings));
         }
