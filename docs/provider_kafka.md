@@ -24,15 +24,15 @@ var messageBusBuilder = new MessageBusBuilder()
 	// ...
 	.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
 	{
-        ProducerConfig = (config) =>
-        {
-            // adjust he prodcer config
-        },
-        ConsumerConfig = (config) => 
+		ProducerConfig = (config) =>
 		{
-            // adjust he consumer config
-        }
-	});
+			// adjust he producer config
+		},
+		ConsumerConfig = (config) => 
+		{
+			// adjust he consumer config
+		}
+		});
 ```
 
 #### Minimizing message latency
@@ -71,14 +71,15 @@ var messageBusBuilder = new MessageBusBuilder()
 	// ...
 	.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
 	{
-        ProducerConfig = (config) =>
-        {
+		ProducerConfig = (config) =>
+		{
 			AddSsl(kafkaUsername, kafkaPassword, config);
         },
-        ConsumerConfig = (config) => {
+		ConsumerConfig = (config) => 
+W		{
 			AddSsl(kafkaUsername, kafkaPassword, config);
-        }
-	});
+	}
+});
 
 private static void AddSsl(string username, string password, ClientConfig c)
 {
@@ -91,10 +92,6 @@ private static void AddSsl(string username, string password, ClientConfig c)
 ```
 
 The file `cloudkarafka_2020-12.ca` has to be set to `Copy to Output Directory` as `Copy always`.
-
-### Deployment
-
-The `librdkafka` distribution for Windows requires [Visual C++ Redistributable for 2013](https://www.microsoft.com/en-US/download/details.aspx?id=40784) installed on the server. More information can be found [here](https://www.microsoft.com/en-US/download/details.aspx?id=40784).
 
 ### Selecting message partition for topic producer
 
@@ -166,3 +163,7 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
 ```
 
 This could be useful to extract the message's offset or partition.
+
+### Deployment
+
+The `librdkafka` distribution for Windows requires [Visual C++ Redistributable for 2013](https://www.microsoft.com/en-US/download/details.aspx?id=40784) installed on the server. More information can be found [here](https://www.microsoft.com/en-US/download/details.aspx?id=40784).
