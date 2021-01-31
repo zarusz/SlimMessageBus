@@ -76,13 +76,14 @@ namespace SlimMessageBus.Host.Kafka.Test
         public async Task WhenOnPartitionEndReachedThenShouldCommit()
         {
             // arrange
-            var partition = new TopicPartitionOffset(_topicPartition, new Offset(10));
+            var message = GetSomeMessage();
+            _messageQueueWorkerMock.Setup(x => x.WaitAll()).ReturnsAsync(new MessageQueueResult<ConsumeResult> { Success = true, LastSuccessMessage = message });
 
             // act
-            await _subject.OnPartitionEndReached(partition);
+            await _subject.OnPartitionEndReached(message.TopicPartitionOffset);
 
             // assert
-            _commitControllerMock.Verify(x => x.Commit(partition), Times.Once);
+            _commitControllerMock.Verify(x => x.Commit(message.TopicPartitionOffset), Times.Once);
         }
 
         [Fact]
@@ -102,6 +103,7 @@ namespace SlimMessageBus.Host.Kafka.Test
         {
             // arrange
             var message = GetSomeMessage();
+            _messageQueueWorkerMock.Setup(x => x.WaitAll()).ReturnsAsync(new MessageQueueResult<ConsumeResult> { Success = true, LastSuccessMessage = message });
             _messageQueueWorkerMock.Setup(x => x.Submit(message)).Returns(true);
 
             // act
@@ -129,14 +131,15 @@ namespace SlimMessageBus.Host.Kafka.Test
         public async Task WhenCommitThenShouldSyncPendingMessages()
         {
             // arrange
-            var offset = new TopicPartitionOffset(_topicPartition, new Offset(10));
+            var message = GetSomeMessage();
+            _messageQueueWorkerMock.Setup(x => x.WaitAll()).ReturnsAsync(new MessageQueueResult<ConsumeResult> { Success = true, LastSuccessMessage = message });
 
             // act
             await _subject.Commit();
 
             // assert
             _messageQueueWorkerMock.Verify(x => x.WaitAll(), Times.Once);
-            _commitControllerMock.Verify(x => x.Commit(offset), Times.Once);
+            _commitControllerMock.Verify(x => x.Commit(message.TopicPartitionOffset), Times.Once);
         }
 
         private ConsumeResult GetSomeMessage()
