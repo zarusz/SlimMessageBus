@@ -32,7 +32,7 @@ var messageBusBuilder = new MessageBusBuilder()
 		{
 			// adjust he consumer config
 		}
-		});
+	});
 ```
 
 #### Minimizing message latency
@@ -44,11 +44,11 @@ var messageBusBuilder = new MessageBusBuilder()
 	// ...
 	.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
 	{
-        ProducerConfig = (config) =>
-        {
+		ProducerConfig = (config) =>
+		{
 			config.LingerMs = 5; // 5ms
 			config.SocketNagleDisable = true;
-        },
+		},
 		ConsumerConfig = (config) => 
 		{
 			config.FetchErrorBackoffMs = 1;
@@ -75,13 +75,16 @@ var messageBusBuilder = new MessageBusBuilder()
 		ProducerConfig = (config) =>
 		{
 			AddSsl(kafkaUsername, kafkaPassword, config);
-        },
+		},
 		ConsumerConfig = (config) => 
 		{
 			AddSsl(kafkaUsername, kafkaPassword, config);
 		}
 	});
 
+```
+
+```cs
 private static void AddSsl(string username, string password, ClientConfig c)
 {
 	c.SecurityProtocol = SecurityProtocol.SaslSsl;
