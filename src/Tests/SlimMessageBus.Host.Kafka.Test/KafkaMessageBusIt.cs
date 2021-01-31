@@ -76,17 +76,16 @@ namespace SlimMessageBus.Host.Kafka.Test
                 {
                     AddSsl(kafkaUsername, kafkaPassword, config);
 
-                    // {"socket.blocking.max.ms", 1},
-                    // {"queue.buffering.max.ms", 1},
+                    config.LingerMs = 5; // 5ms
                     config.SocketNagleDisable = true;
                 },
                 ConsumerConfig = (config) => {
                     AddSsl(kafkaUsername, kafkaPassword, config);
 
-                    // {"socket.blocking.max.ms", 1},
                     config.FetchErrorBackoffMs = 1;
-                    config.StatisticsIntervalMs = 500000;
                     config.SocketNagleDisable = true;
+
+                    config.StatisticsIntervalMs = 500000;
                     config.AutoOffsetReset = AutoOffsetReset.Latest;
                 }
             };

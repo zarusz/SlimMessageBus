@@ -46,13 +46,14 @@ var messageBusBuilder = new MessageBusBuilder()
 	{
         ProducerConfig = (config) =>
         {
-            config.LingerMs = 5; // 5ms
-            config.SocketNagleDisable = true;
+			config.LingerMs = 5; // 5ms
+			config.SocketNagleDisable = true;
         },
-        ConsumerConfig = (config) => {
-            config.FetchErrorBackoffMs = 1;
-            config.SocketNagleDisable = true;
-        }
+		ConsumerConfig = (config) => 
+		{
+			config.FetchErrorBackoffMs = 1;
+			config.SocketNagleDisable = true;
+		}
 	});
 ```
 There is also a good discussion around latency in [this issue](https://github.com/confluentinc/confluent-kafka-dotnet/issues/89).
@@ -76,10 +77,10 @@ var messageBusBuilder = new MessageBusBuilder()
 			AddSsl(kafkaUsername, kafkaPassword, config);
         },
 		ConsumerConfig = (config) => 
-W		{
+		{
 			AddSsl(kafkaUsername, kafkaPassword, config);
-	}
-});
+		}
+	});
 
 private static void AddSsl(string username, string password, ClientConfig c)
 {
