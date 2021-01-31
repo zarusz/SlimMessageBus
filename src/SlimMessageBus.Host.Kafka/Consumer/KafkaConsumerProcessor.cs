@@ -23,7 +23,7 @@ namespace SlimMessageBus.Host.Kafka
         private readonly IKafkaCommitController _commitController;
         private readonly MessageQueueWorker<ConsumeResult> _messageQueueWorker;
 
-        public KafkaConsumerProcessor(ConsumerSettings consumerSettings, TopicPartition topicPartition, IKafkaCommitController commitController, MessageBusBase messageBus)
+        public KafkaConsumerProcessor(ConsumerSettings consumerSettings, TopicPartition topicPartition, IKafkaCommitController commitController, [NotNull] MessageBusBase messageBus)
             : this(consumerSettings,
                    topicPartition,
                    commitController,
@@ -59,7 +59,7 @@ namespace SlimMessageBus.Host.Kafka
         {
             if (disposing)
             {
-                _messageQueueWorker.ConsumerInstancePool.Dispose();
+                _messageQueueWorker.Dispose();
             }
         }
 
@@ -121,7 +121,7 @@ namespace SlimMessageBus.Host.Kafka
             if (result.LastSuccessMessage != null)
             {
                 var offsetToCommit = result.LastSuccessMessage.TopicPartitionOffset;
-                _commitController.Commit(offsetToCommit);
+                _commitController.Commit(new TopicPartitionOffset(offsetToCommit.TopicPartition, offsetToCommit.Offset + 1));
             }
         }
     }

@@ -83,7 +83,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             await _subject.OnPartitionEndReached(message.TopicPartitionOffset);
 
             // assert
-            _commitControllerMock.Verify(x => x.Commit(message.TopicPartitionOffset), Times.Once);
+            _commitControllerMock.Verify(x => x.Commit(It.Is<TopicPartitionOffset>(x => IsNextOffset(message.TopicPartitionOffset, x))), Times.Once);
         }
 
         [Fact]
@@ -110,7 +110,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             await _subject.OnMessage(message);
 
             // assert
-            _commitControllerMock.Verify(x => x.Commit(message.TopicPartitionOffset), Times.Once);
+            _commitControllerMock.Verify(x => x.Commit(It.Is<TopicPartitionOffset>(x => IsNextOffset(message.TopicPartitionOffset, x))), Times.Once);
         }
 
         [Fact]
@@ -124,7 +124,12 @@ namespace SlimMessageBus.Host.Kafka.Test
             await _subject.OnMessage(message);
 
             // assert
-            _commitControllerMock.Verify(x => x.Commit(message.TopicPartitionOffset), Times.Never);
+            _commitControllerMock.Verify(x => x.Commit(It.IsAny<TopicPartitionOffset>()), Times.Never);
+        }
+
+        private static bool IsNextOffset(TopicPartitionOffset offset, TopicPartitionOffset actual)
+        {
+            return offset.Offset + 1 == actual.Offset && offset.TopicPartition == actual.TopicPartition;
         }
 
         [Fact]
@@ -139,7 +144,7 @@ namespace SlimMessageBus.Host.Kafka.Test
 
             // assert
             _messageQueueWorkerMock.Verify(x => x.WaitAll(), Times.Once);
-            _commitControllerMock.Verify(x => x.Commit(message.TopicPartitionOffset), Times.Once);
+            _commitControllerMock.Verify(x => x.Commit(It.Is<TopicPartitionOffset>(x => IsNextOffset(message.TopicPartitionOffset, x))), Times.Once);
         }
 
         private ConsumeResult GetSomeMessage()

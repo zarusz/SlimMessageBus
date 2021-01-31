@@ -87,7 +87,7 @@ namespace SlimMessageBus.Host.Kafka.Test
                     config.FetchErrorBackoffMs = 1;
                     config.StatisticsIntervalMs = 500000;
                     config.SocketNagleDisable = true;
-                    config.AutoOffsetReset = AutoOffsetReset.Earliest;
+                    config.AutoOffsetReset = AutoOffsetReset.Latest;
                 }
             };
 
@@ -295,7 +295,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             }
 
             public AsyncLocal<ConsumerContext> Context { get; } = new AsyncLocal<ConsumerContext>();
-            public ConcurrentBag<ValueTuple<PingMessage, int>> Messages { get; } = new ConcurrentBag<ValueTuple<PingMessage, int>>();
+            public List<(PingMessage Message, int Partition)> Messages { get; } = new List<(PingMessage, int)>();
 
             #region Implementation of IConsumer<in PingMessage>
 
@@ -304,7 +304,10 @@ namespace SlimMessageBus.Host.Kafka.Test
                 var transportMessage = Context.Value.GetTransportMessage();
                 var partition = transportMessage.TopicPartition.Partition;
 
-                Messages.Add((message, partition));
+                lock (Messages)
+                {
+                    Messages.Add((message, partition));
+                }
 
                 _logger.LogInformation("Got message {0} on topic {1}.", message.Counter, name);
                 return Task.CompletedTask;

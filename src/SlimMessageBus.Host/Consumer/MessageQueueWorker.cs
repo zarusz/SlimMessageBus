@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace SlimMessageBus.Host
 {
-    public class MessageQueueWorker<TMessage> where TMessage : class
+    public class MessageQueueWorker<TMessage> : IDisposable where TMessage : class
     {
         private readonly ILogger _logger;
 
@@ -16,6 +16,8 @@ namespace SlimMessageBus.Host
         public ConsumerInstancePoolMessageProcessor<TMessage> ConsumerInstancePool { get; }
 
         private readonly ICheckpointTrigger _checkpointTrigger;
+
+        private bool disposedValue;
 
         public MessageQueueWorker(ConsumerInstancePoolMessageProcessor<TMessage> consumerInstancePool, ICheckpointTrigger checkpointTrigger, ILoggerFactory loggerFactory)
         {
@@ -93,6 +95,26 @@ namespace SlimMessageBus.Host
                 _pendingMessages.Clear();
             }
             return result;
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    ConsumerInstancePool.Dispose();
+                }
+
+                disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }
