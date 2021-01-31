@@ -17,8 +17,25 @@ When troubleshooting or fine tuning it is worth reading the `librdkafka` and `co
 ### Configuration properties
 
 Producer, consumer and global configuration properties are described [here](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md).
+The configuration on the underlying Kafka client can be adjusted like so:
 
-### Minimizing message latency
+```cs
+var messageBusBuilder = new MessageBusBuilder()
+	// ...
+	.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+	{
+        ProducerConfig = (config) =>
+        {
+            // adjust he prodcer config
+        },
+        ConsumerConfig = (config) => 
+		{
+            // adjust he consumer config
+        }
+	});
+```
+
+#### Minimizing message latency
 
 There is a good description [here](https://github.com/edenhill/librdkafka/wiki/How-to-decrease-message-latency) on improving the latency by applying producer/consumer settings on librdkafka. Here is how you enter the settings using SlimMessageBus:
 
@@ -27,19 +44,15 @@ var messageBusBuilder = new MessageBusBuilder()
 	// ...
 	.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
 	{
-		ProducerConfigFactory = () => new Dictionary<string, object>
-		{
-			{"socket.blocking.max.ms",1},
-			{"queue.buffering.max.ms",1},
-			{"socket.nagle.disable", true}
-		},
-		ConsumerConfigFactory = (group) => new Dictionary<string, object>
-		{
-			{"socket.blocking.max.ms", 1},
-			{"fetch.error.backoff.ms", 1},
-			{"statistics.interval.ms", 500000},
-			{"socket.nagle.disable", true}
-		}
+        ProducerConfig = (config) =>
+        {
+            config.LingerMs = 5; // 5ms
+            config.SocketNagleDisable = true;
+        },
+        ConsumerConfig = (config) => {
+            config.FetchErrorBackoffMs = 1;
+            config.SocketNagleDisable = true;
+        }
 	});
 ```
 There is also a good discussion around latency in [this issue](https://github.com/confluentinc/confluent-kafka-dotnet/issues/89).
@@ -47,6 +60,37 @@ There is also a good discussion around latency in [this issue](https://github.co
 More documentation here:
 * [How to decrease message latency](https://github.com/edenhill/librdkafka/wiki/How-to-decrease-message-latency)
 * [Reduce latency](https://github.com/confluentinc/confluent-kafka-dotnet/wiki/Producing-messages#reduce-latency)
+
+#### SSL and password authentication
+
+Example on how to configure SSL with SASL authentication (for cloudkarafka.com):
+
+
+```cs
+var messageBusBuilder = new MessageBusBuilder()
+	// ...
+	.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+	{
+        ProducerConfig = (config) =>
+        {
+			AddSsl(kafkaUsername, kafkaPassword, config);
+        },
+        ConsumerConfig = (config) => {
+			AddSsl(kafkaUsername, kafkaPassword, config);
+        }
+	});
+
+private static void AddSsl(string username, string password, ClientConfig c)
+{
+	c.SecurityProtocol = SecurityProtocol.SaslSsl;
+	c.SaslUsername = username;
+	c.SaslPassword = password;
+	c.SaslMechanism = SaslMechanism.ScramSha256;
+	c.SslCaLocation = "cloudkarafka_2020-12.ca";
+}
+```
+
+The file `cloudkarafka_2020-12.ca` has to be set to `Copy to Output Directory` as `Copy always`.
 
 ### Deployment
 
