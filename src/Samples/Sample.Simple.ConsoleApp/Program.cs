@@ -15,6 +15,7 @@ using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Redis;
 using SlimMessageBus.Host.Memory;
 using Microsoft.Extensions.Logging;
+using Confluent.Kafka;
 
 namespace Sample.Simple.ConsoleApp
 {
@@ -62,7 +63,7 @@ namespace Sample.Simple.ConsoleApp
         private static IMessageBus CreateMessageBus(IConfiguration configuration, ILoggerFactory loggerFactory)
         {
             // Choose your provider
-            var provider = Provider.Memory;
+            var provider = Provider.Kafka;
 
             // Provide your event hub-names OR kafka/service bus topic names
             var topicForAddCommand = "add-command";
@@ -72,6 +73,14 @@ namespace Sample.Simple.ConsoleApp
             // Provide consumer group name
             var consumerGroup = "consoleapp";
             var responseGroup = "consoleapp-1";
+
+            if (provider == Provider.Kafka)
+            {
+                // Note: We are using the free plan of CloudKarafka to host the Kafka infrastructure. The free plan has a limit on topic you can get free and it requires these topic prefixes.
+                topicForAddCommand = "4p5ma6io-test-ping";
+                topicForMultiplyRequest = "4p5ma6io-multiply-request";
+                topicForResponses = "4p5ma6io-responses";
+            }
 
             /*
             
@@ -177,10 +186,30 @@ namespace Sample.Simple.ConsoleApp
                         case Provider.Kafka:
                             // Ensure your Kafka broker is running
                             var kafkaBrokers = configuration["Kafka:Brokers"];
-                            var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
-                            var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
 
-                            builder.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)); // Or use Apache Kafka as provider
+                            // If your cluster requires SSL
+                            void AddSsl(ClientConfig c)
+                            {
+                                // cloudkarafka.com uses SSL with SASL authentication
+                                c.SecurityProtocol = SecurityProtocol.SaslSsl;
+                                c.SaslUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
+                                c.SaslPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
+                                c.SaslMechanism = SaslMechanism.ScramSha256;
+                                c.SslCaLocation = "cloudkarafka_2020-12.ca";
+                            }
+
+                            builder.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+                            {
+                                ProducerConfig = (config) =>
+                                {
+                                    AddSsl(config);
+                                },
+                                ConsumerConfig = (config) =>
+                                {
+                                    AddSsl(config);
+                                }
+
+                            }); // Or use Apache Kafka as provider
                             break;
 
                         case Provider.Redis:

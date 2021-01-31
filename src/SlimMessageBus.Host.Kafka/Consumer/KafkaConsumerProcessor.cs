@@ -121,7 +121,7 @@ namespace SlimMessageBus.Host.Kafka
             if (result.LastSuccessMessage != null)
             {
                 var offsetToCommit = result.LastSuccessMessage.TopicPartitionOffset;
-                _commitController.Commit(new TopicPartitionOffset(offsetToCommit.TopicPartition, offsetToCommit.Offset + 1));
+                _commitController.Commit(offsetToCommit.AddOffset(1));
             }
         }
     }

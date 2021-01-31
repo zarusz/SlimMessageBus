@@ -2,7 +2,7 @@
 
 namespace SlimMessageBus.Host.Kafka
 {
-    public class MessageContextInfo
+    internal class MessageContextInfo
     {
         public string Group { get; }
         public TopicPartitionOffset TopicPartitionOffset { get; }
@@ -13,14 +13,7 @@ namespace SlimMessageBus.Host.Kafka
             TopicPartitionOffset = tpo;
         }
 
-        #region Overrides of Object
-
-        public override string ToString()
-        {
-            return $"Group: {Group}, Topic: {TopicPartitionOffset.Topic}, Partition: {TopicPartitionOffset.Partition}, Offset: {TopicPartitionOffset.Offset}";
-        }
-
-        #endregion
+        public override string ToString() => $"Group: {Group}, Topic: {TopicPartitionOffset.Topic}, Partition: {TopicPartitionOffset.Partition}, Offset: {TopicPartitionOffset.Offset}";
     }
 }
 
