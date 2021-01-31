@@ -142,6 +142,8 @@ namespace SlimMessageBus.Host.Kafka
                     }
                 }
 
+                await OnClose().ConfigureAwait(false);
+
                 // Ensure the consumer leaves the group cleanly and final offsets are committed.
                 _consumer.Close();
             }
@@ -246,6 +248,14 @@ namespace SlimMessageBus.Host.Kafka
                 {
                     _logger.LogTrace("Group [{group}]: Successfully committed offsets: [{offsets}]", Group, string.Join(", ", e.Offsets));
                 }
+            }
+        }
+
+        protected virtual async ValueTask OnClose()
+        {
+            foreach (var processor in _processors.Dictonary.Values)
+            {
+                await processor.OnClose().ConfigureAwait(false);
             }
         }
 

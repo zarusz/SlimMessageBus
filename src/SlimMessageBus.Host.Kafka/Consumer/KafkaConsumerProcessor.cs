@@ -76,7 +76,7 @@ namespace SlimMessageBus.Host.Kafka
                 if (_messageQueueWorker.Submit(message))
                 {
                     _logger.LogDebug("Group [{group}]: Will commit at offset {offset}", _consumerSettings.GetGroup(), message.TopicPartitionOffset);
-                    await Commit(message.TopicPartitionOffset).ConfigureAwait(false);
+                    await Commit().ConfigureAwait(false);
                 }
             }
             catch (Exception e)
@@ -88,7 +88,7 @@ namespace SlimMessageBus.Host.Kafka
 
         public async ValueTask OnPartitionEndReached(TopicPartitionOffset offset)
         {
-            await Commit(offset).ConfigureAwait(false);
+            await Commit().ConfigureAwait(false);
         }
 
         public void OnPartitionRevoked()
@@ -96,9 +96,14 @@ namespace SlimMessageBus.Host.Kafka
             _messageQueueWorker.Clear();
         }
 
+        public async ValueTask OnClose()
+        {
+            await Commit().ConfigureAwait(false);
+        }
+
         #endregion
 
-        public async ValueTask Commit(TopicPartitionOffset offset)
+        public async ValueTask Commit()
         {
             var result = await _messageQueueWorker.WaitAll().ConfigureAwait(false);
             // ToDo: Add retry functionality
@@ -113,7 +118,11 @@ namespace SlimMessageBus.Host.Kafka
                 // ToDo: Add retry functionality
             }
             */
-            _commitController.Commit(offset);
+            if (result.LastSuccessMessage != null)
+            {
+                var offsetToCommit = result.LastSuccessMessage.TopicPartitionOffset;
+                _commitController.Commit(offsetToCommit);
+            }
         }
     }
 }

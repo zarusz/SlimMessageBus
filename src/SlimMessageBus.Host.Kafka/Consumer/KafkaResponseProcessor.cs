@@ -92,14 +92,20 @@ namespace SlimMessageBus.Host.Kafka
             }
         }
 
-        public async ValueTask OnPartitionEndReached(TopicPartitionOffset offset)
+        public ValueTask OnPartitionEndReached(TopicPartitionOffset offset)
         {
             _commitController.Commit(offset);
+            return new ValueTask();
         }
 
         public void OnPartitionRevoked()
         {
             _checkpointTrigger.Reset();
+        }
+
+        public ValueTask OnClose()
+        {
+            return new ValueTask();
         }
 
         #endregion

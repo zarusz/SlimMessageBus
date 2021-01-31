@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -77,18 +76,20 @@ namespace SlimMessageBus.Host
                     // some tasks failed
                     result.Success = false;
                     _logger.LogError(e, "Errors occured while executing the tasks");
-
-                    // grab last message that succeeded (if any)
-                    // Note: Assumption that that messages in queue follow the partition offset.
-                    foreach (var messageProcessingResult in _pendingMessages)
-                    {
-                        if (messageProcessingResult.Task.IsFaulted || messageProcessingResult.Task.IsCanceled)
-                        {
-                            break;
-                        }
-                        result.LastSuccessMessage = messageProcessingResult.Message;
-                    }
                 }
+
+                // grab last message that succeeded (if any)
+                // Note: Assumption that that messages in queue follow the partition offset.
+                foreach (var messageProcessingResult in _pendingMessages)
+                {
+                    if (messageProcessingResult.Task.IsFaulted || messageProcessingResult.Task.IsCanceled)
+                    {
+                        break;
+                    }
+
+                    result.LastSuccessMessage = messageProcessingResult.Message;
+                }
+
                 _pendingMessages.Clear();
             }
             return result;

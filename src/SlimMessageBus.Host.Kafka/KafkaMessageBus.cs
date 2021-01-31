@@ -230,7 +230,7 @@ namespace SlimMessageBus.Host.Kafka
                 message, messageType.Name, deliveryResult.TopicPartitionOffset);
         }
 
-        protected byte[] GetMessageKey(Type messageType, object message, string topic)
+        protected byte[] GetMessageKey([NotNull] Type messageType, object message, string topic)
         {
             byte[] key = null;
             if (_keyProviders.TryGetValue(messageType, out var keyProvider))
@@ -239,7 +239,7 @@ namespace SlimMessageBus.Host.Kafka
 
                 if (_logger.IsEnabled(LogLevel.Debug))
                 {
-                    _logger.LogDebug("The message {0} type {1} calculated key is {2} (Base64)", message, messageType.Name, Convert.ToBase64String(key));
+                    _logger.LogDebug("The message {message} type {messageType} calculated key is {key} (Base64)", message, messageType.Name, Convert.ToBase64String(key));
                 }
             }
             return key;

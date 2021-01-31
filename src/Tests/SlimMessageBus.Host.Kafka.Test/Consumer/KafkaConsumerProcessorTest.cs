@@ -132,7 +132,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             var offset = new TopicPartitionOffset(_topicPartition, new Offset(10));
 
             // act
-            await _subject.Commit(offset);
+            await _subject.Commit();
 
             // assert
             _messageQueueWorkerMock.Verify(x => x.WaitAll(), Times.Once);
