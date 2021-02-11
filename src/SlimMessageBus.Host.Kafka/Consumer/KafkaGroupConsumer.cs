@@ -81,6 +81,8 @@ namespace SlimMessageBus.Host.Kafka
 
             // ToDo: add support for auto commit
             config.EnableAutoCommit = false;
+            // Notify when we reach EoF, so that we can do a manual commit
+            config.EnablePartitionEof = true;
 
             var consumer = MessageBus.ProviderSettings.ConsumerBuilderFactory(config)
                 .SetStatisticsHandler((_, json) => OnStatistics(json))

@@ -15,7 +15,6 @@ using SecretStore;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.DependencyInjection;
 using Confluent.Kafka;
 
 namespace SlimMessageBus.Host.Kafka.Test
@@ -86,7 +85,7 @@ namespace SlimMessageBus.Host.Kafka.Test
                     config.SocketNagleDisable = true;
 
                     config.StatisticsIntervalMs = 500000;
-                    config.AutoOffsetReset = AutoOffsetReset.Latest;
+                    config.AutoOffsetReset = AutoOffsetReset.Earliest;                    
                 }
             };
 
