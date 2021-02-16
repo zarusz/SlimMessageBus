@@ -101,11 +101,8 @@ namespace SlimMessageBus.Host.Kafka
                 throw new MessageBusException($"Consumer for group {Group} already started");
             }
 
-            _logger.LogInformation("Group [{group}]: Subscribing to topics: {topics}", Group, string.Join(", ", Topics));
-            _consumer.Subscribe(Topics);
-
             _consumerCts = new CancellationTokenSource();
-            _consumerTask = Task.Factory.StartNew(ConsumerLoop, _consumerCts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            _consumerTask = Task.Factory.StartNew(ConsumerLoop, _consumerCts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap();
         }
 
         /// <summary>
@@ -113,36 +110,44 @@ namespace SlimMessageBus.Host.Kafka
         /// </summary>
         protected virtual async Task ConsumerLoop()
         {
+            _logger.LogInformation("Group [{group}]: Subscribing to topics: {topics}", Group, string.Join(", ", Topics));
+            _consumer.Subscribe(Topics);
+
             _logger.LogInformation("Group [{group}]: Consumer loop started", Group);
             try
             {
-                var pollInterval = MessageBus.ProviderSettings.ConsumerPollInterval;
-                var pollRetryInterval = MessageBus.ProviderSettings.ConsumerPollRetryInterval;
-
-                for (var ct = _consumerCts.Token; !ct.IsCancellationRequested;)
+                try
                 {
-                    try
+                    for (var cancellationToken = _consumerCts.Token; !cancellationToken.IsCancellationRequested;)
                     {
-                        _logger.LogTrace("Group [{group}]: Polling consumer", Group);
-                        var cr = _consumer.Consume(pollInterval);
-                        if (cr != null)
+                        try
                         {
-                            if (cr.IsPartitionEOF)
+                            _logger.LogTrace("Group [{group}]: Polling consumer", Group);
+                            var consumeResult = _consumer.Consume(cancellationToken);
+                            if (consumeResult.IsPartitionEOF)
                             {
-                                await OnPartitionEndReached(cr.TopicPartitionOffset).ConfigureAwait(false);
+                                await OnPartitionEndReached(consumeResult.TopicPartitionOffset).ConfigureAwait(false);
                             }
                             else
                             {
-                                await OnMessage(cr).ConfigureAwait(false);
+                                await OnMessage(consumeResult).ConfigureAwait(false);
                             }
                         }
-                    }
-                    catch (ConsumeException e)
-                    {
-                        _logger.LogError(e, "Group [{group}]: Error occured while polling new messages (will retry in {retryInterval}) - {reason}", Group, pollRetryInterval, e.Error.Reason);
-                        await Task.Delay(pollRetryInterval, _consumerCts.Token).ConfigureAwait(false);
+                        catch (ConsumeException e)
+                        {
+                            var pollRetryInterval = MessageBus.ProviderSettings.ConsumerPollRetryInterval;
+
+                            _logger.LogError(e, "Group [{group}]: Error occured while polling new messages (will retry in {retryInterval}) - {reason}", Group, pollRetryInterval, e.Error.Reason);
+                            await Task.Delay(pollRetryInterval, _consumerCts.Token).ConfigureAwait(false);
+                        }
                     }
                 }
+                catch (OperationCanceledException e)
+                {
+                }
+
+                _logger.LogInformation("Group [{group}]: Unsubscribing from topics", Group);
+                _consumer.Unsubscribe();
 
                 await OnClose().ConfigureAwait(false);
 
@@ -151,7 +156,7 @@ namespace SlimMessageBus.Host.Kafka
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Group [{group}]: Error occured in group loop (terminated)", e, Group);
+                _logger.LogError(e, "Group [{group}]: Error occured in group loop (terminated)", Group);
             }
             finally
             {
@@ -165,14 +170,6 @@ namespace SlimMessageBus.Host.Kafka
             {
                 throw new MessageBusException($"Consumer for group {Group} not yet started");
             }
-
-            /*
-            _logger.LogInformation("Group [{group}]: Unassigning partitions", Group);
-            _consumer.Unassign();
-
-            _logger.LogInformation("Group [{group}]: Unsubscribing from topics", Group);
-            _consumer.Unsubscribe();
-            */
 
             _consumerCts.Cancel();
             try
@@ -192,7 +189,7 @@ namespace SlimMessageBus.Host.Kafka
         {
             if (_logger.IsEnabled(LogLevel.Debug))
             {
-                _logger.LogDebug("Group [{group}]: Assigned partitions: {1}", Group, string.Join(", ", partitions));
+                _logger.LogDebug("Group [{group}]: Assigned partitions: {partitions}", Group, string.Join(", ", partitions));
             }
 
             // Ensure processors exist for each assigned topic-partition
@@ -208,7 +205,7 @@ namespace SlimMessageBus.Host.Kafka
         {
             if (_logger.IsEnabled(LogLevel.Debug))
             {
-                _logger.LogDebug("Group [{group}]: Revoked partitions: {1}", Group, string.Join(", ", partitions));
+                _logger.LogDebug("Group [{group}]: Revoked partitions: {partitions}", Group, string.Join(", ", partitions));
             }
 
             foreach (var partition in partitions)

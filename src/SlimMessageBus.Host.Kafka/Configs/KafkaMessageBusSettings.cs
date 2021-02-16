@@ -30,11 +30,7 @@ namespace SlimMessageBus.Host.Kafka
         /// </summary>
         public Action< ConsumerConfig> ConsumerConfig { get; set; }
         /// <summary>
-        /// The timespan of the Poll kafka consumer operation before it times out.
-        /// </summary>
-        public TimeSpan ConsumerPollInterval { get; set; }
-        /// <summary>
-        /// The timespan of the Poll kafka consumer operation before it times out.
+        /// The timespan of the Poll retry when kafka consumer Poll operation errors out.
         /// </summary>
         public TimeSpan ConsumerPollRetryInterval { get; set; }
 
@@ -45,7 +41,6 @@ namespace SlimMessageBus.Host.Kafka
             ProducerBuilderFactory = (config) => new ProducerBuilder<byte[], byte[]>(config);
             ConsumerConfig = (config) => { };
             ConsumerBuilderFactory = (config) => new ConsumerBuilder<Ignore, byte[]>(config);
-            ConsumerPollInterval = TimeSpan.FromSeconds(2);
             ConsumerPollRetryInterval = TimeSpan.FromSeconds(2);
         }
     }
