@@ -219,10 +219,10 @@ mbb
        x.AttachEvents(events =>
        {
           // Invoke the action for the specified message type when arrived on the bus:
-          events.OnMessageArrived = (bus, consumerSettings, message, name) => {
+          events.OnMessageArrived = (bus, consumerSettings, message, name, nativeMessage) => {
              Console.WriteLine("The SomeMessage: {0} arrived on the topic/queue {1}", message, name);
           }
-          events.OnMessageFault = (bus, consumerSettings, message, ex) => {
+          events.OnMessageFault = (bus, consumerSettings, message, ex, nativeMessage) => {
 
           };
        });
@@ -230,10 +230,10 @@ mbb
     .AttachEvents(events =>
     {
         // Invoke the action for the specified message type when sent via the bus:
-        events.OnMessageArrived = (bus, consumerSettings, message, name) => {
+        events.OnMessageArrived = (bus, consumerSettings, message, name, nativeMessage) => {
            Console.WriteLine("The message: {0} arrived on the topic/queue {1}", message, name);
         };
-        events.OnMessageFault = (bus, consumerSettings, message, ex) => {
+        events.OnMessageFault = (bus, consumerSettings, message, ex, nativeMessage) => {
 
         };
    });

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.ServiceBus;
@@ -90,6 +89,17 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
                 }
                 _logger.LogError(exception, "Abandon message (exception occured while processing) - {0}", mf);
 
+                try
+                {
+                    // Execute the event hook
+                    ConsumerSettings.OnMessageFault?.Invoke(MessageBus, ConsumerSettings, null, exception, message);
+                    MessageBus.Settings.OnMessageFault?.Invoke(MessageBus, ConsumerSettings, null, exception, message);
+                }
+                catch (Exception eh)
+                {
+                    MessageBusBase.HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageFault));
+                }
+
                 var messageProperties = new Dictionary<string, object>
                 {
                     // Set the exception message
@@ -112,8 +122,8 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
             try
             {
                 // Execute the event hook
-                ConsumerSettings.OnMessageFault?.Invoke(MessageBus, ConsumerSettings, exceptionReceivedEventArgs, exceptionReceivedEventArgs.Exception);
-                MessageBus.Settings.OnMessageFault?.Invoke(MessageBus, ConsumerSettings, exceptionReceivedEventArgs, exceptionReceivedEventArgs.Exception);
+                ConsumerSettings.OnMessageFault?.Invoke(MessageBus, ConsumerSettings, null, exceptionReceivedEventArgs.Exception, null);
+                MessageBus.Settings.OnMessageFault?.Invoke(MessageBus, ConsumerSettings, null, exceptionReceivedEventArgs.Exception, null);
             }
             catch (Exception eh)
             {

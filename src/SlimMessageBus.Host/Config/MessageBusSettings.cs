@@ -24,15 +24,15 @@ namespace SlimMessageBus.Host.Config
         ///
         /// <inheritdoc/>
         ///
-        public Action<IMessageBus, AbstractConsumerSettings, object, string> OnMessageArrived { get; set; }
+        public Action<IMessageBus, AbstractConsumerSettings, object, string, object> OnMessageArrived { get; set; }
         ///
         /// <inheritdoc/>
         ///
-        public Action<IMessageBus, AbstractConsumerSettings, object> OnMessageExpired { get; set; }
+        public Action<IMessageBus, AbstractConsumerSettings, object, object> OnMessageExpired { get; set; }
         ///
         /// <inheritdoc/>
         ///
-        public Action<IMessageBus, AbstractConsumerSettings, object, Exception> OnMessageFault { get; set; }
+        public Action<IMessageBus, AbstractConsumerSettings, object, Exception, object> OnMessageFault { get; set; }
         #endregion
 
         #region Implementation of IProducerEvents

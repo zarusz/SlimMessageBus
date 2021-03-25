@@ -6,15 +6,18 @@ namespace SlimMessageBus.Host.Config
     {
         /// <summary>
         /// Called whenever a consumer receives a message.
+        /// Arguments are <see cref="IMessageBus"/>, consumer settings, typed message, topic/queue name, native transport message.
         /// </summary>
-        Action<IMessageBus, AbstractConsumerSettings, object, string> OnMessageArrived { get; set; }
+        Action<IMessageBus, AbstractConsumerSettings, object, string, object> OnMessageArrived { get; set; }
         /// <summary>
         /// Called whenever a consumer receives an expired message.
+        /// Arguments are <see cref="IMessageBus"/>, consumer settings, typed message, native transport message.
         /// </summary>
-        Action<IMessageBus, AbstractConsumerSettings, object> OnMessageExpired { get; set; }
+        Action<IMessageBus, AbstractConsumerSettings, object, object> OnMessageExpired { get; set; }
         /// <summary>
         /// Called whenever a consumer errors out while processing the message.
+        /// Arguments are <see cref="IMessageBus"/>, consumer settings, typed message, exception, native transport message.
         /// </summary>
-        Action<IMessageBus, AbstractConsumerSettings, object, Exception> OnMessageFault { get; set; }
+        Action<IMessageBus, AbstractConsumerSettings, object, Exception, object> OnMessageFault { get; set; }
     }
 }

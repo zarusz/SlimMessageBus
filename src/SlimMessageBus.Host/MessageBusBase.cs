@@ -68,7 +68,7 @@ namespace SlimMessageBus.Host
                 // Execute the event hook
                 try
                 {
-                    (Settings.RequestResponse.OnMessageExpired ?? Settings.OnMessageExpired)?.Invoke(this, Settings.RequestResponse, request);
+                    (Settings.RequestResponse.OnMessageExpired ?? Settings.OnMessageExpired)?.Invoke(this, Settings.RequestResponse, request, null);
                 }
                 catch (Exception eh)
                 {

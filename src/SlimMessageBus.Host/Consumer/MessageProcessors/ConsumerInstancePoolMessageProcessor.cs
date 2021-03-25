@@ -115,8 +115,8 @@ namespace SlimMessageBus.Host
                         try
                         {
                             // Execute the event hook
-                            _consumerSettings.OnMessageExpired?.Invoke(_messageBus, _consumerSettings, message);
-                            _messageBus.Settings.OnMessageExpired?.Invoke(_messageBus, _consumerSettings, message);
+                            _consumerSettings.OnMessageExpired?.Invoke(_messageBus, _consumerSettings, message, msg);
+                            _messageBus.Settings.OnMessageExpired?.Invoke(_messageBus, _consumerSettings, message, msg);
                         }
                         catch (Exception eh)
                         {
@@ -146,8 +146,8 @@ namespace SlimMessageBus.Host
                     try
                     {
                         // Execute the event hook
-                        _consumerSettings.OnMessageArrived?.Invoke(_messageBus, _consumerSettings, message, _consumerSettings.Topic);
-                        _messageBus.Settings.OnMessageArrived?.Invoke(_messageBus, _consumerSettings, message, _consumerSettings.Topic);
+                        _consumerSettings.OnMessageArrived?.Invoke(_messageBus, _consumerSettings, message, _consumerSettings.Topic, msg);
+                        _messageBus.Settings.OnMessageArrived?.Invoke(_messageBus, _consumerSettings, message, _consumerSettings.Topic, msg);
                     }
                     catch (Exception eh)
                     {
@@ -180,8 +180,8 @@ namespace SlimMessageBus.Host
                     try
                     {
                         // Execute the event hook
-                        _consumerSettings.OnMessageFault?.Invoke(_messageBus, _consumerSettings, message, e);
-                        _messageBus.Settings.OnMessageFault?.Invoke(_messageBus, _consumerSettings, message, e);
+                        _consumerSettings.OnMessageFault?.Invoke(_messageBus, _consumerSettings, message, e, msg);
+                        _messageBus.Settings.OnMessageFault?.Invoke(_messageBus, _consumerSettings, message, e, msg);
                     }
                     catch (Exception eh)
                     {
