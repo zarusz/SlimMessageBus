@@ -215,17 +215,17 @@ When you need to intercept a message that is delivered to a consumer, you can us
 mbb
    .Consume<SomeMessage>(x =>
    {
-       x.Topic("some-topic");
-       x.AttachEvents(events =>
-       {
-          // Invoke the action for the specified message type when arrived on the bus:
-          events.OnMessageArrived = (bus, consumerSettings, message, name, nativeMessage) => {
-             Console.WriteLine("The SomeMessage: {0} arrived on the topic/queue {1}", message, name);
-          }
-          events.OnMessageFault = (bus, consumerSettings, message, ex, nativeMessage) => {
+       x.Topic("some-topic")
+        .AttachEvents(events =>
+        {
+            // Invoke the action for the specified message type when arrived on the bus:
+            events.OnMessageArrived = (bus, consumerSettings, message, name, nativeMessage) => {
+                Console.WriteLine("The SomeMessage: {0} arrived on the topic/queue {1}", message, name);
+            }
+            events.OnMessageFault = (bus, consumerSettings, message, ex, nativeMessage) => {
 
-          };
-       });
+            };
+        });
     })
     .AttachEvents(events =>
     {
