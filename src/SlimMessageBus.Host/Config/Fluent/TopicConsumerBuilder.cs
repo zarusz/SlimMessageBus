@@ -116,5 +116,13 @@ namespace SlimMessageBus.Host.Config
             ConsumerSettings.Instances = numberOfInstances;
             return this;
         }
+
+        /// <summary>
+        /// Adds custom hooks for the consumer.
+        /// </summary>
+        /// <param name="eventsConfig"></param>
+        /// <returns></returns>
+        public TopicConsumerBuilder<TMessage> AttachEvents(Action<IConsumerEvents> eventsConfig)
+            => AttachEvents<TopicConsumerBuilder<TMessage>>(eventsConfig);
     }
 }
