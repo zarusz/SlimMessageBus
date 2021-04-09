@@ -30,3 +30,23 @@ https://stackexchange.github.io/StackExchange.Redis/Configuration
 ## Underlying Redis client
 
 This transport porider uses [StackExchange.Redis](https://stackexchange.github.io/StackExchange.Redis)
+
+## Consumer
+
+Redis Pub/Sub does not name allow to have multiple named subscriptions under one topic that the same client could use (see [here](https://redis.io/topics/pubsub)). Instead each redis client is an individual subscriber of a given topic.
+
+Consider a micro-service that performs the following SMB registration and uses the SMB Redis transport:
+
+```cs
+var mbb = MessageBusBuilder.Create();
+
+mbb
+  .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
+  .Consume<SomeMessage>(x => x
+    .Topic("some-topic") // redis topic name
+    .WithConsumer<SomeConsumer>()
+
+```
+
+If there are 3 instances of that micro-service running, and one of them publishes the `SomeMessage` (`await bus.Publish(new SomeMessage())`) then all 3 instances will have the `SomeConsumer` processing that message (even the service instance that published the message in the first place).
+This is because each service instance is an independent subscriber (independent client).
