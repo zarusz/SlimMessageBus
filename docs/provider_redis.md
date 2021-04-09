@@ -33,7 +33,7 @@ This transport porider uses [StackExchange.Redis](https://stackexchange.github.i
 
 ## Consumer
 
-Redis Pub/Sub does not name allow to have multiple named subscriptions under one topic that the same client could use (see [here](https://redis.io/topics/pubsub)). Instead each redis client is an individual subscriber of a given topic.
+Redis Pub/Sub does not allow to have multiple named subscriptions under one topic that the same client could use (see [here](https://redis.io/topics/pubsub)). Instead each redis client is an individual subscriber of a given topic.
 
 Consider a micro-service that performs the following SMB registration and uses the SMB Redis transport:
 
@@ -48,5 +48,11 @@ mbb
 
 ```
 
-If there are 3 instances of that micro-service running, and one of them publishes the `SomeMessage` (`await bus.Publish(new SomeMessage())`) then all 3 instances will have the `SomeConsumer` processing that message (even the service instance that published the message in the first place).
+If there are 3 instances of that micro-service running, and one of them publishes the `SomeMessage`:
+
+```cs
+await bus.Publish(new SomeMessage())
+```
+
+Then all 3 service instances will have the message copy delivered to the `SomeConsumer` (even the service instance that published the message in the first place).
 This is because each service instance is an independent subscriber (independent client).
