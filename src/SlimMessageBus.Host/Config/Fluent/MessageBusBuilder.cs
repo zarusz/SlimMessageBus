@@ -169,6 +169,17 @@ namespace SlimMessageBus.Host.Config
             return this;
         }
 
+        /// <summary>
+        /// Sets the default enable (or disable) creation of DI child scope for each meesage.
+        /// </summary>
+        /// <param name="enabled"></param>
+        /// <returns></returns>
+        public MessageBusBuilder PerMessageScopeEnabled(bool enabled)
+        {
+            Settings.IsMessageScopeEnabled = enabled;
+            return this;
+        }
+
         public IMessageBus Build()
         {
             if (_factory is null)

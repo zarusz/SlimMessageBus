@@ -4,6 +4,10 @@ using SlimMessageBus.Host.Config;
 
 namespace SlimMessageBus.Host
 {
+    /// <summary>
+    /// The <see cref="IMessageProcessor{TMessage}"/> implementation that processes the responses arriving to the bus.
+    /// </summary>
+    /// <typeparam name="TMessage"></typeparam>
     public class ResponseMessageProcessor<TMessage> : IMessageProcessor<TMessage> where TMessage : class
     {
         private readonly RequestResponseSettings _requestResponseSettings;

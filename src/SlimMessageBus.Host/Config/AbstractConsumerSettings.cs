@@ -20,10 +20,17 @@ namespace SlimMessageBus.Host.Config
         /// <inheritdoc/>
         ///
         public Action<IMessageBus, AbstractConsumerSettings, object, string, object> OnMessageArrived { get; set; }
+
+        ///
+        /// <inheritdoc/>
+        ///
+        public Action<IMessageBus, AbstractConsumerSettings, object, string, object> OnMessageFinished { get; set; }
+
         ///
         /// <inheritdoc/>
         ///
         public Action<IMessageBus, AbstractConsumerSettings, object, object> OnMessageExpired { get; set; }
+
         ///
         /// <inheritdoc/>
         ///

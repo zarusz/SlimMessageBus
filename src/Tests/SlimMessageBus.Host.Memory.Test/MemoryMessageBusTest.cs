@@ -2,6 +2,7 @@ using System;
 using System.Text;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Newtonsoft.Json;
 using SlimMessageBus.Host.Config;
@@ -123,6 +124,81 @@ namespace SlimMessageBus.Host.Memory.Test
             bConsumerMock.Verify(x => x.OnHandle(It.IsAny<SomeMessageB>(), topicB), Times.Never);
             bConsumerMock.VerifyNoOtherCalls();
         }
+
+        [Fact]
+        public async Task When_Publish_Given_PerMessageScopeEnabled_Then_TheScopeIsCreatedAndConsumerObtainedFromScope()
+        {
+            // arrange
+            var consumerMock = new Mock<SomeMessageAConsumer>();
+
+            var scope = new Mock<IDependencyResolver>();
+            scope.Setup(x => x.Resolve(typeof(SomeMessageAConsumer))).Returns(() => consumerMock.Object);
+            scope.Setup(x => x.Dispose()).Callback(() => { });
+
+            _dependencyResolverMock.Setup(x => x.CreateScope()).Returns(() => scope.Object);
+
+            const string topic = "topic-a";
+
+            _settings.Producers.Add(Producer(typeof(SomeMessageA), topic));
+            _settings.Consumers.Add(Consumer(typeof(SomeMessageA), topic, typeof(SomeMessageAConsumer)));
+            _settings.IsMessageScopeEnabled = true;
+
+            _providerSettings.EnableMessageSerialization = false;
+
+            var m = new SomeMessageA();
+
+            // act
+            await _subject.Value.Publish(m);
+
+            // assert
+            _dependencyResolverMock.Verify(x => x.Resolve(typeof(ILoggerFactory)), Times.Once);
+            _dependencyResolverMock.Verify(x => x.CreateScope(), Times.Once);
+            _dependencyResolverMock.VerifyNoOtherCalls();
+
+            scope.Verify(x => x.Resolve(typeof(SomeMessageAConsumer)), Times.Once);
+            scope.Verify(x => x.Dispose(), Times.Once);
+            scope.VerifyNoOtherCalls();
+
+            consumerMock.Verify(x => x.OnHandle(m, topic), Times.Once);
+            consumerMock.Verify(x => x.Dispose(), Times.Never);
+            consumerMock.VerifyNoOtherCalls();
+        }
+
+        [Fact]
+        public async Task When_Publish_Given_PerMessageScopeDisabled_Then_TheScopeIsNotCreatedAndConsumerObtainedFromRoot()
+        {
+            // arrange
+            var consumerMock = new Mock<SomeMessageAConsumer>();
+
+            _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageAConsumer))).Returns(() => consumerMock.Object);
+
+            const string topic = "topic-a";
+
+            _settings.Producers.Add(Producer(typeof(SomeMessageA), topic));
+            
+            var consumerSettings = Consumer(typeof(SomeMessageA), topic, typeof(SomeMessageAConsumer));
+            consumerSettings.IsDisposeConsumerEnabled = true;
+
+            _settings.Consumers.Add(consumerSettings);
+            _settings.IsMessageScopeEnabled = false;
+
+            _providerSettings.EnableMessageSerialization = false;
+
+            var m = new SomeMessageA();
+
+            // act
+            await _subject.Value.Publish(m);
+
+            // assert
+            _dependencyResolverMock.Verify(x => x.Resolve(typeof(ILoggerFactory)), Times.Once);
+            _dependencyResolverMock.Verify(x => x.CreateScope(), Times.Never);
+            _dependencyResolverMock.Verify(x => x.Resolve(typeof(SomeMessageAConsumer)), Times.Once);
+            _dependencyResolverMock.VerifyNoOtherCalls();
+
+            consumerMock.Verify(x => x.OnHandle(m, topic), Times.Once);
+            consumerMock.Verify(x => x.Dispose(), Times.Once);
+            consumerMock.VerifyNoOtherCalls();
+        }
     }
 
     public class SomeMessageA
@@ -179,8 +255,13 @@ namespace SlimMessageBus.Host.Memory.Test
         #endregion
     }
 
-    public class SomeMessageAConsumer : IConsumer<SomeMessageA>
+    public class SomeMessageAConsumer : IConsumer<SomeMessageA>, IDisposable
     {
+        public virtual void Dispose()
+        {
+            // Needed to check disposing
+        }
+
         #region Implementation of IConsumer<in SomeMessageA>
 
         public virtual Task OnHandle(SomeMessageA messageA, string name)

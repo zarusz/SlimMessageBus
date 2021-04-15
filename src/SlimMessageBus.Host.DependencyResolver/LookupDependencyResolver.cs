@@ -14,13 +14,12 @@ namespace SlimMessageBus.Host.DependencyResolver
             _lookup = lookup;
         }
 
-        #region Implementation of IDependencyResolver
+        public IDependencyResolver CreateScope() => this;
 
-        public object Resolve(Type type)
+        public void Dispose()
         {
-            return _lookup(type);
         }
 
-        #endregion
+        public object Resolve(Type type) => _lookup(type);
     }
 }

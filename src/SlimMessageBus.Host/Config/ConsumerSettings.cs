@@ -54,5 +54,13 @@ namespace SlimMessageBus.Host.Config
         /// Determines if the consumer setting is for request/response.
         /// </summary>
         public bool IsRequestMessage => ResponseType != null;
+        /// <summary>
+        /// Determines if a child scope is created for the message consuption. The consumer instance is then derived from that scope.
+        /// </summary>
+        public bool? IsMessageScopeEnabled { get; set; }
+        /// <summary>
+        /// Enables the disposal of consumer instance after the message has been consumed.
+        /// </summary>
+        public bool IsDisposeConsumerEnabled { get; set; }
     }
 }

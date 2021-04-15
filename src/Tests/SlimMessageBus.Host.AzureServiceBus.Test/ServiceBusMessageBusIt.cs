@@ -136,12 +136,13 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
         {
             // arrange
             var consumersCreated = new ConcurrentBag<PingConsumer>();
+            var consumedMessages = new List<(PingMessage Message, string MessageId)>();
 
             MessageBusBuilder
                 .WithDependencyResolver(new LookupDependencyResolver(f =>
                 {
                     if (f != typeof(PingConsumer)) throw new InvalidOperationException();
-                    var pingConsumer = new PingConsumer(_loggerFactory.CreateLogger<PingConsumer>());
+                    var pingConsumer = new PingConsumer(_loggerFactory.CreateLogger<PingConsumer>(), consumedMessages);
                     consumersCreated.Add(pingConsumer);
                     return pingConsumer;
                 }));
@@ -167,29 +168,21 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
 
             // consume
             stopwatch.Restart();
-            var pingConsumerConsumptionTasks = consumersCreated.Select(ConsumeAll);
-            var consumersReceivedMessages = await Task.WhenAll(pingConsumerConsumptionTasks).ConfigureAwait(false);
-            stopwatch.Stop();
 
-            foreach (var receivedMessages in consumersReceivedMessages)
-            {
-                _logger.LogInformation("Consumed {0} messages in {1}", receivedMessages.Count, stopwatch.Elapsed);
-            }
+            await WaitUntilArriving(consumedMessages);
+
+            stopwatch.Stop();
 
             // assert
 
             // ensure number of instances of consumers created matches
-            consumersCreated.Count.Should().Be(subscribers * concurrency);
-            consumersReceivedMessages.Length.Should().Be(subscribers * concurrency);
+            consumersCreated.Count.Should().Be(producedMessages.Count * expectedMessageCopies);
+            consumedMessages.Count.Should().Be(producedMessages.Count * expectedMessageCopies);
 
-            // ensure all messages arrived 
-            var totalReceivedMessages = consumersReceivedMessages.SelectMany(x => x).ToList();
-            // ... the count should match
-            totalReceivedMessages.Count.Should().Be(expectedMessageCopies * producedMessages.Count);
             // ... the content should match
             foreach (var producedMessage in producedMessages)
             {
-                var messageCopies = totalReceivedMessages.Count(x => x.Message.Counter == producedMessage.Counter && x.Message.Value == producedMessage.Value && x.MessageId == GetMessageId(x.Message));
+                var messageCopies = consumedMessages.Count(x => x.Message.Counter == producedMessage.Counter && x.Message.Value == producedMessage.Value && x.MessageId == GetMessageId(x.Message));
                 messageCopies.Should().Be(expectedMessageCopies);
             }
         }
@@ -295,7 +288,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             responses.All(x => x.Item1.Message == x.Item2.Message).Should().BeTrue();
         }
 
-        private static async Task<IList<(PingMessage Message, string MessageId)>> ConsumeAll(PingConsumer consumer)
+        private static async Task WaitUntilArriving(IList<(PingMessage Message, string MessageId)> arrivedMessages)
         {
             var lastMessageCount = 0;
             var lastMessageStopwatch = Stopwatch.StartNew();
@@ -306,14 +299,13 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             {
                 await Task.Delay(100).ConfigureAwait(false);
 
-                if (consumer.Messages.Count != lastMessageCount)
+                if (arrivedMessages.Count != lastMessageCount)
                 {
-                    lastMessageCount = consumer.Messages.Count;
+                    lastMessageCount = arrivedMessages.Count;
                     lastMessageStopwatch.Restart();
                 }
             }
             lastMessageStopwatch.Stop();
-            return consumer.Messages;
         }
 
         private class PingMessage
@@ -332,9 +324,10 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
         {
             private readonly ILogger _logger;
 
-            public PingConsumer(ILogger logger)
+            public PingConsumer(ILogger logger, IList<(PingMessage, string)> messages)
             {
                 _logger = logger;
+                Messages = messages;
             }
 
             public AsyncLocal<ConsumerContext> Context { get; } = new AsyncLocal<ConsumerContext>();
@@ -345,7 +338,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
 
             public Task OnHandle(PingMessage message, string name)
             {
-                lock (this)
+                lock (Messages)
                 {
                     var sbMessage = Context.Value.GetTransportMessage();
 
