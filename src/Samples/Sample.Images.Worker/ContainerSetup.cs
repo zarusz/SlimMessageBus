@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.IO;
 using Autofac;
 using Sample.Images.FileStore;
@@ -21,11 +20,10 @@ namespace Sample.Images.Worker
         public static IContainer Create(IConfigurationRoot configuration, ILoggerFactory loggerFactory)
         {
             var builder = new ContainerBuilder();
-
+            
             Configure(builder, configuration, loggerFactory);
-
+            
             var container = builder.Build();
-            AutofacMessageBusDependencyResolver.Container = container;
             return container;
         }
 
@@ -50,7 +48,7 @@ namespace Sample.Images.Worker
             builder.RegisterType<GenerateThumbnailRequestHandler>().AsSelf();
         }
 
-        private static IMessageBus BuildMessageBus(IConfigurationRoot configuration, IComponentContext x)
+        private static IMessageBus BuildMessageBus(IConfigurationRoot configuration, IComponentContext container)
         {
             // unique id across instances of this application (e.g. 1, 2, 3)
             var instanceId = configuration["InstanceId"];
@@ -70,7 +68,7 @@ namespace Sample.Images.Worker
                             .Instances(3);
                     });
                 })
-                .WithDependencyResolver(new AutofacMessageBusDependencyResolver(x.Resolve<ILogger<AutofacMessageBusDependencyResolver>>()))
+                .WithDependencyResolver(new AutofacMessageBusDependencyResolver(container))
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
                 {

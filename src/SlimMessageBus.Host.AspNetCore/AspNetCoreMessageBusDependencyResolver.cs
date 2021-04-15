@@ -3,22 +3,22 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.DependencyResolver;
+using SlimMessageBus.Host.MsDependencyInjection;
 
 namespace SlimMessageBus.Host.AspNetCore
 {
     /// <summary>
-    /// <see cref="IDependencyResolver"/> implementation that resolves dependencies from the current ASP.NET Core web request.
+    /// <see cref="IDependencyResolver"/> implementation that resolves dependencies from the current ASP.NET Core web request (if present, otherwise falls back to the application root containser).
     /// </summary>
-    public class AspNetCoreMessageBusDependencyResolver : IDependencyResolver
+    public class AspNetCoreMessageBusDependencyResolver : MsDependencyInjectionDependencyResolver, IDependencyResolver
     {
         private readonly ILogger _logger;
-        private readonly IServiceProvider _serviceProvider;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
         public AspNetCoreMessageBusDependencyResolver(IServiceProvider serviceProvider, ILoggerFactory loggerFactory, IHttpContextAccessor httpContextAccessor)
+            : base(serviceProvider, loggerFactory)
         {
             _logger = loggerFactory.CreateLogger<AspNetCoreMessageBusDependencyResolver>();
-            _serviceProvider = serviceProvider;
             _httpContextAccessor = httpContextAccessor;
         }
 
@@ -30,29 +30,19 @@ namespace SlimMessageBus.Host.AspNetCore
             // see https://docs.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection?view=aspnetcore-2.1#request-services
         }
 
-        #region Implementation of IDependencyResolver
-
-        public object Resolve(Type type)
+        public override object Resolve(Type type)
         {
-            IServiceProvider currentServiceProvider;
-
             // When the call to resolve the given type is made within an HTTP Request, use the request scope service provider
             var httpContext = _httpContextAccessor?.HttpContext;
             if (httpContext != null)
             {
-                _logger.LogDebug("The service {0} will be requested from the per-request scope", type);
-                currentServiceProvider = httpContext.RequestServices;
-            }
-            else
-            {
-                // otherwise use the app wide scope provider
-                _logger.LogDebug("The service {0} will be requested from the app scope", type);
-                currentServiceProvider = _serviceProvider;
+                _logger.LogDebug("The type {0} will be requested from the per-request scope", type);
+                return httpContext.RequestServices.GetService(type);
             }
 
-            return currentServiceProvider.GetService(type);
+            // otherwise use the app wide scope provider
+            _logger.LogDebug("The type {0} will be requested from the app scope", type);
+            return base.Resolve(type);
         }
-
-        #endregion
     }
 }

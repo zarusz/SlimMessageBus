@@ -96,4 +96,14 @@ mbb.Do(builder => applicationLayer.GetTypes().Where(t => t.IsClass && !t.IsAbstr
 
 ## Lifecycle
 
-ToDo
+### Blocking Publish
+
+The `Send<T>()` is blocking and `Publsh<T>()` is blocking by default. 
+It might be expected that the `Publish<T>()` to be fire-and-forget and non-blocking, however this is to ensure the consumer/handler have been processed by the time the method call returns. That behavior is optimized for domain-events where you expect the side effects to be executed synchronously.
+
+ToDo: In the future we will want to expose a setting to make the `Publish<T>()` non-blocking.
+
+### Per-Message DI scope
+
+> Unlike stated for the [Introduction](intro.md) the memory bus has per-message scoped disabled by default.
+

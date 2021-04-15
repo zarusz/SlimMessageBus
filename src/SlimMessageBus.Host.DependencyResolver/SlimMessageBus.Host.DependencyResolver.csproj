@@ -4,7 +4,7 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard1.3</TargetFramework>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
     <Description>Core dependency resolver interfaces of SlimMessageBus</Description>
     <PackageTags>SlimMessageBus</PackageTags>
     <PackageIcon>icon.png</PackageIcon>

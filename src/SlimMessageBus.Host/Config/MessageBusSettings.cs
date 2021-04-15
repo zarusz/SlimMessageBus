@@ -28,6 +28,10 @@ namespace SlimMessageBus.Host.Config
         ///
         /// <inheritdoc/>
         ///
+        public Action<IMessageBus, AbstractConsumerSettings, object, string, object> OnMessageFinished { get; set; }
+        ///
+        /// <inheritdoc/>
+        ///
         public Action<IMessageBus, AbstractConsumerSettings, object, object> OnMessageExpired { get; set; }
         ///
         /// <inheritdoc/>
@@ -40,6 +44,11 @@ namespace SlimMessageBus.Host.Config
         public Action<IMessageBus, ProducerSettings, object, string> OnMessageProduced { get; set; }
 
         #endregion
+
+        /// <summary>
+        /// Determines if a child scope is created for the message consumption. The consumer instance is then derived from that scope.
+        /// </summary>
+        public bool? IsMessageScopeEnabled { get; set; }
 
         public MessageBusSettings()
         {
@@ -96,6 +105,11 @@ namespace SlimMessageBus.Host.Config
             if (OnMessageArrived == null && settings.OnMessageArrived != null)
             {
                 OnMessageArrived = settings.OnMessageArrived;
+            }
+
+            if (OnMessageFinished == null && settings.OnMessageFinished != null)
+            {
+                OnMessageFinished = settings.OnMessageFinished;
             }
 
             if (OnMessageExpired == null && settings.OnMessageExpired != null)

@@ -124,5 +124,28 @@ namespace SlimMessageBus.Host.Config
         /// <returns></returns>
         public TopicConsumerBuilder<TMessage> AttachEvents(Action<IConsumerEvents> eventsConfig)
             => AttachEvents<TopicConsumerBuilder<TMessage>>(eventsConfig);
+        
+        /// <summary>
+        /// Enable (or disable) creation of DI child scope for each meesage.
+        /// </summary>
+        /// <param name="enabled"></param>
+        /// <returns></returns>
+        public TopicConsumerBuilder<TMessage> PerMessageScopeEnabled(bool enabled)
+        {
+            ConsumerSettings.IsMessageScopeEnabled = enabled;
+            return this;
+        }
+
+        /// <summary>
+        /// Enable (or disable) disposal of consumer after message consumption.
+        /// </summary>
+        /// <remarks>This should be used in conjuction with <see cref="PerMessageScopeEnabled"/>. With per message scope enabled, the DI should dispose the consumer upon disposal of message scope.</remarks>
+        /// <param name="enabled"></param>
+        /// <returns></returns>
+        public TopicConsumerBuilder<TMessage> DisposeConsumerEnabled(bool enabled)
+        {
+            ConsumerSettings.IsDisposeConsumerEnabled = enabled;
+            return this;
+        }
     }
 }

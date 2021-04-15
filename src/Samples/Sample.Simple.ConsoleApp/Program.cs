@@ -11,11 +11,12 @@ using System.Threading;
 using Microsoft.Extensions.Configuration;
 using SecretStore;
 using SlimMessageBus.Host.AzureServiceBus;
-using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Redis;
 using SlimMessageBus.Host.Memory;
 using Microsoft.Extensions.Logging;
 using Confluent.Kafka;
+using Microsoft.Extensions.DependencyInjection;
+using SlimMessageBus.Host.MsDependencyInjection;
 
 namespace Sample.Simple.ConsoleApp
 {
@@ -38,14 +39,23 @@ namespace Sample.Simple.ConsoleApp
             // Load configuration
             var configuration = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
 
-            // Setup logger
-            var loggerFactory = LoggerFactory.Create(cfg => cfg.AddConfiguration(configuration.GetSection("Logging")).AddConsole());
-
             // Local file with secrets
             Secrets.Load(@"..\..\..\..\..\secrets.txt");
 
+            // Setup DI
+            using var serviceProvider = new ServiceCollection()
+                // Register MS logging
+                .AddLogging(cfg => cfg.AddConfiguration(configuration.GetSection("Logging")).AddConsole())
+                // Register bus
+                .AddSingleton<IMessageBus>(svp => CreateMessageBus(configuration, svp))
+                // Register consumers
+                .AddTransient<AddCommandConsumer>()
+                .AddTransient<MultiplyRequestHandler>()
+                // Build DI container
+                .BuildServiceProvider();
+
             // Create the bus and process messages
-            using var messageBus = CreateMessageBus(configuration, loggerFactory);
+            using var messageBus = serviceProvider.GetRequiredService<IMessageBus>();
 
             var addTask = Task.Factory.StartNew(() => AddLoop(messageBus), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
             var multiplyTask = Task.Factory.StartNew(() => MultiplyLoop(messageBus), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
@@ -60,10 +70,10 @@ namespace Sample.Simple.ConsoleApp
         /**
          * Performs IMessageBus creation & configuration
          */
-        private static IMessageBus CreateMessageBus(IConfiguration configuration, ILoggerFactory loggerFactory)
+        private static IMessageBus CreateMessageBus(IConfiguration configuration, IServiceProvider services)
         {
             // Choose your provider
-            var provider = Provider.Kafka;
+            var provider = Provider.Redis;
 
             // Provide your event hub-names OR kafka/service bus topic names
             var topicForAddCommand = "add-command";
@@ -149,15 +159,9 @@ namespace Sample.Simple.ConsoleApp
                     x.SubscriptionName(responseGroup); // for Azure Service Bus
                     x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
                 })
-                .WithLoggerFacory(loggerFactory)
                 .WithSerializer(new JsonMessageSerializer()) // Use JSON for message serialization                
-                .WithDependencyResolver(new LookupDependencyResolver(type =>
-                {
-                    // Simulate a dependency container
-                    if (type == typeof(AddCommandConsumer)) return new AddCommandConsumer();
-                    if (type == typeof(MultiplyRequestHandler)) return new MultiplyRequestHandler();
-                    throw new InvalidOperationException();
-                }))
+                .WithDependencyResolver(new MsDependencyInjectionDependencyResolver(services))
+                .PerMessageScopeEnabled(true) // Enable DI scope to be created for each message about to be processed
                 .Do(builder =>
                 {
                     Console.WriteLine($"Using {provider} as the transport provider");
@@ -221,6 +225,7 @@ namespace Sample.Simple.ConsoleApp
                     }
                 })
                 .Build();
+
             return messageBus;
         }
 

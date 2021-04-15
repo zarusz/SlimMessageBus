@@ -533,5 +533,7 @@ namespace SlimMessageBus.Host
         /// </summary>
         /// <returns></returns>
         protected virtual string GenerateRequestId() => Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
+
+        public virtual bool IsMessageScopeEnabled(ConsumerSettings consumerSettings) => consumerSettings.IsMessageScopeEnabled ?? Settings.IsMessageScopeEnabled ?? true;
     }
 }

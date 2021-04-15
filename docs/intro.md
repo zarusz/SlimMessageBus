@@ -15,12 +15,18 @@ The configuration starts with `MessageBusBuilder`, which allows to configure cou
 Here is a sample:
 
 ```cs
+IServiceProvider serviceProvider;
+
 var mbb = MessageBusBuilder
    .Create()
-  // Use JSON for message serialization
+  
+   // Use JSON for message serialization
   .WithSerializer(new JsonMessageSerializer())
+  
   // Use DI from ASP.NET Core
   .WithDependencyResolver(new AspNetCoreMessageBusDependencyResolver(serviceProvider))
+  //.WithDependencyResolver(new MsDependencyInjectionDependencyResolver(serviceProvider))
+  
   // Use the Kafka Provider
   .WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
 
@@ -215,33 +221,46 @@ When you need to intercept a message that is delivered to a consumer, you can us
 mbb
    .Consume<SomeMessage>(x =>
    {
-       x.Topic("some-topic")
-        .AttachEvents(events =>
-        {
-            // Invoke the action for the specified message type when arrived on the bus:
-            events.OnMessageArrived = (bus, consumerSettings, message, name, nativeMessage) => {
-                Console.WriteLine("The SomeMessage: {0} arrived on the topic/queue {1}", message, name);
-            }
-            events.OnMessageFault = (bus, consumerSettings, message, ex, nativeMessage) => {
-
-            };
-        });
+       x.Topic("some-topic");
+       // This events trigger only for this consumer
+       x.AttachEvents(events =>
+       {
+          // 1. Invoke the action for the specified message type when arrived on the bus (pre consumer OnHandle method):
+          events.OnMessageArrived = (bus, consumerSettings, message, name, nativeMessage) => {
+             Console.WriteLine("The SomeMessage: {0} arrived on the topic/queue {1}", message, name);
+          }
+          
+          // 2. Invoke the action when the consumer caused an unhandled exception
+          events.OnMessageFault = (bus, consumerSettings, message, ex, nativeMessage) => {
+          };
+          
+          // 3. Invoke the action for the specified message type after consumer processed (post consumer OnHandle method).
+          // This is executed also if the message handling faulted (2.)
+          events.OnMessageFinished = (bus, consumerSettings, message, name, nativeMessage) => {
+             Console.WriteLine("The SomeMessage: {0} finished on the topic/queue {1}", message, name);
+          }
+       });
     })
+    // Any consumer events for the bus (a sum of all events across registered consumers)
     .AttachEvents(events =>
     {
-        // Invoke the action for the specified message type when sent via the bus:
-        events.OnMessageArrived = (bus, consumerSettings, message, name, nativeMessage) => {
-           Console.WriteLine("The message: {0} arrived on the topic/queue {1}", message, name);
-        };
-        events.OnMessageFault = (bus, consumerSettings, message, ex, nativeMessage) => {
-
-        };
+          // Invoke the action for the specified message type when sent via the bus:
+          events.OnMessageArrived = (bus, consumerSettings, message, name, nativeMessage) => {
+             Console.WriteLine("The message: {0} arrived on the topic/queue {1}", message, name);
+          };
+          
+          events.OnMessageFault = (bus, consumerSettings, message, ex, nativeMessage) => {
+          };
+          
+          events.OnMessageFinished = (bus, consumerSettings, message, name, nativeMessage) => {
+             Console.WriteLine("The SomeMessage: {0} finished on the topic/queue {1}", message, name);
+          }
    });
 ```
 
-The hook can be applied at the specified consumer, or the whole bus.
+The hook can be applied for the specified consumer, or for all consumers in the particular bus instance.
 
-> The user specified `Action<>` methods need to be thread-safe.
+> The user specified `Action<>` methods need to be thread-safe as they will be executed concurrently as messages are being processed.
 
 #### Consumer context
 
@@ -266,6 +285,51 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
 ```
 
 Please consult the individual transport provider documentation to see what is available.
+
+#### Per-message DI container scope
+
+SMB can be configured to create a DI scope for every message being consumed. That is if the chosen DI container supports child scopes.
+This allows to have a scoped `IConsumer<T>` or `IRequestHandler<TRequest, TResponse>` which can have any dependant collaborators that are also scoped (e.g. EF Core DataContext).
+
+```cs
+IMessageBusBuilder mbb;
+
+mbb.PerMessageScopeEnabled(true); // this will set the default setting for each consumer to create per-message scope in the DI container for every message about to be processed
+
+// SomeConsumer will be resolved from a child scope created for each consumed message - the default bus setting will apply
+mbb.Consume<Message>(x => x
+  .Topic("topic")
+  .WithConsumer<TConsumer>()
+);
+
+// AnotherConsumer will be resolved from the root DI for each message
+mbb.Consume<Message2>(x => x
+  .Topic("topic2")
+  .WithConsumer<TConsumer2>()
+  .PerMessageScopeEnabled(false) // override the bus global default setting and do not create scope for each message on this consumer
+);
+```
+
+> Per-message scope is enabled by default for all transports except the in-memory transport. This should work for most scenarios.
+
+For more advanced scenarios (third-party plugins) the SMB runtime provides a static accessor `MessageScope.Current` which allows to get ahold of the message scope for the currently running consumer instance.
+
+#### Concurrently processed messages
+
+The `.Instances(n)` allows to set the `n` number of concurrently processed messages within the same consumer type.
+
+```cs
+mbb.Consume<SomeMessage>(x => x
+  .Topic("topic")
+  .WithConsumer<TConsumer>()
+  .Instances(3) // At most there will be 3 instances of messages processsed simultaneously
+);
+```
+
+> The default is `1`.
+
+SMB manages a critical section for each consumer type registration that ensures there are at most `n` processed messages.
+Each processing of a message resolves the `TConsumer` instance from the DI.
 
 ## Request-response communication
 

@@ -1,11 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="../Common.Properties.xml" />
+  <Import Project="../Host.DI.Properties.xml" />
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <Description>Extension to SlimMessageBus that resolves dependencies from Unity container</Description>
-    <Version>1.4.0</Version>
     <PackageTags>SlimMessageBus Unity messaging</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
