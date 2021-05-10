@@ -168,6 +168,16 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Serialization", "Serializat
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.MsDependencyInjection", "SlimMessageBus.Host.MsDependencyInjection\SlimMessageBus.Host.MsDependencyInjection.csproj", "{0B310151-44A2-4857-9A4E-7AC2D677BDE3}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Infrastructure", "Infrastructure", "{59F88FB5-6D19-4520-87E8-227B3539BBB3}"
+	ProjectSection(SolutionItems) = preProject
+		Samples\Infrastructure\README.md = Samples\Infrastructure\README.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Kafka-SingleNode", "Kafka-SingleNode", "{E39CB080-5838-47AF-835B-9E32A2FFE811}"
+	ProjectSection(SolutionItems) = preProject
+		Samples\Infrastructure\Kafka-SingleNode\docker-compose.yml = Samples\Infrastructure\Kafka-SingleNode\docker-compose.yml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -525,6 +535,8 @@ Global
 		{CD48FE11-EF0E-41C0-A042-21BB9673FF3C} = {75BDDBB5-8DB8-4893-BD89-8FFC6C42244D}
 		{D7DCD96A-C3B8-4D22-8216-0E8ADD30C03F} = {75BDDBB5-8DB8-4893-BD89-8FFC6C42244D}
 		{0B310151-44A2-4857-9A4E-7AC2D677BDE3} = {CD48FE11-EF0E-41C0-A042-21BB9673FF3C}
+		{59F88FB5-6D19-4520-87E8-227B3539BBB3} = {A5B15524-93B8-4CCE-AC6D-A22984498BA0}
+		{E39CB080-5838-47AF-835B-9E32A2FFE811} = {59F88FB5-6D19-4520-87E8-227B3539BBB3}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {435A0D65-610C-4B84-B1AA-2C7FBE72DB80}
