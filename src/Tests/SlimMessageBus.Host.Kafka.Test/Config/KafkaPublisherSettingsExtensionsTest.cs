@@ -1,9 +1,9 @@
-﻿using FluentAssertions;
-using SlimMessageBus.Host.Config;
-using Xunit;
-
-namespace SlimMessageBus.Host.Kafka.Test
+﻿namespace SlimMessageBus.Host.Kafka.Test
 {
+    using FluentAssertions;
+    using SlimMessageBus.Host.Config;
+    using Xunit;
+
     public class KafkaPublisherSettingsExtensionsTest
     {
         [Fact]

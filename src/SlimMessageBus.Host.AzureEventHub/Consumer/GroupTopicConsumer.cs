@@ -1,12 +1,11 @@
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using Microsoft.Azure.EventHubs.Processor;
-using Microsoft.Extensions.Logging;
-using SlimMessageBus.Host.Config;
-
 namespace SlimMessageBus.Host.AzureEventHub
 {
+    using System;
+    using System.Collections.Generic;
+    using Microsoft.Azure.EventHubs.Processor;
+    using Microsoft.Extensions.Logging;
+    using SlimMessageBus.Host.Config;
+
     public class GroupTopicConsumer : IDisposable, IEventProcessorFactory
     {
         private readonly ILogger _logger;
@@ -20,12 +19,12 @@ namespace SlimMessageBus.Host.AzureEventHub
         private readonly TaskMarker _taskMarker = new TaskMarker();
 
         public GroupTopicConsumer(EventHubMessageBus messageBus, ConsumerSettings consumerSettings)
-            : this(messageBus, new TopicGroup(consumerSettings.Topic, consumerSettings.GetGroup()), () => new PartitionConsumerForConsumers(messageBus, consumerSettings))
+            : this(messageBus, new TopicGroup(consumerSettings.Path, consumerSettings.GetGroup()), () => new PartitionConsumerForConsumers(messageBus, consumerSettings))
         {            
         }
 
         public GroupTopicConsumer(EventHubMessageBus messageBus, RequestResponseSettings requestResponseSettings)
-            : this(messageBus, new TopicGroup(requestResponseSettings.Topic, requestResponseSettings.GetGroup()), () => new PartitionConsumerForResponses(messageBus, requestResponseSettings))
+            : this(messageBus, new TopicGroup(requestResponseSettings.Path, requestResponseSettings.GetGroup()), () => new PartitionConsumerForResponses(messageBus, requestResponseSettings))
         {
         }
 

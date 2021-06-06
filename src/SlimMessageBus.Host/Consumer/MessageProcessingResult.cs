@@ -1,7 +1,7 @@
-using System.Threading.Tasks;
-
 namespace SlimMessageBus.Host
 {
+    using System.Threading.Tasks;
+
     public class MessageProcessingResult<TMessage> where TMessage : class
     {
         public Task Task { get; }

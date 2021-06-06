@@ -1,18 +1,18 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Threading.Tasks;
-using FluentAssertions;
-using Microsoft.Azure.ServiceBus;
-using Moq;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.Serialization;
-using Xunit;
-
-namespace SlimMessageBus.Host.AzureServiceBus.Test
+﻿namespace SlimMessageBus.Host.AzureServiceBus.Test
 {
+    using System;
+    using System.Collections.Concurrent;
+    using System.Collections.Generic;
+    using System.Globalization;
+    using System.Threading.Tasks;
+    using FluentAssertions;
+    using Microsoft.Azure.ServiceBus;
+    using Moq;
+    using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.DependencyResolver;
+    using SlimMessageBus.Host.Serialization;
+    using Xunit;
+
     public class ServiceBusMessageBusTests : IDisposable
     {
         private ServiceBusMessageBusSettings ProviderBusSettings { get; }

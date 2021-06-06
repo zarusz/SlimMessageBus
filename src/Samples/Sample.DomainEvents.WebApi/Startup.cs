@@ -1,20 +1,20 @@
-﻿using System;
-using System.Linq;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Sample.DomainEvents.Domain;
-using SlimMessageBus;
-using SlimMessageBus.Host.AspNetCore;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.Memory;
-
-namespace Sample.DomainEvents.WebApi
+﻿namespace Sample.DomainEvents.WebApi
 {
+    using System;
+    using System.Linq;
+    using Microsoft.AspNetCore.Builder;
+    using Microsoft.AspNetCore.Hosting;
+    using Microsoft.Extensions.Configuration;
+    using Microsoft.Extensions.DependencyInjection;
+    using Microsoft.Extensions.Hosting;
+    using Microsoft.Extensions.Logging;
+    using Sample.DomainEvents.Domain;
+    using SlimMessageBus;
+    using SlimMessageBus.Host.AspNetCore;
+    using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.DependencyResolver;
+    using SlimMessageBus.Host.Memory;
+
     public class Startup
     {
         public Startup(IConfiguration configuration)

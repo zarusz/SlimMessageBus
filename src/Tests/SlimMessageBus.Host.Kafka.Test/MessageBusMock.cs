@@ -1,11 +1,11 @@
-﻿using Moq;
-using SlimMessageBus.Host.Config;
-using System;
-using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.Serialization;
-
-namespace SlimMessageBus.Host.Kafka.Test
+﻿namespace SlimMessageBus.Host.Kafka.Test
 {
+    using Moq;
+    using SlimMessageBus.Host.Config;
+    using System;
+    using SlimMessageBus.Host.DependencyResolver;
+    using SlimMessageBus.Host.Serialization;
+
     public class MessageBusMock
     {
         public Mock<IDependencyResolver> DependencyResolverMock { get; }

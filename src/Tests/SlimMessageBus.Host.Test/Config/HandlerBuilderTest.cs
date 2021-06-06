@@ -1,9 +1,9 @@
-﻿using FluentAssertions;
-using SlimMessageBus.Host.Config;
-using Xunit;
-
-namespace SlimMessageBus.Host.Test.Config
+﻿namespace SlimMessageBus.Host.Test.Config
 {
+    using FluentAssertions;
+    using SlimMessageBus.Host.Config;
+    using Xunit;
+
     public class HandlerBuilderTest
     {       
         [Fact]
@@ -23,7 +23,7 @@ namespace SlimMessageBus.Host.Test.Config
             subject.ConsumerSettings.MessageType.Should().Be(typeof(SomeRequest));
             subject.MessageType.Should().Be(typeof(SomeRequest));
             subject.Topic.Should().Be(topic);
-            subject.ConsumerSettings.Topic.Should().Be(topic);
+            subject.ConsumerSettings.Path.Should().Be(topic);
             subject.ConsumerSettings.Instances.Should().Be(3);
             subject.ConsumerSettings.ConsumerType.Should().Be(typeof(SomeRequestMessageHandler));
             subject.ConsumerSettings.ConsumerMode.Should().Be(ConsumerMode.RequestResponse);

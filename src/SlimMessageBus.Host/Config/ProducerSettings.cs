@@ -1,7 +1,7 @@
-﻿using System;
-
-namespace SlimMessageBus.Host.Config
+﻿namespace SlimMessageBus.Host.Config
 {
+    using System;
+
     public class ProducerSettings : HasProviderExtensions, IProducerEvents
     {
         /// <summary>
@@ -9,9 +9,13 @@ namespace SlimMessageBus.Host.Config
         /// </summary>
         public Type MessageType { get; set; }
         /// <summary>
-        /// Default topic name to use when not specified during publish/send operation.
+        /// Default topic/queue name to use when not specified during publish/send operation.
         /// </summary>
-        public string DefaultTopic { get; set; }
+        public string DefaultPath { get; set; }
+        /// <summary>
+        /// Determines the kind of the path 
+        /// </summary>
+        public PathKind PathKind { get; set; } = PathKind.Topic;
         /// <summary>
         /// Timeout after which this message should be considered as expired by the consumer.
         /// </summary>
@@ -24,4 +28,5 @@ namespace SlimMessageBus.Host.Config
 
         #endregion
     }
+
 }

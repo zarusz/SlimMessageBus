@@ -1,8 +1,8 @@
-﻿using System;
-using SlimMessageBus.Host.Config;
-
-namespace SlimMessageBus.Host.AzureServiceBus
+﻿namespace SlimMessageBus.Host.AzureServiceBus
 {
+    using System;
+    using SlimMessageBus.Host.Config;
+
     public static class RequestResponseBuilderExtensions
     {
         public static RequestResponseBuilder ReplyToQueue(this RequestResponseBuilder builder, string queue)
@@ -10,8 +10,8 @@ namespace SlimMessageBus.Host.AzureServiceBus
             if (builder is null) throw new ArgumentNullException(nameof(builder));
             if (queue is null) throw new ArgumentNullException(nameof(queue));
 
-            builder.Settings.Topic = queue;
-            builder.Settings.SetKind(PathKind.Queue);
+            builder.Settings.Path = queue;
+            builder.Settings.PathKind = PathKind.Queue;
             return builder;
         }
 

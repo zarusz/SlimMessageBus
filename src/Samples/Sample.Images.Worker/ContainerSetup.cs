@@ -1,20 +1,20 @@
-using System.IO;
-using Autofac;
-using Sample.Images.FileStore;
-using Sample.Images.FileStore.Disk;
-using Sample.Images.Messages;
-using Sample.Images.Worker.Handlers;
-using SlimMessageBus;
-using SlimMessageBus.Host.Autofac;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.Serialization.Json;
-using SlimMessageBus.Host.Kafka;
-using Microsoft.Extensions.Configuration;
-using SlimMessageBus.Host.Kafka.Configs;
-using Microsoft.Extensions.Logging;
-
 namespace Sample.Images.Worker
 {
+    using System.IO;
+    using Autofac;
+    using Sample.Images.FileStore;
+    using Sample.Images.FileStore.Disk;
+    using Sample.Images.Messages;
+    using Sample.Images.Worker.Handlers;
+    using SlimMessageBus;
+    using SlimMessageBus.Host.Autofac;
+    using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.Serialization.Json;
+    using SlimMessageBus.Host.Kafka;
+    using Microsoft.Extensions.Configuration;
+    using SlimMessageBus.Host.Kafka.Configs;
+    using Microsoft.Extensions.Logging;
+
     public static class ContainerSetup
     {
         public static IContainer Create(IConfigurationRoot configuration, ILoggerFactory loggerFactory)

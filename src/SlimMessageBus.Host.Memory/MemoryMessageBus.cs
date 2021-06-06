@@ -1,12 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using SlimMessageBus.Host.Config;
-
-namespace SlimMessageBus.Host.Memory
+﻿namespace SlimMessageBus.Host.Memory
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Threading.Tasks;
+    using Microsoft.Extensions.Logging;
+    using SlimMessageBus.Host.Config;
+
     /// <summary>
     /// In-memory message bus <see cref="IMessageBus"/> implementation to use for in process message passing.
     /// </summary>
@@ -41,7 +41,7 @@ namespace SlimMessageBus.Host.Memory
             base.Build();
 
             _consumersByTopic = Settings.Consumers
-                .GroupBy(x => x.Topic)
+                .GroupBy(x => x.Path)
                 .ToDictionary(x => x.Key, x => x.ToList());
         }
 
@@ -137,7 +137,7 @@ namespace SlimMessageBus.Host.Memory
                             : DeserializeMessage(messageType, messagePayload); // will pass a deep copy of the message
 
                     _logger.LogDebug("Executing consumer instance {consumer} of type {consumerType} for message {message}", consumerInstance, consumerSettings.ConsumerType, message);
-                    consumerTask = consumerSettings.ConsumerMethod(consumerInstance, messageForConsumer, consumerSettings.Topic);
+                    consumerTask = consumerSettings.ConsumerMethod(consumerInstance, messageForConsumer, consumerSettings.Path);
                     await consumerTask.ConfigureAwait(false);
                 }
                 finally

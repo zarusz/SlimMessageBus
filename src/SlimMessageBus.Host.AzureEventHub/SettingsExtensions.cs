@@ -1,7 +1,7 @@
-﻿using SlimMessageBus.Host.Config;
-
-namespace SlimMessageBus.Host.AzureEventHub
+﻿namespace SlimMessageBus.Host.AzureEventHub
 {
+    using SlimMessageBus.Host.Config;
+
     public static class SettingsExtensions
     {
         private const string GroupKey = "Group";

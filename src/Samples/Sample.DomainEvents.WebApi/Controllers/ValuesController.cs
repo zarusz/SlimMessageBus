@@ -1,8 +1,8 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using SlimMessageBus;
-
-namespace Sample.DomainEvents.WebApi.Controllers
+﻿namespace Sample.DomainEvents.WebApi.Controllers
 {
+    using Microsoft.AspNetCore.Mvc;
+    using SlimMessageBus;
+
     [Route("api/[controller]")]
     [ApiController]
     public class ValuesController : Controller

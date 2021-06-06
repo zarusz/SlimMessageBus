@@ -1,8 +1,8 @@
-
-using Microsoft.Azure.EventHubs.Processor;
-
 namespace SlimMessageBus.Host.AzureEventHub
 {
+
+    using Microsoft.Azure.EventHubs.Processor;
+
     public class PartitionContextInfo
     {
         public PartitionContext Context { get; }

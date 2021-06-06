@@ -1,8 +1,8 @@
-﻿using System.Collections.Generic;
-using Microsoft.AspNetCore.Mvc;
-
-namespace Sample.Images.WebApi.Controllers
+﻿namespace Sample.Images.WebApi.Controllers
 {
+    using System.Collections.Generic;
+    using Microsoft.AspNetCore.Mvc;
+
     [Route("api/[controller]")]
     public class ValuesController : Controller
     {

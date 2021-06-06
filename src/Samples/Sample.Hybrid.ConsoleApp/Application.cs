@@ -1,10 +1,10 @@
-﻿using System;
-using System.Threading.Tasks;
-using Sample.Hybrid.ConsoleApp.DomainModel;
-using SlimMessageBus;
-
-namespace Sample.Hybrid.ConsoleApp
+﻿namespace Sample.Hybrid.ConsoleApp
 {
+    using System;
+    using System.Threading.Tasks;
+    using Sample.Hybrid.ConsoleApp.DomainModel;
+    using SlimMessageBus;
+
     public class Application
     {
         private readonly IMessageBus _messageBus;

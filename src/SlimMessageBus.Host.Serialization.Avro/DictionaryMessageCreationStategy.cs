@@ -1,9 +1,9 @@
-﻿using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-
-namespace SlimMessageBus.Host.Serialization.Avro
+﻿namespace SlimMessageBus.Host.Serialization.Avro
 {
+    using Microsoft.Extensions.Logging;
+    using System;
+    using System.Collections.Generic;
+
     /// <summary>
     /// Strategy to create message instances using a dictionary which holds registered factory methods.
     /// This should be faster than the <see cref="ReflectionMessageCreationStategy"/> strategy.

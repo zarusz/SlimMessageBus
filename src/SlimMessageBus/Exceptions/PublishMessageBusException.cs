@@ -1,7 +1,7 @@
-﻿using System;
-
-namespace SlimMessageBus
+﻿namespace SlimMessageBus
 {
+    using System;
+
     public class PublishMessageBusException : MessageBusException
     {
         public PublishMessageBusException()

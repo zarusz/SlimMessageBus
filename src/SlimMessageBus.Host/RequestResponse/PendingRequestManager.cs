@@ -1,10 +1,9 @@
-﻿using System;
-using System.Globalization;
-using System.Threading;
-using Microsoft.Extensions.Logging;
-
-namespace SlimMessageBus.Host
+﻿namespace SlimMessageBus.Host
 {
+    using System;
+    using System.Threading;
+    using Microsoft.Extensions.Logging;
+
     /// <summary>
     /// Manages the pending requests - ensure requests which exceeded the allotted timeout period are removed.
     /// </summary>

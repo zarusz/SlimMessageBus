@@ -1,10 +1,10 @@
-﻿using System.Linq;
-using System.Text;
-using FluentAssertions;
-using Xunit;
-
-namespace SlimMessageBus.Host.Test
+﻿namespace SlimMessageBus.Host.Test
 {
+    using System.Linq;
+    using System.Text;
+    using FluentAssertions;
+    using Xunit;
+
     public class MessageWithHeadersSerializerTest
     {
         private readonly byte[] _payload;

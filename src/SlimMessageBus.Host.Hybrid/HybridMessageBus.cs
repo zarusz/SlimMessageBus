@@ -1,14 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using SlimMessageBus.Host.Config;
-
-namespace SlimMessageBus.Host.Hybrid
+﻿namespace SlimMessageBus.Host.Hybrid
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Logging.Abstractions;
+    using SlimMessageBus.Host.Config;
+
     public class HybridMessageBus : IMessageBus
     {
         private readonly ILogger _logger;
@@ -19,8 +18,7 @@ namespace SlimMessageBus.Host.Hybrid
         public HybridMessageBusSettings ProviderSettings { get; }
 
         private readonly IDictionary<Type, string> _routeByMessageType;
-        private readonly IDictionary<string, MessageBusBase> _busByName;
-        
+        private readonly IDictionary<string, MessageBusBase> _busByName;        
 
         public HybridMessageBus(MessageBusSettings settings, HybridMessageBusSettings providerSettings)
         {

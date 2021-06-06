@@ -1,11 +1,11 @@
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-
 namespace SlimMessageBus.Host
 {
+    using Microsoft.Extensions.Logging;
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Threading.Tasks;
+
     public class MessageQueueWorker<TMessage> : IDisposable where TMessage : class
     {
         private readonly ILogger _logger;

@@ -1,9 +1,9 @@
-using System;
-using System.Linq;
-using System.Threading.Tasks;
-
 namespace SlimMessageBus.Host.Config
 {
+    using System;
+    using System.Linq;
+    using System.Threading.Tasks;
+
     public class TopicHandlerBuilder<TRequest, TResponse> : AbstractTopicConsumerBuilder
         where TRequest : IRequestMessage<TResponse>
     {
@@ -14,7 +14,7 @@ namespace SlimMessageBus.Host.Config
 
             ConsumerSettings.ResponseType = typeof(TResponse);
 
-            var consumerSettingsExist = settings.Consumers.Any(x => x.Topic == topic && x.ConsumerMode == ConsumerMode.RequestResponse);
+            var consumerSettingsExist = settings.Consumers.Any(x => x.Path == topic && x.ConsumerMode == ConsumerMode.RequestResponse);
             Assert.IsFalse(consumerSettingsExist,
                 () => new ConfigurationMessageBusException($"Attempted to configure request handler for topic '{topic}' when one was already configured. You can only have one request handler for a given topic, otherwise which response would you send back?"));
         }

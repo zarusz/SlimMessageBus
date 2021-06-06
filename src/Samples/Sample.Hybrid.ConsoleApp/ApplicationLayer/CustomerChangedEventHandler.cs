@@ -1,10 +1,10 @@
-﻿using Sample.Hybrid.ConsoleApp.DomainModel;
-using Sample.Hybrid.ConsoleApp.EmailService.Contract;
-using SlimMessageBus;
-using System.Threading.Tasks;
-
-namespace Sample.Hybrid.ConsoleApp.ApplicationLayer
+﻿namespace Sample.Hybrid.ConsoleApp.ApplicationLayer
 {
+    using Sample.Hybrid.ConsoleApp.DomainModel;
+    using Sample.Hybrid.ConsoleApp.EmailService.Contract;
+    using SlimMessageBus;
+    using System.Threading.Tasks;
+
     public class CustomerChangedEventHandler : IConsumer<CustomerEmailChangedEvent>
     {
         private readonly IMessageBus _bus;

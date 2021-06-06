@@ -1,14 +1,14 @@
-﻿using Avro;
-using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Order;
-using Microsoft.Extensions.Logging.Abstractions;
-using SlimMessageBus.Host.Serialization.Avro;
-using SlimMessageBus.Host.Serialization.Json;
-using System;
-using System.Collections.Generic;
-
-namespace SlimMessageBus.Host.Serialization.Benchmark
+﻿namespace SlimMessageBus.Host.Serialization.Benchmark
 {
+    using global::Avro;
+    using BenchmarkDotNet.Attributes;
+    using BenchmarkDotNet.Order;
+    using Microsoft.Extensions.Logging.Abstractions;
+    using SlimMessageBus.Host.Serialization.Avro;
+    using SlimMessageBus.Host.Serialization.Json;
+    using System;
+    using System.Collections.Generic;
+
     [Orderer(SummaryOrderPolicy.FastestToSlowest)]
     [MemoryDiagnoser]
     public class SerDesBenchmark

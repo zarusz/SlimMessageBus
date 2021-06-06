@@ -1,24 +1,24 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using Sample.Serialization.MessagesAvro;
-using SecretStore;
-using SlimMessageBus;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.Memory;
-using SlimMessageBus.Host.Redis;
-using SlimMessageBus.Host.Serialization;
-using SlimMessageBus.Host.Serialization.Avro;
-using SlimMessageBus.Host.Serialization.Hybrid;
-using SlimMessageBus.Host.Serialization.Json;
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace Sample.Avro.ConsoleApp
+﻿namespace Sample.Avro.ConsoleApp
 {
+    using Microsoft.Extensions.Configuration;
+    using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Logging.Abstractions;
+    using Sample.Serialization.MessagesAvro;
+    using SecretStore;
+    using SlimMessageBus;
+    using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.DependencyResolver;
+    using SlimMessageBus.Host.Memory;
+    using SlimMessageBus.Host.Redis;
+    using SlimMessageBus.Host.Serialization;
+    using SlimMessageBus.Host.Serialization.Avro;
+    using SlimMessageBus.Host.Serialization.Hybrid;
+    using SlimMessageBus.Host.Serialization.Json;
+    using System;
+    using System.Collections.Generic;
+    using System.Threading;
+    using System.Threading.Tasks;
+
     enum Provider
     {
         //Kafka,

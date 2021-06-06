@@ -1,7 +1,7 @@
-﻿using System;
-
-namespace SlimMessageBus.Host.Config
+﻿namespace SlimMessageBus.Host.Config
 {
+    using System;
+
     public class ProducerBuilder<T>
     {
         public ProducerSettings Settings { get; }
@@ -19,7 +19,7 @@ namespace SlimMessageBus.Host.Config
 
         public ProducerBuilder<T> DefaultTopic(string name)
         {
-            Settings.DefaultTopic = name ?? throw new ArgumentNullException(nameof(name));
+            Settings.DefaultPath = name ?? throw new ArgumentNullException(nameof(name));
             return this;
         }
 

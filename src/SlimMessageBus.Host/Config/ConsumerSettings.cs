@@ -1,10 +1,10 @@
-using System;
-using System.Linq;
-using System.Reflection;
-using System.Threading.Tasks;
-
 namespace SlimMessageBus.Host.Config
 {
+    using System;
+    using System.Linq;
+    using System.Reflection;
+    using System.Threading.Tasks;
+
     public class ConsumerSettings : AbstractConsumerSettings
     {
         private Type _messageType;

@@ -1,16 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using FluentAssertions;
-using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
-using SlimMessageBus.Host.Config;
-using Xunit;
-
-namespace SlimMessageBus.Host.Test.Consumer
+﻿namespace SlimMessageBus.Host.Test.Consumer
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using FluentAssertions;
+    using Microsoft.Extensions.Logging.Abstractions;
+    using Moq;
+    using SlimMessageBus.Host.Config;
+    using Xunit;
+
     public class MessageQueueWorkerTest
     {
         private readonly Mock<ConsumerInstancePoolMessageProcessor<SomeMessage>> _consumerInstancePoolMock;

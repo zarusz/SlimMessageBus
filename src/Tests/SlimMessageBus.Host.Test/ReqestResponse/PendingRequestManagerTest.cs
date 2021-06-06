@@ -1,11 +1,11 @@
-﻿using System;
-using System.Threading;
-using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
-using Xunit;
-
-namespace SlimMessageBus.Host.Test
+﻿namespace SlimMessageBus.Host.Test
 {
+    using System;
+    using System.Threading;
+    using Microsoft.Extensions.Logging.Abstractions;
+    using Moq;
+    using Xunit;
+
     public class PendingRequestManagerTest : IDisposable
     {
         private readonly PendingRequestManager _subject;

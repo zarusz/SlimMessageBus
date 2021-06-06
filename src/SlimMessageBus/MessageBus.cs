@@ -1,7 +1,7 @@
-﻿using System;
-
-namespace SlimMessageBus
+﻿namespace SlimMessageBus
 {
+    using System;
+
     /// <summary>
     /// Lookup helper of the <see cref="IMessageBus"/> for the current execution context (singleton, thread bound (ThreadLocal) or task bound (AsyncLocal)).
     /// </summary>

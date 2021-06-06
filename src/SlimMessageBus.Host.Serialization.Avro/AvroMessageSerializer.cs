@@ -1,12 +1,12 @@
-﻿using Avro;
-using Avro.IO;
-using Avro.Specific;
-using Microsoft.Extensions.Logging;
-using System;
-using System.IO;
-
-namespace SlimMessageBus.Host.Serialization.Avro
+﻿namespace SlimMessageBus.Host.Serialization.Avro
 {
+    using global::Avro;
+    using global::Avro.IO;
+    using global::Avro.Specific;
+    using Microsoft.Extensions.Logging;
+    using System;
+    using System.IO;
+
     /// <summary>
     /// Apache Avro serialization implementation of <see cref="IMessageSerializer"/>
     /// </summary>

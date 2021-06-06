@@ -1,7 +1,7 @@
-﻿using System;
-
-namespace Sample.DomainEvents.Domain
+﻿namespace Sample.DomainEvents.Domain
 {
+    using System;
+
     /// <summary>
     /// Domain event
     /// </summary>

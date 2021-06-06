@@ -1,26 +1,27 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using SlimMessageBus.Host.AzureServiceBus.Consumer;
-using SlimMessageBus.Host.Config;
-using StackExchange.Redis;
-
-namespace SlimMessageBus.Host.Redis
+﻿namespace SlimMessageBus.Host.Redis
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Threading.Tasks;
+    using Microsoft.Extensions.Logging;
+    using SlimMessageBus.Host.Collections;
+    using SlimMessageBus.Host.Config;
+    using StackExchange.Redis;
+
     public class RedisMessageBus : MessageBusBase
     {
         private readonly ILogger _logger;
 
         public RedisMessageBusSettings ProviderSettings { get; }
 
-        public bool IsRunning { get; private set; } = false;
+        public bool IsRunning { get; private set; }
 
-        protected ConnectionMultiplexer Connection { get; private set; }
+        protected IConnectionMultiplexer Connection { get; private set; }
         protected IDatabase Database { get; private set; }
 
-        private readonly List<RedisChannelConsumer> _consumers = new List<RedisChannelConsumer>();
+        private readonly KindMapping _kindMapping = new KindMapping();
+
+        private readonly List<IRedisConsumer> _consumers = new List<IRedisConsumer>();
 
         public RedisMessageBus(MessageBusSettings settings, RedisMessageBusSettings providerSettings)
             : base(settings)
@@ -39,9 +40,11 @@ namespace SlimMessageBus.Host.Redis
             Connection = ProviderSettings.ConnectionFactory();
             Database = Connection.GetDatabase();
 
+            _kindMapping.Configure(Settings);
+
             if (ProviderSettings.AutoStartConsumers)
             {
-                Start().Wait();
+                _ = Start();
             }
         }
 
@@ -53,7 +56,7 @@ namespace SlimMessageBus.Host.Redis
             {
                 if (IsRunning)
                 {
-                    Stop().Wait();
+                    Finish().Wait();
                 }
                 Connection.DisposeSilently(nameof(ConnectionMultiplexer), _logger);
             }
@@ -62,46 +65,77 @@ namespace SlimMessageBus.Host.Redis
         #endregion
 
         // ToDo: lift to base class
-        public virtual Task Start()
+        public virtual async Task Start()
         {
             if (!IsRunning)
             {
                 IsRunning = true;
 
                 CreateConsumers();
+
+                foreach (var consumer in _consumers)
+                {
+                    await consumer.Start().ConfigureAwait(false);
+                }
             }
-            return Task.CompletedTask;
         }
 
         // ToDo: lift to base class
-        public virtual Task Stop()
+        public virtual async Task Finish()
         {
             if (IsRunning)
             {
+                foreach (var consumer in _consumers)
+                {
+                    await consumer.Finish().ConfigureAwait(false);
+                }
+
                 DestroyConsumers();
 
                 IsRunning = false;
             }
-            return Task.CompletedTask;
         }
 
         protected void CreateConsumers()
         {
             var subscriber = Connection.GetSubscriber();
 
+            var queues = new List<(string, IMessageProcessor<byte[]>)>();
+
             _logger.LogInformation("Creating consumers");
             foreach (var consumerSettings in Settings.Consumers)
             {
-                _logger.LogInformation("Creating consumer for {0}", consumerSettings.FormatIf(_logger.IsEnabled(LogLevel.Information)));
-                var messageProcessor = new ConsumerInstancePoolMessageProcessor<byte[]>(consumerSettings, this, m => m);
-                AddConsumer(consumerSettings, subscriber, messageProcessor);
+                var processor = new ConsumerInstancePoolMessageProcessor<byte[]>(consumerSettings, this, m => m);
+
+                if (consumerSettings.PathKind == PathKind.Topic)
+                {
+                    _logger.LogInformation("Creating consumer {ConsumerType} for topic {Topic} and message type {MessageType}", consumerSettings.ConsumerType, consumerSettings.Path, consumerSettings.MessageType);
+                    AddTopicConsumer(consumerSettings, subscriber, processor);
+                }
+                else
+                {
+                    _logger.LogInformation("Creating consumer {ConsumerType} for queue {Queue} and message type {MessageType}", consumerSettings.ConsumerType, consumerSettings.Path, consumerSettings.MessageType);
+                    queues.Add((consumerSettings.Path, processor));
+                }
             }
 
             if (Settings.RequestResponse != null)
             {
-                _logger.LogInformation("Creating response consumer for {0}", Settings.RequestResponse.FormatIf(_logger.IsEnabled(LogLevel.Information)));
-                var messageProcessor = new ResponseMessageProcessor<byte[]>(Settings.RequestResponse, this, m => m);
-                AddConsumer(Settings.RequestResponse, subscriber, messageProcessor);
+                if (Settings.RequestResponse.PathKind == PathKind.Topic)
+                {
+                    _logger.LogInformation("Creating response consumer for topic {Topic}", Settings.RequestResponse.Path);
+                    AddTopicConsumer(Settings.RequestResponse, subscriber, new ResponseMessageProcessor<byte[]>(Settings.RequestResponse, this, m => m));
+                }
+                else
+                {
+                    _logger.LogInformation("Creating response consumer for queue {Queue}", Settings.RequestResponse.Path);
+                    queues.Add((Settings.RequestResponse.Path, new ResponseMessageProcessor<byte[]>(Settings.RequestResponse, this, m => m)));
+                }
+            }
+
+            if (queues.Count > 0)
+            {
+                _consumers.Add(new RedisListCheckerConsumer(LoggerFactory.CreateLogger<RedisListCheckerConsumer>(), Database, ProviderSettings.QueuePollDelay, ProviderSettings.QueuePollMaxIdle, queues));
             }
         }
 
@@ -109,24 +143,50 @@ namespace SlimMessageBus.Host.Redis
         {
             _logger.LogInformation("Destroying consumers");
 
-            _consumers.ForEach(consumer => consumer.DisposeSilently(nameof(RedisChannelConsumer), _logger));
+            _consumers.ForEach(consumer => consumer.DisposeSilently(nameof(RedisTopicConsumer), _logger));
             _consumers.Clear();
         }
 
-        protected void AddConsumer(AbstractConsumerSettings consumerSettings, ISubscriber subscriber, IMessageProcessor<byte[]> messageProcessor)
+        protected void AddTopicConsumer(AbstractConsumerSettings consumerSettings, ISubscriber subscriber, IMessageProcessor<byte[]> messageProcessor)
         {
-            var consumer = new RedisChannelConsumer(consumerSettings, subscriber, messageProcessor);
+            var consumer = new RedisTopicConsumer(consumerSettings, subscriber, messageProcessor);
             _consumers.Add(consumer);
         }
 
         #region Overrides of MessageBusBase
 
-        public override async Task ProduceToTransport(Type messageType, object message, string name, byte[] payload, MessageWithHeaders messageWithHeaders = null)
+        public override Task ProduceToTransport(Type messageType, object message, string path, byte[] payload, MessageWithHeaders messageWithHeaders = null)
         {
-            var result = await Database.PublishAsync(name, payload).ConfigureAwait(false);
-            _logger.LogDebug("Produced message {0} of type {1} to redis channel {2} with result {3}", message, messageType, name, result);
+            // determine the SMB topic name if its a Azure SB queue or topic
+            var kind = _kindMapping.GetKind(messageType, path);
+
+            return ProduceToTransport(messageType, message, path, payload, kind);
         }
 
         #endregion
+
+        protected virtual async Task ProduceToTransport(Type messageType, object message, string path, byte[] payload, PathKind kind)
+        {
+            if (messageType is null) throw new ArgumentNullException(nameof(messageType));
+            if (payload is null) throw new ArgumentNullException(nameof(payload));
+
+            AssertActive();
+
+            _logger.LogDebug(
+                kind == PathKind.Topic
+                    ? "Producing message {Message} of type {MessageType} to redis channel {Topic} with size {MessageSize}"
+                    : "Producing message {Message} of type {MessageType} to redis key {Queue} with size {MessageSize}",
+                message, messageType.Name, path, payload.Length);
+
+            var result = kind == PathKind.Topic
+                ? await Database.PublishAsync(path, payload).ConfigureAwait(false) // Use Redis Pub/Sub
+                : await Database.ListRightPushAsync(path, payload).ConfigureAwait(false); // Use Redis List Type (append on the right side/end of list)
+
+            _logger.LogDebug(
+                kind == PathKind.Topic
+                    ? "Produced message {Message} of type {MessageType} to redis channel {Topic} with result {RedisResult}"
+                    : "Produced message {Message} of type {MessageType} to redis key {Queue} with result {RedisResult}",
+                message, messageType, path, result);
+        }
     }
 }

@@ -1,7 +1,7 @@
-﻿using Confluent.Kafka;
-
-namespace SlimMessageBus.Host.Kafka
+﻿namespace SlimMessageBus.Host.Kafka
 {
+    using Confluent.Kafka;
+
     internal class MessageContextInfo
     {
         public string Group { get; }

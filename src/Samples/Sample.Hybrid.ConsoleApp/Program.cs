@@ -1,13 +1,13 @@
-﻿using System;
-using System.IO;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using SecretStore;
-using SlimMessageBus;
-
-namespace Sample.Hybrid.ConsoleApp
+﻿namespace Sample.Hybrid.ConsoleApp
 {
+    using System;
+    using System.IO;
+    using Microsoft.Extensions.Configuration;
+    using Microsoft.Extensions.DependencyInjection;
+    using Microsoft.Extensions.Logging;
+    using SecretStore;
+    using SlimMessageBus;
+
     class Program
     {
         static void Main(string[] args)

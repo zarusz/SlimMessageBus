@@ -1,7 +1,7 @@
-using System;
-
 namespace SlimMessageBus.Host
 {
+    using System;
+
     public static class Assert
     {
         public static void IsTrue(bool value, Func<Exception> exceptionFactory)

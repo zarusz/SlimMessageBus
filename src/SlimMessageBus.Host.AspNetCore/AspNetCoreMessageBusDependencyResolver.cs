@@ -1,12 +1,12 @@
-﻿using System;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.MsDependencyInjection;
-
-namespace SlimMessageBus.Host.AspNetCore
+﻿namespace SlimMessageBus.Host.AspNetCore
 {
+    using System;
+    using Microsoft.AspNetCore.Http;
+    using Microsoft.Extensions.DependencyInjection;
+    using Microsoft.Extensions.Logging;
+    using SlimMessageBus.Host.DependencyResolver;
+    using SlimMessageBus.Host.MsDependencyInjection;
+
     /// <summary>
     /// <see cref="IDependencyResolver"/> implementation that resolves dependencies from the current ASP.NET Core web request (if present, otherwise falls back to the application root containser).
     /// </summary>

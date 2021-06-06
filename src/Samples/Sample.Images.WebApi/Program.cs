@@ -1,9 +1,8 @@
-﻿using Microsoft.AspNetCore;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Hosting;
-
-namespace Sample.Images.WebApi
+﻿namespace Sample.Images.WebApi
 {
+    using Microsoft.AspNetCore.Hosting;
+    using Microsoft.Extensions.Hosting;
+
     public static class Program
     {
         public static void Main(string[] args)

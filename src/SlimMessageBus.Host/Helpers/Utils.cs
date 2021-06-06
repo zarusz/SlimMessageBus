@@ -1,8 +1,8 @@
-using System;
-using Microsoft.Extensions.Logging;
-
 namespace SlimMessageBus.Host
 {
+    using System;
+    using Microsoft.Extensions.Logging;
+
     public static class Utils
     {
         public static void DisposeSilently(this IDisposable disposable, Action<Exception> failed = null)

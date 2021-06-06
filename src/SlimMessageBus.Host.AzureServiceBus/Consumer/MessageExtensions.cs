@@ -1,8 +1,8 @@
-﻿using Microsoft.Azure.ServiceBus;
-using SlimMessageBus.Host.Config;
-
-namespace SlimMessageBus.Host.AzureServiceBus.Consumer
+﻿namespace SlimMessageBus.Host.AzureServiceBus.Consumer
 {
+    using Microsoft.Azure.ServiceBus;
+    using SlimMessageBus.Host.Config;
+
     internal static class MessageExtensions
     {
         public static string FormatIf(this AbstractConsumerSettings consumerSettings, Message msg, bool logLevel)
@@ -12,12 +12,12 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
                 return string.Empty;
             }
 
-            if (consumerSettings.GetKind() == PathKind.Queue)
+            if (consumerSettings.PathKind == PathKind.Queue)
             {
-                return $"Queue: {consumerSettings.Topic}, SequenceNumber: {msg.SystemProperties.SequenceNumber}, DeliveryCount: {msg.SystemProperties.DeliveryCount}";
+                return $"Queue: {consumerSettings.Path}, SequenceNumber: {msg.SystemProperties.SequenceNumber}, DeliveryCount: {msg.SystemProperties.DeliveryCount}";
             }
 
-            return $"Topic: {consumerSettings.Topic}, SubscriptionName: {consumerSettings.GetSubscriptionName()}, SequenceNumber: {msg.SystemProperties.SequenceNumber}, DeliveryCount: {msg.SystemProperties.DeliveryCount}";
+            return $"Topic: {consumerSettings.Path}, SubscriptionName: {consumerSettings.GetSubscriptionName()}, SequenceNumber: {msg.SystemProperties.SequenceNumber}, DeliveryCount: {msg.SystemProperties.DeliveryCount}";
         }
 
         public static string FormatIf(this ConsumerSettings consumerSettings, bool logLevel)
@@ -27,12 +27,12 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
                 return string.Empty;
             }
 
-            if (consumerSettings.GetKind() == PathKind.Queue)
+            if (consumerSettings.PathKind == PathKind.Queue)
             {
-                return $"Queue: {consumerSettings.Topic}, MessageType: {consumerSettings.MessageType}";
+                return $"Queue: {consumerSettings.Path}, MessageType: {consumerSettings.MessageType}";
             }
 
-            return $"Topic: {consumerSettings.Topic}, SubscriptionName: {consumerSettings.GetSubscriptionName()}, MessageType: {consumerSettings.MessageType}";
+            return $"Topic: {consumerSettings.Path}, SubscriptionName: {consumerSettings.GetSubscriptionName()}, MessageType: {consumerSettings.MessageType}";
         }
 
         public static string FormatIf(this AbstractConsumerSettings settings, bool logLevel)
@@ -42,11 +42,11 @@ namespace SlimMessageBus.Host.AzureServiceBus.Consumer
                 return string.Empty;
             }
 
-            if (settings.GetKind() == PathKind.Queue)
+            if (settings.PathKind == PathKind.Queue)
             {
-                return $"Queue: {settings.Topic}";
+                return $"Queue: {settings.Path}";
             }
-            return $"Topic: {settings.Topic}, SubscriptionName: {settings.GetSubscriptionName()}";
+            return $"Topic: {settings.Path}, SubscriptionName: {settings.GetSubscriptionName()}";
         }
 
     }

@@ -1,8 +1,8 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-
-namespace SecretStore
+﻿namespace SecretStore
 {
+    using System.Collections.Generic;
+    using System.Linq;
+
     public class ChainedSecretStore : ISecretStore
     {
         private readonly IList<ISecretStore> _list;

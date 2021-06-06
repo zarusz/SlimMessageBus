@@ -1,7 +1,7 @@
-﻿using SlimMessageBus.Host.Config;
-
-namespace SlimMessageBus.Host
+﻿namespace SlimMessageBus.Host
 {
+    using SlimMessageBus.Host.Config;
+
     public class ConsumerContext : HasProviderExtensions
     {        
     }

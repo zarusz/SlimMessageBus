@@ -1,11 +1,11 @@
-using System;
-using System.Text;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using Newtonsoft.Json;
-
 namespace SlimMessageBus.Host.Serialization.Json
 {
+    using System;
+    using System.Text;
+    using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Logging.Abstractions;
+    using Newtonsoft.Json;
+
     public class JsonMessageSerializer : IMessageSerializer
     {
         private readonly ILogger _logger;

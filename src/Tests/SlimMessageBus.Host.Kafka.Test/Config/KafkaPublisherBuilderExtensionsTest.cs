@@ -1,11 +1,11 @@
-﻿using FluentAssertions;
-using Moq;
-using SlimMessageBus.Host.Config;
-using System;
-using Xunit;
-
-namespace SlimMessageBus.Host.Kafka.Test
+﻿namespace SlimMessageBus.Host.Kafka.Test
 {
+    using FluentAssertions;
+    using Moq;
+    using SlimMessageBus.Host.Config;
+    using System;
+    using Xunit;
+
     public class KafkaPublisherBuilderExtensionsTest
     {
         private readonly ProducerSettings _ps;

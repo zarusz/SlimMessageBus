@@ -1,10 +1,10 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using SlimMessageBus;
-
-namespace Sample.DomainEvents.Domain
+﻿namespace Sample.DomainEvents.Domain
 {
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Threading.Tasks;
+    using SlimMessageBus;
+
     /// <summary>
     /// Order aggregate root
     /// </summary>

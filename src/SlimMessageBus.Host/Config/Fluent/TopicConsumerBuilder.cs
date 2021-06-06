@@ -1,8 +1,8 @@
-using System;
-using System.Threading.Tasks;
-
 namespace SlimMessageBus.Host.Config
 {
+    using System;
+    using System.Threading.Tasks;
+
     public class TopicConsumerBuilder<TMessage> : AbstractTopicConsumerBuilder
     {
         public TopicConsumerBuilder(string topic, Type messageType, MessageBusSettings settings)

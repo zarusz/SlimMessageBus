@@ -1,9 +1,9 @@
-﻿using FluentAssertions;
-using SlimMessageBus.Host.Config;
-using Xunit;
-
-namespace SlimMessageBus.Host.Test
+﻿namespace SlimMessageBus.Host.Test
 {
+    using FluentAssertions;
+    using SlimMessageBus.Host.Config;
+    using Xunit;
+
     public class ConsumerSettingsTest
     {
         [Fact]

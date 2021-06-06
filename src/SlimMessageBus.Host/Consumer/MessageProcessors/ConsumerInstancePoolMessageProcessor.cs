@@ -1,11 +1,11 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using SlimMessageBus.Host.Config;
-
 namespace SlimMessageBus.Host
 {
+    using System;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using Microsoft.Extensions.Logging;
+    using SlimMessageBus.Host.Config;
+
     /// <summary>
     /// Represents a set of consumer instances that compete to process a message. 
     /// Instances are obtained from <see cref="IDependencyResolver"/> upon message arrival.
@@ -91,7 +91,7 @@ namespace SlimMessageBus.Host
                 {
                     if (_createMessageScope)
                     {
-                        _logger.LogDebug("Creating message scope for message {message} of type {messageType}", message, _consumerSettings.MessageType);
+                        _logger.LogDebug("Creating message scope for message {Message} of type {MessageType}", message, _consumerSettings.MessageType);
                     }
 
                     var messageScope = _createMessageScope
@@ -121,7 +121,7 @@ namespace SlimMessageBus.Host
 
                             if (_consumerSettings.IsDisposeConsumerEnabled && consumerInstance is IDisposable consumerInstanceDisposable)
                             {
-                                _logger.LogDebug("Dosposing consumer instance {consumer} of type {consumerType}", consumerInstance, _consumerSettings.ConsumerType);
+                                _logger.LogDebug("Disposing consumer instance {Consumer} of type {ConsumerType}", consumerInstance, _consumerSettings.ConsumerType);
                                 consumerInstanceDisposable.DisposeSilently("ConsumerInstance", _logger);
                             }
                         }
@@ -134,7 +134,7 @@ namespace SlimMessageBus.Host
 
                         if (_createMessageScope)
                         {
-                            _logger.LogDebug("Disposing message scope for message {message} of type {messageType}", message, _consumerSettings.MessageType);
+                            _logger.LogDebug("Disposing message scope for message {Message} of type {MessageType}", message, _consumerSettings.MessageType);
                             messageScope.DisposeSilently("Scope", _logger);
                         }
                     }
@@ -151,7 +151,7 @@ namespace SlimMessageBus.Host
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Processing of the message {message} of type {consumerType} failed", msg, _consumerSettings.MessageType);
+                _logger.LogError(e, "Processing of the message {Message} of type {ConsumerType} failed", msg, _consumerSettings.MessageType);
                 exceptionResult = e;
 
             }
@@ -212,8 +212,8 @@ namespace SlimMessageBus.Host
             try
             {
                 // Execute the event hook
-                _consumerSettings.OnMessageArrived?.Invoke(_messageBus, _consumerSettings, message, _consumerSettings.Topic, nativeMessage);
-                _messageBus.Settings.OnMessageArrived?.Invoke(_messageBus, _consumerSettings, message, _consumerSettings.Topic, nativeMessage);
+                _consumerSettings.OnMessageArrived?.Invoke(_messageBus, _consumerSettings, message, _consumerSettings.Path, nativeMessage);
+                _messageBus.Settings.OnMessageArrived?.Invoke(_messageBus, _consumerSettings, message, _consumerSettings.Path, nativeMessage);
             }
 #pragma warning disable CA1031 // Intended, a catch all situation
             catch (Exception eh)
@@ -228,8 +228,8 @@ namespace SlimMessageBus.Host
             try
             {
                 // Execute the event hook
-                _consumerSettings.OnMessageFinished?.Invoke(_messageBus, _consumerSettings, message, _consumerSettings.Topic, nativeMessage);
-                _messageBus.Settings.OnMessageFinished?.Invoke(_messageBus, _consumerSettings, message, _consumerSettings.Topic, nativeMessage);
+                _consumerSettings.OnMessageFinished?.Invoke(_messageBus, _consumerSettings, message, _consumerSettings.Path, nativeMessage);
+                _messageBus.Settings.OnMessageFinished?.Invoke(_messageBus, _consumerSettings, message, _consumerSettings.Path, nativeMessage);
             }
 #pragma warning disable CA1031 // Intended, a catch all situation
             catch (Exception eh)
@@ -251,7 +251,7 @@ namespace SlimMessageBus.Host
             }
 
             // the consumer just subscribes to the message
-            var task = _consumerSettings.ConsumerMethod(consumerInstance, message, _consumerSettings.Topic);
+            var task = _consumerSettings.ConsumerMethod(consumerInstance, message, _consumerSettings.Path);
             await task.ConfigureAwait(false);
 
             if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)

@@ -1,10 +1,10 @@
-﻿using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Reflection;
-
-namespace SlimMessageBus.Host.Serialization.Avro
+﻿namespace SlimMessageBus.Host.Serialization.Avro
 {
+    using Microsoft.Extensions.Logging;
+    using System;
+    using System.Collections.Generic;
+    using System.Reflection;
+
     /// <summary>
     /// Strategy to creates message instances using reflection.
     /// Constructor objects <see cref="ConstructorInfo"> are cached.

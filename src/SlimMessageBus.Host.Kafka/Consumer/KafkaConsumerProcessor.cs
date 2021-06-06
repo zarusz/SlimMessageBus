@@ -1,15 +1,15 @@
-using System;
-using System.Diagnostics.CodeAnalysis;
-using System.Threading.Tasks;
-using Confluent.Kafka;
-using Microsoft.Extensions.Logging;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.Kafka.Configs;
-
-using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
-
 namespace SlimMessageBus.Host.Kafka
 {
+    using System;
+    using System.Diagnostics.CodeAnalysis;
+    using System.Threading.Tasks;
+    using Confluent.Kafka;
+    using Microsoft.Extensions.Logging;
+    using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.Kafka.Configs;
+
+    using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
+
     /// <summary>
     /// Processor for regular consumers. 
     /// See also <see cref="IKafkaTopicPartitionProcessor"/>.
@@ -39,7 +39,7 @@ namespace SlimMessageBus.Host.Kafka
             _messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
 
             _logger = _messageBus.LoggerFactory.CreateLogger<KafkaConsumerProcessor>();
-            _logger.LogInformation("Creating for Group: {0}, Topic: {1}, Partition: {2}, MessageType: {3}", consumerSettings.GetGroup(), consumerSettings.Topic, topicPartition, consumerSettings.MessageType);
+            _logger.LogInformation("Creating for Group: {0}, Topic: {1}, Partition: {2}, MessageType: {3}", consumerSettings.GetGroup(), consumerSettings.Path, topicPartition, consumerSettings.MessageType);
 
             _consumerSettings = consumerSettings;
             TopicPartition = topicPartition;

@@ -1,11 +1,11 @@
-using System.Threading.Tasks;
-using Microsoft.Azure.EventHubs;
-using Microsoft.Azure.EventHubs.Processor;
-using Microsoft.Extensions.Logging;
-using SlimMessageBus.Host.Config;
-
 namespace SlimMessageBus.Host.AzureEventHub
 {
+    using System.Threading.Tasks;
+    using Microsoft.Azure.EventHubs;
+    using Microsoft.Azure.EventHubs.Processor;
+    using Microsoft.Extensions.Logging;
+    using SlimMessageBus.Host.Config;
+
     /// <summary>
     /// <see cref="PartitionConsumer"/> implementation meant for processing messages coming to consumers (<see cref="IConsumer{TMessage}"/>) in pub-sub or handlers (<see cref="IRequestHandler{TRequest,TResponse}"/>) in request-response flows.
     /// </summary>

@@ -1,7 +1,7 @@
-using System.Threading.Tasks;
-
 namespace SlimMessageBus
 {
+    using System.Threading.Tasks;
+
     /// <summary>
     /// Handler for request messages in the request-response communication.
     /// </summary>
@@ -14,8 +14,8 @@ namespace SlimMessageBus
         /// Handles the incoming request message.
         /// </summary>
         /// <param name="request">The request message</param>
-        /// <param name="name">Name of the topic (or queue) on which the request message arrived on</param>
+        /// <param name="path">Name of the topic (or queue) on which the request message arrived on</param>
         /// <returns></returns>
-        Task<TResponse> OnHandle(TRequest request, string name);
+        Task<TResponse> OnHandle(TRequest request, string path);
     }
 }

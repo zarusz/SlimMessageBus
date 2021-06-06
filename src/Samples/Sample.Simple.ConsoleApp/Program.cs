@@ -1,25 +1,25 @@
-﻿using System;
-using System.Globalization;
-using System.Threading.Tasks;
-using SlimMessageBus;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.Serialization.Json;
-using SlimMessageBus.Host.AzureEventHub;
-using SlimMessageBus.Host.Kafka;
-using System.Text;
-using System.Threading;
-using Microsoft.Extensions.Configuration;
-using SecretStore;
-using SlimMessageBus.Host.AzureServiceBus;
-using SlimMessageBus.Host.Redis;
-using SlimMessageBus.Host.Memory;
-using Microsoft.Extensions.Logging;
-using Confluent.Kafka;
-using Microsoft.Extensions.DependencyInjection;
-using SlimMessageBus.Host.MsDependencyInjection;
-
-namespace Sample.Simple.ConsoleApp
+﻿namespace Sample.Simple.ConsoleApp
 {
+    using System;
+    using System.Globalization;
+    using System.Threading.Tasks;
+    using SlimMessageBus;
+    using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.Serialization.Json;
+    using SlimMessageBus.Host.AzureEventHub;
+    using SlimMessageBus.Host.Kafka;
+    using System.Text;
+    using System.Threading;
+    using Microsoft.Extensions.Configuration;
+    using SecretStore;
+    using SlimMessageBus.Host.AzureServiceBus;
+    using SlimMessageBus.Host.Redis;
+    using SlimMessageBus.Host.Memory;
+    using Microsoft.Extensions.Logging;
+    using Confluent.Kafka;
+    using Microsoft.Extensions.DependencyInjection;
+    using SlimMessageBus.Host.MsDependencyInjection;
+
     enum Provider
     {
         Kafka,

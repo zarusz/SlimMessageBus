@@ -1,8 +1,8 @@
-﻿using Confluent.Kafka;
-using System.Diagnostics.CodeAnalysis;
-
-namespace SlimMessageBus.Host.Kafka
+﻿namespace SlimMessageBus.Host.Kafka
 {
+    using Confluent.Kafka;
+    using System.Diagnostics.CodeAnalysis;
+
     public static class KafkaExtensions
     {
         public static TopicPartitionOffset AddOffset([NotNull] this TopicPartitionOffset topicPartitionOffset, int addOffset)

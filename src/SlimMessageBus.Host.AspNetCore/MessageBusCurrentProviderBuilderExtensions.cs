@@ -1,9 +1,9 @@
-﻿using Microsoft.AspNetCore.Builder;
-using SlimMessageBus.Host.DependencyResolver;
-using System;
-
-namespace SlimMessageBus.Host.AspNetCore
+﻿namespace SlimMessageBus.Host.AspNetCore
 {
+    using Microsoft.AspNetCore.Builder;
+    using SlimMessageBus.Host.DependencyResolver;
+    using System;
+
     public static class MessageBusCurrentProviderBuilderExtensions
     {
         public static MessageBusCurrentProviderBuilder From(this MessageBusCurrentProviderBuilder builder, IApplicationBuilder applicationBuilder)

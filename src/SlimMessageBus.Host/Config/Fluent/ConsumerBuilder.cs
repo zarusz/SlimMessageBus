@@ -1,7 +1,7 @@
-using System;
-
 namespace SlimMessageBus.Host.Config
 {
+    using System;
+
     public class ConsumerBuilder<T> : AbstractConsumerBuilder<T>
     {
         public ConsumerBuilder(MessageBusSettings settings)

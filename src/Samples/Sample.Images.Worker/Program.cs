@@ -1,11 +1,11 @@
-﻿using System;
-using Autofac;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using SlimMessageBus;
-
-namespace Sample.Images.Worker
+﻿namespace Sample.Images.Worker
 {
+    using System;
+    using Autofac;
+    using Microsoft.Extensions.Configuration;
+    using Microsoft.Extensions.Logging;
+    using SlimMessageBus;
+
     public class Program
     {
         public static void Main()

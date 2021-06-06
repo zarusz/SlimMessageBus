@@ -1,17 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using FluentAssertions;
-using Moq;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.Serialization.Json;
-using Xunit;
-
-namespace SlimMessageBus.Host.Test
+﻿namespace SlimMessageBus.Host.Test
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using FluentAssertions;
+    using Moq;
+    using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.DependencyResolver;
+    using SlimMessageBus.Host.Serialization.Json;
+    using Xunit;
+
     public class RequestA : IRequestMessage<ResponseA>
     {
         public string Id { get; set; }

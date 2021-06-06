@@ -1,7 +1,7 @@
-﻿using System.Threading;
-
-namespace SlimMessageBus.Host
+﻿namespace SlimMessageBus.Host
 {
+    using System.Threading;
+
     /// <summary>
     /// An extension point for <see cref="IConsumer{TMessage}"/> to recieve provider specific (for current message subject to processing).
     /// </summary>

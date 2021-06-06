@@ -1,12 +1,12 @@
-using System;
-using System.Threading.Tasks;
-using Microsoft.Azure.EventHubs;
-using Microsoft.Azure.EventHubs.Processor;
-using Microsoft.Extensions.Logging;
-using SlimMessageBus.Host.Config;
-
 namespace SlimMessageBus.Host.AzureEventHub
 {
+    using System;
+    using System.Threading.Tasks;
+    using Microsoft.Azure.EventHubs;
+    using Microsoft.Azure.EventHubs.Processor;
+    using Microsoft.Extensions.Logging;
+    using SlimMessageBus.Host.Config;
+
     /// <summary>
     /// <see cref="PartitionConsumer"/> implementation meant for processing responses returning back in the request-response flows.
     /// </summary>
@@ -34,7 +34,7 @@ namespace SlimMessageBus.Host.AzureEventHub
             }
             try
             {
-                MessageBus.OnResponseArrived(message.Body.Array, _requestResponseSettings.Topic).Wait();
+                MessageBus.OnResponseArrived(message.Body.Array, _requestResponseSettings.Path).Wait();
             }
             catch (Exception e)
             {

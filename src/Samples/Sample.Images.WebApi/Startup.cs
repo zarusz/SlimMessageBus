@@ -1,23 +1,23 @@
-﻿using System;
-using System.IO;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Sample.Images.FileStore;
-using Sample.Images.FileStore.Disk;
-using Sample.Images.Messages;
-using SlimMessageBus;
-using SlimMessageBus.Host.AspNetCore;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.Kafka;
-using SlimMessageBus.Host.Kafka.Configs;
-using SlimMessageBus.Host.Serialization.Json;
-
-namespace Sample.Images.WebApi
+﻿namespace Sample.Images.WebApi
 {
+    using System;
+    using System.IO;
+    using Microsoft.AspNetCore.Builder;
+    using Microsoft.AspNetCore.Hosting;
+    using Microsoft.Extensions.Configuration;
+    using Microsoft.Extensions.DependencyInjection;
+    using Microsoft.Extensions.Hosting;
+    using Microsoft.Extensions.Logging;
+    using Sample.Images.FileStore;
+    using Sample.Images.FileStore.Disk;
+    using Sample.Images.Messages;
+    using SlimMessageBus;
+    using SlimMessageBus.Host.AspNetCore;
+    using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.Kafka;
+    using SlimMessageBus.Host.Kafka.Configs;
+    using SlimMessageBus.Host.Serialization.Json;
+
     public class Startup
     {
         public Startup(IConfiguration configuration)

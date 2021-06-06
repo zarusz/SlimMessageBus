@@ -1,23 +1,23 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Globalization;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using FluentAssertions;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using SecretStore;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.Serialization.Json;
-using Xunit;
-
 namespace SlimMessageBus.Host.AzureServiceBus.Test
 {
+    using System;
+    using System.Collections.Concurrent;
+    using System.Collections.Generic;
+    using System.Diagnostics;
+    using System.Globalization;
+    using System.Linq;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using FluentAssertions;
+    using Microsoft.Extensions.Configuration;
+    using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Logging.Abstractions;
+    using SecretStore;
+    using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.DependencyResolver;
+    using SlimMessageBus.Host.Serialization.Json;
+    using Xunit;
+
     [Trait("Category", "Integration")]
     public class ServiceBusMessageBusIt : IDisposable
     {
@@ -126,7 +126,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
                         .WithConsumer<PingConsumer>()
                         .Instances(concurrency));
                 }));
-
+            
             await BasicPubSub(concurrency, subscribers, 1).ConfigureAwait(false);
         }
 

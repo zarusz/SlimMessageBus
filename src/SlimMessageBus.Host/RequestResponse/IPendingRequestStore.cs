@@ -1,8 +1,8 @@
-using System;
-using System.Collections.Generic;
-
 namespace SlimMessageBus.Host
 {
+    using System;
+    using System.Collections.Generic;
+
     public interface IPendingRequestStore
     {
         void Add(PendingRequestState requestState);

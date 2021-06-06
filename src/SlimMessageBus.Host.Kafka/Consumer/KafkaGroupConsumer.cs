@@ -1,16 +1,16 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Threading;
-using System.Threading.Tasks;
-using Confluent.Kafka;
-using Microsoft.Extensions.Logging;
-using SlimMessageBus.Host.Collections;
-using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
-using IConsumer = Confluent.Kafka.IConsumer<Confluent.Kafka.Ignore, byte[]>;
-
 namespace SlimMessageBus.Host.Kafka
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Diagnostics.CodeAnalysis;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using Confluent.Kafka;
+    using Microsoft.Extensions.Logging;
+    using SlimMessageBus.Host.Collections;
+    using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
+    using IConsumer = Confluent.Kafka.IConsumer<Confluent.Kafka.Ignore, byte[]>;
+
     public class KafkaGroupConsumer : IDisposable, IKafkaCommitController
     {
         private readonly ILogger _logger;

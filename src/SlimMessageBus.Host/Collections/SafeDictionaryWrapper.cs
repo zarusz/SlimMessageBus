@@ -1,9 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-
-namespace SlimMessageBus.Host.Collections
+﻿namespace SlimMessageBus.Host.Collections
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Collections.ObjectModel;
+
     /// <summary>
     /// Dictionary wrapper that exposes a <see cref="ReadOnlyDictionary{TKey,TValue}"/> snapshot for read, while for mutation exposes thread-safe methods.
     /// Internally a dictionary is maintained and any change is synchronized. When read access is performed after a change happened a new <see cref="ReadOnlyDictionary{TKey,TValue}"/> snapshot is created.
@@ -120,5 +120,4 @@ namespace SlimMessageBus.Host.Collections
             _readonlyDict = null;
         }
     }
-
 }

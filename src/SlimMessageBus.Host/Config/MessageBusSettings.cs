@@ -1,11 +1,11 @@
-using System;
-using System.Collections.Generic;
-using Microsoft.Extensions.Logging;
-using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.Serialization;
-
 namespace SlimMessageBus.Host.Config
 {
+    using System;
+    using System.Collections.Generic;
+    using Microsoft.Extensions.Logging;
+    using SlimMessageBus.Host.DependencyResolver;
+    using SlimMessageBus.Host.Serialization;
+
     public class MessageBusSettings : IBusEvents
     {
         public ILoggerFactory LoggerFactory { get; set; }

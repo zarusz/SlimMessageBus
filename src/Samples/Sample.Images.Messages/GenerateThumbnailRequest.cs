@@ -1,7 +1,7 @@
-﻿using SlimMessageBus;
-
-namespace Sample.Images.Messages
+﻿namespace Sample.Images.Messages
 {
+    using SlimMessageBus;
+
     public class GenerateThumbnailRequest : IRequestMessage<GenerateThumbnailResponse>
     {
         public string FileId { get; set; }

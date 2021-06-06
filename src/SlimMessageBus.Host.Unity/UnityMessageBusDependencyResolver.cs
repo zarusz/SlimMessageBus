@@ -1,10 +1,10 @@
-﻿using System;
-using SlimMessageBus.Host.DependencyResolver;
-using Unity;
-using Microsoft.Extensions.Logging;
-
-namespace SlimMessageBus.Host.Unity
+﻿namespace SlimMessageBus.Host.Unity
 {
+    using System;
+    using SlimMessageBus.Host.DependencyResolver;
+    using global::Unity;
+    using Microsoft.Extensions.Logging;
+
     /// <summary>
     /// An SMB DI adapter for the <see cref="IUnityContainer"/>.
     /// </summary>

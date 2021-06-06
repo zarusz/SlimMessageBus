@@ -1,7 +1,7 @@
-﻿using System;
-
-namespace Sample.Hybrid.ConsoleApp.DomainModel
+﻿namespace Sample.Hybrid.ConsoleApp.DomainModel
 {
+    using System;
+
     /// <summary>
     /// Some domain event
     /// </summary>

@@ -1,8 +1,8 @@
-﻿using System;
-using Microsoft.Azure.ServiceBus;
-
-namespace SlimMessageBus.Host.AzureServiceBus
+﻿namespace SlimMessageBus.Host.AzureServiceBus
 {
+    using System;
+    using Microsoft.Azure.ServiceBus;
+
     public class ServiceBusMessageBusSettings
     {
         public string ServiceBusConnectionString { get; set; }

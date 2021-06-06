@@ -1,7 +1,7 @@
-﻿using System;
-
-namespace SlimMessageBus.Host
+﻿namespace SlimMessageBus.Host
 {
+    using System;
+
     public class ConfigurationMessageBusException : MessageBusException
     {
         public ConfigurationMessageBusException()

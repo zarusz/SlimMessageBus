@@ -1,16 +1,16 @@
-﻿using Confluent.Kafka;
-using FluentAssertions;
-using Moq;
-using SlimMessageBus.Host.Config;
-using System;
-using SlimMessageBus.Host.Kafka.Configs;
-using Xunit;
-
-using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
-using System.Threading.Tasks;
-
-namespace SlimMessageBus.Host.Kafka.Test
+﻿namespace SlimMessageBus.Host.Kafka.Test
 {
+    using Confluent.Kafka;
+    using FluentAssertions;
+    using Moq;
+    using SlimMessageBus.Host.Config;
+    using System;
+    using SlimMessageBus.Host.Kafka.Configs;
+    using Xunit;
+
+    using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
+    using System.Threading.Tasks;
+
     public class KafkaResponseProcessorTest : IDisposable
     {
         private readonly MessageBusMock _messageBusMock;
@@ -25,7 +25,7 @@ namespace SlimMessageBus.Host.Kafka.Test
 
             var requestResponseSettings = new RequestResponseSettings
             {
-                Topic = "topic-a"
+                Path = "topic-a"
             };
             requestResponseSettings.SetGroup("group-a");
 

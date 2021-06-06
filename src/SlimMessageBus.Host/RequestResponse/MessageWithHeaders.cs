@@ -1,9 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-
 namespace SlimMessageBus.Host
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Globalization;
+
     public class MessageWithHeaders
     {
         public IDictionary<string, string> Headers { get; set; }

@@ -1,9 +1,9 @@
-﻿using System;
-using Microsoft.Extensions.Logging;
-using SlimMessageBus.Host.DependencyResolver;
-
-namespace SlimMessageBus.Host.ServiceLocator
+﻿namespace SlimMessageBus.Host.ServiceLocator
 {
+    using System;
+    using Microsoft.Extensions.Logging;
+    using SlimMessageBus.Host.DependencyResolver;
+
     /// <summary>
     /// An SMB DI adapter for the <see cref="CommonServiceLocator.ServiceLocator"/>.
     /// </summary>
