@@ -1,12 +1,12 @@
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Microsoft.Azure.EventHubs;
-using Microsoft.Azure.EventHubs.Processor;
-using Microsoft.Extensions.Logging;
-
 namespace SlimMessageBus.Host.AzureEventHub
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Threading.Tasks;
+    using Microsoft.Azure.EventHubs;
+    using Microsoft.Azure.EventHubs.Processor;
+    using Microsoft.Extensions.Logging;
+
     public abstract class PartitionConsumer : IEventProcessor, IDisposable
     {
         private readonly ILogger _logger;

@@ -1,13 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Microsoft.Azure.EventHubs;
-using Microsoft.Extensions.Logging;
-using SlimMessageBus.Host.Collections;
-using SlimMessageBus.Host.Config;
-
-namespace SlimMessageBus.Host.AzureEventHub
+﻿namespace SlimMessageBus.Host.AzureEventHub
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Threading.Tasks;
+    using Microsoft.Azure.EventHubs;
+    using Microsoft.Extensions.Logging;
+    using SlimMessageBus.Host.Collections;
+    using SlimMessageBus.Host.Config;
+
     /// <summary>
     /// MessageBus implementation for Azure Event Hub.
     /// </summary>
@@ -44,13 +44,13 @@ namespace SlimMessageBus.Host.AzureEventHub
             _logger.LogInformation("Creating consumers");
             foreach (var consumerSettings in Settings.Consumers)
             {
-                _logger.LogInformation("Creating consumer for Topic: {0}, Group: {1}, MessageType: {2}", consumerSettings.Topic, consumerSettings.GetGroup(), consumerSettings.MessageType);
+                _logger.LogInformation("Creating consumer for Topic: {0}, Group: {1}, MessageType: {2}", consumerSettings.Path, consumerSettings.GetGroup(), consumerSettings.MessageType);
                 _consumers.Add(new GroupTopicConsumer(this, consumerSettings));
             }
 
             if (Settings.RequestResponse != null)
             {
-                _logger.LogInformation("Creating response consumer for Topic: {0}, Group: {1}", Settings.RequestResponse.Topic, Settings.RequestResponse.GetGroup());
+                _logger.LogInformation("Creating response consumer for Topic: {0}, Group: {1}", Settings.RequestResponse.Path, Settings.RequestResponse.GetGroup());
                 _consumers.Add(new GroupTopicConsumer(this, Settings.RequestResponse));
             }
         }

@@ -1,8 +1,8 @@
-﻿using System;
-using SlimMessageBus.Host.Config;
-
-namespace SlimMessageBus.Host.Kafka
+﻿namespace SlimMessageBus.Host.Kafka
 {
+    using System;
+    using SlimMessageBus.Host.Config;
+
     public static class KafkaProducerBuilderExtensions
     {
         /// <summary>

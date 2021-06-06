@@ -1,21 +1,21 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using FluentAssertions;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using SecretStore;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.Serialization.Json;
-using Xunit;
-
 namespace SlimMessageBus.Host.Redis.Test
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Diagnostics;
+    using System.Linq;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using FluentAssertions;
+    using Microsoft.Extensions.Configuration;
+    using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Logging.Abstractions;
+    using SecretStore;
+    using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.DependencyResolver;
+    using SlimMessageBus.Host.Serialization.Json;
+    using Xunit;
+
     [Trait("Category", "Integration")]
     public class RedisMessageBusIt : IDisposable
     {
@@ -66,7 +66,7 @@ namespace SlimMessageBus.Host.Redis.Test
         public async Task BasicPubSubOnTopic()
         {
             var concurrency = 2;
-            var subscribers = 2;
+            var consumers = 2;
             var topic = "test-ping";
 
             MessageBusBuilder
@@ -74,7 +74,7 @@ namespace SlimMessageBus.Host.Redis.Test
                 {
                     x.DefaultTopic(topic);
                 })
-                .Do(builder => Enumerable.Range(0, subscribers).ToList().ForEach(i =>
+                .Do(builder => Enumerable.Range(0, consumers).ToList().ForEach(i =>
                 {
                     builder.Consume<PingMessage>(x => x
                         .Topic(topic)
@@ -82,10 +82,33 @@ namespace SlimMessageBus.Host.Redis.Test
                         .Instances(concurrency));
                 }));
 
-            await BasicPubSub(concurrency, subscribers).ConfigureAwait(false);
+            await BasicPubSub(consumers).ConfigureAwait(false);
         }
 
-        private async Task BasicPubSub(int concurrency, int subscribers)
+        [Fact]
+        public async Task BasicPubSubOnQueue()
+        {
+            var concurrency = 2;
+            var consumers = 2;
+            var queue = "test-ping-queue";
+
+            MessageBusBuilder
+                .Produce<PingMessage>(x =>
+                {
+                    x.DefaultQueue(queue);
+                })
+                .Do(builder => Enumerable.Range(0, consumers).ToList().ForEach(i =>
+                {
+                    builder.Consume<PingMessage>(x => x
+                        .Queue(queue)
+                        .WithConsumer<PingConsumer>()
+                        .Instances(concurrency));
+                }));
+
+            await BasicPubSub(consumers).ConfigureAwait(false);
+        }
+
+        private async Task BasicPubSub(int expectedMessageCopies)
         {
             // arrange
             var pingConsumer = new PingConsumer(_loggerFactory.CreateLogger<PingConsumer>());
@@ -101,6 +124,10 @@ namespace SlimMessageBus.Host.Redis.Test
             var messageBus = MessageBus.Value;
 
             // act
+
+            // consume all messages that might be on the queue/subscription
+            await ConsumeAll(pingConsumer, null, 2);
+            pingConsumer.Messages.Clear();
 
             // publish
             var stopwatch = Stopwatch.StartNew();
@@ -119,24 +146,21 @@ namespace SlimMessageBus.Host.Redis.Test
 
             // consume
             stopwatch.Restart();
-            var consumersReceivedMessages = await ConsumeAll(pingConsumer, subscribers * producedMessages.Count);
+            var consumersReceivedMessages = await ConsumeAll(pingConsumer, expectedMessageCopies * producedMessages.Count);
             stopwatch.Stop();
 
             _logger.LogInformation("Consumed {0} messages in {1}", consumersReceivedMessages.Count, stopwatch.Elapsed);
 
             // assert
 
-            // ensure number of instances of consumers created matches
-            consumersReceivedMessages.Count.Should().Be(subscribers * producedMessages.Count);
-
             // ensure all messages arrived 
             // ... the count should match
-            consumersReceivedMessages.Count.Should().Be(subscribers * producedMessages.Count);
+            consumersReceivedMessages.Count.Should().Be(producedMessages.Count * expectedMessageCopies);
             // ... the content should match
             foreach (var producedMessage in producedMessages)
             {
                 var messageCopies = consumersReceivedMessages.Count(x => x.Counter == producedMessage.Counter && x.Value == producedMessage.Value);
-                messageCopies.Should().Be(subscribers);
+                messageCopies.Should().Be(expectedMessageCopies);
             }
         }
 
@@ -156,6 +180,28 @@ namespace SlimMessageBus.Host.Redis.Test
                 .ExpectRequestResponses(x =>
                 {
                     x.ReplyToTopic("test-echo-resp");
+                    x.DefaultTimeout(TimeSpan.FromSeconds(60));
+                });
+
+            await BasicReqResp().ConfigureAwait(false);
+        }
+
+        [Fact]
+        public async Task BasicReqRespOnQueue()
+        {
+            var queue = "test-echo-queue";
+
+            MessageBusBuilder
+                .Produce<EchoRequest>(x =>
+                {
+                    x.DefaultQueue(queue);
+                })
+                .Handle<EchoRequest, EchoResponse>(x => x.Queue(queue)
+                    .WithHandler<EchoRequestHandler>()
+                    .Instances(2))
+                .ExpectRequestResponses(x =>
+                {
+                    x.ReplyToQueue("test-echo-queue-resp");
                     x.DefaultTimeout(TimeSpan.FromSeconds(60));
                 });
 
@@ -186,13 +232,13 @@ namespace SlimMessageBus.Host.Redis.Test
                 .Select(i => new EchoRequest { Index = i, Message = $"Echo {i}" })
                 .ToList();
 
-            var responses = new List<Tuple<EchoRequest, EchoResponse>>();
+            var responses = new List<(EchoRequest Request, EchoResponse Response)>();
             var responseTasks = requests.Select(async req =>
             {
                 var resp = await messageBus.Send(req).ConfigureAwait(false);
                 lock (responses)
                 {
-                    responses.Add(Tuple.Create(req, resp));
+                    responses.Add((req, resp));
                 }
             });
             await Task.WhenAll(responseTasks).ConfigureAwait(false);
@@ -204,17 +250,15 @@ namespace SlimMessageBus.Host.Redis.Test
 
             // all messages got back
             responses.Count.Should().Be(NumberOfMessages);
-            responses.All(x => x.Item1.Message == x.Item2.Message).Should().BeTrue();
+            responses.All(x => x.Request.Message == x.Response.Message).Should().BeTrue();
         }
 
-        private static async Task<IList<PingMessage>> ConsumeAll(PingConsumer consumer, int expectedCount)
+        private static async Task<IList<PingMessage>> ConsumeAll(PingConsumer consumer, int? expectedCount, int newMessagesAwaitingTimeout = 5)
         {
             var lastMessageCount = 0;
             var lastMessageStopwatch = Stopwatch.StartNew();
 
-            const int newMessagesAwaitingTimeout = 5;
-
-            while (lastMessageStopwatch.Elapsed.TotalSeconds < newMessagesAwaitingTimeout && expectedCount != consumer.Messages.Count)
+            while (lastMessageStopwatch.Elapsed.TotalSeconds < newMessagesAwaitingTimeout && (expectedCount == null || expectedCount.Value != consumer.Messages.Count))
             {
                 await Task.Delay(100).ConfigureAwait(false);
 

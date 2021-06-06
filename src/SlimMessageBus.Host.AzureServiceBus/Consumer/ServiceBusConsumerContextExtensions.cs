@@ -1,8 +1,8 @@
-﻿using Microsoft.Azure.ServiceBus;
-using System;
-
-namespace SlimMessageBus.Host.AzureServiceBus
+﻿namespace SlimMessageBus.Host.AzureServiceBus
 {
+    using Microsoft.Azure.ServiceBus;
+    using System;
+
     public static class ServiceBusConsumerContextExtensions
     {
         private const string MessageKey = "ServiceBus_Message";

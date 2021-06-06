@@ -1,15 +1,15 @@
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using SlimMessageBus.Host.Collections;
-using SlimMessageBus.Host.Config;
-
 namespace SlimMessageBus.Host
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Globalization;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Logging.Abstractions;
+    using SlimMessageBus.Host.Collections;
+    using SlimMessageBus.Host.Config;
+
     public abstract class MessageBusBase : IMessageBus
     {
         private readonly ILogger _logger;
@@ -34,8 +34,8 @@ namespace SlimMessageBus.Host
             Settings = settings ?? throw new ArgumentNullException(nameof(settings));
 
             // Use the configured logger factory, if not provided try to resolve from DI, if also not available supress logging using the NullLoggerFactory
-            LoggerFactory = settings.LoggerFactory 
-                ?? (ILoggerFactory)settings.DependencyResolver?.Resolve(typeof(ILoggerFactory)) 
+            LoggerFactory = settings.LoggerFactory
+                ?? (ILoggerFactory)settings.DependencyResolver?.Resolve(typeof(ILoggerFactory))
                 ?? NullLoggerFactory.Instance;
 
             _logger = LoggerFactory.CreateLogger<MessageBusBase>();
@@ -70,7 +70,9 @@ namespace SlimMessageBus.Host
                 {
                     (Settings.RequestResponse.OnMessageExpired ?? Settings.OnMessageExpired)?.Invoke(this, Settings.RequestResponse, request, null);
                 }
+#pragma warning disable CA1031 // Do not catch general exception types - intended
                 catch (Exception eh)
+#pragma warning restore CA1031 // Do not catch general exception types
                 {
                     HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageExpired));
                 }
@@ -99,8 +101,8 @@ namespace SlimMessageBus.Host
         {
             if (consumerSettings == null) throw new ArgumentNullException(nameof(consumerSettings));
 
-            Assert.IsNotNull(consumerSettings.Topic,
-                () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.Topic)} is not set"));
+            Assert.IsNotNull(consumerSettings.Path,
+                () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.Path)} is not set"));
             Assert.IsNotNull(consumerSettings.MessageType,
                 () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.MessageType)} is not set"));
             Assert.IsNotNull(consumerSettings.ConsumerType,
@@ -134,7 +136,7 @@ namespace SlimMessageBus.Host
         {
             if (Settings.RequestResponse != null)
             {
-                Assert.IsNotNull(Settings.RequestResponse.Topic,
+                Assert.IsNotNull(Settings.RequestResponse.Path,
                     () => new ConfigurationMessageBusException("Request-response: name was not set"));
             }
         }
@@ -239,7 +241,7 @@ namespace SlimMessageBus.Host
         {
             if (producerSettings == null) throw new ArgumentNullException(nameof(producerSettings));
 
-            var name = producerSettings.DefaultTopic;
+            var name = producerSettings.DefaultPath;
             if (name == null)
             {
                 throw new PublishMessageBusException($"An attempt to produce message of type {messageType} without specifying name, but there was no default name configured. Double check your configuration.");
@@ -332,7 +334,7 @@ namespace SlimMessageBus.Host
 
             try
             {
-                _logger.LogDebug("Sending request message {0} to name {1} with reply to {2}", requestState, name, Settings.RequestResponse.Topic);
+                _logger.LogDebug("Sending request message {0} to name {1} with reply to {2}", requestState, name, Settings.RequestResponse.Path);
                 await ProduceRequest(request, requestMessage, name, producerSettings).ConfigureAwait(false);
             }
             catch (PublishMessageBusException e)
@@ -368,7 +370,7 @@ namespace SlimMessageBus.Host
 
             var requestType = request.GetType();
 
-            requestMessage.SetHeader(ReqRespMessageHeaders.ReplyTo, Settings.RequestResponse.Topic);
+            requestMessage.SetHeader(ReqRespMessageHeaders.ReplyTo, Settings.RequestResponse.Path);
             var requestMessagePayload = SerializeRequest(requestType, request, requestMessage, producerSettings);
 
             return ProduceToTransport(requestType, request, name, requestMessagePayload, requestMessage);

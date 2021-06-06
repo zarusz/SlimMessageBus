@@ -1,8 +1,8 @@
-﻿using SlimMessageBus.Host.Config;
-using System;
-
-namespace SlimMessageBus.Host.AzureServiceBus
+﻿namespace SlimMessageBus.Host.AzureServiceBus
 {
+    using SlimMessageBus.Host.Config;
+    using System;
+
     public static class SettingsExtensions
     {
         private const string SubscriptionNameKey = "SubscriptionName";
@@ -27,7 +27,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
         {
             if (settings is null) throw new ArgumentNullException(nameof(settings));
 
-            if (settings.GetKind() == PathKind.Queue)
+            if (settings.PathKind == PathKind.Queue)
             {
                 var methodName = $".{nameof(SubscriptionName)}(...)";
 
@@ -35,7 +35,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
                     ? consumerSettings.MessageType.FullName
                     : string.Empty;
 
-                throw new ConfigurationMessageBusException($"The subscription name configuration ({methodName}) does not apply to Azure ServiceBus queues (it only applies to topic consumers). Remove the {methodName} configuration for type {messageType} and queue {settings.Topic} or change the consumer configuration to consume from topic {settings.Topic} instead.");
+                throw new ConfigurationMessageBusException($"The subscription name configuration ({methodName}) does not apply to Azure ServiceBus queues (it only applies to topic consumers). Remove the {methodName} configuration for type {messageType} and queue {settings.Path} or change the consumer configuration to consume from topic {settings.Path} instead.");
             }
         }
 

@@ -1,8 +1,8 @@
-﻿using SlimMessageBus.Host.Config;
-using System;
-
-namespace SlimMessageBus.Host.Memory
+﻿namespace SlimMessageBus.Host.Memory
 {
+    using SlimMessageBus.Host.Config;
+    using System;
+
     public static class MemoryMessageBusBuilderExtensions
     {
         public static MessageBusBuilder WithProviderMemory(this MessageBusBuilder mbb, MemoryMessageBusSettings providerSettings)

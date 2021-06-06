@@ -1,24 +1,24 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
-using FluentAssertions;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.Serialization.Json;
-using Xunit;
-using System.Linq;
-using Microsoft.Extensions.Configuration;
-using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.Kafka.Configs;
-using SecretStore;
-using System.Collections.Concurrent;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using Confluent.Kafka;
-
 namespace SlimMessageBus.Host.Kafka.Test
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Diagnostics;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using FluentAssertions;
+    using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.Serialization.Json;
+    using Xunit;
+    using System.Linq;
+    using Microsoft.Extensions.Configuration;
+    using SlimMessageBus.Host.DependencyResolver;
+    using SlimMessageBus.Host.Kafka.Configs;
+    using SecretStore;
+    using System.Collections.Concurrent;
+    using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Logging.Abstractions;
+    using Confluent.Kafka;
+
     /// <summary>
     /// Performs basic integration test to verify that pub/sub and request-response communication works while concurrent producers pump data.
     /// <remarks>

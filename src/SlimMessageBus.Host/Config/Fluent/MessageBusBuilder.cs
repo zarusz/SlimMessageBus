@@ -1,10 +1,10 @@
-using System;
-using Microsoft.Extensions.Logging;
-using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.Serialization;
-
 namespace SlimMessageBus.Host.Config
 {
+    using System;
+    using Microsoft.Extensions.Logging;
+    using SlimMessageBus.Host.DependencyResolver;
+    using SlimMessageBus.Host.Serialization;
+
     public class MessageBusBuilder
     {
         public MessageBusSettings Settings { get; } = new MessageBusSettings();

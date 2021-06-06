@@ -1,15 +1,15 @@
-using Moq;
-using Newtonsoft.Json;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.Serialization;
-using System;
-using System.Text;
-using System.Threading.Tasks;
-using Xunit;
-
 namespace SlimMessageBus.Host.Hybrid.Test
 {
+    using Moq;
+    using Newtonsoft.Json;
+    using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.DependencyResolver;
+    using SlimMessageBus.Host.Serialization;
+    using System;
+    using System.Text;
+    using System.Threading.Tasks;
+    using Xunit;
+
     public class HybridMessageBusTest
     {
         private readonly Lazy<HybridMessageBus> _subject;

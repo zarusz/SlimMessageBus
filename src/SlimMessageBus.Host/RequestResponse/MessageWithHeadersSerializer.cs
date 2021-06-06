@@ -1,9 +1,9 @@
-using System;
-using System.Text;
-using SlimMessageBus.Host.Serialization;
-
 namespace SlimMessageBus.Host
 {
+    using System;
+    using System.Text;
+    using SlimMessageBus.Host.Serialization;
+
     public class MessageWithHeadersSerializer : IMessageSerializer
     {
         private readonly Encoding _encoding;

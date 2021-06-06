@@ -1,9 +1,9 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace SlimMessageBus.Host
 {
+    using System;
+    using System.Threading;
+    using System.Threading.Tasks;
+
     public class PendingRequestState
     {
         public string Id { get; }

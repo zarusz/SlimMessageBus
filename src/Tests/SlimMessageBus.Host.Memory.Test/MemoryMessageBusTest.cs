@@ -1,17 +1,17 @@
-using System;
-using System.Text;
-using System.Threading.Tasks;
-using FluentAssertions;
-using Microsoft.Extensions.Logging;
-using Moq;
-using Newtonsoft.Json;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.Serialization;
-using Xunit;
-
 namespace SlimMessageBus.Host.Memory.Test
 {
+    using System;
+    using System.Text;
+    using System.Threading.Tasks;
+    using FluentAssertions;
+    using Microsoft.Extensions.Logging;
+    using Moq;
+    using Newtonsoft.Json;
+    using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.DependencyResolver;
+    using SlimMessageBus.Host.Serialization;
+    using Xunit;
+
     public class MemoryMessageBusTest
     {
         private readonly Lazy<MemoryMessageBus> _subject;
@@ -40,7 +40,7 @@ namespace SlimMessageBus.Host.Memory.Test
             return new ProducerSettings
             {
                 MessageType = messageType,
-                DefaultTopic = defaultTopic
+                DefaultPath = defaultTopic
             };
         }
 

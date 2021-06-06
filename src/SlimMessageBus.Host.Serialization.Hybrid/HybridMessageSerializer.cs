@@ -1,10 +1,10 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using System;
-using System.Collections.Generic;
-
-namespace SlimMessageBus.Host.Serialization.Hybrid
+﻿namespace SlimMessageBus.Host.Serialization.Hybrid
 {
+    using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Logging.Abstractions;
+    using System;
+    using System.Collections.Generic;
+
     /// <summary>
     /// <see cref="IMessageSerializer"/> implementation that delegates (routes) the serialization to the respective serializer based on message type.
     /// </summary>

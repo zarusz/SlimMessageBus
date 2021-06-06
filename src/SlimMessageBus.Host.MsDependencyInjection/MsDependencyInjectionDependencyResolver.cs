@@ -1,9 +1,9 @@
-﻿using Microsoft.Extensions.Logging;
-using SlimMessageBus.Host.DependencyResolver;
-using System;
-
-namespace SlimMessageBus.Host.MsDependencyInjection
+﻿namespace SlimMessageBus.Host.MsDependencyInjection
 {
+    using Microsoft.Extensions.Logging;
+    using SlimMessageBus.Host.DependencyResolver;
+    using System;
+
     /// <summary>
     /// An SMB DI adapter for the <see cref="IServiceProvider"/>.
     /// </summary>

@@ -1,8 +1,8 @@
-﻿using SlimMessageBus.Host.Config;
-using System;
-
-namespace SlimMessageBus.Host.AzureEventHub
+﻿namespace SlimMessageBus.Host.AzureEventHub
 {
+    using SlimMessageBus.Host.Config;
+    using System;
+
     public static class BuilderExtensions
     {
         /// <summary>

@@ -1,9 +1,9 @@
-using System;
-using System.Threading.Tasks;
-using SlimMessageBus.Host.Config;
-
 namespace SlimMessageBus.Host
 {
+    using System;
+    using System.Threading.Tasks;
+    using SlimMessageBus.Host.Config;
+
     /// <summary>
     /// The <see cref="IMessageProcessor{TMessage}"/> implementation that processes the responses arriving to the bus.
     /// </summary>
@@ -24,7 +24,7 @@ namespace SlimMessageBus.Host
         public Task<Exception> ProcessMessage(TMessage message)
         {
             var payload = _messagePayloadProvider(message);
-            return _messageBus.OnResponseArrived(payload, _requestResponseSettings.Topic);
+            return _messageBus.OnResponseArrived(payload, _requestResponseSettings.Path);
         }
 
         #region IDisposable

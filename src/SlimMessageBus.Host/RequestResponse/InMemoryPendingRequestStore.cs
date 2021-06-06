@@ -1,9 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-
 namespace SlimMessageBus.Host
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+
     /// <summary>
     /// In-memory and transient implementation of <see cref="IPendingRequestStore"/>.
     /// This class is thread-safe.

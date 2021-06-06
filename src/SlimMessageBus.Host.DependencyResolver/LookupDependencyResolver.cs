@@ -1,7 +1,7 @@
-﻿using System;
-
-namespace SlimMessageBus.Host.DependencyResolver
+﻿namespace SlimMessageBus.Host.DependencyResolver
 {
+    using System;
+
     /// <summary>
     /// Simple implementation for <see cref="IDependencyResolver"/> that used a Func to lookup the dependency.
     /// </summary>

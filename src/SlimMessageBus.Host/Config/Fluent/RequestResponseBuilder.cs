@@ -1,7 +1,7 @@
-using System;
-
 namespace SlimMessageBus.Host.Config
 {
+    using System;
+
     public class RequestResponseBuilder
     {
         public RequestResponseSettings Settings { get; }
@@ -19,7 +19,7 @@ namespace SlimMessageBus.Host.Config
 
         public RequestResponseBuilder ReplyToTopic(string topic)
         {
-            Settings.Topic = topic;
+            Settings.Path = topic;
             return this;
         }
     }

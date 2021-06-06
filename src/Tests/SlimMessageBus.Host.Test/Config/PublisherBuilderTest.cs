@@ -1,10 +1,10 @@
-﻿using System;
-using FluentAssertions;
-using SlimMessageBus.Host.Config;
-using Xunit;
-
-namespace SlimMessageBus.Host.Test.Config
+﻿namespace SlimMessageBus.Host.Test.Config
 {
+    using System;
+    using FluentAssertions;
+    using SlimMessageBus.Host.Config;
+    using Xunit;
+
     public class PublisherBuilderTest
     {
         [Fact]
@@ -22,7 +22,7 @@ namespace SlimMessageBus.Host.Test.Config
 
             publisherSettings.MessageType.Should().Be(typeof(SomeMessage));
             publisherSettings.Timeout.Should().Be(timeout);
-            publisherSettings.DefaultTopic.Should().Be(topic);
+            publisherSettings.DefaultPath.Should().Be(topic);
         }
     }
 }

@@ -1,10 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-
-namespace SecretStore
+﻿namespace SecretStore
 {
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Linq;
+
     public class FileSecretStore : ISecretStore
     {
         private readonly IDictionary<string, string> _secrets;

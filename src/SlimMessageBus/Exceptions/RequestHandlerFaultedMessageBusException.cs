@@ -1,7 +1,7 @@
-using System;
-
 namespace SlimMessageBus
 {
+    using System;
+
     public class RequestHandlerFaultedMessageBusException : MessageBusException
     {
         public RequestHandlerFaultedMessageBusException()

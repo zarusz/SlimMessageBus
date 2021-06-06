@@ -1,9 +1,9 @@
-﻿using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using SlimMessageBus;
-
-namespace Sample.DomainEvents.Domain
+﻿namespace Sample.DomainEvents.Domain
 {
+    using System.Threading.Tasks;
+    using Microsoft.Extensions.Logging;
+    using SlimMessageBus;
+
     /// <summary>
     /// The domain event handler for <see cref="OrderSubmittedEvent"/>
     /// </summary>

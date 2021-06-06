@@ -1,9 +1,9 @@
-using System;
-using Microsoft.Azure.EventHubs;
-using Microsoft.Azure.EventHubs.Processor;
-
 namespace SlimMessageBus.Host.AzureEventHub
 {
+    using System;
+    using Microsoft.Azure.EventHubs;
+    using Microsoft.Azure.EventHubs.Processor;
+
     public class EventHubMessageBusSettings
     {
         /// <summary>

@@ -1,10 +1,10 @@
-﻿using System;
-using FluentAssertions;
-using SlimMessageBus.Host.Config;
-using Xunit;
-
-namespace SlimMessageBus.Host.Test.Config
+﻿namespace SlimMessageBus.Host.Test.Config
 {
+    using System;
+    using FluentAssertions;
+    using SlimMessageBus.Host.Config;
+    using Xunit;
+
     public class RequestResponseBuilderTest
     {
         [Fact]
@@ -22,7 +22,7 @@ namespace SlimMessageBus.Host.Test.Config
 
             // assert
             settings.Timeout.Should().Be(timeout);
-            settings.Topic.Should().Be(topic);
+            settings.Path.Should().Be(topic);
         }
     }
 }

@@ -1,14 +1,14 @@
-using System;
-using System.Diagnostics.CodeAnalysis;
-using System.Threading.Tasks;
-using Confluent.Kafka;
-using Microsoft.Extensions.Logging;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.Kafka.Configs;
-using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
-
 namespace SlimMessageBus.Host.Kafka
 {
+    using System;
+    using System.Diagnostics.CodeAnalysis;
+    using System.Threading.Tasks;
+    using Confluent.Kafka;
+    using Microsoft.Extensions.Logging;
+    using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.Kafka.Configs;
+    using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
+
     /// <summary>
     /// Processor for incomming response messages in the request-response patterns. 
     /// See also <see cref="IKafkaTopicPartitionProcessor"/>.
@@ -31,7 +31,7 @@ namespace SlimMessageBus.Host.Kafka
             _checkpointTrigger = checkpointTrigger;
 
             _logger = messageBus.LoggerFactory.CreateLogger<KafkaResponseProcessor>();
-            _logger.LogInformation("Creating for Group: {0}, Topic: {1}, Partition: {2}", requestResponseSettings.GetGroup(), requestResponseSettings.Topic, topicPartition);
+            _logger.LogInformation("Creating for Group: {0}, Topic: {1}, Partition: {2}", requestResponseSettings.GetGroup(), requestResponseSettings.Path, topicPartition);
         }
 
         public KafkaResponseProcessor(RequestResponseSettings requestResponseSettings, TopicPartition topicPartition, IKafkaCommitController commitController, MessageBusBase messageBus)
@@ -61,7 +61,7 @@ namespace SlimMessageBus.Host.Kafka
         {
             try
             {
-                await _messageBus.OnResponseArrived(message.Message.Value, _requestResponseSettings.Topic).ConfigureAwait(false);
+                await _messageBus.OnResponseArrived(message.Message.Value, _requestResponseSettings.Path).ConfigureAwait(false);
             }
             catch (Exception e)
             {

@@ -1,13 +1,13 @@
-﻿using System;
-using System.Threading;
-using Moq;
-using SlimMessageBus.Host.Collections;
-using System.Threading.Tasks;
-using Xunit;
-using FluentAssertions;
-
-namespace SlimMessageBus.Host.Test.Collections
+﻿namespace SlimMessageBus.Host.Test.Collections
 {
+    using System;
+    using System.Threading;
+    using Moq;
+    using SlimMessageBus.Host.Collections;
+    using System.Threading.Tasks;
+    using Xunit;
+    using FluentAssertions;
+
     public class SafeDictionaryWrapperTest
     {
         [Fact]
@@ -19,7 +19,7 @@ namespace SlimMessageBus.Host.Test.Collections
             var k = "a";
             var valueFactoryMock = new Mock<Func<string, string>>();
             valueFactoryMock.Setup(x => x(k)).Returns(v);
-                
+
             // act
             var v1 = w.GetOrAdd(k, valueFactoryMock.Object);
             var v2 = w.GetOrAdd(k, valueFactoryMock.Object);

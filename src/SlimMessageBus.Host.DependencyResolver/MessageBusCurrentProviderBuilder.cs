@@ -1,7 +1,7 @@
-﻿using System;
-
-namespace SlimMessageBus.Host.DependencyResolver
+﻿namespace SlimMessageBus.Host.DependencyResolver
 {
+    using System;
+
     /// <summary>
     /// Builder class to fluently configure the <see cref="MessageBus.SetProvider"/> provider
     /// </summary>

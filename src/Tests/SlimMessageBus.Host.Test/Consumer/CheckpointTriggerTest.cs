@@ -1,10 +1,10 @@
-﻿using System;
-using System.Threading;
-using FluentAssertions;
-using Xunit;
-
-namespace SlimMessageBus.Host.Test.Consumer
+﻿namespace SlimMessageBus.Host.Test.Consumer
 {
+    using System;
+    using System.Threading;
+    using FluentAssertions;
+    using Xunit;
+
     public class CheckpointTriggerTest
     {
         [Fact]

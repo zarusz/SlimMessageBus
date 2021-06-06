@@ -1,15 +1,15 @@
-﻿using System;
-using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
-using FluentAssertions;
-using Moq;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.DependencyResolver;
-using Xunit;
-
-namespace SlimMessageBus.Host.Test
+﻿namespace SlimMessageBus.Host.Test
 {
+    using System;
+    using System.Diagnostics;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using FluentAssertions;
+    using Moq;
+    using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.DependencyResolver;
+    using Xunit;
+
     public class ConsumerInstancePoolTest
     {
         private readonly MessageBusMock _busMock;
@@ -151,13 +151,13 @@ namespace SlimMessageBus.Host.Test
             _busMock.BusMock.Setup(x => x.DeserializeRequest(typeof(SomeRequest), It.IsAny<byte[]>(), out requestMessage)).Returns(request);
 
             var ex = new Exception("Something went bad");
-            _busMock.HandlerMock.Setup(x => x.OnHandle(request, consumerSettings.Topic)).Returns(Task.FromException<SomeResponse>(ex));
+            _busMock.HandlerMock.Setup(x => x.OnHandle(request, consumerSettings.Path)).Returns(Task.FromException<SomeResponse>(ex));
 
             // act
             var exception = await p.ProcessMessage(request);
 
             // assert
-            _busMock.HandlerMock.Verify(x => x.OnHandle(request, consumerSettings.Topic), Times.Once); // handler called once
+            _busMock.HandlerMock.Verify(x => x.OnHandle(request, consumerSettings.Path), Times.Once); // handler called once
 
             onMessageFaultMock.Verify(
                 x => x(_busMock.Bus, consumerSettings, request, ex, It.IsAny<object>()), Times.Once); // callback called once
@@ -182,13 +182,13 @@ namespace SlimMessageBus.Host.Test
             _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeMessage), It.IsAny<byte[]>())).Returns(message);
 
             var ex = new Exception("Something went bad");
-            _busMock.ConsumerMock.Setup(x => x.OnHandle(message, consumerSettings.Topic)).Returns(Task.FromException<SomeResponse>(ex));
+            _busMock.ConsumerMock.Setup(x => x.OnHandle(message, consumerSettings.Path)).Returns(Task.FromException<SomeResponse>(ex));
 
             // act
             var exception = await p.ProcessMessage(message);
 
             // assert
-            _busMock.ConsumerMock.Verify(x => x.OnHandle(message, consumerSettings.Topic), Times.Once); // handler called once
+            _busMock.ConsumerMock.Verify(x => x.OnHandle(message, consumerSettings.Path), Times.Once); // handler called once
 
             onMessageFaultMock.Verify(x => x(_busMock.Bus, consumerSettings, message, ex, It.IsAny<object>()), Times.Once); // callback called once           
 
@@ -213,13 +213,13 @@ namespace SlimMessageBus.Host.Test
             var message = new SomeMessage();
             _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeMessage), It.IsAny<byte[]>())).Returns(message);
 
-            _busMock.ConsumerMock.Setup(x => x.OnHandle(message, consumerSettings.Topic)).Returns(Task.CompletedTask);
+            _busMock.ConsumerMock.Setup(x => x.OnHandle(message, consumerSettings.Path)).Returns(Task.CompletedTask);
 
             // act
             await p.ProcessMessage(message);
 
             // assert
-            _busMock.ConsumerMock.Verify(x => x.OnHandle(message, consumerSettings.Topic), Times.Once); // handler called once
+            _busMock.ConsumerMock.Verify(x => x.OnHandle(message, consumerSettings.Path), Times.Once); // handler called once
 
             onMessageArrivedMock.Verify(x => x(_busMock.Bus, consumerSettings, message, topic, It.IsAny<object>()), Times.Exactly(2)); // callback called once for consumer and bus level
         }
@@ -238,7 +238,7 @@ namespace SlimMessageBus.Host.Test
             var message = new SomeMessage();
             _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeMessage), It.IsAny<byte[]>())).Returns(message);
 
-            _busMock.ConsumerMock.Setup(x => x.OnHandle(message, consumerSettings.Topic)).Returns(Task.CompletedTask);
+            _busMock.ConsumerMock.Setup(x => x.OnHandle(message, consumerSettings.Path)).Returns(Task.CompletedTask);
 
             Mock<IDependencyResolver> childScopeMock = null;
 
@@ -251,7 +251,7 @@ namespace SlimMessageBus.Host.Test
             await p.ProcessMessage(message);
 
             // assert
-            _busMock.ConsumerMock.Verify(x => x.OnHandle(message, consumerSettings.Topic), Times.Once); // handler called once
+            _busMock.ConsumerMock.Verify(x => x.OnHandle(message, consumerSettings.Path), Times.Once); // handler called once
             _busMock.DependencyResolverMock.Verify(x => x.CreateScope(), Times.Once);
             _busMock.ChildDependencyResolverMocks.Count.Should().Be(0); // it has been disposed
             childScopeMock.Should().NotBeNull();

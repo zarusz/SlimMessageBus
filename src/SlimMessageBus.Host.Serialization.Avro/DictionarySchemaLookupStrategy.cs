@@ -1,10 +1,10 @@
-﻿using Avro;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-
-namespace SlimMessageBus.Host.Serialization.Avro
+﻿namespace SlimMessageBus.Host.Serialization.Avro
 {
+    using global::Avro;
+    using Microsoft.Extensions.Logging;
+    using System;
+    using System.Collections.Generic;
+
     /// <summary>
     /// Stategy to lookup meessage schema by type using a dictionary registry
     /// </summary>

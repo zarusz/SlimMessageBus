@@ -1,14 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Azure.ServiceBus;
-using Microsoft.Azure.ServiceBus.Core;
-using Microsoft.Extensions.Logging;
-using SlimMessageBus.Host.Config;
-
-namespace SlimMessageBus.Host.AzureServiceBus.Consumer
+﻿namespace SlimMessageBus.Host.AzureServiceBus.Consumer
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using Microsoft.Azure.ServiceBus;
+    using Microsoft.Azure.ServiceBus.Core;
+    using Microsoft.Extensions.Logging;
+    using SlimMessageBus.Host.Config;
+
     public class BaseConsumer : IDisposable
     {
         private readonly ILogger _logger;

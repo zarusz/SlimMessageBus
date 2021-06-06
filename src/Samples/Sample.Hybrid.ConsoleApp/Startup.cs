@@ -1,22 +1,22 @@
-﻿using System;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Sample.Hybrid.ConsoleApp.ApplicationLayer;
-using Sample.Hybrid.ConsoleApp.DomainModel;
-using Sample.Hybrid.ConsoleApp.EmailService;
-using Sample.Hybrid.ConsoleApp.EmailService.Contract;
-using SecretStore;
-using SlimMessageBus;
-using SlimMessageBus.Host.AzureServiceBus;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.Hybrid;
-using SlimMessageBus.Host.Memory;
-using SlimMessageBus.Host.Serialization.Json;
-
-namespace Sample.Hybrid.ConsoleApp
+﻿namespace Sample.Hybrid.ConsoleApp
 {
+    using System;
+    using Microsoft.Extensions.Configuration;
+    using Microsoft.Extensions.DependencyInjection;
+    using Microsoft.Extensions.Logging;
+    using Sample.Hybrid.ConsoleApp.ApplicationLayer;
+    using Sample.Hybrid.ConsoleApp.DomainModel;
+    using Sample.Hybrid.ConsoleApp.EmailService;
+    using Sample.Hybrid.ConsoleApp.EmailService.Contract;
+    using SecretStore;
+    using SlimMessageBus;
+    using SlimMessageBus.Host.AzureServiceBus;
+    using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.DependencyResolver;
+    using SlimMessageBus.Host.Hybrid;
+    using SlimMessageBus.Host.Memory;
+    using SlimMessageBus.Host.Serialization.Json;
+
     public class Startup
     {
         public IConfigurationRoot Configuration { get; }

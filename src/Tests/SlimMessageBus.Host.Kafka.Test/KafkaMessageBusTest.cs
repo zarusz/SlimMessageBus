@@ -1,15 +1,15 @@
-﻿using Confluent.Kafka;
-using FluentAssertions;
-using Moq;
-using SlimMessageBus.Host.Config;
-using System;
-using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.Serialization;
-using Xunit;
-using Microsoft.Extensions.Logging.Abstractions;
-
-namespace SlimMessageBus.Host.Kafka.Test
+﻿namespace SlimMessageBus.Host.Kafka.Test
 {
+    using Confluent.Kafka;
+    using FluentAssertions;
+    using Moq;
+    using SlimMessageBus.Host.Config;
+    using System;
+    using SlimMessageBus.Host.DependencyResolver;
+    using SlimMessageBus.Host.Serialization;
+    using Xunit;
+    using Microsoft.Extensions.Logging.Abstractions;
+
     public class KafkaMessageBusTest : IDisposable
     {
         private MessageBusSettings MbSettings { get; }

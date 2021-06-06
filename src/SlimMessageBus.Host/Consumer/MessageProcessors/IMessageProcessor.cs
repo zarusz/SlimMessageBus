@@ -1,8 +1,8 @@
-using System;
-using System.Threading.Tasks;
-
 namespace SlimMessageBus.Host
 {
+    using System;
+    using System.Threading.Tasks;
+
     public interface IMessageProcessor<in TMessage> : IDisposable where TMessage : class
     {
         /// <summary>

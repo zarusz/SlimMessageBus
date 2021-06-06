@@ -1,12 +1,12 @@
-using System;
-using System.Collections.Generic;
-using Moq;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.Serialization;
-
 namespace SlimMessageBus.Host.Test
 {
+    using System;
+    using System.Collections.Generic;
+    using Moq;
+    using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.DependencyResolver;
+    using SlimMessageBus.Host.Serialization;
+
     public class MessageBusMock
     {
         public Mock<IDependencyResolver> DependencyResolverMock { get; }

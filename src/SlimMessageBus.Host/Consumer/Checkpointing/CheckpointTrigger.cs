@@ -1,9 +1,9 @@
-﻿using System;
-using System.Diagnostics;
-using SlimMessageBus.Host.Config;
-
-namespace SlimMessageBus.Host
+﻿namespace SlimMessageBus.Host
 {
+    using System;
+    using System.Diagnostics;
+    using SlimMessageBus.Host.Config;
+
     public class CheckpointTrigger : ICheckpointTrigger
     {
         private readonly int _checkpointCount;

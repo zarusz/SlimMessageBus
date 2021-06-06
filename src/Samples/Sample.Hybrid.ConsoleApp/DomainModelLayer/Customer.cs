@@ -1,8 +1,8 @@
-﻿using SlimMessageBus;
-using System;
-
-namespace Sample.Hybrid.ConsoleApp.DomainModel
+﻿namespace Sample.Hybrid.ConsoleApp.DomainModel
 {
+    using SlimMessageBus;
+    using System;
+
     public class Customer
     {
         public string Id { get; protected set; }

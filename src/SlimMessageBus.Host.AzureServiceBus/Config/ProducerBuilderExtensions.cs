@@ -1,9 +1,9 @@
-﻿using System;
-using Microsoft.Azure.ServiceBus;
-using SlimMessageBus.Host.Config;
-
-namespace SlimMessageBus.Host.AzureServiceBus
+﻿namespace SlimMessageBus.Host.AzureServiceBus
 {
+    using System;
+    using Microsoft.Azure.ServiceBus;
+    using SlimMessageBus.Host.Config;
+
     public static class ProducerBuilderExtensions
     {
         public static ProducerBuilder<T> DefaultQueue<T>(this ProducerBuilder<T> producerBuilder, string queue)
@@ -26,7 +26,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
         {
             if (producerBuilder is null) throw new ArgumentNullException(nameof(producerBuilder));
 
-            producerBuilder.Settings.SetKind(PathKind.Topic);
+            producerBuilder.Settings.PathKind = PathKind.Topic;
             return producerBuilder;
         }
 
@@ -40,7 +40,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
         {
             if (producerBuilder is null) throw new ArgumentNullException(nameof(producerBuilder));
 
-            producerBuilder.Settings.SetKind(PathKind.Queue);
+            producerBuilder.Settings.PathKind = PathKind.Queue;
             return producerBuilder;
         }
 

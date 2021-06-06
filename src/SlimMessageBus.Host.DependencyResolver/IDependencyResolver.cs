@@ -1,7 +1,7 @@
-﻿using System;
-
-namespace SlimMessageBus.Host.DependencyResolver
+﻿namespace SlimMessageBus.Host.DependencyResolver
 {
+    using System;
+
     /// <summary>
     /// Responsible for resolving the handlers or consumers.
     /// </summary>

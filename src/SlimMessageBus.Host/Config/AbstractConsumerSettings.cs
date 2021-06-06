@@ -1,13 +1,19 @@
-using System;
-
 namespace SlimMessageBus.Host.Config
 {
+    using System;
+
     public abstract class AbstractConsumerSettings : HasProviderExtensions, IConsumerEvents
     {
         /// <summary>
         /// The topic or queue name.
         /// </summary>
-        public string Topic { get; set; }
+        public string Path { get; set; }
+
+        /// <summary>
+        /// Determines the kind of the path 
+        /// </summary>
+        public PathKind PathKind { get; set; } = PathKind.Topic;
+
         /// <summary>
         /// Number of concurrent competing consumer instances to be created for the bus.
         /// This dictates how many concurrent messages can be processed at a time.

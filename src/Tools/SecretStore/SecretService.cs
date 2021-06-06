@@ -1,8 +1,8 @@
-﻿using System;
-using System.Text.RegularExpressions;
-
-namespace SecretStore
+﻿namespace SecretStore
 {
+    using System;
+    using System.Text.RegularExpressions;
+
     public class SecretService
     {
         private readonly Regex _placeholder = new Regex(@"\{\{(\w+)\}\}");

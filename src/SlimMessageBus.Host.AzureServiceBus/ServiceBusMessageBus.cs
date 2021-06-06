@@ -1,16 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.Azure.ServiceBus;
-using Microsoft.Extensions.Logging;
-using SlimMessageBus.Host.AzureServiceBus.Consumer;
-using SlimMessageBus.Host.Collections;
-using SlimMessageBus.Host.Config;
-
-namespace SlimMessageBus.Host.AzureServiceBus
+﻿namespace SlimMessageBus.Host.AzureServiceBus
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Threading.Tasks;
+    using Microsoft.Azure.ServiceBus;
+    using Microsoft.Extensions.Logging;
+    using SlimMessageBus.Host.AzureServiceBus.Consumer;
+    using SlimMessageBus.Host.Collections;
+    using SlimMessageBus.Host.Config;
+
     public class ServiceBusMessageBus : MessageBusBase
     {
         private readonly ILogger _logger;
@@ -20,8 +19,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
         private SafeDictionaryWrapper<string, ITopicClient> _producerByTopic;
         private SafeDictionaryWrapper<string, IQueueClient> _producerByQueue;
 
-        private readonly IDictionary<string, PathKind> _kindByTopic = new Dictionary<string, PathKind>();
-        private readonly IDictionary<Type, PathKind> _kindByMessageType = new Dictionary<Type, PathKind>();
+        private readonly KindMapping _kindMapping = new KindMapping();
 
         private readonly List<BaseConsumer> _consumers = new List<BaseConsumer>();
 
@@ -40,15 +38,15 @@ namespace SlimMessageBus.Host.AzureServiceBus
 
             base.AssertConsumerSettings(consumerSettings);
 
-            Assert.IsTrue(consumerSettings.GetKind() != PathKind.Topic || consumerSettings.GetSubscriptionName(required: false) != null,
-                () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(SettingsExtensions.SubscriptionName)} is not set on topic {consumerSettings.Topic}"));
+            Assert.IsTrue(consumerSettings.PathKind != PathKind.Topic || consumerSettings.GetSubscriptionName(required: false) != null,
+                () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(SettingsExtensions.SubscriptionName)} is not set on topic {consumerSettings.Path}"));
         }
 
         protected void AddConsumer(AbstractConsumerSettings consumerSettings, IMessageProcessor<Message> messageProcessor)
         {
             if (consumerSettings is null) throw new ArgumentNullException(nameof(consumerSettings));
 
-            var consumer = consumerSettings.GetKind() == PathKind.Topic
+            var consumer = consumerSettings.PathKind == PathKind.Topic
                 ? new TopicSubscriptionConsumer(this, consumerSettings, messageProcessor) as BaseConsumer
                 : new QueueConsumer(this, consumerSettings, messageProcessor);
 
@@ -73,39 +71,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
                 return ProviderSettings.QueueClientFactory(queue);
             });
 
-            foreach (var producerSettings in Settings.Producers)
-            {
-                var producerKind = producerSettings.GetKind();
-                PathKind existingKind;
-
-                var topic = producerSettings.DefaultTopic;
-                if (topic != null)
-                {
-                    if (_kindByTopic.TryGetValue(topic, out existingKind))
-                    {
-                        if (existingKind != producerKind)
-                        {
-                            throw new ConfigurationMessageBusException($"The same name '{topic}' was used for queue and topic. You cannot share one name for a topic and queue. Please fix your configuration.");
-                        }
-                    }
-                    else
-                    {
-                        _kindByTopic.Add(topic, producerKind);
-                    }
-                }
-
-                if (_kindByMessageType.TryGetValue(producerSettings.MessageType, out existingKind))
-                {
-                    if (existingKind != producerKind)
-                    {
-                        throw new ConfigurationMessageBusException($"The same message type '{producerSettings.MessageType}' was used for queue and topic. You cannot share one message type for a topic and queue. Please fix your configuration.");
-                    }
-                }
-                else
-                {
-                    _kindByMessageType.Add(producerSettings.MessageType, producerKind);
-                }
-            }
+            _kindMapping.Configure(Settings);
 
             byte[] getPayload(Message m) => m.Body;
             void initConsumerContext(Message m, ConsumerContext ctx) => ctx.SetTransportMessage(m);
@@ -115,16 +81,14 @@ namespace SlimMessageBus.Host.AzureServiceBus
             {
                 _logger.LogInformation("Creating consumer for {0}", consumerSettings.FormatIf(_logger.IsEnabled(LogLevel.Information)));
 
-                var messageProcessor = new ConsumerInstancePoolMessageProcessor<Message>(consumerSettings, this, getPayload, initConsumerContext);
-                AddConsumer(consumerSettings, messageProcessor);
+                AddConsumer(consumerSettings, new ConsumerInstancePoolMessageProcessor<Message>(consumerSettings, this, getPayload, initConsumerContext));
             }
 
             if (Settings.RequestResponse != null)
             {
                 _logger.LogInformation("Creating response consumer for {0}", Settings.RequestResponse.FormatIf(_logger.IsEnabled(LogLevel.Information)));
 
-                var messageProcessor = new ResponseMessageProcessor<Message>(Settings.RequestResponse, this, getPayload);
-                AddConsumer(Settings.RequestResponse, messageProcessor);
+                AddConsumer(Settings.RequestResponse, new ResponseMessageProcessor<Message>(Settings.RequestResponse, this, getPayload));
             }
         }
 
@@ -203,29 +167,22 @@ namespace SlimMessageBus.Host.AzureServiceBus
             _logger.LogDebug("Delivered message {0} of type {1} on {2} {3}", message, messageType.Name, kind, name);
         }
 
-        public override Task ProduceToTransport(Type messageType, object message, string name, byte[] payload, MessageWithHeaders messageWithHeaders = null)
+        public override Task ProduceToTransport(Type messageType, object message, string path, byte[] payload, MessageWithHeaders messageWithHeaders = null)
         {
             // determine the SMB topic name if its a Azure SB queue or topic
-            if (!_kindByTopic.TryGetValue(name, out var kind))
-            {
-                if (!_kindByMessageType.TryGetValue(messageType, out kind))
-                {
-                    // by default this will be a topic
-                    kind = PathKind.Topic;
-                }
-            }
+            var kind = _kindMapping.GetKind(messageType, path);
 
-            return ProduceToTransport(messageType, message, name, payload, kind);
+            return ProduceToTransport(messageType, message, path, payload, kind);
         }
 
         public static readonly string RequestHeaderReplyToKind = "reply-to-kind";
 
-        public override Task ProduceRequest(object request, MessageWithHeaders requestMessage, string name, ProducerSettings producerSettings)
+        public override Task ProduceRequest(object request, MessageWithHeaders requestMessage, string path, ProducerSettings producerSettings)
         {
             if (requestMessage is null) throw new ArgumentNullException(nameof(requestMessage));
 
-            requestMessage.SetHeader(RequestHeaderReplyToKind, (int)Settings.RequestResponse.GetKind());
-            return base.ProduceRequest(request, requestMessage, name, producerSettings);
+            requestMessage.SetHeader(RequestHeaderReplyToKind, (int)Settings.RequestResponse.PathKind);
+            return base.ProduceRequest(request, requestMessage, path, producerSettings);
         }
 
         public override Task ProduceResponse(object request, MessageWithHeaders requestMessage, object response, MessageWithHeaders responseMessage, ConsumerSettings consumerSettings)

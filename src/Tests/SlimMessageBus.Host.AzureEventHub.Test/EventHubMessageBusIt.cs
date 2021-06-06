@@ -1,21 +1,21 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
-using FluentAssertions;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.Serialization.Json;
-using Xunit;
-using System.Linq;
-using Microsoft.Extensions.Configuration;
-using SecretStore;
-using SlimMessageBus.Host.DependencyResolver;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-
 namespace SlimMessageBus.Host.AzureEventHub.Test
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Diagnostics;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using FluentAssertions;
+    using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.Serialization.Json;
+    using Xunit;
+    using System.Linq;
+    using Microsoft.Extensions.Configuration;
+    using SecretStore;
+    using SlimMessageBus.Host.DependencyResolver;
+    using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Logging.Abstractions;
+
     [Trait("Category", "Integration")]
     public class EventHubMessageBusIt : IDisposable
     {

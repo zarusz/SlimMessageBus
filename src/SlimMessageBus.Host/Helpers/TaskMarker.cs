@@ -1,7 +1,7 @@
-﻿using System.Threading.Tasks;
-
-namespace SlimMessageBus.Host
+﻿namespace SlimMessageBus.Host
 {
+    using System.Threading.Tasks;
+
     public class TaskMarker
     {
         public bool CanRun { get; set; } = true;

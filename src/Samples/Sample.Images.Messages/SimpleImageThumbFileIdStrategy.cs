@@ -1,7 +1,7 @@
-using System.IO;
-
 namespace Sample.Images.Messages
 {
+    using System.IO;
+
     public class SimpleThumbnailFileIdStrategy : IThumbnailFileIdStrategy
     {
         #region Implementation of IImageThumbFileIdStrategy

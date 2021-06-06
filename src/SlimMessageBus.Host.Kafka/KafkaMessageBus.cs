@@ -1,18 +1,17 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Confluent.Kafka;
-using Microsoft.Extensions.Logging;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.Kafka.Configs;
-using Message = Confluent.Kafka.Message<byte[], byte[]>;
-using IProducer = Confluent.Kafka.IProducer<byte[], byte[]>;
-using IConsumer = Confluent.Kafka.IConsumer<Confluent.Kafka.Ignore, byte[]>;
-using System.Diagnostics.CodeAnalysis;
-
 namespace SlimMessageBus.Host.Kafka
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Threading.Tasks;
+    using Confluent.Kafka;
+    using Microsoft.Extensions.Logging;
+    using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.Kafka.Configs;
+    using Message = Confluent.Kafka.Message<byte[], byte[]>;
+    using IProducer = Confluent.Kafka.IProducer<byte[], byte[]>;
+    using System.Diagnostics.CodeAnalysis;
+
     /// <summary>
     /// <see cref="IMessageBus"/> implementation for Apache Kafka.
     /// Note that internal driver Producer/Consumer are all thread-safe (see https://github.com/edenhill/librdkafka/issues/215)
@@ -105,7 +104,7 @@ namespace SlimMessageBus.Host.Kafka
             foreach (var consumersByGroup in Settings.Consumers.GroupBy(x => x.GetGroup()))
             {
                 var group = consumersByGroup.Key;
-                var consumerByTopic = consumersByGroup.ToDictionary(x => x.Topic);
+                var consumerByTopic = consumersByGroup.ToDictionary(x => x.Path);
 
                 IKafkaTopicPartitionProcessor ConsumerProcessorFactory(TopicPartition tp, IKafkaCommitController cc) => new KafkaConsumerProcessor(consumerByTopic[tp.Topic], tp, cc, this);
 
@@ -116,9 +115,9 @@ namespace SlimMessageBus.Host.Kafka
                 if (Settings.RequestResponse != null && group == Settings.RequestResponse.GetGroup())
                 {
                     // Note: response topic cannot be used in consumer topics - this is enforced in AssertSettings method
-                    topics.Add(Settings.RequestResponse.Topic);
+                    topics.Add(Settings.RequestResponse.Path);
 
-                    processorFactory = (tp, cc) => tp.Topic == Settings.RequestResponse.Topic
+                    processorFactory = (tp, cc) => tp.Topic == Settings.RequestResponse.Path
                         ? ResponseProcessorFactory(tp, cc)
                         : ConsumerProcessorFactory(tp, cc);
 
@@ -130,7 +129,7 @@ namespace SlimMessageBus.Host.Kafka
 
             if (Settings.RequestResponse != null && !responseConsumerCreated)
             {
-                AddGroupConsumer(Settings.RequestResponse.GetGroup(), new[] { Settings.RequestResponse.Topic }, ResponseProcessorFactory);
+                AddGroupConsumer(Settings.RequestResponse.GetGroup(), new[] { Settings.RequestResponse.Path }, ResponseProcessorFactory);
             }
 
             _logger.LogInformation("Created {0} group consumers", _groupConsumers.Count);
@@ -166,7 +165,7 @@ namespace SlimMessageBus.Host.Kafka
                 Assert.IsTrue(Settings.RequestResponse.GetGroup() != null,
                     () => new ConfigurationMessageBusException("Request-response: group was not provided"));
 
-                Assert.IsFalse(Settings.Consumers.Any(x => x.GetGroup() == Settings.RequestResponse.GetGroup() && x.Topic == Settings.RequestResponse.Topic),
+                Assert.IsFalse(Settings.Consumers.Any(x => x.GetGroup() == Settings.RequestResponse.GetGroup() && x.Path == Settings.RequestResponse.Path),
                     () => new ConfigurationMessageBusException("Request-response: cannot use topic that is already being used by a consumer"));
             }
         }

@@ -1,7 +1,7 @@
-﻿using System;
-
-namespace SecretStore
+﻿namespace SecretStore
 {
+    using System;
+
     public class EnvironmentVariableSecretStore : ISecretStore
     {
         #region Implementation of ISecretStore

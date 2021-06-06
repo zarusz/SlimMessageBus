@@ -1,8 +1,8 @@
-using System;
-using System.Threading.Tasks;
-
 namespace SlimMessageBus.Host.Test
 {
+    using System;
+    using System.Threading.Tasks;
+
     public class SomeMessage
     {
 

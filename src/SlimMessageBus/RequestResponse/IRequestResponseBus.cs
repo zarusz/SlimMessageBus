@@ -1,9 +1,9 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace SlimMessageBus
+﻿namespace SlimMessageBus
 {
+    using System;
+    using System.Threading;
+    using System.Threading.Tasks;
+
     /// <summary>
     /// Bus to work with request-response messages.
     /// </summary>
@@ -27,10 +27,10 @@ namespace SlimMessageBus
         /// </summary>
         /// <typeparam name="TResponseMessage">The response message type</typeparam>
         /// <param name="request">The request message</param>
-        /// <param name="name">Name of the topic (or queue) to send the request to. When null the default topic for request message type (or global default) will be used.</param>
+        /// <param name="path">Name of the topic (or queue) to send the request to. When null the default topic for request message type (or global default) will be used.</param>
         /// <param name="cancellationToken">Cancellation token to notify if the client no longer is interested in the response.</param>
         /// <returns>Task that represents the pending request.</returns>
-        Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string name = null, CancellationToken cancellationToken = default(CancellationToken));
+        Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string path = null, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Sends a request message
@@ -38,9 +38,9 @@ namespace SlimMessageBus
         /// <typeparam name="TResponseMessage">The response message type</typeparam>
         /// <param name="request">The request message</param>
         /// <param name="timeout">The timespan after which the Send request will be cancelled if no response arrives.</param>
-        /// <param name="name">Name of the topic (or queue) to send the request to. When null the default topic for request message type (or global default) will be used.</param>
+        /// <param name="path">Name of the topic (or queue) to send the request to. When null the default topic for request message type (or global default) will be used.</param>
         /// <param name="cancellationToken">Cancellation token to notify if the client no longer is interested in the response.</param>
         /// <returns>Task that represents the pending request.</returns>
-        Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string name = null, CancellationToken cancellationToken = default(CancellationToken));
+        Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string path = null, CancellationToken cancellationToken = default);
     }
 }

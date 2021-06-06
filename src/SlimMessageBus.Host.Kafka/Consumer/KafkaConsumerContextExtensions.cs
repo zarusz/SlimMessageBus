@@ -1,8 +1,8 @@
-﻿using System;
-using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
-
-namespace SlimMessageBus.Host.Kafka
+﻿namespace SlimMessageBus.Host.Kafka
 {
+    using System;
+    using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
+
     public static class KafkaConsumerContextExtensions
     {
         private const string MessageKey = "Kafka_Message";

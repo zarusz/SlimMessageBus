@@ -1,7 +1,7 @@
-using System;
-
 namespace SlimMessageBus.Host.Config
 {
+    using System;
+
     public abstract class AbstractTopicConsumerBuilder
     {
         public MessageBusSettings Settings { get; }
@@ -17,7 +17,7 @@ namespace SlimMessageBus.Host.Config
 
             ConsumerSettings = new ConsumerSettings
             {
-                Topic = topic,
+                Path = topic,
                 MessageType = messageType
             };
             Settings.Consumers.Add(ConsumerSettings);

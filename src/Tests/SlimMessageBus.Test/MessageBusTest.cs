@@ -1,10 +1,10 @@
-﻿using System;
-using Moq;
-using FluentAssertions;
-using Xunit;
-
-namespace SlimMessageBus.Test
+﻿namespace SlimMessageBus.Test
 {
+    using System;
+    using Moq;
+    using FluentAssertions;
+    using Xunit;
+
     /// <summary>
     /// Unit test for <see cref="MessageBus"/>
     /// </summary>

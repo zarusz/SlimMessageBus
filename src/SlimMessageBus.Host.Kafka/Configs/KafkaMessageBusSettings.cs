@@ -1,10 +1,10 @@
-using System;
-using Confluent.Kafka;
-using ProducerBuilder = Confluent.Kafka.ProducerBuilder<byte[], byte[]>;
-using ConsumerBuilder = Confluent.Kafka.ConsumerBuilder<Confluent.Kafka.Ignore, byte[]>;
-
 namespace SlimMessageBus.Host.Kafka
 {
+    using System;
+    using Confluent.Kafka;
+    using ProducerBuilder = Confluent.Kafka.ProducerBuilder<byte[], byte[]>;
+    using ConsumerBuilder = Confluent.Kafka.ConsumerBuilder<Confluent.Kafka.Ignore, byte[]>;
+
     public class KafkaMessageBusSettings
     {
         /// <summary>

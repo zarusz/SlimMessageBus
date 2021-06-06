@@ -1,9 +1,9 @@
-﻿using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Sample.DomainEvents.Domain;
-
-namespace Sample.DomainEvents.WebApi.Controllers
+﻿namespace Sample.DomainEvents.WebApi.Controllers
 {
+    using System.Threading.Tasks;
+    using Microsoft.AspNetCore.Mvc;
+    using Sample.DomainEvents.Domain;
+
     [Route("api/[controller]")]
     [ApiController]
     public class OrdersController : Controller

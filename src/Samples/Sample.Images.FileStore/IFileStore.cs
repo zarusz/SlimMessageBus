@@ -1,8 +1,8 @@
-﻿using System.IO;
-using System.Threading.Tasks;
-
-namespace Sample.Images.FileStore
+﻿namespace Sample.Images.FileStore
 {
+    using System.IO;
+    using System.Threading.Tasks;
+
     public interface IFileStore
     {
         /// <summary>

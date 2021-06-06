@@ -1,10 +1,10 @@
-﻿using Sample.Hybrid.ConsoleApp.EmailService.Contract;
-using SlimMessageBus;
-using System;
-using System.Threading.Tasks;
-
-namespace Sample.Hybrid.ConsoleApp.EmailService
+﻿namespace Sample.Hybrid.ConsoleApp.EmailService
 {
+    using Sample.Hybrid.ConsoleApp.EmailService.Contract;
+    using SlimMessageBus;
+    using System;
+    using System.Threading.Tasks;
+
     public class SmtpEmailService : IConsumer<SendEmailCommand>
     {
         public Task OnHandle(SendEmailCommand message, string name)

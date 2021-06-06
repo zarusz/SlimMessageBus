@@ -1,18 +1,18 @@
-﻿using Confluent.Kafka;
-using FluentAssertions;
-using Moq;
-using SlimMessageBus.Host.Config;
-using System;
-using System.Threading.Tasks;
-using SlimMessageBus.Host.Kafka.Configs;
-using Xunit;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-
-using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
-
-namespace SlimMessageBus.Host.Kafka.Test
+﻿namespace SlimMessageBus.Host.Kafka.Test
 {
+    using Confluent.Kafka;
+    using FluentAssertions;
+    using Moq;
+    using SlimMessageBus.Host.Config;
+    using System;
+    using System.Threading.Tasks;
+    using SlimMessageBus.Host.Kafka.Configs;
+    using Xunit;
+    using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Logging.Abstractions;
+
+    using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
+
     public class KafkaConsumerProcessorTest : IDisposable
     {
         private readonly TopicPartition _topicPartition;
@@ -35,7 +35,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             var consumerSettings = new ConsumerSettings
             {
                 MessageType = typeof(SomeMessage),
-                Topic = _topicPartition.Topic,
+                Path = _topicPartition.Topic,
                 ConsumerType = typeof(SomeMessageConsumer),
                 ConsumerMode = ConsumerMode.Consumer,
             };

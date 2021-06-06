@@ -1,10 +1,10 @@
-﻿using System;
-using Autofac;
-using Microsoft.Extensions.Logging;
-using SlimMessageBus.Host.DependencyResolver;
-
-namespace SlimMessageBus.Host.Autofac
+﻿namespace SlimMessageBus.Host.Autofac
 {
+    using System;
+    using global::Autofac;
+    using Microsoft.Extensions.Logging;
+    using SlimMessageBus.Host.DependencyResolver;
+
     /// <summary>
     /// An SMB DI adapter for the Autofac <see cref="ILifetimeScope"/>.
     /// </summary>

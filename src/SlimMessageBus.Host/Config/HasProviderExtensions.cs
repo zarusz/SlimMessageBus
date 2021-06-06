@@ -1,7 +1,7 @@
-﻿using System.Collections.Generic;
-
-namespace SlimMessageBus.Host.Config
+﻿namespace SlimMessageBus.Host.Config
 {
+    using System.Collections.Generic;
+
     public abstract class HasProviderExtensions
     {
         /// <summary>

@@ -1,8 +1,8 @@
-﻿using System;
-using SlimMessageBus.Host.Config;
-
-namespace SlimMessageBus.Host.AzureServiceBus
+﻿namespace SlimMessageBus.Host.AzureServiceBus
 {
+    using System;
+    using SlimMessageBus.Host.Config;
+
     public static class HandlerBuilderExtensions
     {
         /// <summary>
@@ -17,7 +17,7 @@ namespace SlimMessageBus.Host.AzureServiceBus
             if (builder is null) throw new ArgumentNullException(nameof(builder));
 
             var b = new TopicHandlerBuilder<TRequest, TResponse>(queue, builder.Settings);
-            b.ConsumerSettings.SetKind(PathKind.Queue);
+            b.ConsumerSettings.PathKind = PathKind.Queue;
             return b;
         }
 
