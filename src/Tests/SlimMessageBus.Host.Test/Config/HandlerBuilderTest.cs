@@ -10,20 +10,20 @@
         public void BuildsProperSettings()
         {
             // arrange
-            var topic = "topic";
+            var path = "topic";
             var settings = new MessageBusSettings();
 
             // act
             var subject = new HandlerBuilder<SomeRequest, SomeResponse>(settings)
-                .Topic(topic)
+                .Topic(path)
                 .Instances(3)
                 .WithHandler<SomeRequestMessageHandler>();
 
             // assert
             subject.ConsumerSettings.MessageType.Should().Be(typeof(SomeRequest));
             subject.MessageType.Should().Be(typeof(SomeRequest));
-            subject.Topic.Should().Be(topic);
-            subject.ConsumerSettings.Path.Should().Be(topic);
+            subject.Path.Should().Be(path);
+            subject.ConsumerSettings.Path.Should().Be(path);
             subject.ConsumerSettings.Instances.Should().Be(3);
             subject.ConsumerSettings.ConsumerType.Should().Be(typeof(SomeRequestMessageHandler));
             subject.ConsumerSettings.ConsumerMode.Should().Be(ConsumerMode.RequestResponse);

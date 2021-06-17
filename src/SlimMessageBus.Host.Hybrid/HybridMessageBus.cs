@@ -127,17 +127,30 @@
             return bus.Send(request, cancellationToken);
         }
 
-        public Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string name = null, CancellationToken cancellationToken = default(CancellationToken))
+        public Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, CancellationToken cancellationToken)
         {
-            var bus = Route(request, name);
-            return bus.Send(request, name, cancellationToken);
+            var bus = Route(request, null);
+            return bus.Send<TResponseMessage, TRequestMessage>(request, cancellationToken);
         }
 
-        public Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string name = null, CancellationToken cancellationToken = default(CancellationToken))
+        public Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string path = null, CancellationToken cancellationToken = default)
         {
-            var bus = Route(request, name);
-            return bus.Send(request, timeout, name, cancellationToken);
+            var bus = Route(request, path);
+            return bus.Send(request, path, cancellationToken);
         }
+
+        public Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, string path = null, CancellationToken cancellationToken = default)
+        {
+            var bus = Route(request, path);
+            return bus.Send<TResponseMessage, TRequestMessage>(request, path, cancellationToken);
+        }
+
+        public Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string path = null, CancellationToken cancellationToken = default)
+        {
+            var bus = Route(request, path);
+            return bus.Send(request, timeout, path, cancellationToken);
+        }
+
 
         #endregion
 

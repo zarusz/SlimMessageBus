@@ -290,7 +290,7 @@ namespace SlimMessageBus.Host
             return timeout;
         }
 
-        protected virtual async Task<TResponseMessage> SendInternal<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan? timeout, string name, CancellationToken cancellationToken)
+        protected virtual async Task<TResponseMessage> SendInternal<TResponseMessage>(object request, TimeSpan? timeout, string name, CancellationToken cancellationToken)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
             AssertActive();
@@ -392,17 +392,27 @@ namespace SlimMessageBus.Host
 
         public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, CancellationToken cancellationToken)
         {
-            return SendInternal(request, null, null, cancellationToken);
+            return SendInternal<TResponseMessage>(request, null, null, cancellationToken);
         }
 
-        public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string name = null, CancellationToken cancellationToken = default(CancellationToken))
+        public Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, CancellationToken cancellationToken)
         {
-            return SendInternal(request, null, name, cancellationToken);
+            return SendInternal<TResponseMessage>(request, null, null, cancellationToken);
         }
 
-        public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string name = null, CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string path = null, CancellationToken cancellationToken = default(CancellationToken))
         {
-            return SendInternal(request, timeout, name, cancellationToken);
+            return SendInternal<TResponseMessage>(request, null, path, cancellationToken);
+        }
+
+        public virtual Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, string path = null, CancellationToken cancellationToken = default)
+        {
+            return SendInternal<TResponseMessage>(request, null, path, cancellationToken);
+        }
+
+        public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string path = null, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            return SendInternal<TResponseMessage>(request, timeout, path, cancellationToken);
         }
 
         #endregion
