@@ -22,7 +22,7 @@
             // assert
             subject.ConsumerSettings.MessageType.Should().Be(typeof(SomeMessage));
             subject.MessageType.Should().Be(typeof(SomeMessage));
-            subject.Topic.Should().Be(topic);
+            subject.Path.Should().Be(topic);
             subject.ConsumerSettings.Path.Should().Be(topic);
             subject.ConsumerSettings.Instances.Should().Be(3);
             subject.ConsumerSettings.ConsumerType.Should().Be(typeof(SomeMessageConsumer));

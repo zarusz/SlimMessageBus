@@ -6,18 +6,18 @@ namespace SlimMessageBus.Host.Config
     {
         public MessageBusSettings Settings { get; }
         public Type MessageType { get; }
-        public string Topic { get; }
+        public string Path { get; }
         public ConsumerSettings ConsumerSettings { get; }
 
-        protected AbstractTopicConsumerBuilder(string topic, Type messageType, MessageBusSettings settings)
+        protected AbstractTopicConsumerBuilder(string path, Type messageType, MessageBusSettings settings)
         {
-            Topic = topic;
+            Path = path;
             MessageType = messageType;
             Settings = settings ?? throw new ArgumentNullException(nameof(settings));
 
             ConsumerSettings = new ConsumerSettings
             {
-                Path = topic,
+                Path = path,
                 MessageType = messageType
             };
             Settings.Consumers.Add(ConsumerSettings);

@@ -95,7 +95,6 @@ namespace SlimMessageBus.Host.Config
         /// <param name="handlerBuilder"></param>
         /// <returns></returns>
         public MessageBusBuilder Handle<TRequest, TResponse>(Action<HandlerBuilder<TRequest, TResponse>> handlerBuilder)
-            where TRequest : IRequestMessage<TResponse>
         {
             if (handlerBuilder == null) throw new ArgumentNullException(nameof(handlerBuilder));
 

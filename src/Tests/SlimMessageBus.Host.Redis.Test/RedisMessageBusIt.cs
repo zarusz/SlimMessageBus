@@ -235,7 +235,7 @@ namespace SlimMessageBus.Host.Redis.Test
             var responses = new List<(EchoRequest Request, EchoResponse Response)>();
             var responseTasks = requests.Select(async req =>
             {
-                var resp = await messageBus.Send(req).ConfigureAwait(false);
+                var resp = await messageBus.Send<EchoResponse, EchoRequest>(req).ConfigureAwait(false);
                 lock (responses)
                 {
                     responses.Add((req, resp));
@@ -312,7 +312,7 @@ namespace SlimMessageBus.Host.Redis.Test
             #endregion
         }
 
-        private class EchoRequest : IRequestMessage<EchoResponse>
+        private class EchoRequest /*: IRequestMessage<EchoResponse>*/
         {
             public int Index { get; set; }
             public string Message { get; set; }

@@ -8,7 +8,6 @@ namespace SlimMessageBus
     /// <typeparam name="TRequest">The request message type</typeparam>
     /// <typeparam name="TResponse">The response message type</typeparam>
     public interface IRequestHandler<in TRequest, TResponse>
-        where TRequest : IRequestMessage<TResponse>
     {
         /// <summary>
         /// Handles the incoming request message.
