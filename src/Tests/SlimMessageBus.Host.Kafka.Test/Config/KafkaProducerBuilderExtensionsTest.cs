@@ -6,12 +6,12 @@
     using System;
     using Xunit;
 
-    public class KafkaPublisherBuilderExtensionsTest
+    public class KafkaProducerBuilderExtensionsTest
     {
         private readonly ProducerSettings _ps;
         private readonly ProducerBuilder<SomeMessage> _pb;
 
-        public KafkaPublisherBuilderExtensionsTest()
+        public KafkaProducerBuilderExtensionsTest()
         {
             _ps = new ProducerSettings();
             _pb = new ProducerBuilder<SomeMessage>(_ps);

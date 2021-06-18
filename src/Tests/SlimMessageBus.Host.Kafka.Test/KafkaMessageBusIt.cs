@@ -238,7 +238,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             var responses = new ConcurrentBag<ValueTuple<EchoRequest, EchoResponse>>();
             await Task.WhenAll(requests.Select(async req =>
             {
-                var resp = await kafkaMessageBus.Send(req);
+                var resp = await kafkaMessageBus.Send<EchoResponse, EchoRequest>(req);
                 responses.Add((req, resp));
             }));
 
@@ -314,7 +314,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             #endregion
         }
 
-        private class EchoRequest : IRequestMessage<EchoResponse>
+        private class EchoRequest /*: IRequestMessage<EchoResponse>*/
         {
             public int Index { get; set; }
             public string Message { get; set; }
