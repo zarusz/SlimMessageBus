@@ -146,16 +146,16 @@ mbb
       x.AttachEvents(events =>
       {
          // Invoke the action for the specified message type published/sent via the bus:
-         events.OnMessageProduced = (bus, producerSettings, message, name) => {
-            Console.WriteLine("The SomeMessage: {0} was sent to topic/queue {1}", message, name);
+         events.OnMessageProduced = (bus, producerSettings, message, path) => {
+            Console.WriteLine("The SomeMessage: {0} was sent to topic/queue {1}", message, path);
          }
       });
    })
    .AttachEvents(events =>
    {
       // Invoke the action for any message type published/sent via the bus:
-      events.OnMessageProduced = (bus, producerSettings, message, name) => {
-         Console.WriteLine("The message: {0} was sent to topic/queue {1}", message, name);
+      events.OnMessageProduced = (bus, producerSettings, message, path) => {
+         Console.WriteLine("The message: {0} was sent to topic/queue {1}", message, path);
       };
    });
 ```
@@ -175,7 +175,7 @@ mbb.Consume<SomeMessage>(x => x
   .WithConsumer<SomeConsumer>() // (1)
   // if you do not want to implement the IConsumer<T> interface
   // .WithConsumer<AddCommandConsumer>(nameof(AddCommandConsumer.MyHandleMethod)) // (2) uses reflection
-  // .WithConsumer<AddCommandConsumer>((consumer, message, name) => consumer.MyHandleMethod(message, name)) // (3) uses a delegate
+  // .WithConsumer<AddCommandConsumer>((consumer, message, path) => consumer.MyHandleMethod(message, path)) // (3) uses a delegate
   .Instances(1)
   //.Group("some-consumer-group")) // Kafka provider specific extensions
 ```
@@ -185,14 +185,14 @@ When the consumer implements the `IConsumer<SomeMessage>` interface:
 ```cs
 public class SomeConsumer : IConsumer<SomeMessage>
 {
-  public async Task OnHandle(SomeMessage msg, string name)
+  public async Task OnHandle(SomeMessage msg, string path)
   {
     // handle the msg
   }
 }
 ```
 
-The second parameter (`name`) is the topic (or queue) name that the message arrived on.
+The second parameter (`path`) is the topic (or queue) name that the message arrived on.
 
 The `SomeConsumer` needs to be registered in your DI container. The SMB runtime will ask the chosen DI to provide the desired number of consumer instances. Any collaborators of the consumer will be resolved according to your DI configuration.
 
@@ -201,7 +201,7 @@ Alternatively, if you do not want to implement the `IConsumer<SomeMessage>`, the
 ```cs
 public class SomeConsumer
 {
-  public async Task MyHandleMethod(SomeMessage msg, string name)
+  public async Task MyHandleMethod(SomeMessage msg, string path)
   {
     // handle the msg
   }
@@ -226,8 +226,8 @@ mbb
        x.AttachEvents(events =>
        {
           // 1. Invoke the action for the specified message type when arrived on the bus (pre consumer OnHandle method):
-          events.OnMessageArrived = (bus, consumerSettings, message, name, nativeMessage) => {
-             Console.WriteLine("The SomeMessage: {0} arrived on the topic/queue {1}", message, name);
+          events.OnMessageArrived = (bus, consumerSettings, message, path, nativeMessage) => {
+             Console.WriteLine("The SomeMessage: {0} arrived on the topic/queue {1}", message, path);
           }
           
           // 2. Invoke the action when the consumer caused an unhandled exception
@@ -236,8 +236,8 @@ mbb
           
           // 3. Invoke the action for the specified message type after consumer processed (post consumer OnHandle method).
           // This is executed also if the message handling faulted (2.)
-          events.OnMessageFinished = (bus, consumerSettings, message, name, nativeMessage) => {
-             Console.WriteLine("The SomeMessage: {0} finished on the topic/queue {1}", message, name);
+          events.OnMessageFinished = (bus, consumerSettings, message, path, nativeMessage) => {
+             Console.WriteLine("The SomeMessage: {0} finished on the topic/queue {1}", message, path);
           }
        });
     })
@@ -245,15 +245,15 @@ mbb
     .AttachEvents(events =>
     {
           // Invoke the action for the specified message type when sent via the bus:
-          events.OnMessageArrived = (bus, consumerSettings, message, name, nativeMessage) => {
-             Console.WriteLine("The message: {0} arrived on the topic/queue {1}", message, name);
+          events.OnMessageArrived = (bus, consumerSettings, message, path, nativeMessage) => {
+             Console.WriteLine("The message: {0} arrived on the topic/queue {1}", message, path);
           };
           
           events.OnMessageFault = (bus, consumerSettings, message, ex, nativeMessage) => {
           };
           
-          events.OnMessageFinished = (bus, consumerSettings, message, name, nativeMessage) => {
-             Console.WriteLine("The SomeMessage: {0} finished on the topic/queue {1}", message, name);
+          events.OnMessageFinished = (bus, consumerSettings, message, path, nativeMessage) => {
+             Console.WriteLine("The SomeMessage: {0} finished on the topic/queue {1}", message, path);
           }
    });
 ```
@@ -273,7 +273,7 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
 {
    public AsyncLocal<ConsumerContext> Context { get; } = new AsyncLocal<ConsumerContext>();
 
-   public Task OnHandle(PingMessage message, string name)
+   public Task OnHandle(PingMessage message, string path)
    {
       var messageContext = Context.Value;
 
@@ -375,12 +375,18 @@ In the future SMB might introduce an optimization that will leverage transport n
 
 ### Produce request message
 
-One requirement is that request messages implement the marker interface `IRequestMessage<TResponse>`:
+The request messages can use the optional marker interface `IRequestMessage<TResponse>`:
 
 ```cs
-public class SomeRequest : IRequestMessage<SomeResponse>
+// Option 1:
+public class SomeRequest : IRequestMessage<SomeResponse> // Implementing the marker interface is optional
 {
 }
+
+// Option 2:
+// public class SomeRequest // The marker interface is not used
+// {
+// }
 
 public class SomeResponse
 {
@@ -409,15 +415,19 @@ mbb.Produce<SomeRequest>(x =>
 })
 ```
 
-Once things are configured you can send the request message to a topic (or queue) like so:
+Once the producer side is configured you can send the request message to a topic (or queue) like so:
 
 ```cs
 var req = new SomeRequest("ping");
-var res = await bus.Send(req, "do-other-computation-topic");
+var res = await bus.Send(req, "do-other-computation-topic"); // Option 1 - with marker interface
+// var res = await bus.Send<SomeResponse, SomeRequest>(req, "do-other-computation-topic"); // Option 2 - without marker interface
 
 // or rely on the default topic (or queue) name
-var res = await bus.Send(req);
+var res = await bus.Send(req); // Option 1 - with marker interface
+// var res = await bus.Send<SomeResponse, SomeRequest>(req); // Option 2 - without marker interface
 ```
+
+> The marker interface `IRequestMessage<TResponse>` helps to avoid having to specify the request and response types in the `IMessageBus.Send()` method. There is no other difference.
 
 ### Consume the request message (the request handler)
 
@@ -426,7 +436,7 @@ The request handling micro-service needs to have a handler that implements `IReq
 ```cs
 public class SomeRequestHandler : IRequestHandler<SomeRequest, SomeResponse>
 {
-  public async Task<SomeResponse> OnHandle(SomeRequest request, string name)
+  public async Task<SomeResponse> OnHandle(SomeRequest request, string path)
   {
     // handle the request  
     return new SomeResponse();
@@ -445,6 +455,8 @@ mbb.Handle<SomeRequest, SomeResponse>(x => x
     .Group("some-consumer-group") // kafka provider specific
   )
 ```
+
+> The same micro-service can both send the request and also be the handler of those requests.
 
 ## Static accessor
 
