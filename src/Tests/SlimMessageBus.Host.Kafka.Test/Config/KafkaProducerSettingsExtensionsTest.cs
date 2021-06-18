@@ -4,7 +4,7 @@
     using SlimMessageBus.Host.Config;
     using Xunit;
 
-    public class KafkaPublisherSettingsExtensionsTest
+    public class KafkaProducerSettingsExtensionsTest
     {
         [Fact]
         public void GivenDefaultWhenGetKeyProviderThenReturnsNull()
