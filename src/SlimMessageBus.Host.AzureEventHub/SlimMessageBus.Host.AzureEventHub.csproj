@@ -3,7 +3,7 @@
   <Import Project="../Host.Transport.Properties.xml" />
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <PackageTags>Azure Event Hubs provider SlimMessageBus MessageBus bus facade messaging</PackageTags>
     <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
     <Description>Azure Event Hubs provider for SlimMessageBus</Description>

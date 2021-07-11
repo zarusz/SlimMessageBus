@@ -81,7 +81,7 @@
             {
                 _logger.LogInformation("Creating consumer for {0}", consumerSettings.FormatIf(_logger.IsEnabled(LogLevel.Information)));
 
-                AddConsumer(consumerSettings, new ConsumerInstancePoolMessageProcessor<Message>(consumerSettings, this, getPayload, initConsumerContext));
+                AddConsumer(consumerSettings, new ConsumerInstanceMessageProcessor<Message>(consumerSettings, this, getPayload, initConsumerContext));
             }
 
             if (Settings.RequestResponse != null)
