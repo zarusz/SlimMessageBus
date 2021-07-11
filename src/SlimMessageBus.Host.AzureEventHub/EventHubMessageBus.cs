@@ -17,7 +17,7 @@
 
         public EventHubMessageBusSettings ProviderSettings { get; }
 
-        private SafeDictionaryWrapper<string, EventHubClient> _producerByTopic;
+        private SafeDictionaryWrapper<string, EventHubClient> _producerByPath;
         private List<GroupTopicConsumer> _consumers = new List<GroupTopicConsumer>();
 
         public EventHubMessageBus(MessageBusSettings settings, EventHubMessageBusSettings eventHubSettings)
@@ -35,22 +35,22 @@
         {
             base.Build();
 
-            _producerByTopic = new SafeDictionaryWrapper<string, EventHubClient>(topic =>
+            _producerByPath = new SafeDictionaryWrapper<string, EventHubClient>(path =>
             {
-                _logger.LogDebug("Creating EventHubClient for path {0}", topic);
-                return ProviderSettings.EventHubClientFactory(topic);
+                _logger.LogDebug("Creating EventHubClient for path {Path}", path);
+                return ProviderSettings.EventHubClientFactory(path);
             });
 
             _logger.LogInformation("Creating consumers");
             foreach (var consumerSettings in Settings.Consumers)
             {
-                _logger.LogInformation("Creating consumer for Topic: {0}, Group: {1}, MessageType: {2}", consumerSettings.Path, consumerSettings.GetGroup(), consumerSettings.MessageType);
+                _logger.LogInformation("Creating consumer for Path: {Path}, Group: {Group}, MessageType: {MessageType}", consumerSettings.Path, consumerSettings.GetGroup(), consumerSettings.MessageType);
                 _consumers.Add(new GroupTopicConsumer(this, consumerSettings));
             }
 
             if (Settings.RequestResponse != null)
             {
-                _logger.LogInformation("Creating response consumer for Topic: {0}, Group: {1}", Settings.RequestResponse.Path, Settings.RequestResponse.GetGroup());
+                _logger.LogInformation("Creating response consumer for Path: {Path}, Group: {Group}", Settings.RequestResponse.Path, Settings.RequestResponse.GetGroup());
                 _consumers.Add(new GroupTopicConsumer(this, Settings.RequestResponse));
             }
         }
@@ -65,18 +65,18 @@
                     _consumers.Clear();
                 }
 
-                if (_producerByTopic != null)
+                if (_producerByPath != null)
                 {
-                    _producerByTopic.Clear(producer =>
+                    _producerByPath.Clear(producer =>
                     {
-                        _logger.LogDebug("Closing EventHubClient for path {0}", producer.EventHubName);
+                        _logger.LogDebug("Closing EventHubClient for path {Path}", producer.EventHubName);
                         try
                         {
                             producer.Close();
                         }
                         catch (Exception e)
                         {
-                            _logger.LogError(e, "Error while closing EventHubClient for path {0}", producer.EventHubName);
+                            _logger.LogError(e, "Error while closing EventHubClient for path {Path}", producer.EventHubName);
                         }
                     });
                 }
@@ -98,14 +98,14 @@
         {
             AssertActive();
 
-            _logger.LogDebug("Producing message {0} of type {1} on topic {2} with size {3}", message, messageType.Name, name, payload.Length);
-            var producer = _producerByTopic.GetOrAdd(name);
+            _logger.LogDebug("Producing message {Message} of type {MessageType} on path {Path} with size {MessageSize}", message, messageType.Name, name, payload.Length);
+            var producer = _producerByPath.GetOrAdd(name);
 
-            var ev = new EventData(payload);
+            using var ev = new EventData(payload);
             // ToDo: Add support for partition keys
             await producer.SendAsync(ev).ConfigureAwait(false);
 
-            _logger.LogDebug("Delivered message {0} of type {1} on topic {2}", message, messageType.Name, name);
+            _logger.LogDebug("Delivered message {Message} of type {MessageType} on path {Path}", message, messageType.Name, name);
         }
     }
 }

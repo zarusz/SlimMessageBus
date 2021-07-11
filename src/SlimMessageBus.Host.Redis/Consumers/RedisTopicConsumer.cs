@@ -7,19 +7,44 @@
 
     public class RedisTopicConsumer : IRedisConsumer
     {
-        private readonly ChannelMessageQueue _channelMessageQueue;
+        private readonly string _topic;
+        private readonly ISubscriber _subscriber;
+        private readonly IMessageProcessor<byte[]> _messageProcessor;
+
+        private ChannelMessageQueue _channelMessageQueue;
 
         public RedisTopicConsumer(AbstractConsumerSettings consumerSettings, ISubscriber subscriber, IMessageProcessor<byte[]> messageProcessor)
         {
-            if (consumerSettings is null) throw new ArgumentNullException(nameof(consumerSettings));
-            if (subscriber is null) throw new ArgumentNullException(nameof(subscriber));
+            _ = consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings));
 
-            _channelMessageQueue = subscriber.Subscribe(consumerSettings.Path);
-            _channelMessageQueue.OnMessage(m => messageProcessor.ProcessMessage(m.Message));
+            _topic = consumerSettings.Path;
+            _subscriber = subscriber ?? throw new ArgumentNullException(nameof(subscriber));
+            _messageProcessor = messageProcessor;
         }
 
-        public Task Start() => Task.CompletedTask;
-        public Task Finish() => Task.CompletedTask;
+        public Task Start()
+        {
+            _channelMessageQueue = _subscriber.Subscribe(_topic);
+            _channelMessageQueue.OnMessage(m => _messageProcessor.ProcessMessage(m.Message));
+
+            return Task.CompletedTask;
+        }
+
+        public Task Finish()
+        {
+            UnsubscribeInternal();
+
+            return Task.CompletedTask;
+        }
+
+        private void UnsubscribeInternal()
+        {
+            if (_channelMessageQueue != null)
+            {
+                _channelMessageQueue.Unsubscribe();
+                _channelMessageQueue = null;
+            }
+        }
 
         #region IDisposable
 
@@ -33,7 +58,9 @@
         {
             if (disposing)
             {
-                _channelMessageQueue.Unsubscribe();
+                UnsubscribeInternal();
+
+                _messageProcessor.Dispose();
             }
         }
 

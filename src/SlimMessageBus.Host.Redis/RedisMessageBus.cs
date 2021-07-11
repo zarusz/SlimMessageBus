@@ -105,7 +105,12 @@
             _logger.LogInformation("Creating consumers");
             foreach (var consumerSettings in Settings.Consumers)
             {
-                var processor = new ConsumerInstancePoolMessageProcessor<byte[]>(consumerSettings, this, m => m);
+                IMessageProcessor<byte[]> processor = new ConsumerInstanceMessageProcessor<byte[]>(consumerSettings, this, m => m);
+                // When it was requested to have more than once concurrent instances working then we need to fan out the incoming Redis consumption tasks
+                if (consumerSettings.Instances > 1)
+                {
+                    processor = new ConcurrencyIncreasingMessageProcessorDecorator<byte[]>(consumerSettings, this, processor);
+                }
 
                 if (consumerSettings.PathKind == PathKind.Topic)
                 {
