@@ -328,8 +328,12 @@ mbb.Consume<SomeMessage>(x => x
 
 > The default is `1`.
 
+Some transports support concurrency natively like (Azure Service Bus), others do not support concurrent message handling (Redis) in which case SMB will pararellize processing.
+
 SMB manages a critical section for each consumer type registration that ensures there are at most `n` processed messages.
 Each processing of a message resolves the `TConsumer` instance from the DI.
+
+> Please note that anything higher than 1 will cause multiple messages to be consumed concurrently in one service instance. This will typically impact message processing order (ie 2nd message might get processed sooner than the 1st message). 
 
 ## Request-response communication
 
