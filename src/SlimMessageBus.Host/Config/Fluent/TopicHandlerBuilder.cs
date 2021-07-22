@@ -45,5 +45,7 @@ namespace SlimMessageBus.Host.Config
         /// <returns></returns>
         public TopicHandlerBuilder<TRequest, TResponse> AttachEvents(Action<IConsumerEvents> eventsConfig)
             => AttachEvents<TopicHandlerBuilder<TRequest, TResponse>>(eventsConfig);
+
+        public TopicHandlerBuilder<TRequest, TResponse> Do(Action<TopicHandlerBuilder<TRequest, TResponse>> action) => base.Do(action);
     }
 }

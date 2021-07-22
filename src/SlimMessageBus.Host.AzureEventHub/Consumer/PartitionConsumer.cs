@@ -51,6 +51,8 @@ namespace SlimMessageBus.Host.AzureEventHub
 
         public async Task ProcessEventsAsync(PartitionContext context, IEnumerable<EventData> messages)
         {
+            if (messages is null) throw new ArgumentNullException(nameof(messages));
+
             TaskMarker.OnStarted();
             try
             {

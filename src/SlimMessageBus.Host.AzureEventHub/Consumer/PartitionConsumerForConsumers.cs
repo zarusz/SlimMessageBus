@@ -13,13 +13,13 @@ namespace SlimMessageBus.Host.AzureEventHub
     {
         private readonly ILogger _logger;
         private readonly ConsumerInstancePoolMessageProcessor<EventData> _instancePool;
-        private readonly MessageQueueWorker<EventData> _queueWorker; 
+        private readonly MessageQueueWorker<EventData> _queueWorker;
 
         public PartitionConsumerForConsumers(EventHubMessageBus messageBus, ConsumerSettings consumerSettings)
             : base(messageBus)
         {
             _logger = messageBus.LoggerFactory.CreateLogger<PartitionConsumerForConsumers>();
-            _instancePool = new ConsumerInstancePoolMessageProcessor<EventData>(consumerSettings, messageBus, e => e.Body.Array);
+            _instancePool = new ConsumerInstancePoolMessageProcessor<EventData>(consumerSettings, messageBus, e => new MessageWithHeaders(e.Body.Array, e.Properties));
             _queueWorker = new MessageQueueWorker<EventData>(_instancePool, new CheckpointTrigger(consumerSettings), messageBus.LoggerFactory);
         }
 
@@ -34,15 +34,11 @@ namespace SlimMessageBus.Host.AzureEventHub
             base.Dispose(disposing);
         }
 
-        protected override bool OnSubmit(EventData message, PartitionContext context)
-        {
-            return _queueWorker.Submit(message);
-        }
+        protected override bool OnSubmit(EventData message, PartitionContext context) 
+            => _queueWorker.Submit(message);
 
-        protected override Task<MessageQueueResult<EventData>> OnCommit()
-        {
-            return _queueWorker.WaitAll();
-        }
+        protected override Task<MessageQueueResult<EventData>> OnCommit() 
+            => _queueWorker.WaitAll();
 
         #endregion
     }

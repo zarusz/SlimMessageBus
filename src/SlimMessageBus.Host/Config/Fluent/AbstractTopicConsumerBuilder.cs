@@ -31,5 +31,14 @@ namespace SlimMessageBus.Host.Config
             eventsConfig(ConsumerSettings);
             return (TBuilder)this;
         }
+
+        public T Do<T>(Action<T> builder) where T : AbstractTopicConsumerBuilder
+        {
+            if (builder == null) throw new ArgumentNullException(nameof(builder));
+
+            builder((T)this);
+
+            return (T)this;
+        }
     }
 }

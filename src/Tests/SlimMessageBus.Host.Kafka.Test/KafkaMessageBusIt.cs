@@ -12,7 +12,6 @@ namespace SlimMessageBus.Host.Kafka.Test
     using System.Linq;
     using Microsoft.Extensions.Configuration;
     using SlimMessageBus.Host.DependencyResolver;
-    using SlimMessageBus.Host.Kafka.Configs;
     using SecretStore;
     using System.Collections.Concurrent;
     using Microsoft.Extensions.Logging;

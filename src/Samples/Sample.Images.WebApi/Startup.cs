@@ -15,7 +15,6 @@
     using SlimMessageBus.Host.AspNetCore;
     using SlimMessageBus.Host.Config;
     using SlimMessageBus.Host.Kafka;
-    using SlimMessageBus.Host.Kafka.Configs;
     using SlimMessageBus.Host.Serialization.Json;
 
     public class Startup

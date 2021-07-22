@@ -130,3 +130,34 @@ There is a chance that the consumer process dies after it performs `LPOP` and be
 
 Another implementation was also considered using [`RPOPLPUSH`](https://redis.io/commands/rpoplpush) that would allow for at-least-once quarantee. 
 However, that would require to manage individual per process instance local queues making tha runtime and configuration not practical.
+
+### Message Headers
+
+SMB uses headers to pass additional metadata information with the message. This includes the `MessageType` (of type `string`) or in the case of request/response messages the `RequestId` (of type `string`), `ReplyTo` (of type `string`) and `Expires` (of type `long`).
+Redis does not support headers natively hence SMB Redis transport emulates them.
+The emulation works by using a message wrapper envelope (`MessageWithHeader`) that during serialization puts the headers first and then the actual message content after that. If you want to override that behaviour, you could provide another serializer as long as it is able to serialize the wrapper `MessageWithHeaders` type:
+
+```cs
+mbb.WithProviderRedis(new RedisMessageBusSettings(redisConnectionString) 
+{ 
+    EnvelopeSerializer = new MessageWithHeadersSerializer() 
+});
+```
+
+### Redis transport lifecycle hooks
+
+Redis transport provider has also an additional hook that allows to perform some initialization once the connection to Redis database object (`IDatabase`) is established by SMB:
+
+```cs
+mbb.WithProviderRedis(new RedisMessageBusSettings(connectionString)
+{
+    OnDatabaseConnected = (database) =>
+    {
+        // Upon connect clear the redis list with the specified keys
+        database.KeyDelete("test-echo-queue");
+        database.KeyDelete("test-echo-queue-resp");
+    }
+});
+
+
+```

@@ -1,5 +1,5 @@
 
-# Introduction for SlimMessageBus
+# Introduction to SlimMessageBus
 
 ## Configuration
 
@@ -7,7 +7,7 @@ The configuration starts with `MessageBusBuilder`, which allows to configure cou
 
 * The bus transport provider (Apache Kafka, Azure Service Bus, Memory).
 * The serialization provider.
-* The dependency injecion provider.
+* The dependency injection provider.
 * Declaration of messages produced and consumed along with topic/queue names.
 * Request-response configuration (if enabled).
 * Additional provider specific settings (message partition key, message id, etc).
@@ -356,26 +356,24 @@ The implementation requires that each micro-service instance that intends to sen
 
 > It is important that each request sending service instance has its own dedicated topic (or queue) for receiving replies. Please also consult the transport provider documentation too.
 
-### Envelope
+### Message headers for request-response
 
-Beside the request (or reponse) message payload, the SMB implementation needs to pass additional metadata information to make the request-response work.
-Since, SMB needs to work across different transport providers and some do not support message headers, each request (or response) message is wrapped by SMB into a special envelope which makes the implementation transport provider agnostic. 
+In the case of request (or reponse) message, the SMB implementation needs to pass additional metadata information to make the request-response work (correlate response with a pending request, pass error message back to sender, etc).
+For majority of the transport providers SMB leverages the native message headers of the underlying transport (when the transport supports it). In the transports that do not natively support headers (e.g. Redis) each request (or response) message is wrapped by SMB into a special envelope which makes the implementation transport provider agnostic (see type `MessageWithHeaders`). 
 
-The envelope is binary and should be fast. See the [`MessageWithHeadersSerializer`](https://github.com/zarusz/SlimMessageBus/blob/master/src/SlimMessageBus.Host/RequestResponse/MessageWithHeadersSerializer.cs) for low level details.
+When header emulation is taking place, SMB uses a wrapper envelope that is binary and should be fast. See the [`MessageWithHeadersSerializer`](https://github.com/zarusz/SlimMessageBus/blob/master/src/SlimMessageBus.Host/RequestResponse/MessageWithHeadersSerializer.cs) for low level details.
 
-The request envelope contains:
+The request contains headers:
 
-* Request ID, so that the request sender can correlate the arriving responses.
-* Request send datetime (UTC, in epoch).
-* ReplyTo topic/queue name, so that the service handling the request knows where to send back the response.
+* `RequestId`, so that the request sender can correlate the arriving responses.
+* `Expires` which is a datetime (UTC, in epoch) of when the request message (expires on).
+* `ReplyTo` topic/queue name, so that the service handling the request knows where to send back the response.
 * The body of the request message (serialized using the chosen serialization provider).
 
-The response envelope contains:
+The response contains headers:
 
-* Request ID, so that the request sender can correlate the arriving responses.
-* Error message, in case the request message processing failed (so that we can fail fast and know the particular error).
-
-In the future SMB might introduce an optimization that will leverage transport native headers (e.g. UserProperties for Azure Service Bus) to avoid the envelope altogether.
+* `RequestId`, so that the request sender can correlate the arriving responses.
+* `Error` message, in case the request message processing failed (so that we can fail fast and know the particular error).
 
 ### Produce request message
 
@@ -475,6 +473,8 @@ See [`DomainEvents`](../src/Samples/Sample.DomainEvents.WebApi/Startup.cs#L79) s
 SMB uses dependency resolver to obtain instances of the declared consumers (class instances that implement `IConsumer<>`, `IHandler<>`).
 There are few plugins availble that allow to integrate SMB with your favorite DI framework. 
 
+The consumer/handler is typically resolved from DI container when the message arrives and needs to be handled. SMB does not maintain a reference to that object instance after consuming of the message - this gives user the ability to decide is the consumer/handler should be a singleton, transient, or scoped (to the ongoing web-request).
+
 See samples and the [Packages section](../#Packages).
 
 ## Serialization
@@ -482,6 +482,27 @@ See samples and the [Packages section](../#Packages).
 SMB uses serialization plugins to serialize (and deserialize) the messages into the desired format.
 
 See [Serialization](serialization.md) page.
+
+## Message Headers
+
+SMB uses headers to pass additional metadata information with the message. This includes the `MessageType` (of type `string`) or in the case of request/response messages the `RequestId` (of type `string`), `ReplyTo` (of type `string`) and `Expires` (of type `long`).
+Depending on the underlying transport chosen the headers will be supported natively by the underlying message system/broker (Azure Service Bus, Azure Event Hubs, Kafka) or emulated (Redis).
+
+The emulation works by using a message wrapper envelope (`MessageWithHeader`) that during serialization puts the headers first and then the actual message content after that. Please consult individual transport providers.
+
+### Message Type Resolver
+
+By default the message header `MessageType` conveys the message type information using the assembly qualified name of the .NET type (see `AssemblyQualifiedNameMessageTypeResolver`).
+
+The following can be used to provide a custom `IMessageTypeResolver` implementation:
+
+```cs
+IMessageTypeResolver mtr = new AssemblyQualifiedNameMessageTypeResolver();
+
+mbb.WithMessageTypeResolved(mtr)
+```
+
+A custom resolver could be used in scenarios when there is a desire to send short type names (to optimize overall message size). In this scenario the assembly name and/or namespace could be skipped - the producer and consumer could infer them.
 
 ## Logging
 

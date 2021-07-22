@@ -9,6 +9,7 @@ namespace SlimMessageBus.Host
     using Microsoft.Extensions.Logging.Abstractions;
     using SlimMessageBus.Host.Collections;
     using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.Serialization;
 
     public abstract class MessageBusBase : IMessageBus
     {
@@ -19,6 +20,8 @@ namespace SlimMessageBus.Host
         public ILoggerFactory LoggerFactory { get; }
 
         public virtual MessageBusSettings Settings { get; }
+
+        public virtual IMessageSerializer Serializer => Settings.Serializer;
 
         protected IDictionary<Type, ProducerSettings> ProducerSettingsByMessageType { get; private set; }
         protected IPendingRequestStore PendingRequestStore { get; set; }
@@ -230,54 +233,62 @@ namespace SlimMessageBus.Host
             return producerSettings;
         }
 
-        protected virtual string GetDefaultName(Type messageType)
+        protected virtual string GetDefaultPath(Type messageType)
         {
             // when topic was not provided, lookup default topic from configuration
             var producerSettings = GetProducerSettings(messageType);
-            return GetDefaultName(messageType, producerSettings);
+            return GetDefaultPath(messageType, producerSettings);
         }
 
-        protected virtual string GetDefaultName(Type messageType, ProducerSettings producerSettings)
+        protected virtual string GetDefaultPath(Type messageType, ProducerSettings producerSettings)
         {
             if (producerSettings == null) throw new ArgumentNullException(nameof(producerSettings));
 
-            var name = producerSettings.DefaultPath;
-            if (name == null)
+            var path = producerSettings.DefaultPath;
+            if (path == null)
             {
-                throw new PublishMessageBusException($"An attempt to produce message of type {messageType} without specifying name, but there was no default name configured. Double check your configuration.");
+                throw new PublishMessageBusException($"An attempt to produce message of type {messageType} without specifying path, but there was no default path configured. Double check your configuration.");
             }
 
-            _logger.LogDebug("Applying default name {0} for message type {1}", name, messageType);
-            return name;
+            _logger.LogDebug("Applying default path {Path} for message type {MessageType}", path, messageType);
+            return path;
         }
 
-        public abstract Task ProduceToTransport(Type messageType, object message, string name, byte[] messagePayload, MessageWithHeaders messageWithHeaders = null);
+        public abstract Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null);
 
-        public virtual Task Publish(Type messageType, object message, string name = null)
+        public virtual Task Publish(Type messageType, object message, string path = null)
         {
+            if (message == null) throw new ArgumentNullException(nameof(message));
             AssertActive();
 
             var producerSettings = GetProducerSettings(messageType);
 
-            if (name == null)
+            if (path == null)
             {
-                name = GetDefaultName(producerSettings.MessageType, producerSettings);
+                path = GetDefaultPath(producerSettings.MessageType, producerSettings);
             }
 
-            OnProducedHook(message, name, producerSettings);
+            OnProducedHook(message, path, producerSettings);
 
-            var payload = SerializeMessage(producerSettings.MessageType, message);
+            var payload = Serializer.Serialize(producerSettings.MessageType, message);
 
-            _logger.LogDebug("Producing message {0} of type {1} to name {2} with payload size {3}", message, producerSettings.MessageType, name, payload?.Length ?? 0);
-            return ProduceToTransport(producerSettings.MessageType, message, name, payload);
+            var headers = CreateHeaders();
+            AddMessageTypeHeader(message, headers);
+
+            _logger.LogDebug("Producing message {Message} of type {MessageType} to path {Path} with payload size {MessageSize}", message, producerSettings.MessageType, path, payload?.Length ?? 0);
+            return ProduceToTransport(producerSettings.MessageType, message, path, payload, headers);
         }
+
+        /// <summary>
+        /// Create an instance of message headers.
+        /// </summary>
+        /// <returns></returns>
+        public virtual IDictionary<string, object> CreateHeaders() => new Dictionary<string, object>(10);
 
         #region Implementation of IPublishBus
 
-        public virtual Task Publish<TMessage>(TMessage message, string name = null)
-        {
-            return Publish(typeof(TMessage), message, name);
-        }
+        public virtual Task Publish<TMessage>(TMessage message, string path = null)
+            => Publish(typeof(TMessage), message, path);
 
         #endregion
 
@@ -290,7 +301,7 @@ namespace SlimMessageBus.Host
             return timeout;
         }
 
-        protected virtual async Task<TResponseMessage> SendInternal<TResponseMessage>(object request, TimeSpan? timeout, string name, CancellationToken cancellationToken)
+        protected virtual async Task<TResponseMessage> SendInternal<TResponseMessage>(object request, TimeSpan? timeout, string path, CancellationToken cancellationToken)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
             AssertActive();
@@ -302,12 +313,12 @@ namespace SlimMessageBus.Host
             var requestType = request.GetType();
             var producerSettings = GetProducerSettings(requestType);
 
-            if (name == null)
+            if (path == null)
             {
-                name = GetDefaultName(requestType, producerSettings);
+                path = GetDefaultPath(requestType, producerSettings);
             }
 
-            OnProducedHook(request, name, producerSettings);
+            OnProducedHook(request, path, producerSettings);
 
             if (timeout == null)
             {
@@ -319,9 +330,10 @@ namespace SlimMessageBus.Host
 
             // generate the request guid
             var requestId = GenerateRequestId();
-            var requestMessage = new MessageWithHeaders();
-            requestMessage.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
-            requestMessage.SetHeader(ReqRespMessageHeaders.Expires, expires);
+
+            var requestHeaders = CreateHeaders();
+            requestHeaders.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
+            requestHeaders.SetHeader(ReqRespMessageHeaders.Expires, expires);
 
             // record the request state
             var requestState = new PendingRequestState(requestId, request, requestType, typeof(TResponseMessage), created, expires, cancellationToken);
@@ -334,8 +346,8 @@ namespace SlimMessageBus.Host
 
             try
             {
-                _logger.LogDebug("Sending request message {0} to name {1} with reply to {2}", requestState, name, Settings.RequestResponse.Path);
-                await ProduceRequest(request, requestMessage, name, producerSettings).ConfigureAwait(false);
+                _logger.LogDebug("Sending request message {MessageType} to path {Path} with reply to {ReplyTo}", requestState, path, Settings.RequestResponse.Path);
+                await ProduceRequest(request, requestHeaders, path, producerSettings).ConfigureAwait(false);
             }
             catch (PublishMessageBusException e)
             {
@@ -363,136 +375,100 @@ namespace SlimMessageBus.Host
             }
         }
 
-        public virtual Task ProduceRequest(object request, MessageWithHeaders requestMessage, string name, ProducerSettings producerSettings)
+        public virtual Task ProduceRequest(object request, IDictionary<string, object> headers, string path, ProducerSettings producerSettings)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
-            if (requestMessage == null) throw new ArgumentNullException(nameof(requestMessage));
+            if (headers == null) throw new ArgumentNullException(nameof(headers));
+            if (producerSettings == null) throw new ArgumentNullException(nameof(producerSettings));
 
-            var requestType = request.GetType();
+            var requestPayload = Serializer.Serialize(producerSettings.MessageType, request);
 
-            requestMessage.SetHeader(ReqRespMessageHeaders.ReplyTo, Settings.RequestResponse.Path);
-            var requestMessagePayload = SerializeRequest(requestType, request, requestMessage, producerSettings);
+            headers.SetHeader(ReqRespMessageHeaders.ReplyTo, Settings.RequestResponse.Path);
+            AddMessageTypeHeader(request, headers);
 
-            return ProduceToTransport(requestType, request, name, requestMessagePayload, requestMessage);
+            return ProduceToTransport(producerSettings.MessageType, request, path, requestPayload, headers);
         }
 
-        public virtual Task ProduceResponse(object request, MessageWithHeaders requestMessage, object response, MessageWithHeaders responseMessage, ConsumerSettings consumerSettings)
+        private void AddMessageTypeHeader(object message, IDictionary<string, object> headers)
         {
-            if (requestMessage == null) throw new ArgumentNullException(nameof(requestMessage));
+            if (message != null)
+            {
+                headers.SetHeader(MessageHeaders.MessageType, Settings.MessageTypeResolver.ToName(message.GetType()));
+            }
+        }
+
+        public virtual Task ProduceResponse(object request, IDictionary<string, object> requestHeaders, object response, IDictionary<string, object> responseHeaders, ConsumerSettings consumerSettings)
+        {
+            if (requestHeaders == null) throw new ArgumentNullException(nameof(requestHeaders));
+            if (responseHeaders == null) throw new ArgumentNullException(nameof(responseHeaders));
             if (consumerSettings == null) throw new ArgumentNullException(nameof(consumerSettings));
 
-            var replyTo = requestMessage.Headers[ReqRespMessageHeaders.ReplyTo];
+            if (!requestHeaders.TryGetHeader(ReqRespMessageHeaders.ReplyTo, out object replyTo))
+            {
+                throw new MessageBusException($"The header {ReqRespMessageHeaders.ReplyTo} was missing on the message");
+            }
 
-            var responseMessagePayload = SerializeResponse(consumerSettings.ResponseType, response, responseMessage);
+            AddMessageTypeHeader(response, responseHeaders);
 
-            return ProduceToTransport(consumerSettings.ResponseType, response, replyTo, responseMessagePayload);
+            var responsePayload = response != null
+                ? Settings.Serializer.Serialize(consumerSettings.ResponseType, response)
+                : null;
+
+            return ProduceToTransport(consumerSettings.ResponseType, response, (string)replyTo, responsePayload, responseHeaders);
         }
 
         #region Implementation of IRequestResponseBus
 
         public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, CancellationToken cancellationToken)
-        {
-            return SendInternal<TResponseMessage>(request, null, null, cancellationToken);
-        }
+            => SendInternal<TResponseMessage>(request, null, null, cancellationToken);
 
         public Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, CancellationToken cancellationToken)
-        {
-            return SendInternal<TResponseMessage>(request, null, null, cancellationToken);
-        }
+            => SendInternal<TResponseMessage>(request, null, null, cancellationToken);
 
-        public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string path = null, CancellationToken cancellationToken = default(CancellationToken))
-        {
-            return SendInternal<TResponseMessage>(request, null, path, cancellationToken);
-        }
+        public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string path = null, CancellationToken cancellationToken = default)
+            => SendInternal<TResponseMessage>(request, null, path, cancellationToken);
 
         public virtual Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, string path = null, CancellationToken cancellationToken = default)
-        {
-            return SendInternal<TResponseMessage>(request, null, path, cancellationToken);
-        }
+            => SendInternal<TResponseMessage>(request, null, path, cancellationToken);
 
-        public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string path = null, CancellationToken cancellationToken = default(CancellationToken))
-        {
-            return SendInternal<TResponseMessage>(request, timeout, path, cancellationToken);
-        }
+        public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string path = null, CancellationToken cancellationToken = default)
+            => SendInternal<TResponseMessage>(request, timeout, path, cancellationToken);
 
         #endregion
-
-        public virtual byte[] SerializeMessage(Type messageType, object message)
-        {
-            return Settings.Serializer.Serialize(messageType, message);
-        }
-
-        public virtual object DeserializeMessage(Type messageType, byte[] payload)
-        {
-            return Settings.Serializer.Deserialize(messageType, payload);
-        }
-
-        public virtual byte[] SerializeRequest(Type requestType, object request, MessageWithHeaders requestMessage, ProducerSettings producerSettings)
-        {
-            if (requestMessage == null) throw new ArgumentNullException(nameof(requestMessage));
-
-            var requestPayload = SerializeMessage(requestType, request);
-            // create the request wrapper message
-            requestMessage.Payload = requestPayload;
-            return Settings.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), requestMessage);
-        }
-
-        public virtual object DeserializeRequest(Type requestType, byte[] requestMessagePayload, out MessageWithHeaders requestMessage)
-        {
-            requestMessage = (MessageWithHeaders)Settings.MessageWithHeadersSerializer.Deserialize(typeof(MessageWithHeaders), requestMessagePayload);
-            return DeserializeMessage(requestType, requestMessage.Payload);
-        }
-
-        public virtual byte[] SerializeResponse(Type responseType, object response, MessageWithHeaders responseMessage)
-        {
-            if (responseMessage == null) throw new ArgumentNullException(nameof(responseMessage));
-
-            var responsePayload = response != null ? Settings.Serializer.Serialize(responseType, response) : null;
-            // create the response wrapper message
-            responseMessage.Payload = responsePayload;
-            return Settings.MessageWithHeadersSerializer.Serialize(typeof(MessageWithHeaders), responseMessage);
-        }
-
-        public virtual object DeserializeResponse(Type responseType, byte[] responsePayload)
-        {
-            return Settings.Serializer.Deserialize(responseType, responsePayload);
-        }
 
         /// <summary>
         /// Should be invoked by the concrete bus implementation whenever there is a message arrived on the reply to topic.
         /// </summary>
         /// <param name="responsePayload"></param>
-        /// <param name="name"></param>
+        /// <param name="path"></param>
         /// <returns></returns>
-        public virtual Task<Exception> OnResponseArrived(byte[] responsePayload, string name)
+        public virtual Task<Exception> OnResponseArrived(byte[] responsePayload, string path, IDictionary<string, object> responseHeaders)
         {
-            var responseMessage = (MessageWithHeaders)Settings.MessageWithHeadersSerializer.Deserialize(typeof(MessageWithHeaders), responsePayload);
-
-            if (!responseMessage.TryGetHeader(ReqRespMessageHeaders.RequestId, out string requestId))
+            if (!responseHeaders.TryGetHeader(ReqRespMessageHeaders.RequestId, out string requestId))
             {
-                _logger.LogError("The response message arriving on name {0} did not have the {1} header. Unable to math the response with the request. This likely indicates a misconfiguration.", name, ReqRespMessageHeaders.RequestId);
+                _logger.LogError("The response message arriving on path {Path} did not have the {HeaderName} header. Unable to math the response with the request. This likely indicates a misconfiguration.", path, ReqRespMessageHeaders.RequestId);
                 return Task.FromResult<Exception>(null);
             }
 
-            responseMessage.TryGetHeader(ReqRespMessageHeaders.Error, out string error);
+            responseHeaders.TryGetHeader(ReqRespMessageHeaders.Error, out string errorMessage);
 
-            return OnResponseArrived(responseMessage.Payload, name, requestId, error);
+            return OnResponseArrived(responsePayload, path, requestId, errorMessage);
         }
 
         /// <summary>
         /// Should be invoked by the concrete bus implementation whenever there is a message arrived on the reply to topic name.
         /// </summary>
         /// <param name="reponse"></param>
-        /// <param name="name"></param>
+        /// <param name="path"></param>
         /// <param name="requestId"></param>
         /// <param name="errorMessage"></param>
         /// <returns></returns>
-        public virtual Task<Exception> OnResponseArrived(byte[] responsePayload, string name, string requestId, string errorMessage, object response = null)
+        public virtual Task<Exception> OnResponseArrived(byte[] responsePayload, string path, string requestId, string errorMessage, object response = null)
         {
             var requestState = PendingRequestStore.GetById(requestId);
             if (requestState == null)
             {
-                _logger.LogDebug("The response message for request id {0} arriving on name {1} will be disregarded. Either the request had already expired, had been cancelled or it was already handled (this response message is a duplicate).", requestId, name);
+                _logger.LogDebug("The response message for request id {0} arriving on name {1} will be disregarded. Either the request had already expired, had been cancelled or it was already handled (this response message is a duplicate).", requestId, path);
 
                 // ToDo: add and API hook to these kind of situation
                 return Task.FromResult<Exception>(null);
@@ -503,13 +479,13 @@ namespace SlimMessageBus.Host
                 if (_logger.IsEnabled(LogLevel.Debug))
                 {
                     var tookTimespan = CurrentTime.Subtract(requestState.Created);
-                    _logger.LogDebug("Response arrived for {0} on name {1} (time: {2} ms)", requestState, name, tookTimespan);
+                    _logger.LogDebug("Response arrived for {0} on path {1} (time: {2} ms)", requestState, path, tookTimespan);
                 }
 
                 if (errorMessage != null)
                 {
                     // error response arrived
-                    _logger.LogDebug("Response arrived for {0} on name {1} with error: {2}", requestState, name, errorMessage);
+                    _logger.LogDebug("Response arrived for {0} on path {1} with error: {2}", requestState, path, errorMessage);
 
                     var e = new RequestHandlerFaultedMessageBusException(errorMessage);
                     requestState.TaskCompletionSource.TrySetException(e);
@@ -520,14 +496,16 @@ namespace SlimMessageBus.Host
                     try
                     {
                         // deserialize the response message
-                        response = responsePayload != null ? DeserializeResponse(requestState.ResponseType, responsePayload) : response;
+                        response = responsePayload != null ? Serializer.Deserialize(requestState.ResponseType, responsePayload) : response;
 
                         // resolve the response
                         requestState.TaskCompletionSource.TrySetResult(response);
                     }
+#pragma warning disable CA1031 // Do not catch general exception types - intended
                     catch (Exception e)
+#pragma warning restore CA1031 // Do not catch general exception types
                     {
-                        _logger.LogDebug("Could not deserialize the response message for {0} arriving on name {1}: {2}", requestState, name, e);
+                        _logger.LogDebug("Could not deserialize the response message for {0} arriving on path {1}: {2}", requestState, path, e);
                         requestState.TaskCompletionSource.TrySetException(e);
                     }
                 }

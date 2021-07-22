@@ -1,6 +1,7 @@
 ﻿namespace SlimMessageBus.Host
 {
     using System;
+    using System.Collections.Generic;
     using System.Threading.Tasks;
     using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.Config;
@@ -16,21 +17,21 @@
         private readonly MessageBusBase _messageBus;
         private readonly ConsumerSettings _consumerSettings;
 
-        private readonly Func<TMessage, byte[]> _messagePayloadProvider;
+        private readonly Func<TMessage, MessageWithHeaders> _messageProvider;
 
         private readonly bool _createMessageScope;
 
         private readonly bool _consumerWithContext;
         private readonly Action<TMessage, ConsumerContext> _consumerContextInitializer;
 
-        public ConsumerInstanceMessageProcessor(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, byte[]> messagePayloadProvider, Action<TMessage, ConsumerContext> consumerContextInitializer = null)
+        public ConsumerInstanceMessageProcessor(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, MessageWithHeaders> messageProvider, Action<TMessage, ConsumerContext> consumerContextInitializer = null)
         {
             if (messageBus is null) throw new ArgumentNullException(nameof(messageBus));
 
             _logger = messageBus.LoggerFactory.CreateLogger<ConsumerInstancePoolMessageProcessor<TMessage>>();
             _consumerSettings = consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings));
             _messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
-            _messagePayloadProvider = messagePayloadProvider ?? throw new ArgumentNullException(nameof(messagePayloadProvider));
+            _messageProvider = messageProvider ?? throw new ArgumentNullException(nameof(messageProvider));
 
             _createMessageScope = _messageBus.IsMessageScopeEnabled(_consumerSettings);
 
@@ -60,7 +61,7 @@
             Exception exceptionResult = null;
             try
             {
-                DeserializeMessage(msg, out var requestMessage, out var requestId, out var expires, out var message);
+                var message = DeserializeMessage(msg, out var messageHeaders, out var requestId, out var expires);
 
                 // Verify if the request/message is already expired
                 if (expires != null)
@@ -94,12 +95,15 @@
                 {
                     OnMessageArrived(message, msg);
 
-                    var consumerInstance = messageScope.Resolve(_consumerSettings.ConsumerType);
+                    var consumerInstance = messageScope.Resolve(_consumerSettings.ConsumerType)
+                        ?? throw new ConfigurationMessageBusException($"Could not resolve consumer/handler type {_consumerSettings.ConsumerType} from the DI container. Please check that the configure type {_consumerSettings.ConsumerType} is registered within the DI container.");
                     try
                     {
                         response = await ExecuteConsumer(msg, message, response, consumerInstance).ConfigureAwait(false);
                     }
+#pragma warning disable CA1031 // Do not catch general exception types - Intended
                     catch (Exception e)
+#pragma warning restore CA1031 // Do not catch general exception types
                     {
                         responseError = OnMessageError(message, e, msg);
                         exceptionResult = e;
@@ -114,7 +118,6 @@
                             consumerInstanceDisposable.DisposeSilently("ConsumerInstance", _logger);
                         }
                     }
-
                 }
                 finally
                 {
@@ -130,7 +133,7 @@
 
                 if (response != null || responseError != null)
                 {
-                    await ProduceResponse(requestMessage, requestId, message, response, responseError).ConfigureAwait(false);
+                    await ProduceResponse(requestId, message, messageHeaders, response, responseError).ConfigureAwait(false);
                 }
             }
 #pragma warning disable CA1031 // Do not catch general exception types - intended to catch all exceptions
@@ -139,7 +142,6 @@
             {
                 _logger.LogError(e, "Processing of the message {Message} of type {ConsumerType} failed", msg, _consumerSettings.MessageType);
                 exceptionResult = e;
-
             }
             return exceptionResult;
         }
@@ -249,37 +251,37 @@
             return response;
         }
 
-        protected void DeserializeMessage(TMessage msg, out MessageWithHeaders requestMessage, out string requestId, out DateTimeOffset? expires, out object message)
+        protected object DeserializeMessage(TMessage msg, out IDictionary<string, object> headers, out string requestId, out DateTimeOffset? expires)
         {
-            var msgPayload = _messagePayloadProvider(msg);
+            var messageWithHeaders = _messageProvider(msg);
 
-            requestMessage = null;
+            headers = messageWithHeaders.Headers;
+
+            _logger.LogDebug("Deserializing message...");
+            var message = _messageBus.Serializer.Deserialize(_consumerSettings.MessageType, messageWithHeaders.Payload);
+
             requestId = null;
             expires = null;
 
-            _logger.LogDebug("Deserializing message...");
-
-            message = _consumerSettings.IsRequestMessage
-                ? _messageBus.DeserializeRequest(_consumerSettings.MessageType, msgPayload, out requestMessage)
-                : _messageBus.Settings.Serializer.Deserialize(_consumerSettings.MessageType, msgPayload);
-
-            if (requestMessage != null)
+            if (messageWithHeaders.Headers != null)
             {
-                requestMessage.TryGetHeader(ReqRespMessageHeaders.RequestId, out requestId);
-                requestMessage.TryGetHeader(ReqRespMessageHeaders.Expires, out expires);
+                messageWithHeaders.Headers.TryGetHeader(ReqRespMessageHeaders.RequestId, out requestId);
+                messageWithHeaders.Headers.TryGetHeader(ReqRespMessageHeaders.Expires, out expires);
             }
+
+            return message;
         }
 
-        private async Task ProduceResponse(MessageWithHeaders requestMessage, string requestId, object message, object response, string responseError)
+        private async Task ProduceResponse(string requestId, object request, IDictionary<string, object> requestHeaders, object response, string responseError)
         {
             // send the response (or error response)
-            _logger.LogDebug("Serializing the response {0} of type {1} for RequestId: {2}...", response, _consumerSettings.ResponseType, requestId);
+            _logger.LogDebug("Serializing the response {Response} of type {MessageType} for RequestId: {RequestId}...", response, _consumerSettings.ResponseType, requestId);
 
-            var responseMessage = new MessageWithHeaders();
-            responseMessage.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
-            responseMessage.SetHeader(ReqRespMessageHeaders.Error, responseError);
+            var responseHeaders = _messageBus.CreateHeaders();
+            responseHeaders.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
+            responseHeaders.SetHeader(ReqRespMessageHeaders.Error, responseError);
 
-            await _messageBus.ProduceResponse(message, requestMessage, response, responseMessage, _consumerSettings).ConfigureAwait(false);
+            await _messageBus.ProduceResponse(request, requestHeaders, response, responseHeaders, _consumerSettings).ConfigureAwait(false);
         }
     }
 }

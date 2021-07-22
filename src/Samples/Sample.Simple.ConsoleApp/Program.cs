@@ -3,22 +3,23 @@
     using System;
     using System.Globalization;
     using System.Threading.Tasks;
-    using SlimMessageBus;
-    using SlimMessageBus.Host.Config;
-    using SlimMessageBus.Host.Serialization.Json;
-    using SlimMessageBus.Host.AzureEventHub;
-    using SlimMessageBus.Host.Kafka;
     using System.Text;
     using System.Threading;
     using Microsoft.Extensions.Configuration;
     using SecretStore;
+    using SlimMessageBus;
+    using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.Serialization.Json;
+    using SlimMessageBus.Host.AzureEventHub;
     using SlimMessageBus.Host.AzureServiceBus;
+    using SlimMessageBus.Host.Kafka;
     using SlimMessageBus.Host.Redis;
     using SlimMessageBus.Host.Memory;
+    using SlimMessageBus.Host.MsDependencyInjection;
     using Microsoft.Extensions.Logging;
     using Confluent.Kafka;
     using Microsoft.Extensions.DependencyInjection;
-    using SlimMessageBus.Host.MsDependencyInjection;
+    using SlimMessageBus.Host;
 
     enum Provider
     {
@@ -113,13 +114,12 @@
                 .Create()
                 // Pub/Sub example
                 .Produce<AddCommand>(x => x.DefaultTopic(topicForAddCommand)) // By default AddCommand messages will go to event-hub/topic named 'add-command'
-                .Consume<AddCommand>(x => x
-                    .Topic(topicForAddCommand)
-                    .WithConsumer<AddCommandConsumer>()
-                    //.WithConsumer<AddCommandConsumer>(nameof(AddCommandConsumer.OnHandle))
-                    //.WithConsumer<AddCommandConsumer>((consumer, message, name) => consumer.OnHandle(message, name))
-                    .Group(consumerGroup) // for Apache Kafka & Azure Event Hub
-                    .SubscriptionName(consumerGroup) // for Azure Service Bus
+                .Consume<AddCommand>(x => x.Topic(topicForAddCommand)
+                                           .WithConsumer<AddCommandConsumer>()
+                                            //.WithConsumer<AddCommandConsumer>(nameof(AddCommandConsumer.OnHandle))
+                                            //.WithConsumer<AddCommandConsumer>((consumer, message, name) => consumer.OnHandle(message, name))
+                                           .KafkaGroup(consumerGroup) // for Apache Kafka & Azure Event Hub
+                                           .SubscriptionName(consumerGroup) // for Azure Service Bus
                 )
                 // Req/Resp example
                 .Produce<MultiplyRequest>(x =>
@@ -148,14 +148,14 @@
                 .Handle<MultiplyRequest, MultiplyResponse>(x => x
                     .Topic(topicForMultiplyRequest) // topic to expect the requests
                     .WithHandler<MultiplyRequestHandler>()
-                    .Group(consumerGroup) // for Apache Kafka & Azure Event Hub
+                    .KafkaGroup(consumerGroup) // for Apache Kafka & Azure Event Hub
                     .SubscriptionName(consumerGroup) // for Azure Service Bus
                 )
                 // Configure response message queue (on topic) when using req/resp
                 .ExpectRequestResponses(x =>
                 {
                     x.ReplyToTopic(topicForResponses); // All responses from req/resp will return on this topic (the EventHub name)
-                    x.Group(responseGroup);  // for Apache Kafka & Azure Event Hub
+                    x.KafkaGroup(responseGroup);  // for Apache Kafka & Azure Event Hub
                     x.SubscriptionName(responseGroup); // for Azure Service Bus
                     x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
                 })
@@ -204,6 +204,7 @@
 
                             builder.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
                             {
+                                //HeaderSerializer = new JsonMessageSerializer(),
                                 ProducerConfig = (config) =>
                                 {
                                     AddSsl(config);
@@ -221,7 +222,7 @@
                             // Ensure your Kafka broker is running
                             var redisConnectionString = Secrets.Service.PopulateSecrets(configuration["Redis:ConnectionString"]);
 
-                            builder.WithProviderRedis(new RedisMessageBusSettings(redisConnectionString)); // Or use Redis as provider
+                            builder.WithProviderRedis(new RedisMessageBusSettings(redisConnectionString) { EnvelopeSerializer = new MessageWithHeadersSerializer() }); // Or use Redis as provider
                             break;
                     }
                 })

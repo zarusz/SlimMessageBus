@@ -6,7 +6,7 @@ namespace SlimMessageBus.Host.Kafka
     using Confluent.Kafka;
     using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.Config;
-    using SlimMessageBus.Host.Kafka.Configs;
+    using SlimMessageBus.Host.Serialization;
     using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
 
     /// <summary>
@@ -15,27 +15,30 @@ namespace SlimMessageBus.Host.Kafka
     /// </summary>
     public class KafkaResponseProcessor : IKafkaTopicPartitionProcessor
     {
-        private readonly ILogger _logger;
+        private readonly ILogger logger;
 
-        private readonly RequestResponseSettings _requestResponseSettings;
-        private readonly MessageBusBase _messageBus;
-        private readonly ICheckpointTrigger _checkpointTrigger;
-        private readonly IKafkaCommitController _commitController;
+        private readonly RequestResponseSettings requestResponseSettings;
+        private readonly MessageBusBase messageBus;
+        private readonly ICheckpointTrigger checkpointTrigger;
+        private readonly IMessageSerializer headerSerializer;
+        private readonly IKafkaCommitController commitController;
 
-        public KafkaResponseProcessor(RequestResponseSettings requestResponseSettings, TopicPartition topicPartition, IKafkaCommitController commitController, MessageBusBase messageBus, ICheckpointTrigger checkpointTrigger)
+        public KafkaResponseProcessor(RequestResponseSettings requestResponseSettings, TopicPartition topicPartition, IKafkaCommitController commitController, MessageBusBase messageBus, IMessageSerializer headerSerializer, ICheckpointTrigger checkpointTrigger)
         {
-            _messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
-            _requestResponseSettings = requestResponseSettings;
-            TopicPartition = topicPartition;
-            _commitController = commitController;
-            _checkpointTrigger = checkpointTrigger;
+            this.messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
+            this.requestResponseSettings = requestResponseSettings;
+            this.commitController = commitController;
+            this.checkpointTrigger = checkpointTrigger;
+            this.headerSerializer = headerSerializer;
 
-            _logger = messageBus.LoggerFactory.CreateLogger<KafkaResponseProcessor>();
-            _logger.LogInformation("Creating for Group: {0}, Topic: {1}, Partition: {2}", requestResponseSettings.GetGroup(), requestResponseSettings.Path, topicPartition);
+            TopicPartition = topicPartition;
+
+            logger = messageBus.LoggerFactory.CreateLogger<KafkaResponseProcessor>();
+            logger.LogInformation("Creating for Group: {0}, Topic: {1}, Partition: {2}", requestResponseSettings.GetGroup(), requestResponseSettings.Path, topicPartition);
         }
 
-        public KafkaResponseProcessor(RequestResponseSettings requestResponseSettings, TopicPartition topicPartition, IKafkaCommitController commitController, MessageBusBase messageBus)
-            : this(requestResponseSettings, topicPartition, commitController, messageBus, new CheckpointTrigger(requestResponseSettings))
+        public KafkaResponseProcessor(RequestResponseSettings requestResponseSettings, TopicPartition topicPartition, IKafkaCommitController commitController, MessageBusBase messageBus, IMessageSerializer headerSerializer)
+            : this(requestResponseSettings, topicPartition, commitController, messageBus, headerSerializer, new CheckpointTrigger(requestResponseSettings))
         {
         }
 
@@ -61,46 +64,47 @@ namespace SlimMessageBus.Host.Kafka
         {
             try
             {
-                await _messageBus.OnResponseArrived(message.Message.Value, _requestResponseSettings.Path).ConfigureAwait(false);
+                var headers = message.ToHeaders(headerSerializer);
+                await messageBus.OnResponseArrived(message.Message.Value, requestResponseSettings.Path, headers).ConfigureAwait(false);
             }
             catch (Exception e)
             {
-                if (_logger.IsEnabled(LogLevel.Error))
+                if (logger.IsEnabled(LogLevel.Error))
                 {
-                    _logger.LogError(e, "Error occured while consuming response message: {0}", new MessageContextInfo(_requestResponseSettings.GetGroup(), message.TopicPartitionOffset));
+                    logger.LogError(e, "Error occured while consuming response message: {0}", new MessageContextInfo(requestResponseSettings.GetGroup(), message.TopicPartitionOffset));
                 }
                 // For response messages we can only continue and process all messages in the lease
                 // ToDo: Add support for retry ?
 
-                if (_requestResponseSettings.OnResponseMessageFault != null)
+                if (requestResponseSettings.OnResponseMessageFault != null)
                 {
                     // Call the hook
-                    _logger.LogTrace("Executing the attached hook from {0}", nameof(_requestResponseSettings.OnResponseMessageFault));
+                    logger.LogTrace("Executing the attached hook from {0}", nameof(requestResponseSettings.OnResponseMessageFault));
                     try
                     {
-                        _requestResponseSettings.OnResponseMessageFault(_requestResponseSettings, message, e);
+                        requestResponseSettings.OnResponseMessageFault(requestResponseSettings, message, e);
                     }
                     catch (Exception e2)
                     {
-                        _logger.LogWarning(e2, "Error handling hook failed for message: {0}", new MessageContextInfo(_requestResponseSettings.GetGroup(), message.TopicPartitionOffset));
+                        logger.LogWarning(e2, "Error handling hook failed for message: {0}", new MessageContextInfo(requestResponseSettings.GetGroup(), message.TopicPartitionOffset));
                     }
                 }
             }
-            if (_checkpointTrigger.Increment())
+            if (checkpointTrigger.Increment())
             {
-                _commitController.Commit(message.TopicPartitionOffset);
+                commitController.Commit(message.TopicPartitionOffset);
             }
         }
 
         public ValueTask OnPartitionEndReached(TopicPartitionOffset offset)
         {
-            _commitController.Commit(offset);
+            commitController.Commit(offset);
             return new ValueTask();
         }
 
         public void OnPartitionRevoked()
         {
-            _checkpointTrigger.Reset();
+            checkpointTrigger.Reset();
         }
 
         public ValueTask OnClose()

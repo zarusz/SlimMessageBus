@@ -3,7 +3,7 @@
   <Import Project="../Host.Transport.Properties.xml" />
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <Description>Azure Service Bus provider for SlimMessageBus</Description>
     <PackageTags>Azure Service Bus provider SlimMessageBus MessageBus bus facade messaging client</PackageTags>
     <PackageIcon>icon.png</PackageIcon>

@@ -23,8 +23,8 @@
 
             var consumerSettings = new ConsumerBuilder<SomeMessage>(new MessageBusSettings()).Topic(null).WithConsumer<IConsumer<SomeMessage>>().Instances(2).ConsumerSettings;
 
-            byte[] PayloadProvider(SomeMessage m) => Array.Empty<byte>();
-            _consumerInstancePoolMock = new Mock<ConsumerInstancePoolMessageProcessor<SomeMessage>>(consumerSettings, busMock.BusMock.Object, (Func<SomeMessage, byte[]>)PayloadProvider, null);
+            MessageWithHeaders MessageProvider(SomeMessage m) => new MessageWithHeaders(Array.Empty<byte>());
+            _consumerInstancePoolMock = new Mock<ConsumerInstancePoolMessageProcessor<SomeMessage>>(consumerSettings, busMock.BusMock.Object, (Func<SomeMessage, MessageWithHeaders>)MessageProvider, null);
         }
 
         [Fact]

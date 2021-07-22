@@ -34,9 +34,11 @@ namespace SlimMessageBus.Host.AzureEventHub
             }
             try
             {
-                MessageBus.OnResponseArrived(message.Body.Array, _requestResponseSettings.Path).Wait();
+                MessageBus.OnResponseArrived(message.Body.Array, _requestResponseSettings.Path, message.Properties).Wait();
             }
+#pragma warning disable CA1031 // Do not catch general exception types - Intended
             catch (Exception e)
+#pragma warning restore CA1031 // Do not catch general exception types
             {
                 if (_logger.IsEnabled(LogLevel.Error))
                 {

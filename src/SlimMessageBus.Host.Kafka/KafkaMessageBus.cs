@@ -7,10 +7,10 @@ namespace SlimMessageBus.Host.Kafka
     using Confluent.Kafka;
     using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.Config;
-    using SlimMessageBus.Host.Kafka.Configs;
     using Message = Confluent.Kafka.Message<byte[], byte[]>;
     using IProducer = Confluent.Kafka.IProducer<byte[], byte[]>;
     using System.Diagnostics.CodeAnalysis;
+    using SlimMessageBus.Host.Serialization;
 
     /// <summary>
     /// <see cref="IMessageBus"/> implementation for Apache Kafka.
@@ -38,6 +38,9 @@ namespace SlimMessageBus.Host.Kafka
             // TODO: Auto start should be a setting
             Start();
         }
+
+        public IMessageSerializer HeaderSerializer 
+            => ProviderSettings.HeaderSerializer ?? Serializer;
 
         protected override void Build()
         {
@@ -99,14 +102,14 @@ namespace SlimMessageBus.Host.Kafka
 
             var responseConsumerCreated = false;
 
-            IKafkaTopicPartitionProcessor ResponseProcessorFactory(TopicPartition tp, IKafkaCommitController cc) => new KafkaResponseProcessor(Settings.RequestResponse, tp, cc, this);
+            IKafkaTopicPartitionProcessor ResponseProcessorFactory(TopicPartition tp, IKafkaCommitController cc) => new KafkaResponseProcessor(Settings.RequestResponse, tp, cc, this, HeaderSerializer);
 
             foreach (var consumersByGroup in Settings.Consumers.GroupBy(x => x.GetGroup()))
             {
                 var group = consumersByGroup.Key;
                 var consumerByTopic = consumersByGroup.ToDictionary(x => x.Path);
 
-                IKafkaTopicPartitionProcessor ConsumerProcessorFactory(TopicPartition tp, IKafkaCommitController cc) => new KafkaConsumerProcessor(consumerByTopic[tp.Topic], tp, cc, this);
+                IKafkaTopicPartitionProcessor ConsumerProcessorFactory(TopicPartition tp, IKafkaCommitController cc) => new KafkaConsumerProcessor(consumerByTopic[tp.Topic], tp, cc, this, HeaderSerializer);
 
                 var topics = consumerByTopic.Keys.ToList();
                 var processorFactory = (Func<TopicPartition, IKafkaCommitController, IKafkaTopicPartitionProcessor>)ConsumerProcessorFactory;
@@ -197,31 +200,43 @@ namespace SlimMessageBus.Host.Kafka
             base.Dispose(disposing);
         }
 
-        public override async Task ProduceToTransport([NotNull] Type messageType, object message, string name, [NotNull] byte[] messagePayload, MessageWithHeaders messageWithHeaders = null)
+        public override async Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null)
         {
             AssertActive();
 
             // calculate message key
-            var key = GetMessageKey(messageType, message, name);
+            var key = GetMessageKey(messageType, message, path);
+
             var kafkaMessage = new Message { Key = key, Value = messagePayload };
 
-            // calculate partition
-            var partition = GetMessagePartition(messageType, message, name);
+            if (messageHeaders != null && messageHeaders.Count > 0)
+            {
+                kafkaMessage.Headers = new Headers();
 
-            _logger.LogTrace("Producing message {message} of type {messageType}, on topic {topic}, partition {partition}, key size {keySize}, payload size {messageSize}",
-                message, messageType.Name, name, partition, key?.Length ?? 0, messagePayload.Length);
+                foreach (var keyValue in messageHeaders)
+                {
+                    var valueBytes = HeaderSerializer.Serialize(typeof(object), keyValue.Value);
+                    kafkaMessage.Headers.Add(keyValue.Key, valueBytes);
+                }
+            }
+
+            // calculate partition
+            var partition = GetMessagePartition(messageType, message, path);
+
+            _logger.LogTrace("Producing message {Message} of type {MessageType}, on topic {Topic}, partition {Partition}, key size {KeySize}, payload size {MessageSize}",
+                message, messageType.Name, path, partition, key?.Length ?? 0, messagePayload.Length);
 
             // send the message to topic
             var task = partition == NoPartition
-                ? _producer.ProduceAsync(name, kafkaMessage)
-                : _producer.ProduceAsync(new TopicPartition(name, new Partition(partition)), kafkaMessage);
+                ? _producer.ProduceAsync(path, kafkaMessage)
+                : _producer.ProduceAsync(new TopicPartition(path, new Partition(partition)), kafkaMessage);
 
             // ToDo: Introduce support for not awaited produce
 
             var deliveryResult = await task.ConfigureAwait(false);
             if (deliveryResult.Status == PersistenceStatus.NotPersisted)
             {
-                throw new PublishMessageBusException($"Error while publish message {message} of type {messageType.Name} to topic {name}. Kafka persistence status: {deliveryResult.Status}");
+                throw new PublishMessageBusException($"Error while publish message {message} of type {messageType.Name} to topic {path}. Kafka persistence status: {deliveryResult.Status}");
             }
 
             // log some debug information

@@ -6,6 +6,7 @@
     using System.Threading.Tasks;
     using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.Serialization;
 
     /// <summary>
     /// In-memory message bus <see cref="IMessageBus"/> implementation to use for in process message passing.
@@ -18,12 +19,18 @@
 
         private IDictionary<string, List<ConsumerSettings>> _consumersByTopic;
 
+        private IMessageSerializer _serializer;
+
+        public override IMessageSerializer Serializer => _serializer;
+
         public MemoryMessageBus(MessageBusSettings settings, MemoryMessageBusSettings providerSettings) : base(settings)
         {
             _logger = LoggerFactory.CreateLogger<MemoryMessageBus>();
             ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
 
             OnBuildProvider();
+
+            _serializer = ProviderSettings.EnableMessageSerialization ? Settings.Serializer : new NullMessageSerializer();
         }
 
         #region Overrides of MessageBusBase
@@ -45,18 +52,18 @@
                 .ToDictionary(x => x.Key, x => x.ToList());
         }
 
-        public override Task ProduceToTransport(Type messageType, object message, string name, byte[] messagePayload, MessageWithHeaders messageWithHeaders = null)
+        public override Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null)
         {
-            if (!_consumersByTopic.TryGetValue(name, out var consumers))
+            if (!_consumersByTopic.TryGetValue(path, out var consumers))
             {
-                _logger.LogDebug("No consumers interested in message type {messageType} on topic {topic}", messageType, name);
+                _logger.LogDebug("No consumers interested in message type {MessageType} on path {Path}", messageType, path);
                 return Task.CompletedTask;
             }
 
             var tasks = new LinkedList<Task>();
             foreach (var consumer in consumers)
             {
-                var task = OnMessageProduced(messageType, message, name, messagePayload, messageWithHeaders, consumer);
+                var task = OnMessageProduced(messageType, message, path, messagePayload, messageHeaders, consumer);
                 if (task != null)
                 {
                     tasks.AddLast(task);
@@ -67,7 +74,7 @@
             return Task.WhenAll(tasks);
         }
 
-        private async Task OnMessageProduced(Type messageType, object message, string name, byte[] messagePayload, MessageWithHeaders messageWithHeaders, ConsumerSettings consumer)
+        private async Task OnMessageProduced(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, ConsumerSettings consumer)
         {
             // ToDo: Extension: In case of IMessageBus.Publish do not wait for the consumer method see https://github.com/zarusz/SlimMessageBus/issues/37
 
@@ -87,18 +94,21 @@
 
             if (consumer.ConsumerMode == ConsumerMode.RequestResponse)
             {
-                var requestId = messageWithHeaders.Headers[ReqRespMessageHeaders.RequestId];
+                if (messageHeaders == null || !messageHeaders.TryGetHeader(ReqRespMessageHeaders.RequestId, out string requestId))
+                {
+                    throw new MessageBusException($"The message header {ReqRespMessageHeaders.RequestId} was not present at this time");
+                }
 
                 if (responseError != null)
                 {
-                    await OnResponseArrived(null, name, requestId, responseError, null).ConfigureAwait(false);
+                    await OnResponseArrived(null, path, requestId, responseError, null).ConfigureAwait(false);
                 }
                 else
                 {
                     var response = consumer.ConsumerMethodResult(consumerTask);
-                    var responsePayload = SerializeMessage(consumer.ResponseType, response);
+                    var responsePayload = Serializer.Serialize(consumer.ResponseType, response);
 
-                    await OnResponseArrived(responsePayload, name, requestId, null, response).ConfigureAwait(false);
+                    await OnResponseArrived(responsePayload, path, requestId, null, response).ConfigureAwait(false);
                 }
             }
         }
@@ -108,7 +118,7 @@
             var createMessageScope = IsMessageScopeEnabled(consumerSettings);
             if (createMessageScope)
             {
-                _logger.LogDebug("Creating message scope for {message} of type {messageType}", message, consumerSettings.MessageType);
+                _logger.LogDebug("Creating message scope for {Message} of type {MessageType}", message, consumerSettings.MessageType);
             }
 
             var messageScope = createMessageScope
@@ -120,7 +130,7 @@
                 MessageScope.Current = messageScope;
 
                 // obtain the consumer from chosen DI container (root or scope)
-                _logger.LogDebug("Resolving consumer type {consumerType}", consumerSettings.ConsumerType);
+                _logger.LogDebug("Resolving consumer type {ConsumerType}", consumerSettings.ConsumerType);
                 var consumerInstance = messageScope.Resolve(consumerSettings.ConsumerType);
                 if (consumerInstance == null)
                 {
@@ -132,11 +142,9 @@
                 {
                     var messageForConsumer = !ProviderSettings.EnableMessageSerialization
                         ? message // prevent deep copy of the message
-                        : consumerSettings.ConsumerMode == ConsumerMode.RequestResponse
-                            ? DeserializeRequest(messageType, messagePayload, out var _) // will pass a deep copy of the message
-                            : DeserializeMessage(messageType, messagePayload); // will pass a deep copy of the message
+                        : Serializer.Deserialize(messageType, messagePayload); // will pass a deep copy of the message
 
-                    _logger.LogDebug("Executing consumer instance {consumer} of type {consumerType} for message {message}", consumerInstance, consumerSettings.ConsumerType, message);
+                    _logger.LogDebug("Executing consumer instance {Consumer} of type {ConsumerType} for message {Message}", consumerInstance, consumerSettings.ConsumerType, message);
                     consumerTask = consumerSettings.ConsumerMethod(consumerInstance, messageForConsumer, consumerSettings.Path);
                     await consumerTask.ConfigureAwait(false);
                 }
@@ -144,7 +152,7 @@
                 {
                     if (consumerSettings.IsDisposeConsumerEnabled && consumerInstance is IDisposable consumerInstanceDisposable)
                     {
-                        _logger.LogDebug("Dosposing consumer instance {consumer} of type {consumerType}", consumerInstance, consumerSettings.ConsumerType);
+                        _logger.LogDebug("Dosposing consumer instance {Consumer} of type {ConsumerType}", consumerInstance, consumerSettings.ConsumerType);
                         consumerInstanceDisposable.DisposeSilently("ConsumerInstance", _logger);
                     }
                 }
@@ -158,43 +166,10 @@
 
                 if (createMessageScope)
                 {
-                    _logger.LogDebug("Disposing message scope for {message} of type {messageType}", message, messageType);
+                    _logger.LogDebug("Disposing message scope for {Message} of type {MessageType}", message, messageType);
                     messageScope.DisposeSilently("Scope", _logger);
                 }
             }
-        }
-
-        public override byte[] SerializeMessage(Type messageType, object message)
-        {
-            if (!ProviderSettings.EnableMessageSerialization)
-            {
-                // the serialized payload is not going to be used
-                return null;
-            }
-
-            return base.SerializeMessage(messageType, message);
-        }
-
-        public override byte[] SerializeRequest(Type requestType, object request, MessageWithHeaders requestMessage, ProducerSettings producerSettings)
-        {
-            if (!ProviderSettings.EnableMessageSerialization)
-            {
-                // the serialized payload is not going to be used
-                return null;
-            }
-
-            return base.SerializeRequest(requestType, request, requestMessage, producerSettings);
-        }
-
-        public override byte[] SerializeResponse(Type responseType, object response, MessageWithHeaders responseMessage)
-        {
-            if (!ProviderSettings.EnableMessageSerialization)
-            {
-                // the serialized payload is not going to be used
-                return null;
-            }
-
-            return base.SerializeResponse(responseType, response, responseMessage);
         }
 
         #endregion

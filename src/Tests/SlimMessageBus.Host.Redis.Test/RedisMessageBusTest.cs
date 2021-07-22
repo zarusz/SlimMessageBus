@@ -1,6 +1,8 @@
 namespace SlimMessageBus.Host.Redis.Test
 {
     using System;
+    using System.Collections;
+    using System.Linq;
     using System.Text;
     using System.Threading.Tasks;
     using Moq;
@@ -18,7 +20,7 @@ namespace SlimMessageBus.Host.Redis.Test
         private readonly RedisMessageBusSettings _providerSettings;
         private readonly Mock<IDependencyResolver> _dependencyResolverMock = new Mock<IDependencyResolver>();
         private readonly Mock<IMessageSerializer> _messageSerializerMock = new Mock<IMessageSerializer>();
-        
+
         private readonly Mock<IConnectionMultiplexer> _connectionMultiplexerMock;
         private readonly Mock<IDatabase> _databaseMock;
         private readonly Mock<ISubscriber> _subscriberMock;
@@ -70,6 +72,9 @@ namespace SlimMessageBus.Host.Redis.Test
             return new ConsumerBuilder<object>(new MessageBusSettings(), messageType).Topic(topic).WithConsumer(consumerType).ConsumerSettings;
         }
 
+        private MessageWithHeaders UnwrapPayload(RedisValue redisValue)
+            => (MessageWithHeaders)_providerSettings.EnvelopeSerializer.Deserialize(typeof(MessageWithHeaders), redisValue);
+
         [Fact]
         public async Task When_Publish_Given_QueueAndTopic_Then_RoutesToRespectiveChannels()
         {
@@ -91,11 +96,20 @@ namespace SlimMessageBus.Host.Redis.Test
             await _subject.Value.Publish(mB);
 
             // assert
-            _databaseMock.Verify(x => x.PublishAsync(It.Is<RedisChannel>(channel => channel == topicA), It.Is<RedisValue>(x => x == payloadA), It.IsAny<CommandFlags>()), Times.Once);
+            _databaseMock.Verify(x => x.PublishAsync(It.Is<RedisChannel>(channel => channel == topicA), It.Is<RedisValue>(x => StructuralComparisons.StructuralEqualityComparer.Equals(UnwrapPayload(x).Payload, payloadA)), It.IsAny<CommandFlags>()), Times.Once);
             _databaseMock.Verify(x => x.PublishAsync(It.Is<RedisChannel>(channel => channel == queueB), It.IsAny<RedisValue>(), It.IsAny<CommandFlags>()), Times.Never);
 
-            _databaseMock.Verify(x => x.ListRightPushAsync(It.Is<RedisKey>(key => key == queueB), It.Is<RedisValue>(x => x == payloadB), When.Always, CommandFlags.None), Times.Once);
-            _databaseMock.Verify(x => x.ListRightPushAsync(It.Is<RedisKey>(key => key == topicA), It.IsAny<RedisValue>(), When.Always, CommandFlags.None), Times.Never);
+            _databaseMock.Verify(x => x.ListRightPushAsync(It.Is<RedisKey>(key => key == queueB),
+                It.Is<RedisValue>(x => StructuralComparisons.StructuralEqualityComparer.Equals(UnwrapPayload(x).Payload, payloadB)),
+                When.Always,
+                CommandFlags.None),
+                Times.Once);
+
+            _databaseMock.Verify(x => x.ListRightPushAsync(It.Is<RedisKey>(key => key == topicA),
+                It.IsAny<RedisValue>(),
+                When.Always,
+                CommandFlags.None),
+                Times.Never);
         }
     }
 

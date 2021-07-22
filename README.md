@@ -121,7 +121,7 @@ var builder = MessageBusBuilder.Create()
    .Consume<SomeMessage>(x => x
       .Topic("some-topic")
       .WithConsumer<SomeMessageConsumer>()
-      //.Group("some-kafka-consumer-group") //  Kafka provider specific
+      //.KafkaGroup("some-kafka-consumer-group") //  Kafka provider specific
       //.SubscriptionName("some-azure-sb-topic-subscription") // Azure ServiceBus provider specific
    )
 	
@@ -325,7 +325,7 @@ private IMessageBus BuildMessageBus()
       .ExpectRequestResponses(x =>
       {
          x.ReplyToTopic(instanceReplyTo); // Expect all responses to my reqests replied to this topic
-         x.Group(instanceGroup); // Kafka consumer group	    
+         x.KafkaGroup(instanceGroup); // Kafka consumer group	    
          x.DefaultTimeout(TimeSpan.FromSeconds(30)); // Default global response timeout
       })
       .WithDependencyResolver(new AutofacMessageBusDependencyResolver())
@@ -356,7 +356,7 @@ private static IMessageBus BuildMessageBus()
          s.Topic("thumbnail-generation", t =>
          {
             t.WithHandler<GenerateThumbnailRequestHandler>()
-               .Group(sharedGroup) // kafka consumer group
+               .KafkaGroup(sharedGroup) // kafka consumer group
                .Instances(3);
          });
       })

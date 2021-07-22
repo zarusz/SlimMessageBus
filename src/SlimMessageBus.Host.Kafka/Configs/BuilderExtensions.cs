@@ -1,4 +1,4 @@
-﻿namespace SlimMessageBus.Host.Kafka.Configs
+﻿namespace SlimMessageBus.Host.Kafka
 {
     using SlimMessageBus.Host.Config;
     using System;
@@ -11,8 +11,11 @@
         /// <param name="builder"></param>
         /// <param name="group"></param>
         /// <returns></returns>
-        public static T Group<T>(this T builder, string group)
-            where T : AbstractTopicConsumerBuilder
+        [Obsolete("User KafkaGroup() instead")]
+        public static T Group<T>(this T builder, string group) where T : AbstractTopicConsumerBuilder
+            => builder.KafkaGroup(group);
+
+        public static T KafkaGroup<T>(this T builder, string group) where T : AbstractTopicConsumerBuilder
         {
             if (builder == null) throw new ArgumentNullException(nameof(builder));
 
@@ -26,7 +29,17 @@
         /// <param name="builder"></param>
         /// <param name="group"></param>
         /// <returns></returns>
+        [Obsolete("User KafkaGroup() instead")]
         public static RequestResponseBuilder Group(this RequestResponseBuilder builder, string group)
+            => builder.KafkaGroup(group);
+
+        /// <summary>
+        /// Configures the Kafka consumer group.
+        /// </summary>
+        /// <param name="builder"></param>
+        /// <param name="group"></param>
+        /// <returns></returns>
+        public static RequestResponseBuilder KafkaGroup(this RequestResponseBuilder builder, string group)
         {
             if (builder == null) throw new ArgumentNullException(nameof(builder));
 

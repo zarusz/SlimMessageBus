@@ -1,9 +1,7 @@
 namespace SlimMessageBus.Host
 {
     using System;
-    using System.Threading;
     using System.Threading.Tasks;
-    using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.Config;
 
     /// <summary>
@@ -15,9 +13,9 @@ namespace SlimMessageBus.Host
     {
         private readonly IMessageProcessor<TMessage> _strategy;
 
-        public ConsumerInstancePoolMessageProcessor(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, byte[]> messagePayloadProvider, Action<TMessage, ConsumerContext> consumerContextInitializer = null)
+        public ConsumerInstancePoolMessageProcessor(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, MessageWithHeaders> messageProvider, Action<TMessage, ConsumerContext> consumerContextInitializer = null)
         {
-            var consumerInstanceMessageProcessor = new ConsumerInstanceMessageProcessor<TMessage>(consumerSettings, messageBus, messagePayloadProvider, consumerContextInitializer);
+            var consumerInstanceMessageProcessor = new ConsumerInstanceMessageProcessor<TMessage>(consumerSettings, messageBus, messageProvider, consumerContextInitializer);
             _strategy = new ConcurrencyLimittingMessageProcessorDecorator<TMessage>(consumerSettings, messageBus, consumerInstanceMessageProcessor);
         }
 

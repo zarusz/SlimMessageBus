@@ -147,5 +147,7 @@ namespace SlimMessageBus.Host.Config
             ConsumerSettings.IsDisposeConsumerEnabled = enabled;
             return this;
         }
+
+        public TopicConsumerBuilder<TMessage> Do(Action<TopicConsumerBuilder<TMessage>> action) => base.Do(action);
     }
 }

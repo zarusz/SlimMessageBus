@@ -126,13 +126,13 @@ namespace SlimMessageBus.Host.Config
 
         public MessageBusBuilder WithDependencyResolver(IDependencyResolver dependencyResolver)
         {
-            Settings.DependencyResolver = dependencyResolver;
+            Settings.DependencyResolver = dependencyResolver ?? throw new ArgumentNullException(nameof(dependencyResolver));
             return this;
         }
 
         public MessageBusBuilder WithProvider(Func<MessageBusSettings, IMessageBus> provider)
         {
-            _factory = provider;
+            _factory = provider ?? throw new ArgumentNullException(nameof(provider));
             return this;
         }
 
@@ -176,6 +176,12 @@ namespace SlimMessageBus.Host.Config
         public MessageBusBuilder PerMessageScopeEnabled(bool enabled)
         {
             Settings.IsMessageScopeEnabled = enabled;
+            return this;
+        }
+
+        public MessageBusBuilder WithMessageTypeResolver(IMessageTypeResolver messageTypeResolver)
+        {
+            Settings.MessageTypeResolver = messageTypeResolver ?? throw new ArgumentNullException(nameof(messageTypeResolver));
             return this;
         }
 
