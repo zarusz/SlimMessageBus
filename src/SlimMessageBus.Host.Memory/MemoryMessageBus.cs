@@ -100,7 +100,9 @@
 
                     await OnResponseArrived(responsePayload, name, requestId, null, response).ConfigureAwait(false);
                 }
-            }
+            }else if(responseError != null){
+				_logger.LogDebug("Error during consumer task execution: {0}", responseError);
+			}
         }
 
         private async Task<Task> ExecuteConsumer(Type messageType, object message, byte[] messagePayload, ConsumerSettings consumerSettings)
