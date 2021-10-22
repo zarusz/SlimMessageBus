@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="../Host.Transport.Properties.xml" />
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <Description>KubeMQ provider for SlimMessageBus</Description>
+    <PackageTags>KubeMQ provider SlimMessageBus MessageBus bus facade messaging</PackageTags>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReleaseNotes />
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="KubeMQ.SDK.csharp" Version="1.5.2" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
+    <ProjectReference Include="..\SlimMessageBus\SlimMessageBus.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\icon.png">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
+
+</Project>
