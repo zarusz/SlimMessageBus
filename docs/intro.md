@@ -35,7 +35,7 @@ var mbb = MessageBusBuilder
   .Consume<AddCommand>(x => x
     .Topic("add-command")
     .WithConsumer<AddCommandConsumer>()
-    //.Group(consumerGroup) // Kafka provider specific (Kafka consumer group name)
+    //.KafkaGroup(consumerGroup) // Kafka provider specific (Kafka consumer group name)
   )
 
   // Req/Resp example:
@@ -43,14 +43,14 @@ var mbb = MessageBusBuilder
   .Handle<MultiplyRequest, MultiplyResponse>(x => x
     .Topic("multiply-request") // Topic to expect the request messages
     .WithHandler<MultiplyRequestHandler>()
-    //.Group(consumerGroup) // Kafka provider specific (Kafka consumer group name)
+    //.KafkaGroup(consumerGroup) // Kafka provider specific (Kafka consumer group name)
   )
   // Configure response message queue (on topic) when using req/resp
   .ExpectRequestResponses(x =>
   {
     x.ReplyToTopic(topicForResponses); // All responses from req/resp will return on this topic (the EventHub name)
     x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
-    //x.Group(responseGroup); // Kafka provider specific (Kafka consumer group)
+    //x.KafkaGroup(responseGroup); // Kafka provider specific (Kafka consumer group)
   })
   
   .Do(builder =>
@@ -177,7 +177,7 @@ mbb.Consume<SomeMessage>(x => x
   // .WithConsumer<AddCommandConsumer>(nameof(AddCommandConsumer.MyHandleMethod)) // (2) uses reflection
   // .WithConsumer<AddCommandConsumer>((consumer, message, path) => consumer.MyHandleMethod(message, path)) // (3) uses a delegate
   .Instances(1)
-  //.Group("some-consumer-group")) // Kafka provider specific extensions
+  //.KafkaGroup("some-consumer-group")) // Kafka provider specific extensions
 ```
 
 When the consumer implements the `IConsumer<SomeMessage>` interface:
@@ -403,7 +403,7 @@ The micro-service that will be sending the request messages needs to enable requ
 {
   x.ReplyToTopic("servicename-instance1"); // All responses from req/resp will return on this topic
   x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
-  //x.Group("some-consumer-group"); // Kafka provider specific setting
+  //x.KafkaGroup("some-consumer-group"); // Kafka provider specific setting
 })
 ```
 
@@ -454,7 +454,7 @@ Configuration of the request message handling is done using the `Handle<TRequest
 mbb.Handle<SomeRequest, SomeResponse>(x => x
     .Topic("do-some-computation-topic") // Topic to expect the requests on
     .WithHandler<SomeRequestHandler>()
-    .Group("some-consumer-group") // kafka provider specific
+    .KafkaGroup("some-consumer-group") // kafka provider specific
   )
 ```
 
@@ -527,7 +527,7 @@ The `.WithLoggerFactory(...)` takes takes precedence over the instance available
 ## Provider specific functionality
 
 Providers introduce more settings and some subtleties to the above documentation.
-For example Apache Kafka requires `mbb.Group(string)` for consumers to declare the consumer group, Azure Service Bus uses `mbb.SubscriptionName(string)` to set subscription name of the consumer, while Memory provider does not use anything like it.
+For example Apache Kafka requires `mbb.KafkaGroup(string)` for consumers to declare the consumer group, Azure Service Bus uses `mbb.SubscriptionName(string)` to set subscription name of the consumer, while Memory provider does not use anything like it.
 
 Providers:
 * [Apache Kafka](provider_kafka.md)
