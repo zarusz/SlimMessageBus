@@ -256,7 +256,7 @@ namespace SlimMessageBus.Host
 
         public abstract Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null);
 
-        public virtual Task Publish(Type messageType, object message, string path = null)
+        public virtual Task Publish(Type messageType, object message, string path = null, IDictionary<string, object> headers = null)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
             AssertActive();
@@ -272,11 +272,34 @@ namespace SlimMessageBus.Host
 
             var payload = Serializer.Serialize(producerSettings.MessageType, message);
 
-            var headers = CreateHeaders();
-            AddMessageTypeHeader(message, headers);
+            var messageHeaders = CreateHeaders();
+            AddMessageHeaders(messageHeaders, headers);
+            AddMessageTypeHeader(message, messageHeaders);
+            // Call header hook
+            producerSettings.HeaderModifier?.Invoke(messageHeaders, message);
 
             _logger.LogDebug("Producing message {Message} of type {MessageType} to path {Path} with payload size {MessageSize}", message, producerSettings.MessageType, path, payload?.Length ?? 0);
-            return ProduceToTransport(producerSettings.MessageType, message, path, payload, headers);
+            return ProduceToTransport(producerSettings.MessageType, message, path, payload, messageHeaders);
+        }
+
+        private static void AddMessageHeaders(IDictionary<string, object> messageHeaders, IDictionary<string, object> headers)
+        {
+            if (headers != null)
+            {
+                // Add user specific headers
+                foreach (var (key, value) in headers)
+                {
+                    messageHeaders[key] = value;
+                }
+            }
+        }
+
+        private void AddMessageTypeHeader(object message, IDictionary<string, object> headers)
+        {
+            if (message != null)
+            {
+                headers.SetHeader(MessageHeaders.MessageType, Settings.MessageTypeResolver.ToName(message.GetType()));
+            }
         }
 
         /// <summary>
@@ -287,8 +310,8 @@ namespace SlimMessageBus.Host
 
         #region Implementation of IPublishBus
 
-        public virtual Task Publish<TMessage>(TMessage message, string path = null)
-            => Publish(typeof(TMessage), message, path);
+        public virtual Task Publish<TMessage>(TMessage message, string path = null, IDictionary<string, object> headers = null)
+            => Publish(typeof(TMessage), message, path, headers);
 
         #endregion
 
@@ -301,7 +324,7 @@ namespace SlimMessageBus.Host
             return timeout;
         }
 
-        protected virtual async Task<TResponseMessage> SendInternal<TResponseMessage>(object request, TimeSpan? timeout, string path, CancellationToken cancellationToken)
+        protected virtual async Task<TResponseMessage> SendInternal<TResponseMessage>(object request, TimeSpan? timeout, string path, IDictionary<string, object> headers, CancellationToken cancellationToken)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
             AssertActive();
@@ -332,6 +355,10 @@ namespace SlimMessageBus.Host
             var requestId = GenerateRequestId();
 
             var requestHeaders = CreateHeaders();
+            AddMessageHeaders(requestHeaders, headers);
+            AddMessageTypeHeader(request, requestHeaders);
+            // Call header hook
+            producerSettings.HeaderModifier?.Invoke(requestHeaders, request);
             requestHeaders.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
             requestHeaders.SetHeader(ReqRespMessageHeaders.Expires, expires);
 
@@ -375,26 +402,18 @@ namespace SlimMessageBus.Host
             }
         }
 
-        public virtual Task ProduceRequest(object request, IDictionary<string, object> headers, string path, ProducerSettings producerSettings)
+        public virtual Task ProduceRequest(object request, IDictionary<string, object> requestHeaders, string path, ProducerSettings producerSettings)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
-            if (headers == null) throw new ArgumentNullException(nameof(headers));
+            if (requestHeaders == null) throw new ArgumentNullException(nameof(requestHeaders));
             if (producerSettings == null) throw new ArgumentNullException(nameof(producerSettings));
 
             var requestPayload = Serializer.Serialize(producerSettings.MessageType, request);
 
-            headers.SetHeader(ReqRespMessageHeaders.ReplyTo, Settings.RequestResponse.Path);
-            AddMessageTypeHeader(request, headers);
+            requestHeaders.SetHeader(ReqRespMessageHeaders.ReplyTo, Settings.RequestResponse.Path);
+            AddMessageTypeHeader(request, requestHeaders);
 
-            return ProduceToTransport(producerSettings.MessageType, request, path, requestPayload, headers);
-        }
-
-        private void AddMessageTypeHeader(object message, IDictionary<string, object> headers)
-        {
-            if (message != null)
-            {
-                headers.SetHeader(MessageHeaders.MessageType, Settings.MessageTypeResolver.ToName(message.GetType()));
-            }
+            return ProduceToTransport(producerSettings.MessageType, request, path, requestPayload, requestHeaders);
         }
 
         public virtual Task ProduceResponse(object request, IDictionary<string, object> requestHeaders, object response, IDictionary<string, object> responseHeaders, ConsumerSettings consumerSettings)
@@ -420,19 +439,19 @@ namespace SlimMessageBus.Host
         #region Implementation of IRequestResponseBus
 
         public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, CancellationToken cancellationToken)
-            => SendInternal<TResponseMessage>(request, null, null, cancellationToken);
+            => SendInternal<TResponseMessage>(request, timeout: null, path: null, headers: null, cancellationToken);
 
         public Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, CancellationToken cancellationToken)
-            => SendInternal<TResponseMessage>(request, null, null, cancellationToken);
+            => SendInternal<TResponseMessage>(request, timeout: null, path: null, headers: null, cancellationToken);
 
-        public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string path = null, CancellationToken cancellationToken = default)
-            => SendInternal<TResponseMessage>(request, null, path, cancellationToken);
+        public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
+            => SendInternal<TResponseMessage>(request, null, path, headers, cancellationToken);
 
-        public virtual Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, string path = null, CancellationToken cancellationToken = default)
-            => SendInternal<TResponseMessage>(request, null, path, cancellationToken);
+        public virtual Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
+            => SendInternal<TResponseMessage>(request, null, path, headers, cancellationToken);
 
-        public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string path = null, CancellationToken cancellationToken = default)
-            => SendInternal<TResponseMessage>(request, timeout, path, cancellationToken);
+        public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
+            => SendInternal<TResponseMessage>(request, timeout, path, headers, cancellationToken);
 
         #endregion
 

@@ -6,6 +6,7 @@ namespace SlimMessageBus.Host.Hybrid.Test
     using SlimMessageBus.Host.DependencyResolver;
     using SlimMessageBus.Host.Serialization;
     using System;
+    using System.Collections.Generic;
     using System.Text;
     using System.Threading.Tasks;
     using Xunit;
@@ -46,7 +47,7 @@ namespace SlimMessageBus.Host.Hybrid.Test
                  {
                      bus1Mock = new Mock<MessageBusBase>(new[] { mbs });
                      bus1Mock.SetupGet(x => x.Settings).Returns(mbs);
-                     bus1Mock.Setup(x => x.Publish(It.IsAny<SomeMessage>(), It.IsAny<string>())).Returns(Task.CompletedTask);
+                     bus1Mock.Setup(x => x.Publish(It.IsAny<SomeMessage>(), It.IsAny<string>(), It.IsAny<IDictionary<string, object>>())).Returns(Task.CompletedTask);
 
                      return bus1Mock.Object;
                  });
@@ -57,7 +58,7 @@ namespace SlimMessageBus.Host.Hybrid.Test
                 {
                     bus2Mock = new Mock<MessageBusBase>(new[] { mbs });
                     bus2Mock.SetupGet(x => x.Settings).Returns(mbs);
-                    bus2Mock.Setup(x => x.Send(It.IsAny<SomeRequest>(), It.IsAny<string>(), default)).Returns(Task.FromResult(new SomeResponse()));
+                    bus2Mock.Setup(x => x.Send(It.IsAny<SomeRequest>(), It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), default)).Returns(Task.FromResult(new SomeResponse()));
 
                     return bus2Mock.Object;
                 });
@@ -75,10 +76,10 @@ namespace SlimMessageBus.Host.Hybrid.Test
             await _subject.Value.Send(someDerivedRequest);
 
             // assert
-            bus1Mock.Verify(x => x.Publish(someMessage, null), Times.Once);
-            bus1Mock.Verify(x => x.Publish<SomeMessage>(someDerivedMessage, null), Times.Once);
-            bus2Mock.Verify(x => x.Send(someRequest, null, default), Times.Once);
-            bus2Mock.Verify(x => x.Send(someDerivedRequest, null, default), Times.Once);
+            bus1Mock.Verify(x => x.Publish(someMessage, null, null), Times.Once);
+            bus1Mock.Verify(x => x.Publish<SomeMessage>(someDerivedMessage, null, null), Times.Once);
+            bus2Mock.Verify(x => x.Send(someRequest, null, null, default), Times.Once);
+            bus2Mock.Verify(x => x.Send(someDerivedRequest, null, null, default), Times.Once);
         }
 
         public class SomeMessage

@@ -46,6 +46,11 @@ namespace SlimMessageBus.Host.Config
         /// </summary>
         public bool? IsMessageScopeEnabled { get; set; }
 
+        /// <summary>
+        /// Hook called whenver message is being produced. Can be used to add (or mutate) message headers.
+        /// </summary>
+        public Action<IDictionary<string, object>, object> HeaderModifier { get; set; }
+
         public MessageBusSettings()
         {
             Producers = new List<ProducerSettings>();
@@ -126,6 +131,11 @@ namespace SlimMessageBus.Host.Config
             if (OnMessageProduced == null && settings.OnMessageProduced != null)
             {
                 OnMessageProduced = settings.OnMessageProduced;
+            }
+
+            if (HeaderModifier == null && settings.HeaderModifier != null)
+            {
+                HeaderModifier = settings.HeaderModifier;
             }
         }
     }

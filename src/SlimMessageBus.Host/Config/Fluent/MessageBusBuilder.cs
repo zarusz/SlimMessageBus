@@ -1,6 +1,7 @@
 namespace SlimMessageBus.Host.Config
 {
     using System;
+    using System.Collections.Generic;
     using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.DependencyResolver;
     using SlimMessageBus.Host.Serialization;
@@ -182,6 +183,15 @@ namespace SlimMessageBus.Host.Config
         public MessageBusBuilder WithMessageTypeResolver(IMessageTypeResolver messageTypeResolver)
         {
             Settings.MessageTypeResolver = messageTypeResolver ?? throw new ArgumentNullException(nameof(messageTypeResolver));
+            return this;
+        }
+
+        /// <summary>
+        /// Hook called whenver message is being produced. Can be used to add (or mutate) message headers.
+        /// </summary>
+        public MessageBusBuilder WithHeaderModifier(Action<IDictionary<string, object>, object> headerModifierAction)
+        {
+            Settings.HeaderModifier = headerModifierAction ?? throw new ArgumentNullException(nameof(headerModifierAction));
             return this;
         }
 

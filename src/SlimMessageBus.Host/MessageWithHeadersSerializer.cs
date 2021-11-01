@@ -16,6 +16,7 @@ namespace SlimMessageBus.Host
         public const int TypeIdBool = 2;
         public const int TypeIdInt = 3;
         public const int TypeIdLong = 4;
+        public const int TypeIdGuid = 5;
 
         public MessageWithHeadersSerializer()
             : this(Encoding.ASCII)
@@ -77,6 +78,9 @@ namespace SlimMessageBus.Host
                 case long l:
                     payload[index] = TypeIdLong;
                     return 1 + WriteLong(payload, index + 1, l);
+                case Guid g:
+                    payload[index] = TypeIdGuid;
+                    return 1 + WriteGuid(payload, index + 1, g);
                 default:
                     throw new InvalidOperationException($"Not supported header value type {v?.GetType().FullName ?? "(null)"}");
             }
@@ -91,6 +95,7 @@ namespace SlimMessageBus.Host
                 bool _ => sizeof(byte),
                 int _ => sizeof(int),
                 long _ => sizeof(long),
+                Guid _ => 16,
                 _ => throw new InvalidOperationException($"Not supported header value type {v?.GetType().FullName ?? "(null)"}"),
             };
             return 1 + byteLength;
@@ -124,6 +129,12 @@ namespace SlimMessageBus.Host
             return sizeof(long);
         }
 
+        private static int WriteGuid(byte[] payload, int index, Guid v)
+        {
+            v.TryWriteBytes(payload.AsSpan(index));
+            return 16;
+        }
+
         private int ReadObject(byte[] payload, int index, out object o)
         {
             int byteLength;
@@ -149,6 +160,10 @@ namespace SlimMessageBus.Host
                 case TypeIdLong:
                     byteLength = ReadLong(payload, index + 1, out var l);
                     o = l;
+                    break;
+                case TypeIdGuid:
+                    byteLength = ReadGuid(payload, index + 1, out var g);
+                    o = g;
                     break;
                 default:
                     throw new InvalidOperationException($"Unknown field type with discriminator {typeId}");
@@ -181,6 +196,12 @@ namespace SlimMessageBus.Host
         {
             v = BitConverter.ToInt64(payload, index);
             return sizeof(long);
+        }
+
+        private static int ReadGuid(byte[] payload, int index, out Guid v)
+        {
+            v = new Guid(payload.AsSpan(index, 16));
+            return 16;
         }
 
         protected MessageWithHeaders Deserialize(byte[] payload)

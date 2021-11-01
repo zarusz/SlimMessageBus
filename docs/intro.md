@@ -164,6 +164,37 @@ The hook can be applied at the specified producer, or the whole bus.
 
 > The user specified `Action<>` methods need to be thread-safe.
 
+#### Set message headers when producing message
+
+Whenever the message is published (or sent in request-response), headers can be set to pass additional information with the message:
+
+```cs
+await bus.Publish(new CustomerEvent { }, headers: new Dictionary<string, object> { ["CustomerId"] = 1234 });
+```
+
+It is also possible to specify a producer wide modifier for message headers. This can be used if you need to add some specific headers for every message.
+
+```cs
+mbb
+   .Produce<SomeMessage>(x =>
+   {
+      x.DefaultTopic(someMessageTopic);
+      x.WithHeaderModifier((headers, message) =>
+      {
+          headers["CustomerId"] = message.CustomerId;
+      });
+   })
+```
+
+Finally, it is possible to specify a headers modifier for the entire bus:
+
+```cs
+mbb
+   x.WithHeaderModifier((headers, message) =>
+   {
+      headers["Source"] = "Customer-MicroService";
+   })
+```
 
 ### Consumer
 

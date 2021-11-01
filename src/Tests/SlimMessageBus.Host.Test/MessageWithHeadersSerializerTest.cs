@@ -62,6 +62,7 @@
                     {"keyInt", 123},
                     {"keyLong", now},
                     {"keyNull", null},
+                    {"keyGuid", Guid.Parse("{BF8F7690-CEC3-48F5-8C50-FA723BA18EB3}")},
                 });
 
             // act
@@ -78,6 +79,7 @@
             m2.Headers["keyInt"].Should().Be(123).And.BeOfType<int>();
             m2.Headers["keyLong"].Should().Be(now).And.BeOfType<long>();
             m2.Headers["keyNull"].Should().BeNull();
+            m2.Headers["keyGuid"].Should().Be(Guid.Parse("{BF8F7690-CEC3-48F5-8C50-FA723BA18EB3}")).And.BeOfType<Guid>();
 
             _payload.SequenceEqual(m2.Payload).Should().BeTrue();
         }
