@@ -2,6 +2,7 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.Collections.ObjectModel;
     using System.Threading.Tasks;
     using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.Config;
@@ -24,6 +25,8 @@
         private readonly bool _consumerWithContext;
         private readonly Action<TMessage, ConsumerContext> _consumerContextInitializer;
 
+        private readonly bool _consumerWithHeaders;
+
         public ConsumerInstanceMessageProcessor(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, MessageWithHeaders> messageProvider, Action<TMessage, ConsumerContext> consumerContextInitializer = null)
         {
             if (messageBus is null) throw new ArgumentNullException(nameof(messageBus));
@@ -37,6 +40,8 @@
 
             _consumerContextInitializer = consumerContextInitializer;
             _consumerWithContext = typeof(IConsumerContextAware).IsAssignableFrom(consumerSettings.ConsumerType);
+
+            _consumerWithHeaders = typeof(IConsumerWithHeaders).IsAssignableFrom(consumerSettings.ConsumerType);
         }
 
         #region IDisposable
@@ -99,7 +104,7 @@
                         ?? throw new ConfigurationMessageBusException($"Could not resolve consumer/handler type {_consumerSettings.ConsumerType} from the DI container. Please check that the configure type {_consumerSettings.ConsumerType} is registered within the DI container.");
                     try
                     {
-                        response = await ExecuteConsumer(msg, message, response, consumerInstance).ConfigureAwait(false);
+                        response = await ExecuteConsumer(msg, message, messageHeaders, consumerInstance).ConfigureAwait(false);
                     }
 #pragma warning disable CA1031 // Do not catch general exception types - Intended
                     catch (Exception e)
@@ -227,7 +232,7 @@
             }
         }
 
-        private async Task<object> ExecuteConsumer(TMessage msg, object message, object response, object consumerInstance)
+        private async Task<object> ExecuteConsumer(TMessage msg, object message, IDictionary<string, object> messageHeaders, object consumerInstance)
         {
             if (_consumerWithContext && _consumerContextInitializer != null)
             {
@@ -238,9 +243,17 @@
                 consumerWithContext.Context.Value = consumerContext;
             }
 
+            if (_consumerWithHeaders)
+            {
+                var consumerWithHeaders = (IConsumerWithHeaders)consumerInstance;
+                consumerWithHeaders.Headers = new ReadOnlyDictionary<string, object>(messageHeaders);
+            }
+
             // the consumer just subscribes to the message
             var task = _consumerSettings.ConsumerMethod(consumerInstance, message, _consumerSettings.Path);
             await task.ConfigureAwait(false);
+
+            object response = null;
 
             if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
             {

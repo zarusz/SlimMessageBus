@@ -293,6 +293,26 @@ The hook can be applied for the specified consumer, or for all consumers in the 
 
 > The user specified `Action<>` methods need to be thread-safe as they will be executed concurrently as messages are being processed.
 
+#### Get message headers in the consumer or handler
+
+Whenever the consumer type (`IConsumer<T>` or `IRequestHandler<Req, Res>`) requires to obtain message headers for the message being processed, it needs to extend the interface `IConsumerWithHeaders`. As part of that interface the consumer needs to implement a property setter for `Headers`:
+
+```cs
+public class SomeConsumer : IConsumer<SomeMessage>, IConsumerWithHeaders
+{
+  public IReadOnlyDictionary<string, object> Headers { get; set; }
+
+  public async Task OnHandle(SomeMessage msg, string path)
+  {
+    // handle the msg
+    // the msg headers are in the Headers property
+  }
+}
+```
+
+> It is important that the consumer type is registered as either transient (prototype), scope based (per message), for the `Headers` property to work properly.
+> If the consumer type would be a singleton, then somewhere between the setting of `Headers` and running the `OnHandle` there could likely be a race condition.
+
 #### Consumer context
 
 The consumer can access the `ConsumerContext` object which enable the chosen transport provider to pass additional message information specific to the chosen transport. Examples of such information are the Azure Service Bus UserProperties, or Kafka Topic-Partition offset.
