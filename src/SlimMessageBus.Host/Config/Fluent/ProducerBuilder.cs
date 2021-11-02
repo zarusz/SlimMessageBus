@@ -1,6 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Config
 {
     using System;
+    using System.Collections.Generic;
 
     public class ProducerBuilder<T>
     {
@@ -34,6 +35,17 @@
             if (eventsConfig == null) throw new ArgumentNullException(nameof(eventsConfig));
 
             eventsConfig(Settings);
+            return this;
+        }
+
+        /// <summary>
+        /// Hook called whenver message is being produced. Can be used to add (or mutate) message headers.
+        /// </summary>
+        public ProducerBuilder<T> WithHeaderModifier(Action<IDictionary<string, object>, T> headerModifierAction)
+        {
+            if (headerModifierAction == null) throw new ArgumentNullException(nameof(headerModifierAction));
+
+            Settings.HeaderModifier = (headers, message) => headerModifierAction(headers, (T)message);
             return this;
         }
     }

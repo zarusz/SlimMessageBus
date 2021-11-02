@@ -105,7 +105,7 @@
         }
 
         [Fact]
-        public void WhenCreateGivenConfigurationThatDeclaresSameMessageTypeMoreThanOnceThenExceptionIsThrown()
+        public void When_Create_Given_ConfigurationThatDeclaresSameMessageTypeMoreThanOnce_Then_ExceptionIsThrown()
         {
             // arrange
             BusBuilder.Produce<RequestA>(x =>
@@ -127,7 +127,7 @@
         }
 
         [Fact]
-        public void WhenNoTimeoutProvidedThenTakesDefaultTimeoutForRequestType()
+        public void When_NoTimeoutProvided_Then_TakesDefaultTimeoutForRequestType()
         {
             // arrange
             var ra = new RequestA();
@@ -156,7 +156,7 @@
         }
 
         [Fact]
-        public void WhenResponseArrivesThenResolvesPendingRequest()
+        public void When_ResponseArrives_Then_ResolvesPendingRequest()
         {
             // arrange
             var r = new RequestA();
@@ -184,7 +184,7 @@
         }
 
         [Fact]
-        public void WhenResponseArrivesTooLateThenExpiresPendingRequest()
+        public void When_ResponseArrivesTooLate_Then_ExpiresPendingRequest()
         {
             // arrange
             var r1 = new RequestA();
@@ -224,7 +224,7 @@
         }
 
         [Fact]
-        public async Task WhenCancellationTokenCancelledThenCancellsPendingRequest()
+        public async Task When_CancellationTokenCancelled_Then_CancellsPendingRequest()
         {
             // arrange
             var r1 = new RequestA();
@@ -261,32 +261,6 @@
             {
                 // swallow
             }
-        }
-
-        [Fact]
-        public void WhenRequestMessageSerializedThenDeserializeGivesSameObject()
-        {
-            // arrange
-            var r = new RequestA();
-            var rid = "1";
-            var replyTo = "some_topic";
-            var expires = DateTimeOffset.UtcNow.AddMinutes(2);
-            var reqMessage = new MessageWithHeaders();
-            reqMessage.SetHeader(ReqRespMessageHeaders.ReplyTo, replyTo);
-            reqMessage.SetHeader(ReqRespMessageHeaders.RequestId, rid);
-            reqMessage.SetHeader(ReqRespMessageHeaders.Expires, expires);
-
-            // act
-            var payload = Bus.SerializeRequest(typeof(RequestA), r, reqMessage, new Mock<ProducerSettings>().Object);
-            Bus.DeserializeRequest(typeof(RequestA), payload, out var resMessage);
-
-            // assert
-            resMessage.Headers[ReqRespMessageHeaders.RequestId].Should().Be(rid);
-            resMessage.Headers[ReqRespMessageHeaders.ReplyTo].Should().Be(replyTo);
-            resMessage.TryGetHeader(ReqRespMessageHeaders.Expires, out DateTimeOffset? resExpires);
-
-            resExpires.HasValue.Should().BeTrue();
-            resExpires.Value.ToFileTime().Should().Be(expires.ToFileTime());
         }
 
         [Fact]
@@ -343,7 +317,7 @@
         }
 
         [Fact]
-        public void GivenDisposedWhenPublishThenThrowsException()
+        public void When_Publish_Given_Disposed_Then_ThrowsException()
         {
             // arrange
             Bus.Dispose();
@@ -358,7 +332,7 @@
         }
 
         [Fact]
-        public void GivenDisposedWhenSendThenThrowsException()
+        public void When_Send_Given_Disposed_Then_ThrowsException()
         {
             // arrange
             Bus.Dispose();
@@ -448,26 +422,27 @@
 
         #region Overrides of BaseMessageBus
 
-        public override Task ProduceToTransport(Type messageType, object message, string name, byte[] payload, MessageWithHeaders messageWithHeaders = null)
+        public override Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders)
         {
-            OnProduced(messageType, name, message);
+            OnProduced(messageType, path, message);
 
             if (messageType.GetInterfaces().Any(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IRequestMessage<>)))
             {
-                var req = DeserializeRequest(messageType, payload, out var requestMessage);
+                var req = Serializer.Deserialize(messageType, messagePayload);
 
-                var resp = OnReply(messageType, name, req);
+                var resp = OnReply(messageType, path, req);
                 if (resp == null)
                 {
                     return Task.CompletedTask;
                 }
 
-                var respMessage = new MessageWithHeaders();
-                respMessage.SetHeader(ReqRespMessageHeaders.RequestId, requestMessage.Headers[ReqRespMessageHeaders.RequestId]);
-                var replyTo = requestMessage.Headers[ReqRespMessageHeaders.ReplyTo];
+                messageHeaders.TryGetHeader(ReqRespMessageHeaders.RequestId, out string replyTo);
 
-                var respPayload = SerializeResponse(resp.GetType(), resp, respMessage);
-                return OnResponseArrived(respPayload, replyTo);
+                var resposeHeaders = CreateHeaders();
+                resposeHeaders.SetHeader(ReqRespMessageHeaders.RequestId, replyTo);
+
+                var responsePayload = Serializer.Serialize(resp.GetType(), resp);
+                return OnResponseArrived(responsePayload, replyTo, resposeHeaders);
             }
 
             return Task.CompletedTask;

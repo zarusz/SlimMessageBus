@@ -7,7 +7,7 @@
     public class ConsumerSettingsTest
     {
         [Fact]
-        public void GivenMessageIsNotRequestWhenSetMessageTypeSetThenResponseTypeShouldBeNull()
+        public void When_SetMessageTypeSet_Given_MessageIsNotRequest_Then_ResponseTypeShouldBeNull()
         {
             // arrange
 
@@ -20,7 +20,7 @@
         }
 
         [Fact]
-        public void GivenRequestMessageWhenSetMessageTypeWhenRequestMessageThenResponseTypeShouldBeInferred()
+        public void When_RequestMessage_GivenRequestMessageWhenSetMessageType_Then_ResponseTypeShouldBeInferred()
         {
             // arrange
 
@@ -33,7 +33,7 @@
         }
 
         [Fact]
-        public void WhenCreationThenDefaultInstancesIs1()
+        public void When_Creation_Then_DefaultInstancesIs1()
         {
             // arrange
 

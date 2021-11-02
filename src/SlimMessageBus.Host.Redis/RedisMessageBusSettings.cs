@@ -1,6 +1,8 @@
 ﻿namespace SlimMessageBus.Host.Redis
 {
     using System;
+    using System.Threading.Tasks;
+    using SlimMessageBus.Host.Serialization;
     using StackExchange.Redis;
 
     public class RedisMessageBusSettings
@@ -29,11 +31,23 @@
         /// </summary>        
         public TimeSpan? QueuePollDelay { get; set; } = TimeSpan.FromSeconds(1);
 
+        /// <summary>
+        /// The <see cref="IMessageSerializer"/> serializer capable of serializing <see cref="MessageWithHeaders"/> that wrap the actual message type. The wrapper is needed to transmit headers for redit transport which has no headers support.
+        /// By default uses <see cref="MessageWithHeadersSerializer"/>.
+        /// </summary>
+        public IMessageSerializer EnvelopeSerializer { get; set; }
+
+        /// <summary>
+        /// Hook that is fired when the Redis connection to database is established on startuo. Can be used to perform some Redis database cleanup or initialization.
+        /// </summary>
+        public Action<IDatabase> OnDatabaseConnected { get; set; }
+
         public RedisMessageBusSettings(string configuration)
         {
             Configuration = configuration;
             ConnectionFactory = () => ConnectionMultiplexer.Connect(Configuration);
             AutoStartConsumers = true;
+            EnvelopeSerializer = new MessageWithHeadersSerializer();
         }
     }
 }

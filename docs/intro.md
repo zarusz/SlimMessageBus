@@ -1,5 +1,5 @@
 
-# Introduction for SlimMessageBus
+# Introduction to SlimMessageBus
 
 ## Configuration
 
@@ -7,7 +7,7 @@ The configuration starts with `MessageBusBuilder`, which allows to configure cou
 
 * The bus transport provider (Apache Kafka, Azure Service Bus, Memory).
 * The serialization provider.
-* The dependency injecion provider.
+* The dependency injection provider.
 * Declaration of messages produced and consumed along with topic/queue names.
 * Request-response configuration (if enabled).
 * Additional provider specific settings (message partition key, message id, etc).
@@ -35,7 +35,7 @@ var mbb = MessageBusBuilder
   .Consume<AddCommand>(x => x
     .Topic("add-command")
     .WithConsumer<AddCommandConsumer>()
-    //.Group(consumerGroup) // Kafka provider specific (Kafka consumer group name)
+    //.KafkaGroup(consumerGroup) // Kafka provider specific (Kafka consumer group name)
   )
 
   // Req/Resp example:
@@ -43,14 +43,14 @@ var mbb = MessageBusBuilder
   .Handle<MultiplyRequest, MultiplyResponse>(x => x
     .Topic("multiply-request") // Topic to expect the request messages
     .WithHandler<MultiplyRequestHandler>()
-    //.Group(consumerGroup) // Kafka provider specific (Kafka consumer group name)
+    //.KafkaGroup(consumerGroup) // Kafka provider specific (Kafka consumer group name)
   )
   // Configure response message queue (on topic) when using req/resp
   .ExpectRequestResponses(x =>
   {
     x.ReplyToTopic(topicForResponses); // All responses from req/resp will return on this topic (the EventHub name)
     x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
-    //x.Group(responseGroup); // Kafka provider specific (Kafka consumer group)
+    //x.KafkaGroup(responseGroup); // Kafka provider specific (Kafka consumer group)
   })
   
   .Do(builder =>
@@ -164,6 +164,37 @@ The hook can be applied at the specified producer, or the whole bus.
 
 > The user specified `Action<>` methods need to be thread-safe.
 
+#### Set message headers when producing message
+
+Whenever the message is published (or sent in request-response), headers can be set to pass additional information with the message:
+
+```cs
+await bus.Publish(new CustomerEvent { }, headers: new Dictionary<string, object> { ["CustomerId"] = 1234 });
+```
+
+It is also possible to specify a producer wide modifier for message headers. This can be used if you need to add some specific headers for every message.
+
+```cs
+mbb
+   .Produce<SomeMessage>(x =>
+   {
+      x.DefaultTopic(someMessageTopic);
+      x.WithHeaderModifier((headers, message) =>
+      {
+          headers["CustomerId"] = message.CustomerId;
+      });
+   })
+```
+
+Finally, it is possible to specify a headers modifier for the entire bus:
+
+```cs
+mbb
+   x.WithHeaderModifier((headers, message) =>
+   {
+      headers["Source"] = "Customer-MicroService";
+   })
+```
 
 ### Consumer
 
@@ -177,7 +208,7 @@ mbb.Consume<SomeMessage>(x => x
   // .WithConsumer<AddCommandConsumer>(nameof(AddCommandConsumer.MyHandleMethod)) // (2) uses reflection
   // .WithConsumer<AddCommandConsumer>((consumer, message, path) => consumer.MyHandleMethod(message, path)) // (3) uses a delegate
   .Instances(1)
-  //.Group("some-consumer-group")) // Kafka provider specific extensions
+  //.KafkaGroup("some-consumer-group")) // Kafka provider specific extensions
 ```
 
 When the consumer implements the `IConsumer<SomeMessage>` interface:
@@ -261,6 +292,26 @@ mbb
 The hook can be applied for the specified consumer, or for all consumers in the particular bus instance.
 
 > The user specified `Action<>` methods need to be thread-safe as they will be executed concurrently as messages are being processed.
+
+#### Get message headers in the consumer or handler
+
+Whenever the consumer type (`IConsumer<T>` or `IRequestHandler<Req, Res>`) requires to obtain message headers for the message being processed, it needs to extend the interface `IConsumerWithHeaders`. As part of that interface the consumer needs to implement a property setter for `Headers`:
+
+```cs
+public class SomeConsumer : IConsumer<SomeMessage>, IConsumerWithHeaders
+{
+  public IReadOnlyDictionary<string, object> Headers { get; set; }
+
+  public async Task OnHandle(SomeMessage msg, string path)
+  {
+    // handle the msg
+    // the msg headers are in the Headers property
+  }
+}
+```
+
+> It is important that the consumer type is registered as either transient (prototype), scope based (per message), for the `Headers` property to work properly.
+> If the consumer type would be a singleton, then somewhere between the setting of `Headers` and running the `OnHandle` there could likely be a race condition.
 
 #### Consumer context
 
@@ -356,26 +407,24 @@ The implementation requires that each micro-service instance that intends to sen
 
 > It is important that each request sending service instance has its own dedicated topic (or queue) for receiving replies. Please also consult the transport provider documentation too.
 
-### Envelope
+### Message headers for request-response
 
-Beside the request (or reponse) message payload, the SMB implementation needs to pass additional metadata information to make the request-response work.
-Since, SMB needs to work across different transport providers and some do not support message headers, each request (or response) message is wrapped by SMB into a special envelope which makes the implementation transport provider agnostic. 
+In the case of request (or reponse) message, the SMB implementation needs to pass additional metadata information to make the request-response work (correlate response with a pending request, pass error message back to sender, etc).
+For majority of the transport providers SMB leverages the native message headers of the underlying transport (when the transport supports it). In the transports that do not natively support headers (e.g. Redis) each request (or response) message is wrapped by SMB into a special envelope which makes the implementation transport provider agnostic (see type `MessageWithHeaders`). 
 
-The envelope is binary and should be fast. See the [`MessageWithHeadersSerializer`](https://github.com/zarusz/SlimMessageBus/blob/master/src/SlimMessageBus.Host/RequestResponse/MessageWithHeadersSerializer.cs) for low level details.
+When header emulation is taking place, SMB uses a wrapper envelope that is binary and should be fast. See the [`MessageWithHeadersSerializer`](https://github.com/zarusz/SlimMessageBus/blob/master/src/SlimMessageBus.Host/RequestResponse/MessageWithHeadersSerializer.cs) for low level details.
 
-The request envelope contains:
+The request contains headers:
 
-* Request ID, so that the request sender can correlate the arriving responses.
-* Request send datetime (UTC, in epoch).
-* ReplyTo topic/queue name, so that the service handling the request knows where to send back the response.
+* `RequestId`, so that the request sender can correlate the arriving responses.
+* `Expires` which is a datetime (UTC, in epoch) of when the request message (expires on).
+* `ReplyTo` topic/queue name, so that the service handling the request knows where to send back the response.
 * The body of the request message (serialized using the chosen serialization provider).
 
-The response envelope contains:
+The response contains headers:
 
-* Request ID, so that the request sender can correlate the arriving responses.
-* Error message, in case the request message processing failed (so that we can fail fast and know the particular error).
-
-In the future SMB might introduce an optimization that will leverage transport native headers (e.g. UserProperties for Azure Service Bus) to avoid the envelope altogether.
+* `RequestId`, so that the request sender can correlate the arriving responses.
+* `Error` message, in case the request message processing failed (so that we can fail fast and know the particular error).
 
 ### Produce request message
 
@@ -405,7 +454,7 @@ The micro-service that will be sending the request messages needs to enable requ
 {
   x.ReplyToTopic("servicename-instance1"); // All responses from req/resp will return on this topic
   x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
-  //x.Group("some-consumer-group"); // Kafka provider specific setting
+  //x.KafkaGroup("some-consumer-group"); // Kafka provider specific setting
 })
 ```
 
@@ -456,7 +505,7 @@ Configuration of the request message handling is done using the `Handle<TRequest
 mbb.Handle<SomeRequest, SomeResponse>(x => x
     .Topic("do-some-computation-topic") // Topic to expect the requests on
     .WithHandler<SomeRequestHandler>()
-    .Group("some-consumer-group") // kafka provider specific
+    .KafkaGroup("some-consumer-group") // kafka provider specific
   )
 ```
 
@@ -475,6 +524,8 @@ See [`DomainEvents`](../src/Samples/Sample.DomainEvents.WebApi/Startup.cs#L79) s
 SMB uses dependency resolver to obtain instances of the declared consumers (class instances that implement `IConsumer<>`, `IHandler<>`).
 There are few plugins availble that allow to integrate SMB with your favorite DI framework. 
 
+The consumer/handler is typically resolved from DI container when the message arrives and needs to be handled. SMB does not maintain a reference to that object instance after consuming of the message - this gives user the ability to decide is the consumer/handler should be a singleton, transient, or scoped (to the ongoing web-request).
+
 See samples and the [Packages section](../#Packages).
 
 ## Serialization
@@ -482,6 +533,27 @@ See samples and the [Packages section](../#Packages).
 SMB uses serialization plugins to serialize (and deserialize) the messages into the desired format.
 
 See [Serialization](serialization.md) page.
+
+## Message Headers
+
+SMB uses headers to pass additional metadata information with the message. This includes the `MessageType` (of type `string`) or in the case of request/response messages the `RequestId` (of type `string`), `ReplyTo` (of type `string`) and `Expires` (of type `long`).
+Depending on the underlying transport chosen the headers will be supported natively by the underlying message system/broker (Azure Service Bus, Azure Event Hubs, Kafka) or emulated (Redis).
+
+The emulation works by using a message wrapper envelope (`MessageWithHeader`) that during serialization puts the headers first and then the actual message content after that. Please consult individual transport providers.
+
+### Message Type Resolver
+
+By default the message header `MessageType` conveys the message type information using the assembly qualified name of the .NET type (see `AssemblyQualifiedNameMessageTypeResolver`).
+
+The following can be used to provide a custom `IMessageTypeResolver` implementation:
+
+```cs
+IMessageTypeResolver mtr = new AssemblyQualifiedNameMessageTypeResolver();
+
+mbb.WithMessageTypeResolved(mtr)
+```
+
+A custom resolver could be used in scenarios when there is a desire to send short type names (to optimize overall message size). In this scenario the assembly name and/or namespace could be skipped - the producer and consumer could infer them.
 
 ## Logging
 
@@ -506,7 +578,7 @@ The `.WithLoggerFactory(...)` takes takes precedence over the instance available
 ## Provider specific functionality
 
 Providers introduce more settings and some subtleties to the above documentation.
-For example Apache Kafka requires `mbb.Group(string)` for consumers to declare the consumer group, Azure Service Bus uses `mbb.SubscriptionName(string)` to set subscription name of the consumer, while Memory provider does not use anything like it.
+For example Apache Kafka requires `mbb.KafkaGroup(string)` for consumers to declare the consumer group, Azure Service Bus uses `mbb.SubscriptionName(string)` to set subscription name of the consumer, while Memory provider does not use anything like it.
 
 Providers:
 * [Apache Kafka](provider_kafka.md)

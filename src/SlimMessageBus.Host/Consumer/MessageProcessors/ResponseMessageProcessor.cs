@@ -12,19 +12,19 @@ namespace SlimMessageBus.Host
     {
         private readonly RequestResponseSettings _requestResponseSettings;
         private readonly MessageBusBase _messageBus;
-        private readonly Func<TMessage, byte[]> _messagePayloadProvider;
+        private readonly Func<TMessage, MessageWithHeaders> _messageProvider;
 
-        public ResponseMessageProcessor(RequestResponseSettings requestResponseSettings, MessageBusBase messageBus, Func<TMessage, byte[]> messagePayloadProvider)
+        public ResponseMessageProcessor(RequestResponseSettings requestResponseSettings, MessageBusBase messageBus, Func<TMessage, MessageWithHeaders> messageProvider)
         {
             _requestResponseSettings = requestResponseSettings ?? throw new ArgumentNullException(nameof(requestResponseSettings));
             _messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
-            _messagePayloadProvider = messagePayloadProvider ?? throw new ArgumentNullException(nameof(messagePayloadProvider));
+            _messageProvider = messageProvider ?? throw new ArgumentNullException(nameof(messageProvider));
         }
 
         public Task<Exception> ProcessMessage(TMessage message)
         {
-            var payload = _messagePayloadProvider(message);
-            return _messageBus.OnResponseArrived(payload, _requestResponseSettings.Path);
+            var messageWithHeaders = _messageProvider(message);
+            return _messageBus.OnResponseArrived(messageWithHeaders.Payload, _requestResponseSettings.Path, messageWithHeaders.Headers);
         }
 
         #region IDisposable

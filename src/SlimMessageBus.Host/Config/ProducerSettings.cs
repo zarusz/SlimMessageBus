@@ -1,6 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Config
 {
     using System;
+    using System.Collections.Generic;
 
     public class ProducerSettings : HasProviderExtensions, IProducerEvents
     {
@@ -20,7 +21,11 @@
         /// Timeout after which this message should be considered as expired by the consumer.
         /// </summary>
         public TimeSpan? Timeout { get; set; }
-        
+        /// <summary>
+        /// Hook called whenver message is being produced. Can be used to add (or mutate) message headers.
+        /// </summary>
+        public Action<IDictionary<string, object>, object> HeaderModifier { get; set; }
+
         #region IProducerEvents
 
         /// <inheritdoc/>

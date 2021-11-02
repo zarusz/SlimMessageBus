@@ -6,7 +6,6 @@
     using SlimMessageBus.Host.Config;
     using System;
     using System.Threading.Tasks;
-    using SlimMessageBus.Host.Kafka.Configs;
     using Xunit;
     using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Logging.Abstractions;
@@ -46,8 +45,10 @@
             massageBusMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageConsumer))).Returns(_consumer);
             massageBusMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(ILoggerFactory))).Returns(_loggerFactory);
 
-            static byte[] MessageValueProvider(ConsumeResult m) => m.Message.Value;
-            var consumerInstancePoolMock = new Mock<ConsumerInstancePoolMessageProcessor<ConsumeResult>>(consumerSettings, massageBusMock.Bus, (Func<ConsumeResult, byte[]>)MessageValueProvider, null);
+            var headerSerializer = new StringValueSerializer();
+            MessageWithHeaders MessageValueProvider(ConsumeResult m) => m.ToMessageWithHeaders(headerSerializer);
+
+            var consumerInstancePoolMock = new Mock<ConsumerInstancePoolMessageProcessor<ConsumeResult>>(consumerSettings, massageBusMock.Bus, (Func<ConsumeResult, MessageWithHeaders>)MessageValueProvider, null);
             _messageQueueWorkerMock = new Mock<MessageQueueWorker<ConsumeResult>>(consumerInstancePoolMock.Object, _checkpointTrigger.Object, _loggerFactory);
             _subject = new KafkaConsumerProcessor(consumerSettings, _topicPartition, _commitControllerMock.Object, massageBusMock.Bus, _messageQueueWorkerMock.Object);
         }

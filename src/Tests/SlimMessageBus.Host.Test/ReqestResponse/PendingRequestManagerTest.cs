@@ -28,7 +28,7 @@
         }
 
         [Fact]
-        public void WhenNothingExpiredThenNoActionIsTaken()
+        public void When_NothingExpired_Then_NoActionIsTaken()
         {
             // arrange
             _store.Setup(x => x.FindAllToCancel(_timeNow)).Returns(Array.Empty<PendingRequestState>());
@@ -42,7 +42,7 @@
         }
 
         [Fact]
-        public void WhenRequestExpiredThenItIsRemoved()
+        public void When_RequestExpired_Then_ItIsRemoved()
         {
             // arrange
             var r1 = new PendingRequestState("r1", "request1", typeof(string), typeof(string), _timeNow, _timeNow.AddSeconds(30), CancellationToken.None);

@@ -1,4 +1,4 @@
-﻿namespace SlimMessageBus.Host.Kafka.Configs
+﻿namespace SlimMessageBus.Host.Kafka
 {
     using SlimMessageBus.Host.Config;
     using System;

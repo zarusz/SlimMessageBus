@@ -98,7 +98,7 @@
         }
         #endregion
 
-        protected virtual IMessageBus Route(object message, string name)
+        protected virtual IMessageBus Route(object message, string path)
         {
             var messageType = message.GetType();
 
@@ -107,7 +107,7 @@
             {
                 if (_routeByMessageType.TryGetValue(messageType, out var busName))
                 {
-                    _logger.LogDebug("Resolved bus {0} for message type: {1} and name {2}", busName, messageType, name);
+                    _logger.LogDebug("Resolved bus {0} for message type: {1} and name {2}", busName, messageType, path);
 
                     return _busByName[busName];
                 }
@@ -116,7 +116,7 @@
                 messageType = messageType.BaseType;
             }
 
-            throw new ConfigurationMessageBusException($"Could not find route for message type: {message.GetType()} and name: {name}");
+            throw new ConfigurationMessageBusException($"Could not find route for message type: {message.GetType()} and name: {path}");
         }
 
         #region Implementation of IRequestResponseBus
@@ -133,33 +133,32 @@
             return bus.Send<TResponseMessage, TRequestMessage>(request, cancellationToken);
         }
 
-        public Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string path = null, CancellationToken cancellationToken = default)
+        public Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
         {
             var bus = Route(request, path);
-            return bus.Send(request, path, cancellationToken);
+            return bus.Send(request, path, headers, cancellationToken);
         }
 
-        public Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, string path = null, CancellationToken cancellationToken = default)
+        public Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
         {
             var bus = Route(request, path);
-            return bus.Send<TResponseMessage, TRequestMessage>(request, path, cancellationToken);
+            return bus.Send<TResponseMessage, TRequestMessage>(request, path, headers, cancellationToken);
         }
 
-        public Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string path = null, CancellationToken cancellationToken = default)
+        public Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
         {
             var bus = Route(request, path);
-            return bus.Send(request, timeout, path, cancellationToken);
+            return bus.Send(request, timeout, path, headers, cancellationToken);
         }
-
 
         #endregion
 
         #region Implementation of IPublishBus
 
-        public Task Publish<TMessage>(TMessage message, string name = null)
+        public Task Publish<TMessage>(TMessage message, string path = null, IDictionary<string, object> headers = null)
         {
-            var bus = Route(message, name);
-            return bus.Publish(message, name);
+            var bus = Route(message, path);
+            return bus.Publish(message, path, headers);
         }
 
         #endregion

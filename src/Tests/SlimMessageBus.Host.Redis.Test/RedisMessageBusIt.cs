@@ -43,7 +43,15 @@ namespace SlimMessageBus.Host.Redis.Test
             MessageBusBuilder = MessageBusBuilder.Create()
                 .WithLoggerFacory(_loggerFactory)
                 .WithSerializer(new JsonMessageSerializer())
-                .WithProviderRedis(new RedisMessageBusSettings(connectionString));
+                .WithProviderRedis(new RedisMessageBusSettings(connectionString)
+                {
+                    OnDatabaseConnected = (database) =>
+                    {
+                        // Upon connect clear the redis list with the specified keys
+                        database.KeyDelete("test-echo-queue");
+                        database.KeyDelete("test-echo-queue-resp");
+                    }
+                });
 
             MessageBus = new Lazy<RedisMessageBus>(() => (RedisMessageBus)MessageBusBuilder.Build());
         }
@@ -173,6 +181,7 @@ namespace SlimMessageBus.Host.Redis.Test
                 .Produce<EchoRequest>(x =>
                 {
                     x.DefaultTopic(topic);
+                    x.DefaultTimeout(TimeSpan.FromSeconds(30));
                 })
                 .Handle<EchoRequest, EchoResponse>(x => x.Topic(topic)
                     .WithHandler<EchoRequestHandler>()
@@ -180,7 +189,7 @@ namespace SlimMessageBus.Host.Redis.Test
                 .ExpectRequestResponses(x =>
                 {
                     x.ReplyToTopic("test-echo-resp");
-                    x.DefaultTimeout(TimeSpan.FromSeconds(60));
+                    x.DefaultTimeout(TimeSpan.FromSeconds(30));
                 });
 
             await BasicReqResp().ConfigureAwait(false);
@@ -195,6 +204,7 @@ namespace SlimMessageBus.Host.Redis.Test
                 .Produce<EchoRequest>(x =>
                 {
                     x.DefaultQueue(queue);
+                    x.DefaultTimeout(TimeSpan.FromSeconds(30));
                 })
                 .Handle<EchoRequest, EchoResponse>(x => x.Queue(queue)
                     .WithHandler<EchoRequestHandler>()
@@ -202,7 +212,7 @@ namespace SlimMessageBus.Host.Redis.Test
                 .ExpectRequestResponses(x =>
                 {
                     x.ReplyToQueue("test-echo-queue-resp");
-                    x.DefaultTimeout(TimeSpan.FromSeconds(60));
+                    x.DefaultTimeout(TimeSpan.FromSeconds(30));
                 });
 
             await BasicReqResp().ConfigureAwait(false);

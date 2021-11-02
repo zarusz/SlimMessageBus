@@ -168,6 +168,23 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
 
 This could be useful to extract the message's offset or partition.
 
+### Message Headers
+
+SMB uses headers to pass additional metadata information with the message. This includes the `MessageType` (of type `string`) or in the case of request/response messages the `RequestId` (of type `string`), `ReplyTo` (of type `string`) and `Expires` (of type `long`).
+
+The Kafka message header values are natively binary (`byte[]`) in the underlying .NET client, as a result SMB needs to serialize the header values.
+By default the same serializer is used to serialize header values as is being used for the message serialization.
+If you need to specify a different serializer provide a specfic `IMessageSerializer` implementation (custom or one of the available serialization plugins):
+
+```cs
+IMessageBus messageBus = new MessageBusBuilder()
+	.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+	{
+		HeaderSerializer = new JsonMessageSerializer() // specify a different header values serializer
+	})
+	.Buid();
+```
+
 ### Deployment
 
 The `librdkafka` distribution for Windows requires [Visual C++ Redistributable for 2013](https://www.microsoft.com/en-US/download/details.aspx?id=40784) installed on the server. More information can be found [here](https://www.microsoft.com/en-US/download/details.aspx?id=40784).

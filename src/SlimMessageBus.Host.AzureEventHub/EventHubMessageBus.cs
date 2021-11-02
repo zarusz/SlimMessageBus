@@ -94,18 +94,30 @@
         /// <param name="message"></param>
         /// <param name="name"></param>
         /// <returns></returns>
-        public override async Task ProduceToTransport(Type messageType, object message, string name, byte[] payload, MessageWithHeaders messageWithHeaders = null)
+        public override async Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null)
         {
+            if (messageType is null) throw new ArgumentNullException(nameof(messageType));
+            if (messagePayload is null) throw new ArgumentNullException(nameof(messagePayload));
+
             AssertActive();
 
-            _logger.LogDebug("Producing message {Message} of type {MessageType} on path {Path} with size {MessageSize}", message, messageType.Name, name, payload.Length);
-            var producer = _producerByPath.GetOrAdd(name);
+            _logger.LogDebug("Producing message {Message} of type {MessageType} on path {Path} with size {MessageSize}", message, messageType.Name, path, messagePayload.Length);
+            var producer = _producerByPath.GetOrAdd(path);
 
-            using var ev = new EventData(payload);
+            using var ev = new EventData(messagePayload);
+
+            if (messageHeaders != null)
+            {
+                foreach (var header in messageHeaders)
+                {
+                    ev.Properties.Add(header.Key, header.Value);
+                }
+            }
+
             // ToDo: Add support for partition keys
             await producer.SendAsync(ev).ConfigureAwait(false);
 
-            _logger.LogDebug("Delivered message {Message} of type {MessageType} on path {Path}", message, messageType.Name, name);
+            _logger.LogDebug("Delivered message {Message} of type {MessageType} on path {Path}", message, messageType.Name, path);
         }
     }
 }

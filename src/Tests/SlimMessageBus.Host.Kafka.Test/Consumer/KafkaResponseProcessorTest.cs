@@ -5,11 +5,12 @@
     using Moq;
     using SlimMessageBus.Host.Config;
     using System;
-    using SlimMessageBus.Host.Kafka.Configs;
     using Xunit;
 
     using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
     using System.Threading.Tasks;
+    using System.Text;
+    using System.Collections.Generic;
 
     public class KafkaResponseProcessorTest : IDisposable
     {
@@ -37,7 +38,7 @@
                 }
             };
 
-            _subject = new KafkaResponseProcessor(_messageBusMock.BusSettings.RequestResponse, _topicPartition, _commitControllerMock.Object, _messageBusMock.Bus, _checkpointTrigger.Object);
+            _subject = new KafkaResponseProcessor(_messageBusMock.BusSettings.RequestResponse, _topicPartition, _commitControllerMock.Object, _messageBusMock.Bus, _messageBusMock.SerializerMock.Object, _checkpointTrigger.Object);
         }
 
         [Fact]
@@ -81,7 +82,7 @@
             await _subject.OnMessage(message);
 
             // assert
-            _messageBusMock.BusMock.Verify(x => x.OnResponseArrived(message.Message.Value, message.Topic), Times.Once);
+            _messageBusMock.BusMock.Verify(x => x.OnResponseArrived(message.Message.Value, message.Topic, It.Is<IDictionary<string, object>>(x => x.ContainsKey("test-header"))), Times.Once);
         }
 
         [Fact]
@@ -92,7 +93,7 @@
             var onResponseMessageFaultMock = new Mock<Action<RequestResponseSettings, object, Exception>>();
             _messageBusMock.BusSettings.RequestResponse.OnResponseMessageFault = onResponseMessageFaultMock.Object;
             var e = new Exception();
-            _messageBusMock.BusMock.Setup(x => x.OnResponseArrived(message.Message.Value, message.Topic)).Throws(e);
+            _messageBusMock.BusMock.Setup(x => x.OnResponseArrived(message.Message.Value, message.Topic, It.IsAny<IDictionary<string, object>>())).Throws(e);
 
             // act
             await _subject.OnMessage(message);
@@ -137,7 +138,15 @@
                 Topic = _topicPartition.Topic,
                 Partition = _topicPartition.Partition,
                 Offset = 10,
-                Message = new Message<Ignore, byte[]> { Key = null, Value = new byte[] { 10, 20 } },
+                Message = new Message<Ignore, byte[]>
+                {
+                    Key = null,
+                    Value = new byte[] { 10, 20 },
+                    Headers = new Headers
+                    {
+                        { "test-header", Encoding.UTF8.GetBytes("test-value") }
+                    }
+                },
                 IsPartitionEOF = false,
             };
         }

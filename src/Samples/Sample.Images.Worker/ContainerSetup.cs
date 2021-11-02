@@ -12,7 +12,6 @@ namespace Sample.Images.Worker
     using SlimMessageBus.Host.Serialization.Json;
     using SlimMessageBus.Host.Kafka;
     using Microsoft.Extensions.Configuration;
-    using SlimMessageBus.Host.Kafka.Configs;
     using Microsoft.Extensions.Logging;
 
     public static class ContainerSetup

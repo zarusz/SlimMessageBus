@@ -3,7 +3,7 @@
   <Import Project="../Host.Transport.Properties.xml" />
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <Description>Bus implementation that is composed out of other transport providers</Description>
     <PackageTags>SlimMessageBus Hybrid</PackageTags>
     <PackageIcon>icon.png</PackageIcon>

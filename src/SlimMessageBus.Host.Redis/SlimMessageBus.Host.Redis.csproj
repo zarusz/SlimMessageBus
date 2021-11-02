@@ -3,7 +3,7 @@
   <Import Project="../Host.Transport.Properties.xml" />
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <Description>Redis transport provider for SlimMessageBus</Description>
     <PackageTags>Redis transport provider SlimMessageBus MessageBus bus facade messaging client</PackageTags>
     <PackageIcon>icon.png</PackageIcon>

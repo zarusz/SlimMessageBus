@@ -13,12 +13,8 @@ namespace SlimMessageBus.Host.Config
         public IList<ConsumerSettings> Consumers { get; }
         public RequestResponseSettings RequestResponse { get; set; }
         public IMessageSerializer Serializer { get; set; }
-        /// <summary>
-        /// Dedicated <see cref="IMessageSerializer"/> capable of serializing <see cref="MessageWithHeaders"/>.
-        /// By default uses <see cref="MessageWithHeadersSerializer"/>.
-        /// </summary>
-        public IMessageSerializer MessageWithHeadersSerializer { get; set; }
         public IDependencyResolver DependencyResolver { get; set; }
+        public IMessageTypeResolver MessageTypeResolver { get; set; }
 
         #region Implementation of IConsumerEvents
         ///
@@ -50,11 +46,16 @@ namespace SlimMessageBus.Host.Config
         /// </summary>
         public bool? IsMessageScopeEnabled { get; set; }
 
+        /// <summary>
+        /// Hook called whenver message is being produced. Can be used to add (or mutate) message headers.
+        /// </summary>
+        public Action<IDictionary<string, object>, object> HeaderModifier { get; set; }
+
         public MessageBusSettings()
         {
             Producers = new List<ProducerSettings>();
             Consumers = new List<ConsumerSettings>();
-            MessageWithHeadersSerializer = new MessageWithHeadersSerializer();
+            MessageTypeResolver = new AssemblyQualifiedNameMessageTypeResolver();
         }
 
         public virtual void MergeFrom(MessageBusSettings settings)
@@ -102,6 +103,11 @@ namespace SlimMessageBus.Host.Config
                 DependencyResolver = settings.DependencyResolver;
             }
 
+            if (MessageTypeResolver == null && settings.MessageTypeResolver != null)
+            {
+                MessageTypeResolver = settings.MessageTypeResolver;
+            }
+
             if (OnMessageArrived == null && settings.OnMessageArrived != null)
             {
                 OnMessageArrived = settings.OnMessageArrived;
@@ -125,6 +131,11 @@ namespace SlimMessageBus.Host.Config
             if (OnMessageProduced == null && settings.OnMessageProduced != null)
             {
                 OnMessageProduced = settings.OnMessageProduced;
+            }
+
+            if (HeaderModifier == null && settings.HeaderModifier != null)
+            {
+                HeaderModifier = settings.HeaderModifier;
             }
         }
     }
