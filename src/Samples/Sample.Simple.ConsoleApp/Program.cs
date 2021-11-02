@@ -20,6 +20,7 @@
     using Confluent.Kafka;
     using Microsoft.Extensions.DependencyInjection;
     using SlimMessageBus.Host;
+    using System.Collections.Generic;
 
     enum Provider
     {
@@ -162,6 +163,11 @@
                 .WithSerializer(new JsonMessageSerializer()) // Use JSON for message serialization                
                 .WithDependencyResolver(new MsDependencyInjectionDependencyResolver(services))
                 .PerMessageScopeEnabled(true) // Enable DI scope to be created for each message about to be processed
+                .WithHeaderModifier((headers, message) =>
+                {
+                    // Add additional headers for all outgoing messages
+                    headers["Source"] = "ConsoleApp";
+                })
                 .Do(builder =>
                 {
                     Console.WriteLine($"Using {provider} as the transport provider");
@@ -281,8 +287,10 @@
         public int Right { get; set; }
     }
 
-    public class AddCommandConsumer : IConsumer<AddCommand>
+    public class AddCommandConsumer : IConsumer<AddCommand>, IConsumerWithHeaders
     {
+        public IReadOnlyDictionary<string, object> Headers { get; set; }
+
         #region Implementation of IConsumer<in AddCommand>
 
         public async Task OnHandle(AddCommand message, string name)

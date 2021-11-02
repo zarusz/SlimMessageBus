@@ -273,16 +273,13 @@ namespace SlimMessageBus.Host
             var payload = Serializer.Serialize(producerSettings.MessageType, message);
 
             var messageHeaders = CreateHeaders();
-            AddMessageHeaders(messageHeaders, headers);
-            AddMessageTypeHeader(message, messageHeaders);
-            // Call header hook
-            producerSettings.HeaderModifier?.Invoke(messageHeaders, message);
+            AddMessageHeaders(messageHeaders, headers, message, producerSettings);
 
             _logger.LogDebug("Producing message {Message} of type {MessageType} to path {Path} with payload size {MessageSize}", message, producerSettings.MessageType, path, payload?.Length ?? 0);
             return ProduceToTransport(producerSettings.MessageType, message, path, payload, messageHeaders);
         }
 
-        private static void AddMessageHeaders(IDictionary<string, object> messageHeaders, IDictionary<string, object> headers)
+        private void AddMessageHeaders(IDictionary<string, object> messageHeaders, IDictionary<string, object> headers, object message, ProducerSettings producerSettings)
         {
             if (headers != null)
             {
@@ -292,6 +289,13 @@ namespace SlimMessageBus.Host
                     messageHeaders[key] = value;
                 }
             }
+
+            AddMessageTypeHeader(message, messageHeaders);
+            // Call header hook
+            producerSettings.HeaderModifier?.Invoke(messageHeaders, message);
+            // Call header hook
+            Settings.HeaderModifier?.Invoke(messageHeaders, message);
+
         }
 
         private void AddMessageTypeHeader(object message, IDictionary<string, object> headers)
@@ -355,10 +359,7 @@ namespace SlimMessageBus.Host
             var requestId = GenerateRequestId();
 
             var requestHeaders = CreateHeaders();
-            AddMessageHeaders(requestHeaders, headers);
-            AddMessageTypeHeader(request, requestHeaders);
-            // Call header hook
-            producerSettings.HeaderModifier?.Invoke(requestHeaders, request);
+            AddMessageHeaders(requestHeaders, headers, request, producerSettings);
             requestHeaders.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
             requestHeaders.SetHeader(ReqRespMessageHeaders.Expires, expires);
 
