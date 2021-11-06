@@ -43,5 +43,17 @@
             // assert
             cs.Instances.Should().Be(1);
         }
+
+        [Fact]
+        public void When_Creation_Then_DefaultIsDisposeConsumerEnabledIsFalse()
+        {
+            // arrange
+
+            // act
+            var cs = new ConsumerSettings();
+
+            // assert
+            cs.IsDisposeConsumerEnabled.Should().Be(false);
+        }
     }
 }

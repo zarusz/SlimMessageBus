@@ -166,6 +166,8 @@ The hook can be applied at the specified producer, or the whole bus.
 
 #### Set message headers when producing message
 
+> Since version 1.15.0
+
 Whenever the message is published (or sent in request-response), headers can be set to pass additional information with the message:
 
 ```cs
@@ -293,49 +295,56 @@ The hook can be applied for the specified consumer, or for all consumers in the 
 
 > The user specified `Action<>` methods need to be thread-safe as they will be executed concurrently as messages are being processed.
 
-#### Get message headers in the consumer or handler
-
-Whenever the consumer type (`IConsumer<T>` or `IRequestHandler<Req, Res>`) requires to obtain message headers for the message being processed, it needs to extend the interface `IConsumerWithHeaders`. As part of that interface the consumer needs to implement a property setter for `Headers`:
-
-```cs
-public class SomeConsumer : IConsumer<SomeMessage>, IConsumerWithHeaders
-{
-  public IReadOnlyDictionary<string, object> Headers { get; set; }
-
-  public async Task OnHandle(SomeMessage msg, string path)
-  {
-    // handle the msg
-    // the msg headers are in the Headers property
-  }
-}
-```
-
-> It is important that the consumer type is registered as either transient (prototype), scope based (per message), for the `Headers` property to work properly.
-> If the consumer type would be a singleton, then somewhere between the setting of `Headers` and running the `OnHandle` there could likely be a race condition.
-
 #### Consumer context
 
-The consumer can access the `ConsumerContext` object which enable the chosen transport provider to pass additional message information specific to the chosen transport. Examples of such information are the Azure Service Bus UserProperties, or Kafka Topic-Partition offset.
+> Changed in version 1.15.0
 
-To get access the consumer has to implement the `IConsumerContextAware` interface:
+The consumer can access the `IConsumerContext` object which enable the chosen transport provider to pass additional message information specific to the chosen transport.
+Examples of such information are the Azure Service Bus UserProperties, or Kafka Topic-Partition offset.
+
+To use it the consumer has to implement the `IConsumerWithContext` interface:
 
 ```cs
-public class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
+public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
 {
-   public AsyncLocal<ConsumerContext> Context { get; } = new AsyncLocal<ConsumerContext>();
+   public IConsumerContext Context { get; set; }
 
    public Task OnHandle(PingMessage message, string path)
    {
       var messageContext = Context.Value;
 
-      // Kafka transport specific extension:
+      // Kafka transport specific extension (requires SlimMessageBus.Host.Kafka package):
       var transportMessage = messageContext.GetTransportMessage();
       var partition = transportMessage.TopicPartition.Partition;
    }
 }
 ```
 
+SMB will set the `Context` property prior calling `OnHandle`.
+
 Please consult the individual transport provider documentation to see what is available.
+
+> It is important that the consumer type is registered as either transient (prototype), scope based (per message), for the `Context` property to work properly.
+If the consumer type would be a singleton, then somewhere between the setting of `Headers` and running the `OnHandle` there would be a race condition.
+
+##### Get message headers in the consumer or handler
+
+> Since version 1.15.0
+
+Whenever the consumer type (`IConsumer<T>` or `IRequestHandler<Req, Res>`) requires to obtain message headers for the message being processed, it needs to extend the interface `IConsumerWithContext`. 
+
+```cs
+public class SomeConsumer : IConsumer<SomeMessage>, IConsumerWithContext
+{
+  ppublic IConsumerContext Context { get; set; }
+
+  public async Task OnHandle(SomeMessage msg, string path)
+  {
+    // the msgessage headers are in the Context.Headers property
+  }
+}
+```
+
 
 #### Per-message DI container scope
 
@@ -412,19 +421,19 @@ The implementation requires that each micro-service instance that intends to sen
 In the case of request (or reponse) message, the SMB implementation needs to pass additional metadata information to make the request-response work (correlate response with a pending request, pass error message back to sender, etc).
 For majority of the transport providers SMB leverages the native message headers of the underlying transport (when the transport supports it). In the transports that do not natively support headers (e.g. Redis) each request (or response) message is wrapped by SMB into a special envelope which makes the implementation transport provider agnostic (see type `MessageWithHeaders`). 
 
-When header emulation is taking place, SMB uses a wrapper envelope that is binary and should be fast. See the [`MessageWithHeadersSerializer`](https://github.com/zarusz/SlimMessageBus/blob/master/src/SlimMessageBus.Host/RequestResponse/MessageWithHeadersSerializer.cs) for low level details.
+When header emulation is taking place, SMB uses a wrapper envelope that is binary and should be fast. See the [`MessageWithHeadersSerializer`](https://github.com/zarusz/SlimMessageBus/blob/master/src/SlimMessageBus.Host/RequestResponse/MessageWithHeadersSerializer.cs) for low level details (or if you want to serialize the wrapper in a different way).
 
 The request contains headers:
 
-* `RequestId`, so that the request sender can correlate the arriving responses.
-* `Expires` which is a datetime (UTC, in epoch) of when the request message (expires on).
-* `ReplyTo` topic/queue name, so that the service handling the request knows where to send back the response.
+* `RequestId` (string) so that the request sender can correlate the arriving responses.
+* `Expires` (long) which is a datetime (8 bytes long type, UTC, expressed in unix epoch) of when the request message (expires on).
+* `ReplyTo` (string) topic/queue name, so that the service handling the request knows where to send back the response.
 * The body of the request message (serialized using the chosen serialization provider).
 
 The response contains headers:
 
-* `RequestId`, so that the request sender can correlate the arriving responses.
-* `Error` message, in case the request message processing failed (so that we can fail fast and know the particular error).
+* `RequestId` (string) so that the request sender can correlate the arriving responses.
+* `Error` (string) message, in case the request message processing failed (so that we can fail fast and know the particular error).
 
 ### Produce request message
 
@@ -437,7 +446,7 @@ public class SomeRequest : IRequestMessage<SomeResponse> // Implementing the mar
 }
 
 // Option 2:
-// public class SomeRequest // The marker interface is not used
+// public class SomeRequest // The marker interface is not used (it's not mandatory)
 // {
 // }
 
@@ -515,16 +524,29 @@ mbb.Handle<SomeRequest, SomeResponse>(x => x
 
 The static `MessageBus.Current` was introduced to obtain either the singleton `IMessageBus` or the current scoped instance (like the `IMessageBus` tied with the currently executing request).
 
-This helps to lookup the `IMessageBus` instance in the domain model layer while doing Domain-Driven Design and specifically to implement domain events or to externalize infrastructure concerns if anything changes on the domain that would require communication with external systems.
+This helps to lookup the `IMessageBus` instance in the domain model layer while doing Domain-Driven Design and specifically to implement domain events or to externalize infrastructure concerns (domain layer sends domain events when anything changes on the domain that would require communication other layers or external systems).
 
 See [`DomainEvents`](../src/Samples/Sample.DomainEvents.WebApi/Startup.cs#L79) sample how to configure it per-request scope and how to use it for domain events.
 
 ## Dependency resolver
 
 SMB uses dependency resolver to obtain instances of the declared consumers (class instances that implement `IConsumer<>`, `IHandler<>`).
-There are few plugins availble that allow to integrate SMB with your favorite DI framework. 
+There are few plugins available that allow to integrate SMB with your favorite DI library. 
 
-The consumer/handler is typically resolved from DI container when the message arrives and needs to be handled. SMB does not maintain a reference to that object instance after consuming of the message - this gives user the ability to decide is the consumer/handler should be a singleton, transient, or scoped (to the ongoing web-request).
+The consumer/handler is typically resolved from DI container when the message arrives and needs to be handled. 
+SMB does not maintain a reference to that object instance after consuming of the message - this gives user the ability to decide is the consumer/handler should be a singleton, transient, or scoped (to the message being processed or ongoing web-request) and when it should be disposed.
+
+The disposal of the consumer instance obtained by the DI is typically handled by the DI (if the consumer implements `IDisposable`).
+By default SMB creates a child DI scope for every arriving message (`.IsMessageScopeEnabled(true)`) and after the message is processed, 
+SMB disposes that child DI scope - with that the DI will dispose the consumer instance and its injected collaborators.
+
+Now, in some special situations you might want SMB to dispose the consumer instance 
+after the message has been processed - you can enable that with `.DisposeConsumerEnabled(true)`. 
+This setting will make SMB dispose the consumer instance if only it implements the `IDisposable` interface.
+
+> Generally its recommended to leave the default per-message scope creation, and register the consumer types/handlers as either transient or scoped.
+
+See more [here](https://docs.microsoft.com/en-us/dotnet/core/extensions/dependency-injection-guidelines#general-idisposable-guidelines) on disposable best practices.
 
 See samples and the [Packages section](../#Packages).
 
@@ -550,7 +572,7 @@ The following can be used to provide a custom `IMessageTypeResolver` implementat
 ```cs
 IMessageTypeResolver mtr = new AssemblyQualifiedNameMessageTypeResolver();
 
-mbb.WithMessageTypeResolved(mtr)
+mbb.WithMessageTypeResolver(mtr)
 ```
 
 A custom resolver could be used in scenarios when there is a desire to send short type names (to optimize overall message size). In this scenario the assembly name and/or namespace could be skipped - the producer and consumer could infer them.

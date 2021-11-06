@@ -294,7 +294,7 @@ namespace SlimMessageBus.Host.Redis.Test
             #endregion
         }
 
-        private class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
+        private class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
         {
             private readonly ILogger _logger;
 
@@ -303,7 +303,7 @@ namespace SlimMessageBus.Host.Redis.Test
                 _logger = logger;
             }
 
-            public AsyncLocal<ConsumerContext> Context { get; } = new AsyncLocal<ConsumerContext>();
+            public IConsumerContext Context { get; set; }
             public IList<PingMessage> Messages { get; } = new List<PingMessage>();
 
             #region Implementation of IConsumer<in PingMessage>

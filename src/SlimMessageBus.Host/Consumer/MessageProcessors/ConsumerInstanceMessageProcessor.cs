@@ -25,8 +25,6 @@
         private readonly bool _consumerWithContext;
         private readonly Action<TMessage, ConsumerContext> _consumerContextInitializer;
 
-        private readonly bool _consumerWithHeaders;
-
         public ConsumerInstanceMessageProcessor(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, MessageWithHeaders> messageProvider, Action<TMessage, ConsumerContext> consumerContextInitializer = null)
         {
             if (messageBus is null) throw new ArgumentNullException(nameof(messageBus));
@@ -39,9 +37,7 @@
             _createMessageScope = _messageBus.IsMessageScopeEnabled(_consumerSettings);
 
             _consumerContextInitializer = consumerContextInitializer;
-            _consumerWithContext = typeof(IConsumerContextAware).IsAssignableFrom(consumerSettings.ConsumerType);
-
-            _consumerWithHeaders = typeof(IConsumerWithHeaders).IsAssignableFrom(consumerSettings.ConsumerType);
+            _consumerWithContext = typeof(IConsumerWithContext).IsAssignableFrom(consumerSettings.ConsumerType);
         }
 
         #region IDisposable
@@ -234,19 +230,17 @@
 
         private async Task<object> ExecuteConsumer(TMessage msg, object message, IDictionary<string, object> messageHeaders, object consumerInstance)
         {
-            if (_consumerWithContext && _consumerContextInitializer != null)
+            if (_consumerWithContext)
             {
-                var consumerContext = new ConsumerContext();
-                _consumerContextInitializer(msg, consumerContext);
+                var consumerContext = new ConsumerContext
+                {
+                    Headers = new ReadOnlyDictionary<string, object>(messageHeaders)
+                };
 
-                var consumerWithContext = (IConsumerContextAware)consumerInstance;
-                consumerWithContext.Context.Value = consumerContext;
-            }
+                _consumerContextInitializer?.Invoke(msg, consumerContext);
 
-            if (_consumerWithHeaders)
-            {
-                var consumerWithHeaders = (IConsumerWithHeaders)consumerInstance;
-                consumerWithHeaders.Headers = new ReadOnlyDictionary<string, object>(messageHeaders);
+                var consumerWithContext = (IConsumerWithContext)consumerInstance;
+                consumerWithContext.Context = consumerContext;
             }
 
             // the consumer just subscribes to the message

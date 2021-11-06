@@ -282,7 +282,7 @@ namespace SlimMessageBus.Host.Kafka.Test
             #endregion
         }
 
-        private class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
+        private class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
         {
             private readonly ILogger _logger;
 
@@ -291,14 +291,14 @@ namespace SlimMessageBus.Host.Kafka.Test
                 _logger = logger;
             }
 
-            public AsyncLocal<ConsumerContext> Context { get; } = new AsyncLocal<ConsumerContext>();
+            public IConsumerContext Context { get; set; }
             public List<(PingMessage Message, int Partition)> Messages { get; } = new List<(PingMessage, int)>();
 
             #region Implementation of IConsumer<in PingMessage>
 
             public Task OnHandle(PingMessage message, string name)
             {
-                var transportMessage = Context.Value.GetTransportMessage();
+                var transportMessage = Context.GetTransportMessage();
                 var partition = transportMessage.TopicPartition.Partition;
 
                 lock (Messages)

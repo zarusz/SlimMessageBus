@@ -320,7 +320,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             #endregion
         }
 
-        private class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
+        private class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
         {
             private readonly ILogger _logger;
 
@@ -330,7 +330,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
                 Messages = messages;
             }
 
-            public AsyncLocal<ConsumerContext> Context { get; } = new AsyncLocal<ConsumerContext>();
+            public IConsumerContext Context { get; set; }
 
             public IList<(PingMessage, string)> Messages { get; } = new List<(PingMessage, string)>();           
 
@@ -340,7 +340,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             {
                 lock (Messages)
                 {
-                    var sbMessage = Context.Value.GetTransportMessage();
+                    var sbMessage = Context.GetTransportMessage();
 
                     Messages.Add((message, sbMessage.MessageId));
                 }

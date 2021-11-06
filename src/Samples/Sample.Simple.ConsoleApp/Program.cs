@@ -287,15 +287,16 @@
         public int Right { get; set; }
     }
 
-    public class AddCommandConsumer : IConsumer<AddCommand>, IConsumerWithHeaders
+    public class AddCommandConsumer : IConsumer<AddCommand>, IConsumerWithContext
     {
-        public IReadOnlyDictionary<string, object> Headers { get; set; }
+        public IConsumerContext Context { get; set; }
 
         #region Implementation of IConsumer<in AddCommand>
 
         public async Task OnHandle(AddCommand message, string name)
         {
             Console.WriteLine("Consumer: Adding {0} and {1} gives {2}", message.Left, message.Right, message.Left + message.Right);
+            // Context.Headers -> has the headers
             await Task.Delay(50); // Simulate some work
         }
 
