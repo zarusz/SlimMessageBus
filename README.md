@@ -80,7 +80,7 @@ Another service (or application layer) handles the message:
 ```cs
 public class SomeMessageConsumer : IConsumer<SomeMessage>
 {
-   public Task OnHandle(SomeMessage message, string name) // name = topic or queue name
+   public Task OnHandle(SomeMessage message, string path) // path = topic or queue name
    {
        // handle the message
    }
@@ -102,7 +102,7 @@ The receiving side handles the request and replies back:
 ```cs
 public class MessageRequestHandler : IRequestHandler<MessageRequest, MessageResponse>
 {
-   public async Task<MessageResponse> OnHandle(MessageRequest request, string name)
+   public async Task<MessageResponse> OnHandle(MessageRequest request, string path)
    {
       // handle the request message and return response
    }
@@ -127,8 +127,9 @@ var builder = MessageBusBuilder.Create()
 	
    // Use JSON for message serialization                
    .WithSerializer(new JsonMessageSerializer())
-   // Use DI from ASP.NET Core (or Autofac, Unity, ServiceLocator)
-   .WithDependencyResolver(new AspNetCoreMessageBusDependencyResolver(serviceProvider))
+   // Use DI from Ms Dependency Injection (or ASP.NET Core, Autofac, Unity, ServiceLocator)
+   .WithDependencyResolver(new MsDependencyInjectionDependencyResolver(serviceProvider))
+   //.WithDependencyResolver(new AspNetCoreMessageBusDependencyResolver(serviceProvider))
 	
    // Use Apache Kafka transport provider
    .WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
@@ -193,25 +194,25 @@ Somewhere in your domain layer the domain event gets raised:
 public class Order
 {
    public Customer Customer { get; }
-   private IList<OrderLine> _lines = new List<OrderLine>();
    public OrderState State { get; private set; }
 
-   public IEnumerable<OrderLine> Lines => _lines.AsEnumerable();
+   private IList<OrderLine> lines = new List<OrderLine>();
+   public IEnumerable<OrderLine> Lines => lines.AsEnumerable();
 
    public Order(Customer customer)
    {
-      State = OrderState.New;
       Customer = customer;
+      State = OrderState.New;
    }
 
    public OrderLine Add(string productId, int quantity) { }
 
-   public void Submit()
+   public Task Submit()
    {
       State = OrderState.Submitted;
 
       var e = new OrderSubmittedEvent(this);
-      MessageBus.Current.Publish(e).Wait(); // raise domain event
+      return MessageBus.Current.Publish(e); // raise domain event
    }
 }
 ```
@@ -328,7 +329,7 @@ private IMessageBus BuildMessageBus()
          x.KafkaGroup(instanceGroup); // Kafka consumer group	    
          x.DefaultTimeout(TimeSpan.FromSeconds(30)); // Default global response timeout
       })
-      .WithDependencyResolver(new AutofacMessageBusDependencyResolver())
+      .WithDependencyResolver(new MsDependencyInjectionDependencyResolver(serviceProvider))
       .WithSerializer(new JsonMessageSerializer())
       .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
 
@@ -341,7 +342,7 @@ private IMessageBus BuildMessageBus()
 The message bus configuration for the Worker:
 
 ```cs
-private static IMessageBus BuildMessageBus()
+private static IMessageBus BuildMessageBus(IServiceProvider serices)
 {
    // unique id across instances of this application (e.g. 1, 2, 3)
    var instanceId = Configuration["InstanceId"];
@@ -360,7 +361,7 @@ private static IMessageBus BuildMessageBus()
                .Instances(3);
          });
       })
-      .WithDependencyResolver(new AutofacMessageBusDependencyResolver())
+      .WithDependencyResolver(new MsDependencyInjectionDependencyResolver(services))
       .WithSerializer(new JsonMessageSerializer())
       .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
 
