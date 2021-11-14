@@ -6,6 +6,7 @@
     using System.Threading.Tasks;
     using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.DependencyResolver;
 
     /// <summary>
     /// Implementation of <see cref="IMessageProcessor{TMessage}"/> that peforms orchestration around processing of a new message using an instance of the declared consumer (<see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/> interface).
@@ -128,7 +129,7 @@
                     if (_createMessageScope)
                     {
                         _logger.LogDebug("Disposing message scope for message {Message} of type {MessageType}", message, _consumerSettings.MessageType);
-                        messageScope.DisposeSilently("Scope", _logger);
+                        ((IChildDependencyResolver)messageScope).DisposeSilently("Scope", _logger);
                     }
                 }
 

@@ -111,7 +111,7 @@ public class MessageRequestHandler : IRequestHandler<MessageRequest, MessageResp
 
 The bus will ask the chosen DI to provide the consumer instances (`SomeMessageConsumer`, `MessageRequestHandler`).
 
-The configuration somewhere in your service:
+To configure SMB in your service:
 
 ```cs
 var builder = MessageBusBuilder.Create()
@@ -145,7 +145,24 @@ var builder = MessageBusBuilder.Create()
 // Build the bus from the builder. Message consumers will start consuming messages from the configured topics/queues of the chosen provider.
 IMessageBus bus = builder.Build();
 
-// Register bus in your DI
+// Register bus in your DI (as a singleton)
+```
+
+When your service uses `Microsoft.Extensions.DependencyInjection`, 
+the SMB can be configured in a more compact way (requires `SlimMessageBus.Host.MsDependencyInjection` or `SlimMessageBus.Host.AspNetCore` package):
+
+```cs
+// Startup.cs:
+
+IServiceCollection services;
+
+services.AddSlimMessageBus((mbb, svp) =>
+{
+    mbb
+        .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
+        // ...
+        .WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
+})
 ```
 
 ### Basic in-process pub/sub messaging (for domain events)
@@ -238,7 +255,7 @@ The `SlimMessageBus` configuration for in-memory provider looks like this:
 var mbb = MessageBusBuilder.Create()
    .Produce<OrderSubmittedEvent>(x => x.DefaultTopic(x.MessageType.Name))
    .Consume<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<OrderSubmittedHandler>())
-   .WithDependencyResolver(new AutofacMessageBusDependencyResolver())
+   .WithDependencyResolver(new MsDependencyInjectionDependencyResolver(services))
    .WithProviderMemory(new MemoryMessageBusSettings
    {
       // supress serialization and pass the same event instance to subscribers (events contain domain objects we do not want serialized, also we gain abit on speed)

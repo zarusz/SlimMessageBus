@@ -5,7 +5,7 @@
     /// <summary>
     /// Responsible for resolving the handlers or consumers.
     /// </summary>
-    public interface IDependencyResolver : IDisposable
+    public interface IDependencyResolver
     {
         /// <summary>
         /// Resolves the message handles or consumers.
@@ -17,6 +17,6 @@
         /// Creates a child scope from the current dependency resolver.
         /// </summary>
         /// <returns></returns>
-        IDependencyResolver CreateScope();
+        IChildDependencyResolver CreateScope();
     }
 }

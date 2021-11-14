@@ -20,7 +20,6 @@
     using Confluent.Kafka;
     using Microsoft.Extensions.DependencyInjection;
     using SlimMessageBus.Host;
-    using System.Collections.Generic;
 
     enum Provider
     {
@@ -49,7 +48,10 @@
                 // Register MS logging
                 .AddLogging(cfg => cfg.AddConfiguration(configuration.GetSection("Logging")).AddConsole())
                 // Register bus
-                .AddSingleton<IMessageBus>(svp => CreateMessageBus(configuration, svp))
+                .AddSlimMessageBus((mbb, services) =>
+                {
+                    ConfigureMessageBus(mbb, configuration, services);
+                })
                 // Register consumers
                 .AddTransient<AddCommandConsumer>()
                 .AddTransient<MultiplyRequestHandler>()
@@ -72,7 +74,7 @@
         /**
          * Performs IMessageBus creation & configuration
          */
-        private static IMessageBus CreateMessageBus(IConfiguration configuration, IServiceProvider services)
+        private static void ConfigureMessageBus(MessageBusBuilder mbb, IConfiguration configuration, IServiceProvider services)
         {
             // Choose your provider
             var provider = Provider.Kafka;
@@ -111,14 +113,13 @@
              */
 
             // Create message bus using the fluent builder interface
-            IMessageBus messageBus = MessageBusBuilder
-                .Create()
+            mbb
                 // Pub/Sub example
                 .Produce<AddCommand>(x => x.DefaultTopic(topicForAddCommand)) // By default AddCommand messages will go to event-hub/topic named 'add-command'
                 .Consume<AddCommand>(x => x.Topic(topicForAddCommand)
                                            .WithConsumer<AddCommandConsumer>()
-                                            //.WithConsumer<AddCommandConsumer>(nameof(AddCommandConsumer.OnHandle))
-                                            //.WithConsumer<AddCommandConsumer>((consumer, message, name) => consumer.OnHandle(message, name))
+                                           //.WithConsumer<AddCommandConsumer>(nameof(AddCommandConsumer.OnHandle))
+                                           //.WithConsumer<AddCommandConsumer>((consumer, message, name) => consumer.OnHandle(message, name))
                                            .KafkaGroup(consumerGroup) // for Apache Kafka & Azure Event Hub
                                            .SubscriptionName(consumerGroup) // for Azure Service Bus
                 )
@@ -161,7 +162,6 @@
                     x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
                 })
                 .WithSerializer(new JsonMessageSerializer()) // Use JSON for message serialization                
-                .WithDependencyResolver(new MsDependencyInjectionDependencyResolver(services))
                 .PerMessageScopeEnabled(true) // Enable DI scope to be created for each message about to be processed
                 .WithHeaderModifier((headers, message) =>
                 {
@@ -231,10 +231,7 @@
                             builder.WithProviderRedis(new RedisMessageBusSettings(redisConnectionString) { EnvelopeSerializer = new MessageWithHeadersSerializer() }); // Or use Redis as provider
                             break;
                     }
-                })
-                .Build();
-
-            return messageBus;
+                });
         }
 
         static async Task AddLoop(IMessageBus bus)

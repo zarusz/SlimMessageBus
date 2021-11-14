@@ -82,20 +82,20 @@
             services.AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
 
             // Make the MessageBus per request scope
-            services.AddScoped<IMessageBus>(BuildMessageBus);
+            services.AddSlimMessageBus(ConfigureMessageBus);
         }
 
-        private IMessageBus BuildMessageBus(IServiceProvider serviceProvider)
+        private void ConfigureMessageBus(MessageBusBuilder mbb, IServiceProvider serviceProvider)
         {
             var domainAssembly = typeof(OrderSubmittedEvent).Assembly;
 
-            var mbb = MessageBusBuilder.Create()
-                // declare that OrderSubmittedEvent will be produced (option 1 - explicit declaration)
-                //.Produce<OrderSubmittedEvent>(x => x.DefaultTopic(x.Settings.MessageType.Name))
-                // declare that OrderSubmittedEvent will be consumed by OrderSubmittedHandler (option 1 - explicit declaration)
-                //.Consume<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithSubscriber<OrderSubmittedHandler>())
-                
-                // Note: we could discover messages and handlers using reflection and register them automatically (option 2 - auto discovery)
+            // declare that OrderSubmittedEvent will be produced (option 1 - explicit declaration)
+            //.Produce<OrderSubmittedEvent>(x => x.DefaultTopic(x.Settings.MessageType.Name))
+            // declare that OrderSubmittedEvent will be consumed by OrderSubmittedHandler (option 1 - explicit declaration)
+            //.Consume<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithSubscriber<OrderSubmittedHandler>())
+
+            // Note: we could discover messages and handlers using reflection and register them automatically (option 2 - auto discovery)
+            mbb
                 .Do(builder => domainAssembly
                     .GetTypes()
                     .Where(t => t.IsClass && !t.IsAbstract)
@@ -110,14 +110,11 @@
                     })
                 )
                 //.WithSerializer(new JsonMessageSerializer()) // No need to use the serializer because of `MemoryMessageBusSettings.EnableMessageSerialization = false`
-                .WithDependencyResolver(new AspNetCoreMessageBusDependencyResolver(serviceProvider))
                 .WithProviderMemory(new MemoryMessageBusSettings
                 {
                     // Do not serialize the domain events and rather pass the same instance across handlers
                     EnableMessageSerialization = false
                 });
-
-            return mbb.Build();
         }
     }
 }

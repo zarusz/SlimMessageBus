@@ -10,8 +10,8 @@ namespace SlimMessageBus.Host.Test
     public class MessageBusMock
     {
         public Mock<IDependencyResolver> DependencyResolverMock { get; }
-        public IList<Mock<IDependencyResolver>> ChildDependencyResolverMocks { get; }
-        public Action<Mock<IDependencyResolver>> OnChildDependencyResolverCreated { get; set; }
+        public IList<Mock<IChildDependencyResolver>> ChildDependencyResolverMocks { get; }
+        public Action<Mock<IChildDependencyResolver>> OnChildDependencyResolverCreated { get; set; }
         public Mock<IMessageSerializer> SerializerMock { get; }
         public Mock<IConsumer<SomeMessage>> ConsumerMock { get; }
         public Mock<IRequestHandler<SomeRequest, SomeResponse>> HandlerMock { get; }
@@ -24,9 +24,9 @@ namespace SlimMessageBus.Host.Test
             ConsumerMock = new Mock<IConsumer<SomeMessage>>();
             HandlerMock = new Mock<IRequestHandler<SomeRequest, SomeResponse>>();
 
-            ChildDependencyResolverMocks = new List<Mock<IDependencyResolver>>();
+            ChildDependencyResolverMocks = new List<Mock<IChildDependencyResolver>>();
 
-            void SetupDependencyResolver(Mock<IDependencyResolver> mock)
+            void SetupDependencyResolver<T>(Mock<T> mock) where T : class, IDependencyResolver
             {
                 mock.Setup(x => x.Resolve(typeof(IConsumer<SomeMessage>))).Returns(ConsumerMock.Object);
                 mock.Setup(x => x.Resolve(typeof(IRequestHandler<SomeRequest, SomeResponse>))).Returns(HandlerMock.Object);
@@ -36,7 +36,7 @@ namespace SlimMessageBus.Host.Test
             SetupDependencyResolver(DependencyResolverMock);
             DependencyResolverMock.Setup(x => x.CreateScope()).Returns(() =>
             {
-                var mock = new Mock<IDependencyResolver>();
+                var mock = new Mock<IChildDependencyResolver>();
                 SetupDependencyResolver(mock);
 
                 ChildDependencyResolverMocks.Add(mock);
