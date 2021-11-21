@@ -14,31 +14,31 @@
     /// <typeparam name="TMessage"></typeparam>
     public class ConsumerInstanceMessageProcessor<TMessage> : IMessageProcessor<TMessage> where TMessage : class
     {
-        private readonly ILogger _logger;
+        private readonly ILogger logger;
 
-        private readonly MessageBusBase _messageBus;
-        private readonly ConsumerSettings _consumerSettings;
+        private readonly MessageBusBase messageBus;
+        private readonly ConsumerSettings consumerSettings;
 
-        private readonly Func<TMessage, MessageWithHeaders> _messageProvider;
+        private readonly Func<TMessage, MessageWithHeaders> messageProvider;
 
-        private readonly bool _createMessageScope;
+        private readonly bool createMessageScope;
 
-        private readonly bool _consumerWithContext;
-        private readonly Action<TMessage, ConsumerContext> _consumerContextInitializer;
+        private readonly bool consumerWithContext;
+        private readonly Action<TMessage, ConsumerContext> consumerContextInitializer;
 
         public ConsumerInstanceMessageProcessor(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, MessageWithHeaders> messageProvider, Action<TMessage, ConsumerContext> consumerContextInitializer = null)
         {
             if (messageBus is null) throw new ArgumentNullException(nameof(messageBus));
 
-            _logger = messageBus.LoggerFactory.CreateLogger<ConsumerInstancePoolMessageProcessor<TMessage>>();
-            _consumerSettings = consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings));
-            _messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
-            _messageProvider = messageProvider ?? throw new ArgumentNullException(nameof(messageProvider));
+            logger = messageBus.LoggerFactory.CreateLogger<ConsumerInstanceMessageProcessor<TMessage>>();
+            this.consumerSettings = consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings));
+            this.messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
+            this.messageProvider = messageProvider ?? throw new ArgumentNullException(nameof(messageProvider));
 
-            _createMessageScope = _messageBus.IsMessageScopeEnabled(_consumerSettings);
+            createMessageScope = this.messageBus.IsMessageScopeEnabled(this.consumerSettings);
 
-            _consumerContextInitializer = consumerContextInitializer;
-            _consumerWithContext = typeof(IConsumerWithContext).IsAssignableFrom(consumerSettings.ConsumerType);
+            this.consumerContextInitializer = consumerContextInitializer;
+            consumerWithContext = typeof(IConsumerWithContext).IsAssignableFrom(consumerSettings.ConsumerType);
         }
 
         #region IDisposable
@@ -58,17 +58,19 @@
 
         #endregion
 
-        public virtual async Task<Exception> ProcessMessage(TMessage msg)
+        public AbstractConsumerSettings ConsumerSettings => consumerSettings;
+
+        public virtual async Task<Exception> ProcessMessage(TMessage msg, IMessageTypeConsumerInvokerSettings consumerInvoker)
         {
             Exception exceptionResult = null;
             try
             {
-                var message = DeserializeMessage(msg, out var messageHeaders, out var requestId, out var expires);
+                var message = DeserializeMessage(msg, out var messageHeaders, out var requestId, out var expires, consumerInvoker);
 
                 // Verify if the request/message is already expired
                 if (expires != null)
                 {
-                    var currentTime = _messageBus.CurrentTime;
+                    var currentTime = messageBus.CurrentTime;
                     if (currentTime > expires.Value)
                     {
                         OnMessageExpired(expires, message, currentTime, msg);
@@ -81,14 +83,14 @@
                 object response = null;
                 string responseError = null;
 
-                if (_createMessageScope)
+                if (createMessageScope)
                 {
-                    _logger.LogDebug("Creating message scope for message {Message} of type {MessageType}", message, _consumerSettings.MessageType);
+                    logger.LogDebug("Creating message scope for message {Message} of type {MessageType}", message, consumerSettings.MessageType);
                 }
 
-                var messageScope = _createMessageScope
-                    ? _messageBus.Settings.DependencyResolver.CreateScope()
-                    : _messageBus.Settings.DependencyResolver;
+                var messageScope = createMessageScope
+                    ? messageBus.Settings.DependencyResolver.CreateScope()
+                    : messageBus.Settings.DependencyResolver;
 
                 // Set MessageScope.Current, so any future integration might need to use that
                 MessageScope.Current = messageScope;
@@ -97,15 +99,14 @@
                 {
                     OnMessageArrived(message, msg);
 
-                    var consumerInstance = messageScope.Resolve(_consumerSettings.ConsumerType)
-                        ?? throw new ConfigurationMessageBusException($"Could not resolve consumer/handler type {_consumerSettings.ConsumerType} from the DI container. Please check that the configure type {_consumerSettings.ConsumerType} is registered within the DI container.");
+                    var consumerType = consumerInvoker?.ConsumerType ?? consumerSettings.ConsumerType;
+                    var consumerInstance = messageScope.Resolve(consumerType)
+                        ?? throw new ConfigurationMessageBusException($"Could not resolve consumer/handler type {consumerType} from the DI container. Please check that the configured type {consumerType} is registered within the DI container.");
                     try
                     {
-                        response = await ExecuteConsumer(msg, message, messageHeaders, consumerInstance).ConfigureAwait(false);
+                        response = await ExecuteConsumer(msg, message, messageHeaders, consumerInstance, consumerInvoker).ConfigureAwait(false);
                     }
-#pragma warning disable CA1031 // Do not catch general exception types - Intended
                     catch (Exception e)
-#pragma warning restore CA1031 // Do not catch general exception types
                     {
                         responseError = OnMessageError(message, e, msg);
                         exceptionResult = e;
@@ -114,10 +115,10 @@
                     {
                         OnMessageFinished(message, msg);
 
-                        if (_consumerSettings.IsDisposeConsumerEnabled && consumerInstance is IDisposable consumerInstanceDisposable)
+                        if (consumerSettings.IsDisposeConsumerEnabled && consumerInstance is IDisposable consumerInstanceDisposable)
                         {
-                            _logger.LogDebug("Disposing consumer instance {Consumer} of type {ConsumerType}", consumerInstance, _consumerSettings.ConsumerType);
-                            consumerInstanceDisposable.DisposeSilently("ConsumerInstance", _logger);
+                            logger.LogDebug("Disposing consumer instance {Consumer} of type {ConsumerType}", consumerInstance, consumerType);
+                            consumerInstanceDisposable.DisposeSilently("ConsumerInstance", logger);
                         }
                     }
                 }
@@ -126,10 +127,10 @@
                     // Clear the MessageScope.Current
                     MessageScope.Current = null;
 
-                    if (_createMessageScope)
+                    if (createMessageScope)
                     {
-                        _logger.LogDebug("Disposing message scope for message {Message} of type {MessageType}", message, _consumerSettings.MessageType);
-                        ((IChildDependencyResolver)messageScope).DisposeSilently("Scope", _logger);
+                        logger.LogDebug("Disposing message scope for message {Message} of type {MessageType}", message, consumerSettings.MessageType);
+                        ((IChildDependencyResolver)messageScope).DisposeSilently("Scope", logger);
                     }
                 }
 
@@ -138,11 +139,9 @@
                     await ProduceResponse(requestId, message, messageHeaders, response, responseError).ConfigureAwait(false);
                 }
             }
-#pragma warning disable CA1031 // Do not catch general exception types - intended to catch all exceptions
             catch (Exception e)
-#pragma warning restore CA1031 // Do not catch general exception types
             {
-                _logger.LogError(e, "Processing of the message {Message} of type {ConsumerType} failed", msg, _consumerSettings.MessageType);
+                logger.LogError(e, "Processing of the message {Message} of type {MessageType} failed", msg, consumerSettings.MessageType);
                 exceptionResult = e;
             }
             return exceptionResult;
@@ -150,19 +149,17 @@
 
         private void OnMessageExpired(DateTimeOffset? expires, object message, DateTimeOffset currentTime, TMessage nativeMessage)
         {
-            _logger.LogWarning("The message arrived too late and is already expired (expires {0}, current {1})", expires.Value, currentTime);
+            logger.LogWarning("The message arrived too late and is already expired (expires {0}, current {1})", expires.Value, currentTime);
 
             try
             {
                 // Execute the event hook
-                _consumerSettings.OnMessageExpired?.Invoke(_messageBus, _consumerSettings, message, nativeMessage);
-                _messageBus.Settings.OnMessageExpired?.Invoke(_messageBus, _consumerSettings, message, nativeMessage);
+                consumerSettings.OnMessageExpired?.Invoke(messageBus, consumerSettings, message, nativeMessage);
+                messageBus.Settings.OnMessageExpired?.Invoke(messageBus, consumerSettings, message, nativeMessage);
             }
-#pragma warning disable CA1031 // Intended, a catch all situation
             catch (Exception eh)
-#pragma warning restore CA1031
             {
-                MessageBusBase.HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageExpired));
+                MessageBusBase.HookFailed(logger, eh, nameof(IConsumerEvents.OnMessageExpired));
             }
         }
 
@@ -170,28 +167,26 @@
         {
             string responseError = null;
 
-            if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
+            if (consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
             {
-                _logger.LogError(e, "Handler execution failed");
+                logger.LogError(e, "Handler execution failed");
                 // Save the exception
                 responseError = e.ToString();
             }
             else
             {
-                _logger.LogError(e, "Consumer execution failed");
+                logger.LogError(e, "Consumer execution failed");
             }
 
             try
             {
                 // Execute the event hook
-                _consumerSettings.OnMessageFault?.Invoke(_messageBus, _consumerSettings, message, e, nativeMessage);
-                _messageBus.Settings.OnMessageFault?.Invoke(_messageBus, _consumerSettings, message, e, nativeMessage);
+                consumerSettings.OnMessageFault?.Invoke(messageBus, consumerSettings, message, e, nativeMessage);
+                messageBus.Settings.OnMessageFault?.Invoke(messageBus, consumerSettings, message, e, nativeMessage);
             }
-#pragma warning disable CA1031 // Intended, a catch all situation
             catch (Exception eh)
-#pragma warning restore CA1031
             {
-                MessageBusBase.HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageFault));
+                MessageBusBase.HookFailed(logger, eh, nameof(IConsumerEvents.OnMessageFault));
             }
 
             return responseError;
@@ -202,14 +197,12 @@
             try
             {
                 // Execute the event hook
-                _consumerSettings.OnMessageArrived?.Invoke(_messageBus, _consumerSettings, message, _consumerSettings.Path, nativeMessage);
-                _messageBus.Settings.OnMessageArrived?.Invoke(_messageBus, _consumerSettings, message, _consumerSettings.Path, nativeMessage);
+                consumerSettings.OnMessageArrived?.Invoke(messageBus, consumerSettings, message, consumerSettings.Path, nativeMessage);
+                messageBus.Settings.OnMessageArrived?.Invoke(messageBus, consumerSettings, message, consumerSettings.Path, nativeMessage);
             }
-#pragma warning disable CA1031 // Intended, a catch all situation
             catch (Exception eh)
-#pragma warning restore CA1031
             {
-                MessageBusBase.HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageArrived));
+                MessageBusBase.HookFailed(logger, eh, nameof(IConsumerEvents.OnMessageArrived));
             }
         }
 
@@ -218,55 +211,54 @@
             try
             {
                 // Execute the event hook
-                _consumerSettings.OnMessageFinished?.Invoke(_messageBus, _consumerSettings, message, _consumerSettings.Path, nativeMessage);
-                _messageBus.Settings.OnMessageFinished?.Invoke(_messageBus, _consumerSettings, message, _consumerSettings.Path, nativeMessage);
+                consumerSettings.OnMessageFinished?.Invoke(messageBus, consumerSettings, message, consumerSettings.Path, nativeMessage);
+                messageBus.Settings.OnMessageFinished?.Invoke(messageBus, consumerSettings, message, consumerSettings.Path, nativeMessage);
             }
-#pragma warning disable CA1031 // Intended, a catch all situation
             catch (Exception eh)
-#pragma warning restore CA1031
             {
-                MessageBusBase.HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageFinished));
+                MessageBusBase.HookFailed(logger, eh, nameof(IConsumerEvents.OnMessageFinished));
             }
         }
 
-        private async Task<object> ExecuteConsumer(TMessage msg, object message, IDictionary<string, object> messageHeaders, object consumerInstance)
+        private async Task<object> ExecuteConsumer(TMessage msg, object message, IDictionary<string, object> messageHeaders, object consumerInstance, IMessageTypeConsumerInvokerSettings consumerInvoker)
         {
-            if (_consumerWithContext)
+            if (consumerWithContext)
             {
                 var consumerContext = new ConsumerContext
                 {
                     Headers = new ReadOnlyDictionary<string, object>(messageHeaders)
                 };
 
-                _consumerContextInitializer?.Invoke(msg, consumerContext);
+                consumerContextInitializer?.Invoke(msg, consumerContext);
 
                 var consumerWithContext = (IConsumerWithContext)consumerInstance;
                 consumerWithContext.Context = consumerContext;
             }
 
             // the consumer just subscribes to the message
-            var task = _consumerSettings.ConsumerMethod(consumerInstance, message, _consumerSettings.Path);
+            var task = (consumerInvoker ?? consumerSettings).ConsumerMethod(consumerInstance, message, consumerSettings.Path);
             await task.ConfigureAwait(false);
 
             object response = null;
 
-            if (_consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
+            if (consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
             {
                 // the consumer handles the request (and replies)
-                response = _consumerSettings.ConsumerMethodResult(task);
+                response = consumerSettings.ConsumerMethodResult(task);
             }
 
             return response;
         }
 
-        protected object DeserializeMessage(TMessage msg, out IDictionary<string, object> headers, out string requestId, out DateTimeOffset? expires)
+        protected object DeserializeMessage(TMessage msg, out IDictionary<string, object> headers, out string requestId, out DateTimeOffset? expires, IMessageTypeConsumerInvokerSettings invoker)
         {
-            var messageWithHeaders = _messageProvider(msg);
+            var messageWithHeaders = messageProvider(msg);
 
             headers = messageWithHeaders.Headers;
 
-            _logger.LogDebug("Deserializing message...");
-            var message = _messageBus.Serializer.Deserialize(_consumerSettings.MessageType, messageWithHeaders.Payload);
+            logger.LogDebug("Deserializing message...");
+            var messageType = invoker?.MessageType ?? consumerSettings.MessageType;
+            var message = messageBus.Serializer.Deserialize(messageType, messageWithHeaders.Payload);
 
             requestId = null;
             expires = null;
@@ -283,13 +275,13 @@
         private async Task ProduceResponse(string requestId, object request, IDictionary<string, object> requestHeaders, object response, string responseError)
         {
             // send the response (or error response)
-            _logger.LogDebug("Serializing the response {Response} of type {MessageType} for RequestId: {RequestId}...", response, _consumerSettings.ResponseType, requestId);
+            logger.LogDebug("Serializing the response {Response} of type {MessageType} for RequestId: {RequestId}...", response, consumerSettings.ResponseType, requestId);
 
-            var responseHeaders = _messageBus.CreateHeaders();
+            var responseHeaders = messageBus.CreateHeaders();
             responseHeaders.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
             responseHeaders.SetHeader(ReqRespMessageHeaders.Error, responseError);
 
-            await _messageBus.ProduceResponse(request, requestHeaders, response, responseHeaders, _consumerSettings).ConfigureAwait(false);
+            await messageBus.ProduceResponse(request, requestHeaders, response, responseHeaders, consumerSettings).ConfigureAwait(false);
         }
     }
 }

@@ -11,8 +11,7 @@ Azure Service Bus provider requires a connection string:
 ```cs
 var connectionString = "" // Azure Service Bus connection string
 
-MessageBusBuilder mbb = MessageBusBuilder
-    .Create()
+MessageBusBuilder mbb = MessageBusBuilder.Create()
     // the bus configuration here
     .WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString))
     .WithSerializer(new JsonMessageSerializer());
@@ -87,7 +86,7 @@ mbb.Produce<PingMessage>(x =>
         // set the Azure SB message ID
         sbMessage.MessageId = $"ID_{message.Counter}";
         // set the Azure SB message partition key
-        sbMessage.PartitionKey = message.Counter.ToString(CultureInfo.InvariantCulture);
+        sbMessage.PartitionKey = message.Counter.ToString();
     });
 })
 ```
@@ -117,19 +116,17 @@ mbb.Consume<TMessage>(x => x
 
 #### Consumer context
 
-The consumer can implement the `IConsumerContextAware` interface to access the Azure Service Bus native message:
+The consumer can implement the `IConsumerWithContext` interface to access the Azure Service Bus native message:
 
 ```cs
-public class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
+public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
 {
-   public AsyncLocal<ConsumerContext> Context { get; } = new AsyncLocal<ConsumerContext>();
+   public IConsumerContext Context { get; set; }
 
    public Task OnHandle(PingMessage message, string name)
    {
-      var messageContext = Context.Value;
-
       // Azure SB transport specific extension:
-      var transportMessage = messageContext.GetTransportMessage();
+      var transportMessage = Context.GetTransportMessage();
    }
 }
 ```

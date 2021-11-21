@@ -73,9 +73,7 @@ namespace SlimMessageBus.Host
                 {
                     (Settings.RequestResponse.OnMessageExpired ?? Settings.OnMessageExpired)?.Invoke(this, Settings.RequestResponse, request, null);
                 }
-#pragma warning disable CA1031 // Do not catch general exception types - intended
                 catch (Exception eh)
-#pragma warning restore CA1031 // Do not catch general exception types
                 {
                     HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageExpired));
                 }
@@ -521,11 +519,9 @@ namespace SlimMessageBus.Host
                         // resolve the response
                         requestState.TaskCompletionSource.TrySetResult(response);
                     }
-#pragma warning disable CA1031 // Do not catch general exception types - intended
                     catch (Exception e)
-#pragma warning restore CA1031 // Do not catch general exception types
                     {
-                        _logger.LogDebug("Could not deserialize the response message for {0} arriving on path {1}: {2}", requestState, path, e);
+                        _logger.LogDebug(e, "Could not deserialize the response message for {Request} arriving on path {Path}", requestState, path);
                         requestState.TaskCompletionSource.TrySetException(e);
                     }
                 }

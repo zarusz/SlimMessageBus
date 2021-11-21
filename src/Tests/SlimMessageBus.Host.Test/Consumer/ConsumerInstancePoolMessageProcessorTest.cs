@@ -86,7 +86,7 @@
             var tasks = new Task[messageCount];
             for (var i = 0; i < messageCount; i++)
             {
-                tasks[i] = p.ProcessMessage(new SomeMessage());
+                tasks[i] = p.ProcessMessage(new SomeMessage(), null);
             }
 
             await Task.WhenAll(tasks);

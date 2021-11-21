@@ -38,6 +38,13 @@ namespace SlimMessageBus.Host.AzureEventHub
         /// </summary>
         public string LeaseContainerName { get; set; }
 
+        /// <summary>
+        /// Should the checkpoint on partitions for the consumed messages happen when the bus is stopped (or disposed)?
+        /// This ensures the message reprocessing is minimized in between application restarts.
+        /// Default is true.
+        /// </summary>
+        public bool EnableCheckpointOnBusStop { get; set; } = true;
+
         public EventHubMessageBusSettings(string connectionString, string storageConnectionString, string leaseContainerName)
         {
             ConnectionString = connectionString;
@@ -54,17 +61,5 @@ namespace SlimMessageBus.Host.AzureEventHub
             EventProcessorOptionsFactory = (consumerSettings) => EventProcessorOptions.DefaultOptions;
             LeaseContainerName = leaseContainerName;
         }
-    }
-
-    public class TopicGroup
-    {
-        public TopicGroup(string topic, string group)
-        {
-            Topic = topic;
-            Group = group;
-        }
-
-        public string Topic { get; set; }
-        public string Group { get; set; }
     }
 }

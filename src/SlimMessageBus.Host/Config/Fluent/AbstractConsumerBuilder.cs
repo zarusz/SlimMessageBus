@@ -2,21 +2,42 @@ namespace SlimMessageBus.Host.Config
 {
     using System;
 
-    public abstract class AbstractConsumerBuilder<T>
+    public abstract class AbstractConsumerBuilder
     {
-        public Type MessageType { get; }
+        public Type MessageType => ConsumerSettings.MessageType;
 
         public MessageBusSettings Settings { get; }
 
-        protected AbstractConsumerBuilder(MessageBusSettings settings)
-            : this(settings, typeof(T))
+        public ConsumerSettings ConsumerSettings { get; }
+
+        protected AbstractConsumerBuilder(MessageBusSettings settings, Type messageType, string path = null)
         {
+            Settings = settings ?? throw new ArgumentNullException(nameof(settings));
+
+            ConsumerSettings = new ConsumerSettings
+            {
+                MessageType = messageType,
+                Path = path,
+            };
+            Settings.Consumers.Add(ConsumerSettings);
         }
 
-        protected AbstractConsumerBuilder(MessageBusSettings settings, Type messageType)
+        public TBuilder AttachEvents<TBuilder>(Action<IConsumerEvents> eventsConfig)
+            where TBuilder : AbstractConsumerBuilder
         {
-            MessageType = messageType;
-            Settings = settings;
+            if (eventsConfig == null) throw new ArgumentNullException(nameof(eventsConfig));
+
+            eventsConfig(ConsumerSettings);
+            return (TBuilder)this;
+        }
+
+        public T Do<T>(Action<T> builder) where T : AbstractConsumerBuilder
+        {
+            if (builder == null) throw new ArgumentNullException(nameof(builder));
+
+            builder((T)this);
+
+            return (T)this;
         }
     }
 }

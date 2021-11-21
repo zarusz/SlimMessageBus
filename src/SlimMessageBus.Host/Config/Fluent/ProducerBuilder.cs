@@ -18,11 +18,13 @@
             Settings.MessageType = messageType;
         }
 
-        public ProducerBuilder<T> DefaultTopic(string name)
+        public ProducerBuilder<T> DefaultPath(string path)
         {
-            Settings.DefaultPath = name ?? throw new ArgumentNullException(nameof(name));
+            Settings.DefaultPath = path ?? throw new ArgumentNullException(nameof(path));
             return this;
         }
+
+        public ProducerBuilder<T> DefaultTopic(string topic) => DefaultPath(topic);
 
         public ProducerBuilder<T> DefaultTimeout(TimeSpan timeout)
         {

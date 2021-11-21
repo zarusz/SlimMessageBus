@@ -20,12 +20,12 @@ namespace SlimMessageBus.Host
 
         public static void DisposeSilently(this IDisposable disposable, string name, ILogger logger)
         {
-            disposable.DisposeSilently(e => logger.LogWarning(e, "Error occured while disposing {0}", name));
+            disposable.DisposeSilently(e => logger.LogWarning(e, "Error occured while disposing {Name}", name));
         }
 
         public static void DisposeSilently(this IDisposable disposable, Func<string> nameFunc, ILogger logger)
         {
-            disposable.DisposeSilently(e => logger.LogWarning(e, "Error occured while disposing {0}", nameFunc()));
+            disposable.DisposeSilently(e => logger.LogWarning(e, "Error occured while disposing {Name}", nameFunc()));
         }
     }
 }

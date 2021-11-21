@@ -114,8 +114,9 @@ The bus will ask the chosen DI to provide the consumer instances (`SomeMessageCo
 To configure SMB in your service:
 
 ```cs
-var builder = MessageBusBuilder.Create()
-	
+var builder = MessageBusBuilder.Create();
+
+builder
    // Pub/Sub example:
    .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
    .Consume<SomeMessage>(x => x
@@ -156,9 +157,9 @@ the SMB can be configured in a more compact way (requires `SlimMessageBus.Host.M
 
 IServiceCollection services;
 
-services.AddSlimMessageBus((mbb, svp) =>
+services.AddSlimMessageBus((builder, svp) =>
 {
-    mbb
+    builder
         .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
         // ...
         .WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));

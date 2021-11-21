@@ -7,9 +7,9 @@
         public bool CanRun { get; set; } = true;
         public bool IsRunning { get; set; } = false;
 
-        public Task Stop()
+        public Task StopAndWait()
         {
-            CanRun = false;
+            Stop();
 
             if (!IsRunning)
             {
@@ -23,6 +23,11 @@
                     Task.Delay(100).Wait();
                 }
             });
+        }
+
+        public void Stop()
+        {
+            CanRun = false;
         }
 
         public void OnStarted()

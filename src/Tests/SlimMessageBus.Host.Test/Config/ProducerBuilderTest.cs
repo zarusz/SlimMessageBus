@@ -5,7 +5,7 @@
     using SlimMessageBus.Host.Config;
     using Xunit;
 
-    public class PublisherBuilderTest
+    public class ProducerBuilderTest
     {
         [Fact]
         public void BuildsProperSettings()

@@ -20,7 +20,7 @@ Producer, consumer and global configuration properties are described [here](http
 The configuration on the underlying Kafka client can be adjusted like so:
 
 ```cs
-var messageBusBuilder = new MessageBusBuilder()
+var mbb = MessageBusBuilder.Create()
 	// ...
 	.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
 	{
@@ -40,7 +40,7 @@ var messageBusBuilder = new MessageBusBuilder()
 There is a good description [here](https://github.com/edenhill/librdkafka/wiki/How-to-decrease-message-latency) on improving the latency by applying producer/consumer settings on librdkafka. Here is how you enter the settings using SlimMessageBus:
 
 ```cs
-var messageBusBuilder = new MessageBusBuilder()
+var messageBusBuilder = MessageBusBuilder.Create()
 	// ...
 	.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
 	{
@@ -68,7 +68,7 @@ Example on how to configure SSL with SASL authentication (for cloudkarafka.com):
 
 
 ```cs
-var messageBusBuilder = new MessageBusBuilder()
+var messageBusBuilder = MessageBusBuilder.Create()
 	// ...
 	.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
 	{
@@ -113,7 +113,7 @@ The default partitioner is supported, which works in this way:
 SMB Kafka allows to set a provider (selector) that will assign the message key for a given message and topic pair. Here is an example:
 
 ```cs
-IMessageBus messageBus = new MessageBusBuilder()
+IMessageBus messageBus = MessageBusBuilder.Create()
 	.Produce<MultiplyRequest>(x => 
 	{
 		x.DefaultTopic("topic1");
@@ -132,7 +132,7 @@ The key must be a `byte[]`.
 SMB Kafka allows to set a provider (selector) that will assign the partition number for a given message and topic pair. Here is an example:
 
 ```cs
-IMessageBus messageBus = new MessageBusBuilder()
+IMessageBus messageBus = MessageBusBuilder.Create()
 	.Produce<PingMessage>(x =>
 	{
 		x.DefaultTopic("topic1");
@@ -148,19 +148,17 @@ With this approach your provider needs to know the number of partitions for a to
 
 ### Consumer context
 
-The consumer can implement the `IConsumerContextAware` interface to access the Kafka native message:
+The consumer can implement the `IConsumerWithContext` interface to access the Kafka native message:
 
 ```cs
-public class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
+public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
 {
-   public AsyncLocal<ConsumerContext> Context { get; } = new AsyncLocal<ConsumerContext>();
+   public IConsumerContext Context { get; set; }
 
    public Task OnHandle(PingMessage message, string name)
    {
-      var messageContext = Context.Value;
-
-      // Kafka transport specific extension:
-      var transportMessage = messageContext.GetTransportMessage();
+      // SMB Kafka transport specific extension:
+      var transportMessage = Context.GetTransportMessage();
       var partition = transportMessage.TopicPartition.Partition;
    }
 }
@@ -177,13 +175,15 @@ By default the same serializer is used to serialize header values as is being us
 If you need to specify a different serializer provide a specfic `IMessageSerializer` implementation (custom or one of the available serialization plugins):
 
 ```cs
-IMessageBus messageBus = new MessageBusBuilder()
+IMessageBus messageBus = MessageBusBuilder.Create()
 	.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
 	{
 		HeaderSerializer = new JsonMessageSerializer() // specify a different header values serializer
 	})
 	.Buid();
 ```
+
+> By default for header serialization (if not specified) SMB Kafka uses the same serializer that was set for the bus.
 
 ### Deployment
 

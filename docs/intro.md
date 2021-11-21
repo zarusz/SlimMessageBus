@@ -17,8 +17,7 @@ Here is a sample:
 ```cs
 IServiceProvider serviceProvider;
 
-var mbb = MessageBusBuilder
-   .Create()
+var mbb = MessageBusBuilder.Create()
   
    // Use JSON for message serialization
   .WithSerializer(new JsonMessageSerializer())
@@ -330,10 +329,8 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
 
    public Task OnHandle(PingMessage message, string path)
    {
-      var messageContext = Context.Value;
-
       // Kafka transport specific extension (requires SlimMessageBus.Host.Kafka package):
-      var transportMessage = messageContext.GetTransportMessage();
+      var transportMessage = Context.GetTransportMessage();
       var partition = transportMessage.TopicPartition.Partition;
    }
 }

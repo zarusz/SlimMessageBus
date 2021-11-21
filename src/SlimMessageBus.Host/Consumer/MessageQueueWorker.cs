@@ -13,16 +13,16 @@ namespace SlimMessageBus.Host
         private readonly Queue<MessageProcessingResult<TMessage>> _pendingMessages = new Queue<MessageProcessingResult<TMessage>>();
 
         public int Count => _pendingMessages.Count;
-        public ConsumerInstancePoolMessageProcessor<TMessage> ConsumerInstancePool { get; }
+        public IMessageProcessor<TMessage> MessageProcessor { get; }
 
         private readonly ICheckpointTrigger _checkpointTrigger;
 
         private bool disposedValue;
 
-        public MessageQueueWorker(ConsumerInstancePoolMessageProcessor<TMessage> consumerInstancePool, ICheckpointTrigger checkpointTrigger, ILoggerFactory loggerFactory)
+        public MessageQueueWorker(IMessageProcessor<TMessage> messageProcessor, ICheckpointTrigger checkpointTrigger, ILoggerFactory loggerFactory)
         {
             _logger = loggerFactory.CreateLogger<MessageQueueWorker<TMessage>>();
-            ConsumerInstancePool = consumerInstancePool ?? throw new ArgumentNullException(nameof(consumerInstancePool));
+            MessageProcessor = messageProcessor ?? throw new ArgumentNullException(nameof(messageProcessor));
             _checkpointTrigger = checkpointTrigger ?? throw new ArgumentNullException(nameof(checkpointTrigger));
         }
 
@@ -47,7 +47,7 @@ namespace SlimMessageBus.Host
                 _checkpointTrigger.Reset();
             }
 
-            var messageTask = ConsumerInstancePool.ProcessMessage(message);
+            var messageTask = MessageProcessor.ProcessMessage(message);
             _pendingMessages.Enqueue(new MessageProcessingResult<TMessage>(messageTask, message));
 
             // limit check / time check
@@ -103,7 +103,7 @@ namespace SlimMessageBus.Host
             {
                 if (disposing)
                 {
-                    ConsumerInstancePool.Dispose();
+                    MessageProcessor.Dispose();
                 }
 
                 disposedValue = true;

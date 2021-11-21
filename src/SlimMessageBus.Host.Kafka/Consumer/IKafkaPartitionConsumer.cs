@@ -9,13 +9,15 @@ namespace SlimMessageBus.Host.Kafka
     /// <summary>
     /// The processor of assigned partition (<see cref="TopicPartition"/>).
     /// </summary>
-    public interface IKafkaTopicPartitionProcessor : IDisposable
+    public interface IKafkaPartitionConsumer : IDisposable
     {        
         TopicPartition TopicPartition { get; }
 
-        ValueTask OnMessage([NotNull] ConsumeResult message);
-        ValueTask OnPartitionEndReached([NotNull] TopicPartitionOffset offset);
+        void OnPartitionAssigned([NotNull] TopicPartition partition);
+        Task OnMessage([NotNull] ConsumeResult message);
+        void OnPartitionEndReached([NotNull] TopicPartitionOffset offset);
         void OnPartitionRevoked();
-        ValueTask OnClose();
+
+        void OnClose();
     }
 }

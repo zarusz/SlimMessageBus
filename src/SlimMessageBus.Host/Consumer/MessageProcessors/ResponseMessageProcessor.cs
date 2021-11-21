@@ -2,6 +2,7 @@ namespace SlimMessageBus.Host
 {
     using System;
     using System.Threading.Tasks;
+    using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.Config;
 
     /// <summary>
@@ -10,21 +11,47 @@ namespace SlimMessageBus.Host
     /// <typeparam name="TMessage"></typeparam>
     public class ResponseMessageProcessor<TMessage> : IMessageProcessor<TMessage> where TMessage : class
     {
-        private readonly RequestResponseSettings _requestResponseSettings;
-        private readonly MessageBusBase _messageBus;
-        private readonly Func<TMessage, MessageWithHeaders> _messageProvider;
+        private readonly ILogger<ResponseMessageProcessor<TMessage>> logger;
+        private readonly RequestResponseSettings requestResponseSettings;
+        private readonly MessageBusBase messageBus;
+        private readonly Func<TMessage, MessageWithHeaders> messageProvider;
 
         public ResponseMessageProcessor(RequestResponseSettings requestResponseSettings, MessageBusBase messageBus, Func<TMessage, MessageWithHeaders> messageProvider)
         {
-            _requestResponseSettings = requestResponseSettings ?? throw new ArgumentNullException(nameof(requestResponseSettings));
-            _messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
-            _messageProvider = messageProvider ?? throw new ArgumentNullException(nameof(messageProvider));
+            if (messageBus is null) throw new ArgumentNullException(nameof(messageBus));
+            
+            this.logger = messageBus.LoggerFactory.CreateLogger<ResponseMessageProcessor<TMessage>>();
+            this.requestResponseSettings = requestResponseSettings ?? throw new ArgumentNullException(nameof(requestResponseSettings));
+            this.messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
+            this.messageProvider = messageProvider ?? throw new ArgumentNullException(nameof(messageProvider));
         }
 
-        public Task<Exception> ProcessMessage(TMessage message)
+        public AbstractConsumerSettings ConsumerSettings => requestResponseSettings;
+
+        public Task<Exception> ProcessMessage(TMessage message, IMessageTypeConsumerInvokerSettings consumerInvoker)
         {
-            var messageWithHeaders = _messageProvider(message);
-            return _messageBus.OnResponseArrived(messageWithHeaders.Payload, _requestResponseSettings.Path, messageWithHeaders.Headers);
+           try
+            {
+                var messageWithHeaders = messageProvider(message);
+                return messageBus.OnResponseArrived(messageWithHeaders.Payload, requestResponseSettings.Path, messageWithHeaders.Headers);
+            }
+            catch (Exception e)
+            {
+                if (logger.IsEnabled(LogLevel.Error))
+                {
+                    logger.LogError(e, "Error occured while consuming response message, {Message}", message);
+                }
+
+                // We can only continue and process all messages in the lease    
+
+                if (requestResponseSettings.OnResponseMessageFault != null)
+                {
+                    // Call the hook
+                    logger.LogDebug("Executing the attached hook from {0}", nameof(requestResponseSettings.OnResponseMessageFault));
+                    requestResponseSettings.OnResponseMessageFault(requestResponseSettings, message, e);
+                }
+            }
+            return Task.FromResult<Exception>(null);
         }
 
         #region IDisposable

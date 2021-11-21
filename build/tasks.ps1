@@ -76,7 +76,7 @@ function Test() {
 
 function TestCi() {
 	_Step "Runnint tests (skipping tests requiring local infrastructure)"
-	& dotnet test $sln_file --filter Category!=Local
+	& dotnet test $sln_file --filter "Category!=Local"
 	_AssertExec
 }
 

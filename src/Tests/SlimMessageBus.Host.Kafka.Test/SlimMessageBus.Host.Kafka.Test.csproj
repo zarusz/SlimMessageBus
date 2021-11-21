@@ -27,6 +27,7 @@
     <ProjectReference Include="..\..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus\SlimMessageBus.csproj" />
     <ProjectReference Include="..\..\Tools\SecretStore\SecretStore.csproj" />
+    <ProjectReference Include="..\SlimMessageBus.Host.Test.Common\SlimMessageBus.Host.Test.Common.csproj" />
   </ItemGroup>
 
   <ItemGroup>

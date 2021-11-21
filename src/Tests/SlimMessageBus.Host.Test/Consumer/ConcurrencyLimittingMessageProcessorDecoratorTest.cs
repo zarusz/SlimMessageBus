@@ -35,7 +35,7 @@
             var maxSectionCountLock = new object();
             var messageCount = 0;
 
-            _messageProcessorMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>())).Returns(async () =>
+            _messageProcessorMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IMessageTypeConsumerInvokerSettings>())).Returns(async () =>
             {
                 // Entering critical section
                 Interlocked.Increment(ref currentSectionCount);
@@ -64,7 +64,7 @@
             // act
             var msg = new SomeMessage();
             // executed all at once
-            var tasks = Enumerable.Range(0, expectedMessageCount).Select(x => _subject.ProcessMessage(msg)).ToList();
+            var tasks = Enumerable.Range(0, expectedMessageCount).Select(x => _subject.ProcessMessage(msg, null)).ToList();
             await Task.WhenAll(tasks);
 
             // assert

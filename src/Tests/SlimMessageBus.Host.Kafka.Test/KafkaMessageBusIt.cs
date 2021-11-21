@@ -3,7 +3,6 @@ namespace SlimMessageBus.Host.Kafka.Test
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
-    using System.Threading;
     using System.Threading.Tasks;
     using FluentAssertions;
     using SlimMessageBus.Host.Config;
@@ -15,8 +14,9 @@ namespace SlimMessageBus.Host.Kafka.Test
     using SecretStore;
     using System.Collections.Concurrent;
     using Microsoft.Extensions.Logging;
-    using Microsoft.Extensions.Logging.Abstractions;
     using Confluent.Kafka;
+    using Xunit.Abstractions;
+    using SlimMessageBus.Host.Test.Common;
 
     /// <summary>
     /// Performs basic integration test to verify that pub/sub and request-response communication works while concurrent producers pump data.
@@ -50,9 +50,9 @@ namespace SlimMessageBus.Host.Kafka.Test
 
         private string TopicPrefix { get; }
 
-        public KafkaMessageBusIt()
+        public KafkaMessageBusIt(ITestOutputHelper testOutputHelper)
         {
-            _loggerFactory = NullLoggerFactory.Instance;
+            _loggerFactory = new XunitLoggerFactory(testOutputHelper);
             _logger = _loggerFactory.CreateLogger<KafkaMessageBusIt>();
 
             var configuration = new ConfigurationBuilder()
@@ -286,12 +286,10 @@ namespace SlimMessageBus.Host.Kafka.Test
         {
             private readonly ILogger _logger;
 
-            public PingConsumer(ILogger logger)
-            {
-                _logger = logger;
-            }
+            public PingConsumer(ILogger logger) => _logger = logger;
 
             public IConsumerContext Context { get; set; }
+
             public List<(PingMessage Message, int Partition)> Messages { get; } = new List<(PingMessage, int)>();
 
             #region Implementation of IConsumer<in PingMessage>
@@ -306,7 +304,7 @@ namespace SlimMessageBus.Host.Kafka.Test
                     Messages.Add((message, partition));
                 }
 
-                _logger.LogInformation("Got message {0} on topic {1}.", message.Counter, name);
+                _logger.LogInformation("Got message {0:000} on topic {1}.", message.Counter, name);
                 return Task.CompletedTask;
             }
 

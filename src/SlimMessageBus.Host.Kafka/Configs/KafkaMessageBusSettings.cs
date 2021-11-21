@@ -40,6 +40,13 @@ namespace SlimMessageBus.Host.Kafka
         /// </summary>
         public IMessageSerializer HeaderSerializer { get; set; }
 
+        /// <summary>
+        /// Should the commit on partitions for the consumed messages happen when the bus is stopped (or disposed)?
+        /// This ensures the message reprocessing is minimized in between application restarts.
+        /// Default is true.
+        /// </summary>
+        public bool EnableCommitOnBusStop { get; set; } = true;
+
         public KafkaMessageBusSettings(string brokerList)
         {
             BrokerList = brokerList;
