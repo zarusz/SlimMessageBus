@@ -28,12 +28,12 @@
             var httpContext = httpContextAccessor?.HttpContext;
             if (httpContext != null)
             {
-                logger.LogDebug("The type {0} will be requested from the per-request scope", type);
+                logger.LogDebug("The type {Type} will be requested from the per-request scope", type);
                 return httpContext.RequestServices.GetService(type);
             }
 
             // otherwise use the app wide scope provider
-            logger.LogDebug("The type {0} will be requested from the app scope", type);
+            logger.LogDebug("The type {Type} will be requested from the app scope", type);
             return base.Resolve(type);
         }
     }

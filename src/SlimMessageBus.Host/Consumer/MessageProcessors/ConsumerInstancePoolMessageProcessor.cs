@@ -11,15 +11,18 @@ namespace SlimMessageBus.Host
     /// <typeparam name="TMessage"></typeparam>
     public class ConsumerInstancePoolMessageProcessor<TMessage> : IMessageProcessor<TMessage> where TMessage : class
     {
-        private readonly IMessageProcessor<TMessage> _strategy;
+        private readonly IMessageProcessor<TMessage> strategy;
 
         public ConsumerInstancePoolMessageProcessor(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, MessageWithHeaders> messageProvider, Action<TMessage, ConsumerContext> consumerContextInitializer = null)
         {
+            ConsumerSettings = consumerSettings;
             var consumerInstanceMessageProcessor = new ConsumerInstanceMessageProcessor<TMessage>(consumerSettings, messageBus, messageProvider, consumerContextInitializer);
-            _strategy = new ConcurrencyLimittingMessageProcessorDecorator<TMessage>(consumerSettings, messageBus, consumerInstanceMessageProcessor);
+            strategy = new ConcurrencyLimittingMessageProcessorDecorator<TMessage>(consumerSettings, messageBus, consumerInstanceMessageProcessor);
         }
 
-        public virtual Task<Exception> ProcessMessage(TMessage msg) => _strategy.ProcessMessage(msg);
+        public AbstractConsumerSettings ConsumerSettings { get; }
+
+        public virtual Task<Exception> ProcessMessage(TMessage msg, IMessageTypeConsumerInvokerSettings consumerInvoker) => strategy.ProcessMessage(msg, consumerInvoker);
 
         #region IDisposable
 
@@ -33,7 +36,7 @@ namespace SlimMessageBus.Host
         {
             if (disposing)
             {
-                _strategy.Dispose();
+                strategy.Dispose();
             }
         }
 

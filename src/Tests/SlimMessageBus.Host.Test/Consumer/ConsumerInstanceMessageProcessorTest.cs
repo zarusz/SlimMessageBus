@@ -43,7 +43,7 @@
             _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<byte[]>())).Returns(request);
 
             // act
-            await p.ProcessMessage(request);
+            await p.ProcessMessage(request, null);
 
             // assert
             _busMock.HandlerMock.Verify(x => x.OnHandle(It.IsAny<SomeRequest>(), It.IsAny<string>()), Times.Never); // the handler should not be called
@@ -79,7 +79,7 @@
             _busMock.HandlerMock.Setup(x => x.OnHandle(request, consumerSettings.Path)).Returns(Task.FromException<SomeResponse>(ex));
 
             // act
-            var exception = await p.ProcessMessage(request);
+            var exception = await p.ProcessMessage(request, null);
 
             // assert
             _busMock.HandlerMock.Verify(x => x.OnHandle(request, consumerSettings.Path), Times.Once); // handler called once
@@ -110,7 +110,7 @@
             _busMock.ConsumerMock.Setup(x => x.OnHandle(message, consumerSettings.Path)).Returns(Task.FromException<SomeResponse>(ex));
 
             // act
-            var exception = await p.ProcessMessage(message);
+            var exception = await p.ProcessMessage(message, null);
 
             // assert
             _busMock.ConsumerMock.Verify(x => x.OnHandle(message, consumerSettings.Path), Times.Once); // handler called once
@@ -141,7 +141,7 @@
             _busMock.ConsumerMock.Setup(x => x.OnHandle(message, consumerSettings.Path)).Returns(Task.CompletedTask);
 
             // act
-            await p.ProcessMessage(message);
+            await p.ProcessMessage(message, null);
 
             // assert
             _busMock.ConsumerMock.Verify(x => x.OnHandle(message, consumerSettings.Path), Times.Once); // handler called once
@@ -173,7 +173,7 @@
             };
 
             // act
-            await p.ProcessMessage(message);
+            await p.ProcessMessage(message, null);
 
             // assert
             _busMock.ConsumerMock.Verify(x => x.OnHandle(message, consumerSettings.Path), Times.Once); // handler called once

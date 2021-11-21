@@ -11,13 +11,13 @@
         /// <param name="builder"></param>
         /// <param name="queue">Queue name</param>
         /// <returns></returns>
-        public static TopicHandlerBuilder<TRequest, TResponse> Queue<TRequest, TResponse>(this HandlerBuilder<TRequest, TResponse> builder, string queue)
+        public static HandlerBuilder<TRequest, TResponse> Queue<TRequest, TResponse>(this HandlerBuilder<TRequest, TResponse> builder, string queue)
         {
             if (builder is null) throw new ArgumentNullException(nameof(builder));
 
-            var b = new TopicHandlerBuilder<TRequest, TResponse>(queue, builder.Settings);
-            b.ConsumerSettings.PathKind = PathKind.Queue;
-            return b;
+            builder.Path(queue);
+            builder.ConsumerSettings.PathKind = PathKind.Queue;
+            return builder;
         }
 
         /// <summary>
@@ -27,7 +27,7 @@
         /// <param name="queue">Queue name</param>
         /// <param name="queueConfig"></param>
         /// <returns></returns>
-        public static TopicHandlerBuilder<TRequest, TResponse> Topic<TRequest, TResponse>(this HandlerBuilder<TRequest, TResponse> builder, string queue, Action<TopicHandlerBuilder<TRequest, TResponse>> queueConfig)
+        public static HandlerBuilder<TRequest, TResponse> Topic<TRequest, TResponse>(this HandlerBuilder<TRequest, TResponse> builder, string queue, Action<HandlerBuilder<TRequest, TResponse>> queueConfig)
         {
             if (builder is null) throw new ArgumentNullException(nameof(builder));
             if (queueConfig is null) throw new ArgumentNullException(nameof(queueConfig));

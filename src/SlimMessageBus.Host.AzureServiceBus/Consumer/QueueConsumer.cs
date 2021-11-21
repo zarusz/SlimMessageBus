@@ -2,21 +2,22 @@
 {
     using Microsoft.Azure.ServiceBus;
     using Microsoft.Extensions.Logging;
-    using SlimMessageBus.Host.Config;
     using System;
+    using System.Collections.Generic;
 
     public class QueueConsumer : BaseConsumer
     {
-        private readonly IQueueClient _queueClient;
+        private readonly IQueueClient queueClient;
 
-        public QueueConsumer(ServiceBusMessageBus messageBus, AbstractConsumerSettings consumerSettings, IMessageProcessor<Message> messageProcessor) 
+        public QueueConsumer(ServiceBusMessageBus messageBus, IEnumerable<IMessageProcessor<Message>> consumers, string path)
             : base(messageBus ?? throw new ArgumentNullException(nameof(messageBus)),
-                  consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings)),
-                  messageBus.ProviderSettings.QueueClientFactory(consumerSettings.Path),
-                  messageProcessor,
+                  messageBus.ProviderSettings.QueueClientFactory(path),
+                  consumers,
+                  path,
+                  subscriptionName: null,
                   messageBus.LoggerFactory.CreateLogger<QueueConsumer>())
         {
-            _queueClient = (IQueueClient) Client;
+            queueClient = (IQueueClient)Client;
         }
 
         #region IDisposable
@@ -25,8 +26,9 @@
         {
             if (disposing)
             {
-                _queueClient.CloseAsync().GetAwaiter().GetResult();
+                queueClient.CloseAsync().GetAwaiter().GetResult();
             }
+            base.Dispose(disposing);
         }
 
         #endregion

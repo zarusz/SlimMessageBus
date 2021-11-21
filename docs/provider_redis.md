@@ -15,8 +15,7 @@ Redis transport provider requires a connection string:
 ```cs
 var connectionString = "server1:6379,server2:6379" // Redis connection string
 
-MessageBusBuilder mbb = MessageBusBuilder
-    .Create()s
+MessageBusBuilder mbb = MessageBusBuilder.Create()
     // the bus configuration here
     .WithProviderRedis(new RedisMessageBusSettings(connectionString))
     .WithSerializer(new JsonMessageSerializer());

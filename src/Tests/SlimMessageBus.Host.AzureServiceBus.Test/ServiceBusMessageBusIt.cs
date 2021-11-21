@@ -11,18 +11,19 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
     using FluentAssertions;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Logging;
-    using Microsoft.Extensions.Logging.Abstractions;
     using SecretStore;
+    using SlimMessageBus.Host.Test.Common;
     using SlimMessageBus.Host.Config;
     using SlimMessageBus.Host.DependencyResolver;
     using SlimMessageBus.Host.Serialization.Json;
     using Xunit;
+    using Xunit.Abstractions;
 
     [Trait("Category", "Integration")]
     public class ServiceBusMessageBusIt : IDisposable
     {
         private const int NumberOfMessages = 77;
-        
+
         private readonly ILoggerFactory _loggerFactory;
         private readonly ILogger _logger;
 
@@ -30,9 +31,9 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
         private MessageBusBuilder MessageBusBuilder { get; }
         private Lazy<ServiceBusMessageBus> MessageBus { get; }
 
-        public ServiceBusMessageBusIt()
+        public ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper)
         {
-            _loggerFactory = NullLoggerFactory.Instance;
+            _loggerFactory = new XunitLoggerFactory(testOutputHelper);
             _logger = _loggerFactory.CreateLogger<ServiceBusMessageBusIt>();
 
             var configuration = new ConfigurationBuilder()
@@ -67,6 +68,14 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             }
         }
 
+        private static void MessageModifier(PingMessage message, Microsoft.Azure.ServiceBus.Message sbMessage)
+        {
+            // set the Azure SB message ID
+            sbMessage.MessageId = GetMessageId(message);
+            // set the Azure SB message partition key
+            sbMessage.PartitionKey = message.Counter.ToString(CultureInfo.InvariantCulture);
+        }
+
         [Fact]
         public async Task BasicPubSubOnTopic()
         {
@@ -75,24 +84,14 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             var topic = "test-ping";
 
             MessageBusBuilder
-                .Produce<PingMessage>(x =>
-                {
-                    x.DefaultTopic(topic);
-                    // this is optional
-                    x.WithModifier((message, sbMessage) =>
-                    {
-                        // set the Azure SB message ID
-                        sbMessage.MessageId = $"ID_{message.Counter}";
-                        // set the Azure SB message partition key
-                        sbMessage.PartitionKey = message.Counter.ToString(CultureInfo.InvariantCulture);
-                    });
-                })
+                .Produce<PingMessage>(x => x.DefaultTopic(topic).WithModifier(MessageModifier))
                 .Do(builder => Enumerable.Range(0, subscribers).ToList().ForEach(i =>
                 {
                     builder.Consume<PingMessage>(x => x
                         .Topic(topic)
                         .SubscriptionName($"subscriber-{i}") // ensure subscription exists on the ServiceBus topic
                         .WithConsumer<PingConsumer>()
+                        .WithConsumer<PingDerivedConsumer, PingDerivedMessage>()
                         .Instances(concurrency));
                 }));
 
@@ -103,48 +102,46 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
         public async Task BasicPubSubOnQueue()
         {
             var concurrency = 2;
-            var subscribers = 2;
             var queue = "test-ping-queue";
 
             MessageBusBuilder
-                .Produce<PingMessage>(x =>
-                {
-                    x.DefaultQueue(queue);
-                    // this is optional
-                    x.WithModifier((message, sbMessage) =>
-                    {
-                        // set the Azure SB message ID
-                        sbMessage.MessageId = GetMessageId(message);
-                        // set the Azure SB message partition key
-                        sbMessage.PartitionKey = message.Counter.ToString(CultureInfo.InvariantCulture);
-                    });
-                })
-                .Do(builder => Enumerable.Range(0, subscribers).ToList().ForEach(i =>
-                {
-                    builder.Consume<PingMessage>(x => x
+                .Produce<PingMessage>(x => x.DefaultQueue(queue).WithModifier(MessageModifier))
+                .Consume<PingMessage>(x => x
                         .Queue(queue)
                         .WithConsumer<PingConsumer>()
+                        .WithConsumer<PingDerivedConsumer, PingDerivedMessage>()
                         .Instances(concurrency));
-                }));
-            
-            await BasicPubSub(concurrency, subscribers, 1).ConfigureAwait(false);
+
+            await BasicPubSub(concurrency, 1, 1).ConfigureAwait(false);
         }
 
-        private string GetMessageId(PingMessage message) => $"ID_{message.Counter}";
+        private static string GetMessageId(PingMessage message) => $"ID_{message.Counter}";
 
         private async Task BasicPubSub(int concurrency, int subscribers, int expectedMessageCopies)
         {
             // arrange
-            var consumersCreated = new ConcurrentBag<PingConsumer>();
+            var consumersCreated = 0;
             var consumedMessages = new List<(PingMessage Message, string MessageId)>();
 
             MessageBusBuilder
                 .WithDependencyResolver(new LookupDependencyResolver(f =>
                 {
-                    if (f != typeof(PingConsumer)) throw new InvalidOperationException();
-                    var pingConsumer = new PingConsumer(_loggerFactory.CreateLogger<PingConsumer>(), consumedMessages);
-                    consumersCreated.Add(pingConsumer);
-                    return pingConsumer;
+                    if (f == typeof(PingConsumer))
+                    {
+                        var pingConsumer = new PingConsumer(_loggerFactory.CreateLogger<PingConsumer>(), consumedMessages);
+                        Interlocked.Increment(ref consumersCreated);
+                        return pingConsumer;
+
+                    }
+
+                    if (f == typeof(PingDerivedConsumer))
+                    {
+                        var pingConsumer = new PingDerivedConsumer(_loggerFactory.CreateLogger<PingDerivedConsumer>(), consumedMessages);
+                        Interlocked.Increment(ref consumersCreated);
+                        return pingConsumer;
+                    }
+
+                    throw new InvalidOperationException();
                 }));
 
             var messageBus = MessageBus.Value;
@@ -156,7 +153,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
 
             var producedMessages = Enumerable
                 .Range(0, NumberOfMessages)
-                .Select(i => new PingMessage { Counter = i, Value = Guid.NewGuid() })
+                .Select(i => i % 2 == 0 ? new PingMessage { Counter = i, Value = Guid.NewGuid() } : new PingDerivedMessage { Counter = i, Value = Guid.NewGuid() })
                 .ToList();
 
             var messageTasks = producedMessages.Select(m => messageBus.Publish(m));
@@ -176,7 +173,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             // assert
 
             // ensure number of instances of consumers created matches
-            consumersCreated.Count.Should().Be(producedMessages.Count * expectedMessageCopies);
+            consumersCreated.Should().Be(producedMessages.Count * expectedMessageCopies);
             consumedMessages.Count.Should().Be(producedMessages.Count * expectedMessageCopies);
 
             // ... the content should match
@@ -307,80 +304,117 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             }
             lastMessageStopwatch.Stop();
         }
+    }
 
-        private class PingMessage
+    public class PingMessage
+    {
+        public int Counter { get; set; }
+        public Guid Value { get; set; }
+
+        #region Overrides of Object
+
+        public override string ToString() => $"PingMessage(Counter={Counter}, Value={Value})";
+
+        #endregion
+    }
+
+    public class PingDerivedMessage : PingMessage
+    {
+        public override string ToString() => $"PingDerivedMessage(Counter={Counter}, Value={Value})";
+    }
+
+    public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
+    {
+        private readonly ILogger _logger;
+
+        public PingConsumer(ILogger logger, IList<(PingMessage, string)> messages)
         {
-            public int Counter { get; set; }
-            public Guid Value { get; set; }
-
-            #region Overrides of Object
-
-            public override string ToString() => $"PingMessage(Counter={Counter}, Value={Value})";
-
-            #endregion
+            _logger = logger;
+            Messages = messages;
         }
 
-        private class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
-        {
-            private readonly ILogger _logger;
+        public IConsumerContext Context { get; set; }
 
-            public PingConsumer(ILogger logger, IList<(PingMessage, string)> messages)
+        public IList<(PingMessage, string)> Messages { get; }
+
+        #region Implementation of IConsumer<in PingMessage>
+
+        public Task OnHandle(PingMessage message, string name)
+        {
+            lock (Messages)
             {
-                _logger = logger;
-                Messages = messages;
+                var sbMessage = Context.GetTransportMessage();
+
+                Messages.Add((message, sbMessage.MessageId));
             }
 
-            public IConsumerContext Context { get; set; }
+            _logger.LogInformation("Got message {0:000} on topic {1}.", message.Counter, name);
+            return Task.CompletedTask;
+        }
 
-            public IList<(PingMessage, string)> Messages { get; } = new List<(PingMessage, string)>();           
+        #endregion
+    }
 
-            #region Implementation of IConsumer<in PingMessage>
+    public class PingDerivedConsumer : IConsumer<PingDerivedMessage>, IConsumerWithContext
+    {
+        private readonly ILogger _logger;
 
-            public Task OnHandle(PingMessage message, string name)
+        public PingDerivedConsumer(ILogger logger, IList<(PingMessage, string)> messages)
+        {
+            _logger = logger;
+            Messages = messages;
+        }
+
+        public IConsumerContext Context { get; set; }
+
+        public IList<(PingMessage, string)> Messages { get; }
+
+        #region Implementation of IConsumer<in PingMessage>
+
+        public Task OnHandle(PingDerivedMessage message, string name)
+        {
+            lock (Messages)
             {
-                lock (Messages)
-                {
-                    var sbMessage = Context.GetTransportMessage();
+                var sbMessage = Context.GetTransportMessage();
 
-                    Messages.Add((message, sbMessage.MessageId));
-                }
-
-                _logger.LogInformation("Got message {0} on topic {1}.", message.Counter, name);
-                return Task.CompletedTask;
+                Messages.Add((message, sbMessage.MessageId));
             }
 
-            #endregion
+            _logger.LogInformation("Got message {0:000} on topic {1}.", message.Counter, name);
+            return Task.CompletedTask;
         }
 
-        private class EchoRequest : IRequestMessage<EchoResponse>
+        #endregion
+    }
+
+    public class EchoRequest : IRequestMessage<EchoResponse>
+    {
+        public int Index { get; set; }
+        public string Message { get; set; }
+
+        #region Overrides of Object
+
+        public override string ToString() => $"EchoRequest(Index={Index}, Message={Message})";
+
+        #endregion
+    }
+
+    public class EchoResponse
+    {
+        public string Message { get; set; }
+
+        #region Overrides of Object
+
+        public override string ToString() => $"EchoResponse(Message={Message})";
+
+        #endregion
+    }
+
+    public class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
+    {
+        public Task<EchoResponse> OnHandle(EchoRequest request, string name)
         {
-            public int Index { get; set; }
-            public string Message { get; set; }
-
-            #region Overrides of Object
-
-            public override string ToString() => $"EchoRequest(Index={Index}, Message={Message})";
-
-            #endregion
-        }
-
-        private class EchoResponse
-        {
-            public string Message { get; set; }
-
-            #region Overrides of Object
-
-            public override string ToString() => $"EchoResponse(Message={Message})";
-
-            #endregion
-        }
-
-        private class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
-        {
-            public Task<EchoResponse> OnHandle(EchoRequest request, string name)
-            {
-                return Task.FromResult(new EchoResponse { Message = request.Message });
-            }
+            return Task.FromResult(new EchoResponse { Message = request.Message });
         }
     }
 }

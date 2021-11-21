@@ -2,19 +2,22 @@
 {
     using Microsoft.Azure.ServiceBus;
     using Microsoft.Extensions.Logging;
-    using SlimMessageBus.Host.Config;
+    using System;
+    using System.Collections.Generic;
 
     public class TopicSubscriptionConsumer : BaseConsumer
     {
-        private readonly SubscriptionClient _subscriptionClient;
+        private readonly SubscriptionClient subscriptionClient;
 
-        public TopicSubscriptionConsumer(ServiceBusMessageBus messageBus, AbstractConsumerSettings consumerSettings, IMessageProcessor<Message> messageProcessor) 
-            : base(messageBus, consumerSettings,
-                messageBus.ProviderSettings.SubscriptionClientFactory(new SubscriptionFactoryParams(consumerSettings.Path, consumerSettings.GetSubscriptionName())),
-                messageProcessor,
+        public TopicSubscriptionConsumer(ServiceBusMessageBus messageBus, IEnumerable<IMessageProcessor<Message>> consumers, string path, string subscriptionName)
+            : base(messageBus ?? throw new ArgumentNullException(nameof(messageBus)),
+                messageBus.ProviderSettings.SubscriptionClientFactory(new SubscriptionFactoryParams(path, subscriptionName)),
+                consumers,
+                $"{path}/{subscriptionName}",
+                subscriptionName: subscriptionName,
                 messageBus.LoggerFactory.CreateLogger<TopicSubscriptionConsumer>())
         {
-            _subscriptionClient = (SubscriptionClient) Client;
+            subscriptionClient = (SubscriptionClient)Client;
         }
 
         #region IDisposable
@@ -23,8 +26,9 @@
         {
             if (disposing)
             {
-                _subscriptionClient.CloseAsync().GetAwaiter().GetResult();
+                subscriptionClient.CloseAsync().GetAwaiter().GetResult();
             }
+            base.Dispose(disposing);
         }
 
         #endregion           

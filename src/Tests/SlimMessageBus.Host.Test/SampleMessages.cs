@@ -36,7 +36,7 @@ namespace SlimMessageBus.Host.Test
 
         public Task<SomeResponse> OnHandle(SomeRequest request, string name)
         {
-            throw new NotImplementedException();
+            throw new NotImplementedException(nameof(SomeRequest));
         }
 
         #endregion

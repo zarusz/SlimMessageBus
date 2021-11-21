@@ -3,7 +3,6 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
-    using System.Threading;
     using System.Threading.Tasks;
     using FluentAssertions;
     using SlimMessageBus.Host.Config;
@@ -14,24 +13,25 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
     using SecretStore;
     using SlimMessageBus.Host.DependencyResolver;
     using Microsoft.Extensions.Logging;
-    using Microsoft.Extensions.Logging.Abstractions;
+    using Xunit.Abstractions;
+    using SlimMessageBus.Host.Test.Common;
 
     [Trait("Category", "Integration")]
     public class EventHubMessageBusIt : IDisposable
     {
         private const int NumberOfMessages = 77;
 
-        private readonly ILoggerFactory _loggerFactory;
-        private readonly ILogger _logger;
+        private readonly ILoggerFactory loggerFactory;
+        private readonly ILogger logger;
 
         private EventHubMessageBusSettings Settings { get; }
         private MessageBusBuilder MessageBusBuilder { get; }
         private Lazy<EventHubMessageBus> MessageBus { get; }
 
-        public EventHubMessageBusIt()
+        public EventHubMessageBusIt(ITestOutputHelper testOutputHelper)
         {
-            _loggerFactory = NullLoggerFactory.Instance;
-            _logger = _loggerFactory.CreateLogger<EventHubMessageBusIt>();
+            loggerFactory = new XunitLoggerFactory(testOutputHelper);
+            logger = loggerFactory.CreateLogger<EventHubMessageBusIt>();
 
             var configuration = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")
@@ -47,11 +47,11 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
             Settings = new EventHubMessageBusSettings(connectionString, storageConnectionString, storageContainerName);
 
             MessageBusBuilder = MessageBusBuilder.Create()
-                .WithLoggerFacory(_loggerFactory)
+                .WithLoggerFacory(loggerFactory)
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderEventHub(Settings);
 
-            MessageBus = new Lazy<EventHubMessageBus>(() => (EventHubMessageBus) MessageBusBuilder.Build());
+            MessageBus = new Lazy<EventHubMessageBus>(() => (EventHubMessageBus)MessageBusBuilder.Build());
         }
 
         public void Dispose()
@@ -64,21 +64,26 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
         {
             if (disposing)
             {
+                var stopwatch = Stopwatch.StartNew();
+
                 MessageBus.Value.Dispose();
+
+                stopwatch.Stop();
+                logger.LogInformation("Disposed bus in {0}", stopwatch.Elapsed);
             }
         }
 
         [Fact]
-        public void BasicPubSub()
+        public async Task BasicPubSub()
         {
             // arrange
-            var topic = "test-ping";
+            var hubName = "test-ping";
 
-            var pingConsumer = new PingConsumer(_loggerFactory.CreateLogger<PingConsumer>());
+            var pingConsumer = new PingConsumer(loggerFactory.CreateLogger<PingConsumer>());
 
             MessageBusBuilder
-                .Produce<PingMessage>(x => x.DefaultTopic(topic))
-                .Consume<PingMessage>(x => x.Topic(topic)
+                .Produce<PingMessage>(x => x.DefaultTopic(hubName).KeyProvider(m => (m.Counter % 2).ToString()))
+                .Consume<PingMessage>(x => x.Topic(hubName)
                                                 .Group("subscriber") // ensure consumer group exists on the event hub
                                                 .WithConsumer<PingConsumer>()
                                                 .Instances(2))
@@ -86,9 +91,9 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
                 {
                     if (f == typeof(PingConsumer)) return pingConsumer;
                     throw new InvalidOperationException();
-                }));                                                
+                }));
 
-            var kafkaMessageBus = MessageBus.Value;
+            var messageBus = MessageBus.Value;
 
             // act
 
@@ -100,27 +105,28 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
                 .Select(i => new PingMessage { Counter = i, Timestamp = DateTime.UtcNow })
                 .ToList();
 
-            messages
-                .AsParallel()
-                .ForAll(m => kafkaMessageBus.Publish(m).Wait());
+            foreach (var m in messages)
+            {
+                await messageBus.Publish(m);
+            }
 
             stopwatch.Stop();
-            _logger.LogInformation("Published {0} messages in {1}", messages.Count, stopwatch.Elapsed);
+            logger.LogInformation("Published {0} messages in {1}", messages.Count, stopwatch.Elapsed);
 
             // consume
             stopwatch.Restart();
-            var messagesReceived = ConsumeFromTopic(pingConsumer);
+            var messagesReceived = await ConsumeFromTopic(pingConsumer);
             stopwatch.Stop();
-            _logger.LogInformation("Consumed {0} messages in {1}", messagesReceived.Count, stopwatch.Elapsed);
+            logger.LogInformation("Consumed {0} messages in {1}", messagesReceived.Count, stopwatch.Elapsed);
 
             // assert
 
             // all messages got back
-            messagesReceived.Count.Should().Be(messages.Count);           
+            messagesReceived.Count.Should().Be(messages.Count);
         }
 
         [Fact]
-        public void BasicReqResp()
+        public async Task BasicReqResp()
         {
             // arrange
 
@@ -159,14 +165,17 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
                 .ToList();
 
             var responses = new List<Tuple<EchoRequest, EchoResponse>>();
-            requests.AsParallel().ForAll(req =>
-            {
-                var resp = messageBus.Send(req).Result;
-                lock (responses)
+
+            await Task.WhenAll(
+                requests.Select(async req =>
                 {
-                    responses.Add(Tuple.Create(req, resp));
-                }
-            });
+                    var resp = await messageBus.Send(req);
+                    lock (responses)
+                    {
+                        responses.Add(Tuple.Create(req, resp));
+                    }
+                })
+            );
 
             // assert
 
@@ -175,16 +184,16 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
             responses.All(x => x.Item1.Message == x.Item2.Message).Should().BeTrue();
         }
 
-        private static IList<PingMessage> ConsumeFromTopic(PingConsumer pingConsumer)
+        private static async Task<IList<PingMessage>> ConsumeFromTopic(PingConsumer pingConsumer)
         {
             var lastMessageCount = 0;
             var lastMessageStopwatch = Stopwatch.StartNew();
 
-            const int newMessagesAwaitingTimeout = 5;
+            const int newMessagesAwaitingTimeout = 3;
 
             while (lastMessageStopwatch.Elapsed.TotalSeconds < newMessagesAwaitingTimeout)
             {
-                Thread.Sleep(100);
+                await Task.Delay(100);
 
                 if (pingConsumer.Messages.Count != lastMessageCount)
                 {
@@ -195,76 +204,76 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
             lastMessageStopwatch.Stop();
             return pingConsumer.Messages;
         }
+    }
 
-        private class PingMessage
+    public class PingMessage
+    {
+        public DateTime Timestamp { get; set; }
+        public int Counter { get; set; }
+
+        #region Overrides of Object
+
+        public override string ToString() => $"PingMessage(Counter={Counter}, Timestamp={Timestamp})";
+
+        #endregion
+    }
+
+    public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
+    {
+        private readonly ILogger logger;
+
+        public PingConsumer(ILogger logger) => this.logger = logger;
+
+        public IConsumerContext Context { get; set; }
+        public IList<PingMessage> Messages { get; } = new List<PingMessage>();
+
+        #region Implementation of IConsumer<in PingMessage>
+
+        public Task OnHandle(PingMessage message, string path)
         {
-            public DateTime Timestamp { get; set; }
-            public int Counter { get; set; }
-
-            #region Overrides of Object
-
-            public override string ToString() => $"PingMessage(Counter={Counter}, Timestamp={Timestamp})";
-
-            #endregion
-        }
-
-        private class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
-        {
-            private readonly ILogger _logger;
-
-            public PingConsumer(ILogger logger)
+            lock (this)
             {
-                _logger = logger;
+                Messages.Add(message);
             }
 
-            public IConsumerContext Context { get; set; }
-            public IList<PingMessage> Messages { get; } = new List<PingMessage>();
+            var msg = Context.GetTransportMessage();
 
-            #region Implementation of IConsumer<in PingMessage>
-
-            public Task OnHandle(PingMessage message, string name)
-            {
-                lock (this)
-                {
-                    Messages.Add(message);
-                }
-
-                _logger.LogInformation("Got message {0} on topic {1}.", message.Counter, name);
-                return Task.CompletedTask;
-            }
-
-            #endregion
+            logger.LogInformation("Got message {0:000} on topic {1} offset {2} partition key {3}.", message.Counter, path, msg.SystemProperties.Offset, msg.SystemProperties.PartitionKey);
+            return Task.CompletedTask;
         }
 
-        private class EchoRequest: IRequestMessage<EchoResponse>
+        #endregion
+    }
+
+    public class EchoRequest : IRequestMessage<EchoResponse>
+    {
+        public int Index { get; set; }
+        public string Message { get; set; }
+
+        #region Overrides of Object
+
+        public override string ToString() => $"EchoRequest(Index={Index}, Message={Message})";
+
+        #endregion
+    }
+
+    public class EchoResponse
+    {
+        public string Message { get; set; }
+
+        #region Overrides of Object
+
+        public override string ToString() => $"EchoResponse(Message={Message})";
+
+        #endregion
+    }
+
+    public class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
+    {
+        public Task<EchoResponse> OnHandle(EchoRequest request, string path)
         {
-            public int Index { get; set; }
-            public string Message { get; set; }
-
-            #region Overrides of Object
-
-            public override string ToString() => $"EchoRequest(Index={Index}, Message={Message})";
-
-            #endregion
-        }
-
-        private class EchoResponse
-        {
-            public string Message { get; set; }
-
-            #region Overrides of Object
-
-            public override string ToString() => $"EchoResponse(Message={Message})";
-
-            #endregion
-        }
-
-        private class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
-        {
-            public Task<EchoResponse> OnHandle(EchoRequest request, string name)
-            {
-                return Task.FromResult(new EchoResponse { Message = request.Message });
-            }
+            return Task.FromResult(new EchoResponse { Message = request.Message });
         }
     }
+
 }

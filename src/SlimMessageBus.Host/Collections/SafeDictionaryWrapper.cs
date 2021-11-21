@@ -3,6 +3,7 @@
     using System;
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
+    using System.Linq;
 
     /// <summary>
     /// Dictionary wrapper that exposes a <see cref="ReadOnlyDictionary{TKey,TValue}"/> snapshot for read, while for mutation exposes thread-safe methods.
@@ -90,6 +91,14 @@
                 }
                 _mutableDict.Clear();
                 OnChanged();
+            }
+        }
+
+        public IReadOnlyCollection<TValue> Snapshot()
+        {
+            lock (this)
+            {
+                return Dictonary.Values.ToList();
             }
         }
 

@@ -13,33 +13,35 @@
     /// <typeparam name="TMessage"></typeparam>
     public class ConcurrencyLimittingMessageProcessorDecorator<TMessage> : IMessageProcessor<TMessage> where TMessage : class
     {
-        private readonly ILogger _logger;
-        private readonly SemaphoreSlim _concurrentSemaphore;
-        private readonly IMessageProcessor<TMessage> _target;
+        private readonly ILogger logger;
+        private readonly SemaphoreSlim concurrentSemaphore;
+        private readonly IMessageProcessor<TMessage> target;
 
         public ConcurrencyLimittingMessageProcessorDecorator(AbstractConsumerSettings consumerSettings, MessageBusBase messageBus, IMessageProcessor<TMessage> target)
         {
             if (consumerSettings is null) throw new ArgumentNullException(nameof(consumerSettings));
             if (messageBus is null) throw new ArgumentNullException(nameof(messageBus));
 
-            _logger = messageBus.LoggerFactory.CreateLogger<ConsumerInstancePoolMessageProcessor<TMessage>>();
-            _concurrentSemaphore = new SemaphoreSlim(consumerSettings.Instances);
-            _target = target;
+            logger = messageBus.LoggerFactory.CreateLogger<ConsumerInstancePoolMessageProcessor<TMessage>>();
+            concurrentSemaphore = new SemaphoreSlim(consumerSettings.Instances);
+            this.target = target;
         }
 
-        public async Task<Exception> ProcessMessage(TMessage message)
+        public AbstractConsumerSettings ConsumerSettings => target.ConsumerSettings;
+
+        public async Task<Exception> ProcessMessage(TMessage message, IMessageTypeConsumerInvokerSettings consumerInvoker)
         {
             // Ensure only desired number of messages are being processed concurrently
-            await _concurrentSemaphore.WaitAsync().ConfigureAwait(false);
+            await concurrentSemaphore.WaitAsync().ConfigureAwait(false);
             try
             {
-                _logger.LogDebug("Entering ProcessMessages for message {MessageType}", typeof(TMessage));
-                return await _target.ProcessMessage(message).ConfigureAwait(false);
+                logger.LogDebug("Entering ProcessMessages for message {MessageType}", typeof(TMessage));
+                return await target.ProcessMessage(message, consumerInvoker).ConfigureAwait(false);
             }
             finally
             {
-                _logger.LogDebug("Leaving ProcessMessages for message {MessageType}", typeof(TMessage));
-                _concurrentSemaphore.Release();
+                logger.LogDebug("Leaving ProcessMessages for message {MessageType}", typeof(TMessage));
+                concurrentSemaphore.Release();
             }
         }
 
@@ -55,8 +57,8 @@
         {
             if (disposing)
             {
-                _concurrentSemaphore.Dispose();
-                _target.Dispose();
+                concurrentSemaphore.Dispose();
+                target.Dispose();
             }
         }
 

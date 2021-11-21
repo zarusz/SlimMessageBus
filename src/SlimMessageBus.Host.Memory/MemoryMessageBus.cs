@@ -71,7 +71,7 @@
                 }
             }
 
-            _logger.LogDebug("Waiting on {0} consumer tasks", tasks.Count);
+            _logger.LogDebug("Waiting on {Count} consumer tasks", tasks.Count);
             return Task.WhenAll(tasks);
         }
 
@@ -86,9 +86,7 @@
             {
                 consumerTask = await ExecuteConsumer(messageType, message, messagePayload, consumer).ConfigureAwait(false);
             }
-#pragma warning disable CA1031 // Intended, a catch all situation
             catch (Exception e)
-#pragma warning restore CA1031
             {
                 responseError = e.Message;
             }

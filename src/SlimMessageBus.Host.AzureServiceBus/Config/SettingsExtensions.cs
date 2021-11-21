@@ -47,7 +47,7 @@
         /// <param name="subscriptionName"></param>
         /// <returns></returns>
         public static T SubscriptionName<T>(this T builder, string subscriptionName)
-            where T : AbstractTopicConsumerBuilder
+            where T : AbstractConsumerBuilder
         {
             if (builder is null) throw new ArgumentNullException(nameof(builder));
             if (subscriptionName is null) throw new ArgumentNullException(nameof(subscriptionName));

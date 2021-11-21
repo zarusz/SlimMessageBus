@@ -11,11 +11,11 @@
         /// <param name="builder"></param>
         /// <param name="group"></param>
         /// <returns></returns>
-        [Obsolete("User KafkaGroup() instead")]
-        public static T Group<T>(this T builder, string group) where T : AbstractTopicConsumerBuilder
+        [Obsolete("Use KafkaGroup() instead")]
+        public static T Group<T>(this T builder, string group) where T : AbstractConsumerBuilder
             => builder.KafkaGroup(group);
 
-        public static T KafkaGroup<T>(this T builder, string group) where T : AbstractTopicConsumerBuilder
+        public static T KafkaGroup<T>(this T builder, string group) where T : AbstractConsumerBuilder
         {
             if (builder == null) throw new ArgumentNullException(nameof(builder));
 
@@ -54,7 +54,7 @@
         /// <param name="numberOfMessages"></param>
         /// <returns></returns>
         public static T CheckpointEvery<T>(this T builder, int numberOfMessages)
-            where T : AbstractTopicConsumerBuilder
+            where T : AbstractConsumerBuilder
         {
             if (builder == null) throw new ArgumentNullException(nameof(builder));
 
@@ -69,7 +69,7 @@
         /// <param name="duration"></param>
         /// <returns></returns>
         public static T CheckpointAfter<T>(this T builder, TimeSpan duration)
-            where T : AbstractTopicConsumerBuilder
+            where T : AbstractConsumerBuilder
         {
             if (builder == null) throw new ArgumentNullException(nameof(builder));
 
