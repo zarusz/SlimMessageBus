@@ -165,7 +165,7 @@
 
             _busMock.ConsumerMock.Setup(x => x.OnHandle(message, consumerSettings.Path)).Returns(Task.CompletedTask);
 
-            Mock<IDependencyResolver> childScopeMock = null;
+            Mock<IChildDependencyResolver> childScopeMock = null;
 
             _busMock.OnChildDependencyResolverCreated = mock =>
             {

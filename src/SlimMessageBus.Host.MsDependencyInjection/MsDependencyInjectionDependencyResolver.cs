@@ -9,58 +9,30 @@
     /// </summary>
     public class MsDependencyInjectionDependencyResolver : IDependencyResolver
     {
-        private bool _disposedValue;
-        private readonly ILoggerFactory _loggerFactory;
-        private readonly ILogger<MsDependencyInjectionDependencyResolver> _logger;
+        protected readonly ILoggerFactory LoggerFactory;
         protected readonly IServiceProvider ServiceProvider;
+        
+        private readonly ILogger<MsDependencyInjectionDependencyResolver> logger;
 
-        public MsDependencyInjectionDependencyResolver(IServiceProvider serviceProvider, ILoggerFactory loggerFactory)
+        public MsDependencyInjectionDependencyResolver(IServiceProvider serviceProvider, ILoggerFactory loggerFactory = null)
         {
-            _loggerFactory = loggerFactory;
-            _logger = loggerFactory.CreateLogger<MsDependencyInjectionDependencyResolver>();
+            LoggerFactory = loggerFactory ?? (ILoggerFactory)serviceProvider.GetService(typeof(ILoggerFactory));
+            logger = LoggerFactory.CreateLogger<MsDependencyInjectionDependencyResolver>();
             ServiceProvider = serviceProvider;
-        }
-
-        public MsDependencyInjectionDependencyResolver(IServiceProvider serviceProvider)
-            : this(serviceProvider, (ILoggerFactory)serviceProvider.GetService(typeof(ILoggerFactory)))
-        {
         }
 
         /// <inheritdoc/>
         public virtual object Resolve(Type type)
         {
-            _logger.LogDebug("Resolving type {0}", type);
+            logger.LogDebug("Resolving type {0}", type);
             return ServiceProvider.GetService(type);
         }
 
         /// <inheritdoc/>
-        public IDependencyResolver CreateScope()
+        public IChildDependencyResolver CreateScope()
         {
-            _logger.LogDebug("Creating child scope");
-            return new MsDependencyInjectionChildDependencyResolver(ServiceProvider, _loggerFactory);
+            logger.LogDebug("Creating child scope");
+            return new MsDependencyInjectionChildDependencyResolver(this, ServiceProvider, LoggerFactory);
         }
-
-        #region Dispose
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!_disposedValue)
-            {
-                if (disposing)
-                {
-                    // Note: The _serviceProvider is not owned by this instance it will be disposed externally.
-                }
-
-                _disposedValue = true;
-            }
-        }
-
-        public void Dispose()
-        {
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
-        }
-
-        #endregion
     }
 }

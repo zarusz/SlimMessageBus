@@ -8,46 +8,49 @@
     /// <summary>
     /// An SMB DI adapter for the scope <see cref="IServiceScope"/>.
     /// </summary>
-    public class MsDependencyInjectionChildDependencyResolver : IDependencyResolver
+    public class MsDependencyInjectionChildDependencyResolver : IChildDependencyResolver
     {
-        private readonly ILoggerFactory _loggerFactory;
-        private readonly ILogger<MsDependencyInjectionChildDependencyResolver> _logger;
-        private readonly IServiceScope _serviceScope;
-        private bool _disposedValue;
+        private readonly ILoggerFactory loggerFactory;
+        private readonly ILogger<MsDependencyInjectionChildDependencyResolver> logger;
+        private readonly IServiceScope serviceScope;
+        private bool disposedValue;
 
-        public MsDependencyInjectionChildDependencyResolver(IServiceProvider serviceProvider, ILoggerFactory loggerFactory)
+        public IDependencyResolver Parent { get; }
+
+        public MsDependencyInjectionChildDependencyResolver(IDependencyResolver parent, IServiceProvider serviceProvider, ILoggerFactory loggerFactory)
         {
-            _loggerFactory = loggerFactory;
-            _logger = loggerFactory.CreateLogger<MsDependencyInjectionChildDependencyResolver>();
-            _serviceScope = serviceProvider.CreateScope();
+            Parent = parent;
+            this.loggerFactory = loggerFactory;
+            logger = loggerFactory.CreateLogger<MsDependencyInjectionChildDependencyResolver>();
+            serviceScope = serviceProvider.CreateScope();
         }
 
         /// <inheritdoc/>
-        public IDependencyResolver CreateScope()
+        public IChildDependencyResolver CreateScope()
         {
-            _logger.LogDebug("Creating child scope");
-            return new MsDependencyInjectionChildDependencyResolver(_serviceScope.ServiceProvider, _loggerFactory);
+            logger.LogDebug("Creating child scope");
+            return new MsDependencyInjectionChildDependencyResolver(this, serviceScope.ServiceProvider, loggerFactory);
         }
         /// <inheritdoc/>
         public virtual object Resolve(Type type)
         {
-            _logger.LogDebug("Resolving type {0}", type);
-            return _serviceScope.ServiceProvider.GetService(type);
+            logger.LogDebug("Resolving type {0}", type);
+            return serviceScope.ServiceProvider.GetService(type);
         }
 
         #region Dispose
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!_disposedValue)
+            if (!disposedValue)
             {
                 if (disposing)
                 {
-                    _logger.LogDebug("Disposing scope");
-                    _serviceScope.Dispose();
+                    logger.LogDebug("Disposing scope");
+                    serviceScope.Dispose();
                 }
 
-                _disposedValue = true;
+                disposedValue = true;
             }
         }
 

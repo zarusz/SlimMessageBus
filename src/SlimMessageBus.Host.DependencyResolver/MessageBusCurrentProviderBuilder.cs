@@ -7,7 +7,7 @@
     /// </summary>
     public class MessageBusCurrentProviderBuilder
     {
-        private Func<IMessageBus> _provider;
+        private Func<IMessageBus> provider;
 
         protected MessageBusCurrentProviderBuilder()
         {            
@@ -18,10 +18,7 @@
             return new MessageBusCurrentProviderBuilder();
         }
 
-        public void SetProvider(Func<IMessageBus> provider)
-        {
-            _provider = provider;
-        }
+        public void SetProvider(Func<IMessageBus> provider) => this.provider = provider;
 
         public MessageBusCurrentProviderBuilder FromSingleton(IMessageBus bus)
         {
@@ -35,9 +32,6 @@
             return this;
         }
 
-        public Func<IMessageBus> Build()
-        {
-            return _provider;
-        }
+        public Func<IMessageBus> Build() => provider;
     }
 }

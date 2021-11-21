@@ -9,47 +9,41 @@
     /// </summary>
     public class ServiceLocatorMessageBusDependencyResolver : IDependencyResolver
     {
-        private readonly ILogger _logger;
-        private bool disposedValue;
+        private readonly ILoggerFactory loggerFactory;
+        private readonly ILogger logger;
 
-        public ServiceLocatorMessageBusDependencyResolver(ILogger logger)
+        public ServiceLocatorMessageBusDependencyResolver(ILoggerFactory loggerFactory)
         {
-            _logger = logger;
+            this.loggerFactory = loggerFactory;
+            logger = loggerFactory.CreateLogger<ServiceLocatorMessageBusDependencyResolver>();
         }
 
-        public IDependencyResolver CreateScope()
-            => this;
-        
+        public IChildDependencyResolver CreateScope()
+            => new ServiceLocatorMessageBusChildDependencyResolver(this, loggerFactory);
+
         public object Resolve(Type type)
         {
-            _logger.LogTrace("Resolving type {type}", type);
+            logger.LogTrace("Resolving type {type}", type);
             var o = CommonServiceLocator.ServiceLocator.Current.GetInstance(type);
-            _logger.LogTrace("Resolved type {type} to instance {instance}", type, o);
+            logger.LogTrace("Resolved type {type} to instance {instance}", type, o);
             return o;
         }
 
-        #region Dispose
-
-        protected virtual void Dispose(bool disposing)
+        private class ServiceLocatorMessageBusChildDependencyResolver : ServiceLocatorMessageBusDependencyResolver, IChildDependencyResolver
         {
-            if (!disposedValue)
-            {
-                if (disposing)
-                {
-                }
+            public IDependencyResolver Parent { get; }
 
-                disposedValue = true;
+            public ServiceLocatorMessageBusChildDependencyResolver(IDependencyResolver parent, ILoggerFactory loggerFactory)
+                : base(loggerFactory)
+            {
+                Parent = parent;
+            }
+
+            public void Dispose()
+            {
+                // Do Nothing
             }
         }
-
-        public void Dispose()
-        {
-            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
-        }
-
-        #endregion
     }
 }
 

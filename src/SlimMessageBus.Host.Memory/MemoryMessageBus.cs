@@ -6,6 +6,7 @@
     using System.Threading.Tasks;
     using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.DependencyResolver;
     using SlimMessageBus.Host.Serialization;
 
     /// <summary>
@@ -167,7 +168,7 @@
                 if (createMessageScope)
                 {
                     _logger.LogDebug("Disposing message scope for {Message} of type {MessageType}", message, messageType);
-                    messageScope.DisposeSilently("Scope", _logger);
+                    ((IChildDependencyResolver)messageScope).DisposeSilently("Scope", _logger);
                 }
             }
         }

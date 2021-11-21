@@ -131,7 +131,7 @@ namespace SlimMessageBus.Host.Memory.Test
             // arrange
             var consumerMock = new Mock<SomeMessageAConsumer>();
 
-            var scope = new Mock<IDependencyResolver>();
+            var scope = new Mock<IChildDependencyResolver>();
             scope.Setup(x => x.Resolve(typeof(SomeMessageAConsumer))).Returns(() => consumerMock.Object);
             scope.Setup(x => x.Dispose()).Callback(() => { });
 

@@ -10,70 +10,40 @@
     /// </summary>
     public class AutofacMessageBusDependencyResolver : IDependencyResolver
     {
-        private readonly ILogger<AutofacMessageBusDependencyResolver> _logger;
-        private readonly IComponentContext _componentContext;
-        private readonly ILifetimeScope _lifetimeScope;
-        private bool _disposedValue;
+        private readonly ILoggerFactory loggerFactory;
+        private readonly ILogger<AutofacMessageBusDependencyResolver> logger;
+        private readonly IComponentContext componentContext;
+        private readonly ILifetimeScope lifetimeScope;
 
-        /// <summary>
-        /// Indicated if the disposal of this instance should also dispose the associated <see cref="ILifetimeScope"/>.
-        /// </summary>
-        protected bool DisposeScope { get; set; }
-
-        public AutofacMessageBusDependencyResolver(IComponentContext container, ILogger<AutofacMessageBusDependencyResolver> logger)
+        public AutofacMessageBusDependencyResolver(IComponentContext container, ILoggerFactory loggerFactory)
         {
-            _logger = logger;
-            _componentContext = container;
-            _lifetimeScope = container as ILifetimeScope;
+            this.loggerFactory = loggerFactory;
+            logger = loggerFactory.CreateLogger<AutofacMessageBusDependencyResolver>();
+            componentContext = container;
+            lifetimeScope = container as ILifetimeScope;
         }
 
         public AutofacMessageBusDependencyResolver(IComponentContext container)
-            : this(container, container.Resolve<ILogger<AutofacMessageBusDependencyResolver>>())
+            : this(container, container.Resolve<ILoggerFactory>())
         {
         }
 
         public object Resolve(Type type)
         {
-            _logger.LogTrace("Resolving type {0}", type);
-            var o = _componentContext.Resolve(type);
-            _logger.LogTrace("Resolved type {0} to instance {1}", type, o);
+            logger.LogTrace("Resolving type {0}", type);
+            var o = componentContext.Resolve(type);
+            logger.LogTrace("Resolved type {0} to instance {1}", type, o);
             return o;
         }
 
-        public IDependencyResolver CreateScope()
+        public IChildDependencyResolver CreateScope()
         {
-            if (_lifetimeScope == null) throw new InvalidOperationException($"The supplied Autofac {nameof(IComponentContext)} does not implement {nameof(ILifetimeScope)}");
+            if (lifetimeScope == null) throw new InvalidOperationException($"The supplied Autofac {nameof(IComponentContext)} does not implement {nameof(ILifetimeScope)}");
             
-            _logger.LogDebug("Creating child scope");
-            var scope = _lifetimeScope.BeginLifetimeScope();
-            return new AutofacMessageBusDependencyResolver(scope, _logger) { DisposeScope = true };
+            logger.LogDebug("Creating child scope");
+            var scope = lifetimeScope.BeginLifetimeScope();
+            return new AutofacMessageBusChildDependencyResolver(this, scope, loggerFactory);
         }
-
-        #region Dispose
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!_disposedValue)
-            {
-                if (disposing)
-                {
-                    if (DisposeScope && _lifetimeScope != null)
-                    {
-                        _logger.LogDebug("Disposing scope");
-                        _lifetimeScope.Dispose();
-                    }
-                }
-
-                _disposedValue = true;
-            }
-        }
-
-        public void Dispose()
-        {
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
-        }
-
-        #endregion
     }
+
 }

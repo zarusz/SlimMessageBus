@@ -3,7 +3,7 @@
   <Import Project="../Host.DI.Properties.xml" />
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <Description>SlimMessageBus adapter for Microsoft.Extenstension.DependencyInjection IoC container</Description>
     <PackageTags>SlimMessageBus MessageBus DI IoC Microsoft.Extenstension.DependencyInjection</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SlimMessageBus.Host.DependencyResolver\SlimMessageBus.Host.DependencyResolver.csproj" />
+    <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
   </ItemGroup>
 
   <ItemGroup>

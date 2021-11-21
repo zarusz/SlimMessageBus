@@ -71,6 +71,25 @@ In most scenarios having a singleton `IMessageBus` for your entire application w
 
 > The `IMessageBus` is disposable (implements `IDisposable`).
 
+When your service uses `Microsoft.Extensions.DependencyInjection`, 
+the SMB can be configured in a more compact way (requires `SlimMessageBus.Host.MsDependencyInjection` or `SlimMessageBus.Host.AspNetCore` package):
+
+```cs
+// Startup.cs:
+
+IServiceCollection services;
+
+services.AddSlimMessageBus((mbb, svp) =>
+{
+    mbb
+        .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
+        // ...
+        .WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
+})
+```
+
+The `.WithDependencyResolver(...)` is allready called on the `MessageBusBuilder`.
+The `svp` (of type `IServiceProvider`) can be used to obtain additional dependencies from DI.
 
 ## Pub/Sub communication
 
