@@ -317,7 +317,7 @@
         }
 
         [Fact]
-        public void When_Publish_Given_Disposed_Then_ThrowsException()
+        public async Task When_Publish_Given_Disposed_Then_ThrowsException()
         {
             // arrange
             Bus.Dispose();
@@ -327,12 +327,12 @@
             Func<Task> actWithTopic = async () => await Bus.Publish(new SomeMessage(), "some-topic").ConfigureAwait(false);
 
             // assert
-            act.Should().Throw<MessageBusException>();
-            actWithTopic.Should().Throw<MessageBusException>();
+            await act.Should().ThrowAsync<MessageBusException>();
+            await actWithTopic.Should().ThrowAsync<MessageBusException>();
         }
 
         [Fact]
-        public void When_Send_Given_Disposed_Then_ThrowsException()
+        public async Task When_Send_Given_Disposed_Then_ThrowsException()
         {
             // arrange
             Bus.Dispose();
@@ -342,8 +342,8 @@
             Func<Task> actWithTopic = async () => await Bus.Send(new SomeRequest(), "some-topic").ConfigureAwait(false);
 
             // assert
-            act.Should().Throw<MessageBusException>();
-            actWithTopic.Should().Throw<MessageBusException>();
+            await act.Should().ThrowAsync<MessageBusException>();
+            await actWithTopic.Should().ThrowAsync<MessageBusException>();
         }
 
         [Fact]

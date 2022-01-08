@@ -63,7 +63,7 @@ namespace Sample.Images.Worker
                     s.Topic("thumbnail-generation", t =>
                     {
                         t.WithHandler<GenerateThumbnailRequestHandler>()
-                            .Group(sharedGroup)
+                            .KafkaGroup(sharedGroup)
                             .Instances(3);
                     });
                 })
