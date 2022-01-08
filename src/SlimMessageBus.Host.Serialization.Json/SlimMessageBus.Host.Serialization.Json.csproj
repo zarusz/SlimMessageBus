@@ -6,16 +6,13 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <Description>Plugin for SlimMessageBus that provides JSON serialization based on the Json.NET library</Description>
     <PackageTags>SlimMessageBus JSON Serialization messaging</PackageTags>
-    <Version>1.4.0</Version>
+    <Version>1.4.1</Version>
     <PackageIcon>icon.png</PackageIcon>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.FxCopAnalyzers" Version="3.3.2">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.1.8" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.1.22" />
     <PackageReference Include="Newtonsoft.Json" Version="9.0.1" />
   </ItemGroup>
 
@@ -27,7 +24,6 @@
     <None Include="..\..\icon.png">
       <Pack>True</Pack>
       <PackagePath></PackagePath>
-    </None>
+    </None>    
   </ItemGroup>
-
 </Project>

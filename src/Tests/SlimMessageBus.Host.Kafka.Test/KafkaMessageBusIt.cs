@@ -132,7 +132,7 @@ namespace SlimMessageBus.Host.Kafka.Test
                 {
                     x.Topic(topic)
                         .WithConsumer<PingConsumer>()
-                        .Group("subscriber")
+                        .KafkaGroup("subscriber")
                         .Instances(2)
                         .CheckpointEvery(1000)
                         .CheckpointAfter(TimeSpan.FromSeconds(600));
@@ -206,14 +206,14 @@ namespace SlimMessageBus.Host.Kafka.Test
                 })
                 .Handle<EchoRequest, EchoResponse>(x => x.Topic(topic)
                                                          .WithHandler<EchoRequestHandler>()
-                                                         .Group("handler")
+                                                         .KafkaGroup("handler")
                                                          .Instances(2)
                                                          .CheckpointEvery(1000)
                                                          .CheckpointAfter(TimeSpan.FromSeconds(60)))
                 .ExpectRequestResponses(x =>
                 {
                     x.ReplyToTopic($"{TopicPrefix}test-echo-resp");
-                    x.Group("response-reader");
+                    x.KafkaGroup("response-reader");
                     // for subsequent test runs allow enough time for kafka to reassign the partitions
                     x.DefaultTimeout(TimeSpan.FromSeconds(60));
                     x.CheckpointEvery(100);

@@ -88,7 +88,7 @@
                 x => x(_busMock.Bus, consumerSettings, request, ex, It.IsAny<object>()), Times.Once); // callback called once
 
             _busMock.BusMock.Verify(
-                x => x.ProduceResponse(request, It.IsAny<IDictionary<string, object>>(), It.IsAny<SomeResponse>(), It.Is<IDictionary<string, object>>(m => m[ReqRespMessageHeaders.RequestId] == requestId), It.IsAny<ConsumerSettings>()));
+                x => x.ProduceResponse(request, It.IsAny<IDictionary<string, object>>(), It.IsAny<SomeResponse>(), It.Is<IDictionary<string, object>>(m => (string)m[ReqRespMessageHeaders.RequestId] == requestId), It.IsAny<ConsumerSettings>()));
 
             exception.Should().BeSameAs(ex);
         }

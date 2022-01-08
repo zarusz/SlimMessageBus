@@ -77,7 +77,7 @@
                 .ExpectRequestResponses(x =>
                 {
                     x.ReplyToTopic(instanceReplyTo);
-                    x.Group(instanceGroup);
+                    x.KafkaGroup(instanceGroup);
                     // Default global response timeout
                     x.DefaultTimeout(TimeSpan.FromSeconds(30));
                 })
