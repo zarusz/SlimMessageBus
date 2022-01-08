@@ -5,7 +5,7 @@
   - [Producer](#producer)
     - [Polymorphic messages](#polymorphic-messages)
     - [Producer hooks](#producer-hooks)
-    - [Set message headers when producing message](#set-message-headers-when-producing-message)
+    - [Set message headers](#set-message-headers)
   - [Consumer](#consumer)
     - [Start or Stop message consumption](#start-or-stop-message-consumption)
     - [Consumer hooks](#consumer-hooks)
@@ -22,6 +22,9 @@
   - [Consume the request message (the request handler)](#consume-the-request-message-the-request-handler)
 - [Static accessor](#static-accessor)
 - [Dependency resolver](#dependency-resolver)
+  - [MsDependencyInjection](#msdependencyinjection)
+    - [Autoregistration of consumers](#autoregistration-of-consumers)
+    - [Modularization of configuration](#modularization-of-configuration)
 - [Serialization](#serialization)
 - [Message Headers](#message-headers)
   - [Message Type Resolver](#message-type-resolver)
@@ -37,7 +40,7 @@ The configuration starts with `MessageBusBuilder`, which allows to configure cou
 - The dependency injection provider.
 - Declaration of messages produced and consumed along with topic/queue names.
 - Request-response configuration (if enabled).
-- Additional provider specific settings (message partition key, message id, etc).
+- Additional provider-specific settings (message partition key, message id, etc).
 
 Here is a sample:
 
@@ -85,7 +88,7 @@ var mbb = MessageBusBuilder.Create()
   });
 ```
 
-The builder is the blue print for creating message bus instances `IMessageBus`:
+The builder is the blueprint for creating message bus instances `IMessageBus`:
 
 ```cs
 // Build the bus from the builder. 
@@ -106,15 +109,15 @@ the SMB can be configured in a more compact way (requires `SlimMessageBus.Host.M
 IServiceCollection services;
 
 services.AddSlimMessageBus((mbb, svp) =>
-{
+  {
     mbb
-        .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
-        // ...
-        .WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
-})
+      .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
+      // ...
+      .WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
+  });
 ```
 
-The `.WithDependencyResolver(...)` is allready called on the `MessageBusBuilder`.
+The `.WithDependencyResolver(...)` is already called on the `MessageBusBuilder`.
 The `svp` (of type `IServiceProvider`) can be used to obtain additional dependencies from DI.
 
 ## Pub/Sub communication
@@ -144,11 +147,11 @@ await bus.Publish(msg);
 await bus.Publish(msg, "other-topic");
 ```
 
-> The transport plugins might introduce additional configuration option. Please check the relevant provider docs. For example, Azure Service Bus and Kafka allows to set the portitioning key for a message type.
+> The transport plugins might introduce additional configuration options. Please check the relevant provider docs. For example, Azure Service Bus, Azure Event Hub and Kafka allow setting the partitioning key for a given message type.
 
 #### Polymorphic messages
 
-Consider the following message types that can be produced:
+Given the following message types:
 
 ```cs
 public class CustomerEvent
@@ -168,7 +171,7 @@ If we want the bus to deliver all 3 messages types into the same topic (or queue
 mbb.Produce<CustomerEvent>(x => x.DefaultTopic("customer-events"));
 ```
 
-Then all of the those message types will follow the base message type producer configuration. 
+Then all of the those message types will follow the base message type producer configuration.
 In this example, all messages will be delivered to topic `customer-events`:
 
 ```cs
@@ -205,11 +208,11 @@ mbb
    });
 ```
 
-The hook can be applied at the specified producer, or the whole bus.
+The hook can be applied at the specified producer or the whole bus.
 
-> The user specified `Action<>` methods need to be thread-safe.
+> The user-specified `Action<>` methods need to be thread-safe.
 
-#### Set message headers when producing message
+#### Set message headers
 
 > Since version 1.15.0
 
@@ -219,7 +222,7 @@ Whenever the message is published (or sent in request-response), headers can be 
 await bus.Publish(new CustomerEvent { }, headers: new Dictionary<string, object> { ["CustomerId"] = 1234 });
 ```
 
-It is also possible to specify a producer wide modifier for message headers. This can be used if you need to add some specific headers for every message.
+It is also possible to specify a producer-wide modifier for message headers. This can be used if you need to add some specific headers for every message.
 
 ```cs
 mbb
@@ -609,17 +612,17 @@ See [`DomainEvents`](../src/Samples/Sample.DomainEvents.WebApi/Startup.cs#L79) s
 
 ## Dependency resolver
 
-SMB uses dependency resolver to obtain instances of the declared consumers (class instances that implement `IConsumer<>`, `IHandler<>`).
+SMB uses dependency resolver to obtain instances of the declared consumers (class instances that implement `IConsumer<>` or `IHandler<>`).
 There are few plugins available that allow to integrate SMB with your favorite DI library. 
 
-The consumer/handler is typically resolved from DI container when the message arrives and needs to be handled. 
+The consumer/handler is typically resolved from DI container when the message arrives and needs to be handled.
 SMB does not maintain a reference to that object instance after consuming of the message - this gives user the ability to decide is the consumer/handler should be a singleton, transient, or scoped (to the message being processed or ongoing web-request) and when it should be disposed.
 
 The disposal of the consumer instance obtained by the DI is typically handled by the DI (if the consumer implements `IDisposable`).
-By default SMB creates a child DI scope for every arriving message (`.IsMessageScopeEnabled(true)`) and after the message is processed, 
+By default SMB creates a child DI scope for every arriving message (`.IsMessageScopeEnabled(true)`) and after the message is processed,
 SMB disposes that child DI scope - with that the DI will dispose the consumer instance and its injected collaborators.
 
-Now, in some special situations you might want SMB to dispose the consumer instance 
+Now, in some special situations you might want SMB to dispose of the consumer instance
 after the message has been processed - you can enable that with `.DisposeConsumerEnabled(true)`. 
 This setting will make SMB dispose the consumer instance if only it implements the `IDisposable` interface.
 
@@ -628,6 +631,78 @@ This setting will make SMB dispose the consumer instance if only it implements t
 See more [here](https://docs.microsoft.com/en-us/dotnet/core/extensions/dependency-injection-guidelines#general-idisposable-guidelines) on disposable best practices.
 
 See samples and the [Packages section](../#Packages).
+
+### MsDependencyInjection
+
+The `SlimMessageBus.Host.MsDependencyInjection` plugin (or `SlimMessageBus.Host.AspNetCore`) introduces several conveniences to configure the bus.
+
+The `.AddSlimMessageBus()` extension enables to configure the message bus and register the instance as a Singleton with the container:
+
+```cs
+// Startup.cs:
+
+IServiceCollection services;
+
+services.AddSlimMessageBus((mbb, svp) =>
+  {
+    mbb
+      .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
+      // ...
+      .WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
+  }, 
+  // Option 1 (optional)
+  addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() }, // auto discover consumers and register into DI (see next section)
+  addConfiguratorsFromAssembly: new[] { Assembly.GetExecutingAssembly() } // auto discover modular configuration and register into DI (see next section)
+);
+
+// Option 2 (optional)
+services.AddMessageBusConsumersFromAssembly(Assembly.GetExecutingAssembly());
+services.AddMessageBusConfiguratorsFromAssembly(Assembly.GetExecutingAssembly());
+```
+
+> The `.WithDependencyResolver(...)` is already called on the `MessageBusBuilder`.
+
+The `svp` (of type `IServiceProvider`) can be used to obtain additional dependencies from DI.
+
+#### Autoregistration of consumers
+
+We can also use the `AddMessageBusConsumersFromAssembly` extension method to search for any implementations of `IConsumer<T>` (or `IRequestHandler<T, R>`) and register them as Transient with the container:
+
+```cs
+services.AddMessageBusConsumersFromAssembly(Assembly.GetExecutingAssembly());
+```
+
+> Since version 1.6.4
+
+#### Modularization of configuration
+
+If you want to avoid configuring the bus all in one place (Startup. cs) and rather have modules of the application 
+responsible for configuring their consumers or producers then it can be done using an implementation of `IMessageBusConfigurator` that is placed in each module (assembly).
+
+```cs
+public MyAppModule : IMessageBusConfigurator {
+
+    public MyAccountingModule(/* dependencies injected by DI */) { }
+
+    public void Configure(MessageBusBuilder mbb, string busName) 
+    {
+        mbb
+            .Produce<SomeMessage>(...)
+            .Consume<SomeMessage>(...)
+    }
+}
+```
+
+We can then use `AddMessageBusConfiguratorsFromAssembly` extension method (in Startup.cs) to search for any implementations of `IMessageBusConfigurator` and register them as Transient with the container:
+
+```cs
+var accountingModuleAssembly = Assembly.GetExecutingAssembly();
+services.AddMessageBusConfiguratorsFromAssembly(accountingModuleAssembly);
+```
+
+Implementations of `IMessageBusConfigurator` registered in the DI will be used to configure the message bus inside the `AddSlimMessageBus` extension method.
+
+> Since version 1.6.4
 
 ## Serialization
 

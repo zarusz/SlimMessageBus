@@ -20,6 +20,7 @@
     using Confluent.Kafka;
     using Microsoft.Extensions.DependencyInjection;
     using SlimMessageBus.Host;
+    using System.Reflection;
 
     enum Provider
     {
@@ -49,13 +50,17 @@
                 .AddLogging(cfg => cfg.AddConfiguration(configuration.GetSection("Logging")).AddConsole())
                 // Register bus
                 .AddSlimMessageBus((mbb, services) =>
-                {
-                    ConfigureMessageBus(mbb, configuration, services);
-                })
-                // Register consumers
-                .AddTransient<AddCommandConsumer>()
-                .AddTransient<MultiplyRequestHandler>()
-                // Build DI container
+                    {
+                        ConfigureMessageBus(mbb, configuration, services);
+                    }, 
+                    // Option 1
+                    addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() },
+                    addConfiguratorsFromAssembly: new[] { Assembly.GetExecutingAssembly() }
+                )
+                // Option 2
+                //.AddMessageBusConsumersFromAssembly(Assembly.GetExecutingAssembly())
+                //.AddMessageBusConfiguratorsFromAssembly(Assembly.GetExecutingAssembly())
+
                 .BuildServiceProvider();
 
             // Create the bus and process messages
@@ -77,7 +82,7 @@
         private static void ConfigureMessageBus(MessageBusBuilder mbb, IConfiguration configuration, IServiceProvider services)
         {
             // Choose your provider
-            var provider = Provider.Kafka;
+            var provider = Provider.Redis;
 
             // Provide your event hub-names OR kafka/service bus topic names
             var topicForAddCommand = "add-command";

@@ -1,44 +1,58 @@
-# SlimMessageBus
+# SlimMessageBus <!-- omit in toc -->
 
-SlimMessageBus is a client façade for message brokers for .NET. It comes with implementations for specific brokers (Apache Kafka, Azure EventHub, MQTT/Mosquitto, Redis Pub/Sub) and also for in memory message passing (in-process communication). SlimMessageBus additionally provides request-response implementation over message queues.
+SlimMessageBus is a client façade for message brokers for .NET. It comes with implementations for specific brokers (Apache Kafka, Azure EventHub, MQTT/Mosquitto, Redis Pub/Sub) and in-memory message passing (in-process communication). SlimMessageBus additionally provides request-response implementation over message queues.
 
 [![Gitter](https://badges.gitter.im/SlimMessageBus/community.svg)](https://gitter.im/SlimMessageBus/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 [![GitHub license](https://img.shields.io/github/license/zarusz/SlimMessageBus)](https://github.com/zarusz/SlimMessageBus/blob/master/LICENSE)
+[![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s/branch/master?svg=true&passingText=master%20OK&pendingText=master%20pending&failingText=master%20failL)](https://ci.appveyor.com/project/zarusz/slimmessagebus/branch/master)
+[![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s/branch/develop?svg=true&passingText=develop%20OK&pendingText=develop%20pending&failingText=develop%20fail)](https://ci.appveyor.com/project/zarusz/slimmessagebus/branch/develop)
+[![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s?svg=true&passingText=other%20OK&pendingText=other%20pending&failingText=other%20fail)](https://ci.appveyor.com/project/zarusz/slimmessagebus)
 
-| Branch  | Build Status                                                                                                                                                                  |
-| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| master  | [![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s/branch/master?svg=true)](https://ci.appveyor.com/project/zarusz/slimmessagebus/branch/master)   |
-| develop | [![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s/branch/develop?svg=true)](https://ci.appveyor.com/project/zarusz/slimmessagebus/branch/develop) |
-| other   | [![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s?svg=true)](https://ci.appveyor.com/project/zarusz/slimmessagebus)                               |
+
+- [Key elements of SlimMessageBus](#key-elements-of-slimmessagebus)
+- [Docs](#docs)
+- [Packages](#packages)
+- [Samples](#samples)
+  - [Basic usage](#basic-usage)
+  - [Configuration](#configuration)
+  - [Configuration with MsDependencyInjection](#configuration-with-msdependencyinjection)
+  - [Use Case: Domain Events (in-process pub/sub messaging)](#use-case-domain-events-in-process-pubsub-messaging)
+  - [Use Case: Request-response over Kafka topics](#use-case-request-response-over-kafka-topics)
+- [Features](#features)
+- [Principles](#principles)
+- [License](#license)
+- [Build](#build)
+- [Testing](#testing)
+- [Credits](#credits)
 
 ## Key elements of SlimMessageBus
 
-* Consumers:
-  * `IConsumer<in TMessage>` - subscriber in pub/sub (or queue consumer)
-  * `IRequestHandler<in TRequest, TResponse>` - request handler in request-response
-* Producers:
-  * `IPublishBus` - publisher in pub/sub (or queue producer)
-  * `IRequestResponseBus` - sender in req/resp
-  * `IMessageBus` - extends `IPublishBus` and `IRequestResponseBus`
-* Misc:
-  * `IRequestMessage<TResponse>` - marker for request messages
-  * `MessageBus` - static accessor for current context `IMessageBus`
+- Consumers:
+  - `IConsumer<in TMessage>` - subscriber in pub/sub (or queue consumer)
+  - `IRequestHandler<in TRequest, TResponse>` - request handler in request-response
+- Producers:
+  - `IPublishBus` - publisher in pub/sub (or queue producer)
+  - `IRequestResponseBus` - sender in req/resp
+  - `IMessageBus` - extends `IPublishBus` and `IRequestResponseBus`
+- Misc:
+  - `IRequestMessage<TResponse>` - marker for request messages
+  - `MessageBus` - static accessor for current context `IMessageBus`
 
 ## Docs
 
-* [Introduction](docs/intro.md)
-* Providers:
-  * [Apache Kafka](docs/provider_kafka.md)
-  * [Azure ServiceBus](docs/provider_azure_servicebus.md)
-  * [Azure EventHubs](docs/provider_azure_eventhubs.md)
-  * [Redis](docs/provider_redis.md)
-  * [Memory](docs/provider_memory.md)
-  * [Hybrid](docs/provider_hybrid.md)
-* [Serialization Plugins](docs/serialization.md)
+- [Introduction](docs/intro.md)
+- Providers:
+  - [Apache Kafka](docs/provider_kafka.md)
+  - [Azure ServiceBus](docs/provider_azure_servicebus.md)
+  - [Azure EventHubs](docs/provider_azure_eventhubs.md)
+  - [Redis](docs/provider_redis.md)
+  - [Memory](docs/provider_memory.md)
+  - [Hybrid](docs/provider_hybrid.md)
+- [Serialization Plugins](docs/serialization.md)
 
 ## Packages
 
-| Name                                        | Descripton                                                                                                          | NuGet                                                                                                                                                              |
+| Name                                        | Description                                                                                                         | NuGet                                                                                                                                                              |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `SlimMessageBus`                            | The core API for SlimMessageBus                                                                                     | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.svg)](https://www.nuget.org/packages/SlimMessageBus)                                                       |
 | **Transport providers**                     |                                                                                                                     |                                                                                                                                                                    |
@@ -63,9 +77,9 @@ Typically your application components (business logic, domain) only need to depe
 
 ## Samples
 
-Check out the [Samples](src/Samples/) folder.
+Check out the [Samples](src/Samples/) folder for complete overview.
 
-### Quick example
+### Basic usage
 
 Some service (or domain layer) sends a message:
 
@@ -80,7 +94,7 @@ Another service (or application layer) handles the message:
 ```cs
 public class SomeMessageConsumer : IConsumer<SomeMessage>
 {
-   public Task OnHandle(SomeMessage message, string path) // path = topic or queue name
+   public async Task OnHandle(SomeMessage message, string path) // path = topic or queue name
    {
        // handle the message
    }
@@ -89,13 +103,13 @@ public class SomeMessageConsumer : IConsumer<SomeMessage>
 
 > Note: It is also possible to avoid having to implement the interface `IConsumer<T>` (see [here](docs/intro.md#consumer)).
 
-The bus also supports request-response implemented via queues (or topics - depending what the chosen transport provider supports). The sender side sends a request message:
+The bus also supports request-response implemented via queues (or topics - depending on what the chosen transport provider supports). The sender side sends a request message:
 
 ```cs
 var messageResponse = await bus.Send(new MessageRequest());
 ```
 
-> Note: It is possible to configure the bus to timeout a request when the response does not arrive within alloted time (see [here](docs/intro.md#produce-request-message)).
+> Note: It is possible to configure the bus to timeout a request when the response does not arrive within the allotted time (see [here](docs/intro.md#produce-request-message)).
 
 The receiving side handles the request and replies back:
 
@@ -111,12 +125,14 @@ public class MessageRequestHandler : IRequestHandler<MessageRequest, MessageResp
 
 The bus will ask the chosen DI to provide the consumer instances (`SomeMessageConsumer`, `MessageRequestHandler`).
 
+### Configuration
+
 To configure SMB in your service:
 
 ```cs
-var builder = MessageBusBuilder.Create();
+var mbb = MessageBusBuilder.Create();
 
-builder
+mbb
    // Pub/Sub example:
    .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
    .Consume<SomeMessage>(x => x
@@ -144,29 +160,46 @@ builder
    //.WithProviderMemory(...)
 
 // Build the bus from the builder. Message consumers will start consuming messages from the configured topics/queues of the chosen provider.
-IMessageBus bus = builder.Build();
+IMessageBus bus = mbb.Build();
 
 // Register bus in your DI (as a singleton)
 ```
 
-When your service uses `Microsoft.Extensions.DependencyInjection`, 
-the SMB can be configured in a more compact way (requires `SlimMessageBus.Host.MsDependencyInjection` or `SlimMessageBus.Host.AspNetCore` package):
+### Configuration with MsDependencyInjection
+
+When your service uses `Microsoft.Extensions.DependencyInjection`, the SMB can be configured in a more compact way
+(requires `SlimMessageBus.Host.MsDependencyInjection` or `SlimMessageBus.Host.AspNetCore` package):
 
 ```cs
-// Startup.cs:
+// Startup.cs
 
 IServiceCollection services;
 
-services.AddSlimMessageBus((builder, svp) =>
-{
-    builder
-        .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
-        // ...
-        .WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
-})
+services.AddSlimMessageBus((mbb, svp) =>
+   {
+      mbb
+         .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
+         .Consume<SomeMessage>(x => x
+            .Topic("some-topic")
+            .WithConsumer<SomeMessageConsumer>()
+            //.KafkaGroup("some-kafka-consumer-group") //  Kafka provider specific
+            //.SubscriptionName("some-azure-sb-topic-subscription") // Azure ServiceBus provider specific
+         )
+         // ...
+         .WithSerializer(new JsonMessageSerializer())
+         .WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
+   }, 
+   // Option 1 (optional)
+   addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() }, // auto discover consumers and register into DI (see next section)
+   addConfiguratorsFromAssembly: new[] { Assembly.GetExecutingAssembly() } // auto discover modular configuration and register into DI (see next section)
+);
+
+// Option 2 (optional)
+services.AddMessageBusConsumersFromAssembly(Assembly.GetExecutingAssembly());
+services.AddMessageBusConfiguratorsFromAssembly(Assembly.GetExecutingAssembly());
 ```
 
-### Basic in-process pub/sub messaging (for domain events)
+### Use Case: Domain Events (in-process pub/sub messaging)
 
 This example shows how `SlimMessageBus` and `SlimMessageBus.Host.Memory` can be used to implement Domain Events pattern. The provider passes messages in the same app domain process (no external message broker is required).
 
@@ -203,9 +236,9 @@ public class OrderSubmittedHandler : IConsumer<OrderSubmittedEvent>
 }
 ```
 
-The domain handler (well, really the consumer) is obtained from dependency resolver at the time of event publication. It can be scoped (per web request, per unit of work) as configured in your favorite DI container.
+The domain handler (well, really the consumer) is obtained from the dependency resolver at the time of event publication. It can be scoped (per web request, per unit of work) as configured in your favorite DI container.
 
-Somewhere in your domain layer the domain event gets raised:
+Somewhere in your domain layer, the domain event gets raised:
 
 ```cs
 // aggregate root
@@ -247,7 +280,7 @@ order.Add("id_grenade", 4);
 order.Submit(); // events fired here
 ```
 
-Notice the static `MessageBus.Current` property might actually be configured to resolve a scoped `IMessageBus` instance (web request scoped).
+Notice the static `MessageBus.Current` property might actually be configured to resolve a scoped `IMessageBus` instance (web request-scoped).
 
 The `SlimMessageBus` configuration for in-memory provider looks like this:
 
@@ -259,7 +292,7 @@ var mbb = MessageBusBuilder.Create()
    .WithDependencyResolver(new MsDependencyInjectionDependencyResolver(services))
    .WithProviderMemory(new MemoryMessageBusSettings
    {
-      // supress serialization and pass the same event instance to subscribers (events contain domain objects we do not want serialized, also we gain abit on speed)
+      // Suppress serialization and pass the same event instance to subscribers (domain events contain domain objects we do not want to be serialized, we also gain on speed)
       EnableMessageSerialization = false
    });
 
@@ -270,18 +303,18 @@ IMessageBus bus = mbb.Build();
 MessageBus.SetProvider(() => bus);
 ```
 
-See the complete [sample](/src/Samples#sampledomainevents) for ASP.NET Core where the handler and bus is web-request scoped.
+See the complete [sample](/src/Samples#sampledomainevents) for ASP.NET Core where the handler and bus are web-request scoped.
 
-### Request-response over Kafka topics
+### Use Case: Request-response over Kafka topics
 
 Use case:
 
-* Some front-end web app needs to display downsized image (thumbnails) of large images to speed up page load.
-* The thumbnails are requested in the WebApi and are generated on demand (and cached to disk) by the Worker (unless they exist already).
-* WebApi and Worker exchange messages via Apache Kafka
-* Worker can be scaled out (more instances, more kafka partitions)
+- Some front-end web app needs to display downsized image (thumbnails) of large images to speed up the page load.
+- The thumbnails are requested in the WebApi and are generated on demand (and cached to disk) by the Worker (unless they exist already).
+- WebApi and Worker exchange messages via Apache Kafka
+- Worker can be scaled out (more instances, more Kafka partitions)
 
-Front-end web app makes a call to resize an image `DSC0862.jpg` to `120x80` resolution, by using this URL:
+The front-end web app makes a call to resize an image `DSC0862.jpg` to `120x80` resolution, by using this URL:
 
 `https://localhost:56788/api/image/DSC3781.jpg/r/?w=120&h=80&mode=1`
 
@@ -388,7 +421,7 @@ private static IMessageBus BuildMessageBus(IServiceProvider serices)
 }
 ```
 
-Because topics are partitioned in Kafka, requests originating from WebApi instances will be distributed across all Worker instances. However, to fine tune this, message key providers should configured (see Kafka provider wiki and samples).
+Because topics are partitioned in Kafka, requests originating from WebApi instances will be distributed across all Worker instances. However, to fine tune this, message key providers should be configured (see Kafka provider wiki and samples).
 
 Check out the complete [sample](/src/Samples#sampleimages) for image resizing.
 
@@ -411,11 +444,11 @@ Check out the complete [sample](/src/Samples#sampleimages) for image resizing.
 * The core of `SlimMessageBus` is "slim"
   * Simple, common and friendly API to work with messaging systems
   * No external dependencies.
-  * The core interface can be used in domain model (e.g. DomainEvents)
+  * The core interface can be used in domain model (e.g. Domain Events)
 * Plugin architecture:
   * DI integration (Microsoft.Extensions.DependencyInjection, Autofac, CommonServiceLocator, Unity)
   * Message serialization (JSON, XML)
-  * Use your favorite messaging broker as provider by simply pulling a nuget package
+  * Use your favorite messaging broker as provider by simply pulling a NuGet package
 * No threads created (pure TPL)
 * Async/Await support
 * Fluent configuration
@@ -437,7 +470,7 @@ NuGet packaged end up in `dist` folder
 
 ## Testing
 
-To run tests you need to update the respective `appsettings.json` to match your own cloud infrstructure or local infrastructure.
+To run tests you need to update the respective `appsettings.json` to match your own cloud infrastructure or local infrastructure.
 SMB has some message brokers setup on Azure for integration tests (secrets not shared).
 
 Run all tests:
@@ -459,4 +492,4 @@ Thanks to the following service cloud providers for providing free instances for
 - Redis https://redislabs.com/
 - Kafka https://www.cloudkarafka.com/
 
-Other test instances are hosted in Azure and paid by the project maintainer. If you want to help and sponsor, please write to me.
+Other test instances are hosted in Azure and paid for by the project maintainer. If you want to help and sponsor, please write to me.
