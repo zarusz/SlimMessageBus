@@ -392,10 +392,10 @@ For more advanced scenarios (third-party plugins) the SMB runtime provides a sta
 
 #### Hybrid bus and message scope reuse
 
-In the case of using the hybird message bus (`SlimMessageBus.Host.Hybrid` package) you might have a setup where there are two bus instances. 
-For example the Azure Service Bus (ASB) might be used to consume messages arriving to your service (by default message consumption will create a message scope) and the memory bus (`SlimMessageBus.Host.Memory`) to implement domain events.
+In the case of using the hybird message bus (`SlimMessageBus.Host.Hybrid` package) you might have a setup where there are two or more bus instances. 
+For example the Azure Service Bus (ASB) might be used to consume messages arriving to your service (by default each arriving message will have a DI scope created) and the memory bus (`SlimMessageBus.Host.Memory`) to implement domain events.
 In this scenario the arriving message on ASB would create a message scope, and as part of message handling your code might raise some domain events (in process messages) via the Memory bus. 
-Here the memory bus would detect there is a message scope already started and will use the ongoing DI scope to resolve its domain handlers/consumers and required dependencies.
+Here the memory bus would detect there is a message scope already started and will use that to resolve its domain handlers/consumers and required dependencies.
 
 > In a Hybrid bus setup, the Memory bus will detect if there is already a started messsage scope and use that to resolve its dependencies from. 
 
