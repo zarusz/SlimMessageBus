@@ -175,7 +175,7 @@ namespace SlimMessageBus.Host.Memory.Test
             const string topic = "topic-a";
 
             _settings.Producers.Add(Producer(typeof(SomeMessageA), topic));
-            
+
             var consumerSettings = Consumer(typeof(SomeMessageA), topic, typeof(SomeMessageAConsumer));
             consumerSettings.IsDisposeConsumerEnabled = true;
 
@@ -194,6 +194,58 @@ namespace SlimMessageBus.Host.Memory.Test
             _dependencyResolverMock.Verify(x => x.CreateScope(), Times.Never);
             _dependencyResolverMock.Verify(x => x.Resolve(typeof(SomeMessageAConsumer)), Times.Once);
             _dependencyResolverMock.VerifyNoOtherCalls();
+
+            consumerMock.Verify(x => x.OnHandle(m, topic), Times.Once);
+            consumerMock.Verify(x => x.Dispose(), Times.Once);
+            consumerMock.VerifyNoOtherCalls();
+        }
+
+        [Theory]
+        [InlineData(new object[] { true })]
+        [InlineData(new object[] { false })]
+        public async Task When_Publish_Given_PerMessageScopeDisabledOrEnabled_And_OutterBusCreatedMesssageScope_Then_TheScopeIsNotCreated_And_ConsumerObtainedFromCurrentMessageScope(bool isMessageScopeEnabled)
+        {
+            // arrange
+            var consumerMock = new Mock<SomeMessageAConsumer>();
+
+            _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageAConsumer))).Returns(() => consumerMock.Object);
+
+            var currentScopeDependencyResolverMock = new Mock<IDependencyResolver>();
+            currentScopeDependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageAConsumer))).Returns(() => consumerMock.Object);
+
+            const string topic = "topic-a";
+
+            _settings.Producers.Add(Producer(typeof(SomeMessageA), topic));
+
+            var consumerSettings = Consumer(typeof(SomeMessageA), topic, typeof(SomeMessageAConsumer));
+            consumerSettings.IsDisposeConsumerEnabled = true;
+
+            _settings.Consumers.Add(consumerSettings);
+            _settings.IsMessageScopeEnabled = isMessageScopeEnabled;
+
+            _providerSettings.EnableMessageSerialization = false;
+
+            var m = new SomeMessageA();
+
+            // set current scope
+            MessageScope.Current = currentScopeDependencyResolverMock.Object;
+
+            // act
+            await _subject.Value.Publish(m);
+
+            // assert
+
+            // current scope is not changed
+            MessageScope.Current.Should().BeSameAs(currentScopeDependencyResolverMock.Object);
+
+            _dependencyResolverMock.Verify(x => x.Resolve(typeof(ILoggerFactory)), Times.Once);
+            _dependencyResolverMock.Verify(x => x.CreateScope(), Times.Never);
+            _dependencyResolverMock.Verify(x => x.Resolve(typeof(SomeMessageAConsumer)), Times.Never);
+            _dependencyResolverMock.VerifyNoOtherCalls();
+
+            currentScopeDependencyResolverMock.Verify(x => x.CreateScope(), Times.Never);
+            currentScopeDependencyResolverMock.Verify(x => x.Resolve(typeof(SomeMessageAConsumer)), Times.Once);
+            currentScopeDependencyResolverMock.VerifyNoOtherCalls();
 
             consumerMock.Verify(x => x.OnHandle(m, topic), Times.Once);
             consumerMock.Verify(x => x.Dispose(), Times.Once);

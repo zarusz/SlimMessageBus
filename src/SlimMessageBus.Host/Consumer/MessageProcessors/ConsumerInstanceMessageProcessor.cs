@@ -6,7 +6,6 @@
     using System.Threading.Tasks;
     using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.Config;
-    using SlimMessageBus.Host.DependencyResolver;
 
     /// <summary>
     /// Implementation of <see cref="IMessageProcessor{TMessage}"/> that peforms orchestration around processing of a new message using an instance of the declared consumer (<see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/> interface).
@@ -21,8 +20,6 @@
 
         private readonly Func<TMessage, MessageWithHeaders> messageProvider;
 
-        private readonly bool createMessageScope;
-
         private readonly bool consumerWithContext;
         private readonly Action<TMessage, ConsumerContext> consumerContextInitializer;
 
@@ -34,8 +31,6 @@
             this.consumerSettings = consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings));
             this.messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
             this.messageProvider = messageProvider ?? throw new ArgumentNullException(nameof(messageProvider));
-
-            createMessageScope = this.messageBus.IsMessageScopeEnabled(this.consumerSettings);
 
             this.consumerContextInitializer = consumerContextInitializer;
             consumerWithContext = typeof(IConsumerWithContext).IsAssignableFrom(consumerSettings.ConsumerType);
@@ -83,19 +78,7 @@
                 object response = null;
                 string responseError = null;
 
-                if (createMessageScope)
-                {
-                    logger.LogDebug("Creating message scope for message {Message} of type {MessageType}", message, consumerSettings.MessageType);
-                }
-
-                var messageScope = createMessageScope
-                    ? messageBus.Settings.DependencyResolver.CreateScope()
-                    : messageBus.Settings.DependencyResolver;
-
-                // Set MessageScope.Current, so any future integration might need to use that
-                MessageScope.Current = messageScope;
-
-                try
+                using (var messageScope = messageBus.GetMessageScope(consumerSettings, message))
                 {
                     OnMessageArrived(message, msg);
 
@@ -120,17 +103,6 @@
                             logger.LogDebug("Disposing consumer instance {Consumer} of type {ConsumerType}", consumerInstance, consumerType);
                             consumerInstanceDisposable.DisposeSilently("ConsumerInstance", logger);
                         }
-                    }
-                }
-                finally
-                {
-                    // Clear the MessageScope.Current
-                    MessageScope.Current = null;
-
-                    if (createMessageScope)
-                    {
-                        logger.LogDebug("Disposing message scope for message {Message} of type {MessageType}", message, consumerSettings.MessageType);
-                        ((IChildDependencyResolver)messageScope).DisposeSilently("Scope", logger);
                     }
                 }
 
