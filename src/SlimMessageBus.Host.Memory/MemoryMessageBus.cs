@@ -114,61 +114,37 @@
 
         private async Task<Task> ExecuteConsumer(Type messageType, object message, byte[] messagePayload, ConsumerSettings consumerSettings)
         {
-            var createMessageScope = IsMessageScopeEnabled(consumerSettings);
-            if (createMessageScope)
+            using var messageScope = GetMessageScope(consumerSettings, message);
+            
+            // obtain the consumer from chosen DI container (root or scope)
+            _logger.LogDebug("Resolving consumer type {ConsumerType}", consumerSettings.ConsumerType);
+            var consumerInstance = messageScope.Resolve(consumerSettings.ConsumerType);
+            if (consumerInstance == null)
             {
-                _logger.LogDebug("Creating message scope for {Message} of type {MessageType}", message, consumerSettings.MessageType);
+                throw new ConfigurationMessageBusException($"The dependency resolver does not know how to create an instance of {consumerSettings.ConsumerType}");
             }
 
-            var messageScope = createMessageScope
-                ? Settings.DependencyResolver.CreateScope()
-                : Settings.DependencyResolver;
-
+            Task consumerTask = null;
             try
             {
-                MessageScope.Current = messageScope;
+                var messageForConsumer = !ProviderSettings.EnableMessageSerialization
+                    ? message // prevent deep copy of the message
+                    : Serializer.Deserialize(messageType, messagePayload); // will pass a deep copy of the message
 
-                // obtain the consumer from chosen DI container (root or scope)
-                _logger.LogDebug("Resolving consumer type {ConsumerType}", consumerSettings.ConsumerType);
-                var consumerInstance = messageScope.Resolve(consumerSettings.ConsumerType);
-                if (consumerInstance == null)
-                {
-                    throw new ConfigurationMessageBusException($"The dependency resolver does not know how to create an instance of {consumerSettings.ConsumerType}");
-                }
-
-                Task consumerTask = null;
-                try
-                {
-                    var messageForConsumer = !ProviderSettings.EnableMessageSerialization
-                        ? message // prevent deep copy of the message
-                        : Serializer.Deserialize(messageType, messagePayload); // will pass a deep copy of the message
-
-                    _logger.LogDebug("Executing consumer instance {Consumer} of type {ConsumerType} for message {Message}", consumerInstance, consumerSettings.ConsumerType, message);
-                    consumerTask = consumerSettings.ConsumerMethod(consumerInstance, messageForConsumer, consumerSettings.Path);
-                    await consumerTask.ConfigureAwait(false);
-                }
-                finally
-                {
-                    if (consumerSettings.IsDisposeConsumerEnabled && consumerInstance is IDisposable consumerInstanceDisposable)
-                    {
-                        _logger.LogDebug("Dosposing consumer instance {Consumer} of type {ConsumerType}", consumerInstance, consumerSettings.ConsumerType);
-                        consumerInstanceDisposable.DisposeSilently("ConsumerInstance", _logger);
-                    }
-                }
-
-
-                return consumerTask;
+                _logger.LogDebug("Executing consumer instance {Consumer} of type {ConsumerType} for message {Message}", consumerInstance, consumerSettings.ConsumerType, message);
+                consumerTask = consumerSettings.ConsumerMethod(consumerInstance, messageForConsumer, consumerSettings.Path);
+                await consumerTask.ConfigureAwait(false);
             }
             finally
             {
-                MessageScope.Current = null;
-
-                if (createMessageScope)
+                if (consumerSettings.IsDisposeConsumerEnabled && consumerInstance is IDisposable consumerInstanceDisposable)
                 {
-                    _logger.LogDebug("Disposing message scope for {Message} of type {MessageType}", message, messageType);
-                    ((IChildDependencyResolver)messageScope).DisposeSilently("Scope", _logger);
+                    _logger.LogDebug("Dosposing consumer instance {Consumer} of type {ConsumerType}", consumerInstance, consumerSettings.ConsumerType);
+                    consumerInstanceDisposable.DisposeSilently("ConsumerInstance", _logger);
                 }
             }
+
+            return consumerTask;
         }
 
         #endregion

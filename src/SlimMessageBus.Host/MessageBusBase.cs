@@ -9,6 +9,7 @@ namespace SlimMessageBus.Host
     using Microsoft.Extensions.Logging.Abstractions;
     using SlimMessageBus.Host.Collections;
     using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.DependencyResolver;
     using SlimMessageBus.Host.Serialization;
 
     public abstract class MessageBusBase : IMessageBus
@@ -541,5 +542,11 @@ namespace SlimMessageBus.Host
         protected virtual string GenerateRequestId() => Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
 
         public virtual bool IsMessageScopeEnabled(ConsumerSettings consumerSettings) => consumerSettings.IsMessageScopeEnabled ?? Settings.IsMessageScopeEnabled ?? true;
+
+        public virtual MessageScopeWrapper GetMessageScope(ConsumerSettings consumerSettings, object message)
+        {
+            var createMessageScope = IsMessageScopeEnabled(consumerSettings);
+            return new MessageScopeWrapper(_logger, Settings.DependencyResolver, createMessageScope, message);
+        }
     }
 }
