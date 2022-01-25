@@ -1,14 +1,17 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus
 {
-    public class SubscriptionFactoryParams
+    public class TopicSubscriptionParams
     {
         public string Path { get; set; }
         public string SubscriptionName { get; set; }
 
-        public SubscriptionFactoryParams(string path, string subscriptionName)
+        public TopicSubscriptionParams(string path, string subscriptionName)
         {
             Path = path;
             SubscriptionName = subscriptionName;
         }
+
+        public override string ToString()
+            => SubscriptionName == null ? Path : $"{Path}/{SubscriptionName}";
     }
 }

@@ -1,11 +1,11 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus.Consumer
 {
-    using Microsoft.Azure.ServiceBus;
+    using Azure.Messaging.ServiceBus;
     using SlimMessageBus.Host.Config;
 
     internal static class MessageExtensions
     {
-        public static string FormatIf(this AbstractConsumerSettings consumerSettings, Message msg, bool logLevel)
+        public static string FormatIf(this AbstractConsumerSettings consumerSettings, ServiceBusReceivedMessage msg, bool logLevel)
         {
             if (!logLevel)
             {
@@ -14,10 +14,10 @@
 
             if (consumerSettings.PathKind == PathKind.Queue)
             {
-                return $"Queue: {consumerSettings.Path}, SequenceNumber: {msg.SystemProperties.SequenceNumber}, DeliveryCount: {msg.SystemProperties.DeliveryCount}";
+                return $"Queue: {consumerSettings.Path}, SequenceNumber: {msg.SequenceNumber}, DeliveryCount: {msg.DeliveryCount}";
             }
 
-            return $"Topic: {consumerSettings.Path}, SubscriptionName: {consumerSettings.GetSubscriptionName()}, SequenceNumber: {msg.SystemProperties.SequenceNumber}, DeliveryCount: {msg.SystemProperties.DeliveryCount}";
+            return $"Topic: {consumerSettings.Path}, SubscriptionName: {consumerSettings.GetSubscriptionName()}, SequenceNumber: {msg.SequenceNumber}, DeliveryCount: {msg.DeliveryCount}";
         }
 
         public static string FormatIf(this ConsumerSettings consumerSettings, bool logLevel)

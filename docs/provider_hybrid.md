@@ -1,8 +1,11 @@
-# Hybrid Provider for SlimMessageBus
-
-## Introduction
+# Hybrid Provider for SlimMessageBus <!-- omit in toc -->
 
 Please read the [Introduction](intro.md) before reading this provider documentation.
+
+- [What is the Hybrid provider?](#what-is-the-hybrid-provider)
+- [Use cases](#use-cases)
+- [Configuration](#configuration)
+  - [Shared configuration](#shared-configuration)
 
 ## What is the Hybrid provider?
 
@@ -63,8 +66,8 @@ public IMessageBus CreateMessageBus(IServiceProvider svp)
 
 Above we define the hybrid bus as consisting of two transports - Memory and Azure Service Bus:
 
-* The message type `CustomerEmailChangedEvent` published will be routed to the memory bus for delivery.
-* Converely, the `SendEmailCommand` will be routed to the Azure Service Bus transport.
+- The message type `CustomerEmailChangedEvent` published will be routed to the memory bus for delivery.
+- Converely, the `SendEmailCommand` will be routed to the Azure Service Bus transport.
 
 > Currently, routing is determined based on message type. Because of that you cannot have the same message type handled by different bus transports.
 

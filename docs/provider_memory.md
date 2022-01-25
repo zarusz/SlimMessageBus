@@ -1,10 +1,19 @@
-# Memory (in-process) Provider for SlimMessageBus
+# Memory (in-process) Provider for SlimMessageBus <!-- omit in toc -->
 
-If you are new to SMB, consider reading the [Introduction](intro.md) documentation first.
+Please read the [Introduction](intro.md) before reading this provider documentation.
 
+- [Introduction](#introduction)
+- [Configuration](#configuration)
+  - [Disabling serialization](#disabling-serialization)
+  - [Virtual Topics](#virtual-topics)
+  - [Autoregistration](#autoregistration)
+- [Lifecycle](#lifecycle)
+  - [Blocking Publish](#blocking-publish)
+  - [Per-Message DI scope](#per-message-di-scope)
+  
 ## Introduction
 
-The Memory transport provider can be used for internal communication within the same process. It is the simplest transport provider and does not require any external messaging infrastructure. 
+The Memory transport provider can be used for internal communication within the same process. It is the simplest transport provider and does not require any external messaging infrastructure.
 
 > Since messages are passed in memory and never persisted, they will be lost if your app dies while consuming these messages.
 
@@ -106,4 +115,3 @@ ToDo: In the future we will want to expose a setting to make the `Publish<T>()` 
 ### Per-Message DI scope
 
 > Unlike stated for the [Introduction](intro.md) the memory bus has per-message scoped disabled by default.
-

@@ -1,4 +1,4 @@
-### SlimMessageBus Documentation:
+### SlimMessageBus Documentation
 
 * [Introduction](intro.md)
 * Providers
@@ -8,4 +8,3 @@
     * [Redis](provider_redis.md)
     * [Memory](provider_memory.md)
 * [Serialization Plugins](serialization.md)
-* [Release Notes](/releases)

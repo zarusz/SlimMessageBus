@@ -34,9 +34,6 @@ namespace SlimMessageBus.Host.Kafka
             ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
 
             OnBuildProvider();
-
-            // TODO: Auto start should be a setting
-            Start();
         }
 
         public IMessageSerializer HeaderSerializer
@@ -138,8 +135,10 @@ namespace SlimMessageBus.Host.Kafka
             logger.LogInformation("Created {ConsumerGroupCount} group consumers", groupConsumers.Count);
         }
 
-        private void Start()
+        protected async override Task OnStart()
         {
+            await base.OnStart();
+
             logger.LogInformation("Group consumers starting...");
             foreach (var groupConsumer in groupConsumers)
             {
@@ -175,29 +174,27 @@ namespace SlimMessageBus.Host.Kafka
 
         #region Overrides of BaseMessageBus
 
-        protected override void Dispose(bool disposing)
+        protected override async ValueTask DisposeAsyncCore()
         {
-            if (disposing)
+            await base.DisposeAsyncCore();
+
+            Flush();
+
+            if (groupConsumers.Count > 0)
             {
-                Flush();
-
-                if (groupConsumers.Count > 0)
+                foreach (var groupConsumer in groupConsumers)
                 {
-                    foreach (var groupConsumer in groupConsumers)
-                    {
-                        groupConsumer.DisposeSilently(() => $"consumer group {groupConsumer.Group}", logger);
-                    }
-
-                    groupConsumers.Clear();
+                    groupConsumer.DisposeSilently(() => $"consumer group {groupConsumer.Group}", logger);
                 }
 
-                if (producer != null)
-                {
-                    producer.DisposeSilently("producer", logger);
-                    producer = null;
-                }
+                groupConsumers.Clear();
             }
-            base.Dispose(disposing);
+
+            if (producer != null)
+            {
+                producer.DisposeSilently("producer", logger);
+                producer = null;
+            }
         }
 
         public override async Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null)

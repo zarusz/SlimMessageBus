@@ -55,33 +55,31 @@
             }
         }
 
-        protected override void Dispose(bool disposing)
+        protected override async ValueTask DisposeAsyncCore()
         {
-            if (disposing)
-            {
-                if (groupConsumers != null)
-                {
-                    groupConsumers.ForEach(c => c.DisposeSilently("Consumer", logger));
-                    groupConsumers.Clear();
-                }
+            await base.DisposeAsyncCore();
 
-                if (producerByPath != null)
-                {
-                    producerByPath.Clear(producer =>
-                    {
-                        logger.LogDebug("Closing EventHubClient for Path {Path}", producer.EventHubName);
-                        try
-                        {
-                            producer.Close();
-                        }
-                        catch (Exception e)
-                        {
-                            logger.LogError(e, "Error while closing EventHubClient for Path {Path}", producer.EventHubName);
-                        }
-                    });
-                }
+            if (groupConsumers != null)
+            {
+                groupConsumers.ForEach(c => c.DisposeSilently("Consumer", logger));
+                groupConsumers.Clear();
             }
-            base.Dispose(disposing);
+
+            if (producerByPath != null)
+            {
+                producerByPath.Clear(producer =>
+                {
+                    logger.LogDebug("Closing EventHubClient for Path {Path}", producer.EventHubName);
+                    try
+                    {
+                        producer.Close();
+                    }
+                    catch (Exception e)
+                    {
+                        logger.LogError(e, "Error while closing EventHubClient for Path {Path}", producer.EventHubName);
+                    }
+                });
+            }
         }
 
         #endregion
@@ -117,8 +115,8 @@
 
             var producer = producerByPath.GetOrAdd(path);
 
-            var sendTask = partitionKey != null 
-                ? producer.SendAsync(ev, partitionKey) 
+            var sendTask = partitionKey != null
+                ? producer.SendAsync(ev, partitionKey)
                 : producer.SendAsync(ev);
 
             await sendTask.ConfigureAwait(false);

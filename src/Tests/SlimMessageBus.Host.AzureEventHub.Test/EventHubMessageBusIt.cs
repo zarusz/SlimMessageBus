@@ -56,22 +56,14 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
 
         public void Dispose()
         {
-            Dispose(true);
+            var stopwatch = Stopwatch.StartNew();
+            MessageBus.Value.Dispose();
+            stopwatch.Stop();
+            logger.LogInformation("Disposed bus in {0}", stopwatch.Elapsed);
+
             GC.SuppressFinalize(this);
         }
 
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                var stopwatch = Stopwatch.StartNew();
-
-                MessageBus.Value.Dispose();
-
-                stopwatch.Stop();
-                logger.LogInformation("Disposed bus in {0}", stopwatch.Elapsed);
-            }
-        }
 
         [Fact]
         public async Task BasicPubSub()

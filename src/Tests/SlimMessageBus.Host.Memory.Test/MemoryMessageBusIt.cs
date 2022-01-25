@@ -8,12 +8,13 @@
     using FluentAssertions;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Logging;
-    using Microsoft.Extensions.Logging.Abstractions;
     using SecretStore;
     using SlimMessageBus.Host.Config;
     using SlimMessageBus.Host.DependencyResolver;
     using SlimMessageBus.Host.Serialization.Json;
+    using SlimMessageBus.Host.Test.Common;
     using Xunit;
+    using Xunit.Abstractions;
 
     [Trait("Category", "Integration")]
     public class MemoryMessageBusIt : IDisposable
@@ -28,9 +29,9 @@
 
         private MemoryMessageBusSettings MessageBusSettings { get; }
 
-        public MemoryMessageBusIt()
+        public MemoryMessageBusIt(ITestOutputHelper testOutputHelper)
         {
-            _loggerFactory = NullLoggerFactory.Instance;
+            _loggerFactory = new XunitLoggerFactory(testOutputHelper);
             _logger = _loggerFactory.CreateLogger<MemoryMessageBusIt>();
 
             var configuration = new ConfigurationBuilder()
@@ -51,16 +52,8 @@
 
         public void Dispose()
         {
-            Dispose(true);
+            MessageBus.Value.Dispose();
             GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                MessageBus.Value.Dispose();
-            }
         }
 
         [Theory]

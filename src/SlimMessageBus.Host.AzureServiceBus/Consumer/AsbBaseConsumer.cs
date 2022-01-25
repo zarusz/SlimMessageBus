@@ -3,29 +3,27 @@
     using System;
     using System.Collections.Generic;
     using System.Linq;
-    using System.Threading;
     using System.Threading.Tasks;
-    using Microsoft.Azure.ServiceBus;
-    using Microsoft.Azure.ServiceBus.Core;
+    using Azure.Messaging.ServiceBus;
     using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.Config;
 
-    public abstract class BaseConsumer : IDisposable
+    public abstract class AsbBaseConsumer : IAsyncDisposable, IConsumerControl
     {
         private readonly ILogger logger;
         public ServiceBusMessageBus MessageBus { get; }
-        protected IReceiverClient Client { get; }
-        protected IList<IMessageProcessor<Message>> Consumers { get; }
+        protected IList<IMessageProcessor<ServiceBusReceivedMessage>> Consumers { get; }
         protected IDictionary<Type, ConsumerInvoker> InvokerByMessageType { get; }
         protected ConsumerInvoker SingleInvoker { get; }
-        protected string Path { get; }
+        protected TopicSubscriptionParams TopicSubscription { get; }
 
-        protected BaseConsumer(ServiceBusMessageBus messageBus, IReceiverClient client, IEnumerable<IMessageProcessor<Message>> consumers, string path, string subscriptionName, ILogger logger)
+        private ServiceBusProcessor serviceBusProcessor;
+
+        protected AsbBaseConsumer(ServiceBusMessageBus messageBus, ServiceBusClient serviceBusClient, TopicSubscriptionParams subscriptionFactoryParams, IEnumerable<IMessageProcessor<ServiceBusReceivedMessage>> consumers, ILogger logger)
         {
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            Path = path;
             MessageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
-            Client = client ?? throw new ArgumentNullException(nameof(client));
+            TopicSubscription = subscriptionFactoryParams ?? throw new ArgumentNullException(nameof(consumers)); ;
             Consumers = consumers?.ToList() ?? throw new ArgumentNullException(nameof(consumers));
 
             if (Consumers.Count == 0)
@@ -36,13 +34,13 @@
             var instances = Consumers.First().ConsumerSettings.Instances;
             if (Consumers.Any(x => x.ConsumerSettings.Instances != instances))
             {
-                throw new ConfigurationMessageBusException($"All declared consumers across the same path/subscription {path} must have the same Instances settings.");
+                throw new ConfigurationMessageBusException($"All declared consumers across the same path/subscription {TopicSubscription} must have the same {nameof(ConsumerSettings.Instances)} settings.");
             }
 
             InvokerByMessageType = Consumers
                 .Where(x => x.ConsumerSettings is ConsumerSettings)
                 .Select(x => (Processor: x, ConsumerSettings: (ConsumerSettings)x.ConsumerSettings))
-                .Where(x => string.Equals(x.ConsumerSettings.GetSubscriptionName(required: false), subscriptionName))
+                .Where(x => string.Equals(x.ConsumerSettings.GetSubscriptionName(required: false), TopicSubscription.SubscriptionName))
                 .SelectMany(x => x.ConsumerSettings.ConsumersByMessageType.Values.Select(invoker => new ConsumerInvoker(x.Processor, invoker)))
                 .ToDictionary(x => x.Invoker.MessageType);
 
@@ -56,8 +54,7 @@
                 ? InvokerByMessageType.First().Value
                 : responseInvoker;
 
-            // Configure the message handler options in terms of exception handling, number of concurrent messages to deliver, etc.
-            var messageHandlerOptions = new MessageHandlerOptions(ExceptionReceivedHandler)
+            var options = new ServiceBusProcessorOptions
             {
                 // Maximum number of concurrent calls to the callback ProcessMessagesAsync(), set to 1 for simplicity.
                 // Set it according to how many messages the application wants to process in parallel.
@@ -65,30 +62,55 @@
 
                 // Indicates whether the message pump should automatically complete the messages after returning from user callback.
                 // False below indicates the complete operation is handled by the user callback as in ProcessMessagesAsync().
-                AutoComplete = false
+                AutoCompleteMessages = false,
+
+                // ToDo: Add more config optons
+                /*
+                MaxAutoLockRenewalDuration = 
+                PrefetchCount = 
+                ReceiveMode = ServiceBusReceiveMode.
+                SubQueue = 
+                */
             };
 
-            // Register the function that processes messages.
-            Client.RegisterMessageHandler(ProcessMessagesAsync, messageHandlerOptions);
+            serviceBusProcessor = messageBus.ProviderSettings.ProcessorFactory(subscriptionFactoryParams, options, serviceBusClient);
+            serviceBusProcessor.ProcessMessageAsync += ProcessMessagesAsync;
+            serviceBusProcessor.ProcessErrorAsync += ExceptionReceivedHandler;
         }
 
-        #region IDisposable
-
-        protected virtual void Dispose(bool disposing)
+        public Task Start()
         {
-            if (disposing)
-            {
-                foreach (var messageProcessor in Consumers)
-                {
-                    messageProcessor.DisposeSilently();
-                }
-            }
+            logger.LogInformation("Starting consumer for Path: {Path}, SubscriptionName: {SubscriptionName}", TopicSubscription.Path, TopicSubscription.SubscriptionName);
+            return serviceBusProcessor.StartProcessingAsync();
         }
 
-        public void Dispose()
+        public Task Stop()
         {
-            Dispose(true);
+            logger.LogInformation("Stopping consumer for Path: {Path}, SubscriptionName: {SubscriptionName}", TopicSubscription.Path, TopicSubscription.SubscriptionName);
+            return serviceBusProcessor.StopProcessingAsync();
+        }
+
+        #region IAsyncDisposable
+
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore().ConfigureAwait(false);
             GC.SuppressFinalize(this);
+        }
+
+        protected virtual async ValueTask DisposeAsyncCore()
+        {
+            if (serviceBusProcessor != null)
+            {
+                await serviceBusProcessor.CloseAsync();
+                serviceBusProcessor = null;
+            }
+
+            foreach (var messageProcessor in Consumers)
+            {
+                await messageProcessor.DisposeSilently();
+            }
+            Consumers.Clear();
         }
 
         #endregion
@@ -97,7 +119,7 @@
         {
             if (messageType == null && SingleInvoker == null)
             {
-                throw new MessageBusException($"The message arrived without {MessageHeaders.MessageType} header on path {Path}, so it is imposible to match one of the known consumer types {string.Join(",", InvokerByMessageType.Values.Select(x => x.Invoker.ConsumerType.Name))}");
+                throw new MessageBusException($"The message arrived without {MessageHeaders.MessageType} header on path {TopicSubscription}, so it is imposible to match one of the known consumer types {string.Join(",", InvokerByMessageType.Values.Select(x => x.Invoker.ConsumerType.Name))}");
             }
 
             if (messageType != null && InvokerByMessageType.Count > 0)
@@ -118,24 +140,25 @@
             return SingleInvoker;
         }
 
-        protected async Task ProcessMessagesAsync(Message message, CancellationToken token)
+        protected async Task ProcessMessagesAsync(ProcessMessageEventArgs args)
         {
-            if (message is null) throw new ArgumentNullException(nameof(message));
+            if (args is null) throw new ArgumentNullException(nameof(args));
 
-            var messageType = GetMessageType(message);
+            var message = args.Message;
+            var messageType = GetMessageType(args.Message);
             var consumerInvoker = TryMatchConsumer(messageType);
 
             // Process the message.
-            var mf = consumerInvoker.Processor.ConsumerSettings.FormatIf(message, logger.IsEnabled(LogLevel.Debug));
+            var mf = consumerInvoker.Processor.ConsumerSettings.FormatIf(args.Message, logger.IsEnabled(LogLevel.Debug));
             logger.LogDebug("Received message - {0}", mf);
 
-            if (token.IsCancellationRequested)
+            if (args.CancellationToken.IsCancellationRequested)
             {
                 // Note: Use the cancellationToken passed as necessary to determine if the subscriptionClient has already been closed.
                 // If subscriptionClient has already been closed, you can choose to not call CompleteAsync() or AbandonAsync() etc.
                 // to avoid unnecessary exceptions.
                 logger.LogDebug("Abandon message - {0}", mf);
-                await Client.AbandonAsync(message.SystemProperties.LockToken).ConfigureAwait(false);
+                await args.AbandonMessageAsync(message).ConfigureAwait(false);
 
                 return;
             }
@@ -165,7 +188,7 @@
                     // Set the exception message
                     ["SMB.Exception"] = exception.Message
                 };
-                await Client.AbandonAsync(message.SystemProperties.LockToken, messageProperties).ConfigureAwait(false);
+                await args.AbandonMessageAsync(message, propertiesToModify: messageProperties).ConfigureAwait(false);
 
                 return;
             }
@@ -173,12 +196,12 @@
             // Complete the message so that it is not received again.
             // This can be done only if the subscriptionClient is created in ReceiveMode.PeekLock mode (which is the default).
             logger.LogDebug("Complete message - {0}", mf);
-            await Client.CompleteAsync(message.SystemProperties.LockToken).ConfigureAwait(false);
+            await args.CompleteMessageAsync(message).ConfigureAwait(false);
         }
 
-        protected Type GetMessageType(Message message)
+        protected Type GetMessageType(ServiceBusReceivedMessage message)
         {
-            if (message != null && message.UserProperties.TryGetValue(MessageHeaders.MessageType, out var messageTypeValue) && messageTypeValue is string messageTypeName)
+            if (message != null && message.ApplicationProperties.TryGetValue(MessageHeaders.MessageType, out var messageTypeValue) && messageTypeValue is string messageTypeName)
             {
                 var messageType = MessageBus.Settings.MessageTypeResolver.ToType(messageTypeName);
                 return messageType;
@@ -187,12 +210,14 @@
         }
 
         // Use this handler to examine the exceptions received on the message pump.
-        protected Task ExceptionReceivedHandler(ExceptionReceivedEventArgs exceptionReceivedEventArgs)
+        protected Task ExceptionReceivedHandler(ProcessErrorEventArgs args)
         {
             try
             {
+                logger.LogError(args.Exception, "Error while processing Path: {Path}, SubscriptionName: {SubscriptionName}, Error: {Error}", TopicSubscription.Path, TopicSubscription.SubscriptionName, args.Exception.Message);
+
                 // Execute the event hook
-                MessageBus.Settings.OnMessageFault?.Invoke(MessageBus, null, null, exceptionReceivedEventArgs?.Exception, null);
+                MessageBus.Settings.OnMessageFault?.Invoke(MessageBus, null, null, args?.Exception, null);
             }
             catch (Exception eh)
             {

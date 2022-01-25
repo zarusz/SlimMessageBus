@@ -5,6 +5,7 @@ namespace SlimMessageBus.Host
 
     public struct MessageWithHeaders : IEquatable<MessageWithHeaders>
     {
+        // ToDo: Change to ReadOnlyMemory<byte>
         public byte[] Payload { get; }
         public IDictionary<string, object> Headers { get; }
 

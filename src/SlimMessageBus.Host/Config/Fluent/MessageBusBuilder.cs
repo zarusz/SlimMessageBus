@@ -195,6 +195,16 @@ namespace SlimMessageBus.Host.Config
             return this;
         }
 
+        /// <summary>
+        /// Enables or disabled the auto statrt of message consumption upon bus creation. If false, then you need to call the .Start() on the bus to start consuming messages.
+        /// </summary>
+        /// <param name="enabled"></param>
+        public MessageBusBuilder AutoStartConsumersEnabled(bool enabled)
+        {
+            Settings.AutoStartConsumers = enabled;
+            return this;
+        }
+
         public IMessageBus Build()
         {
             if (_factory is null)

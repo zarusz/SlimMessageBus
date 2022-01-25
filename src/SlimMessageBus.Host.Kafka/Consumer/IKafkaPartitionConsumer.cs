@@ -9,7 +9,7 @@ namespace SlimMessageBus.Host.Kafka
     /// <summary>
     /// The processor of assigned partition (<see cref="TopicPartition"/>).
     /// </summary>
-    public interface IKafkaPartitionConsumer : IDisposable
+    public interface IKafkaPartitionConsumer : IAsyncDisposable
     {        
         TopicPartition TopicPartition { get; }
 

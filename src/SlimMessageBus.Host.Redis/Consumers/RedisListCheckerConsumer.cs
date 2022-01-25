@@ -52,14 +52,15 @@
             task = await Task.Factory.StartNew(() => Run(), cancellationTokenSource.Token, TaskCreationOptions.LongRunning, TaskScheduler.Current).ConfigureAwait(false);
         }
 
-        public async Task Finish()
+        public async Task Stop()
         {
             if (task == null)
             {
                 return;
             }
 
-            cancellationTokenSource?.Cancel();
+            cancellationTokenSource.Cancel();
+
             await task.ConfigureAwait(false);
             task = null;
         }
@@ -105,27 +106,30 @@
             }
         }
 
-        #region IDisposable
+        #region IAsyncDisposable
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
-            Dispose(true);
+            await DisposeAsyncCore().ConfigureAwait(false);
             GC.SuppressFinalize(this);
         }
 
-        protected virtual void Dispose(bool disposing)
+        protected virtual async ValueTask DisposeAsyncCore()
         {
-            if (disposing)
-            {
-                if (cancellationTokenSource != null)
-                {
-                    cancellationTokenSource.Dispose();
-                    cancellationTokenSource = null;
-                }
+            await Stop();
 
-                queues.SelectMany(x => x.Processors).ToList().ForEach(x => x.DisposeSilently());
-                queues.Clear();
+            if (cancellationTokenSource != null)
+            {
+                cancellationTokenSource.Dispose();
+                cancellationTokenSource = null;
             }
+
+            var processors = queues.SelectMany(x => x.Processors).ToList();
+            foreach (var processor in processors)
+            {
+                await processor.DisposeSilently();
+            }
+            queues.Clear();
         }
 
         #endregion

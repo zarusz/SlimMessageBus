@@ -18,6 +18,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
     using SlimMessageBus.Host.Serialization.Json;
     using Xunit;
     using Xunit.Abstractions;
+    using Azure.Messaging.ServiceBus;
 
     [Trait("Category", "Integration")]
     public class ServiceBusMessageBusIt : IDisposable
@@ -56,19 +57,11 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
 
         public void Dispose()
         {
-            Dispose(true);
+            MessageBus.Value.Dispose();
             GC.SuppressFinalize(this);
         }
 
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                MessageBus.Value.Dispose();
-            }
-        }
-
-        private static void MessageModifier(PingMessage message, Microsoft.Azure.ServiceBus.Message sbMessage)
+        private static void MessageModifier(PingMessage message, ServiceBusMessage sbMessage)
         {
             // set the Azure SB message ID
             sbMessage.MessageId = GetMessageId(message);

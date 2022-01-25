@@ -2,6 +2,7 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Threading.Tasks;
     using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.Collections;
@@ -60,54 +61,38 @@
                 // Do nothing
                 logger.LogWarning(e, "Error occured while executing hook {0}", nameof(RedisMessageBusSettings.OnDatabaseConnected));
             }
-
-            if (ProviderSettings.AutoStartConsumers)
-            {
-                _ = Start();
-            }
         }
 
-        protected override void Dispose(bool disposing)
+        protected override async ValueTask DisposeAsyncCore()
         {
-            base.Dispose(disposing);
+            await base.DisposeAsyncCore();
 
-            if (disposing)
-            {
-                if (IsRunning)
-                {
-                    Finish().Wait();
-                }
-                Connection.DisposeSilently(nameof(ConnectionMultiplexer), logger);
-            }
+            Connection.DisposeSilently(nameof(ConnectionMultiplexer), logger);
         }
 
         #endregion
 
-        // ToDo: lift to base class
-        public virtual async Task Start()
+        protected override async Task OnStart()
         {
+            await base.OnStart();
+
             if (!IsRunning)
             {
                 IsRunning = true;
 
                 CreateConsumers();
 
-                foreach (var consumer in consumers)
-                {
-                    await consumer.Start().ConfigureAwait(false);
-                }
+                await Task.WhenAll(consumers.Select(x => x.Start()));
             }
         }
 
-        // ToDo: lift to base class
-        public virtual async Task Finish()
+        protected override async Task OnStop()
         {
+            await base.OnStop();
+
             if (IsRunning)
             {
-                foreach (var consumer in consumers)
-                {
-                    await consumer.Finish().ConfigureAwait(false);
-                }
+                await Task.WhenAll(consumers.Select(x => x.Stop()));
 
                 DestroyConsumers();
 

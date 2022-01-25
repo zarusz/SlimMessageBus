@@ -14,8 +14,8 @@
     public class ConcurrencyLimittingMessageProcessorDecorator<TMessage> : IMessageProcessor<TMessage> where TMessage : class
     {
         private readonly ILogger logger;
-        private readonly SemaphoreSlim concurrentSemaphore;
         private readonly IMessageProcessor<TMessage> target;
+        private SemaphoreSlim concurrentSemaphore;
 
         public ConcurrencyLimittingMessageProcessorDecorator(AbstractConsumerSettings consumerSettings, MessageBusBase messageBus, IMessageProcessor<TMessage> target)
         {
@@ -45,21 +45,22 @@
             }
         }
 
-        #region IDisposable
+        #region IAsyncDisposable
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
-            Dispose(true);
+            await DisposeAsyncCore().ConfigureAwait(false);
             GC.SuppressFinalize(this);
         }
 
-        protected virtual void Dispose(bool disposing)
+        protected virtual async ValueTask DisposeAsyncCore()
         {
-            if (disposing)
+            if (concurrentSemaphore != null)
             {
                 concurrentSemaphore.Dispose();
-                target.Dispose();
+                concurrentSemaphore = null;
             }
+            await target.DisposeAsync();
         }
 
         #endregion

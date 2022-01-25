@@ -1,21 +1,22 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus
 {
+    using Azure.Messaging.ServiceBus;
     using System;
-    using Microsoft.Azure.ServiceBus;
 
     public class ServiceBusMessageBusSettings
     {
         public string ServiceBusConnectionString { get; set; }
-
-        public Func<string, ITopicClient> TopicClientFactory { get; set; }
-        public Func<string, IQueueClient> QueueClientFactory { get; set; }
-        public Func<SubscriptionFactoryParams, SubscriptionClient> SubscriptionClientFactory { get; set; }
+        public Func<ServiceBusClient> ClientFactory { get; set; }
+        public Func<string, ServiceBusClient, ServiceBusSender> SenderFactory { get; set; }
+        public Func<TopicSubscriptionParams, ServiceBusProcessorOptions, ServiceBusClient, ServiceBusProcessor> ProcessorFactory { get; set; }
 
         public ServiceBusMessageBusSettings()
         {
-            TopicClientFactory = x => new TopicClient(ServiceBusConnectionString, x);
-            QueueClientFactory = x => new QueueClient(ServiceBusConnectionString, x);
-            SubscriptionClientFactory = x => new SubscriptionClient(ServiceBusConnectionString, x.Path, x.SubscriptionName);
+            ClientFactory = () => new ServiceBusClient(ServiceBusConnectionString);
+            SenderFactory = (path, client) => client.CreateSender(path);
+            ProcessorFactory = (p, options, client) => p.SubscriptionName != null
+                ? client.CreateProcessor(p.Path, p.SubscriptionName, options)
+                : client.CreateProcessor(p.Path, options);
         }
 
         public ServiceBusMessageBusSettings(string serviceBusConnectionString)

@@ -6,18 +6,16 @@ namespace SlimMessageBus.Host
     using System.Linq;
     using System.Threading.Tasks;
 
-    public class MessageQueueWorker<TMessage> : IDisposable where TMessage : class
+    public class MessageQueueWorker<TMessage> : IAsyncDisposable where TMessage : class
     {
         private readonly ILogger _logger;
 
         private readonly Queue<MessageProcessingResult<TMessage>> _pendingMessages = new Queue<MessageProcessingResult<TMessage>>();
 
         public int Count => _pendingMessages.Count;
-        public IMessageProcessor<TMessage> MessageProcessor { get; }
+        public IMessageProcessor<TMessage> MessageProcessor { get; private set; }
 
         private readonly ICheckpointTrigger _checkpointTrigger;
-
-        private bool disposedValue;
 
         public MessageQueueWorker(IMessageProcessor<TMessage> messageProcessor, ICheckpointTrigger checkpointTrigger, ILoggerFactory loggerFactory)
         {
@@ -29,10 +27,8 @@ namespace SlimMessageBus.Host
         /// <summary>
         /// Clears the pending messages
         /// </summary>
-        public virtual void Clear()
-        {
-            _pendingMessages.Clear();
-        }
+        public virtual void Clear() 
+            => _pendingMessages.Clear();
 
         /// <summary>
         /// Submits an incoming message to the queue to be processed
@@ -97,24 +93,23 @@ namespace SlimMessageBus.Host
             return result;
         }
 
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposedValue)
-            {
-                if (disposing)
-                {
-                    MessageProcessor.Dispose();
-                }
+        #region IAsyncDisposable
 
-                disposedValue = true;
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore().ConfigureAwait(false);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual async ValueTask DisposeAsyncCore()
+        {
+            if (MessageProcessor != null)
+            {
+                await MessageProcessor.DisposeAsync();
+                MessageProcessor = null;
             }
         }
 
-        public void Dispose()
-        {
-            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
-        }
+        #endregion
     }
 }

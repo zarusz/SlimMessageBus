@@ -30,7 +30,6 @@
             {
                 AddPathMapping(settings.RequestResponse.PathKind, settings.RequestResponse.Path);
             }
-
         }
 
         private PathKind AddTypeMapping(ProducerSettings producerSettings, PathKind producerKind)

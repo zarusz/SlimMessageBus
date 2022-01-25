@@ -8,17 +8,17 @@
     using Microsoft.Extensions.Logging.Abstractions;
     using SlimMessageBus.Host.Config;
 
-    public class HybridMessageBus : IMessageBus
+    public class HybridMessageBus : IMessageBus, IConsumerControl, IAsyncDisposable
     {
         private readonly ILogger _logger;
-        
+
         public ILoggerFactory LoggerFactory { get; }
 
         public MessageBusSettings Settings { get; }
         public HybridMessageBusSettings ProviderSettings { get; }
 
         private readonly IDictionary<Type, string> _routeByMessageType;
-        private readonly IDictionary<string, MessageBusBase> _busByName;        
+        private readonly IDictionary<string, MessageBusBase> _busByName;
 
         public HybridMessageBus(MessageBusSettings settings, HybridMessageBusSettings providerSettings)
         {
@@ -68,34 +68,58 @@
             }
         }
 
-        #region IDisposable Support
-        private bool disposedValue = false; // To detect redundant calls
-
-        protected virtual void Dispose(bool disposing)
+        public async Task Start()
         {
-            if (!disposedValue)
+            foreach (var bus in _busByName.Values)
             {
-                if (disposing)
-                {
-                    foreach (var name in _busByName.Keys)
-                    {
-                        var bus = _busByName[name];
-
-                        bus.DisposeSilently(() => $"Error dispsing name bus: {name}", _logger);
-                    }
-                    _busByName.Clear();
-                }
-
-                disposedValue = true;
+                await bus.Start();
             }
         }
 
-        // This code added to correctly implement the disposable pattern.
+        public async Task Stop()
+        {
+            foreach (var bus in _busByName.Values)
+            {
+                await bus.Stop();
+            }
+        }
+
+        #region Implementation of IDisposable and IAsyncDisposable
+
         public void Dispose()
         {
-            Dispose(true);
+            Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
+
+        protected void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                DisposeAsyncCore().ConfigureAwait(false).GetAwaiter().GetResult();
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore().ConfigureAwait(false);
+            Dispose(disposing: false);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Stops the consumers and disposes of internal bus objects.
+        /// </summary>
+        /// <returns></returns>
+        protected virtual async ValueTask DisposeAsyncCore()
+        {
+            foreach (var (name, bus) in _busByName)
+            {
+                await ((IAsyncDisposable)bus).DisposeSilently(() => $"Error disposing bus: {name}", _logger);
+            }
+            _busByName.Clear();
+        }
+
         #endregion
 
         protected virtual IMessageBus Route(object message, string path)

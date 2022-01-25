@@ -1,8 +1,10 @@
-# Azure Event Hub Provider for SlimMessageBus
-
-## Introduction
+# Azure Event Hub Provider for SlimMessageBus  <!-- omit in toc -->
 
 Please read the [Introduction](intro.md) before reading this provider documentation.
+
+- [Configuration](#configuration)
+- [Producing Messages](#producing-messages)
+  - [Selecting message partition for producer](#selecting-message-partition-for-producer)
 
 ## Configuration
 
@@ -32,7 +34,7 @@ MessageBusBuilder mbb = MessageBusBuilder.Create()
     .WithSerializer(new JsonMessageSerializer());
 ```
 
-### Producing Messages
+## Producing Messages
 
 To produce a given `TMessage` to an Azure Event Hub named `my-event-hub` use:
 
@@ -41,12 +43,12 @@ To produce a given `TMessage` to an Azure Event Hub named `my-event-hub` use:
 mbb.Produce<TMessage>(x => x.DefaultTopic("my-event-hub")); 
 ```
 
-#### Selecting message partition for producer
+### Selecting message partition for producer
 
 Azure EventHub topics are broken into partitions:
 
-* when message key is not provided then partition is assigned using round-robin,
-* when message key is provided then same partition is assigned to same key
+- when message key is not provided then partition is assigned using round-robi
+- when message key is provided then same partition is assigned to same key
 
 SMB Azure EventHub allows to set a provider (selector) that will assign the partition key for a given message. Here is an example:
 

@@ -1,20 +1,20 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus
 {
-    using Microsoft.Azure.ServiceBus;
+    using Azure.Messaging.ServiceBus;
     using System;
 
     public static class ServiceBusConsumerContextExtensions
     {
         private const string MessageKey = "ServiceBus_Message";
 
-        public static Message GetTransportMessage(this IConsumerContext context)
+        public static ServiceBusReceivedMessage GetTransportMessage(this IConsumerContext context)
         {
             if (context is null) throw new ArgumentNullException(nameof(context));
 
-            return context.GetPropertyOrDefault<Message>(MessageKey);
+            return context.GetPropertyOrDefault<ServiceBusReceivedMessage>(MessageKey);
         }
 
-        public static void SetTransportMessage(this ConsumerContext context, Message message)
+        public static void SetTransportMessage(this ConsumerContext context, ServiceBusReceivedMessage message)
         {
             if (context is null) throw new ArgumentNullException(nameof(context));
 

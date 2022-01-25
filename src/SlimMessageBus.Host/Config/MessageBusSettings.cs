@@ -51,11 +51,17 @@ namespace SlimMessageBus.Host.Config
         /// </summary>
         public Action<IDictionary<string, object>, object> HeaderModifier { get; set; }
 
+        /// <summary>
+        /// When true will start the message consumption on consumers after the bus is created.
+        /// </summary>
+        public bool AutoStartConsumers { get; set; }
+
         public MessageBusSettings()
         {
             Producers = new List<ProducerSettings>();
             Consumers = new List<ConsumerSettings>();
             MessageTypeResolver = new AssemblyQualifiedNameMessageTypeResolver();
+            AutoStartConsumers = true;
         }
 
         public virtual void MergeFrom(MessageBusSettings settings)
@@ -137,6 +143,8 @@ namespace SlimMessageBus.Host.Config
             {
                 HeaderModifier = settings.HeaderModifier;
             }
+
+            AutoStartConsumers = settings.AutoStartConsumers;
         }
     }
 }

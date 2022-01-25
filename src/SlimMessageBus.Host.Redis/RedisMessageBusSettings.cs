@@ -16,10 +16,6 @@
         /// </summary>
         public Func<IConnectionMultiplexer> ConnectionFactory { get; set; }
         /// <summary>
-        /// If true the consumers are started when message bus is created, otherwise you need to call <see cref="RedisMessageBus.Start"/> manually.
-        /// </summary>
-        public bool AutoStartConsumers { get; set; }
-        /// <summary>
         /// Maximum allowed idle time before polling will be delayed to save on CPU cycles.
         /// Default is 1 second.
         /// </summary>
@@ -46,7 +42,6 @@
         {
             Configuration = configuration;
             ConnectionFactory = () => ConnectionMultiplexer.Connect(Configuration);
-            AutoStartConsumers = true;
             EnvelopeSerializer = new MessageWithHeadersSerializer();
         }
     }
