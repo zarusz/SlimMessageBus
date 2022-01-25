@@ -22,6 +22,7 @@
     <ProjectReference Include="..\..\SlimMessageBus.Host.Redis\SlimMessageBus.Host.Redis.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Json\SlimMessageBus.Host.Serialization.Json.csproj" />
     <ProjectReference Include="..\..\Tools\SecretStore\SecretStore.csproj" />
+    <ProjectReference Include="..\SlimMessageBus.Host.Test.Common\SlimMessageBus.Host.Test.Common.csproj" />
   </ItemGroup>
 
   <ItemGroup>

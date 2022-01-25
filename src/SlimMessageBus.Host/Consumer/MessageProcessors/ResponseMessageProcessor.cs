@@ -19,7 +19,7 @@ namespace SlimMessageBus.Host
         public ResponseMessageProcessor(RequestResponseSettings requestResponseSettings, MessageBusBase messageBus, Func<TMessage, MessageWithHeaders> messageProvider)
         {
             if (messageBus is null) throw new ArgumentNullException(nameof(messageBus));
-            
+
             this.logger = messageBus.LoggerFactory.CreateLogger<ResponseMessageProcessor<TMessage>>();
             this.requestResponseSettings = requestResponseSettings ?? throw new ArgumentNullException(nameof(requestResponseSettings));
             this.messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
@@ -30,7 +30,7 @@ namespace SlimMessageBus.Host
 
         public Task<Exception> ProcessMessage(TMessage message, IMessageTypeConsumerInvokerSettings consumerInvoker)
         {
-           try
+            try
             {
                 var messageWithHeaders = messageProvider(message);
                 return messageBus.OnResponseArrived(messageWithHeaders.Payload, requestResponseSettings.Path, messageWithHeaders.Headers);
@@ -54,18 +54,17 @@ namespace SlimMessageBus.Host
             return Task.FromResult<Exception>(null);
         }
 
-        #region IDisposable
+        #region IAsyncDisposable
 
-        protected virtual void Dispose(bool disposing)
+        public async ValueTask DisposeAsync()
         {
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
+            await DisposeAsyncCore().ConfigureAwait(false);
             GC.SuppressFinalize(this);
         }
 
+        protected virtual ValueTask DisposeAsyncCore() => new();
+
         #endregion
+
     }
 }

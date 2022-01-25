@@ -1,8 +1,13 @@
-# Serialization plugins for SlimMessageBus
+# Serialization plugins for SlimMessageBus <!-- omit in toc -->
 
-If you are new to SMB, consider reading the [Introduction](intro.md) documentation first.
+Please read the [Introduction](intro.md) before reading this provider documentation.
 
-## Introduction
+- [Configuration](#configuration)
+- [Json](#json)
+- [Avro](#avro)
+- [Hybrid](#hybrid)
+
+## Configuration
 
 Part of message bus configuration is choosing the serialization plugin:
 
@@ -31,7 +36,7 @@ var jsonSerializer = new JsonMessageSerializer();
 mbb.WithSerializer(jsonSerializer);
 ```
 
-This will apply the `Newtonsoft.Json` default serialization settings and will use `UTF8` encoding for converting `string` to `byte[]`. 
+This will apply the `Newtonsoft.Json` default serialization settings and will use `UTF8` encoding for converting `string` to `byte[]`.
 
 In order to customize how messages are formatted use the alternative constructor:
 
@@ -62,8 +67,9 @@ The Apache.Avro library requires each of your serialized messages to implement t
 The typical approach for working with Avro is to create the contract first using the [Avro IDL contract](https://avro.apache.org/docs/current/idl.html) and then generating the respective C# classes that represent messages. The sample [Sample.Serialization.MessagesAvro](../src/Samples/Sample.Serialization.MessagesAvro) shows how to generate C# classes having the IDL contract. Consult the sample for more details. 
 
 There are ways to customize the `AvroMessageSerializer` by providing strategies for message creation and Avro schema lookup (for reader and writer):
-* Since performance is key when choosing Avro for serialization, the Apache.Avro library allows for message reuse (to avoid GC and heap allocation). SMB plugin provides a way to select the strategy for message creation.
-* The Apache.Avro library requires the Avro.Schema for each message and for the read or write case. This allows for schema versioning and is specific to Avro.
+
+- Since performance is key when choosing Avro for serialization, the Apache.Avro library allows for message reuse (to avoid GC and heap allocation). SMB plugin provides a way to select the strategy for message creation.
+- The Apache.Avro library requires the Avro.Schema for each message and for the read or write case. This allows for schema versioning and is specific to Avro.
 
 The example shows how to use a different strategy:
 

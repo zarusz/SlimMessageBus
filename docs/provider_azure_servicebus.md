@@ -1,8 +1,16 @@
-# Azure Service Bus Provider for SlimMessageBus
-
-## Introduction
+# Azure Service Bus Provider for SlimMessageBus <!-- omit in toc -->
 
 Please read the [Introduction](intro.md) before reading this provider documentation.
+
+- [Configuration](#configuration)
+- [Producing Messages](#producing-messages)
+  - [Message modifier](#message-modifier)
+- [Consuming Messages](#consuming-messages)
+  - [Consumer context](#consumer-context)
+  - [Exception Handling for Consumers](#exception-handling-for-consumers)
+- [Request-Response Configuration](#request-response-configuration)
+- [Produce Request Messages](#produce-request-messages)
+- [Handle Request Messages](#handle-request-messages)
 
 ## Configuration
 
@@ -23,7 +31,7 @@ The `ServiceBusMessageBusSettings` has additional settings that allow to overrid
 
 Since Azure SB supports topics and queues, the SMB needs to know wheather you want to produce (consume) message to (from) a topic or a queue. This is defined as part of the `MessageBusBuilder` configuration.
 
-### Producing Messages
+## Producing Messages
 
 To produce a given `TMessage` to a Azure Serivce Bus queue (or topic) use:
 
@@ -70,9 +78,10 @@ bus.Publish(msg);
 
 Setting the default queue name `DefaultQueue()` for a message type will implicitly configure `UseQueue()` for that message type. By default if no configuration is present the runtime will assume a message needs to be sent on a topic (and works as if `UseTopic()` was configured).
 
-#### Message modifier
 
-Azure SB client's native message type (`Microsoft.Azure.ServiceBus.Message`) allows to set the partition key, message id or additional key-value properties for a message.
+### Message modifier
+
+Azure SB client's native message type (`Azure.Messaging.ServiceBus.ServiceBusMessage`) allows to set the partition key, message id or additional key-value properties for a message.
 
 SMB supports setting these values via a message modifier (`.WithModifier()`) configuration:
 
@@ -91,7 +100,9 @@ mbb.Produce<PingMessage>(x =>
 })
 ```
 
-### Consuming Messages
+> Since version 1.15.5 the Azure SB client was updated, so the native message type is now `Azure.Messaging.ServiceBus.ServiceBusMessage` (it used to be `Azure.ServiceBus.Message`).
+
+## Consuming Messages
 
 To consume `TMessage` by `TConsumer` from `some-topic` Azure Service Bus topic use:
 
@@ -114,7 +125,7 @@ mbb.Consume<TMessage>(x => x
     .Instances(1));
 ```
 
-#### Consumer context
+### Consumer context
 
 The consumer can implement the `IConsumerWithContext` interface to access the Azure Service Bus native message:
 
@@ -126,14 +137,16 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
    public Task OnHandle(PingMessage message, string name)
    {
       // Azure SB transport specific extension:
-      var transportMessage = Context.GetTransportMessage();
+      var transportMessage = Context.GetTransportMessage(); // Of type Azure.Messaging.ServiceBus.ServiceBusReceivedMessage
    }
 }
 ```
 
-This could be useful to extract the message's `CorrelationId` or `UserProperties`.
+This could be useful to extract the message's `CorrelationId` or `ApplicationProperties` (from Azure SB native client type `Azure.Messaging.ServiceBus.ServiceBusReceivedMessage`).
 
-#### Exception Handling for Consumers
+> Since version 1.15.5 the Azure SB client was updated, so the native message type is now `Azure.Messaging.ServiceBus.ServiceBusReceivedMessage` (it used to be `Azure.ServiceBus.Message`).
+
+### Exception Handling for Consumers
 
 In case the consumer throws and exception while processing a message, SMB marks the message as abandoned.
 This results in a message delivery retry performed by Azure SB (potentially event in another running instance of your service). By default Azure SB retries 10 times. After last attempt the message Azure SB moves the message to a dead letter queue (DLQ). More information [here](https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-dead-letter-queues).
@@ -142,9 +155,9 @@ If you need to send only selected messages to DLQ, wrap the body of your consume
 
 SMB will also set a user property `SMB.Exception` on the message with the exception details (just the message, no stack trace). This should be helpful when reviewing messages on the DLQ.
 
-### Request-Response Configuration
+## Request-Response Configuration
 
-### Produce Request Messages
+## Produce Request Messages
 
 The request sending service needs to configure where the request message should be delivered - to SB topic or to SB queue. See the [Producing Messages](#producing-messages).
 
@@ -173,7 +186,7 @@ In either case it is important that each of your micro-service instances have th
 
 It is preferred to receive responses on queues rather than topics.
 
-### Handle Request Messages
+## Handle Request Messages
 
 The request processing service (the responding service) in the case of SMB Azure Service Bus providers needs to configure the queue (or topic) that the request messages will be consumed from:
 

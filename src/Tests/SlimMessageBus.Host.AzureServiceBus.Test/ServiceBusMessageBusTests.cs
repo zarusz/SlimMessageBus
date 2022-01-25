@@ -4,9 +4,10 @@
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Globalization;
+    using System.Threading;
     using System.Threading.Tasks;
+    using Azure.Messaging.ServiceBus;
     using FluentAssertions;
-    using Microsoft.Azure.ServiceBus;
     using Moq;
     using SlimMessageBus.Host.Config;
     using SlimMessageBus.Host.DependencyResolver;
@@ -19,8 +20,7 @@
         private Lazy<WrappedProviderMessageBus> ProviderBus { get; }
         private MessageBusBuilder BusBuilder { get; } = MessageBusBuilder.Create();
 
-        private IDictionary<string, Mock<IQueueClient>> QueueClientMockByName { get; } = new ConcurrentDictionary<string, Mock<IQueueClient>>();
-        private IDictionary<string, Mock<ITopicClient>> TopicClientMockByName { get; } = new ConcurrentDictionary<string, Mock<ITopicClient>>();
+        private IDictionary<string, Mock<ServiceBusSender>> SenderMockByPath { get; } = new ConcurrentDictionary<string, Mock<ServiceBusSender>>();
 
         public ServiceBusMessageBusTests()
         {
@@ -29,16 +29,15 @@
 
             ProviderBusSettings = new ServiceBusMessageBusSettings("connection-string")
             {
-                QueueClientFactory = queue =>
+                ClientFactory = () =>
                 {
-                    var m = new Mock<IQueueClient>();
-                    QueueClientMockByName.Add(queue, m);
-                    return m.Object;
+                    var client = new Mock<ServiceBusClient>();
+                    return client.Object;
                 },
-                TopicClientFactory = topic =>
+                SenderFactory = (path, client) =>
                 {
-                    var m = new Mock<ITopicClient>();
-                    TopicClientMockByName.Add(topic, m);
+                    var m = new Mock<ServiceBusSender>();
+                    SenderMockByPath.Add(path, m);
                     return m.Object;
                 }
             };
@@ -85,9 +84,9 @@
             await ProviderBus.Value.Publish(m2).ConfigureAwait(false);
 
             // assert
-            var topicClient = TopicClientMockByName["default-topic"];
-            topicClient.Verify(x => x.SendAsync(It.Is<Message>(m => m.MessageId == "1" && m.PartitionKey == "0")), Times.Once);
-            topicClient.Verify(x => x.SendAsync(It.Is<Message>(m => m.MessageId == "2" && m.PartitionKey == "1")), Times.Once);
+            var topicClient = SenderMockByPath["default-topic"];
+            topicClient.Verify(x => x.SendMessageAsync(It.Is<ServiceBusMessage>(m => m.MessageId == "1" && m.PartitionKey == "0"), It.IsAny<CancellationToken>()), Times.Once);
+            topicClient.Verify(x => x.SendMessageAsync(It.Is<ServiceBusMessage>(m => m.MessageId == "2" && m.PartitionKey == "1"), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -106,11 +105,11 @@
             await ProviderBus.Value.Publish(m).ConfigureAwait(false);
 
             // assert
-            TopicClientMockByName["default-topic"].Verify(x => x.SendAsync(It.IsAny<Message>()), Times.Once);
+            SenderMockByPath["default-topic"].Verify(x => x.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
-        public void WhenCreateGivenSameMessageTypeConfiguredTwiceForTopicAndForQueueThenConfigurationExceptionThrown()
+        public void When_Create_Given_SameMessageTypeConfiguredTwiceForTopicAndForQueue_Then_ConfigurationExceptionThrown()
         {
             // arrange
             BusBuilder.Produce<SomeMessage>(x => x.ToTopic());
@@ -121,27 +120,27 @@
 
             // assert
             creation.Should().Throw<ConfigurationMessageBusException>()
-                .WithMessage($"The produced message type '{typeof(SomeMessage).FullName}' was declared more than once*");
+                .WithMessage($"* '{typeof(SomeMessage).FullName}' *");
         }
 
         [Fact]
-        public void WhenCreateGivenSameDefaultNameUsedForTopicAndForQueueThenConfigurationExceptionThrown()
+        public void When_Create_Given_SameDefaultPathUsedForTopicAndForQueue_Then_ConfigurationExceptionThrown()
         {
             // arrange
-            const string name = "the-same-name";
-            BusBuilder.Produce<SomeMessage>(x => x.DefaultTopic(name));
-            BusBuilder.Produce<OtherMessage>(x => x.DefaultQueue(name));
+            const string path = "the-same-name";
+            BusBuilder.Produce<SomeMessage>(x => x.DefaultTopic(path));
+            BusBuilder.Produce<OtherMessage>(x => x.DefaultQueue(path));
 
             // act
             Func<IMessageBus> creation = () => BusBuilder.Build();
 
             // assert
             creation.Should().Throw<ConfigurationMessageBusException>()
-                .WithMessage($"The same name '{name}' was used for queue and topic*");
+                .WithMessage($"The same name '{path}' was used for queue and topic*");
         }
 
         [Fact]
-        public async Task WhenPublishTopicClientOrQueueClientIsCreatedForTopicNameOrQueueName()
+        public async Task When_Publish_Then_TopicClientOrQueueClientIsCreatedForTopicNameOrQueueName()
         {
             // arrange
             BusBuilder.Produce<SomeMessage>(x => x.ToTopic());
@@ -159,10 +158,9 @@
             await ProviderBus.Value.Publish(om2, "some-queue").ConfigureAwait(false);
 
             // assert
-            TopicClientMockByName.Should().ContainKey("some-topic");
-            TopicClientMockByName.Should().HaveCount(1);
-            QueueClientMockByName.Should().ContainKey("some-queue");
-            QueueClientMockByName.Should().HaveCount(1);
+            SenderMockByPath.Should().HaveCount(2);
+            SenderMockByPath.Should().ContainKey("some-topic");
+            SenderMockByPath.Should().ContainKey("some-queue");
         }
     }
 

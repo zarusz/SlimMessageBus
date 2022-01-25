@@ -1,11 +1,8 @@
 ﻿namespace SlimMessageBus.Host.Redis
 {
     using System;
-    using System.Threading.Tasks;
 
-    public interface IRedisConsumer : IDisposable
+    public interface IRedisConsumer : IAsyncDisposable, IConsumerControl
     {
-        Task Start();
-        Task Finish();
     }
 }

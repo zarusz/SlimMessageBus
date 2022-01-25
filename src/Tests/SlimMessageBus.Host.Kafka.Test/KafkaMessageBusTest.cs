@@ -39,16 +39,8 @@
 
         public void Dispose()
         {
-            Dispose(true);
+            KafkaMb.Value.Dispose();
             GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                KafkaMb.Value.Dispose();
-            }
         }
 
         [Fact]

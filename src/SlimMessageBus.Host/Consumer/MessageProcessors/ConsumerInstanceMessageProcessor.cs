@@ -36,20 +36,15 @@
             consumerWithContext = typeof(IConsumerWithContext).IsAssignableFrom(consumerSettings.ConsumerType);
         }
 
-        #region IDisposable
+        #region IAsyncDisposable
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
-            Dispose(true);
+            await DisposeAsyncCore().ConfigureAwait(false);
             GC.SuppressFinalize(this);
         }
 
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-            }
-        }
+        protected virtual ValueTask DisposeAsyncCore() => new();
 
         #endregion
 

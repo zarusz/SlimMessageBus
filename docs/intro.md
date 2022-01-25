@@ -1,16 +1,43 @@
+# Introduction to SlimMessageBus <!-- omit in toc -->
 
-# Introduction to SlimMessageBus
+- [Configuration](#configuration)
+- [Pub/Sub communication](#pubsub-communication)
+  - [Producer](#producer)
+    - [Polymorphic messages](#polymorphic-messages)
+    - [Producer hooks](#producer-hooks)
+    - [Set message headers when producing message](#set-message-headers-when-producing-message)
+  - [Consumer](#consumer)
+    - [Start or Stop message consumption](#start-or-stop-message-consumption)
+    - [Consumer hooks](#consumer-hooks)
+    - [Consumer context](#consumer-context)
+      - [Get message headers in the consumer or handler](#get-message-headers-in-the-consumer-or-handler)
+    - [Per-message DI container scope](#per-message-di-container-scope)
+    - [Hybrid bus and message scope reuse](#hybrid-bus-and-message-scope-reuse)
+    - [Concurrently processed messages](#concurrently-processed-messages)
+- [Request-response communication](#request-response-communication)
+  - [Delivery quarantees](#delivery-quarantees)
+  - [Dedicated reply queue/topic](#dedicated-reply-queuetopic)
+  - [Message headers for request-response](#message-headers-for-request-response)
+  - [Produce request message](#produce-request-message)
+  - [Consume the request message (the request handler)](#consume-the-request-message-the-request-handler)
+- [Static accessor](#static-accessor)
+- [Dependency resolver](#dependency-resolver)
+- [Serialization](#serialization)
+- [Message Headers](#message-headers)
+  - [Message Type Resolver](#message-type-resolver)
+- [Logging](#logging)
+- [Provider specific functionality](#provider-specific-functionality)
 
 ## Configuration
 
 The configuration starts with `MessageBusBuilder`, which allows to configure couple of elements:
 
-* The bus transport provider (Apache Kafka, Azure Service Bus, Memory).
-* The serialization provider.
-* The dependency injection provider.
-* Declaration of messages produced and consumed along with topic/queue names.
-* Request-response configuration (if enabled).
-* Additional provider specific settings (message partition key, message id, etc).
+- The bus transport provider (Apache Kafka, Azure Service Bus, Memory).
+- The serialization provider.
+- The dependency injection provider.
+- Declaration of messages produced and consumed along with topic/queue names.
+- Request-response configuration (if enabled).
+- Additional provider specific settings (message partition key, message id, etc).
 
 Here is a sample:
 
@@ -68,7 +95,7 @@ IMessageBus bus = mbb.Build();
 
 In most scenarios having a singleton `IMessageBus` for your entire application will be sufficient. The provider implementations are thread-safe.
 
-> The `IMessageBus` is disposable (implements `IDisposable`).
+> The `IMessageBus` is disposable (implements `IDisposable` and `IAsyncDisposable`).
 
 When your service uses `Microsoft.Extensions.DependencyInjection`, 
 the SMB can be configured in a more compact way (requires `SlimMessageBus.Host.MsDependencyInjection` or `SlimMessageBus.Host.AspNetCore` package):
@@ -263,6 +290,33 @@ public class SomeConsumer
   // }
 }
 ```
+
+#### Start or Stop message consumption
+
+By default message consumers are started as soon as the bus is created. This means that messages arriving on the given transport will be processed by the declared consumers.
+If you want to prevent this default use the follwing setting:
+
+```cs
+mbb.AutoStartConsumersEnabled(false); // default is true
+```
+
+Later inject `IMessageBus` and cast it to `IConsumerControl` which exposes a `Start()` and `Stop()` methods to respectively start message consumers or stop them.
+
+```cs
+IMessageBus bus = // injected
+
+IConsumerControl consumerControl = (IConsumerControl)bus; // Need to reference SlimMessageBus.Host package
+
+// Start message consumers
+await consumerControl.Start();
+
+// or 
+
+// Stop message consumers
+await consumerControl.Stop();
+```
+
+> Since version 1.15.5
 
 #### Consumer hooks
 

@@ -4,17 +4,17 @@ namespace SlimMessageBus.Host.Redis.Test
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Linq;
-    using System.Threading;
     using System.Threading.Tasks;
     using FluentAssertions;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Logging;
-    using Microsoft.Extensions.Logging.Abstractions;
     using SecretStore;
     using SlimMessageBus.Host.Config;
     using SlimMessageBus.Host.DependencyResolver;
     using SlimMessageBus.Host.Serialization.Json;
+    using SlimMessageBus.Host.Test.Common;
     using Xunit;
+    using Xunit.Abstractions;
 
     [Trait("Category", "Integration")]
     public class RedisMessageBusIt : IDisposable
@@ -27,9 +27,9 @@ namespace SlimMessageBus.Host.Redis.Test
         private MessageBusBuilder MessageBusBuilder { get; }
         private Lazy<RedisMessageBus> MessageBus { get; }
 
-        public RedisMessageBusIt()
+        public RedisMessageBusIt(ITestOutputHelper testOutputHelper)
         {
-            _loggerFactory = NullLoggerFactory.Instance;
+            _loggerFactory = new XunitLoggerFactory(testOutputHelper);
             _logger = _loggerFactory.CreateLogger<RedisMessageBusIt>();
 
             var configuration = new ConfigurationBuilder()
@@ -58,16 +58,8 @@ namespace SlimMessageBus.Host.Redis.Test
 
         public void Dispose()
         {
-            Dispose(true);
+            MessageBus.Value.Dispose();
             GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                MessageBus.Value.Dispose();
-            }
         }
 
         [Fact]

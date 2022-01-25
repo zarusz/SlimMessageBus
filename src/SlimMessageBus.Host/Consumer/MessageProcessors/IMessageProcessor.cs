@@ -4,7 +4,7 @@ namespace SlimMessageBus.Host
     using System;
     using System.Threading.Tasks;
 
-    public interface IMessageProcessor<TMessage> : IDisposable where TMessage : class
+    public interface IMessageProcessor<TMessage> : IAsyncDisposable where TMessage : class
     {
         AbstractConsumerSettings ConsumerSettings { get; }
         

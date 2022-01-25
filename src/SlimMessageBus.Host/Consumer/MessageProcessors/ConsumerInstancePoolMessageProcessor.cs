@@ -11,7 +11,7 @@ namespace SlimMessageBus.Host
     /// <typeparam name="TMessage"></typeparam>
     public class ConsumerInstancePoolMessageProcessor<TMessage> : IMessageProcessor<TMessage> where TMessage : class
     {
-        private readonly IMessageProcessor<TMessage> strategy;
+        private IMessageProcessor<TMessage> strategy;
 
         public ConsumerInstancePoolMessageProcessor(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, MessageWithHeaders> messageProvider, Action<TMessage, ConsumerContext> consumerContextInitializer = null)
         {
@@ -24,19 +24,19 @@ namespace SlimMessageBus.Host
 
         public virtual Task<Exception> ProcessMessage(TMessage msg, IMessageTypeConsumerInvokerSettings consumerInvoker) => strategy.ProcessMessage(msg, consumerInvoker);
 
-        #region IDisposable
+        #region IAsyncDisposable
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
-            Dispose(true);
+            await DisposeAsyncCore().ConfigureAwait(false);
             GC.SuppressFinalize(this);
         }
 
-        protected virtual void Dispose(bool disposing)
+        protected virtual async ValueTask DisposeAsyncCore()
         {
-            if (disposing)
+            if (strategy != null)
             {
-                strategy.Dispose();
+                await strategy.DisposeAsync();
             }
         }
 

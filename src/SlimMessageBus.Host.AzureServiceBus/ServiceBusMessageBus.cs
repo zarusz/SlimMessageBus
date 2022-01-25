@@ -4,8 +4,7 @@
     using System.Collections.Generic;
     using System.Linq;
     using System.Threading.Tasks;
-    using Microsoft.Azure.ServiceBus;
-    using Microsoft.Azure.ServiceBus.Core;
+    using Azure.Messaging.ServiceBus;
     using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.AzureServiceBus.Consumer;
     using SlimMessageBus.Host.Collections;
@@ -17,12 +16,10 @@
 
         public ServiceBusMessageBusSettings ProviderSettings { get; }
 
-        private SafeDictionaryWrapper<string, ITopicClient> producerByTopic;
-        private SafeDictionaryWrapper<string, IQueueClient> producerByQueue;
+        private ServiceBusClient client;
+        private SafeDictionaryWrapper<string, ServiceBusSender> producerByPath;
 
-        private readonly KindMapping kindMapping = new KindMapping();
-
-        private readonly List<BaseConsumer> consumers = new List<BaseConsumer>();
+        private readonly List<AsbBaseConsumer> consumers = new List<AsbBaseConsumer>();
 
         public ServiceBusMessageBus(MessageBusSettings settings, ServiceBusMessageBusSettings providerSettings)
             : base(settings)
@@ -31,6 +28,15 @@
             ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
 
             OnBuildProvider();
+        }
+
+        protected override void AssertSettings()
+        {
+            base.AssertSettings();
+
+            var kindMapping = new KindMapping();
+            // This will validae if one path is mapped to both a topic and a queue
+            kindMapping.Configure(Settings);
         }
 
         protected override void AssertConsumerSettings(ConsumerSettings consumerSettings)
@@ -43,23 +49,15 @@
                 () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(SettingsExtensions.SubscriptionName)} is not set on topic {consumerSettings.Path}"));
         }
 
-        protected void AddConsumer(string path, PathKind pathKind, string subscriptionName, IEnumerable<IMessageProcessor<Message>> consumers)
+        protected void AddConsumer(TopicSubscriptionParams topicSubscription, IEnumerable<IMessageProcessor<ServiceBusReceivedMessage>> consumers)
         {
-            if (path is null) throw new ArgumentNullException(nameof(path));
+            if (topicSubscription is null) throw new ArgumentNullException(nameof(topicSubscription));
             if (consumers is null) throw new ArgumentNullException(nameof(consumers));
 
-            BaseConsumer consumer;
-
-            if (pathKind == PathKind.Topic)
-            {
-                logger.LogInformation("Creating consumer for {PathKind} Path: {Path}, SubscriptionName: {SubscriptionName}", pathKind, path, subscriptionName);
-                consumer = new TopicSubscriptionConsumer(this, consumers, path, subscriptionName);
-            }
-            else
-            {
-                logger.LogInformation("Creating consumer for {PathKind} Path: {Path}", pathKind, path);
-                consumer = new QueueConsumer(this, consumers, path);
-            }
+            logger.LogInformation("Creating consumer for Path: {Path}, SubscriptionName: {SubscriptionName}", topicSubscription.Path, topicSubscription.SubscriptionName);
+            AsbBaseConsumer consumer = topicSubscription.SubscriptionName != null
+                ? new AsbTopicSubscriptionConsumer(this, consumers, topicSubscription, client)
+                : new AsbQueueConsumer(this, consumers, topicSubscription, client);
 
             this.consumers.Add(consumer);
         }
@@ -70,22 +68,16 @@
         {
             base.Build();
 
-            producerByTopic = new SafeDictionaryWrapper<string, ITopicClient>(path =>
+            client = ProviderSettings.ClientFactory();
+
+            producerByPath = new SafeDictionaryWrapper<string, ServiceBusSender>(path =>
             {
-                logger.LogDebug("Creating {PathKind} client for path {Path}", PathKind.Topic, path);
-                return ProviderSettings.TopicClientFactory(path);
+                logger.LogDebug("Creating sender for path {Path}", path);
+                return ProviderSettings.SenderFactory(path, client);
             });
 
-            producerByQueue = new SafeDictionaryWrapper<string, IQueueClient>(path =>
-            {
-                logger.LogDebug("Creating {PathKind} client for path {Path}", PathKind.Queue, path);
-                return ProviderSettings.QueueClientFactory(path);
-            });
-
-            kindMapping.Configure(Settings);
-
-            static MessageWithHeaders messageProvider(Message m) => new MessageWithHeaders(m.Body, m.UserProperties);
-            static void initConsumerContext(Message m, ConsumerContext ctx) => ctx.SetTransportMessage(m);
+            static MessageWithHeaders messageProvider(ServiceBusReceivedMessage m) => new MessageWithHeaders(m.Body.ToArray(), m.ApplicationProperties.ToDictionary(x => x.Key, x => x.Value));
+            static void initConsumerContext(ServiceBusReceivedMessage m, ConsumerContext ctx) => ctx.SetTransportMessage(m);
 
             logger.LogInformation("Creating consumers");
 
@@ -93,8 +85,8 @@
             {
                 var key = consumerSettingsByPath.Key;
 
-                var consumers = consumerSettingsByPath.Select(x => new ConsumerInstanceMessageProcessor<Message>(x, this, messageProvider, initConsumerContext)).ToList();
-                AddConsumer(key.Path, key.PathKind, key.SubscriptionName, consumers);
+                var consumers = consumerSettingsByPath.Select(x => new ConsumerInstanceMessageProcessor<ServiceBusReceivedMessage>(x, this, messageProvider, initConsumerContext)).ToList();
+                AddConsumer(new TopicSubscriptionParams(key.Path, key.SubscriptionName), consumers);
             }
 
             if (Settings.RequestResponse != null)
@@ -103,67 +95,66 @@
 
                 var consumers = new[]
                 {
-                    new ResponseMessageProcessor<Message>(Settings.RequestResponse, this, messageProvider)
+                    new ResponseMessageProcessor<ServiceBusReceivedMessage>(Settings.RequestResponse, this, messageProvider)
                 };
-                AddConsumer(path, pathKind, subscriptionName, consumers);
+                AddConsumer(new TopicSubscriptionParams(path, subscriptionName), consumers);
             }
         }
 
-        protected override void Dispose(bool disposing)
+        protected override async Task OnStart()
         {
+            await base.OnStart();
+            await Task.WhenAll(consumers.Select(x => x.Start()));
+        }
+
+        protected override async Task OnStop()
+        {
+            await base.OnStop();
+            await Task.WhenAll(consumers.Select(x => x.Stop()));
+        }
+
+        protected override async ValueTask DisposeAsyncCore()
+        {
+            await base.DisposeAsyncCore();
+
             if (consumers.Count > 0)
             {
                 consumers.ForEach(c => c.DisposeSilently("Consumer", logger));
                 consumers.Clear();
             }
 
-            var disposeTasks = Enumerable.Empty<Task>();
-
-            if (producerByQueue.Dictonary.Count > 0)
+            if (producerByPath.Dictonary.Count > 0)
             {
-                disposeTasks = disposeTasks.Concat(producerByQueue.Dictonary.Values.Select(x =>
+                await Task.WhenAll(producerByPath.Snapshot().Select(x =>
                 {
-                    logger.LogDebug("Closing {PathKind} client for path {Path}", PathKind.Queue, x.Path);
+                    logger.LogDebug("Closing sender client for path {Path}", x.EntityPath);
                     return x.CloseAsync();
                 }));
-
-                producerByQueue.Clear();
+                producerByPath.Clear();
             }
 
-            if (producerByTopic.Dictonary.Count > 0)
+            if (client != null)
             {
-                disposeTasks = disposeTasks.Concat(producerByTopic.Dictonary.Values.Select(x =>
-                {
-                    logger.LogDebug("Closing {PathKind} client for path {Path}", PathKind.Topic, x.Path);
-                    return x.CloseAsync();
-                }));
-
-                producerByTopic.Clear();
+                await client.DisposeAsync().ConfigureAwait(false);
+                client = null;
             }
-
-            Task.WaitAll(disposeTasks.ToArray());
-
-            base.Dispose(disposing);
         }
 
-        protected virtual async Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, PathKind kind)
+        public override async Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders)
         {
             if (messageType is null) throw new ArgumentNullException(nameof(messageType));
             if (messagePayload is null) throw new ArgumentNullException(nameof(messagePayload));
 
             AssertActive();
 
-            logger.LogDebug("Producing message {Message} of type {MessageType} on {PathKind} {Path} with size {MessageSize}", message, messageType.Name, kind, path, messagePayload.Length);
+            logger.LogDebug("Producing message {Message} of type {MessageType} to path {Path} with size {MessageSize}", message, messageType.Name, path, messagePayload.Length);
 
-            var m = new Message(messagePayload);
+            var m = new ServiceBusMessage(messagePayload);
             if (messageHeaders != null)
             {
                 foreach (var header in messageHeaders)
                 {
-                    if (header.Key != MessageHeaderUseKind) // Skip special header that is used to convey routing information via headers.
-                    {
-                        m.UserProperties.Add(header.Key, header.Value);
-                    }
+                    m.ApplicationProperties.Add(header.Key, header.Value);
                 }
             }
 
@@ -180,32 +171,27 @@
                 }
             }
 
-            var senderClient = kind == PathKind.Topic
-                ? (ISenderClient)producerByTopic.GetOrAdd(path)
-                : producerByQueue.GetOrAdd(path);
+            var senderClient = producerByPath.GetOrAdd(path);
 
-            await senderClient.SendAsync(m).ConfigureAwait(false);
+            try
+            {
+                await senderClient.SendMessageAsync(m).ConfigureAwait(false);
 
-            logger.LogDebug("Delivered message {Message} of type {MessageType} on {PathKind} {Path}", message, messageType.Name, kind, path);
+                logger.LogDebug("Delivered message {Message} of type {MessageType} to {Path}", message, messageType.Name, path);
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Producing message {Message} of type {MessageType} to path {Path} resulted in error {Error}", message, messageType.Name, path, ex.Message);
+                throw new PublishMessageBusException($"Producing message {message} of type {messageType.Name} to path {path} resulted in error: {ex.Message}", ex);
+            }
         }
 
-        public override Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders)
-        {
-            var kind = messageHeaders != null && messageHeaders.ContainsKey(MessageHeaderUseKind)
-                ? (PathKind)messageHeaders.GetHeaderAsInt(MessageHeaderUseKind) // it was already determined what kind it is
-                : kindMapping.GetKind(messageType, path); // determine by path  or type if its a Azure SB queue or topic
-
-            return ProduceToTransport(messageType, message, path, messagePayload, messageHeaders, kind);
-        }
-
-        public static readonly string RequestHeaderReplyToKind = "reply-to-kind";
         public static readonly string MessageHeaderUseKind = "smb-use-kind";
 
         public override Task ProduceRequest(object request, IDictionary<string, object> headers, string path, ProducerSettings producerSettings)
         {
             if (headers is null) throw new ArgumentNullException(nameof(headers));
 
-            headers.SetHeader(RequestHeaderReplyToKind, (int)Settings.RequestResponse.PathKind);
             return base.ProduceRequest(request, headers, path, producerSettings);
         }
 
@@ -213,9 +199,6 @@
         {
             if (requestHeaders is null) throw new ArgumentNullException(nameof(requestHeaders));
             if (consumerSettings is null) throw new ArgumentNullException(nameof(consumerSettings));
-
-            var kind = (PathKind)requestHeaders[RequestHeaderReplyToKind];
-            responseHeaders.SetHeader(MessageHeaderUseKind, (int)kind);
 
             return base.ProduceResponse(consumerSettings.ResponseType, requestHeaders, response, responseHeaders, consumerSettings);
         }

@@ -1,8 +1,17 @@
-# Redis transport provider for SlimMessageBus
-
-## Introduction
+# Redis transport provider for SlimMessageBus <!-- omit in toc -->
 
 Please read the [Introduction](intro.md) before reading this provider documentation.
+
+- [Underlying Redis client](#underlying-redis-client)
+- [Configuration](#configuration)
+  - [Connection string parameters](#connection-string-parameters)
+- [Producer](#producer)
+- [Consumer](#consumer)
+  - [Pub/Sub](#pubsub)
+  - [Queues](#queues)
+- [Queue implementation on Redis](#queue-implementation-on-redis)
+  - [Message Headers](#message-headers)
+  - [Redis transport lifecycle hooks](#redis-transport-lifecycle-hooks)
 
 ## Underlying Redis client
 
@@ -25,7 +34,7 @@ IMessageBus bus = mbb.Build();
 
 The `RedisMessageBusSettings` has additional settings that allow to override factories for the `ConnectionMultiplexer`. This may be used for some advanced scenarios.
 
-## Connection string parameters
+### Connection string parameters
 
 The list of all configuration parameters for the connectiong string can be found here:
 https://stackexchange.github.io/StackExchange.Redis/Configuration
@@ -42,7 +51,7 @@ mbb.Produce<TMessage>(x => x.UseQueue());
 mbb.Produce<TMessage>(x => x.UseTopic());
 ```
 
-This configures the runtime to deliver all messages of type `TMessage` to a Redis pub/sub topic (or queue). 
+This configures the runtime to deliver all messages of type `TMessage` to a Redis pub/sub topic (or queue).
 
 Then anytime you produce a message like this:
 
@@ -120,6 +129,7 @@ mbb.Consume<TMessage>(x => x
 
 The queue is emulated using a Redis list type (the key represents the queue name and the value is a Redis list type).
 Internally when a new message is added to a queue `some-queue` then message bus will:
+
 - producer will use the [`RPUSH`](https://redis.io/commands/rpush) to add the message at the tail of the list with key `some-queue`
 - consumer will use the [`LPOP`](https://redis.io/commands/lpop) to remove the massage from the head of the list with key `some-queue`
 
@@ -157,6 +167,4 @@ mbb.WithProviderRedis(new RedisMessageBusSettings(connectionString)
         database.KeyDelete("test-echo-queue-resp");
     }
 });
-
-
 ```

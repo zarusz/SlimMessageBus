@@ -9,7 +9,7 @@
     {
         private readonly string _topic;
         private readonly ISubscriber _subscriber;
-        private readonly IMessageProcessor<byte[]> _messageProcessor;
+        private IMessageProcessor<byte[]> _messageProcessor;
 
         private ChannelMessageQueue _channelMessageQueue;
 
@@ -30,7 +30,7 @@
             return Task.CompletedTask;
         }
 
-        public Task Finish()
+        public Task Stop()
         {
             UnsubscribeInternal();
 
@@ -46,21 +46,22 @@
             }
         }
 
-        #region IDisposable
+        #region IAsyncDisposable
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
-            Dispose(true);
+            await DisposeAsyncCore().ConfigureAwait(false);
             GC.SuppressFinalize(this);
         }
 
-        protected virtual void Dispose(bool disposing)
+        protected virtual async ValueTask DisposeAsyncCore()
         {
-            if (disposing)
-            {
-                UnsubscribeInternal();
+            UnsubscribeInternal();
 
-                _messageProcessor.Dispose();
+            if (_messageProcessor != null)
+            {
+                await _messageProcessor.DisposeAsync();
+                _messageProcessor = null;
             }
         }
 

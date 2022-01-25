@@ -1,9 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <Import Project="../Host.Transport.Properties.xml" />
 
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>latest</LangVersion>
     <Description>Azure Service Bus provider for SlimMessageBus</Description>
     <PackageTags>Azure Service Bus provider SlimMessageBus MessageBus bus facade messaging client</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
@@ -11,7 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Azure.ServiceBus" Version="5.2.0" />
+    <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.5.1" />
   </ItemGroup>
 
   <ItemGroup>

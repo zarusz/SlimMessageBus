@@ -1,7 +1,7 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus
 {
     using System;
-    using Microsoft.Azure.ServiceBus;
+    using Azure.Messaging.ServiceBus;
     using SlimMessageBus.Host.Config;
 
     public static class ProducerBuilderExtensions
@@ -51,7 +51,7 @@
         /// <param name="producerBuilder"></param>
         /// <param name="modifierAction"></param>
         /// <returns></returns>
-        public static ProducerBuilder<T> WithModifier<T>(this ProducerBuilder<T> producerBuilder, Action<T, Message> modifierAction)
+        public static ProducerBuilder<T> WithModifier<T>(this ProducerBuilder<T> producerBuilder, Action<T, ServiceBusMessage> modifierAction)
         {
             if (producerBuilder is null) throw new ArgumentNullException(nameof(producerBuilder));
             if (modifierAction is null) throw new ArgumentNullException(nameof(modifierAction));

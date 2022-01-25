@@ -12,13 +12,13 @@
     using System.Text;
     using System.Collections.Generic;
 
-    public class KafkaPartitionConsumerForResponsesTest : IDisposable
+    public class KafkaPartitionConsumerForResponsesTest : IAsyncDisposable
     {
         private readonly MessageBusMock _messageBusMock;
         private readonly TopicPartition _topicPartition;
         private readonly Mock<IKafkaCommitController> _commitControllerMock = new Mock<IKafkaCommitController>();
         private readonly Mock<ICheckpointTrigger> _checkpointTrigger = new Mock<ICheckpointTrigger>();
-        private readonly KafkaPartitionConsumerForResponses _subject;
+        private KafkaPartitionConsumerForResponses _subject;
 
         public KafkaPartitionConsumerForResponsesTest()
         {
@@ -154,18 +154,18 @@
             };
         }
 
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
+        #region IAsyncDisposable
 
-        protected virtual void Dispose(bool disposing)
+        public async ValueTask DisposeAsync()
         {
-            if (disposing)
+            if (_subject != null)
             {
-                _subject.Dispose();
+                await _subject.DisposeAsync();
+                _subject = null;
+
             }
         }
+
+        #endregion
     }
 }

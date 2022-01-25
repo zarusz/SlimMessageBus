@@ -9,14 +9,13 @@ namespace SlimMessageBus.Host
     using Microsoft.Extensions.Logging.Abstractions;
     using SlimMessageBus.Host.Collections;
     using SlimMessageBus.Host.Config;
-    using SlimMessageBus.Host.DependencyResolver;
     using SlimMessageBus.Host.Serialization;
 
-    public abstract class MessageBusBase : IMessageBus
+    public abstract class MessageBusBase : IMessageBus, IConsumerControl, IAsyncDisposable
     {
         private readonly ILogger _logger;
-        private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
-        private readonly SafeDictionaryWrapper<Type, Type> _messageTypeToBaseType = new SafeDictionaryWrapper<Type, Type>();
+        private CancellationTokenSource _cancellationTokenSource = new();
+        private readonly SafeDictionaryWrapper<Type, Type> _messageTypeToBaseType = new();
 
         public ILoggerFactory LoggerFactory { get; }
 
@@ -52,6 +51,12 @@ namespace SlimMessageBus.Host
         {
             AssertSettings();
             Build();
+
+            if (Settings.AutoStartConsumers)
+            {
+                // Fire and forget - start
+                _ = Start();
+            }
         }
 
         protected virtual void Build()
@@ -82,10 +87,40 @@ namespace SlimMessageBus.Host
             PendingRequestManager.Start();
         }
 
+        public bool IsStarted { get; private set; }
+
+        public async Task Start()
+        {
+            if (!IsStarted)
+            {
+                _logger.LogInformation("Starting consumers...");
+                await OnStart();
+                _logger.LogInformation("Started consumers");
+
+                IsStarted = true;
+            }
+        }
+
+
+        public async Task Stop()
+        {
+            if (IsStarted)
+            {
+                _logger.LogInformation("Stopping consumers...");
+                await OnStop();
+                _logger.LogInformation("Stopped consumers");
+
+                IsStarted = false;
+            }
+        }
+
+        protected virtual Task OnStart() => Task.CompletedTask;
+        protected virtual Task OnStop() => Task.CompletedTask;
+
         public static void HookFailed(ILogger logger, Exception eh, string name)
         {
             // When the hook itself error out, catch the exception
-            logger.LogError(eh, "{0} method failed", name);
+            logger.LogError(eh, "{HookName} method failed", name);
         }
 
         protected virtual void AssertSettings()
@@ -145,7 +180,7 @@ namespace SlimMessageBus.Host
 
         protected void AssertActive()
         {
-            if (IsDisposed || IsDisposing)
+            if (IsDisposed)
             {
                 throw new MessageBusException("The message bus is disposed at this time");
             }
@@ -159,35 +194,64 @@ namespace SlimMessageBus.Host
             }
         }
 
-        #region Implementation of IDisposable
+        #region Implementation of IDisposable and IAsyncDisposable
 
         public void Dispose()
         {
-            Dispose(true);
+            Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
 
-        protected virtual void Dispose(bool disposing)
+        protected void Dispose(bool disposing)
         {
-            if (IsDisposed)
+            if (disposing)
             {
-                return;
+                DisposeAsyncInternal().ConfigureAwait(false).GetAwaiter().GetResult();
             }
-            IsDisposing = true;
-            try
-            {
-                if (disposing)
-                {
-                    _cancellationTokenSource.Cancel();
-                    _cancellationTokenSource.Dispose();
+        }
 
-                    PendingRequestManager.Dispose();
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncInternal().ConfigureAwait(false);
+            GC.SuppressFinalize(this);
+        }
+
+        private async ValueTask DisposeAsyncInternal()
+        {
+            if (!IsDisposed && !IsDisposing)
+            {
+                IsDisposing = true;
+                try
+                {
+                    await DisposeAsyncCore().ConfigureAwait(false);
+                }
+                finally
+                {
+                    IsDisposing = false;
+                    IsDisposed = true;
                 }
             }
-            finally
+        }
+
+        /// <summary>
+        /// Stops the consumers and disposes of internal bus objects.
+        /// </summary>
+        /// <returns></returns>
+        protected virtual async ValueTask DisposeAsyncCore()
+        {
+            await Stop();
+
+            if (_cancellationTokenSource != null)
             {
-                IsDisposing = false;
-                IsDisposed = true;
+                _cancellationTokenSource.Cancel();
+                _cancellationTokenSource.Dispose();
+                _cancellationTokenSource = null;
+            }
+
+            if (PendingRequestManager != null)
+            {
+                PendingRequestManager.Dispose();
+                PendingRequestManager = null;
             }
         }
 
@@ -210,11 +274,11 @@ namespace SlimMessageBus.Host
 
                     if (baseType != null)
                     {
-                        _logger.LogDebug("Found a base type of {0} that is configured in the bus: {1}", mt, baseType);
+                        _logger.LogDebug("Found a base type of {MessageType} that is configured in the bus: {BaseMessageType}", mt, baseType);
                     }
                     else
                     {
-                        _logger.LogDebug("Did not find any base type of {0} that is configured in the bus", mt);
+                        _logger.LogDebug("Did not find any base type of {MessageType} that is configured in the bus", mt);
                     }
 
                     // Note: Nulls are also added to dictionary, so that we don't look them up using reflection next time (cached).

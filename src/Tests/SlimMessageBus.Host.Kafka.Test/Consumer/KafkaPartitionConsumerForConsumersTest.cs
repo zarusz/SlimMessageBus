@@ -12,7 +12,7 @@
 
     using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
 
-    public class KafkaPartitionConsumerForConsumersTest : IDisposable
+    public class KafkaPartitionConsumerForConsumersTest : IAsyncDisposable
     {
         private readonly TopicPartition _topicPartition;
         private readonly ILoggerFactory _loggerFactory;
@@ -48,18 +48,10 @@
             _subject = new Lazy<KafkaPartitionConsumerForConsumers>(() => new KafkaPartitionConsumerForConsumers(_consumerBuilder.ConsumerSettings, _topicPartition, _commitControllerMock.Object, massageBusMock.Bus, headerSerializer));
         }
 
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
 
-        protected virtual void Dispose(bool disposing)
+        public async ValueTask DisposeAsync()
         {
-            if (disposing)
-            {
-                _subject.Value.Dispose();
-            }
+            await _subject.Value.DisposeAsync();
         }
 
         [Fact]

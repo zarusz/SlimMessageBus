@@ -135,7 +135,7 @@
                         {
                             // Assign the Azure SB native message properties that you need
                             sbMsg.PartitionKey = (msg.Left * msg.Right).ToString(CultureInfo.InvariantCulture);
-                            sbMsg.UserProperties["UserId"] = Guid.NewGuid();
+                            sbMsg.ApplicationProperties["UserId"] = Guid.NewGuid();
                         });
                     }
 
