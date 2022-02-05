@@ -8,6 +8,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 - [Consuming Messages](#consuming-messages)
   - [Consumer context](#consumer-context)
   - [Exception Handling for Consumers](#exception-handling-for-consumers)
+  - [Transport Specific Settings](#transport-specific-settings)
 - [Request-Response Configuration](#request-response-configuration)
 - [Produce Request Messages](#produce-request-messages)
 - [Handle Request Messages](#handle-request-messages)
@@ -154,6 +155,37 @@ This results in a message delivery retry performed by Azure SB (potentially even
 If you need to send only selected messages to DLQ, wrap the body of your consumer method in a `try-catch` block and retrow the exception for only the messages you want to be moved to DLQ (after the retry limit is reached).
 
 SMB will also set a user property `SMB.Exception` on the message with the exception details (just the message, no stack trace). This should be helpful when reviewing messages on the DLQ.
+
+### Transport Specific Settings
+
+> Since version 1.15.6
+
+The consumer expose additional settings from the underlying ASB client:
+
+- [PrefetchCount](https://docs.microsoft.com/en-us/dotnet/api/azure.messaging.servicebus.servicebusprocessoroptions.prefetchcount)
+- [MaxAutoLockRenewalDuration](https://docs.microsoft.com/en-us/dotnet/api/azure.messaging.servicebus.servicebusprocessoroptions.maxautolockrenewalduration)
+- [SubQueue](https://docs.microsoft.com/en-us/dotnet/api/azure.messaging.servicebus.servicebusprocessoroptions.subqueue)
+
+```cs
+mbb.Consume<TMessage>(x => x
+   .WithConsumer<TConsumer>()
+   .Queue("some-queue")
+   .MaxAutoLockRenewalDuration(TimeSpan.FromMinutes(7))
+   .SubQueue(SubQueue.DeadLetter)
+   .PrefetchCount(10)
+   .Instances(1));
+```
+
+Where applicable, selected settings can have the default values applied using `ServiceBusMessageBusSettings`:
+
+```cs
+mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString) {
+   MaxAutoLockRenewalDuration = TimeSpan.FromMinutes(7),
+   PrefetchCount = 10,
+})
+```
+
+However, the specific settings applied at the consumer level take priority.
 
 ## Request-Response Configuration
 
