@@ -37,6 +37,24 @@
                 throw new ConfigurationMessageBusException($"All declared consumers across the same path/subscription {TopicSubscription} must have the same {nameof(ConsumerSettings.Instances)} settings.");
             }
 
+            var maxAutoLockRenewalDuration = Consumers.First().ConsumerSettings.GetMaxAutoLockRenewalDuration(required: false);
+            if (Consumers.Any(x => x.ConsumerSettings.GetMaxAutoLockRenewalDuration(required: false) != maxAutoLockRenewalDuration))
+            {
+                throw new ConfigurationMessageBusException($"All declared consumers across the same path/subscription {TopicSubscription} must have the same {nameof(ConsumerBuilderExtensions.MaxAutoLockRenewalDuration)} settings.");
+            }
+
+            var subQueue = Consumers.First().ConsumerSettings.GetSubQueue(required: false);
+            if (Consumers.Any(x => x.ConsumerSettings.GetSubQueue(required: false) != subQueue))
+            {
+                throw new ConfigurationMessageBusException($"All declared consumers across the same path/subscription {TopicSubscription} must have the same {nameof(ConsumerBuilderExtensions.SubQueue)} settings.");
+            }
+
+            var prefetchCount = Consumers.First().ConsumerSettings.GetPrefetchCount(required: false);
+            if (Consumers.Any(x => x.ConsumerSettings.GetPrefetchCount(required: false) != prefetchCount))
+            {
+                throw new ConfigurationMessageBusException($"All declared consumers across the same path/subscription {TopicSubscription} must have the same {nameof(ConsumerBuilderExtensions.PrefetchCount)} settings.");
+            }
+
             InvokerByMessageType = Consumers
                 .Where(x => x.ConsumerSettings is ConsumerSettings)
                 .Select(x => (Processor: x, ConsumerSettings: (ConsumerSettings)x.ConsumerSettings))
@@ -45,10 +63,10 @@
                 .ToDictionary(x => x.Invoker.MessageType);
 
             var responseInvoker = Consumers
-                    .Where(x => x.ConsumerSettings is RequestResponseSettings)
-                    .Select(x => (Processor: x, RequestResponseSettings: (RequestResponseSettings)x.ConsumerSettings))
-                    .Select(x => new ConsumerInvoker(x.Processor, null))
-                    .FirstOrDefault();
+                .Where(x => x.ConsumerSettings is RequestResponseSettings)
+                .Select(x => (Processor: x, RequestResponseSettings: (RequestResponseSettings)x.ConsumerSettings))
+                .Select(x => new ConsumerInvoker(x.Processor, null))
+                .FirstOrDefault();
 
             SingleInvoker = InvokerByMessageType.Count == 1
                 ? InvokerByMessageType.First().Value
@@ -63,15 +81,24 @@
                 // Indicates whether the message pump should automatically complete the messages after returning from user callback.
                 // False below indicates the complete operation is handled by the user callback as in ProcessMessagesAsync().
                 AutoCompleteMessages = false,
-
-                // ToDo: Add more config optons
-                /*
-                MaxAutoLockRenewalDuration = 
-                PrefetchCount = 
-                ReceiveMode = ServiceBusReceiveMode.
-                SubQueue = 
-                */
             };
+
+            maxAutoLockRenewalDuration ??= messageBus.ProviderSettings.MaxAutoLockRenewalDuration;
+            if (maxAutoLockRenewalDuration != null)
+            {
+                options.MaxAutoLockRenewalDuration = maxAutoLockRenewalDuration.Value;
+            }
+
+            if (subQueue != null)
+            {
+                options.SubQueue = subQueue.Value;
+            }
+
+            prefetchCount ??= messageBus.ProviderSettings.PrefetchCount;
+            if (prefetchCount != null)
+            {
+                options.PrefetchCount = prefetchCount.Value;
+            }
 
             serviceBusProcessor = messageBus.ProviderSettings.ProcessorFactory(subscriptionFactoryParams, options, serviceBusClient);
             serviceBusProcessor.ProcessMessageAsync += ProcessMessagesAsync;
