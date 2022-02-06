@@ -1,6 +1,6 @@
 namespace SlimMessageBus.Host.AzureEventHub
 {
-    using Microsoft.Azure.EventHubs;
+    using Azure.Messaging.EventHubs;
     using SlimMessageBus.Host.Config;
 
     /// <summary>
@@ -8,8 +8,8 @@ namespace SlimMessageBus.Host.AzureEventHub
     /// </summary>
     public class EhPartitionConsumerForResponses : EhPartitionConsumer
     {
-        public EhPartitionConsumerForResponses(EventHubMessageBus messageBus, RequestResponseSettings requestResponseSettings, string partitionId)
-            : base(messageBus, requestResponseSettings, new ResponseMessageProcessor<EventData>(requestResponseSettings, messageBus, GetMessageWithHeaders), partitionId)
+        public EhPartitionConsumerForResponses(EventHubMessageBus messageBus, RequestResponseSettings requestResponseSettings, PathGroup pathGroup, string partitionId)
+            : base(messageBus, requestResponseSettings, new ResponseMessageProcessor<EventData>(requestResponseSettings, messageBus, GetMessageWithHeaders), pathGroup, partitionId)
         {
         }
     }
