@@ -1,11 +1,11 @@
 ﻿namespace SlimMessageBus.Host.AzureEventHub
 {
-    using Microsoft.Azure.EventHubs;
+    using Azure.Messaging.EventHubs;
     using System;
 
     public static class EhConsumerContextExtensions
     {
-        private const string MessageKey = "EventHub_Message";
+        private const string MessageKey = "Eh_Message";
 
         public static EventData GetTransportMessage(this IConsumerContext context)
         {

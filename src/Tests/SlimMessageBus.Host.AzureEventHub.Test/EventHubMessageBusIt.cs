@@ -44,7 +44,19 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
             var storageConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:Storage"]);
             var storageContainerName = configuration["Azure:ContainerName"];
 
-            Settings = new EventHubMessageBusSettings(connectionString, storageConnectionString, storageContainerName);
+            Settings = new EventHubMessageBusSettings(connectionString, storageConnectionString, storageContainerName)
+            {
+                EventHubProducerClientOptionsFactory = (path) => new Azure.Messaging.EventHubs.Producer.EventHubProducerClientOptions
+                {
+                    Identifier = $"MyService_{Guid.NewGuid()}"
+                },
+                EventHubProcessorClientOptionsFactory = (consumerParams) => new Azure.Messaging.EventHubs.EventProcessorClientOptions
+                {
+                    // Allow the test to be repeatable - force partition lease rebalancing to happen faster
+                    LoadBalancingUpdateInterval = TimeSpan.FromSeconds(2),
+                    PartitionOwnershipExpirationInterval = TimeSpan.FromSeconds(5),
+                }
+            };
 
             MessageBusBuilder = MessageBusBuilder.Create()
                 .WithLoggerFacory(loggerFactory)
@@ -64,7 +76,6 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
             GC.SuppressFinalize(this);
         }
 
-
         [Fact]
         public async Task BasicPubSub()
         {
@@ -74,11 +85,13 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
             var pingConsumer = new PingConsumer(loggerFactory.CreateLogger<PingConsumer>());
 
             MessageBusBuilder
-                .Produce<PingMessage>(x => x.DefaultTopic(hubName).KeyProvider(m => (m.Counter % 2).ToString()))
-                .Consume<PingMessage>(x => x.Topic(hubName)
-                                                .Group("subscriber") // ensure consumer group exists on the event hub
-                                                .WithConsumer<PingConsumer>()
-                                                .Instances(2))
+                .Produce<PingMessage>(x => x.DefaultPath(hubName).KeyProvider(m => (m.Counter % 2) == 0 ? "even" : "odd"))
+                .Consume<PingMessage>(x => x.Path(hubName)
+                                            .Group("subscriber") // ensure consumer group exists on the event hub
+                                            .WithConsumer<PingConsumer>()
+                                            .CheckpointAfter(TimeSpan.FromSeconds(10))
+                                            .CheckpointEvery(50)
+                                            .Instances(2))
                 .WithDependencyResolver(new LookupDependencyResolver(f =>
                 {
                     if (f == typeof(PingConsumer)) return pingConsumer;
@@ -131,7 +144,7 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
                 {
                     x.DefaultTopic(topic);
                 })
-                .Handle<EchoRequest, EchoResponse>(x => x.Topic(topic)
+                .Handle<EchoRequest, EchoResponse>(x => x.Path(topic)
                                                          .Group("handler") // ensure consumer group exists on the event hub
                                                          .WithHandler<EchoRequestHandler>()
                                                          .Instances(2))
@@ -181,7 +194,7 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
             var lastMessageCount = 0;
             var lastMessageStopwatch = Stopwatch.StartNew();
 
-            const int newMessagesAwaitingTimeout = 3;
+            const int newMessagesAwaitingTimeout = 5;
 
             while (lastMessageStopwatch.Elapsed.TotalSeconds < newMessagesAwaitingTimeout)
             {
@@ -230,7 +243,7 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
 
             var msg = Context.GetTransportMessage();
 
-            logger.LogInformation("Got message {0:000} on topic {1} offset {2} partition key {3}.", message.Counter, path, msg.SystemProperties.Offset, msg.SystemProperties.PartitionKey);
+            logger.LogInformation("Got message {0:000} on topic {1} offset {2} partition key {3}.", message.Counter, path, msg.Offset, msg.PartitionKey);
             return Task.CompletedTask;
         }
 

@@ -1,8 +1,9 @@
 namespace SlimMessageBus.Host.AzureEventHub
 {
     using System;
-    using Microsoft.Azure.EventHubs;
-    using Microsoft.Azure.EventHubs.Processor;
+    using Azure.Messaging.EventHubs;
+    using Azure.Messaging.EventHubs.Producer;
+    using Azure.Storage.Blobs;
 
     public class EventHubMessageBusSettings
     {
@@ -17,21 +18,32 @@ namespace SlimMessageBus.Host.AzureEventHub
         public string StorageConnectionString { get; set; }
 
         /// <summary>
-        /// Factory for <see cref="EventHubClient"/>. Called whenever a new instance needs to be created.
+        /// Factory for <see cref="EventHubProducerClientOptions"/>. Called whenever a new instance needs to be created.
         /// </summary>
-        public Func<string, EventHubClient> EventHubClientFactory { get; set; }
+        public Func<string, EventHubProducerClientOptions> EventHubProducerClientOptionsFactory { get; set; }
 
         /// <summary>
-        /// Factory for <see cref="EventProcessorHost"/>. Called whenever a new instance needs to be created.
-        /// The func arguments are as follows: EventHubPath, Group.
+        /// Factory for <see cref="EventHubProducerClient"/>. Called whenever a new instance needs to be created.
         /// </summary>
-        public Func<TopicGroup, EventProcessorHost> EventProcessorHostFactory { get; set; }
+        public Func<string, EventHubProducerClient> EventHubProducerClientFactory { get; set; }
 
         /// <summary>
-        /// Factory for <see cref="EventProcessorOptions"/>.
+        /// Factory for <see cref="EventProcessorClientOptions"/>. Called whenever a new instance needs to be created.
         /// The func arguments are as follows: EventHubPath, Group.
         /// </summary>
-        public Func<TopicGroup, EventProcessorOptions> EventProcessorOptionsFactory { get; set; }
+        public Func<ConsumerParams, EventProcessorClientOptions> EventHubProcessorClientOptionsFactory { get; set; }
+
+        /// <summary>
+        /// Factory for <see cref="EventProcessorClient"/>. Called whenever a new instance needs to be created.
+        /// The func arguments are as follows: EventHubPath, Group.
+        /// </summary>
+        public Func<ConsumerParams, EventProcessorClient> EventHubProcessorClientFactory { get; set; }
+
+        /// <summary>
+        /// Factory for <see cref="BlobContainerClient"/>. Called once for entire bus to create storage.
+        /// The func arguments are as follows: EventHubPath, Group.
+        /// </summary>
+        public Func<BlobContainerClient> BlobContanerClientFactory { get; set; }
 
         /// <summary>
         /// The storage container name for leases.
@@ -49,17 +61,15 @@ namespace SlimMessageBus.Host.AzureEventHub
         {
             ConnectionString = connectionString;
             StorageConnectionString = storageConnectionString;
-            EventHubClientFactory = (path) =>
-            {
-                var connectionStringBuilder = new EventHubsConnectionStringBuilder(ConnectionString)
-                {
-                    EntityPath = path
-                };
-                return EventHubClient.CreateFromConnectionString(connectionStringBuilder.ToString());
-            };
-            EventProcessorHostFactory = (consumerSettings) => new EventProcessorHost(consumerSettings.Topic, consumerSettings.Group, ConnectionString, StorageConnectionString, LeaseContainerName);
-            EventProcessorOptionsFactory = (consumerSettings) => EventProcessorOptions.DefaultOptions;
             LeaseContainerName = leaseContainerName;
+
+            BlobContanerClientFactory = () => new BlobContainerClient(StorageConnectionString, LeaseContainerName);
+
+            EventHubProducerClientOptionsFactory = (path) => new EventHubProducerClientOptions();
+            EventHubProducerClientFactory = (path) => new EventHubProducerClient(ConnectionString, path, EventHubProducerClientOptionsFactory(path));
+            
+            EventHubProcessorClientOptionsFactory = (consumerParams) => new EventProcessorClientOptions();
+            EventHubProcessorClientFactory = (consumerParams) => new EventProcessorClient(consumerParams.CheckpointClient, consumerParams.Group, ConnectionString, consumerParams.Path, EventHubProcessorClientOptionsFactory(consumerParams));            
         }
     }
 }

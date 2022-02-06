@@ -2,8 +2,11 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Threading.Tasks;
-    using Microsoft.Azure.EventHubs;
+    using Azure.Messaging.EventHubs;
+    using Azure.Messaging.EventHubs.Producer;
+    using Azure.Storage.Blobs;
     using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.Collections;
     using SlimMessageBus.Host.Config;
@@ -17,8 +20,11 @@
 
         public EventHubMessageBusSettings ProviderSettings { get; }
 
-        private SafeDictionaryWrapper<string, EventHubClient> producerByPath;
-        private readonly List<EhGroupConsumer> groupConsumers = new List<EhGroupConsumer>();
+        private BlobContainerClient blobContainerClient;
+        private SafeDictionaryWrapper<string, EventHubProducerClient> producerByPath;
+        private List<EhGroupConsumer> groupConsumers;
+
+        protected internal BlobContainerClient BlobContainerClient => blobContainerClient;
 
         public EventHubMessageBus(MessageBusSettings settings, EventHubMessageBusSettings eventHubSettings)
             : base(settings)
@@ -35,11 +41,15 @@
         {
             base.Build();
 
-            producerByPath = new SafeDictionaryWrapper<string, EventHubClient>(path =>
+            blobContainerClient = ProviderSettings.BlobContanerClientFactory();
+
+            producerByPath = new SafeDictionaryWrapper<string, EventHubProducerClient>(path =>
             {
                 logger.LogDebug("Creating EventHubClient for path {Path}", path);
-                return ProviderSettings.EventHubClientFactory(path);
+                return ProviderSettings.EventHubProducerClientFactory(path);
             });
+
+            groupConsumers = new List<EhGroupConsumer>();
 
             logger.LogInformation("Creating consumers");
             foreach (var consumerSettings in Settings.Consumers)
@@ -61,37 +71,38 @@
 
             if (groupConsumers != null)
             {
-                groupConsumers.ForEach(c => c.DisposeSilently("Consumer", logger));
+                foreach (var groupConsumer in groupConsumers)
+                {
+                    await groupConsumer.DisposeSilently("Consumer", logger);
+                }
                 groupConsumers.Clear();
+                groupConsumers = null;
             }
 
             if (producerByPath != null)
             {
-                producerByPath.Clear(producer =>
+                var producers = producerByPath.ClearAndSnapshot();
+                foreach (var producer in producers)
                 {
-                    logger.LogDebug("Closing EventHubClient for Path {Path}", producer.EventHubName);
-                    try
-                    {
-                        producer.Close();
-                    }
-                    catch (Exception e)
-                    {
-                        logger.LogError(e, "Error while closing EventHubClient for Path {Path}", producer.EventHubName);
-                    }
-                });
+                    logger.LogDebug("Closing EventHubProducerClient for Path {Path}", producer.EventHubName);
+                    await ((IAsyncDisposable)producer).DisposeSilently();
+                }
+                producerByPath = null;
             }
         }
 
-        #endregion
+        protected override async Task OnStart()
+        {
+            await base.OnStart();
+            await Task.WhenAll(groupConsumers.Select(x => x.Start()));
+        }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="messageType"></param>
-        /// <param name="payload"></param>
-        /// <param name="message"></param>
-        /// <param name="name"></param>
-        /// <returns></returns>
+        protected override async Task OnStop()
+        {
+            await base.OnStop();
+            await Task.WhenAll(groupConsumers.Select(x => x.Stop()));
+        }
+
         public override async Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null)
         {
             if (messageType is null) throw new ArgumentNullException(nameof(messageType));
@@ -101,7 +112,7 @@
 
             logger.LogDebug("Producing message {Message} of Type {MessageType} on Path {Path} with Size {MessageSize}", message, messageType.Name, path, messagePayload.Length);
 
-            using var ev = new EventData(messagePayload);
+            var ev = new EventData(messagePayload);
 
             if (messageHeaders != null)
             {
@@ -115,17 +126,27 @@
 
             var producer = producerByPath.GetOrAdd(path);
 
-            var sendTask = partitionKey != null
-                ? producer.SendAsync(ev, partitionKey)
-                : producer.SendAsync(ev);
+            // ToDo: Introduce some micro batching of events (store them between invocations and send when time span elapsed)
+            using EventDataBatch eventBatch = await producer.CreateBatchAsync(new CreateBatchOptions
+            {
+                // When null the partition will be automatically assigned
+                PartitionKey = partitionKey
+            });
+            if (!eventBatch.TryAdd(ev))
+            {
+                throw new PublishMessageBusException($"Could not add message {message} of Type {messageType.Name} on Path {path} to the send batch");
+            }
 
-            await sendTask.ConfigureAwait(false);
+            await producer.SendAsync(eventBatch).ConfigureAwait(false);
 
             logger.LogDebug("Delivered message {Message} of Type {MessageType} on Path {Path} with PartitionKey {PartitionKey}", message, messageType.Name, path, partitionKey);
         }
 
+        #endregion
+
         private string GetPartitionKey(Type messageType, object message)
         {
+            // ToDo: Extract to common helper
             do
             {
                 if (ProducerSettingsByMessageType.TryGetValue(messageType, out var producerSettings))

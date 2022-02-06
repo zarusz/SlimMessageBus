@@ -36,7 +36,7 @@
             this.messageProcessor = messageProcessor;
 
             // ToDo: Add support for Kafka driven automatic commit
-            this.CheckpointTrigger = new CheckpointTrigger(consumerSettings);
+            this.CheckpointTrigger = new CheckpointTrigger(consumerSettings, messageBus.LoggerFactory);
         }
 
         #region IAsyncDisposable

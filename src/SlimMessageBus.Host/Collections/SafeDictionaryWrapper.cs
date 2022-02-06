@@ -94,6 +94,17 @@
             }
         }
 
+        public IReadOnlyCollection<TValue> ClearAndSnapshot()
+        {
+            lock (this)
+            {
+                var snapshot = Dictonary.Values.ToList();
+                _mutableDict.Clear();
+                OnChanged();
+                return snapshot;
+            }
+        }
+
         public IReadOnlyCollection<TValue> Snapshot()
         {
             lock (this)

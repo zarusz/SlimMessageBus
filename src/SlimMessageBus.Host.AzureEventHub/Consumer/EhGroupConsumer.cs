@@ -4,101 +4,123 @@ namespace SlimMessageBus.Host.AzureEventHub
     using System.Diagnostics.CodeAnalysis;
     using System.Linq;
     using System.Threading.Tasks;
-    using Microsoft.Azure.EventHubs.Processor;
+    using Azure.Messaging.EventHubs;
+    using Azure.Messaging.EventHubs.Processor;
     using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.Collections;
     using SlimMessageBus.Host.Config;
 
-    public class EhGroupConsumer : IDisposable, IEventProcessorFactory
+    public class EhGroupConsumer : IAsyncDisposable, IConsumerControl
     {
         private readonly ILogger logger;
 
         public EventHubMessageBus MessageBus { get; }
 
-        private readonly EventProcessorHost processorHost;
+        private readonly EventProcessorClient processorClient;
         private readonly SafeDictionaryWrapper<string, EhPartitionConsumer> partitionConsumerByPartitionId;
+        private readonly PathGroup pathGroup;
 
         public EhGroupConsumer(EventHubMessageBus messageBus, [NotNull] ConsumerSettings consumerSettings)
-            : this(messageBus, new TopicGroup(consumerSettings.Path, consumerSettings.GetGroup()), (partitionId) => new EhPartitionConsumerForConsumers(messageBus, consumerSettings, partitionId))
+            : this(messageBus, new PathGroup(consumerSettings.Path, consumerSettings.GetGroup()), (pathGroup, partitionId) => new EhPartitionConsumerForConsumers(messageBus, consumerSettings, pathGroup, partitionId))
         {
         }
 
         public EhGroupConsumer(EventHubMessageBus messageBus, [NotNull] RequestResponseSettings requestResponseSettings)
-            : this(messageBus, new TopicGroup(requestResponseSettings.Path, requestResponseSettings.GetGroup()), (partitionId) => new EhPartitionConsumerForResponses(messageBus, requestResponseSettings, partitionId))
+            : this(messageBus, new PathGroup(requestResponseSettings.Path, requestResponseSettings.GetGroup()), (pathGroup, partitionId) => new EhPartitionConsumerForResponses(messageBus, requestResponseSettings, pathGroup, partitionId))
         {
         }
 
-        protected EhGroupConsumer(EventHubMessageBus messageBus, TopicGroup topicGroup, Func<string, EhPartitionConsumer> partitionConsumerFactory)
+        protected EhGroupConsumer(EventHubMessageBus messageBus, PathGroup pathGroup, Func<PathGroup, string, EhPartitionConsumer> partitionConsumerFactory)
         {
-            _ = topicGroup ?? throw new ArgumentNullException(nameof(topicGroup));
+            this.pathGroup = pathGroup ?? throw new ArgumentNullException(nameof(pathGroup));
             _ = partitionConsumerFactory ?? throw new ArgumentNullException(nameof(partitionConsumerFactory));
 
             MessageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
             logger = messageBus.LoggerFactory.CreateLogger<EhGroupConsumer>();
 
-            partitionConsumerByPartitionId = new SafeDictionaryWrapper<string, EhPartitionConsumer>(partitionConsumerFactory);
+            partitionConsumerByPartitionId = new SafeDictionaryWrapper<string, EhPartitionConsumer>(partitionId =>
+            {
+                logger.LogDebug("Creating PartitionConsumer for Group: {Group}, Path: {Path}, PartitionId: {PartitionId}", pathGroup.Group, pathGroup.Path, partitionId);
+                return partitionConsumerFactory(pathGroup, partitionId);
+            });
 
-            logger.LogInformation("Creating EventProcessorHost for EventHub with Path: {Path}, Group: {Group}", topicGroup.Topic, topicGroup.Group);
-            processorHost = MessageBus.ProviderSettings.EventProcessorHostFactory(topicGroup);
-
-            var eventProcessorOptions = MessageBus.ProviderSettings.EventProcessorOptionsFactory(topicGroup);
-            processorHost.RegisterEventProcessorFactoryAsync(this, eventProcessorOptions).Wait();
+            logger.LogInformation("Creating EventProcessorClient for EventHub with Group: {Group}, Path: {Path}", pathGroup.Group, pathGroup.Path);
+            processorClient = MessageBus.ProviderSettings.EventHubProcessorClientFactory(new ConsumerParams(pathGroup.Path, pathGroup.Group, messageBus.BlobContainerClient));
+            processorClient.PartitionInitializingAsync += PartitionInitializingAsync;
+            processorClient.PartitionClosingAsync += PartitionClosingAsync;
+            processorClient.ProcessEventAsync += ProcessEventHandler;
+            processorClient.ProcessErrorAsync += ProcessErrorHandler;
         }
 
-        #region Implementation of IDisposable
-
-        public void Dispose()
+        private Task PartitionInitializingAsync(PartitionInitializingEventArgs args)
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
+            var partitionId = args.PartitionId;
+            var ep = partitionConsumerByPartitionId.GetOrAdd(partitionId);
+            return ep.OpenAsync();
+        }
+
+        private Task PartitionClosingAsync(PartitionClosingEventArgs args)
+        {
+            var partitionId = args.PartitionId;
+            var ep = partitionConsumerByPartitionId.GetOrAdd(partitionId);
+            return ep.CloseAsync(args.Reason);
+        }
+
+        private Task ProcessEventHandler(ProcessEventArgs args)
+        {
+            var partitionId = args.Partition.PartitionId;
+            var ep = partitionConsumerByPartitionId.GetOrAdd(partitionId);
+            return ep.ProcessEventAsync(args);
+        }
+
+        private Task ProcessErrorHandler(ProcessErrorEventArgs args)
+        {
+            var partitionId = args.PartitionId;
+            var ep = partitionConsumerByPartitionId.GetOrAdd(partitionId);
+            return ep.ProcessErrorAsync(args);
+        }
+
+        public async Task Start()
+        {
+            if (!processorClient.IsRunning)
+            {
+                logger.LogInformation("Starting consumer Group: {Group}, Path: {Path}...", pathGroup.Group, pathGroup.Path);
+                await processorClient.StartProcessingAsync();
+            }
         }
 
         public async Task Stop()
         {
-            var partitionConsumers = partitionConsumerByPartitionId.Snapshot();
-            foreach(var pc in partitionConsumers)
+            if (processorClient.IsRunning)
             {
-                // stop all partition consumer to not access any more message
-                pc.Stop();
-            }
-
-            if (MessageBus.ProviderSettings.EnableCheckpointOnBusStop)
-            {
-                // checkpoint anything we've processed thus far
-                await Task.WhenAll(partitionConsumers.Select(pc => pc.Checkpoint()));
-            }
-
-            // stop the processing host
-            await processorHost.UnregisterEventProcessorAsync();
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                Stop().Wait();
+                logger.LogInformation("Stopping consumer Group: {Group}, Path: {Path}...", pathGroup.Group, pathGroup.Path);
 
                 var partitionConsumers = partitionConsumerByPartitionId.Snapshot();
-                foreach (var pc in partitionConsumers)
+
+                if (MessageBus.ProviderSettings.EnableCheckpointOnBusStop)
                 {
-                    pc.DisposeSilently();
+                    // checkpoint anything we've processed thus far
+                    await Task.WhenAll(partitionConsumers.Select(pc => pc.TryCheckpoint()));
                 }
+
+                // stop the processing host
+                await processorClient.StopProcessingAsync();
             }
         }
 
-        #endregion
+        #region IAsyncDisposable
 
-        #region Implementation of IEventProcessorFactory
-
-        public IEventProcessor CreateEventProcessor([NotNull] PartitionContext context)
+        public async ValueTask DisposeAsync()
         {
-            if (logger.IsEnabled(LogLevel.Debug))
-            {
-                logger.LogDebug("Creating IEventProcessor for Path: {Path}, PartitionId: {PartitionId}, Offset: {Offset}", context.EventHubPath, context.PartitionId, context.Lease.Offset);
-            }
+            await DisposeAsyncCore().ConfigureAwait(false);
+            GC.SuppressFinalize(this);
+        }
 
-            var ep = partitionConsumerByPartitionId.GetOrAdd(context.PartitionId);
-            return ep;
+        protected virtual async ValueTask DisposeAsyncCore()
+        {
+            await Stop();
+
+            partitionConsumerByPartitionId.Clear();
         }
 
         #endregion
