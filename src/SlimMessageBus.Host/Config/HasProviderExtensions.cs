@@ -9,7 +9,7 @@
         /// </summary>
         public IDictionary<string, object> Properties { get; } = new Dictionary<string, object>();
 
-        public T GetOrDefault<T>(string key, T defaultValue)
+        public T GetOrDefault<T>(string key, T defaultValue = default)
         {
             if (Properties.TryGetValue(key, out var value))
             {

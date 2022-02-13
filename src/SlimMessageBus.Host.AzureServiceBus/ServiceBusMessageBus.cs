@@ -76,7 +76,7 @@
                 return ProviderSettings.SenderFactory(path, client);
             });
 
-            static MessageWithHeaders messageProvider(ServiceBusReceivedMessage m) => new MessageWithHeaders(m.Body.ToArray(), m.ApplicationProperties.ToDictionary(x => x.Key, x => x.Value));
+            static MessageWithHeaders messageProvider(ServiceBusReceivedMessage m) => new(m.Body.ToArray(), m.ApplicationProperties.ToDictionary(x => x.Key, x => x.Value));
             static void initConsumerContext(ServiceBusReceivedMessage m, ConsumerContext ctx) => ctx.SetTransportMessage(m);
 
             logger.LogInformation("Creating consumers");

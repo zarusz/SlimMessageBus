@@ -76,32 +76,68 @@
             return builder;
         }
 
+        /// <summary>
+        /// Enables Azue Service Bus session support for this consumer
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="builder"></param>
+        /// <param name="enable"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static ConsumerBuilder<T> EnableSession<T>(this ConsumerBuilder<T> builder, Action<ConsumerSessionBuilder> sessionConfiguration = null)
+        {
+            if (builder is null) throw new ArgumentNullException(nameof(builder));
+
+            builder.ConsumerSettings.SetEnableSession(true);
+            if (sessionConfiguration != null)
+            {
+                sessionConfiguration(new ConsumerSessionBuilder(builder.ConsumerSettings));
+            }
+
+            return builder;
+        }
+
         private const string MaxAutoLockRenewalDurationKey = "Asb_MaxAutoLockRenewalDuration";
         private const string SubQueueKey = "Asb_SubQueue";
         private const string PrefetchCountKey = "Asb_PrefetchCount";
+        private const string EnableSessionKey = "Asb_SessionEnabled";
+        private const string SessionIdleTimeoutKey = "Asb_SessionIdleTimeout";
+        private const string MaxConcurrentSessionsKey = "Asb_MaxConcurrentSessions";
 
         internal static void SetMaxAutoLockRenewalDuration(this AbstractConsumerSettings consumerSettings, TimeSpan duration)
             => consumerSettings.Properties[MaxAutoLockRenewalDurationKey] = duration;
 
-        internal static TimeSpan? GetMaxAutoLockRenewalDuration(this AbstractConsumerSettings consumerSettings, bool required = true)
-            => !consumerSettings.Properties.ContainsKey(MaxAutoLockRenewalDurationKey) && !required
-                ? null
-                : consumerSettings.Properties[MaxAutoLockRenewalDurationKey] as TimeSpan?;
+        internal static TimeSpan? GetMaxAutoLockRenewalDuration(this AbstractConsumerSettings consumerSettings)
+            => consumerSettings.GetOrDefault<TimeSpan?>(MaxAutoLockRenewalDurationKey);
 
         internal static void SetSubQueue(this AbstractConsumerSettings consumerSettings, SubQueue subQueue)
             => consumerSettings.Properties[SubQueueKey] = subQueue;
 
-        internal static SubQueue? GetSubQueue(this AbstractConsumerSettings consumerSettings, bool required = true)
-            => !consumerSettings.Properties.ContainsKey(SubQueueKey) && !required
-                ? null
-                : consumerSettings.Properties[SubQueueKey] as SubQueue?;
+        internal static SubQueue? GetSubQueue(this AbstractConsumerSettings consumerSettings)
+            => consumerSettings.GetOrDefault<SubQueue?>(SubQueueKey);
 
         internal static void SetPrefetchCount(this AbstractConsumerSettings consumerSettings, int prefetchCount)
             => consumerSettings.Properties[PrefetchCountKey] = prefetchCount;
 
-        internal static int? GetPrefetchCount(this AbstractConsumerSettings consumerSettings, bool required = true)
-            => !consumerSettings.Properties.ContainsKey(PrefetchCountKey) && !required
-                ? null
-                : consumerSettings.Properties[PrefetchCountKey] as int?;
+        internal static int? GetPrefetchCount(this AbstractConsumerSettings consumerSettings)
+            => consumerSettings.GetOrDefault<int?>(PrefetchCountKey);
+
+        internal static void SetEnableSession(this AbstractConsumerSettings consumerSettings, bool enableSession)
+            => consumerSettings.Properties[EnableSessionKey] = enableSession;
+
+        internal static bool GetEnableSession(this AbstractConsumerSettings consumerSettings)
+            => consumerSettings.GetOrDefault(EnableSessionKey, false);
+
+        internal static void SetSessionIdleTimeout(this AbstractConsumerSettings consumerSettings, TimeSpan sessionIdleTimeout)
+            => consumerSettings.Properties[SessionIdleTimeoutKey] = sessionIdleTimeout;
+
+        internal static TimeSpan? GetSessionIdleTimeout(this AbstractConsumerSettings consumerSettings)
+            => consumerSettings.GetOrDefault<TimeSpan?>(SessionIdleTimeoutKey);
+
+        internal static void SetMaxConcurrentSessions(this AbstractConsumerSettings consumerSettings, int maxConcurrentSessions)
+            => consumerSettings.Properties[MaxConcurrentSessionsKey] = maxConcurrentSessions;
+
+        internal static int? GetMaxConcurrentSessions(this AbstractConsumerSettings consumerSettings)
+            => consumerSettings.GetOrDefault<int?>(MaxConcurrentSessionsKey);
     }
 }
