@@ -3,6 +3,7 @@
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Threading;
     using System.Threading.Tasks;
     using Azure.Messaging.ServiceBus;
     using Microsoft.Extensions.Logging;
@@ -18,6 +19,7 @@
         protected TopicSubscriptionParams TopicSubscription { get; }
 
         private ServiceBusProcessor serviceBusProcessor;
+        private ServiceBusSessionProcessor serviceBusSessionProcessor;
 
         protected AsbBaseConsumer(ServiceBusMessageBus messageBus, ServiceBusClient serviceBusClient, TopicSubscriptionParams subscriptionFactoryParams, IEnumerable<IMessageProcessor<ServiceBusReceivedMessage>> consumers, ILogger logger)
         {
@@ -31,29 +33,33 @@
                 throw new InvalidOperationException($"The {nameof(consumers)} needs to be non empty");
             }
 
-            var instances = Consumers.First().ConsumerSettings.Instances;
-            if (Consumers.Any(x => x.ConsumerSettings.Instances != instances))
+            T GetSingleValue<T>(Func<AbstractConsumerSettings, T> selector, string settingName)
             {
-                throw new ConfigurationMessageBusException($"All declared consumers across the same path/subscription {TopicSubscription} must have the same {nameof(ConsumerSettings.Instances)} settings.");
+                var set = Consumers.Select(x => selector(x.ConsumerSettings)).ToHashSet();
+                if (set.Count > 1)
+                {
+                    throw new ConfigurationMessageBusException($"All declared consumers across the same path/subscription {TopicSubscription} must have the same {settingName} settings.");
+                }
+                return set.Single();
             }
 
-            var maxAutoLockRenewalDuration = Consumers.First().ConsumerSettings.GetMaxAutoLockRenewalDuration(required: false);
-            if (Consumers.Any(x => x.ConsumerSettings.GetMaxAutoLockRenewalDuration(required: false) != maxAutoLockRenewalDuration))
-            {
-                throw new ConfigurationMessageBusException($"All declared consumers across the same path/subscription {TopicSubscription} must have the same {nameof(ConsumerBuilderExtensions.MaxAutoLockRenewalDuration)} settings.");
-            }
+            var instances = GetSingleValue(x => x.Instances, nameof(ConsumerSettings.Instances));
 
-            var subQueue = Consumers.First().ConsumerSettings.GetSubQueue(required: false);
-            if (Consumers.Any(x => x.ConsumerSettings.GetSubQueue(required: false) != subQueue))
-            {
-                throw new ConfigurationMessageBusException($"All declared consumers across the same path/subscription {TopicSubscription} must have the same {nameof(ConsumerBuilderExtensions.SubQueue)} settings.");
-            }
+            var maxAutoLockRenewalDuration = GetSingleValue(x => x.GetMaxAutoLockRenewalDuration(), nameof(ConsumerBuilderExtensions.MaxAutoLockRenewalDuration))
+                ?? messageBus.ProviderSettings.MaxAutoLockRenewalDuration;
 
-            var prefetchCount = Consumers.First().ConsumerSettings.GetPrefetchCount(required: false);
-            if (Consumers.Any(x => x.ConsumerSettings.GetPrefetchCount(required: false) != prefetchCount))
-            {
-                throw new ConfigurationMessageBusException($"All declared consumers across the same path/subscription {TopicSubscription} must have the same {nameof(ConsumerBuilderExtensions.PrefetchCount)} settings.");
-            }
+            var subQueue = GetSingleValue(x => x.GetSubQueue(), nameof(ConsumerBuilderExtensions.SubQueue));
+
+            var prefetchCount = GetSingleValue(x => x.GetPrefetchCount(), nameof(ConsumerBuilderExtensions.PrefetchCount))
+                ?? messageBus.ProviderSettings.PrefetchCount;
+
+            var enableSession = GetSingleValue(x => x.GetEnableSession(), nameof(ConsumerBuilderExtensions.EnableSession));
+
+            var sessionIdleTimeout = GetSingleValue(x => x.GetSessionIdleTimeout(), nameof(ConsumerSessionBuilder.SessionIdleTimeout))
+                ?? messageBus.ProviderSettings.SessionIdleTimeout;
+
+            var maxConcurrentSessions = GetSingleValue(x => x.GetMaxConcurrentSessions(), nameof(ConsumerSessionBuilder.MaxConcurrentSessions))
+                ?? messageBus.ProviderSettings.MaxConcurrentSessions;
 
             InvokerByMessageType = Consumers
                 .Where(x => x.ConsumerSettings is ConsumerSettings)
@@ -72,49 +78,68 @@
                 ? InvokerByMessageType.First().Value
                 : responseInvoker;
 
-            var options = new ServiceBusProcessorOptions
+            if (enableSession)
             {
-                // Maximum number of concurrent calls to the callback ProcessMessagesAsync(), set to 1 for simplicity.
-                // Set it according to how many messages the application wants to process in parallel.
-                MaxConcurrentCalls = instances,
+                var options = messageBus.ProviderSettings.SessionProcessorOptionsFactory(subscriptionFactoryParams);
+                options.AutoCompleteMessages = false;
+                options.MaxConcurrentCallsPerSession = instances;
 
-                // Indicates whether the message pump should automatically complete the messages after returning from user callback.
-                // False below indicates the complete operation is handled by the user callback as in ProcessMessagesAsync().
-                AutoCompleteMessages = false,
-            };
+                if (maxAutoLockRenewalDuration != null) options.MaxAutoLockRenewalDuration = maxAutoLockRenewalDuration.Value;
+                if (prefetchCount != null) options.PrefetchCount = prefetchCount.Value;
+                if (sessionIdleTimeout != null) options.SessionIdleTimeout = sessionIdleTimeout.Value;
+                if (maxConcurrentSessions != null) options.MaxConcurrentSessions = maxConcurrentSessions.Value;
 
-            maxAutoLockRenewalDuration ??= messageBus.ProviderSettings.MaxAutoLockRenewalDuration;
-            if (maxAutoLockRenewalDuration != null)
-            {
-                options.MaxAutoLockRenewalDuration = maxAutoLockRenewalDuration.Value;
+                serviceBusSessionProcessor = messageBus.ProviderSettings.SessionProcessorFactory(subscriptionFactoryParams, options, serviceBusClient);
+                serviceBusSessionProcessor.ProcessMessageAsync += ServiceBusSessionProcessor_ProcessMessageAsync;
+                serviceBusSessionProcessor.ProcessErrorAsync += ServiceBusSessionProcessor_ProcessErrorAsync;
+                serviceBusSessionProcessor.SessionInitializingAsync += ServiceBusSessionProcessor_SessionInitializingAsync;
+                serviceBusSessionProcessor.SessionClosingAsync += ServiceBusSessionProcessor_SessionClosingAsync;
             }
-
-            if (subQueue != null)
+            else
             {
-                options.SubQueue = subQueue.Value;
-            }
+                var options = messageBus.ProviderSettings.ProcessorOptionsFactory(subscriptionFactoryParams);
+                options.AutoCompleteMessages = false;
+                options.MaxConcurrentCalls = instances;
 
-            prefetchCount ??= messageBus.ProviderSettings.PrefetchCount;
-            if (prefetchCount != null)
-            {
-                options.PrefetchCount = prefetchCount.Value;
-            }
+                if (maxAutoLockRenewalDuration != null) options.MaxAutoLockRenewalDuration = maxAutoLockRenewalDuration.Value;
+                if (prefetchCount != null) options.PrefetchCount = prefetchCount.Value;
+                if (subQueue != null) options.SubQueue = subQueue.Value;
 
-            serviceBusProcessor = messageBus.ProviderSettings.ProcessorFactory(subscriptionFactoryParams, options, serviceBusClient);
-            serviceBusProcessor.ProcessMessageAsync += ProcessMessagesAsync;
-            serviceBusProcessor.ProcessErrorAsync += ExceptionReceivedHandler;
+                serviceBusProcessor = messageBus.ProviderSettings.ProcessorFactory(subscriptionFactoryParams, options, serviceBusClient);
+                serviceBusProcessor.ProcessMessageAsync += ServiceBusProcessor_ProcessMessagesAsync;
+                serviceBusProcessor.ProcessErrorAsync += ServiceBusProcessor_ProcessErrorAsync;
+            }
         }
 
         public Task Start()
         {
             logger.LogInformation("Starting consumer for Path: {Path}, SubscriptionName: {SubscriptionName}", TopicSubscription.Path, TopicSubscription.SubscriptionName);
-            return serviceBusProcessor.StartProcessingAsync();
+
+            if (serviceBusProcessor != null)
+            {
+                return serviceBusProcessor.StartProcessingAsync();
+            }
+
+            if (serviceBusSessionProcessor != null)
+            {
+                return serviceBusSessionProcessor.StartProcessingAsync();
+            }
+            return Task.CompletedTask;
         }
 
         public Task Stop()
         {
             logger.LogInformation("Stopping consumer for Path: {Path}, SubscriptionName: {SubscriptionName}", TopicSubscription.Path, TopicSubscription.SubscriptionName);
-            return serviceBusProcessor.StopProcessingAsync();
+            if (serviceBusProcessor != null)
+            {
+                return serviceBusProcessor.StopProcessingAsync();
+            }
+
+            if (serviceBusSessionProcessor != null)
+            {
+                return serviceBusSessionProcessor.StopProcessingAsync();
+            }
+            return Task.CompletedTask;
         }
 
         #region IAsyncDisposable
@@ -133,6 +158,12 @@
                 serviceBusProcessor = null;
             }
 
+            if (serviceBusSessionProcessor != null)
+            {
+                await serviceBusSessionProcessor.CloseAsync();
+                serviceBusSessionProcessor = null;
+            }
+
             foreach (var messageProcessor in Consumers)
             {
                 await messageProcessor.DisposeSilently();
@@ -141,6 +172,40 @@
         }
 
         #endregion
+
+        private Task ServiceBusSessionProcessor_SessionInitializingAsync(ProcessSessionEventArgs args)
+        {
+            logger.LogDebug("Session with id {SessionId} initializing", args.SessionId);
+            return Task.CompletedTask;
+        }
+
+        private Task ServiceBusSessionProcessor_SessionClosingAsync(ProcessSessionEventArgs args)
+        {
+            logger.LogDebug("Session with id {SessionId} closing", args.SessionId);
+            return Task.CompletedTask;
+        }
+
+        private Task ServiceBusSessionProcessor_ProcessMessageAsync(ProcessSessionMessageEventArgs args)
+            => ProcessMessageAsyncInternal(args.Message, args.CompleteMessageAsync, args.AbandonMessageAsync, args.CancellationToken);
+
+        private Task ServiceBusSessionProcessor_ProcessErrorAsync(ProcessErrorEventArgs args)
+            => ProcessErrorAsyncInternal(args.Exception, args.ErrorSource);
+
+        protected Task ServiceBusProcessor_ProcessMessagesAsync(ProcessMessageEventArgs args)
+            => ProcessMessageAsyncInternal(args.Message, args.CompleteMessageAsync, args.AbandonMessageAsync, args.CancellationToken);
+
+        protected Type GetMessageType(ServiceBusReceivedMessage message)
+        {
+            if (message != null && message.ApplicationProperties.TryGetValue(MessageHeaders.MessageType, out var messageTypeValue) && messageTypeValue is string messageTypeName)
+            {
+                var messageType = MessageBus.Settings.MessageTypeResolver.ToType(messageTypeName);
+                return messageType;
+            }
+            return null;
+        }
+
+        protected Task ServiceBusProcessor_ProcessErrorAsync(ProcessErrorEventArgs args)
+            => ProcessErrorAsyncInternal(args.Exception, args.ErrorSource);
 
         protected virtual ConsumerInvoker TryMatchConsumer(Type messageType)
         {
@@ -167,25 +232,21 @@
             return SingleInvoker;
         }
 
-        protected async Task ProcessMessagesAsync(ProcessMessageEventArgs args)
+        protected async Task ProcessMessageAsyncInternal(ServiceBusReceivedMessage message, Func<ServiceBusReceivedMessage, CancellationToken, Task> completeMessage, Func<ServiceBusReceivedMessage, IDictionary<string, object>, CancellationToken, Task> abandonMessage, CancellationToken token)
         {
-            if (args is null) throw new ArgumentNullException(nameof(args));
-
-            var message = args.Message;
-            var messageType = GetMessageType(args.Message);
+            var messageType = GetMessageType(message);
             var consumerInvoker = TryMatchConsumer(messageType);
 
             // Process the message.
-            var mf = consumerInvoker.Processor.ConsumerSettings.FormatIf(args.Message, logger.IsEnabled(LogLevel.Debug));
-            logger.LogDebug("Received message - {0}", mf);
+            logger.LogDebug("Received message - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
 
-            if (args.CancellationToken.IsCancellationRequested)
+            if (token.IsCancellationRequested)
             {
                 // Note: Use the cancellationToken passed as necessary to determine if the subscriptionClient has already been closed.
                 // If subscriptionClient has already been closed, you can choose to not call CompleteAsync() or AbandonAsync() etc.
                 // to avoid unnecessary exceptions.
-                logger.LogDebug("Abandon message - {0}", mf);
-                await args.AbandonMessageAsync(message).ConfigureAwait(false);
+                logger.LogDebug("Abandon message - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
+                await abandonMessage(message, null, token).ConfigureAwait(false);
 
                 return;
             }
@@ -193,11 +254,7 @@
             var exception = await consumerInvoker.Processor.ProcessMessage(message, consumerInvoker.Invoker).ConfigureAwait(false);
             if (exception != null)
             {
-                if (mf == null)
-                {
-                    mf = consumerInvoker.Processor.ConsumerSettings.FormatIf(message, true);
-                }
-                logger.LogError(exception, "Abandon message (exception occured while processing) - {0}", mf);
+                logger.LogError(exception, "Abandon message (exception occured while processing) - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
 
                 try
                 {
@@ -215,36 +272,25 @@
                     // Set the exception message
                     ["SMB.Exception"] = exception.Message
                 };
-                await args.AbandonMessageAsync(message, propertiesToModify: messageProperties).ConfigureAwait(false);
+                await abandonMessage(message, messageProperties, token).ConfigureAwait(false);
 
                 return;
             }
 
             // Complete the message so that it is not received again.
             // This can be done only if the subscriptionClient is created in ReceiveMode.PeekLock mode (which is the default).
-            logger.LogDebug("Complete message - {0}", mf);
-            await args.CompleteMessageAsync(message).ConfigureAwait(false);
+            logger.LogDebug("Complete message - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
+            await completeMessage(message, token).ConfigureAwait(false);
         }
 
-        protected Type GetMessageType(ServiceBusReceivedMessage message)
-        {
-            if (message != null && message.ApplicationProperties.TryGetValue(MessageHeaders.MessageType, out var messageTypeValue) && messageTypeValue is string messageTypeName)
-            {
-                var messageType = MessageBus.Settings.MessageTypeResolver.ToType(messageTypeName);
-                return messageType;
-            }
-            return null;
-        }
-
-        // Use this handler to examine the exceptions received on the message pump.
-        protected Task ExceptionReceivedHandler(ProcessErrorEventArgs args)
+        protected Task ProcessErrorAsyncInternal(Exception exception, ServiceBusErrorSource errorSource)
         {
             try
             {
-                logger.LogError(args.Exception, "Error while processing Path: {Path}, SubscriptionName: {SubscriptionName}, Error: {Error}", TopicSubscription.Path, TopicSubscription.SubscriptionName, args.Exception.Message);
+                logger.LogError(exception, "Error while processing Path: {Path}, SubscriptionName: {SubscriptionName}, Error Message: {ErrorMessage}, Error Source: {ErrorSource}", TopicSubscription.Path, TopicSubscription.SubscriptionName, exception.Message, errorSource);
 
                 // Execute the event hook
-                MessageBus.Settings.OnMessageFault?.Invoke(MessageBus, null, null, args?.Exception, null);
+                MessageBus.Settings.OnMessageFault?.Invoke(MessageBus, null, null, exception, null);
             }
             catch (Exception eh)
             {
