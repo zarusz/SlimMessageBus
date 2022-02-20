@@ -67,9 +67,9 @@ namespace SlimMessageBus.Host.AzureEventHub
 
             EventHubProducerClientOptionsFactory = (path) => new EventHubProducerClientOptions();
             EventHubProducerClientFactory = (path) => new EventHubProducerClient(ConnectionString, path, EventHubProducerClientOptionsFactory(path));
-            
+
             EventHubProcessorClientOptionsFactory = (consumerParams) => new EventProcessorClientOptions();
-            EventHubProcessorClientFactory = (consumerParams) => new EventProcessorClient(consumerParams.CheckpointClient, consumerParams.Group, ConnectionString, consumerParams.Path, EventHubProcessorClientOptionsFactory(consumerParams));            
+            EventHubProcessorClientFactory = (consumerParams) => new EventProcessorClient(consumerParams.CheckpointClient, consumerParams.Group, ConnectionString, consumerParams.Path, EventHubProcessorClientOptionsFactory(consumerParams));
         }
     }
 }

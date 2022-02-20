@@ -35,13 +35,32 @@
             OnBuildProvider();
         }
 
+        protected override void AssertSettings()
+        {
+            base.AssertSettings();
+
+            if (IsAnyConsumerDeclared)
+            {
+                Assert.IsNotNull(ProviderSettings.StorageConnectionString,
+                    () => new ConfigurationMessageBusException($"The {nameof(EventHubMessageBusSettings)}.{nameof(EventHubMessageBusSettings.StorageConnectionString)} is not set"));
+
+                Assert.IsNotNull(ProviderSettings.LeaseContainerName,
+                    () => new ConfigurationMessageBusException($"The {nameof(EventHubMessageBusSettings)}.{nameof(EventHubMessageBusSettings.LeaseContainerName)} is not set"));
+            }
+        }
+
+        private bool IsAnyConsumerDeclared => Settings.Consumers.Count > 0 || Settings.RequestResponse != null;
+
         #region Overrides of MessageBusBase
 
         protected override void Build()
         {
             base.Build();
 
-            blobContainerClient = ProviderSettings.BlobContanerClientFactory();
+            // Initialize storage client only when there are consumers declared
+            blobContainerClient = IsAnyConsumerDeclared
+                ? ProviderSettings.BlobContanerClientFactory()
+                : null;
 
             producerByPath = new SafeDictionaryWrapper<string, EventHubProducerClient>(path =>
             {
