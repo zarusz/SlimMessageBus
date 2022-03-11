@@ -6,7 +6,6 @@
     using System.Threading.Tasks;
     using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.Config;
-    using SlimMessageBus.Host.DependencyResolver;
     using SlimMessageBus.Host.Serialization;
 
     /// <summary>
@@ -53,26 +52,20 @@
                 .ToDictionary(x => x.Key, x => x.ToList());
         }
 
-        public override Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null)
+        public override async Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null)
         {
-            if (!_consumersByTopic.TryGetValue(path, out var consumers))
+            if (!_consumersByTopic.TryGetValue(path, out var consumers) || consumers.Count == 0)
             {
                 _logger.LogDebug("No consumers interested in message type {MessageType} on path {Path}", messageType, path);
-                return Task.CompletedTask;
+                return;
             }
 
-            var tasks = new LinkedList<Task>();
             foreach (var consumer in consumers)
             {
-                var task = OnMessageProduced(messageType, message, path, messagePayload, messageHeaders, consumer);
-                if (task != null)
-                {
-                    tasks.AddLast(task);
-                }
+                _logger.LogDebug("Executing consumer {ConsumerType} on {Message}...", consumer.ConsumerType, message);
+                await OnMessageProduced(messageType, message, path, messagePayload, messageHeaders, consumer);
+                _logger.LogTrace("Executed consumer {ConsumerType}", consumer.ConsumerType);
             }
-
-            _logger.LogDebug("Waiting on {Count} consumer tasks", tasks.Count);
-            return Task.WhenAll(tasks);
         }
 
         private async Task OnMessageProduced(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, ConsumerSettings consumer)
@@ -88,7 +81,28 @@
             }
             catch (Exception e)
             {
-                responseError = e.Message;
+                _logger.LogDebug(e, "Error occured while executing {ConsumerType} on {Message}", consumer.ConsumerType, message);
+
+                try
+                {
+                    // Invoke fault handler.
+                    (consumer.OnMessageFault ?? Settings.OnMessageFault)?.Invoke(this, consumer, message, e, null);
+                }
+                catch
+                {
+                    // intended
+                }
+
+                if (consumer.ConsumerMode == ConsumerMode.RequestResponse)
+                {
+                    // When in request response mode then pass the error back to the sender
+                    responseError = e.Message;
+                }
+                else
+                {
+                    // Otherwise rethrow the error
+                    throw;
+                }
             }
 
             if (consumer.ConsumerMode == ConsumerMode.RequestResponse)
@@ -115,7 +129,7 @@
         private async Task<Task> ExecuteConsumer(Type messageType, object message, byte[] messagePayload, ConsumerSettings consumerSettings)
         {
             using var messageScope = GetMessageScope(consumerSettings, message);
-            
+
             // obtain the consumer from chosen DI container (root or scope)
             _logger.LogDebug("Resolving consumer type {ConsumerType}", consumerSettings.ConsumerType);
             var consumerInstance = messageScope.Resolve(consumerSettings.ConsumerType);
