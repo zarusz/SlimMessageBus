@@ -131,7 +131,7 @@
             {
                 if (_routeByMessageType.TryGetValue(messageType, out var busName))
                 {
-                    _logger.LogDebug("Resolved bus {0} for message type: {1} and name {2}", busName, messageType, path);
+                    _logger.LogDebug("Resolved bus {0} for message type: {MessageType} and path {Path}", busName, messageType, path);
 
                     return _busByName[busName];
                 }
