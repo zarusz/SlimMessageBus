@@ -9,17 +9,13 @@
     using Moq;
     using SlimMessageBus.Host.Config;
     using SlimMessageBus.Host.DependencyResolver;
+    using SlimMessageBus.Host.Serialization;
     using SlimMessageBus.Host.Serialization.Json;
     using Xunit;
 
     public class RequestA : IRequestMessage<ResponseA>
     {
-        public string Id { get; set; }
-
-        public RequestA()
-        {
-            Id = Guid.NewGuid().ToString();
-        }
+        public string Id { get; set; } = Guid.NewGuid().ToString();
     }
 
     public class ResponseA
@@ -264,6 +260,55 @@
         }
 
         [Fact]
+        public async Task When_Produce_DerivedMessage_Given_OnlyBaseMessageConfigured_Then_BaseMessageTypeIsSentToSerializer()
+        {
+            // arrange
+            var messageSerializerMock = new Mock<IMessageSerializer>();
+            messageSerializerMock.Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<object>())).Returns(new byte[0]);
+
+            var someMessageTopic = "some-messages";
+
+            BusBuilder
+                .Produce<SomeMessage>(x =>
+                {
+                    x.DefaultTopic(someMessageTopic);
+                })
+                .WithSerializer(messageSerializerMock.Object);
+
+            var m1 = new SomeMessage();
+            var m2 = new SomeDerivedMessage();
+            var m3 = new SomeDerived2Message();
+
+            // act
+            await Bus.Publish(m1);
+            await Bus.Publish(m2);
+            await Bus.Publish(m3);
+
+            // assert
+            _producedMessages.Count.Should().Be(3);
+
+            var producedMessage1 = _producedMessages.FirstOrDefault(x => object.ReferenceEquals(x.message, m1));
+            producedMessage1.Should().NotBeNull();
+            producedMessage1.messageType.Should().Be(typeof(SomeMessage));
+            producedMessage1.name.Should().Be(someMessageTopic);
+
+            var producedMessage2 = _producedMessages.FirstOrDefault(x => object.ReferenceEquals(x.message, m2));
+            producedMessage2.Should().NotBeNull();
+            producedMessage2.messageType.Should().Be(typeof(SomeMessage));
+            producedMessage2.name.Should().Be(someMessageTopic);
+
+            var producedMessage3 = _producedMessages.FirstOrDefault(x => object.ReferenceEquals(x.message, m3));
+            producedMessage3.Should().NotBeNull();
+            producedMessage3.messageType.Should().Be(typeof(SomeMessage));
+            producedMessage3.name.Should().Be(someMessageTopic);
+
+            messageSerializerMock.Verify(x => x.Serialize(typeof(SomeMessage), m1), Times.Once);
+            messageSerializerMock.Verify(x => x.Serialize(typeof(SomeMessage), m2), Times.Once);
+            messageSerializerMock.Verify(x => x.Serialize(typeof(SomeMessage), m3), Times.Once);
+            messageSerializerMock.VerifyNoOtherCalls();
+        }
+
+        [Fact]
         public async Task When_Produce_DerivedMessage_Given_OnlyBaseMessageConfigured_Then_BaseMessageProducerConfigUsed()
         {
             // arrange
@@ -314,6 +359,60 @@
             _producedMessages[0].messageType.Should().Be(typeof(SomeDerived2Message));
             _producedMessages[0].message.Should().Be(m);
             _producedMessages[0].name.Should().Be(someMessageDerived2Topic);
+        }
+
+        [Fact]
+        public void When_GetProducerSettings_Given_MessageWasDeclared_Then_GetProducerSettingsShouldNotReturnNull()
+        {
+            // arrange
+            var someMessageTopic = "some-messages";
+
+            BusBuilder
+                .Produce<SomeMessage>(x => x.DefaultTopic(someMessageTopic))
+                .Produce<SomeRequest>(x => x.DefaultTopic(someMessageTopic));
+
+            // act
+            var producerSettings1 = Bus.Public_GetProducerSettings(typeof(SomeMessage));
+            var producerSettings2 = Bus.Public_GetProducerSettings(typeof(SomeRequest));
+
+            // assert
+            producerSettings1.Should().NotBeNull();
+            producerSettings2.Should().NotBeNull();
+        }
+
+        [Fact]
+        public void When_GetProducerSettings_Given_RequestMessageHandled_Then_GetProducerSettingsShouldReturnNull()
+        {
+            // arrange
+            var someMessageTopic = "some-messages";
+
+            BusBuilder
+                .Handle<SomeRequest, SomeResponse>(x => x.Topic(someMessageTopic).WithHandler<SomeRequestMessageHandler>());
+
+            // act
+            var producerSettings = Bus.Public_GetProducerSettings(typeof(SomeResponse));
+
+            // assert
+            producerSettings.Should().NotBeNull();
+        }
+
+        [Fact]
+        public void When_Produce_Message_Given_MessageNotDeclared_Then_GetProducerSettingsShouldThrowException()
+        {
+            // arrange
+            var someMessageTopic = "some-messages";
+
+            BusBuilder
+                .Produce<SomeMessage>(x =>
+                {
+                    x.DefaultTopic(someMessageTopic);
+                });
+
+            // act
+            Action action = () => Bus.Public_GetProducerSettings(typeof(SomeRequest));
+
+            // assert
+            action.Should().Throw<PublishMessageBusException>();
         }
 
         [Fact]
@@ -414,6 +513,8 @@
 
             OnBuildProvider();
         }
+
+        public ProducerSettings Public_GetProducerSettings(Type messageType) => GetProducerSettings(messageType);
 
         public int PendingRequestsCount => PendingRequestStore.GetCount();
 

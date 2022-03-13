@@ -25,8 +25,14 @@
             {
                 if (_readonlyDict == null)
                 {
-                    // Lazily create the read only snapshot
-                    _readonlyDict = new ReadOnlyDictionary<TKey, TValue>(_mutableDict);
+                    lock (this)
+                    {
+                        if (_readonlyDict == null)
+                        {
+                            // Lazily create the read only snapshot
+                            _readonlyDict = new ReadOnlyDictionary<TKey, TValue>(_mutableDict);
+                        }
+                    }
                 }
                 return _readonlyDict;
             }
@@ -51,7 +57,6 @@
             if (factory is null) throw new ArgumentNullException(nameof(factory));
 
             // check if we have the value already for the key
-            // ReSharper disable once InconsistentlySynchronizedField
             if (!_mutableDict.TryGetValue(key, out var value))
             {
                 lock (this)

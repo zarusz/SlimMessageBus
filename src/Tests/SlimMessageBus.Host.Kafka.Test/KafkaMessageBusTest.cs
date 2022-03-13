@@ -55,14 +55,14 @@
             new ProducerBuilder<MessageB>(producerB);
 
             MbSettings.Producers.Add(producerA);
-            MbSettings.Producers.Add(producerB);        
+            MbSettings.Producers.Add(producerB);
 
             var msgA = new MessageA();
             var msgB = new MessageB();
 
             // act
-            var msgAKey = KafkaMb.Value.Public_GetMessageKey(msgA.GetType(), msgA, "topic1");
-            var msgBKey = KafkaMb.Value.Public_GetMessageKey(msgB.GetType(), msgB, "topic1");
+            var msgAKey = KafkaMb.Value.Public_GetMessageKey(producerA, msgA.GetType(), msgA, "topic1");
+            var msgBKey = KafkaMb.Value.Public_GetMessageKey(producerB, msgB.GetType(), msgB, "topic1");
 
             // assert
             msgAKey.Should().BeSameAs(msgA.Key);
@@ -73,22 +73,22 @@
         public void GetMessagePartition()
         {
             // arrange
-            var publisherA = new ProducerSettings();
-            new ProducerBuilder<MessageA>(publisherA)
+            var producerA = new ProducerSettings();
+            new ProducerBuilder<MessageA>(producerA)
                 .PartitionProvider((m, t) => 10);
 
-            var publisherB = new ProducerSettings();
-            new ProducerBuilder<MessageB>(publisherB);
+            var producerB = new ProducerSettings();
+            new ProducerBuilder<MessageB>(producerB);
 
-            MbSettings.Producers.Add(publisherA);
-            MbSettings.Producers.Add(publisherB);
+            MbSettings.Producers.Add(producerA);
+            MbSettings.Producers.Add(producerB);
 
             var msgA = new MessageA();
             var msgB = new MessageB();
 
             // act
-            var msgAPartition = KafkaMb.Value.Public_GetMessagePartition(msgA.GetType(), msgA, "topic1");
-            var msgBPartition = KafkaMb.Value.Public_GetMessagePartition(msgB.GetType(), msgB, "topic1");
+            var msgAPartition = KafkaMb.Value.Public_GetMessagePartition(producerA, msgA.GetType(), msgA, "topic1");
+            var msgBPartition = KafkaMb.Value.Public_GetMessagePartition(producerB, msgB.GetType(), msgB, "topic1");
 
             // assert
             msgAPartition.Should().Be(10);
@@ -111,15 +111,11 @@
             {
             }
 
-            public byte[] Public_GetMessageKey(Type messageType, object message, string topic)
-            {
-                return GetMessageKey(messageType, message, topic);
-            }
+            public byte[] Public_GetMessageKey(ProducerSettings producerSettings, Type messageType, object message, string topic) 
+                => GetMessageKey(producerSettings, messageType, message, topic);
 
-            public int Public_GetMessagePartition(Type messageType, object message, string topic)
-            {
-                return GetMessagePartition(messageType, message, topic);
-            }
+            public int Public_GetMessagePartition(ProducerSettings producerSettings, Type messageType, object message, string topic) 
+                => GetMessagePartition(producerSettings, messageType, message, topic);
         }
     }
 }

@@ -80,7 +80,7 @@ namespace SlimMessageBus.Host.Memory.Test
         [Theory]
         [InlineData(false)]
         [InlineData(true)]
-        public void When_Publish_Given_MessageSerializationSetting_Then_DeliversMessageInstanceToRespectiveConsumers(bool enableMessageSerialization)
+        public async Task When_Publish_Given_MessageSerializationSetting_Then_DeliversMessageInstanceToRespectiveConsumers(bool enableMessageSerialization)
         {
             // arrange
             const string topicA = "topic-a";
@@ -105,7 +105,7 @@ namespace SlimMessageBus.Host.Memory.Test
             var m = new SomeMessageA();
 
             // act
-            _subject.Value.Publish(m).Wait();
+            await _subject.Value.Publish(m);
 
             // assert
             if (enableMessageSerialization)

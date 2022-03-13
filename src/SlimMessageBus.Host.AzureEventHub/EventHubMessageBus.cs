@@ -165,25 +165,17 @@
 
         private string GetPartitionKey(Type messageType, object message)
         {
-            // ToDo: Extract to common helper
-            do
+            var producerSettings = GetProducerSettings(messageType);
+            try
             {
-                if (ProducerSettingsByMessageType.TryGetValue(messageType, out var producerSettings))
-                {
-                    try
-                    {
-                        var keyProvider = producerSettings.GetKeyProvider();
-                        var partitionKey = keyProvider?.Invoke(message);
-                        return partitionKey;
-                    }
-                    catch (Exception e)
-                    {
-                        logger.LogWarning(e, "The configured message KeyProvider failed for message type {MessageType} and message {Message}", messageType, message);
-                    }
-                }
-                messageType = messageType.BaseType;
-            } while (messageType != typeof(object));
-
+                var keyProvider = producerSettings.GetKeyProvider();
+                var partitionKey = keyProvider?.Invoke(message);
+                return partitionKey;
+            }
+            catch (Exception e)
+            {
+                logger.LogWarning(e, "The configured message KeyProvider failed for message type {MessageType} and message {Message}", messageType, message);
+            }
             return null;
         }
     }

@@ -3,6 +3,7 @@ namespace SlimMessageBus.Host
     using System;
     using System.Collections.Generic;
     using System.Globalization;
+    using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Extensions.Logging;
@@ -23,7 +24,7 @@ namespace SlimMessageBus.Host
 
         public virtual IMessageSerializer Serializer => Settings.Serializer;
 
-        protected IDictionary<Type, ProducerSettings> ProducerSettingsByMessageType { get; private set; }
+        protected ProducerByMessageTypeCache<ProducerSettings> ProducerSettingsByMessageType { get; private set; }
         protected IPendingRequestStore PendingRequestStore { get; set; }
         protected PendingRequestManager PendingRequestManager { get; set; }
 
@@ -59,17 +60,14 @@ namespace SlimMessageBus.Host
             }
         }
 
+        /// <summary>
+        /// Special market reference that signifies a dummy producer settings for response types.
+        /// </summary>
+        private static readonly ProducerSettings MarkerProducerSettingsForResponses = new();
+
         protected virtual void Build()
         {
-            ProducerSettingsByMessageType = new Dictionary<Type, ProducerSettings>();
-            foreach (var producerSettings in Settings.Producers)
-            {
-                if (ProducerSettingsByMessageType.ContainsKey(producerSettings.MessageType))
-                {
-                    throw new ConfigurationMessageBusException($"The produced message type '{producerSettings.MessageType}' was declared more than once (check the {nameof(MessageBusBuilder.Produce)} configuration)");
-                }
-                ProducerSettingsByMessageType.Add(producerSettings.MessageType, producerSettings);
-            }
+            ProducerSettingsByMessageType = new ProducerByMessageTypeCache<ProducerSettings>(_logger, BuildProducerByBaseMessageType());
 
             PendingRequestStore = new InMemoryPendingRequestStore();
             PendingRequestManager = new PendingRequestManager(PendingRequestStore, () => CurrentTime, TimeSpan.FromSeconds(1), LoggerFactory, request =>
@@ -87,6 +85,21 @@ namespace SlimMessageBus.Host
             PendingRequestManager.Start();
         }
 
+        private IDictionary<Type, ProducerSettings> BuildProducerByBaseMessageType()
+        {
+            var producerByBaseMessageType = new Dictionary<Type, ProducerSettings>();
+            foreach (var producerSettings in Settings.Producers)
+            {
+                producerByBaseMessageType.Add(producerSettings.MessageType, producerSettings);
+            }
+            foreach (var consumerSettings in Settings.Consumers.Where(x => x.ResponseType != null))
+            {
+                // A response type can be used across different requests hence TryAdd
+                producerByBaseMessageType.TryAdd(consumerSettings.ResponseType, MarkerProducerSettingsForResponses);
+            }
+            return producerByBaseMessageType;
+        }
+
         public bool IsStarted { get; private set; }
 
         public async Task Start()
@@ -100,7 +113,6 @@ namespace SlimMessageBus.Host
                 IsStarted = true;
             }
         }
-
 
         public async Task Stop()
         {
@@ -125,6 +137,7 @@ namespace SlimMessageBus.Host
 
         protected virtual void AssertSettings()
         {
+            AssertProducers();
             foreach (var consumerSettings in Settings.Consumers)
             {
                 AssertConsumerSettings(consumerSettings);
@@ -132,6 +145,15 @@ namespace SlimMessageBus.Host
             AssertSerializerSettings();
             AssertDepencendyResolverSettings();
             AssertRequestResponseSettings();
+        }
+
+        protected virtual void AssertProducers()
+        {
+            var duplicateMessageTypeProducer = Settings.Producers.GroupBy(x => x.MessageType).Where(x => x.Count() > 1).Select(x => x.FirstOrDefault()).FirstOrDefault();
+            if (duplicateMessageTypeProducer != null)
+            {
+                throw new ConfigurationMessageBusException($"The produced message type {duplicateMessageTypeProducer.MessageType} was declared more than once (check the {nameof(MessageBusBuilder.Produce)} configuration)");
+            }
         }
 
         protected virtual void AssertConsumerSettings(ConsumerSettings consumerSettings)
@@ -261,38 +283,11 @@ namespace SlimMessageBus.Host
 
         protected ProducerSettings GetProducerSettings(Type messageType)
         {
-            if (!ProducerSettingsByMessageType.TryGetValue(messageType, out var producerSettings))
+            var producerSettings = ProducerSettingsByMessageType.GetProducer(messageType);
+            if (producerSettings == null && !ReferenceEquals(producerSettings, MarkerProducerSettingsForResponses))
             {
-                var baseMessageType = _messageTypeToBaseType.GetOrAdd(messageType, mt =>
-                {
-                    var baseType = mt;
-                    do
-                    {
-                        baseType = mt.BaseType;
-                    }
-                    while (baseType != null && baseType != typeof(object) && !ProducerSettingsByMessageType.ContainsKey(baseType));
-
-                    if (baseType != null)
-                    {
-                        _logger.LogDebug("Found a base type of {MessageType} that is configured in the bus: {BaseMessageType}", mt, baseType);
-                    }
-                    else
-                    {
-                        _logger.LogDebug("Did not find any base type of {MessageType} that is configured in the bus", mt);
-                    }
-
-                    // Note: Nulls are also added to dictionary, so that we don't look them up using reflection next time (cached).
-                    return baseType;
-                });
-
-                if (baseMessageType == null)
-                {
-                    throw new PublishMessageBusException($"Message of type {messageType} was not registered as a supported publish message. Please check your MessageBus configuration and include this type.");
-                }
-
-                producerSettings = ProducerSettingsByMessageType[baseMessageType];
+                throw new PublishMessageBusException($"Message of type {messageType} was not registered as a supported produce message. Please check your MessageBus configuration and include this type or one of its base types.");
             }
-
             return producerSettings;
         }
 
@@ -307,11 +302,8 @@ namespace SlimMessageBus.Host
         {
             if (producerSettings == null) throw new ArgumentNullException(nameof(producerSettings));
 
-            var path = producerSettings.DefaultPath;
-            if (path == null)
-            {
-                throw new PublishMessageBusException($"An attempt to produce message of type {messageType} without specifying path, but there was no default path configured. Double check your configuration.");
-            }
+            var path = producerSettings.DefaultPath
+                ?? throw new PublishMessageBusException($"An attempt to produce message of type {messageType} without specifying path, but there was no default path configured. Double check your configuration.");
 
             _logger.LogDebug("Applying default path {Path} for message type {MessageType}", path, messageType);
             return path;
@@ -338,7 +330,7 @@ namespace SlimMessageBus.Host
             var messageHeaders = CreateHeaders();
             AddMessageHeaders(messageHeaders, headers, message, producerSettings);
 
-            _logger.LogDebug("Producing message {Message} of type {MessageType} to path {Path} with payload size {MessageSize}", message, producerSettings.MessageType, path, payload?.Length ?? 0);
+            _logger.LogDebug("Producing message {Message} of type {MessageType} to path {Path}", message, producerSettings.MessageType, path);
             return ProduceToTransport(producerSettings.MessageType, message, path, payload, messageHeaders);
         }
 
@@ -387,7 +379,7 @@ namespace SlimMessageBus.Host
             if (producerSettings == null) throw new ArgumentNullException(nameof(producerSettings));
 
             var timeout = producerSettings.Timeout ?? Settings.RequestResponse.Timeout;
-            _logger.LogDebug("Applying default timeout {0} for message type {1}", timeout, requestType);
+            _logger.LogDebug("Applying default timeout {MessageTimeout} for message type {MessageType}", timeout, requestType);
             return timeout;
         }
 
@@ -432,7 +424,7 @@ namespace SlimMessageBus.Host
 
             if (_logger.IsEnabled(LogLevel.Trace))
             {
-                _logger.LogTrace("Added to PendingRequests, total is {0}", PendingRequestStore.GetCount());
+                _logger.LogTrace("Added to PendingRequests, total is {RequestCount}", PendingRequestStore.GetCount());
             }
 
             try
@@ -457,7 +449,7 @@ namespace SlimMessageBus.Host
         {
             try
             {
-                producerSettings.OnMessageProduced?.Invoke(this, producerSettings, message, name);
+                producerSettings?.OnMessageProduced?.Invoke(this, producerSettings, message, name);
                 Settings.OnMessageProduced?.Invoke(this, producerSettings, message, name);
             }
             catch (Exception eh)
@@ -551,7 +543,7 @@ namespace SlimMessageBus.Host
             var requestState = PendingRequestStore.GetById(requestId);
             if (requestState == null)
             {
-                _logger.LogDebug("The response message for request id {0} arriving on name {1} will be disregarded. Either the request had already expired, had been cancelled or it was already handled (this response message is a duplicate).", requestId, path);
+                _logger.LogDebug("The response message for request id {RequestId} arriving on path {Path} will be disregarded. Either the request had already expired, had been cancelled or it was already handled (this response message is a duplicate).", requestId, path);
 
                 // ToDo: add and API hook to these kind of situation
                 return Task.FromResult<Exception>(null);
@@ -562,13 +554,13 @@ namespace SlimMessageBus.Host
                 if (_logger.IsEnabled(LogLevel.Debug))
                 {
                     var tookTimespan = CurrentTime.Subtract(requestState.Created);
-                    _logger.LogDebug("Response arrived for {0} on path {1} (time: {2} ms)", requestState, path, tookTimespan);
+                    _logger.LogDebug("Response arrived for {Request} on path {Path} (time: {RequestTime} ms)", requestState, path, tookTimespan);
                 }
 
                 if (errorMessage != null)
                 {
                     // error response arrived
-                    _logger.LogDebug("Response arrived for {0} on path {1} with error: {2}", requestState, path, errorMessage);
+                    _logger.LogDebug("Response arrived for {Request} on path {Path} with error: {ResponseError}", requestState, path, errorMessage);
 
                     var e = new RequestHandlerFaultedMessageBusException(errorMessage);
                     requestState.TaskCompletionSource.TrySetException(e);
