@@ -15,8 +15,8 @@ Azure Event Hub provider requires a connection string to the event hub:
 
 ```cs
 var connectionString = ""; // Azure Event Hubs connection string
-var storageConnectionString = ""; // Azure Storage Account connection string (for the consumer)
-var storageContainerName = ""; // Azure Blob Storage container name (for the consumer to store last commit offset of each subscriber)
+var storageConnectionString = ""; // Azure Storage Account connection string (for the consumer group to store last checkpointed offset of each topic-partition)
+var storageContainerName = ""; // Azure Blob Storage container name
 
 MessageBusBuilder mbb = MessageBusBuilder.Create()
     // the bus configuration here
@@ -26,7 +26,7 @@ MessageBusBuilder mbb = MessageBusBuilder.Create()
 IMessageBus bus = mbb.Build();
 ```
 
-If your bus does only produce messages to Event Hub and does not consume any messages, then you do not need to provide a storage account as part of the config. In this case pass `null` for the storage account details:
+If your bus only producse messages to Event Hub and does not consume any messages, then you do not need to provide a storage account as part of the config. In that case pass `null` for the storage account details:
 
 ```cs
 var connectionString = ""; // Azure Event Hubs connection string
@@ -37,10 +37,12 @@ MessageBusBuilder mbb = MessageBusBuilder.Create()
     .WithSerializer(new JsonMessageSerializer());
 ```
 
+> The blob storage container will be created if it does not exist. Therefore, ensure the storage account connection string has sufficient permissions or create the storage container ahead of the application start.
+
 ### Advanced settings
 
 There are additional configuration options from the underlying AEH client available
-that can be used to further tweak the client behaviour. Here is an example:
+that can be used to further tweak the client behavior. Here is an example:
 
 ```cs
 var settings = new EventHubMessageBusSettings(connectionString, storageConnectionString, storageContainerName)
@@ -51,7 +53,7 @@ var settings = new EventHubMessageBusSettings(connectionString, storageConnectio
     },
     EventHubProcessorClientOptionsFactory = (consumerParams) => new Azure.Messaging.EventHubs.EventProcessorClientOptions
     {
-        // Force partition lease rebalancing to happen faster (if new consumers join they can quicker gain a partition lease)
+        // Force partition lease rebalancing to happen faster (if new consumers join they can quickly gain a partition lease)
         LoadBalancingUpdateInterval = TimeSpan.FromSeconds(2),
         PartitionOwnershipExpirationInterval = TimeSpan.FromSeconds(5),
     }

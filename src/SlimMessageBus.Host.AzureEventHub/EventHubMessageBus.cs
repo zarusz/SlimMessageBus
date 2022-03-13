@@ -113,6 +113,20 @@
         protected override async Task OnStart()
         {
             await base.OnStart();
+
+            if (blobContainerClient != null)
+            {
+                // Create blob storage container if not exists
+                try
+                {
+                    await blobContainerClient.CreateIfNotExistsAsync();
+                }
+                catch (Exception e)
+                {
+                    logger.LogWarning(e, "Attempt to create blob container {BlobContainer} failed - the blob container is needed to store the consumer group offsets", blobContainerClient.Name);
+                }
+            }
+
             await Task.WhenAll(groupConsumers.Select(x => x.Start()));
         }
 
@@ -168,7 +182,7 @@
             var producerSettings = GetProducerSettings(messageType);
             try
             {
-                var keyProvider = producerSettings.GetKeyProvider();
+                var keyProvider = producerSettings?.GetKeyProvider();
                 var partitionKey = keyProvider?.Invoke(message);
                 return partitionKey;
             }
