@@ -23,14 +23,9 @@
         public string Id { get; set; }
     }
 
-    public class RequestB : IRequestMessage<ResponseB>
-    {
+    public class RequestB : IRequestMessage<ResponseB> { }
 
-    }
-
-    public class ResponseB
-    {
-    }
+    public class ResponseB { }
 
     public class MessageBusBaseTest : IDisposable
     {
