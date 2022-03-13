@@ -6,6 +6,7 @@
     using System.Threading.Tasks;
     using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Logging.Abstractions;
+    using SlimMessageBus.Host.Collections;
     using SlimMessageBus.Host.Config;
 
     public class HybridMessageBus : IMessageBus, IConsumerControl, IAsyncDisposable
@@ -17,7 +18,7 @@
         public MessageBusSettings Settings { get; }
         public HybridMessageBusSettings ProviderSettings { get; }
 
-        private readonly IDictionary<Type, string> _routeByMessageType;
+        private readonly ProducerByMessageTypeCache<string> _busNameByMessageType;
         private readonly IDictionary<string, MessageBusBase> _busByName;
 
         public HybridMessageBus(MessageBusSettings settings, HybridMessageBusSettings providerSettings)
@@ -32,18 +33,22 @@
 
             _logger = LoggerFactory.CreateLogger<HybridMessageBus>();
 
-            _routeByMessageType = new Dictionary<Type, string>();
+            var busNameByBaseMessageType = new Dictionary<Type, string>();
+            _busNameByMessageType = new ProducerByMessageTypeCache<string>(_logger, busNameByBaseMessageType);
 
-            _busByName = new Dictionary<string, MessageBusBase>(providerSettings.Count);
+            _busByName = new Dictionary<string, MessageBusBase>();
             foreach (var name in providerSettings.Keys)
             {
                 var builderFunc = providerSettings[name];
 
                 var bus = BuildBus(builderFunc);
-
                 _busByName.Add(name, bus);
 
-                BuildAutoRouting(name, bus);
+                // Register producer routes based on MessageType
+                foreach (var producer in bus.Settings.Producers)
+                {
+                    busNameByBaseMessageType.Add(producer.MessageType, name);
+                }
             }
 
             // ToDo: defer start of busses until here
@@ -58,14 +63,6 @@
             var bus = builder.Build();
 
             return (MessageBusBase)bus;
-        }
-
-        private void BuildAutoRouting(string name, MessageBusBase bus)
-        {
-            foreach (var producer in bus.Settings.Producers)
-            {
-                _routeByMessageType.Add(producer.MessageType, name);
-            }
         }
 
         public async Task Start()
@@ -126,21 +123,12 @@
         {
             var messageType = message.GetType();
 
-            // Until we reached the object in class hierarchy
-            while (messageType != null && messageType != typeof(object))
-            {
-                if (_routeByMessageType.TryGetValue(messageType, out var busName))
-                {
-                    _logger.LogDebug("Resolved bus {0} for message type: {MessageType} and path {Path}", busName, messageType, path);
+            var busName = _busNameByMessageType.GetProducer(messageType)
+                ?? throw new ConfigurationMessageBusException($"Could not find any bus that produces the message type: {messageType} and path: {path}");
 
-                    return _busByName[busName];
-                }
+            _logger.LogDebug("Resolved bus {BusName} for message type: {MessageType} and path {Path}", busName, messageType, path);
 
-                // Check base type
-                messageType = messageType.BaseType;
-            }
-
-            throw new ConfigurationMessageBusException($"Could not find route for message type: {message.GetType()} and name: {path}");
+            return _busByName[busName];
         }
 
         #region Implementation of IRequestResponseBus

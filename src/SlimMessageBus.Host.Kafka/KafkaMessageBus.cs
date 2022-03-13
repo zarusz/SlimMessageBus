@@ -24,8 +24,6 @@ namespace SlimMessageBus.Host.Kafka
 
         private IProducer producer;
         private readonly IList<KafkaGroupConsumer> groupConsumers = new List<KafkaGroupConsumer>();
-        private readonly IDictionary<Type, Func<object, string, byte[]>> keyProviders = new Dictionary<Type, Func<object, string, byte[]>>();
-        private readonly IDictionary<Type, Func<object, string, int>> partitionProviders = new Dictionary<Type, Func<object, string, int>>();
 
         public KafkaMessageBus(MessageBusSettings settings, KafkaMessageBusSettings providerSettings)
             : base(settings)
@@ -45,7 +43,6 @@ namespace SlimMessageBus.Host.Kafka
 
             CreateProducer();
             CreateGroupConsumers();
-            CreateProviders();
         }
 
         public void Flush()
@@ -66,24 +63,6 @@ namespace SlimMessageBus.Host.Kafka
             logger.LogDebug("Producer settings: {ProducerSettings}", config);
             var producer = ProviderSettings.ProducerBuilderFactory(config).Build();
             return producer;
-        }
-
-        private void CreateProviders()
-        {
-            foreach (var producerSettings in Settings.Producers)
-            {
-                var keyProvider = producerSettings.GetKeyProvider();
-                if (keyProvider != null)
-                {
-                    keyProviders.Add(producerSettings.MessageType, keyProvider);
-                }
-
-                var partitionProvider = producerSettings.GetPartitionProvider();
-                if (partitionProvider != null)
-                {
-                    partitionProviders.Add(producerSettings.MessageType, partitionProvider);
-                }
-            }
         }
 
         private void CreateProducer()
@@ -201,8 +180,10 @@ namespace SlimMessageBus.Host.Kafka
         {
             AssertActive();
 
+            var producerSettings = GetProducerSettings(messageType);
+
             // calculate message key
-            var key = GetMessageKey(messageType, message, path);
+            var key = GetMessageKey(producerSettings, messageType, message, path);
 
             var kafkaMessage = new Message { Key = key, Value = messagePayload };
 
@@ -218,7 +199,7 @@ namespace SlimMessageBus.Host.Kafka
             }
 
             // calculate partition
-            var partition = GetMessagePartition(messageType, message, path);
+            var partition = GetMessagePartition(producerSettings, messageType, message, path);
 
             logger.LogTrace("Producing message {Message} of type {MessageType}, on topic {Topic}, partition {Partition}, key size {KeySize}, payload size {MessageSize}",
                 message, messageType.Name, path, partition, key?.Length ?? 0, messagePayload.Length);
@@ -241,36 +222,40 @@ namespace SlimMessageBus.Host.Kafka
                 message, messageType.Name, deliveryResult.Topic, deliveryResult.Partition, deliveryResult.Offset);
         }
 
-        protected byte[] GetMessageKey([NotNull] Type messageType, object message, string topic)
+        protected byte[] GetMessageKey(ProducerSettings producerSettings, [NotNull] Type messageType, object message, string topic)
         {
-            byte[] key = null;
-            if (keyProviders.TryGetValue(messageType, out var keyProvider))
+            var keyProvider = producerSettings.GetKeyProvider();
+            if (keyProvider != null)
             {
-                key = keyProvider(message, topic);
+                var key = keyProvider(message, topic);
 
                 if (logger.IsEnabled(LogLevel.Debug))
                 {
                     logger.LogDebug("The message {Message} type {MessageType} calculated key is {Key} (Base64)", message, messageType.Name, Convert.ToBase64String(key));
                 }
+
+                return key;
             }
-            return key;
+            return null;
         }
 
         private const int NoPartition = -1;
 
-        protected int GetMessagePartition([NotNull] Type messageType, object message, string topic)
+        protected int GetMessagePartition(ProducerSettings producerSettings, [NotNull] Type messageType, object message, string topic)
         {
-            var partition = NoPartition;
-            if (partitionProviders.TryGetValue(messageType, out var partitionProvider))
+            var partitionProvider = producerSettings.GetPartitionProvider();
+            if (partitionProvider != null)
             {
-                partition = partitionProvider(message, topic);
+                var partition = partitionProvider(message, topic);
 
                 if (logger.IsEnabled(LogLevel.Debug))
                 {
                     logger.LogDebug("The Message {Message} type {MessageType} calculated partition is {Partition}", message, messageType.Name, partition);
                 }
+
+                return partition;
             }
-            return partition;
+            return NoPartition;
         }
 
         #endregion

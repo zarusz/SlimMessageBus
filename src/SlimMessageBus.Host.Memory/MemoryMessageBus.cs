@@ -14,12 +14,10 @@
     public class MemoryMessageBus : MessageBusBase
     {
         private readonly ILogger _logger;
+        private IDictionary<string, List<ConsumerSettings>> _consumersByPath;
+        private readonly IMessageSerializer _serializer;
 
         private MemoryMessageBusSettings ProviderSettings { get; }
-
-        private IDictionary<string, List<ConsumerSettings>> _consumersByTopic;
-
-        private IMessageSerializer _serializer;
 
         public override IMessageSerializer Serializer => _serializer;
 
@@ -47,14 +45,14 @@
         {
             base.Build();
 
-            _consumersByTopic = Settings.Consumers
+            _consumersByPath = Settings.Consumers
                 .GroupBy(x => x.Path)
                 .ToDictionary(x => x.Key, x => x.ToList());
         }
 
         public override async Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null)
         {
-            if (!_consumersByTopic.TryGetValue(path, out var consumers) || consumers.Count == 0)
+            if (!_consumersByPath.TryGetValue(path, out var consumers) || consumers.Count == 0)
             {
                 _logger.LogDebug("No consumers interested in message type {MessageType} on path {Path}", messageType, path);
                 return;
@@ -88,9 +86,9 @@
                     // Invoke fault handler.
                     (consumer.OnMessageFault ?? Settings.OnMessageFault)?.Invoke(this, consumer, message, e, null);
                 }
-                catch
+                catch (Exception hookEx)
                 {
-                    // intended
+                    HookFailed(_logger, hookEx, nameof(consumer.OnMessageFault));
                 }
 
                 if (consumer.ConsumerMode == ConsumerMode.RequestResponse)
@@ -132,11 +130,8 @@
 
             // obtain the consumer from chosen DI container (root or scope)
             _logger.LogDebug("Resolving consumer type {ConsumerType}", consumerSettings.ConsumerType);
-            var consumerInstance = messageScope.Resolve(consumerSettings.ConsumerType);
-            if (consumerInstance == null)
-            {
-                throw new ConfigurationMessageBusException($"The dependency resolver does not know how to create an instance of {consumerSettings.ConsumerType}");
-            }
+            var consumerInstance = messageScope.Resolve(consumerSettings.ConsumerType)
+                ?? throw new ConfigurationMessageBusException($"The dependency resolver does not know how to create an instance of {consumerSettings.ConsumerType}");
 
             Task consumerTask = null;
             try

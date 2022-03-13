@@ -19,7 +19,7 @@
         private ServiceBusClient client;
         private SafeDictionaryWrapper<string, ServiceBusSender> producerByPath;
 
-        private readonly List<AsbBaseConsumer> consumers = new List<AsbBaseConsumer>();
+        private readonly List<AsbBaseConsumer> consumers = new();
 
         public ServiceBusMessageBus(MessageBusSettings settings, ServiceBusMessageBusSettings providerSettings)
             : base(settings)
@@ -150,6 +150,8 @@
             logger.LogDebug("Producing message {Message} of type {MessageType} to path {Path} with size {MessageSize}", message, messageType.Name, path, messagePayload.Length);
 
             var m = new ServiceBusMessage(messagePayload);
+
+            // add headers
             if (messageHeaders != null)
             {
                 foreach (var header in messageHeaders)
@@ -158,17 +160,17 @@
                 }
             }
 
-            if (ProducerSettingsByMessageType.TryGetValue(messageType, out var producerSettings))
+            var producerSettings = GetProducerSettings(messageType);
+
+            // execute message modifier
+            try
             {
-                try
-                {
-                    var messageModifier = producerSettings.GetMessageModifier();
-                    messageModifier?.Invoke(message, m);
-                }
-                catch (Exception e)
-                {
-                    logger.LogWarning(e, "The configured message modifier failed for message type {MessageType} and message {Message}", messageType, message);
-                }
+                var messageModifier = producerSettings.GetMessageModifier();
+                messageModifier?.Invoke(message, m);
+            }
+            catch (Exception e)
+            {
+                logger.LogWarning(e, "The configured message modifier failed for message type {MessageType} and message {Message}", messageType, message);
             }
 
             var senderClient = producerByPath.GetOrAdd(path);
@@ -185,8 +187,6 @@
                 throw new PublishMessageBusException($"Producing message {message} of type {messageType.Name} to path {path} resulted in error: {ex.Message}", ex);
             }
         }
-
-        public static readonly string MessageHeaderUseKind = "smb-use-kind";
 
         public override Task ProduceRequest(object request, IDictionary<string, object> headers, string path, ProducerSettings producerSettings)
         {

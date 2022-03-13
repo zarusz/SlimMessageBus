@@ -120,7 +120,7 @@
 
             // assert
             creation.Should().Throw<ConfigurationMessageBusException>()
-                .WithMessage($"* '{typeof(SomeMessage).FullName}' *");
+                .WithMessage($"* {typeof(SomeMessage).FullName} *");
         }
 
         [Fact]
