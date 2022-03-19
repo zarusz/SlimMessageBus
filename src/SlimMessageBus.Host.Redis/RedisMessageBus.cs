@@ -2,7 +2,6 @@
 {
     using System;
     using System.Collections.Generic;
-    using System.Linq;
     using System.Threading.Tasks;
     using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.Collections;
@@ -50,6 +49,12 @@
             kindMapping.Configure(Settings);
 
             Connection = ProviderSettings.ConnectionFactory();
+            Connection.ConnectionFailed += Connection_ConnectionFailed;
+            Connection.ConnectionRestored += Connection_ConnectionRestored;
+            Connection.ErrorMessage += Connection_ErrorMessage;
+            Connection.ConfigurationChanged += Connection_ConfigurationChanged;
+            Connection.ConfigurationChangedBroadcast += Connection_ConfigurationChangedBroadcast;
+
             Database = Connection.GetDatabase();
 
             try
@@ -61,6 +66,32 @@
                 // Do nothing
                 logger.LogWarning(e, "Error occured while executing hook {0}", nameof(RedisMessageBusSettings.OnDatabaseConnected));
             }
+        }
+
+        private void Connection_ErrorMessage(object sender, RedisErrorEventArgs e)
+        {
+            logger.LogError("Redis recieved error message: {ErrorMessage}", e.Message);
+        }
+
+        private void Connection_ConfigurationChangedBroadcast(object sender, EndPointEventArgs e)
+        {
+            logger.LogDebug("Redis configuration changed broadcast from {EndPoint}", e.EndPoint);
+        }
+
+        private void Connection_ConfigurationChanged(object sender, EndPointEventArgs e)
+        {
+            logger.LogDebug("Redis configuration changed from {EndPoint}", e.EndPoint);
+        }
+
+        private void Connection_ConnectionRestored(object sender, ConnectionFailedEventArgs e)
+        {
+            logger.LogInformation("Redis connection restored - failure type {FailureType}, connection type: {ConnectionType}", e.FailureType, e.ConnectionType);
+            throw new NotImplementedException();
+        }
+
+        private void Connection_ConnectionFailed(object sender, ConnectionFailedEventArgs e)
+        {
+            logger.LogError(e.Exception, "Redis connection failed - failure type {FailureType}, connection type: {ConnectionType}, with message {ErrorMessage}", e.FailureType, e.ConnectionType, e.Exception?.Message ?? "(empty)");
         }
 
         protected override async ValueTask DisposeAsyncCore()
@@ -82,7 +113,10 @@
 
                 CreateConsumers();
 
-                await Task.WhenAll(consumers.Select(x => x.Start()));
+                foreach (var consumer in consumers)
+                {
+                    await consumer.Start();
+                }
             }
         }
 
@@ -92,7 +126,10 @@
 
             if (IsRunning)
             {
-                await Task.WhenAll(consumers.Select(x => x.Stop()));
+                foreach (var consumer in consumers)
+                {
+                    await consumer.Stop();
+                }
 
                 DestroyConsumers();
 
@@ -160,7 +197,7 @@
 
         protected void AddTopicConsumer(AbstractConsumerSettings consumerSettings, ISubscriber subscriber, IMessageProcessor<byte[]> messageProcessor)
         {
-            var consumer = new RedisTopicConsumer(consumerSettings, subscriber, messageProcessor);
+            var consumer = new RedisTopicConsumer(LoggerFactory.CreateLogger<RedisTopicConsumer>(), consumerSettings, subscriber, messageProcessor);
             consumers.Add(consumer);
         }
 

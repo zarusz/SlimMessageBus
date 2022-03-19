@@ -2,47 +2,47 @@
 {
     using System;
     using System.Threading.Tasks;
+    using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.Config;
     using StackExchange.Redis;
 
     public class RedisTopicConsumer : IRedisConsumer
     {
-        private readonly string _topic;
-        private readonly ISubscriber _subscriber;
-        private IMessageProcessor<byte[]> _messageProcessor;
+        private readonly ILogger<RedisTopicConsumer> logger;
+        private readonly string topic;
+        private readonly ISubscriber subscriber;
+        private IMessageProcessor<byte[]> messageProcessor;
+        private ChannelMessageQueue channelMessageQueue;
 
-        private ChannelMessageQueue _channelMessageQueue;
-
-        public RedisTopicConsumer(AbstractConsumerSettings consumerSettings, ISubscriber subscriber, IMessageProcessor<byte[]> messageProcessor)
+        public RedisTopicConsumer(ILogger<RedisTopicConsumer> logger, AbstractConsumerSettings consumerSettings, ISubscriber subscriber, IMessageProcessor<byte[]> messageProcessor)
         {
             _ = consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings));
 
-            _topic = consumerSettings.Path;
-            _subscriber = subscriber ?? throw new ArgumentNullException(nameof(subscriber));
-            _messageProcessor = messageProcessor;
+            this.logger = logger;
+            topic = consumerSettings.Path;
+            this.subscriber = subscriber ?? throw new ArgumentNullException(nameof(subscriber));
+            this.messageProcessor = messageProcessor;
         }
 
-        public Task Start()
+        public async Task Start()
         {
-            _channelMessageQueue = _subscriber.Subscribe(_topic);
-            _channelMessageQueue.OnMessage(m => _messageProcessor.ProcessMessage(m.Message));
-
-            return Task.CompletedTask;
+            logger.LogInformation("Subscribing to redis channel {Topic}", topic);
+            channelMessageQueue = await subscriber.SubscribeAsync(topic);
+            channelMessageQueue.OnMessage(m => messageProcessor.ProcessMessage(m.Message));
         }
 
         public Task Stop()
         {
-            UnsubscribeInternal();
-
-            return Task.CompletedTask;
+            return UnsubscribeInternal();
         }
 
-        private void UnsubscribeInternal()
+        private async Task UnsubscribeInternal()
         {
-            if (_channelMessageQueue != null)
+            if (channelMessageQueue != null)
             {
-                _channelMessageQueue.Unsubscribe();
-                _channelMessageQueue = null;
+                logger.LogInformation("Unsubscribing from redis channel {Topic}", topic);
+                await channelMessageQueue.UnsubscribeAsync();
+                channelMessageQueue = null;
             }
         }
 
@@ -56,12 +56,12 @@
 
         protected virtual async ValueTask DisposeAsyncCore()
         {
-            UnsubscribeInternal();
+            await UnsubscribeInternal();
 
-            if (_messageProcessor != null)
+            if (messageProcessor != null)
             {
-                await _messageProcessor.DisposeAsync();
-                _messageProcessor = null;
+                await messageProcessor.DisposeAsync();
+                messageProcessor = null;
             }
         }
 
