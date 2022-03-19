@@ -63,6 +63,9 @@
 
             await task.ConfigureAwait(false);
             task = null;
+
+            cancellationTokenSource.Dispose();
+            cancellationTokenSource = null;
         }
 
         protected async Task Run()
