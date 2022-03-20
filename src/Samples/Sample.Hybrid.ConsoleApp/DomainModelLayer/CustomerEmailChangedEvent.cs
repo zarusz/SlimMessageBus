@@ -7,13 +7,9 @@
     /// </summary>
     public class CustomerEmailChangedEvent
     {
-        public DateTime Timestamp { get; set; }
-        public Customer Customer { get; set; }
-        public string OldEmail { get; set; }
-
-        public CustomerEmailChangedEvent()
-        {
-        }
+        public DateTime Timestamp { get; }
+        public Customer Customer { get; }
+        public string OldEmail { get; }
 
         public CustomerEmailChangedEvent(Customer customer, string oldEmail)
         {

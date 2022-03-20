@@ -1,22 +1,23 @@
 ## Sample.Simple.ConsoleApp
 
-This is the simplest, all in one-class code example.
+This is the simplest, one-class code example.
 It shows how it is easy to change providers in one place while having the rest of the code intact.
 
 ## Sample.DomainEvents
 
 This sample shows how `SlimMessageBus` can be used to implement domain events.
 
-`Sample.DomainEvents.Domain` project is the domain model that has the `OrderSubmittedEvent` along with its handler `OrderSubmittedHandler`.
-This layer has the only dependency on `SlimMessageBus` to be able to publish domain events and consume domain events.
+`Sample.DomainEvents.Domain` project is the domain model that has the `OrderSubmittedEvent`. The domain layer has a dependency on `SlimMessageBus` to be able to publish domain events.
 
-`Sample.DomainEvents.WebApi` project is a ASP.NET Core 3.1 project that configures the `SlimMessageBus.Host.Memory` to enable in-process message passing.
+`Sample.DomainEvents.Application` implements the application logic and has the handler `OrderSubmittedHandler` for the domain event (which implements the `IConsumer<OrderSubmittedEvent>`).
+
+`Sample.DomainEvents.WebApi` project is an ASP.NET Core 5.0 project that configures the `SlimMessageBus.Host.Memory` to enable in-process message passing.
 Notice that the `MessageBus.Current` will resolve the `IMessageBus` instance from the current web request scope. Each handler instance will be scoped to the web request as well.
-The MessageBus instance is web request scoped. The scope could as well be a singleton.
+The MessageBus instance is a web request scoped. The scope could as well be a singleton.
 
 Run the WebApi project and POST (without any payload) to `https://localhost:5001/api/orders`. An order will be submitted:
 
-```
+```text
 2018-12-09 23:06:34.4667|INFO|Sample.DomainEvents.Domain.OrderSubmittedHandler|Customer John Whick just placed an order for:
 2018-12-09 23:06:34.4667|INFO|Sample.DomainEvents.Domain.OrderSubmittedHandler|- 2x id_machine_gun
 2018-12-09 23:06:34.4749|INFO|Sample.DomainEvents.Domain.OrderSubmittedHandler|- 4x id_grenade
@@ -25,7 +26,8 @@ Run the WebApi project and POST (without any payload) to `https://localhost:5001
 
 ## Sample.Images
 
-Sample project that uses request-response to generate image thumbnails. It consists of two main applications:
+The sample project uses request-response to generate image thumbnails. It consists of two main applications:
+
 * WebApi (ASP.NET Core 3.1 WebApi)
 * Worker (.NET Core 3.1 Console App)
 
@@ -33,9 +35,9 @@ The WebApi serves thumbnails of an original image given the desired *Width x Hei
 
 `https://localhost:56788/api/image/DSC3781.jpg/r/?w=120&h=80&mode=1`
 
-The thumbnail generation happens on the Worker. Because the image resizing is an CPU/memory intensive operation, the number of workers can be scaled out as load increases.
+The thumbnail generation happens on the Worker. Because the image resizing is an CPU/memory intensive operation, the number of workers can be scaled out as the load increases.
 
-The orignal images and produced thumbnails cache reside on disk in folder: `.\SlimMessageBus\src\Samples\Content\`
+The original images and produced thumbnails cache reside on disk in the folder: `.\SlimMessageBus\src\Samples\Content\`
 
 To obtain the original image use:
 

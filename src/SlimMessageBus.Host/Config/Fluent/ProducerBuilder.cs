@@ -7,6 +7,8 @@
     {
         public ProducerSettings Settings { get; }
 
+        public Type MessageType => Settings.MessageType;
+
         public ProducerBuilder(ProducerSettings settings)
             : this(settings, typeof(T))
         {

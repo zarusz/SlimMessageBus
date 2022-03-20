@@ -1,26 +1,21 @@
 ﻿namespace Sample.DomainEvents.WebApi
 {
-    using System;
-    using System.Linq;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Hosting;
     using Microsoft.Extensions.Logging;
+    using Sample.DomainEvents.Application;
     using Sample.DomainEvents.Domain;
     using SlimMessageBus;
     using SlimMessageBus.Host.AspNetCore;
-    using SlimMessageBus.Host.Config;
     using SlimMessageBus.Host.DependencyResolver;
     using SlimMessageBus.Host.Memory;
 
     public class Startup
     {
-        public Startup(IConfiguration configuration)
-        {
-            Configuration = configuration;
-        }
+        public Startup(IConfiguration configuration) => Configuration = configuration;
 
         public IConfiguration Configuration { get; }
 
@@ -39,7 +34,7 @@
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILoggerFactory loggerFactory)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
             {
@@ -72,44 +67,43 @@
 
         public void ConfigureMessageBus(IServiceCollection services)
         {
-            services.AddScoped<OrderSubmittedHandler>();
-
             services.AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
 
             // Make the MessageBus per request scope
-            services.AddSlimMessageBus(ConfigureMessageBus);
-        }
+            services.AddSlimMessageBus((mbb, svp) =>
+            {
+                var appAssembly = typeof(OrderSubmittedEvent).Assembly;
 
-        private void ConfigureMessageBus(MessageBusBuilder mbb, IServiceProvider serviceProvider)
-        {
-            var domainAssembly = typeof(OrderSubmittedEvent).Assembly;
-
-            // declare that OrderSubmittedEvent will be produced (option 1 - explicit declaration)
-            //.Produce<OrderSubmittedEvent>(x => x.DefaultTopic(x.Settings.MessageType.Name))
-            // declare that OrderSubmittedEvent will be consumed by OrderSubmittedHandler (option 1 - explicit declaration)
-            //.Consume<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithSubscriber<OrderSubmittedHandler>())
-
-            // Note: we could discover messages and handlers using reflection and register them automatically (option 2 - auto discovery)
-            mbb
-                .Do(builder => domainAssembly
-                    .GetTypes()
-                    .Where(t => t.IsClass && !t.IsAbstract)
-                    .SelectMany(t => t.GetInterfaces(), (t, i) => new { Type = t, Interface = i })
-                    .Where(x => x.Interface.IsGenericType && x.Interface.GetGenericTypeDefinition() == typeof(IConsumer<>))
-                    .Select(x => new { HandlerType = x.Type, EventType = x.Interface.GetGenericArguments()[0] })
-                    .ToList()
-                    .ForEach(find =>
+                mbb
+                    // declare that OrderSubmittedEvent will be produced (option 1 - explicit declaration)
+                    .Produce<OrderSubmittedEvent>(x => x.DefaultTopic(x.MessageType.Name))
+                    // declare that OrderSubmittedEvent will be consumed by OrderSubmittedHandler (option 1 - explicit declaration)
+                    .Consume<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<OrderSubmittedHandler>())
+                    
+                    // Note: we could discover messages and handlers using reflection and register them automatically (option 2 - auto discovery)
+                    /*
+                    .Do(builder => appAssembly
+                        .GetTypes()
+                        .Where(t => t.IsClass && !t.IsAbstract)
+                        .SelectMany(t => t.GetInterfaces(), (t, i) => new { Type = t, Interface = i })
+                        .Where(x => x.Interface.IsGenericType && x.Interface.GetGenericTypeDefinition() == typeof(IConsumer<>))
+                        .Select(x => new { HandlerType = x.Type, EventType = x.Interface.GetGenericArguments()[0] })
+                        .ToList()
+                        .ForEach(find =>
+                        {
+                            builder.Produce(find.EventType, x => x.DefaultTopic(x.MessageType.Name));
+                            builder.Consume(find.EventType, x => x.Topic(x.MessageType.Name).WithConsumer(find.HandlerType));
+                        })
+                    )
+                    */
+                    //.WithSerializer(new JsonMessageSerializer()) // No need to use the serializer because of `MemoryMessageBusSettings.EnableMessageSerialization = false`
+                    .WithProviderMemory(new MemoryMessageBusSettings
                     {
-                        builder.Produce(find.EventType, x => x.DefaultTopic(x.Settings.MessageType.Name));
-                        builder.Consume(find.EventType, x => x.Topic(x.MessageType.Name).WithConsumer(find.HandlerType));
-                    })
-                )
-                //.WithSerializer(new JsonMessageSerializer()) // No need to use the serializer because of `MemoryMessageBusSettings.EnableMessageSerialization = false`
-                .WithProviderMemory(new MemoryMessageBusSettings
-                {
-                    // Do not serialize the domain events and rather pass the same instance across handlers
-                    EnableMessageSerialization = false
-                });
+                        // Do not serialize the domain events and rather pass the same instance across handlers
+                        EnableMessageSerialization = false
+                    });
+            },
+            addConsumersFromAssembly: new[] { typeof(OrderSubmittedHandler).Assembly });
         }
     }
 }

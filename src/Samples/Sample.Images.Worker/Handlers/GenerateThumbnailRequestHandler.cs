@@ -12,18 +12,18 @@
 
     public class GenerateThumbnailRequestHandler : IRequestHandler<GenerateThumbnailRequest, GenerateThumbnailResponse>
     {
-        private readonly IFileStore _fileStore;
-        private readonly IThumbnailFileIdStrategy _fileIdStrategy;
+        private readonly IFileStore fileStore;
+        private readonly IThumbnailFileIdStrategy fileIdStrategy;
 
         public GenerateThumbnailRequestHandler(IFileStore fileStore, IThumbnailFileIdStrategy fileIdStrategy)
         {
-            _fileStore = fileStore;
-            _fileIdStrategy = fileIdStrategy;
+            this.fileStore = fileStore;
+            this.fileIdStrategy = fileIdStrategy;
         }
 
         #region Implementation of IRequestHandler<in GenerateThumbnailRequest,GenerateThumbnailResponse>
 
-        public async Task<GenerateThumbnailResponse> OnHandle(GenerateThumbnailRequest request, string name)
+        public async Task<GenerateThumbnailResponse> OnHandle(GenerateThumbnailRequest request, string path)
         {
             var image = await LoadImage(request.FileId).ConfigureAwait(false);
             if (image == null)
@@ -33,7 +33,7 @@
             }
             using (image)
             {
-                var thumbnailFileId = _fileIdStrategy.GetFileId(request.FileId, request.Width, request.Height, request.Mode);
+                var thumbnailFileId = fileIdStrategy.GetFileId(request.FileId, request.Width, request.Height, request.Mode);
                 var thumbnail = ScaleToFitInside(image, request.Width, request.Height);
 
                 using (thumbnail)
@@ -52,7 +52,7 @@
 
         private async Task<Image> LoadImage(string fileId)
         {
-            var imageContent = await _fileStore.GetFile(fileId).ConfigureAwait(false);
+            var imageContent = await fileStore.GetFile(fileId).ConfigureAwait(false);
             if (imageContent == null)
             {
                 return null;
@@ -71,7 +71,7 @@
                 image.Save(ms, ImageFormat.Jpeg);
                 ms.Seek(0, SeekOrigin.Begin);
 
-                _fileStore.UploadFile(fileId, ms);
+                fileStore.UploadFile(fileId, ms);
             }
         }
 

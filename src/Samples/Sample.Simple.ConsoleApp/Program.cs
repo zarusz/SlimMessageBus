@@ -52,7 +52,7 @@
                 .AddSlimMessageBus((mbb, services) =>
                     {
                         ConfigureMessageBus(mbb, configuration, services);
-                    }, 
+                    },
                     // Option 1
                     addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() },
                     addConfiguratorsFromAssembly: new[] { Assembly.GetExecutingAssembly() }
@@ -293,16 +293,12 @@
     {
         public IConsumerContext Context { get; set; }
 
-        #region Implementation of IConsumer<in AddCommand>
-
         public async Task OnHandle(AddCommand message, string name)
         {
             Console.WriteLine("Consumer: Adding {0} and {1} gives {2}", message.Left, message.Right, message.Left + message.Right);
             // Context.Headers -> has the headers
             await Task.Delay(50); // Simulate some work
         }
-
-        #endregion
     }
 
     public class MultiplyRequest : IRequestMessage<MultiplyResponse>
@@ -318,15 +314,10 @@
 
     public class MultiplyRequestHandler : IRequestHandler<MultiplyRequest, MultiplyResponse>
     {
-        #region Implementation of IRequestHandler<in MultiplyRequest,MultiplyResponse>
-
         public async Task<MultiplyResponse> OnHandle(MultiplyRequest request, string name)
         {
             await Task.Delay(50); // Simulate some work
             return new MultiplyResponse { Result = request.Left * request.Right };
         }
-
-        #endregion
     }
-
 }

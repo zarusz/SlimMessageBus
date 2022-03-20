@@ -7,7 +7,7 @@
 
     public class SmtpEmailService : IConsumer<SendEmailCommand>
     {
-        public Task OnHandle(SendEmailCommand message, string name)
+        public Task OnHandle(SendEmailCommand message, string path)
         {
             // Sending email via SMTP...
             Console.WriteLine("--------------------------------------------");

@@ -13,29 +13,29 @@
     [Route("api/[controller]")]
     public class ImageController : Controller
     {
-        private readonly IRequestResponseBus _bus;
-        private readonly IFileStore _fileStore;
-        private readonly IThumbnailFileIdStrategy _fileIdStrategy;
+        private readonly IRequestResponseBus bus;
+        private readonly IFileStore fileStore;
+        private readonly IThumbnailFileIdStrategy fileIdStrategy;
 
         public ImageController(IRequestResponseBus bus, IFileStore fileStore, IThumbnailFileIdStrategy fileIdStrategy)
         {
-            _bus = bus;
-            _fileStore = fileStore;
-            _fileIdStrategy = fileIdStrategy;
+            this.bus = bus;
+            this.fileStore = fileStore;
+            this.fileIdStrategy = fileIdStrategy;
         }
 
         [HttpGet("{fileId}/r")]
         public async Task<ActionResult> GetImageThumbnail(string fileId, [FromQuery] ThumbnailMode mode, [FromQuery] int w, [FromQuery] int h, CancellationToken cancellationToken)
         {
-            var thumbFileId = _fileIdStrategy.GetFileId(fileId, w, h, mode);
+            var thumbFileId = fileIdStrategy.GetFileId(fileId, w, h, mode);
 
-            var thumbFileContent = await _fileStore.GetFile(thumbFileId).ConfigureAwait(false);
+            var thumbFileContent = await fileStore.GetFile(thumbFileId).ConfigureAwait(false);
             if (thumbFileContent == null)
             {
                 try
                 {
-                    var thumbGenResponse = await _bus.Send(new GenerateThumbnailRequest(fileId, mode, w, h), cancellationToken).ConfigureAwait(false);
-                    thumbFileContent = await _fileStore.GetFile(thumbGenResponse.FileId).ConfigureAwait(false);
+                    var thumbGenResponse = await bus.Send(new GenerateThumbnailRequest(fileId, mode, w, h), cancellationToken).ConfigureAwait(false);
+                    thumbFileContent = await fileStore.GetFile(thumbGenResponse.FileId).ConfigureAwait(false);
                 }
                 catch (RequestHandlerFaultedMessageBusException)
                 {
@@ -55,7 +55,7 @@
         [HttpGet("{fileId}")]
         public async Task<ActionResult> GetImage(string fileId)
         {
-            var fileContent = await _fileStore.GetFile(fileId).ConfigureAwait(false);
+            var fileContent = await fileStore.GetFile(fileId).ConfigureAwait(false);
             if (fileContent == null)
             {
                 return NotFound();
