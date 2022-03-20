@@ -14,8 +14,6 @@
 
         public RedisMessageBusSettings ProviderSettings { get; }
 
-        public bool IsRunning { get; private set; }
-
         protected IConnectionMultiplexer Connection { get; private set; }
         protected IDatabase Database { get; private set; }
 
@@ -107,16 +105,11 @@
         {
             await base.OnStart();
 
-            if (!IsRunning)
+            CreateConsumers();
+
+            foreach (var consumer in consumers)
             {
-                IsRunning = true;
-
-                CreateConsumers();
-
-                foreach (var consumer in consumers)
-                {
-                    await consumer.Start();
-                }
+                await consumer.Start();
             }
         }
 
@@ -124,17 +117,12 @@
         {
             await base.OnStop();
 
-            if (IsRunning)
+            foreach (var consumer in consumers)
             {
-                foreach (var consumer in consumers)
-                {
-                    await consumer.Stop();
-                }
-
-                DestroyConsumers();
-
-                IsRunning = false;
+                await consumer.Stop();
             }
+
+            DestroyConsumers();
         }
 
         protected void CreateConsumers()

@@ -123,6 +123,9 @@ namespace SlimMessageBus.Host.Redis.Test
 
             var messageBus = MessageBus.Value;
 
+            // ensure the consumers are warm
+            while (!messageBus.IsStarted) await Task.Delay(200);
+
             // act
 
             // consume all messages that might be on the queue/subscription
@@ -223,6 +226,9 @@ namespace SlimMessageBus.Host.Redis.Test
                 }));
 
             var messageBus = MessageBus.Value;
+
+            // ensure the consumers are warm
+            while (!messageBus.IsStarted) await Task.Delay(200);
 
             // act
 
