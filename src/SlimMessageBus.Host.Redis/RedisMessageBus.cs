@@ -84,7 +84,6 @@
         private void Connection_ConnectionRestored(object sender, ConnectionFailedEventArgs e)
         {
             logger.LogInformation("Redis connection restored - failure type {FailureType}, connection type: {ConnectionType}", e.FailureType, e.ConnectionType);
-            throw new NotImplementedException();
         }
 
         private void Connection_ConnectionFailed(object sender, ConnectionFailedEventArgs e)
