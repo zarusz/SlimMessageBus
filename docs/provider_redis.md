@@ -114,6 +114,8 @@ await bus.Publish(new SomeMessage())
 Then all 3 service instances will have the message copy delivered to the `SomeConsumer` (even the service instance that published the message in question).
 This is because each service instance is an independent subscriber (independent Redis client).
 
+> In redis pub/sub the published messages are not durable. At the time of publish only connected consumers will recieve the message. If any of your service instances comes online after the publish (had a downtime, was restarted) the previously publishied messages will not be delivered.
+
 ### Queues
 
 To consume `TMessage` by `TConsumer` from `some-queue` Redis queue (list) use:
