@@ -13,10 +13,7 @@
         {            
         }
 
-        public static MessageBusCurrentProviderBuilder Create()
-        {
-            return new MessageBusCurrentProviderBuilder();
-        }
+        public static MessageBusCurrentProviderBuilder Create() => new MessageBusCurrentProviderBuilder();
 
         public void SetProvider(Func<IMessageBus> provider) => this.provider = provider;
 

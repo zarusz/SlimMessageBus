@@ -66,11 +66,6 @@
                 endpoints.MapDefaultControllerRoute();
             });
 
-            ConfigureMessageBus(app);
-        }
-
-        public void ConfigureMessageBus(IApplicationBuilder app)
-        {
             // Set the MessageBus provider, so that IMessageBus are resolved from the current request scope
             MessageBus.SetProvider(MessageBusCurrentProviderBuilder.Create().From(app).Build());
         }

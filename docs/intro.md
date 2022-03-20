@@ -23,6 +23,7 @@
 - [Static accessor](#static-accessor)
 - [Dependency resolver](#dependency-resolver)
   - [MsDependencyInjection](#msdependencyinjection)
+    - [ASP.Net Core](#aspnet-core)
     - [Autoregistration of consumers](#autoregistration-of-consumers)
     - [Modularization of configuration](#modularization-of-configuration)
 - [Serialization](#serialization)
@@ -604,27 +605,48 @@ mbb.Handle<SomeRequest, SomeResponse>(x => x
 
 ## Static accessor
 
-The static `MessageBus.Current` was introduced to obtain either the singleton `IMessageBus` or the current scoped instance (like the `IMessageBus` tied with the currently executing request).
+The static `MessageBus.Current` was introduced to obtain the `IMessageBus` from the current context. The bus will typically be a singleton `IMessageBus`. However, the consumer instances will be obtained from the current DI scope (tied with the current web request or message scope when in a message handling scope).
 
-This helps to lookup the `IMessageBus` instance in the domain model layer while doing Domain-Driven Design and specifically to implement domain events or to externalize infrastructure concerns (domain layer sends domain events when anything changes on the domain that would require communication other layers or external systems).
+This allows to easily look up the `IMessageBus` instance in the domain model layer methods when doing Domain-Driven Design and specifically to implement domain events. This pattern allows to externalize infrastructure concerns (domain layer sends domain events when anything changes on the domain that would require communication to other layers or external systems).
+
+For ASP.NET Core application, in the `Startup.cs` configure the accessor like this:
+
+```cs
+public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+{
+  // ...
+
+  // Set the MessageBus provider to resolve the IMessageBus from the current request scope (or root if not inside a request scope)  
+  MessageBus.SetProvider(MessageBusCurrentProviderBuilder.Create().From(app).Build()); // Requires SlimMessageBus.Host.AspNetCore package
+}
+```
+
+For a console app, simply pass the root `IServiceProvider` like this:
+
+```cs
+IServiceProvider svp;
+
+// Resolve the IMessageBus from the root container
+MessageBus.SetProvider(MessageBusCurrentProviderBuilder.Create().From(svp).Build());
+```
 
 See [`DomainEvents`](../src/Samples/Sample.DomainEvents.WebApi/Startup.cs#L79) sample how to configure it per-request scope and how to use it for domain events.
 
 ## Dependency resolver
 
-SMB uses dependency resolver to obtain instances of the declared consumers (class instances that implement `IConsumer<>` or `IHandler<>`).
-There are few plugins available that allow to integrate SMB with your favorite DI library. 
+SMB uses a dependency resolver to obtain instances of the declared consumers (class instances that implement `IConsumer<>` or `IHandler<>`).
+There are a few plugins available that allow you integrating SMB with your favorite DI library.
 
 The consumer/handler is typically resolved from DI container when the message arrives and needs to be handled.
-SMB does not maintain a reference to that object instance after consuming of the message - this gives user the ability to decide is the consumer/handler should be a singleton, transient, or scoped (to the message being processed or ongoing web-request) and when it should be disposed.
+SMB does not maintain a reference to that object instance after consuming the message - this gives user the ability to decide if the consumer/handler should be a singleton, transient, or scoped (to the message being processed or ongoing web-request) and when it should be disposed of.
 
 The disposal of the consumer instance obtained by the DI is typically handled by the DI (if the consumer implements `IDisposable`).
 By default SMB creates a child DI scope for every arriving message (`.IsMessageScopeEnabled(true)`) and after the message is processed,
-SMB disposes that child DI scope - with that the DI will dispose the consumer instance and its injected collaborators.
+SMB disposes of that child DI scope - with that the DI will dispose the consumer instance and its injected collaborators.
 
-Now, in some special situations you might want SMB to dispose of the consumer instance
+Now, in some special situations, you might want SMB to dispose of the consumer instance
 after the message has been processed - you can enable that with `.DisposeConsumerEnabled(true)`. 
-This setting will make SMB dispose the consumer instance if only it implements the `IDisposable` interface.
+This setting will make SMB dispose of the consumer instance if only it implements the `IDisposable` interface.
 
 > Generally its recommended to leave the default per-message scope creation, and register the consumer types/handlers as either transient or scoped.
 
@@ -659,10 +681,18 @@ services.AddSlimMessageBus((mbb, svp) =>
 services.AddMessageBusConsumersFromAssembly(Assembly.GetExecutingAssembly());
 services.AddMessageBusConfiguratorsFromAssembly(Assembly.GetExecutingAssembly());
 ```
+The `svp` (of type `IServiceProvider`) parameter can be used to obtain additional dependencies from DI.
 
 > The `.WithDependencyResolver(...)` is already called on the `MessageBusBuilder`.
 
-The `svp` (of type `IServiceProvider`) can be used to obtain additional dependencies from DI.
+#### ASP.Net Core
+
+For ASP.NET services, it is recommended to use the `SlimMessageBus.Host.AspNetCore` package. To properly support request scopes it has a dependency on the `IHttpContextAccessor` which [needs to be registered](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/http-context?view=aspnetcore-6.0#use-httpcontext-from-custom-components) during application setup:
+
+```cs
+// This will register the `IHttpContextAccessor`
+services.AddHttpContextAccessor();
+```
 
 #### Autoregistration of consumers
 
