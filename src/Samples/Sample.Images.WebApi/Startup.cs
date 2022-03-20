@@ -13,19 +13,14 @@
     using Sample.Images.Messages;
     using SlimMessageBus;
     using SlimMessageBus.Host.AspNetCore;
-    using SlimMessageBus.Host.Config;
     using SlimMessageBus.Host.Kafka;
     using SlimMessageBus.Host.Serialization.Json;
 
     public class Startup
     {
-        public Startup(IConfiguration configuration)
-        {
-            Configuration = configuration;
-        }
-
         public IConfiguration Configuration { get; }
-        
+
+        public Startup(IConfiguration configuration) => Configuration = configuration;        
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
@@ -51,46 +46,33 @@
         {
             services.AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
 
-            services.AddSingleton<IMessageBus>(BuildMessageBus);
-            
-            services.AddSingleton<IRequestResponseBus>(svp => svp.GetService<IMessageBus>());
+            services.AddSlimMessageBus((mbb, svp) =>
+            {
+                // unique id across instances of this application (e.g. 1, 2, 3)
+                var instanceId = Configuration["InstanceId"];
+                var kafkaBrokers = Configuration["Kafka:Brokers"];
 
-            // register any consumers (IConsumer<>) or handlers (IHandler<>) - if any
+                var instanceGroup = $"webapi-{instanceId}";
+                var instanceReplyTo = $"webapi-{instanceId}-response";
+
+                mbb
+                    .Produce<GenerateThumbnailRequest>(x =>
+                    {
+                        // Default response timeout for this request type
+                        //x.DefaultTimeout(TimeSpan.FromSeconds(10));
+                        x.DefaultTopic("thumbnail-generation");
+                    })
+                    .ExpectRequestResponses(x =>
+                    {
+                        x.ReplyToTopic(instanceReplyTo);
+                        x.KafkaGroup(instanceGroup);
+                        // Default global response timeout
+                        x.DefaultTimeout(TimeSpan.FromSeconds(30));
+                    })
+                    .WithSerializer(new JsonMessageSerializer())
+                    .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
+            });
         }
-
-        private IMessageBus BuildMessageBus(IServiceProvider serviceProvider)
-        {
-            // unique id across instances of this application (e.g. 1, 2, 3)
-            var instanceId = Configuration["InstanceId"];
-            var kafkaBrokers = Configuration["Kafka:Brokers"];
-
-            var instanceGroup = $"webapi-{instanceId}";
-            var instanceReplyTo = $"webapi-{instanceId}-response";
-
-            var messageBusBuilder = MessageBusBuilder.Create()
-                .Produce<GenerateThumbnailRequest>(x =>
-                {
-                    // Default response timeout for this request type
-                    //x.DefaultTimeout(TimeSpan.FromSeconds(10));
-                    x.DefaultTopic("thumbnail-generation");
-                })
-                .ExpectRequestResponses(x =>
-                {
-                    x.ReplyToTopic(instanceReplyTo);
-                    x.KafkaGroup(instanceGroup);
-                    // Default global response timeout
-                    x.DefaultTimeout(TimeSpan.FromSeconds(30));
-                })
-                //.WithDependencyResolverAsServiceLocator()
-                //.WithDependencyResolverAsAutofac()
-                .WithDependencyResolver(new AspNetCoreMessageBusDependencyResolver(serviceProvider))
-                .WithSerializer(new JsonMessageSerializer())
-                .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
-
-            var messageBus = messageBusBuilder.Build();
-            return messageBus;
-        }
-
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

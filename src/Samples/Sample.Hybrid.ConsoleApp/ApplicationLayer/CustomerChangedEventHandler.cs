@@ -7,12 +7,9 @@
 
     public class CustomerChangedEventHandler : IConsumer<CustomerEmailChangedEvent>
     {
-        private readonly IMessageBus _bus;
+        private readonly IMessageBus bus;
 
-        public CustomerChangedEventHandler(IMessageBus bus)
-        {
-            _bus = bus;
-        }
+        public CustomerChangedEventHandler(IMessageBus bus) => this.bus = bus;
 
         public async Task OnHandle(CustomerEmailChangedEvent message, string name)
         {
@@ -24,7 +21,7 @@
                 Title = "Please confirm your email",
                 Body = "Click <a href=\"https://google.com\">here</a> to confirm your new email."
             };
-            await _bus.Publish(cmd);
+            await bus.Publish(cmd);
 
             // Do other logic ...
         }

@@ -14,6 +14,9 @@ namespace Sample.Images.Worker
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Logging;
 
+    /// <summary>
+    /// This shows how Autofac can be setup
+    /// </summary>
     public static class ContainerSetup
     {
         public static IContainer Create(IConfigurationRoot configuration, ILoggerFactory loggerFactory)

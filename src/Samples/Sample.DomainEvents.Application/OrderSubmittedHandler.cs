@@ -1,7 +1,8 @@
-﻿namespace Sample.DomainEvents.Domain
+﻿namespace Sample.DomainEvents.Application
 {
     using System.Threading.Tasks;
     using Microsoft.Extensions.Logging;
+    using Sample.DomainEvents.Domain;
     using SlimMessageBus;
 
     /// <summary>

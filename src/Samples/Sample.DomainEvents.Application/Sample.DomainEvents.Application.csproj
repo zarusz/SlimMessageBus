@@ -1,10 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Library</OutputType>
     <TargetFramework>net5.0</TargetFramework>
-    <ApplicationIcon />
-    <StartupObject />
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\SlimMessageBus\SlimMessageBus.csproj" />
+    <ProjectReference Include="..\Sample.DomainEvents.Domain\Sample.DomainEvents.Domain.csproj" />
   </ItemGroup>
 
 </Project>

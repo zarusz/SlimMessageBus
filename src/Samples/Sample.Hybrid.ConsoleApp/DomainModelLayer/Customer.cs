@@ -2,6 +2,7 @@
 {
     using SlimMessageBus;
     using System;
+    using System.Threading.Tasks;
 
     public class Customer
     {
@@ -26,14 +27,14 @@
             Lastname = lastname;
         }
 
-        public void ChangeEmail(string email)
+        public Task ChangeEmail(string email)
         {
             var oldEmail = Email;
 
             Email = email;
             Updated = DateTime.UtcNow;
 
-            MessageBus.Current.Publish(new CustomerEmailChangedEvent(this, oldEmail));
+            return MessageBus.Current.Publish(new CustomerEmailChangedEvent(this, oldEmail));
         }
     }
 }

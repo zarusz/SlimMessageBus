@@ -7,14 +7,11 @@
 
     public class Application
     {
-        private readonly IMessageBus _messageBus;
-        private bool _canRun = true;
+        private readonly IMessageBus bus;
+        private bool canRun = true;
 
         // Inject to ensure that bus is started (the singletons are lazy created by default by MS dependency injector)
-        public Application(IMessageBus messageBus)
-        {
-            _messageBus = messageBus;
-        }
+        public Application(IMessageBus bus) => this.bus = bus;
 
         public void Run()
         {
@@ -23,15 +20,15 @@
             Console.WriteLine("Application started. Press any key to terminate.");
             Console.ReadLine();
 
-            _canRun = false;
+            canRun = false;
         }
 
         public async Task CustomerDoesSomeStuff()
         {
-            while (_canRun)
+            while (canRun)
             {
                 var customer = new Customer("John", "Doe");
-                customer.ChangeEmail("john@doe.com");
+                await customer.ChangeEmail("john@doe.com");
 
                 await Task.Delay(2000);
             }
