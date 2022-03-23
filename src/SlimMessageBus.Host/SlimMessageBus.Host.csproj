@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SlimMessageBus.Host.DependencyResolver\SlimMessageBus.Host.DependencyResolver.csproj" />
+    <ProjectReference Include="..\SlimMessageBus.Host.Interceptor\SlimMessageBus.Host.Interceptor.csproj" />
     <ProjectReference Include="..\SlimMessageBus.Host.Serialization\SlimMessageBus.Host.Serialization.csproj" />
     <ProjectReference Include="..\SlimMessageBus\SlimMessageBus.csproj" />
   </ItemGroup>

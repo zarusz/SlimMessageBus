@@ -18,7 +18,7 @@
         private readonly IMessageProcessor<TMessage> target;
         private Exception lastException;
         private TMessage lastExceptionMessage;
-        private object lastExceptionLock = new object();
+        private readonly object lastExceptionLock = new();
 
         private int pendingCount;
 

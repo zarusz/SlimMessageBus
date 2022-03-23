@@ -18,7 +18,8 @@ var connectionString = ""; // Azure Event Hubs connection string
 var storageConnectionString = ""; // Azure Storage Account connection string (for the consumer group to store last checkpointed offset of each topic-partition)
 var storageContainerName = ""; // Azure Blob Storage container name
 
-MessageBusBuilder mbb = MessageBusBuilder.Create()
+// MessageBusBuilder mbb;
+mbb.    
     // the bus configuration here
     .WithProviderEventHub(new EventHubMessageBusSettings(connectionString, storageConnectionString, storageContainerName)); // Use Azure Event Hub as provider
     .WithSerializer(new JsonMessageSerializer());
@@ -26,12 +27,13 @@ MessageBusBuilder mbb = MessageBusBuilder.Create()
 IMessageBus bus = mbb.Build();
 ```
 
-If your bus only producse messages to Event Hub and does not consume any messages, then you do not need to provide a storage account as part of the config. In that case pass `null` for the storage account details:
+If your bus only produces messages to Event Hub and does not consume any messages, then you do not need to provide a storage account as part of the config. In that case pass `null` for the storage account details:
 
 ```cs
 var connectionString = ""; // Azure Event Hubs connection string
 
-MessageBusBuilder mbb = MessageBusBuilder.Create()
+// MessageBusBuilder mbb;
+mbb.    
     // the bus configuration here
     .WithProviderEventHub(new EventHubMessageBusSettings(connectionString, null, null)); // The bus will only be used to publish messages to Azure Event Hub
     .WithSerializer(new JsonMessageSerializer());
@@ -116,7 +118,7 @@ mbb.Consume<SomeMessage>(x =>
      .CheckpointEvery(50)) // trigger checkpoint every 50 messages
 ```
 
-When the service checkpoints are often, this will impact performance/throughput (more round trips to Azure Blob Storage to save the offsets). In contrast, when the service checkpoints are too rare, then probability for a message retry (if the lease expires or your services crashes) increases. As with everything, this needs to be tweaked to achieve a balance.
+When the service checkpoints are often, this will impact performance/throughput (more round trips to Azure Blob Storage to save the offsets). In contrast, when the service checkpoints are too rare, then the probability for a message retry (if the lease expires or your services crashes) increases. As with everything, this needs to be tweaked to achieve a balance.
 
 > Since version 1.16.0 the transport has moved to the new [AEH client library](https://www.nuget.org/packages/Azure.Messaging.EventHubs/).
 > Because of this, the consumer offsets stored in Azure Blob Storage are no longer compatible.

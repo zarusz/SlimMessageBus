@@ -4,6 +4,7 @@
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Globalization;
+    using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
     using Azure.Messaging.ServiceBus;
@@ -24,8 +25,15 @@
 
         public ServiceBusMessageBusTests()
         {
+            var dependencyResolverMock = new Mock<IDependencyResolver>();
+            dependencyResolverMock.Setup(x => x.Resolve(It.IsAny<Type>())).Returns((Type t) =>
+            {
+                if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
+                return null;
+            });
+
             BusBuilder.WithSerializer(new Mock<IMessageSerializer>().Object);
-            BusBuilder.WithDependencyResolver(new Mock<IDependencyResolver>().Object);
+            BusBuilder.WithDependencyResolver(dependencyResolverMock.Object);
 
             ProviderBusSettings = new ServiceBusMessageBusSettings("connection-string")
             {

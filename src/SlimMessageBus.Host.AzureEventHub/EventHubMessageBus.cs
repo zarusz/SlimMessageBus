@@ -3,6 +3,7 @@
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Threading;
     using System.Threading.Tasks;
     using Azure.Messaging.EventHubs;
     using Azure.Messaging.EventHubs.Producer;
@@ -136,7 +137,7 @@
             await Task.WhenAll(groupConsumers.Select(x => x.Stop()));
         }
 
-        public override async Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null)
+        public override async Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
         {
             if (messageType is null) throw new ArgumentNullException(nameof(messageType));
             if (messagePayload is null) throw new ArgumentNullException(nameof(messagePayload));
@@ -164,13 +165,13 @@
             {
                 // When null the partition will be automatically assigned
                 PartitionKey = partitionKey
-            });
+            }, cancellationToken);
             if (!eventBatch.TryAdd(ev))
             {
                 throw new PublishMessageBusException($"Could not add message {message} of Type {messageType.Name} on Path {path} to the send batch");
             }
 
-            await producer.SendAsync(eventBatch).ConfigureAwait(false);
+            await producer.SendAsync(eventBatch, cancellationToken).ConfigureAwait(false);
 
             logger.LogDebug("Delivered message {Message} of Type {MessageType} on Path {Path} with PartitionKey {PartitionKey}", message, messageType.Name, path, partitionKey);
         }

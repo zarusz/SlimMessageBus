@@ -52,6 +52,9 @@
             OnChanged();
         }
 
+        public bool TryGet(TKey key, out TValue value)
+            => _mutableDict.TryGetValue(key, out value);
+
         public TValue GetOrAdd(TKey key, Func<TKey, TValue> factory)
         {
             if (factory is null) throw new ArgumentNullException(nameof(factory));
@@ -65,16 +68,24 @@
                     if (!_mutableDict.TryGetValue(key, out value))
                     {
                         value = factory(key);
-                        // allocate a new dictonary to avoid mutation while reading in another thread
-                        _mutableDict = new Dictionary<TKey, TValue>(_mutableDict)
-                        {
-                            {key, value}
-                        };
-                        OnChanged();
+                        Set(key, value);
                     }
                 }
             }
             return value;
+        }
+
+        public void Set(TKey key, TValue value)
+        {
+            lock (this)
+            {
+                // allocate a new dictonary to avoid mutation while reading in another thread
+                _mutableDict = new Dictionary<TKey, TValue>(_mutableDict)
+                {
+                    [key] = value
+                };
+                OnChanged();
+            }
         }
 
         public TValue GetOrAdd(TKey key)

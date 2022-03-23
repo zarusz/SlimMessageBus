@@ -37,21 +37,24 @@ namespace SlimMessageBus.Host
             }
             catch (Exception e)
             {
-                if (logger.IsEnabled(LogLevel.Error))
-                {
-                    logger.LogError(e, "Error occured while consuming response message, {Message}", message);
-                }
-
-                // We can only continue and process all messages in the lease    
+                logger.LogError(e, "Error occured while consuming response message, {Message}", message);
 
                 if (requestResponseSettings.OnResponseMessageFault != null)
                 {
                     // Call the hook
-                    logger.LogDebug("Executing the attached hook from {0}", nameof(requestResponseSettings.OnResponseMessageFault));
-                    requestResponseSettings.OnResponseMessageFault(requestResponseSettings, message, e);
+                    try
+                    {
+                        requestResponseSettings.OnResponseMessageFault(requestResponseSettings, message, e);
+                    }
+                    catch (Exception eh)
+                    {
+                        MessageBusBase.HookFailed(logger, eh, nameof(IConsumerEvents.OnMessageFault));
+                    }
                 }
+
+                // We can only continue and process all messages in the lease    
+                return Task.FromResult<Exception>(null);
             }
-            return Task.FromResult<Exception>(null);
         }
 
         #region IAsyncDisposable
@@ -65,6 +68,5 @@ namespace SlimMessageBus.Host
         protected virtual ValueTask DisposeAsyncCore() => new();
 
         #endregion
-
     }
 }

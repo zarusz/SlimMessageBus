@@ -95,6 +95,8 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
                 .WithDependencyResolver(new LookupDependencyResolver(f =>
                 {
                     if (f == typeof(PingConsumer)) return pingConsumer;
+                    // for interceptors
+                    if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
                     throw new InvalidOperationException();
                 }));
 
@@ -157,6 +159,8 @@ namespace SlimMessageBus.Host.AzureEventHub.Test
                 .WithDependencyResolver(new LookupDependencyResolver(f =>
                 {
                     if (f == typeof(EchoRequestHandler)) return echoRequestHandler;
+                    // for interceptors
+                    if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
                     throw new InvalidOperationException();
                 }));
 

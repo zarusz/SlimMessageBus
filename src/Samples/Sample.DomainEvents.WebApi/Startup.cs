@@ -9,9 +9,9 @@
     using Sample.DomainEvents.Application;
     using Sample.DomainEvents.Domain;
     using SlimMessageBus;
-    using SlimMessageBus.Host.AspNetCore;
     using SlimMessageBus.Host.DependencyResolver;
     using SlimMessageBus.Host.Memory;
+    using SlimMessageBus.Host.AspNetCore;
 
     public class Startup
     {
@@ -79,7 +79,7 @@
                     .Produce<OrderSubmittedEvent>(x => x.DefaultTopic(x.MessageType.Name))
                     // declare that OrderSubmittedEvent will be consumed by OrderSubmittedHandler (option 1 - explicit declaration)
                     .Consume<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<OrderSubmittedHandler>())
-                    
+
                     // Note: we could discover messages and handlers using reflection and register them automatically (option 2 - auto discovery)
                     /*
                     .Do(builder => appAssembly

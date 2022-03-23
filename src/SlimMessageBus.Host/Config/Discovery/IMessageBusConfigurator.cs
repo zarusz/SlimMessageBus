@@ -1,7 +1,5 @@
-﻿namespace SlimMessageBus.Host.MsDependencyInjection
+﻿namespace SlimMessageBus.Host.Config
 {
-    using SlimMessageBus.Host.Config;
-
     /// <summary>
     /// Represents a configuration strategy for the bus
     /// </summary>

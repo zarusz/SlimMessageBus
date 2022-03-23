@@ -25,4 +25,8 @@
     <ProjectReference Include="..\..\SlimMessageBus\SlimMessageBus.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Interceptors\" />
+  </ItemGroup>
+
 </Project>

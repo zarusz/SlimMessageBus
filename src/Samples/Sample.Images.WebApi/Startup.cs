@@ -12,8 +12,8 @@
     using Sample.Images.FileStore.Disk;
     using Sample.Images.Messages;
     using SlimMessageBus;
-    using SlimMessageBus.Host.AspNetCore;
     using SlimMessageBus.Host.Kafka;
+    using SlimMessageBus.Host.MsDependencyInjection;
     using SlimMessageBus.Host.Serialization.Json;
 
     public class Startup

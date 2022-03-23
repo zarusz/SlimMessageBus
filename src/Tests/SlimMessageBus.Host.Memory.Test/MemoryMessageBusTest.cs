@@ -1,6 +1,8 @@
 namespace SlimMessageBus.Host.Memory.Test
 {
     using System;
+    using System.Collections.Generic;
+    using System.Linq;
     using System.Text;
     using System.Threading.Tasks;
     using FluentAssertions;
@@ -9,19 +11,26 @@ namespace SlimMessageBus.Host.Memory.Test
     using Newtonsoft.Json;
     using SlimMessageBus.Host.Config;
     using SlimMessageBus.Host.DependencyResolver;
+    using SlimMessageBus.Host.Interceptor;
     using SlimMessageBus.Host.Serialization;
     using Xunit;
 
     public class MemoryMessageBusTest
     {
         private readonly Lazy<MemoryMessageBus> _subject;
-        private readonly MessageBusSettings _settings = new MessageBusSettings();
-        private readonly MemoryMessageBusSettings _providerSettings = new MemoryMessageBusSettings();
-        private readonly Mock<IDependencyResolver> _dependencyResolverMock = new Mock<IDependencyResolver>();
-        private readonly Mock<IMessageSerializer> _messageSerializerMock = new Mock<IMessageSerializer>();
+        private readonly MessageBusSettings _settings = new();
+        private readonly MemoryMessageBusSettings _providerSettings = new();
+        private readonly Mock<IDependencyResolver> _dependencyResolverMock = new();
+        private readonly Mock<IMessageSerializer> _messageSerializerMock = new();
 
         public MemoryMessageBusTest()
         {
+            _dependencyResolverMock.Setup(x => x.Resolve(It.IsAny<Type>())).Returns((Type t) =>
+            {
+                if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
+                return null;
+            });
+
             _settings.DependencyResolver = _dependencyResolverMock.Object;
             _settings.Serializer = _messageSerializerMock.Object;
 
@@ -153,9 +162,12 @@ namespace SlimMessageBus.Host.Memory.Test
             // assert
             _dependencyResolverMock.Verify(x => x.Resolve(typeof(ILoggerFactory)), Times.Once);
             _dependencyResolverMock.Verify(x => x.CreateScope(), Times.Once);
+            _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IProducerInterceptor<SomeMessageA>>)), Times.Once);
+            _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IPublishInterceptor<SomeMessageA>>)), Times.Once);
             _dependencyResolverMock.VerifyNoOtherCalls();
 
             scope.Verify(x => x.Resolve(typeof(SomeMessageAConsumer)), Times.Once);
+            scope.Verify(x => x.Resolve(typeof(IEnumerable<IConsumerInterceptor<SomeMessageA>>)), Times.Once);
             scope.Verify(x => x.Dispose(), Times.Once);
             scope.VerifyNoOtherCalls();
 
@@ -193,6 +205,9 @@ namespace SlimMessageBus.Host.Memory.Test
             _dependencyResolverMock.Verify(x => x.Resolve(typeof(ILoggerFactory)), Times.Once);
             _dependencyResolverMock.Verify(x => x.CreateScope(), Times.Never);
             _dependencyResolverMock.Verify(x => x.Resolve(typeof(SomeMessageAConsumer)), Times.Once);
+            _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IProducerInterceptor<SomeMessageA>>)), Times.Once);
+            _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IPublishInterceptor<SomeMessageA>>)), Times.Once);
+            _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IConsumerInterceptor<SomeMessageA>>)), Times.Once);
             _dependencyResolverMock.VerifyNoOtherCalls();
 
             consumerMock.Verify(x => x.OnHandle(m, topic), Times.Once);
@@ -241,10 +256,13 @@ namespace SlimMessageBus.Host.Memory.Test
             _dependencyResolverMock.Verify(x => x.Resolve(typeof(ILoggerFactory)), Times.Once);
             _dependencyResolverMock.Verify(x => x.CreateScope(), Times.Never);
             _dependencyResolverMock.Verify(x => x.Resolve(typeof(SomeMessageAConsumer)), Times.Never);
+            _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IProducerInterceptor<SomeMessageA>>)), Times.Once);
+            _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IPublishInterceptor<SomeMessageA>>)), Times.Once);
             _dependencyResolverMock.VerifyNoOtherCalls();
 
             currentScopeDependencyResolverMock.Verify(x => x.CreateScope(), Times.Never);
             currentScopeDependencyResolverMock.Verify(x => x.Resolve(typeof(SomeMessageAConsumer)), Times.Once);
+            currentScopeDependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IConsumerInterceptor<SomeMessageA>>)), Times.Once);
             currentScopeDependencyResolverMock.VerifyNoOtherCalls();
 
             consumerMock.Verify(x => x.OnHandle(m, topic), Times.Once);

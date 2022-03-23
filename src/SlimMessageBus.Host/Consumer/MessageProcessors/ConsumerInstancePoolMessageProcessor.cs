@@ -12,15 +12,16 @@ namespace SlimMessageBus.Host
     public class ConsumerInstancePoolMessageProcessor<TMessage> : IMessageProcessor<TMessage> where TMessage : class
     {
         private IMessageProcessor<TMessage> strategy;
+        
+        public AbstractConsumerSettings ConsumerSettings { get; }
 
-        public ConsumerInstancePoolMessageProcessor(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, MessageWithHeaders> messageProvider, Action<TMessage, ConsumerContext> consumerContextInitializer = null)
+        public ConsumerInstancePoolMessageProcessor(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, MessageWithHeaders> messageProvider, Action<object, ConsumerContext> consumerContextInitializer = null)
         {
             ConsumerSettings = consumerSettings;
             var consumerInstanceMessageProcessor = new ConsumerInstanceMessageProcessor<TMessage>(consumerSettings, messageBus, messageProvider, consumerContextInitializer);
             strategy = new ConcurrencyLimittingMessageProcessorDecorator<TMessage>(consumerSettings, messageBus, consumerInstanceMessageProcessor);
         }
 
-        public AbstractConsumerSettings ConsumerSettings { get; }
 
         public virtual Task<Exception> ProcessMessage(TMessage msg, IMessageTypeConsumerInvokerSettings consumerInvoker) => strategy.ProcessMessage(msg, consumerInvoker);
 

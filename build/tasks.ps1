@@ -10,17 +10,25 @@ $msbuild_verbosity = "n"
 		
 $projects = @(
 	"SlimMessageBus",
+
 	"SlimMessageBus.Host",
+
+	"SlimMessageBus.Host.Interceptor", 
+
 	"SlimMessageBus.Host.Serialization", 
+
 	"SlimMessageBus.Host.Serialization.Hybrid", 
 	"SlimMessageBus.Host.Serialization.Json", 
 	"SlimMessageBus.Host.Serialization.Avro", 
+
 	"SlimMessageBus.Host.DependencyResolver", 
+
 	"SlimMessageBus.Host.AspNetCore",
 	"SlimMessageBus.Host.MsDependencyInjection",
 	"SlimMessageBus.Host.ServiceLocator", 
 	"SlimMessageBus.Host.Autofac",
 	"SlimMessageBus.Host.Unity",
+
 	"SlimMessageBus.Host.Kafka",
 	"SlimMessageBus.Host.AzureEventHub",
 	"SlimMessageBus.Host.AzureServiceBus",

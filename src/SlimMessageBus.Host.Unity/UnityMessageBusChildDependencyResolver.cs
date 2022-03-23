@@ -1,8 +1,8 @@
-﻿namespace SlimMessageBus.Host.Unity
+﻿namespace SlimMessageBus.Host
 {
     using System;
     using SlimMessageBus.Host.DependencyResolver;
-    using global::Unity;
+    using Unity;
     using Microsoft.Extensions.Logging;
 
     public class UnityMessageBusChildDependencyResolver : UnityMessageBusDependencyResolver, IChildDependencyResolver
@@ -12,10 +12,10 @@
 
         public IDependencyResolver Parent { get; }
 
-        public UnityMessageBusChildDependencyResolver(IDependencyResolver parent, IUnityContainer container, ILoggerFactory loggerFactory)
-            : base(container, loggerFactory)
+        public UnityMessageBusChildDependencyResolver(IDependencyResolver parent, IUnityContainer container)
+            : base(container)
         {
-            logger = loggerFactory.CreateLogger<UnityMessageBusChildDependencyResolver>();
+            logger = container.Resolve<ILogger<UnityMessageBusChildDependencyResolver>>();
             Parent = parent;
         }
 

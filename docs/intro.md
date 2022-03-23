@@ -24,17 +24,23 @@
 - [Dependency resolver](#dependency-resolver)
   - [MsDependencyInjection](#msdependencyinjection)
     - [ASP.Net Core](#aspnet-core)
-    - [Autoregistration of consumers](#autoregistration-of-consumers)
-    - [Modularization of configuration](#modularization-of-configuration)
+  - [Autofac](#autofac)
+  - [Unity](#unity)
+  - [Modularization of configuration](#modularization-of-configuration)
+  - [Autoregistration of consumers, interceptors and configurators](#autoregistration-of-consumers-interceptors-and-configurators)
 - [Serialization](#serialization)
 - [Message Headers](#message-headers)
   - [Message Type Resolver](#message-type-resolver)
+- [Interceptors](#interceptors)
+  - [Producer Lifecycle](#producer-lifecycle)
+  - [Consumer Lifecycle](#consumer-lifecycle)
+  - [Order of Execution](#order-of-execution)
 - [Logging](#logging)
 - [Provider specific functionality](#provider-specific-functionality)
 
 ## Configuration
 
-The configuration starts with `MessageBusBuilder`, which allows to configure couple of elements:
+The configuration starts with `MessageBusBuilder`, which allows configuring a couple of elements:
 
 - The bus transport provider (Apache Kafka, Azure Service Bus, Memory).
 - The serialization provider.
@@ -185,6 +191,8 @@ await bus.Publish(new CustomerChangedEvent { });
 
 #### Producer hooks
 
+> The [Interceptors](#interceptors) is a newer approach that should be used instead of the hooks.
+
 When you need to intercept a message that is being published or sent via the bus, you can use the available producer hooks:
 
 ```cs
@@ -324,6 +332,8 @@ await consumerControl.Stop();
 
 #### Consumer hooks
 
+> The [Interceptors](#interceptors) is a newer approach that should be used instead of the hooks.
+
 When you need to intercept a message that is delivered to a consumer, you can use the available consumer hooks:
 
 ```cs
@@ -446,20 +456,20 @@ mbb.Consume<Message2>(x => x
 
 > Per-message scope is enabled by default for all transports except the in-memory transport. This should work for most scenarios.
 
-For more advanced scenarios (third-party plugins) the SMB runtime provides a static accessor `MessageScope.Current` which allows to get ahold of the message scope for the currently running consumer instance.
+For more advanced scenarios (third-party plugins) the SMB runtime provides a static accessor `MessageScope.Current` which allows getting ahold of the message scope for the currently running consumer instance.
 
 #### Hybrid bus and message scope reuse
 
-In the case of using the hybird message bus (`SlimMessageBus.Host.Hybrid` package) you might have a setup where there are two or more bus instances. 
-For example the Azure Service Bus (ASB) might be used to consume messages arriving to your service (by default each arriving message will have a DI scope created) and the memory bus (`SlimMessageBus.Host.Memory`) to implement domain events.
-In this scenario the arriving message on ASB would create a message scope, and as part of message handling your code might raise some domain events (in process messages) via the Memory bus. 
+In the case of using the hybrid message bus (`SlimMessageBus.Host.Hybrid` package) you might have a setup where there are two or more bus instances.
+For example, the Azure Service Bus (ASB) might be used to consume messages arriving to your service (by default each arriving message will have a DI scope created) and the memory bus (`SlimMessageBus.Host.Memory`) to implement domain events.
+In this scenario, the arriving message on ASB would create a message scope, and as part of message handling your code might raise some domain events (in process messages) via the Memory bus.
 Here the memory bus would detect there is a message scope already started and will use that to resolve its domain handlers/consumers and required dependencies.
 
-> In a Hybrid bus setup, the Memory bus will detect if there is already a started messsage scope and use that to resolve its dependencies from. 
+> In a Hybrid bus setup, the Memory bus will detect if there is already a started message scope and use that to resolve its dependencies from.
 
 #### Concurrently processed messages
 
-The `.Instances(n)` allows to set the `n` number of concurrently processed messages within the same consumer type.
+The `.Instances(n)` allows setting the number of concurrently processed messages within the same consumer type.
 
 ```cs
 mbb.Consume<SomeMessage>(x => x
@@ -480,10 +490,10 @@ Each processing of a message resolves the `TConsumer` instance from the DI.
 
 ## Request-response communication
 
-SMB provides implementation of request-response over topics or queues - depending what the underlying provider supports.
-This allows to asynchronously await a response for a request message that your service sent.
+SMB provides an implementation of request-response over topics or queues - depending on what the underlying provider supports.
+This allows one to asynchronously await a response for a request message that your service sent.
 
-Typically this simplifies service interactions that need to await for a result. To make your app scallable, there is no need to rewrite the interaction as fire and forget style, with storing the state, and writing another consumer that resumes processing when the response arrives.
+Typically this simplifies service interactions that need to wait for a result. To make your app scallable, there is no need to rewrite the interaction as fire and forget style, with storing the state and writing another consumer that resumes processing when the response arrives.
 
 ### Delivery quarantees
 
@@ -508,15 +518,15 @@ When header emulation is taking place, SMB uses a wrapper envelope that is binar
 
 The request contains headers:
 
-* `RequestId` (string) so that the request sender can correlate the arriving responses.
-* `Expires` (long) which is a datetime (8 bytes long type, UTC, expressed in unix epoch) of when the request message (expires on).
-* `ReplyTo` (string) topic/queue name, so that the service handling the request knows where to send back the response.
-* The body of the request message (serialized using the chosen serialization provider).
+- `RequestId` (string) so that the request sender can correlate the arriving responses.
+- `Expires` (long) which is a datetime (8 bytes long type, UTC, expressed in unix epoch) of when the request message (expires on).
+- `ReplyTo` (string) topic/queue name, so that the service handling the request knows where to send back the response.
+- The body of the request message (serialized using the chosen serialization provider).
 
 The response contains headers:
 
-* `RequestId` (string) so that the request sender can correlate the arriving responses.
-* `Error` (string) message, in case the request message processing failed (so that we can fail fast and know the particular error).
+- `RequestId` (string) so that the request sender can correlate the arriving responses.
+- `Error` (string) message, in case the request message processing failed (so that we can fail fast and know the particular error).
 
 ### Produce request message
 
@@ -607,7 +617,7 @@ mbb.Handle<SomeRequest, SomeResponse>(x => x
 
 The static `MessageBus.Current` was introduced to obtain the `IMessageBus` from the current context. The bus will typically be a singleton `IMessageBus`. However, the consumer instances will be obtained from the current DI scope (tied with the current web request or message scope when in a message handling scope).
 
-This allows to easily look up the `IMessageBus` instance in the domain model layer methods when doing Domain-Driven Design and specifically to implement domain events. This pattern allows to externalize infrastructure concerns (domain layer sends domain events when anything changes on the domain that would require communication to other layers or external systems).
+This allows to easily look up the `IMessageBus` instance in the domain model layer methods when doing Domain-Driven Design and specifically to implement domain events. This pattern allows externalizing infrastructure concerns (domain layer sends domain events when anything changes on the domain that would require communication to other layers or external systems).
 
 For ASP.NET Core application, in the `Startup.cs` configure the accessor like this:
 
@@ -640,29 +650,22 @@ There are a few plugins available that allow you integrating SMB with your favor
 The consumer/handler is typically resolved from DI container when the message arrives and needs to be handled.
 SMB does not maintain a reference to that object instance after consuming the message - this gives user the ability to decide if the consumer/handler should be a singleton, transient, or scoped (to the message being processed or ongoing web-request) and when it should be disposed of.
 
-The disposal of the consumer instance obtained by the DI is typically handled by the DI (if the consumer implements `IDisposable`).
-By default SMB creates a child DI scope for every arriving message (`.IsMessageScopeEnabled(true)`) and after the message is processed,
-SMB disposes of that child DI scope - with that the DI will dispose the consumer instance and its injected collaborators.
+The disposal of the consumer instance obtained from the DI is typically handled by the DI (if the consumer implements `IDisposable`).
+By default, SMB creates a child DI scope for every arriving message (`.IsMessageScopeEnabled(true)`). After the message is processed,
+SMB disposes of that child DI scope. With that, the DI will dispose of the consumer instance and its injected collaborators.
 
 Now, in some special situations, you might want SMB to dispose of the consumer instance
 after the message has been processed - you can enable that with `.DisposeConsumerEnabled(true)`. 
 This setting will make SMB dispose of the consumer instance if only it implements the `IDisposable` interface.
 
-> Generally its recommended to leave the default per-message scope creation, and register the consumer types/handlers as either transient or scoped.
-
-See more [here](https://docs.microsoft.com/en-us/dotnet/core/extensions/dependency-injection-guidelines#general-idisposable-guidelines) on disposable best practices.
-
-See samples and the [Packages section](../#Packages).
+> It is recommended to leave the default per-message scope creation, and register the consumer types/handlers as either transient or scoped.
 
 ### MsDependencyInjection
 
-The `SlimMessageBus.Host.MsDependencyInjection` plugin (or `SlimMessageBus.Host.AspNetCore`) introduces several conveniences to configure the bus.
-
-The `.AddSlimMessageBus()` extension enables to configure the message bus and register the instance as a Singleton with the container:
+The [`MsDependencyInjection`](https://www.nuget.org/packages/SlimMessageBus.Host.MsDependencyInjection) plugin (or [`AspNetCore`](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore)) introduces several conveniences to configure the bus.
+The `.AddSlimMessageBus()` extension configures the message bus and registers the SMB types with the container. For example:
 
 ```cs
-// Startup.cs:
-
 IServiceCollection services;
 
 services.AddSlimMessageBus((mbb, svp) =>
@@ -674,45 +677,106 @@ services.AddSlimMessageBus((mbb, svp) =>
   }, 
   // Option 1 (optional)
   addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() }, // auto discover consumers and register into DI (see next section)
+  addInterceptorsFromAssembly: new[] { Assembly.GetExecutingAssembly() }, // auto discover interceptors and register into DI (see next section)
   addConfiguratorsFromAssembly: new[] { Assembly.GetExecutingAssembly() } // auto discover modular configuration and register into DI (see next section)
 );
 
 // Option 2 (optional)
 services.AddMessageBusConsumersFromAssembly(Assembly.GetExecutingAssembly());
+services.AddMessageBusInterceptorsFromAssembly(Assembly.GetExecutingAssembly());
 services.AddMessageBusConfiguratorsFromAssembly(Assembly.GetExecutingAssembly());
 ```
+
 The `svp` (of type `IServiceProvider`) parameter can be used to obtain additional dependencies from DI.
 
 > The `.WithDependencyResolver(...)` is already called on the `MessageBusBuilder`.
 
 #### ASP.Net Core
 
-For ASP.NET services, it is recommended to use the `SlimMessageBus.Host.AspNetCore` package. To properly support request scopes it has a dependency on the `IHttpContextAccessor` which [needs to be registered](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/http-context?view=aspnetcore-6.0#use-httpcontext-from-custom-components) during application setup:
+For ASP.NET services, it is recommended to use the [`AspNetCore`](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore) plugin. To properly support request scopes it has a dependency on the `IHttpContextAccessor` which [needs to be registered](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/http-context?view=aspnetcore-6.0#use-httpcontext-from-custom-components) during application setup:
 
 ```cs
 // This will register the `IHttpContextAccessor`
 services.AddHttpContextAccessor();
 ```
 
-#### Autoregistration of consumers
+### Autofac
 
-We can also use the `AddMessageBusConsumersFromAssembly` extension method to search for any implementations of `IConsumer<T>` (or `IRequestHandler<T, R>`) and register them as Transient with the container:
+The [`Autofac`](https://www.nuget.org/packages/SlimMessageBus.Host.Autofac) plugin introduces the `SlimMessageBusModule` [autofac module](https://autofac.readthedocs.io/en/latest/configuration/modules.html) that configures message bus and registers SMB types within the DI container. For example:
 
 ```cs
-services.AddMessageBusConsumersFromAssembly(Assembly.GetExecutingAssembly());
+ContainerBuilder builder;
+
+builder.RegisterModule(new SlimMessageBusModule
+{
+   ConfigureBus = (mbb, ctx) =>
+   {
+      mbb
+         .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
+         .Consume<SomeMessage>(x => x
+            .Topic("some-topic")
+            .WithConsumer<SomeMessageConsumer>()
+            //.KafkaGroup("some-kafka-consumer-group") //  Kafka provider specific
+            //.SubscriptionName("some-azure-sb-topic-subscription") // Azure ServiceBus provider specific
+         )
+         // ...
+         .WithSerializer(new JsonMessageSerializer())
+         .WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
+         // Use Azure Service Bus transport provider
+         //.WithProviderServiceBus(...)
+         // Use Azure Azure Event Hub transport provider
+         //.WithProviderEventHub(...)
+         // Use Redis transport provider
+         //.WithProviderRedis(...)
+         // Use in-memory transport provider
+         //.WithProviderMemory(...)         
+   },
+   AddConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() }, // auto discover consumers and register into DI (see next section)
+   AddInterceptorsFromAssembly: new[] { Assembly.GetExecutingAssembly() }, // auto discover interceptors and register into DI (see next section)
+   AddConfiguratorsFromAssembly: new[] { Assembly.GetExecutingAssembly() } // auto discover modular configuration and register into DI (see next section)
+});
 ```
 
-> Since version 1.6.4
+The `ctx` (of type `IComponentContext`) parameter can be used to obtain additional dependencies from DI.
 
-#### Modularization of configuration
+> The `.WithDependencyResolver(...)` is already called on the `MessageBusBuilder`.
 
-If you want to avoid configuring the bus all in one place (Startup. cs) and rather have modules of the application 
+### Unity
+
+The [`Unity`](https://www.nuget.org/packages/SlimMessageBus.Host.Unity) plugin introduces the `.AddSlimMessageBus()` extension method. It enables to configure the message bus and register relevant types for the SMB. For example:
+
+```cs
+IUnityContainer container;
+
+container.AddSlimMessageBus((mbb, container) =>
+  {
+    mbb
+      .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
+      // ...
+      .WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
+  }, 
+  // Optional:
+  addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() }, // auto discover consumers and register into DI (see next section)
+  addInterceptorsFromAssembly: new[] { Assembly.GetExecutingAssembly() }, // auto discover interceptors and register into DI (see next section)
+  addConfiguratorsFromAssembly: new[] { Assembly.GetExecutingAssembly() } // auto discover modular configuration and register into DI (see next section)
+);
+```
+
+The `container` (of type `IUnityContainer`) parameter can be used to obtain additional dependencies from DI.
+
+> The `.WithDependencyResolver(...)` is already called on the `MessageBusBuilder`.
+
+### Modularization of configuration
+
+> Since version 1.6.4, applies to MsDependencyInjection and Autofac
+
+If you want to avoid configuring the bus all in one place (`Startup.cs`) and rather have modules of the application 
 responsible for configuring their consumers or producers then it can be done using an implementation of `IMessageBusConfigurator` that is placed in each module (assembly).
 
 ```cs
 public MyAppModule : IMessageBusConfigurator {
 
-    public MyAccountingModule(/* dependencies injected by DI */) { }
+    public MyAppModule(/* dependencies injected by DI */) { }
 
     public void Configure(MessageBusBuilder mbb, string busName) 
     {
@@ -732,7 +796,15 @@ services.AddMessageBusConfiguratorsFromAssembly(accountingModuleAssembly);
 
 Implementations of `IMessageBusConfigurator` registered in the DI will be used to configure the message bus inside the `AddSlimMessageBus` extension method.
 
+### Autoregistration of consumers, interceptors and configurators
+
 > Since version 1.6.4
+
+We can also use the `AddMessageBusConsumersFromAssembly` extension method to search for any implementations of `IConsumer<T>` (or `IRequestHandler<T, R>`) and register them as Transient with the container:
+
+```cs
+services.AddMessageBusConsumersFromAssembly(Assembly.GetExecutingAssembly());
+```
 
 ## Serialization
 
@@ -749,7 +821,7 @@ The emulation works by using a message wrapper envelope (`MessageWithHeader`) th
 
 ### Message Type Resolver
 
-By default the message header `MessageType` conveys the message type information using the assembly qualified name of the .NET type (see `AssemblyQualifiedNameMessageTypeResolver`).
+By default, the message header `MessageType` conveys the message type information using the assembly qualified name of the .NET type (see `AssemblyQualifiedNameMessageTypeResolver`).
 
 The following can be used to provide a custom `IMessageTypeResolver` implementation:
 
@@ -761,21 +833,99 @@ mbb.WithMessageTypeResolver(mtr)
 
 A custom resolver could be used in scenarios when there is a desire to send short type names (to optimize overall message size). In this scenario the assembly name and/or namespace could be skipped - the producer and consumer could infer them.
 
+## Interceptors
+
+Interceptors allow to tap into the message processing pipeline on both the producer and consumer sides. Sample use cases for interceptors include:
+
+- decorate the producer side with adding additional validation prior the message is sent,
+- add custom logging for a given type of message,
+- modify or augment the original response message or provide a different response,
+- prevent a message from being produced or from being consumed or handled,
+- perform some additional application specific authorization checks.
+
+### Producer Lifecycle
+
+When a message is produced (via the `bus.Publish(message)` or `bus.Send(request)`) the SMB is performing a DI lookup for the interceptor interface types that are relevant given the message type (or request and response types) and execute them in order.
+
+```cs
+// Will intercept bus.Publish() and bus.Send()
+public interface IProducerInterceptor<in TMessage>
+{
+   Task<object> OnHandle(TMessage message, CancellationToken cancellationToken, Func<Task<object>> next, IMessageBus bus, string path, IDictionary<string, object> headers);
+}
+
+// Will intercept bus.Publish()
+public interface IPublishInterceptor<in TMessage>
+{
+   Task OnHandle(TMessage message, CancellationToken cancellationToken, Func<Task> next, IMessageBus bus, string path, IDictionary<string, object> headers);
+}
+
+// Will intercept bus.Send()
+public interface ISendInterceptor<in TRequest, TResponse>
+{
+   Task<TResponse> OnHandle(TRequest request, CancellationToken cancellationToken, Func<Task<TResponse>> next, IMessageBus bus, string path, IDictionary<string, object> headers);
+}
+```
+
+> Remember to register your interceptor types in the DI (either using auto-discovery [`addInterceptorsFromAssembly`](#MsDependencyInjection) or manually).
+
+> SMB has an optimization that will remember the types of messages for which the DI resolved interceptor. That allows us to avoid having to perform lookups with the DI and other internal processing.
+
+### Consumer Lifecycle
+
+On the consumer side, before the recieved message is delivered to the consumer (or request handler) the SMB is performing a DI lookup for the interceptor interface types that are relevant for the given message type (or request and response type).
+
+```cs
+// Intercepts consumers of type IConsumer<TMessage> and IRequestHandler<TMessage, TResponse>
+public interface IConsumerInterceptor<in TMessage>
+{
+   Task OnHandle(TMessage message, CancellationToken cancellationToken, Func<Task> next, IMessageBus bus, string path, IReadOnlyDictionary<string, object> headers, object consumer);
+}
+
+// Intercepts consumers of type IRequestHandler<TMessage, TResponse>
+public interface IRequestHandlerInterceptor<in TRequest, TResponse> : IInterceptor
+{
+   Task<TResponse> OnHandle(TRequest request, CancellationToken cancellationToken, Func<Task<TResponse>> next, IMessageBus bus, string path, IReadOnlyDictionary<string, object> headers, object handler);
+}
+```
+
+> Remember to register your interceptor types in the DI (either using auto-discovery [`addInterceptorsFromAssembly`](#MsDependencyInjection) or manually).
+
+### Order of Execution
+
+The interceptors are invoked in order from generic to more specific (`IProducerInterceptor<T>` then `IPublishInterceptor<T>` for publish) and in a chain one after another, as long as the `await next()` is called by the previous interceptor. The final `next` delegate is the actual message production to the underlying bus transport.
+
+> When an interceptor avoids to execute `next` delegate, the subsequent interceptors are not executed nor does the message processing hapen (production or consumption).
+
+In case of multiple interceptors that match a particular message type, and when their order of execution has to overriden the interceptor type could implement the `IInterceptorWithOrder` interface to influence the order of execution in the chain:
+
+```cs
+public class PublishInterceptorFirst: IPublishInterceptor<SomeMessage>, IInterceptorWithOrder
+{    
+   public int Order => 1;
+
+   public Task OnHandle(SomeMessage message, CancellationToken cancellationToken, Func<Task> next, IMessageBus bus, string path, IDictionary<string, object> headers) { }
+}
+
+public class PublishInterceptorSecond: IPublishInterceptor<SomeMessage>, IInterceptorWithOrder
+{    
+   public int Order => 2;
+
+   public Task OnHandle(SomeMessage message, CancellationToken cancellationToken, Func<Task> next, IMessageBus bus, string path, IDictionary<string, object> headers) { }
+}
+```
+
 ## Logging
 
 SlimMessageBus uses [Microsoft.Extensions.Logging.Abstractions](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Abstractions).
 
-The `ILoggerFactory` will be resolved from the dependency injecton container or it can be taken from the `MessageBusBuilder` configuraton:
+The `ILoggerFactory` will be resolved from the dependency injection container or it can be taken from the `MessageBusBuilder` configuration:
 
 ```cs
 ILoggerFactory loggerFactory;    
 
-IMessageBus messageBus = MessageBusBuilder
-    .Create()
-    // other setup
-    .WithLoggerFacory(loggerFactory)
-    // other setup
-    .Build();
+mbb // of type MessageBusBuilder
+  .WithLoggerFacory(loggerFactory)
 ```
 
 When the `ILoggerFactory` is not configured nor available in the DI container SMB will use `NullLoggerFactory.Instance`.
@@ -784,11 +934,13 @@ The `.WithLoggerFactory(...)` takes takes precedence over the instance available
 ## Provider specific functionality
 
 Providers introduce more settings and some subtleties to the above documentation.
-For example Apache Kafka requires `mbb.KafkaGroup(string)` for consumers to declare the consumer group, Azure Service Bus uses `mbb.SubscriptionName(string)` to set subscription name of the consumer, while Memory provider does not use anything like it.
+For example, Apache Kafka requires `mbb.KafkaGroup(string)` for consumers to declare the consumer group, Azure Service Bus uses `mbb.SubscriptionName(string)` to set the subscription name of the consumer, while the Memory provider does not use anything like it.
 
 Providers:
-* [Apache Kafka](provider_kafka.md)
-* [Azure Service Bus](provider_azure_servicebus.md)
-* [Azure Event Hubs](provider_azure_eventhubs.md)
-* [Redis](provider_redis.md)
-* [Memory](provider_memory.md)
+
+- [Apache Kafka](provider_kafka.md)
+- [Azure Service Bus](provider_azure_servicebus.md)
+- [Azure Event Hubs](provider_azure_eventhubs.md)
+- [Redis](provider_redis.md)
+- [Memory](provider_memory.md)
+- [Hybrid](provider_hybrid.md)

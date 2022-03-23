@@ -1,8 +1,9 @@
-﻿namespace SlimMessageBus.Host.Autofac
+﻿namespace SlimMessageBus.Host
 {
     using System;
-    using global::Autofac;
+    using Autofac;
     using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Logging.Abstractions;
     using SlimMessageBus.Host.DependencyResolver;
 
     public class AutofacMessageBusChildDependencyResolver : AutofacMessageBusDependencyResolver, IChildDependencyResolver
@@ -13,17 +14,12 @@
 
         public IDependencyResolver Parent { get; }
 
-        public AutofacMessageBusChildDependencyResolver(IDependencyResolver parent, ILifetimeScope lifetimeScope, ILoggerFactory loggerFactory)
-            : base(lifetimeScope, loggerFactory)
+        public AutofacMessageBusChildDependencyResolver(IDependencyResolver parent, ILifetimeScope lifetimeScope)
+            : base(lifetimeScope)
         {
-            logger = loggerFactory.CreateLogger<AutofacMessageBusChildDependencyResolver>();
+            logger = lifetimeScope.ResolveOptional<ILogger<AutofacMessageBusChildDependencyResolver>>() ?? NullLogger<AutofacMessageBusChildDependencyResolver>.Instance;
             this.lifetimeScope = lifetimeScope;
             Parent = parent;
-        }
-
-        public AutofacMessageBusChildDependencyResolver(IDependencyResolver parent, ILifetimeScope lifetimeScope)
-            : this(parent, lifetimeScope, lifetimeScope.Resolve<ILoggerFactory>())
-        {
         }
 
         #region Dispose

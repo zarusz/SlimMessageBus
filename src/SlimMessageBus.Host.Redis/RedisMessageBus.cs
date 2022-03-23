@@ -2,6 +2,7 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.Collections;
@@ -190,17 +191,17 @@
 
         #region Overrides of MessageBusBase
 
-        public override Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null)
+        public override Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
         {
             // determine the SMB topic name if its a Azure SB queue or topic
             var kind = kindMapping.GetKind(messageType, path);
 
-            return ProduceToTransport(messageType, message, path, messagePayload, messageHeaders, kind);
+            return ProduceToTransport(messageType, message, path, messagePayload, messageHeaders, cancellationToken, kind);
         }
 
         #endregion
 
-        protected virtual async Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, PathKind kind)
+        protected virtual async Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken, PathKind kind)
         {
             if (messageType is null) throw new ArgumentNullException(nameof(messageType));
             if (messagePayload is null) throw new ArgumentNullException(nameof(messagePayload));
