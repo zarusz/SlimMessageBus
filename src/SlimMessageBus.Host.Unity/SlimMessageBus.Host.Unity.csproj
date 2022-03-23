@@ -3,19 +3,21 @@
   <Import Project="../Host.DI.Properties.xml" />
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <Description>Extension to SlimMessageBus that resolves dependencies from Unity container</Description>
     <PackageTags>SlimMessageBus Unity messaging</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
+    <RootNamespace>SlimMessageBus.Host</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.0.0" />
-    <PackageReference Include="Unity" Version="5.11.10" />
+    <PackageReference Include="Unity.Abstractions" Version="5.11.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\SlimMessageBus.Host.DependencyResolver\SlimMessageBus.Host.DependencyResolver.csproj" />
+    <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
   </ItemGroup>
 
   <ItemGroup>

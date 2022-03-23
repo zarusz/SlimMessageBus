@@ -8,6 +8,7 @@
     <PackageTags>SlimMessageBus MessageBus DI IoC Microsoft.Extenstension.DependencyInjection</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
     <RootNamespace>SlimMessageBus.Host.MsDependencyInjection</RootNamespace>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>

@@ -19,7 +19,6 @@
         /// <typeparam name="TResponseMessage">The response message type</typeparam>
         /// <param name="request">The request message</param>
         /// <param name="cancellationToken">Cancellation token to notify if the client no longer is interested in the response.</param>
-        /// <param name="headers">The headers to add to the message. When null no additional headers will be added.</param>
         /// <returns>Task that represents the pending request.</returns>
         Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, CancellationToken cancellationToken);
 
@@ -29,7 +28,6 @@
         /// <typeparam name="TResponseMessage">The response message type</typeparam>
         /// <param name="request">The request message</param>
         /// <param name="cancellationToken">Cancellation token to notify if the client no longer is interested in the response.</param>
-        /// <param name="headers">The headers to add to the message. When null no additional headers will be added.</param>
         /// <returns>Task that represents the pending request.</returns>
         Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, CancellationToken cancellationToken);
 

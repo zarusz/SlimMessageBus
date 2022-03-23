@@ -15,10 +15,9 @@ Part of message bus configuration is choosing the serialization plugin:
 // Use JSON for message serialization
 IMessageSerializer serializer = new JsonMessageSerializer();
 
-IMessageBus bus = MessageBusBuilder
-   .Create()
+// MessageBusBuilder mbb;
+mbb.    
    .WithSerializer(serializer)
-   .Build();
 ```
 
 > One serializer instance will be used across all the concurently running tasks of producing and consuming messages in a given bus instance. The serializers are designed, so that they are Thread-safe.

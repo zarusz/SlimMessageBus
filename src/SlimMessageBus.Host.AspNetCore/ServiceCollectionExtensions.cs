@@ -1,8 +1,9 @@
 ﻿namespace SlimMessageBus.Host.AspNetCore
 {
     using Microsoft.Extensions.DependencyInjection;
-    using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.Config;
+    using SlimMessageBus.Host.DependencyResolver;
+    using SlimMessageBus.Host.Interceptor;
     using System;
     using System.Reflection;
 
@@ -13,31 +14,31 @@
         /// </summary>
         /// <param name="services"></param>
         /// <param name="configure"></param>
-        /// <param name="loggerFactory">Use a custom logger factory. If not provided it will be obtained from the DI.</param>
         /// <param name="configureDependencyResolver">Confgure the DI plugin on the <see cref="MessageBusBuilder"/>. Default is true.</param>
         /// <param name="addConsumersFromAssembly">Specifies the list of assemblies to be searched for <see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/> implementationss. The found types are added to the DI as Transient service.</param>
         /// <param name="addConfiguratorsFromAssembly">Specifies the list of assemblies to be searched for <see cref="IMessageBusConfigurator"/>. The found types are added to the DI as Transient service.</param>
+        /// <param name="addInterceptorsFromAssembly">Specifies the list of assemblies to be searched for interceptors (<see cref="IPublishInterceptor{TMessage}"/>, <see cref="ISendInterceptor{TRequest, TResponse}"/>, <see cref="IConsumerInterceptor{TMessage}"/>, <see cref="IRequestHandler{TRequest, TResponse}"/>). The found types are added to the DI as Transient service.</param>
         /// <returns></returns>
         public static IServiceCollection AddSlimMessageBus(
             this IServiceCollection services,
             Action<MessageBusBuilder, IServiceProvider> configure,
-            ILoggerFactory loggerFactory = null,
             bool configureDependencyResolver = true,
             Assembly[] addConsumersFromAssembly = null,
-            Assembly[] addConfiguratorsFromAssembly = null)
+            Assembly[] addConfiguratorsFromAssembly = null,
+            Assembly[] addInterceptorsFromAssembly = null)
         {
-            MsDependencyInjection.ServiceCollectionExtensions.AddSlimMessageBus(services, (mbb, services) =>
+            if (configureDependencyResolver)
             {
-                if (configureDependencyResolver)
-                {
-                    mbb.WithDependencyResolver(new AspNetCoreMessageBusDependencyResolver(services, loggerFactory));
-                }
-                configure(mbb, services);
+                // Provide an ASP.NET optimized IDependencyResolver
+                services.AddTransient<IDependencyResolver, AspNetCoreMessageBusDependencyResolver>();
+            }
 
-            }, loggerFactory,
-            configureDependencyResolver: false,
-            addConsumersFromAssembly: addConsumersFromAssembly,
-            addConfiguratorsFromAssembly: addConfiguratorsFromAssembly);
+            MsDependencyInjection.ServiceCollectionExtensions.AddSlimMessageBus(services,
+                configure: configure,
+                configureDependencyResolver: false,
+                addConsumersFromAssembly: addConsumersFromAssembly,
+                addConfiguratorsFromAssembly: addConfiguratorsFromAssembly,
+                addInterceptorsFromAssembly: addInterceptorsFromAssembly);
 
             return services;
         }

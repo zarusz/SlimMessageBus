@@ -121,14 +121,16 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
         public class TestData
         {
             public List<PingMessage> ProducedMessages { get; set; }
-            public List<(PingMessage Message, string MessageId, string SessionId)> ConsumedMessages { get; set; }
+            public IList<TestEvent> ConsumedMessages { get; set; }
         }
 
         private async Task BasicPubSub(int concurrency, int subscribers, int expectedMessageCopies, Action<TestData> additionalAssertion = null)
         {
             // arrange
             var consumersCreated = 0;
-            var consumedMessages = new List<(PingMessage Message, string MessageId, string SessionId)>();
+            //var consumedMessages = new List<(PingMessage Message, string MessageId, string SessionId)>();
+
+            var consumedMessages = new TestEventCollector<TestEvent>();
 
             MessageBusBuilder
                 .WithDependencyResolver(new LookupDependencyResolver(f =>
@@ -145,7 +147,8 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
                         Interlocked.Increment(ref consumersCreated);
                         return pingConsumer;
                     }
-
+                    // for interceptors
+                    if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
                     throw new InvalidOperationException();
                 }));
 
@@ -173,7 +176,7 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             // consume
             stopwatch.Restart();
 
-            await WaitUntilArriving(consumedMessages);
+            await consumedMessages.WaitUntilArriving(newMessagesTimeout: 5);
 
             stopwatch.Stop();
 
@@ -186,11 +189,11 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             // ... the content should match
             foreach (var producedMessage in producedMessages)
             {
-                var messageCopies = consumedMessages.Count(x => x.Message.Counter == producedMessage.Counter && x.Message.Value == producedMessage.Value && x.MessageId == GetMessageId(x.Message));
+                var messageCopies = consumedMessages.Snapshot().Count(x => x.Message.Counter == producedMessage.Counter && x.Message.Value == producedMessage.Value && x.MessageId == GetMessageId(x.Message));
                 messageCopies.Should().Be(expectedMessageCopies);
             }
 
-            additionalAssertion?.Invoke(new TestData { ProducedMessages = producedMessages, ConsumedMessages = consumedMessages });
+            additionalAssertion?.Invoke(new TestData { ProducedMessages = producedMessages, ConsumedMessages = consumedMessages.Snapshot() });
         }
 
         [Fact]
@@ -255,10 +258,15 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             MessageBusBuilder
                 .WithDependencyResolver(new LookupDependencyResolver(f =>
                 {
-                    if (f != typeof(EchoRequestHandler)) throw new InvalidOperationException();
-                    var consumer = new EchoRequestHandler();
-                    consumersCreated.Add(consumer);
-                    return consumer;
+                    if (f == typeof(EchoRequestHandler))
+                    {
+                        var consumer = new EchoRequestHandler();
+                        consumersCreated.Add(consumer);
+                        return consumer;
+                    }
+                    // for interceptors
+                    if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
+                    throw new InvalidOperationException();
                 }));
 
             var messageBus = MessageBus.Value;
@@ -292,26 +300,6 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             // all messages got back
             responses.Count.Should().Be(NumberOfMessages);
             responses.All(x => x.Item1.Message == x.Item2.Message).Should().BeTrue();
-        }
-
-        private static async Task WaitUntilArriving(IList<(PingMessage Message, string MessageId, string SessionId)> arrivedMessages)
-        {
-            var lastMessageCount = 0;
-            var lastMessageStopwatch = Stopwatch.StartNew();
-
-            const int newMessagesAwaitingTimeout = 10;
-
-            while (lastMessageStopwatch.Elapsed.TotalSeconds < newMessagesAwaitingTimeout)
-            {
-                await Task.Delay(100).ConfigureAwait(false);
-
-                if (arrivedMessages.Count != lastMessageCount)
-                {
-                    lastMessageCount = arrivedMessages.Count;
-                    lastMessageStopwatch.Restart();
-                }
-            }
-            lastMessageStopwatch.Stop();
         }
 
         [Fact]
@@ -364,44 +352,39 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
         }
     }
 
-    public class PingMessage
+    public record TestEvent(PingMessage Message, string MessageId, string SessionId);
+
+    public record PingMessage
     {
         public int Counter { get; set; }
         public Guid Value { get; set; } = Guid.NewGuid();
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
-
-        public override string ToString() => $"PingMessage(Counter={Counter}, Value={Value})";
     }
 
-    public class PingDerivedMessage : PingMessage
+    public record PingDerivedMessage : PingMessage
     {
-        public override string ToString() => $"PingDerivedMessage(Counter={Counter}, Value={Value})";
     }
 
     public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
     {
         private readonly ILogger _logger;
+        private readonly TestEventCollector<TestEvent> _messages;
 
-        public PingConsumer(ILogger logger, IList<(PingMessage, string, string)> messages)
+        public PingConsumer(ILogger logger, TestEventCollector<TestEvent> messages)
         {
             _logger = logger;
-            Messages = messages;
+            _messages = messages;
         }
 
         public IConsumerContext Context { get; set; }
-
-        public IList<(PingMessage Message, string MessageId, string SessionId)> Messages { get; }
 
         #region Implementation of IConsumer<in PingMessage>
 
         public Task OnHandle(PingMessage message, string path)
         {
-            lock (Messages)
-            {
-                var sbMessage = Context.GetTransportMessage();
+            var sbMessage = Context.GetTransportMessage();
 
-                Messages.Add((message, sbMessage.MessageId, sbMessage.SessionId));
-            }
+            _messages.Add(new(message, sbMessage.MessageId, sbMessage.SessionId));
 
             _logger.LogInformation("Got message {Counter:000} on path {Path}.", message.Counter, path);
             return Task.CompletedTask;
@@ -413,27 +396,23 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
     public class PingDerivedConsumer : IConsumer<PingDerivedMessage>, IConsumerWithContext
     {
         private readonly ILogger _logger;
+        private readonly TestEventCollector<TestEvent> _messages;
 
-        public PingDerivedConsumer(ILogger logger, IList<(PingMessage, string, string)> messages)
+        public PingDerivedConsumer(ILogger logger, TestEventCollector<TestEvent> messages)
         {
             _logger = logger;
-            Messages = messages;
+            _messages = messages;
         }
 
         public IConsumerContext Context { get; set; }
-
-        public IList<(PingMessage Message, string MessageId, string SessionId)> Messages { get; }
 
         #region Implementation of IConsumer<in PingMessage>
 
         public Task OnHandle(PingDerivedMessage message, string path)
         {
-            lock (Messages)
-            {
-                var sbMessage = Context.GetTransportMessage();
+            var sbMessage = Context.GetTransportMessage();
 
-                Messages.Add((message, sbMessage.MessageId, sbMessage.SessionId));
-            }
+            _messages.Add(new(message, sbMessage.MessageId, sbMessage.SessionId));
 
             _logger.LogInformation("Got message {Counter:000} on path {Path}.", message.Counter, path);
             return Task.CompletedTask;
@@ -442,34 +421,19 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
         #endregion
     }
 
-    public class EchoRequest : IRequestMessage<EchoResponse>
+    public record EchoRequest : IRequestMessage<EchoResponse>
     {
         public int Index { get; set; }
         public string Message { get; set; }
-
-        #region Overrides of Object
-
-        public override string ToString() => $"EchoRequest(Index={Index}, Message={Message})";
-
-        #endregion
     }
 
-    public class EchoResponse
-    {
-        public string Message { get; set; }
-
-        #region Overrides of Object
-
-        public override string ToString() => $"EchoResponse(Message={Message})";
-
-        #endregion
-    }
+    public record EchoResponse(string Message);
 
     public class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
     {
-        public Task<EchoResponse> OnHandle(EchoRequest request, string name)
+        public Task<EchoResponse> OnHandle(EchoRequest request, string path)
         {
-            return Task.FromResult(new EchoResponse { Message = request.Message });
+            return Task.FromResult(new EchoResponse(request.Message));
         }
     }
 }

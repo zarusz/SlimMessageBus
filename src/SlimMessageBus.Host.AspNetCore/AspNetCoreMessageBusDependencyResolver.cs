@@ -4,6 +4,7 @@
     using Microsoft.AspNetCore.Http;
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Logging.Abstractions;
     using SlimMessageBus.Host.DependencyResolver;
     using SlimMessageBus.Host.MsDependencyInjection;
 
@@ -15,10 +16,10 @@
         private readonly ILogger logger;
         private readonly IHttpContextAccessor httpContextAccessor;
 
-        public AspNetCoreMessageBusDependencyResolver(IServiceProvider serviceProvider, ILoggerFactory loggerFactory = null, IHttpContextAccessor httpContextAccessor = null)
-            : base(serviceProvider, loggerFactory)
+        public AspNetCoreMessageBusDependencyResolver(IServiceProvider serviceProvider, IHttpContextAccessor httpContextAccessor = null)
+            : base(serviceProvider)
         {
-            logger = LoggerFactory.CreateLogger<AspNetCoreMessageBusDependencyResolver>();
+            logger = serviceProvider.GetService<ILogger<AspNetCoreMessageBusDependencyResolver>>() ?? NullLogger<AspNetCoreMessageBusDependencyResolver>.Instance;
             this.httpContextAccessor = httpContextAccessor ?? serviceProvider.GetRequiredService<IHttpContextAccessor>();
         }
 

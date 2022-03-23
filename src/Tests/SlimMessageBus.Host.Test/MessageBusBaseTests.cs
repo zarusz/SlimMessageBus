@@ -6,9 +6,11 @@
     using System.Threading;
     using System.Threading.Tasks;
     using FluentAssertions;
+    using Microsoft.Extensions.Logging;
     using Moq;
     using SlimMessageBus.Host.Config;
     using SlimMessageBus.Host.DependencyResolver;
+    using SlimMessageBus.Host.Interceptor;
     using SlimMessageBus.Host.Serialization;
     using SlimMessageBus.Host.Serialization.Json;
     using Xunit;
@@ -27,7 +29,7 @@
 
     public class ResponseB { }
 
-    public class MessageBusBaseTest : IDisposable
+    public class MessageBusBaseTests : IDisposable
     {
         private MessageBusBuilder BusBuilder { get; }
         private readonly Lazy<MessageBusTested> _busLazy;
@@ -35,23 +37,33 @@
         private readonly DateTimeOffset _timeZero;
         private DateTimeOffset _timeNow;
 
-        private const int TimeoutForA10 = 10;
-        private const int TimeoutDefault20 = 20;
+        private const int TimeoutFor5 = 5;
+        private const int TimeoutDefault10 = 10;
+        private readonly Mock<IDependencyResolver> _dependencyResolverMock;
 
-        public IList<(Type messageType, string name, object message)> _producedMessages;
+        public IList<ProducedMessage> _producedMessages;
 
-        public MessageBusBaseTest()
+        public record ProducedMessage(Type MessageType, string Path, object Message);
+
+        public MessageBusBaseTests()
         {
             _timeZero = DateTimeOffset.Now;
             _timeNow = _timeZero;
 
-            _producedMessages = new List<(Type messageType, string name, object message)>();
+            _producedMessages = new List<ProducedMessage>();
+
+            _dependencyResolverMock = new Mock<IDependencyResolver>();
+            _dependencyResolverMock.Setup(x => x.Resolve(It.IsAny<Type>())).Returns((Type t) =>
+            {
+                if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
+                return null;
+            });
 
             BusBuilder = MessageBusBuilder.Create()
                 .Produce<RequestA>(x =>
                 {
                     x.DefaultTopic("a-requests");
-                    x.DefaultTimeout(TimeSpan.FromSeconds(TimeoutForA10));
+                    x.DefaultTimeout(TimeSpan.FromSeconds(TimeoutFor5));
                 })
                 .Produce<RequestB>(x =>
                 {
@@ -60,9 +72,9 @@
                 .ExpectRequestResponses(x =>
                 {
                     x.ReplyToTopic("app01-responses");
-                    x.DefaultTimeout(TimeSpan.FromSeconds(TimeoutDefault20));
+                    x.DefaultTimeout(TimeSpan.FromSeconds(TimeoutDefault10));
                 })
-                .WithDependencyResolver(new LookupDependencyResolver(t => null))
+                .WithDependencyResolver(_dependencyResolverMock.Object)
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProvider(s =>
                 {
@@ -70,7 +82,7 @@
                     {
                         // provide current time
                         CurrentTimeProvider = () => _timeNow,
-                        OnProduced = (mt, n, m) => _producedMessages.Add((mt, n, m))
+                        OnProduced = (mt, n, m) => _producedMessages.Add(new(mt, n, m))
                     };
                     return bus;
                 });
@@ -99,17 +111,10 @@
         public void When_Create_Given_ConfigurationThatDeclaresSameMessageTypeMoreThanOnce_Then_ExceptionIsThrown()
         {
             // arrange
-            BusBuilder.Produce<RequestA>(x =>
-            {
-                x.DefaultTopic("default-topic");
-            });
-            BusBuilder.Produce<RequestA>(x =>
-            {
-                x.DefaultTopic("default-topic-2");
-            });
+            BusBuilder.Produce<RequestA>(x => x.DefaultTopic("default-topic"));
+            BusBuilder.Produce<RequestA>(x => x.DefaultTopic("default-topic-2"));
 
             // act
-
             Action busCreation = () => BusBuilder.Build();
 
             // assert
@@ -118,7 +123,7 @@
         }
 
         [Fact]
-        public void When_NoTimeoutProvided_Then_TakesDefaultTimeoutForRequestType()
+        public async Task When_NoTimeoutProvided_Then_TakesDefaultTimeoutForRequestTypeAsync()
         {
             // arrange
             var ra = new RequestA();
@@ -128,26 +133,28 @@
             var raTask = Bus.Send(ra);
             var rbTask = Bus.Send(rb);
 
-            WaitForTasks(2000, raTask, rbTask);
-
             // after 10 seconds
-            _timeNow = _timeZero.AddSeconds(TimeoutForA10 + 1);
+            _timeNow = _timeZero.AddSeconds(TimeoutFor5 + 1);
             Bus.TriggerPendingRequestCleanup();
 
             // assert
+            await WaitForTasks(2000, raTask, rbTask);
+
             raTask.IsCanceled.Should().BeTrue();
             rbTask.IsCanceled.Should().BeFalse();
 
             // adter 20 seconds
-            _timeNow = _timeZero.AddSeconds(TimeoutDefault20 + 1);
+            _timeNow = _timeZero.AddSeconds(TimeoutDefault10 + 1);
             Bus.TriggerPendingRequestCleanup();
+
+            await WaitForTasks(2000, rbTask);
 
             // assert
             rbTask.IsCanceled.Should().BeTrue();
         }
 
         [Fact]
-        public void When_ResponseArrives_Then_ResolvesPendingRequest()
+        public async Task When_ResponseArrives_Then_ResolvesPendingRequestAsync()
         {
             // arrange
             var r = new RequestA();
@@ -164,7 +171,7 @@
 
             // act
             var rTask = Bus.Send(r);
-            WaitForTasks(2000, rTask);
+            await WaitForTasks(2000, rTask);
             Bus.TriggerPendingRequestCleanup();
 
             // assert
@@ -175,7 +182,7 @@
         }
 
         [Fact]
-        public void When_ResponseArrivesTooLate_Then_ExpiresPendingRequest()
+        public async Task When_ResponseArrivesTooLate_Then_ExpiresPendingRequestAsync()
         {
             // arrange
             var r1 = new RequestA();
@@ -205,7 +212,7 @@
             _timeNow = _timeZero.AddSeconds(2);
             Bus.TriggerPendingRequestCleanup();
 
-            WaitForTasks(2000, r1Task, r2Task, r3Task);
+            await WaitForTasks(2000, r1Task, r2Task, r3Task);
 
             // assert
             r1Task.IsCompleted.Should().BeTrue("Response 1 should be completed");
@@ -242,13 +249,13 @@
             cts2.Dispose();
         }
 
-        private static void WaitForTasks(int millis, params Task[] tasks)
+        private static async Task WaitForTasks(int millis, params Task[] tasks)
         {
             try
             {
-                Task.WaitAll(tasks, millis);
+                await Task.WhenAny(Task.WhenAll(tasks), Task.Delay(millis));
             }
-            catch (AggregateException)
+            catch (Exception)
             {
                 // swallow
             }
@@ -264,10 +271,7 @@
             var someMessageTopic = "some-messages";
 
             BusBuilder
-                .Produce<SomeMessage>(x =>
-                {
-                    x.DefaultTopic(someMessageTopic);
-                })
+                .Produce<SomeMessage>(x => x.DefaultTopic(someMessageTopic))
                 .WithSerializer(messageSerializerMock.Object);
 
             var m1 = new SomeMessage();
@@ -282,20 +286,9 @@
             // assert
             _producedMessages.Count.Should().Be(3);
 
-            var producedMessage1 = _producedMessages.FirstOrDefault(x => object.ReferenceEquals(x.message, m1));
-            producedMessage1.Should().NotBeNull();
-            producedMessage1.messageType.Should().Be(typeof(SomeMessage));
-            producedMessage1.name.Should().Be(someMessageTopic);
-
-            var producedMessage2 = _producedMessages.FirstOrDefault(x => object.ReferenceEquals(x.message, m2));
-            producedMessage2.Should().NotBeNull();
-            producedMessage2.messageType.Should().Be(typeof(SomeMessage));
-            producedMessage2.name.Should().Be(someMessageTopic);
-
-            var producedMessage3 = _producedMessages.FirstOrDefault(x => object.ReferenceEquals(x.message, m3));
-            producedMessage3.Should().NotBeNull();
-            producedMessage3.messageType.Should().Be(typeof(SomeMessage));
-            producedMessage3.name.Should().Be(someMessageTopic);
+            _producedMessages.Should().ContainSingle(x => x.MessageType == typeof(SomeMessage) && x.Message == m1 && x.Path == someMessageTopic);
+            _producedMessages.Should().ContainSingle(x => x.MessageType == typeof(SomeMessage) && x.Message == m2 && x.Path == someMessageTopic);
+            _producedMessages.Should().ContainSingle(x => x.MessageType == typeof(SomeMessage) && x.Message == m3 && x.Path == someMessageTopic);
 
             messageSerializerMock.Verify(x => x.Serialize(typeof(SomeMessage), m1), Times.Once);
             messageSerializerMock.Verify(x => x.Serialize(typeof(SomeMessage), m2), Times.Once);
@@ -310,10 +303,7 @@
             var someMessageTopic = "some-messages";
 
             BusBuilder
-                .Produce<SomeMessage>(x =>
-                {
-                    x.DefaultTopic(someMessageTopic);
-                });
+                .Produce<SomeMessage>(x => x.DefaultTopic(someMessageTopic));
 
             var m = new SomeDerivedMessage();
 
@@ -322,9 +312,7 @@
 
             // assert
             _producedMessages.Count.Should().Be(1);
-            _producedMessages[0].messageType.Should().Be(typeof(SomeMessage));
-            _producedMessages[0].message.Should().Be(m);
-            _producedMessages[0].name.Should().Be(someMessageTopic);
+            _producedMessages.Should().ContainSingle(x => x.MessageType == typeof(SomeMessage) && x.Message == m && x.Path == someMessageTopic);
         }
 
         [Fact]
@@ -351,9 +339,7 @@
 
             // assert
             _producedMessages.Count.Should().Be(1);
-            _producedMessages[0].messageType.Should().Be(typeof(SomeDerived2Message));
-            _producedMessages[0].message.Should().Be(m);
-            _producedMessages[0].name.Should().Be(someMessageDerived2Topic);
+            _producedMessages.Should().ContainSingle(x => x.MessageType == typeof(SomeDerived2Message) && x.Message == m && x.Path == someMessageDerived2Topic);
         }
 
         [Fact]
@@ -398,10 +384,7 @@
             var someMessageTopic = "some-messages";
 
             BusBuilder
-                .Produce<SomeMessage>(x =>
-                {
-                    x.DefaultTopic(someMessageTopic);
-                });
+                .Produce<SomeMessage>(x => x.DefaultTopic(someMessageTopic));
 
             // act
             Action action = () => Bus.Public_GetProducerSettings(typeof(SomeRequest));
@@ -496,67 +479,184 @@
             onMessageProducedMock.Verify(
                 x => x(Bus, It.IsAny<ProducerSettings>(), r, someRequestTopic), Times.Exactly(2)); // callback twice - at the producer and bus level
         }
-    }
 
-    public class MessageBusTested : MessageBusBase
-    {
-        public MessageBusTested(MessageBusSettings settings)
-            : base(settings)
+        [Theory]
+        [InlineData(1, null, null)]   // no interceptors
+        [InlineData(1, true, true)]   // both interceptors call next()
+        [InlineData(1, true, null)]   // producer interceptor calls next(), other does not exist
+        [InlineData(1, null, true)]   // publish interceptor calls next(), other does not exist
+        [InlineData(0, false, false)] // none of the interceptors calls next()
+        [InlineData(0, false, null)]  // producer interceptor does not call next()
+        [InlineData(0, null, false)]  // publish interceptor does not call next()
+        public async Task When_Publish_Given_InterceptorsInDI_Then_InterceptorInfluenceIfTheMessageIsDelivered(
+            int producedMessages, bool? producerInterceptorCallsNext, bool? publishInterceptorCallsNext)
         {
-            // by default no responses will arrive
-            OnReply = (type, payload, req) => null;
+            // arrange
+            var topic = "some-messages";
 
-            OnBuildProvider();
-        }
+            BusBuilder
+                .Produce<SomeMessage>(x => x.DefaultTopic(topic));
 
-        public ProducerSettings Public_GetProducerSettings(Type messageType) => GetProducerSettings(messageType);
+            var m = new SomeDerivedMessage();
 
-        public int PendingRequestsCount => PendingRequestStore.GetCount();
+            var producerInterceptorMock = new Mock<IProducerInterceptor<SomeDerivedMessage>>();
+            producerInterceptorMock.Setup(x => x.OnHandle(m, It.IsAny<CancellationToken>(), It.IsAny<Func<Task<object>>>(), Bus, topic, It.IsAny<IDictionary<string, object>>()))
+                .Returns(async (SomeDerivedMessage m, CancellationToken token, Func<Task<object>> next, IMessageBus bus, string topic, IDictionary<string, object> headers)
+                    =>
+                    {
+                        if (producerInterceptorCallsNext == true) return await next();
+                        return null;
+                    });
 
-        public Func<Type, string, object, object> OnReply { get; set; }
-        public Action<Type, string, object> OnProduced { get; set; }
+            var publishInterceptorMock = new Mock<IPublishInterceptor<SomeDerivedMessage>>();
+            publishInterceptorMock.Setup(x => x.OnHandle(m, It.IsAny<CancellationToken>(), It.IsAny<Func<Task>>(), Bus, topic, It.IsAny<IDictionary<string, object>>()))
+                .Returns((SomeDerivedMessage m, CancellationToken token, Func<Task> next, IMessageBus bus, string topic, IDictionary<string, object> headers)
+                    => publishInterceptorCallsNext == true ? next() : Task.CompletedTask);
 
-        #region Overrides of BaseMessageBus
-
-        public override Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders)
-        {
-            OnProduced(messageType, path, message);
-
-            if (messageType.GetInterfaces().Any(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IRequestMessage<>)))
+            if (producerInterceptorCallsNext != null)
             {
-                var req = Serializer.Deserialize(messageType, messagePayload);
-
-                var resp = OnReply(messageType, path, req);
-                if (resp == null)
-                {
-                    return Task.CompletedTask;
-                }
-
-                messageHeaders.TryGetHeader(ReqRespMessageHeaders.RequestId, out string replyTo);
-
-                var resposeHeaders = CreateHeaders();
-                resposeHeaders.SetHeader(ReqRespMessageHeaders.RequestId, replyTo);
-
-                var responsePayload = Serializer.Serialize(resp.GetType(), resp);
-                return OnResponseArrived(responsePayload, replyTo, resposeHeaders);
+                _dependencyResolverMock
+                    .Setup(x => x.Resolve(typeof(IEnumerable<IProducerInterceptor<SomeDerivedMessage>>)))
+                    .Returns(new[] { producerInterceptorMock.Object });
             }
 
-            return Task.CompletedTask;
+            if (publishInterceptorCallsNext != null)
+            {
+                _dependencyResolverMock
+                    .Setup(x => x.Resolve(typeof(IEnumerable<IPublishInterceptor<SomeDerivedMessage>>)))
+                    .Returns(new[] { publishInterceptorMock.Object });
+            }
+
+            // act
+            await Bus.Publish(m);
+
+            // assert
+
+            // message delivered
+            _producedMessages.Count.Should().Be(producedMessages);
+
+            _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IProducerInterceptor<SomeDerivedMessage>>)), Times.Once);
+            _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IProducerInterceptor<SomeMessage>>)), Times.Never);
+            _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IPublishInterceptor<SomeDerivedMessage>>)), Times.Once);
+            _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IPublishInterceptor<SomeMessage>>)), Times.Never);
+            _dependencyResolverMock.Verify(x => x.Resolve(typeof(ILoggerFactory)), Times.Once);
+            _dependencyResolverMock.VerifyNoOtherCalls();
+
+            if (producerInterceptorCallsNext != null)
+            {
+                producerInterceptorMock.Verify(x => x.OnHandle(m, It.IsAny<CancellationToken>(), It.IsAny<Func<Task<object>>>(), Bus, topic, It.IsAny<IDictionary<string, object>>()), Times.Once);
+            }
+            producerInterceptorMock.VerifyNoOtherCalls();
+
+            if (publishInterceptorCallsNext != null)
+            {
+                // Publish interceptor is called after Producer interceptor, if producer does not call next() the publish interceptor does not get a chance to fire
+                if (producerInterceptorCallsNext == null || producerInterceptorCallsNext == true)
+                {
+                    publishInterceptorMock.Verify(x => x.OnHandle(m, It.IsAny<CancellationToken>(), It.IsAny<Func<Task>>(), Bus, topic, It.IsAny<IDictionary<string, object>>()), Times.Once);
+                }
+            }
+            publishInterceptorMock.VerifyNoOtherCalls();
         }
 
-        #endregion
-
-        #region Overrides of MessageBusBase
-
-        public override DateTimeOffset CurrentTime => CurrentTimeProvider();
-
-        #endregion
-
-        public Func<DateTimeOffset> CurrentTimeProvider { get; set; } = () => DateTimeOffset.UtcNow;
-
-        public void TriggerPendingRequestCleanup()
+        [Theory]
+        [InlineData(1, null, null)]   // no interceptors
+        [InlineData(1, true, true)]   // both interceptors call next()
+        [InlineData(1, true, null)]   // producer interceptor calls next(), other does not exist
+        [InlineData(1, null, true)]   // send interceptor calls next(), other does not exist
+        [InlineData(0, false, false)] // none of the interceptors calls next()
+        [InlineData(0, false, null)]  // producer interceptor does not call next()
+        [InlineData(0, null, false)]  // send interceptor does not call next()
+        public async Task When_Send_Given_InterceptorsInDI_Then_InterceptorInfluenceIfTheMessageIsDelivered(
+            int producedMessages, bool? producerInterceptorCallsNext, bool? sendInterceptorCallsNext)
         {
-            PendingRequestManager.CleanPendingRequests();
+            // arrange
+            var topic = "a-requests";
+
+            var request = new RequestA();
+
+            Bus.OnReply = (type, topicOnReply, requestOnReply) =>
+            {
+                if (topicOnReply == topic)
+                {
+                    var req = (RequestA)requestOnReply;
+                    // resolve only r1 request
+                    if (req.Id == request.Id)
+                    {
+                        return new ResponseA { Id = req.Id };
+                    }
+                }
+                return null;
+            };
+
+            var producerInterceptorMock = new Mock<IProducerInterceptor<RequestA>>();
+            producerInterceptorMock.Setup(x => x.OnHandle(request, It.IsAny<CancellationToken>(), It.IsAny<Func<Task<object>>>(), Bus, topic, It.IsAny<IDictionary<string, object>>()))
+                .Returns((RequestA m, CancellationToken token, Func<Task<object>> next, IMessageBus bus, string topic, IDictionary<string, object> headers)
+                    =>
+                    {
+                        if (producerInterceptorCallsNext == true) return next();
+                        return Task.FromResult<object>(null);
+                    });
+
+            var sendInterceptorMock = new Mock<ISendInterceptor<RequestA, ResponseA>>();
+            sendInterceptorMock.Setup(x => x.OnHandle(request, It.IsAny<CancellationToken>(), It.IsAny<Func<Task<ResponseA>>>(), Bus, topic, It.IsAny<IDictionary<string, object>>()))
+                .Returns((RequestA m, CancellationToken token, Func<Task<ResponseA>> next, IMessageBus bus, string topic, IDictionary<string, object> headers)
+                    => sendInterceptorCallsNext == true ? next() : Task.FromResult<ResponseA>(null));
+
+            if (producerInterceptorCallsNext != null)
+            {
+                _dependencyResolverMock
+                    .Setup(x => x.Resolve(typeof(IEnumerable<IProducerInterceptor<RequestA>>)))
+                    .Returns(new[] { producerInterceptorMock.Object });
+            }
+
+            if (sendInterceptorCallsNext != null)
+            {
+                _dependencyResolverMock
+                    .Setup(x => x.Resolve(typeof(IEnumerable<ISendInterceptor<RequestA, ResponseA>>)))
+                    .Returns(new[] { sendInterceptorMock.Object });
+            }
+
+            // act
+            var response = await Bus.Send(request);
+
+            // assert
+
+            // message delivered
+            _producedMessages.Count.Should().Be(producedMessages);
+
+            if (producedMessages > 0)
+            {
+                response.Id.Should().Be(request.Id);
+            }
+            else
+            {
+                // when the interceptor does not call next() the response resolved to default (null)
+                response.Should().BeNull();
+            }
+
+            _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IProducerInterceptor<RequestA>>)), Times.Once);
+            _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<ISendInterceptor<RequestA, ResponseA>>)), Times.Once);
+            _dependencyResolverMock.Verify(x => x.Resolve(typeof(ILoggerFactory)), Times.Once);
+            _dependencyResolverMock.VerifyNoOtherCalls();
+
+            if (producerInterceptorCallsNext != null)
+            {
+                producerInterceptorMock.Verify(x => x.OnHandle(request, It.IsAny<CancellationToken>(), It.IsAny<Func<Task<object>>>(), Bus, topic, It.IsAny<IDictionary<string, object>>()), Times.Once);
+            }
+            producerInterceptorMock.VerifyNoOtherCalls();
+
+            if (sendInterceptorCallsNext != null)
+            {
+                // Publish interceptor is called after Producer interceptor, if producer does not call next() the publish interceptor does not get a chance to fire
+                if (producerInterceptorCallsNext == null || producerInterceptorCallsNext == true)
+                {
+                    sendInterceptorMock.Verify(x => x.OnHandle(request, It.IsAny<CancellationToken>(), It.IsAny<Func<Task<ResponseA>>>(), Bus, topic, It.IsAny<IDictionary<string, object>>()), Times.Once);
+                }
+            }
+            sendInterceptorMock.VerifyNoOtherCalls();
         }
+
+        // ToDo: Add Send tests for interceptors
     }
 }

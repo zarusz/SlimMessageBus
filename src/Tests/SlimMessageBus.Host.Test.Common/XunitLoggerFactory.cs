@@ -1,6 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Test.Common
 {
     using Microsoft.Extensions.Logging;
+    using System;
     using Xunit.Abstractions;
 
     public class XunitLoggerFactory : ILoggerFactory

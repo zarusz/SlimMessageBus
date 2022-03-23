@@ -92,6 +92,8 @@
                 .WithDependencyResolver(new LookupDependencyResolver(t =>
                 {
                     if (t == typeof(PingConsumer)) return pingConsumer;
+                    // for interceptors
+                    if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
                     throw new InvalidOperationException();
                 }));
 
@@ -169,6 +171,8 @@
                 .WithDependencyResolver(new LookupDependencyResolver(f =>
                 {
                     if (f == typeof(EchoRequestHandler)) return consumer;
+                    // for interceptors
+                    if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
                     throw new InvalidOperationException();
                 }));
 

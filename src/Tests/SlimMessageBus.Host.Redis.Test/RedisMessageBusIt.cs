@@ -118,6 +118,8 @@ namespace SlimMessageBus.Host.Redis.Test
                 {
                     if (f == typeof(PingConsumer)) return pingConsumer;
                     if (f == typeof(ILoggerFactory)) return null;
+                    // for interceptors
+                    if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
                     throw new InvalidOperationException();
                 }));
 
@@ -222,6 +224,8 @@ namespace SlimMessageBus.Host.Redis.Test
                 .WithDependencyResolver(new LookupDependencyResolver(f =>
                 {
                     if (f == typeof(EchoRequestHandler)) return consumer;
+                    // for interceptors
+                    if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
                     throw new InvalidOperationException();
                 }));
 

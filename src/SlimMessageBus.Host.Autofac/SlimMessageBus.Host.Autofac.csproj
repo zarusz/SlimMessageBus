@@ -3,10 +3,11 @@
   <Import Project="../Host.DI.Properties.xml" />
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <Description>Extension for SlimMessageBus that resolves dependencies from Autofac container</Description>
     <PackageTags>SlimMessageBus Autofac messaging</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
+    <RootNamespace>SlimMessageBus.Host</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SlimMessageBus.Host.DependencyResolver\SlimMessageBus.Host.DependencyResolver.csproj" />
+    <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
   </ItemGroup>
 
   <ItemGroup>

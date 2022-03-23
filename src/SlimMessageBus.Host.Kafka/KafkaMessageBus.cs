@@ -11,6 +11,7 @@ namespace SlimMessageBus.Host.Kafka
     using IProducer = Confluent.Kafka.IProducer<byte[], byte[]>;
     using System.Diagnostics.CodeAnalysis;
     using SlimMessageBus.Host.Serialization;
+    using System.Threading;
 
     /// <summary>
     /// <see cref="IMessageBus"/> implementation for Apache Kafka.
@@ -176,7 +177,7 @@ namespace SlimMessageBus.Host.Kafka
             }
         }
 
-        public override async Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null)
+        public override async Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
         {
             AssertActive();
 
@@ -206,8 +207,8 @@ namespace SlimMessageBus.Host.Kafka
 
             // send the message to topic
             var task = partition == NoPartition
-                ? producer.ProduceAsync(path, kafkaMessage)
-                : producer.ProduceAsync(new TopicPartition(path, new Partition(partition)), kafkaMessage);
+                ? producer.ProduceAsync(path, kafkaMessage, cancellationToken: cancellationToken)
+                : producer.ProduceAsync(new TopicPartition(path, new Partition(partition)), kafkaMessage, cancellationToken: cancellationToken);
 
             // ToDo: Introduce support for not awaited produce
 

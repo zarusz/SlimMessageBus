@@ -1,6 +1,7 @@
 ﻿namespace SlimMessageBus.Host.MsDependencyInjection
 {
     using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Logging.Abstractions;
     using SlimMessageBus.Host.DependencyResolver;
     using System;
 
@@ -14,9 +15,9 @@
         
         private readonly ILogger<MsDependencyInjectionDependencyResolver> logger;
 
-        public MsDependencyInjectionDependencyResolver(IServiceProvider serviceProvider, ILoggerFactory loggerFactory = null)
+        public MsDependencyInjectionDependencyResolver(IServiceProvider serviceProvider)
         {
-            LoggerFactory = loggerFactory ?? (ILoggerFactory)serviceProvider.GetService(typeof(ILoggerFactory));
+            LoggerFactory = (ILoggerFactory)serviceProvider.GetService(typeof(ILoggerFactory)) ?? NullLoggerFactory.Instance;
             logger = LoggerFactory.CreateLogger<MsDependencyInjectionDependencyResolver>();
             ServiceProvider = serviceProvider;
         }
@@ -24,7 +25,7 @@
         /// <inheritdoc/>
         public virtual object Resolve(Type type)
         {
-            logger.LogDebug("Resolving type {0}", type);
+            logger.LogDebug("Resolving type {Type}", type);
             return ServiceProvider.GetService(type);
         }
 

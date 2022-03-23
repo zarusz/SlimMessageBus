@@ -1,8 +1,9 @@
-﻿namespace SlimMessageBus.Host.Autofac
+﻿namespace SlimMessageBus.Host
 {
     using System;
-    using global::Autofac;
+    using Autofac;
     using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Logging.Abstractions;
     using SlimMessageBus.Host.DependencyResolver;
 
     /// <summary>
@@ -12,38 +13,43 @@
     {
         private readonly ILoggerFactory loggerFactory;
         private readonly ILogger<AutofacMessageBusDependencyResolver> logger;
+        private readonly Func<IComponentContext> componentContextFunc;
         private readonly IComponentContext componentContext;
-        private readonly ILifetimeScope lifetimeScope;
 
-        public AutofacMessageBusDependencyResolver(IComponentContext container, ILoggerFactory loggerFactory)
+        public AutofacMessageBusDependencyResolver(Func<IComponentContext> componentContextFunc)
         {
-            this.loggerFactory = loggerFactory;
-            logger = loggerFactory.CreateLogger<AutofacMessageBusDependencyResolver>();
-            componentContext = container;
-            lifetimeScope = container as ILifetimeScope;
+            this.componentContextFunc = componentContextFunc;
+
+            logger = componentContextFunc().ResolveOptional<ILogger<AutofacMessageBusDependencyResolver>>() ?? NullLogger<AutofacMessageBusDependencyResolver>.Instance;
         }
 
-        public AutofacMessageBusDependencyResolver(IComponentContext container)
-            : this(container, container.Resolve<ILoggerFactory>())
+        protected AutofacMessageBusDependencyResolver(IComponentContext componentContext)
         {
+            this.componentContext = componentContext;
+
+            logger = componentContext.ResolveOptional<ILogger<AutofacMessageBusDependencyResolver>>() ?? NullLogger<AutofacMessageBusDependencyResolver>.Instance;
         }
 
         public object Resolve(Type type)
         {
             logger.LogTrace("Resolving type {0}", type);
-            var o = componentContext.Resolve(type);
+            var o = ComponentContext.Resolve(type);
             logger.LogTrace("Resolved type {0} to instance {1}", type, o);
             return o;
         }
 
         public IChildDependencyResolver CreateScope()
         {
-            if (lifetimeScope == null) throw new InvalidOperationException($"The supplied Autofac {nameof(IComponentContext)} does not implement {nameof(ILifetimeScope)}");
-            
+            if (!(ComponentContext is ILifetimeScope lifetimeScope))
+            {
+                throw new InvalidOperationException($"The supplied Autofac {nameof(IComponentContext)} does not implement {nameof(ILifetimeScope)}");
+            }
+
             logger.LogDebug("Creating child scope");
             var scope = lifetimeScope.BeginLifetimeScope();
-            return new AutofacMessageBusChildDependencyResolver(this, scope, loggerFactory);
+            return new AutofacMessageBusChildDependencyResolver(this, scope);
         }
-    }
 
+        protected IComponentContext ComponentContext => componentContext ?? componentContextFunc();
+    }
 }

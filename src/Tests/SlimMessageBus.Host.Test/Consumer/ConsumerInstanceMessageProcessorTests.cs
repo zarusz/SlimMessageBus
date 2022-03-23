@@ -2,23 +2,25 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.Threading;
     using System.Threading.Tasks;
     using FluentAssertions;
     using Moq;
     using SlimMessageBus.Host.Config;
     using SlimMessageBus.Host.DependencyResolver;
+    using SlimMessageBus.Host.Interceptor;
     using Xunit;
 
-    public class ConsumerInstanceMessageProcessorTest
+    public class ConsumerInstanceMessageProcessorTests
     {
         private readonly MessageBusMock _busMock;
 
-        public ConsumerInstanceMessageProcessorTest()
+        public ConsumerInstanceMessageProcessorTests()
         {
             _busMock = new MessageBusMock();
         }
 
-        private static MessageWithHeaders EmptyMessageWithHeadersProvider<T>(T msg) => new MessageWithHeaders(Array.Empty<byte>());
+        private static MessageWithHeaders EmptyMessageWithHeadersProvider<T>(T msg) => new(Array.Empty<byte>());
 
 
         [Fact]
@@ -26,20 +28,21 @@
         {
             // arrange
             var onMessageExpiredMock = new Mock<Action<IMessageBus, AbstractConsumerSettings, object, object>>();
-            var consumerSettings = new HandlerBuilder<SomeRequest, SomeResponse>(new MessageBusSettings()).Topic(null).WithHandler<IRequestHandler<SomeRequest, SomeResponse>>().Instances(1).ConsumerSettings;
+
+            var consumerSettings = new HandlerBuilder<SomeRequest, SomeResponse>(new MessageBusSettings()).Topic(null).WithHandler<IRequestHandler<SomeRequest, SomeResponse>>().ConsumerSettings;
             consumerSettings.OnMessageExpired = onMessageExpiredMock.Object;
 
             MessageWithHeaders MessageProvider(SomeRequest request)
             {
                 var m = EmptyMessageWithHeadersProvider(request);
                 m.Headers.SetHeader(ReqRespMessageHeaders.Expires, _busMock.CurrentTime.AddSeconds(-10));
+                m.Headers.SetHeader(ReqRespMessageHeaders.RequestId, "request-id");
                 return m;
             }
 
             var p = new ConsumerInstanceMessageProcessor<SomeRequest>(consumerSettings, _busMock.Bus, MessageProvider);
 
             var request = new SomeRequest();
-
             _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<byte[]>())).Returns(request);
 
             // act
@@ -101,7 +104,7 @@
             var consumerSettings = new ConsumerBuilder<SomeMessage>(new MessageBusSettings()).Topic("topic1").WithConsumer<IConsumer<SomeMessage>>().Instances(1).ConsumerSettings;
             consumerSettings.OnMessageFault = onMessageFaultMock.Object;
 
-            var p = new ConsumerInstancePoolMessageProcessor<SomeMessage>(consumerSettings, _busMock.Bus, EmptyMessageWithHeadersProvider);
+            var p = new ConsumerInstanceMessageProcessor<SomeMessage>(consumerSettings, _busMock.Bus, EmptyMessageWithHeadersProvider);
 
             var message = new SomeMessage();
             _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeMessage), It.IsAny<byte[]>())).Returns(message);
@@ -124,18 +127,18 @@
         public async Task When_MessageArrives_Then_OnMessageArrivedIsCalled()
         {
             // arrange
-            var onMessageArrivedMock = new Mock<Action<IMessageBus, AbstractConsumerSettings, object, string, object>>();
-
+            var message = new SomeMessage();
             var topic = "topic1";
+
+            var onMessageArrivedMock = new Mock<Action<IMessageBus, AbstractConsumerSettings, object, string, object>>();
 
             _busMock.Bus.Settings.OnMessageArrived = onMessageArrivedMock.Object;
 
-            var consumerSettings = new ConsumerBuilder<SomeMessage>(_busMock.Bus.Settings).Topic(topic).WithConsumer<IConsumer<SomeMessage>>().Instances(1).ConsumerSettings;
+            var consumerSettings = new ConsumerBuilder<SomeMessage>(_busMock.Bus.Settings).Topic(topic).WithConsumer<IConsumer<SomeMessage>>().ConsumerSettings;
             consumerSettings.OnMessageArrived = onMessageArrivedMock.Object;
 
-            var p = new ConsumerInstancePoolMessageProcessor<SomeMessage>(consumerSettings, _busMock.Bus, EmptyMessageWithHeadersProvider);
+            var p = new ConsumerInstanceMessageProcessor<SomeMessage>(consumerSettings, _busMock.Bus, EmptyMessageWithHeadersProvider);
 
-            var message = new SomeMessage();
             _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeMessage), It.IsAny<byte[]>())).Returns(message);
 
             _busMock.ConsumerMock.Setup(x => x.OnHandle(message, consumerSettings.Path)).Returns(Task.CompletedTask);
@@ -150,6 +153,39 @@
         }
 
         [Fact]
+        public async Task When_MessageArrives_Then_ConsumerInterceptorIsCalled()
+        {
+            // arrange
+            var message = new SomeMessage();
+            var topic = "topic1";
+
+            var messageConsumerInterceptor = new Mock<IConsumerInterceptor<SomeMessage>>();
+            messageConsumerInterceptor
+                .Setup(x => x.OnHandle(message, It.IsAny<CancellationToken>(), It.IsAny<Func<Task>>(), _busMock.Bus, topic, It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<object>()))
+                .Callback((SomeMessage message, CancellationToken token, Func<Task> next, IMessageBus bus, string path, IReadOnlyDictionary<string, object> headers, object consumer) => next());
+
+            _busMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(IEnumerable<IConsumerInterceptor<SomeMessage>>))).Returns(new[] { messageConsumerInterceptor.Object });
+
+            var consumerSettings = new ConsumerBuilder<SomeMessage>(_busMock.Bus.Settings).Topic(topic).WithConsumer<IConsumer<SomeMessage>>().ConsumerSettings;
+
+            var p = new ConsumerInstanceMessageProcessor<SomeMessage>(consumerSettings, _busMock.Bus, EmptyMessageWithHeadersProvider);
+
+            _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeMessage), It.IsAny<byte[]>())).Returns(message);
+
+            _busMock.ConsumerMock.Setup(x => x.OnHandle(message, consumerSettings.Path)).Returns(Task.CompletedTask);
+
+            // act
+            await p.ProcessMessage(message, null);
+
+            // assert
+            _busMock.ConsumerMock.Verify(x => x.OnHandle(message, consumerSettings.Path), Times.Once); // handler called once
+            _busMock.ConsumerMock.VerifyNoOtherCalls();
+
+            messageConsumerInterceptor.Verify(x => x.OnHandle(message, It.IsAny<CancellationToken>(), It.IsAny<Func<Task>>(), _busMock.Bus, topic, It.IsAny<IReadOnlyDictionary<string, object>>(), _busMock.ConsumerMock.Object), Times.Once);
+            messageConsumerInterceptor.VerifyNoOtherCalls();
+        }
+
+        [Fact]
         public async Task When_MessageArrives_And_MessageScopeEnabled_Then_ScopeIsCreated_InstanceIsRetrivedFromScope_ConsumeMethodExecuted()
         {
             // arrange
@@ -158,7 +194,7 @@
             var consumerSettings = new ConsumerBuilder<SomeMessage>(_busMock.Bus.Settings).Topic(topic).WithConsumer<IConsumer<SomeMessage>>().Instances(1).PerMessageScopeEnabled(true).ConsumerSettings;
             _busMock.BusMock.Setup(x => x.IsMessageScopeEnabled(consumerSettings)).Returns(true);
 
-            var p = new ConsumerInstancePoolMessageProcessor<SomeMessage>(consumerSettings, _busMock.Bus, EmptyMessageWithHeadersProvider);
+            var p = new ConsumerInstanceMessageProcessor<SomeMessage>(consumerSettings, _busMock.Bus, EmptyMessageWithHeadersProvider);
 
             var message = new SomeMessage();
             _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeMessage), It.IsAny<byte[]>())).Returns(message);
