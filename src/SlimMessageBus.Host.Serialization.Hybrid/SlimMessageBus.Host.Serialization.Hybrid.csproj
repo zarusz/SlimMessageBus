@@ -1,10 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="../Common.Properties.xml" />
+  <Import Project="../Host.Serialization.Properties.xml" />
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Version>1.4.1</Version>
     <Description>Extension to SlimMessageBus that delegates serialization to the respective serialization plugin based on message type.</Description>
     <PackageTags>SlimMessageBus Serialization messaging</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
@@ -22,7 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.0.0" />
   </ItemGroup>
 
 </Project>

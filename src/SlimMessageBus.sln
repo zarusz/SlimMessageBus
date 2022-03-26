@@ -171,6 +171,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DI", "DI", "{CD48FE11-EF0E-
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Serialization", "Serialization", "{D7DCD96A-C3B8-4D22-8216-0E8ADD30C03F}"
+	ProjectSection(SolutionItems) = preProject
+		Host.Serialization.Properties.xml = Host.Serialization.Properties.xml
+	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.MsDependencyInjection", "SlimMessageBus.Host.MsDependencyInjection\SlimMessageBus.Host.MsDependencyInjection.csproj", "{0B310151-44A2-4857-9A4E-7AC2D677BDE3}"
 EndProject
