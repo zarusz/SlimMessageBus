@@ -14,7 +14,7 @@ namespace SlimMessageBus.Host.Serialization.Google.Protobuf.Test
             var serializer = new GoogleProtobufMessageSerializer(new NullLoggerFactory());
 
             // act
-            PersonMessage personMessage = new PersonMessage
+            var personMessage = new PersonMessage
             {
                 Id = 1,
                 Name = "SlimMessageBus"

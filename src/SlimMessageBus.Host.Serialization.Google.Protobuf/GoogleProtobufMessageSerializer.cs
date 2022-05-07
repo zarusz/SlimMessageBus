@@ -1,6 +1,4 @@
 using System;
-using System.IO;
-using System.Linq.Expressions;
 using System.Reflection;
 using Google.Protobuf;
 using Microsoft.Extensions.Logging;
@@ -10,48 +8,38 @@ namespace SlimMessageBus.Host.Serialization.Google.Protobuf
     public class GoogleProtobufMessageSerializer : IMessageSerializer
     {
         private readonly ILogger _logger;
+        private readonly IMessageParserFactory _messageParserFactory;
 
-        public GoogleProtobufMessageSerializer(ILoggerFactory loggerFactory)
+        public GoogleProtobufMessageSerializer(ILoggerFactory loggerFactory) : this(
+        loggerFactory,
+        new MessageParserFactory())
+        {
+        }
+
+        public GoogleProtobufMessageSerializer(ILoggerFactory loggerFactory, IMessageParserFactory messageParserFactory)
         {
             _logger = loggerFactory.CreateLogger<GoogleProtobufMessageSerializer>();
+            _messageParserFactory = messageParserFactory;
         }
+
 
         public byte[] Serialize(Type t, object message)
         {
-            return ((IMessage)message).ToByteArray();
+            return ((IMessage) message).ToByteArray();
         }
-
-        private static object GenerateParserObject(Type t)
-        {
-            var parserType = typeof(MessageParser<>).MakeGenericType(t);
-            var constructor = t.GetConstructor(Type.EmptyTypes);
-            if (constructor == null)
-            {
-                throw new InvalidOperationException($"The type MessageParser<> does not have a parameterless constructor");
-            }
-            var callConstructor = Expression.New(constructor);
-            var cast = Expression.Convert(callConstructor, t);
-            var function = Expression.Lambda(cast).Compile();
-            var parser = Activator.CreateInstance(parserType,
-                new object[]
-                {
-                    function
-                });
-            return parser;
-        }
-
 
         public object Deserialize(Type t, byte[] payload)
         {
-            var messageParser = GenerateParserObject(t);
+            var messageParser = _messageParserFactory.CreateMessageParser(t);
             try
             {
                 var message = messageParser.GetType()
-                    .InvokeMember("ParseFrom",
-                        BindingFlags.InvokeMethod | BindingFlags.Public | BindingFlags.Instance,
-                        null,
-                        messageParser,
-                        new object[] { payload });
+                                           .InvokeMember("ParseFrom",
+                                                         BindingFlags.InvokeMethod | BindingFlags.Public |
+                                                         BindingFlags.Instance,
+                                                         null,
+                                                         messageParser,
+                                                         new object[] { payload });
 
                 return message;
             }
