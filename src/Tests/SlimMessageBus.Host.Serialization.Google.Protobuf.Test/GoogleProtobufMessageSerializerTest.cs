@@ -10,20 +10,20 @@ namespace SlimMessageBus.Host.Serialization.Google.Protobuf.Test
         [Fact]
         public void Serialize_When_Object_Then_ProtoMessage()
         {
+            // arrange
+            var serializer = new GoogleProtobufMessageSerializer(new NullLoggerFactory());
 
-            GoogleProtobufMessageSerializer serializer = new GoogleProtobufMessageSerializer(new NullLoggerFactory());
-
-            PersonMessage personMessage = new PersonMessage()
+            // act
+            PersonMessage personMessage = new PersonMessage
             {
                 Id = 1,
                 Name = "SlimMessageBus"
             };
+            var serializedPerson = serializer.Serialize(personMessage.GetType(), personMessage);
 
-           byte[] serializedPerson =  serializer.Serialize(personMessage.GetType(), personMessage);
-
-           object deserializedPerson = serializer.Deserialize(typeof(PersonMessage), serializedPerson);
-
-           ((PersonMessage) deserializedPerson).Should().BeEquivalentTo(personMessage);
+            // assert
+            var deserializedPerson = serializer.Deserialize(typeof(PersonMessage), serializedPerson);
+            ((PersonMessage) deserializedPerson).Should().BeEquivalentTo(personMessage);
         }
     }
 }

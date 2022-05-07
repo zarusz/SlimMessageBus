@@ -11,7 +11,6 @@ namespace SlimMessageBus.Host.Serialization.Google.Protobuf
     {
         private readonly ILogger _logger;
 
-       
         public GoogleProtobufMessageSerializer(ILoggerFactory loggerFactory)
         {
             _logger = loggerFactory.CreateLogger<GoogleProtobufMessageSerializer>();
@@ -25,18 +24,14 @@ namespace SlimMessageBus.Host.Serialization.Google.Protobuf
         private static object GenerateParserObject(Type t)
         {
             var parserType = typeof(MessageParser<>).MakeGenericType(t);
-
             var constructor = t.GetConstructor(Type.EmptyTypes);
             if (constructor == null)
             {
                 throw new InvalidOperationException($"The type MessageParser<> does not have a parameterless constructor");
             }
-
             var callConstructor = Expression.New(constructor);
             var cast = Expression.Convert(callConstructor, t);
             var function = Expression.Lambda(cast).Compile();
-
-
             var parser = Activator.CreateInstance(parserType,
                 new object[]
                 {
@@ -49,8 +44,6 @@ namespace SlimMessageBus.Host.Serialization.Google.Protobuf
         public object Deserialize(Type t, byte[] payload)
         {
             var messageParser = GenerateParserObject(t);
-
-
             try
             {
                 var message = messageParser.GetType()

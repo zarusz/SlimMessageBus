@@ -14,6 +14,7 @@
         </PackageReference>
         <PackageReference Include="Grpc.Net.Client" Version="2.45.0" />
     </ItemGroup>
+
     <ItemGroup>
         <PackageReference Include="FluentAssertions" Version="6.5.1" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.1.0" />
@@ -24,9 +25,11 @@
         </PackageReference>
         <DotNetCliToolReference Include="dotnet-xunit" Version="2.3.1" />
     </ItemGroup>
+
     <ItemGroup>
         <Protobuf Include="**/*.proto" />
     </ItemGroup>
+
     <ItemGroup>
       <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Google.Protobuf\SlimMessageBus.Host.Serialization.Google.Protobuf.csproj" />
     </ItemGroup>
