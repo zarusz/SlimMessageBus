@@ -2,7 +2,7 @@ using System;
 using System.Linq.Expressions;
 using Google.Protobuf;
 
-namespace SlimMessageBus.Host.Serialization.Google.Protobuf
+namespace SlimMessageBus.Host.Serialization.GoogleProtobuf
 {
     public class MessageParserFactory : IMessageParserFactory
     {

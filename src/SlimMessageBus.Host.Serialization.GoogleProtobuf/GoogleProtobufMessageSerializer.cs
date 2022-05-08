@@ -3,7 +3,7 @@ using System.Reflection;
 using Google.Protobuf;
 using Microsoft.Extensions.Logging;
 
-namespace SlimMessageBus.Host.Serialization.Google.Protobuf
+namespace SlimMessageBus.Host.Serialization.GoogleProtobuf
 {
     public class GoogleProtobufMessageSerializer : IMessageSerializer
     {

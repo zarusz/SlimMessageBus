@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Test;
 using Xunit;
 
-namespace SlimMessageBus.Host.Serialization.Google.Protobuf.Test
+namespace SlimMessageBus.Host.Serialization.GoogleProtobuf.Test
 {
     public class GoogleProtobufMessageSerializerTest
     {

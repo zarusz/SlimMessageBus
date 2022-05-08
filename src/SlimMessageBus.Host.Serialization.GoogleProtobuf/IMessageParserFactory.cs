@@ -1,7 +1,6 @@
 using System;
-using Google.Protobuf;
 
-namespace SlimMessageBus.Host.Serialization.Google.Protobuf
+namespace SlimMessageBus.Host.Serialization.GoogleProtobuf
 {
     public interface IMessageParserFactory
     {

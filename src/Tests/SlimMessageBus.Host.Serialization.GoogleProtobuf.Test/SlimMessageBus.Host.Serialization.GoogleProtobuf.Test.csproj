@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <TargetFramework>net5.0</TargetFramework>
@@ -31,7 +31,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Google.Protobuf\SlimMessageBus.Host.Serialization.Google.Protobuf.csproj" />
+      <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.GoogleProtobuf\SlimMessageBus.Host.Serialization.GoogleProtobuf.csproj" />
     </ItemGroup>
 
 </Project>
