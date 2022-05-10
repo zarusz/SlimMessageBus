@@ -5,6 +5,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 - [Configuration](#configuration)
 - [Json](#json)
 - [Avro](#avro)
+- [GoogleProtobuf](#googleprotobuf)
 - [Hybrid](#hybrid)
 
 ## Configuration
@@ -106,9 +107,6 @@ mbb.WithSerializer(googleProtobufMessageSerializer);
 ```
 
 This will apply the `Google.Protobuf` default serialization settings for converting `IMessage` to `byte[]`.
-
-```
-
 
 ## Hybrid
 
