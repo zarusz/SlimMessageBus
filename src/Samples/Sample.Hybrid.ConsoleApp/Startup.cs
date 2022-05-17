@@ -8,11 +8,11 @@
     using Sample.Hybrid.ConsoleApp.EmailService;
     using Sample.Hybrid.ConsoleApp.EmailService.Contract;
     using SecretStore;
-    using SlimMessageBus.Host.MsDependencyInjection;
     using SlimMessageBus.Host.AzureServiceBus;
     using SlimMessageBus.Host.Hybrid;
     using SlimMessageBus.Host.Memory;
     using SlimMessageBus.Host.Serialization.Json;
+    using SlimMessageBus.Host.MsDependencyInjection;
 
     public class Startup
     {

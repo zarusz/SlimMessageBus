@@ -4,11 +4,11 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 
 - [Underlying client](#underlying-client)
 - [Configuration properties](#configuration-properties)
-	- [Minimizing message latency](#minimizing-message-latency)
-	- [SSL and password authentication](#ssl-and-password-authentication)
+  - [Minimizing message latency](#minimizing-message-latency)
+  - [SSL and password authentication](#ssl-and-password-authentication)
 - [Selecting message partition for topic producer](#selecting-message-partition-for-topic-producer)
-	- [Default partitioner with message key](#default-partitioner-with-message-key)
-	- [Assigning partition explicitly](#assigning-partition-explicitly)
+  - [Default partitioner with message key](#default-partitioner-with-message-key)
+  - [Assigning partition explicitly](#assigning-partition-explicitly)
 - [Consumer context](#consumer-context)
 - [Message Headers](#message-headers)
 - [Deployment](#deployment)
@@ -29,17 +29,18 @@ Producer, consumer and global configuration properties are described [here](http
 The configuration on the underlying Kafka client can be adjusted like so:
 
 ```cs
-var mbb = MessageBusBuilder.Create()
+// MessageBusBuilder mbb;
+mbb.    
    // ...
    .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
    {
       ProducerConfig = (config) =>
       {
-         // adjust he producer config
+         // adjust the producer config
       },
       ConsumerConfig = (config) => 
       {
-         // adjust he consumer config
+         // adjust the consumer config
       }
    });
 ```
@@ -49,7 +50,8 @@ var mbb = MessageBusBuilder.Create()
 There is a good description [here](https://github.com/edenhill/librdkafka/wiki/How-to-decrease-message-latency) on improving the latency by applying producer/consumer settings on librdkafka. Here is how you enter the settings using SlimMessageBus:
 
 ```cs
-var messageBusBuilder = MessageBusBuilder.Create()
+// MessageBusBuilder mbb;
+mbb.    
    // ...
    .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
    {
@@ -77,7 +79,8 @@ More documentation here:
 Example on how to configure SSL with SASL authentication (for cloudkarafka.com):
 
 ```cs
-var messageBusBuilder = MessageBusBuilder.Create()
+// MessageBusBuilder mbb;
+mbb.    
    // ...
    .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
    {
@@ -121,7 +124,8 @@ The default partitioner is supported, which works in this way:
 SMB Kafka allows to set a provider (selector) that will assign the message key for a given message and topic pair. Here is an example:
 
 ```cs
-IMessageBus messageBus = MessageBusBuilder.Create()
+// MessageBusBuilder mbb;
+mbb.    
    .Produce<MultiplyRequest>(x => 
    {
       x.DefaultTopic("topic1");
@@ -139,7 +143,8 @@ The key must be a `byte[]`.
 SMB Kafka allows to set a provider (selector) that will assign the partition number for a given message and topic pair. Here is an example:
 
 ```cs
-IMessageBus messageBus = MessageBusBuilder.Create()
+// MessageBusBuilder mbb;
+mbb.    
    .Produce<PingMessage>(x =>
    {
       x.DefaultTopic("topic1");
@@ -147,8 +152,7 @@ IMessageBus messageBus = MessageBusBuilder.Create()
       // Partition #1 for odd counters
       x.PartitionProvider((message, topic) => message.Counter % 2);
    })
-   .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers))
-   .Build();
+   .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
 ```
 
 With this approach your provider needs to know the number of partitions for a topic.
@@ -182,12 +186,12 @@ By default the same serializer is used to serialize header values as is being us
 If you need to specify a different serializer provide a specfic `IMessageSerializer` implementation (custom or one of the available serialization plugins):
 
 ```cs
-IMessageBus messageBus = MessageBusBuilder.Create()
+// MessageBusBuilder mbb;
+mbb.    
    .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
    {
       HeaderSerializer = new JsonMessageSerializer() // specify a different header values serializer
-   })
-   .Buid();
+   });
 ```
 
 > By default for header serialization (if not specified) SMB Kafka uses the same serializer that was set for the bus.

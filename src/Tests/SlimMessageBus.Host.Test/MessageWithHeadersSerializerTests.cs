@@ -7,12 +7,12 @@
     using FluentAssertions;
     using Xunit;
 
-    public class MessageWithHeadersSerializerTest
+    public class MessageWithHeadersSerializerTests
     {
         private readonly byte[] _payload;
         private readonly MessageWithHeadersSerializer _serializer;
 
-        public MessageWithHeadersSerializerTest()
+        public MessageWithHeadersSerializerTests()
         {
             _payload = Encoding.UTF8.GetBytes("Sample message payload in UTF8");
             _serializer = new MessageWithHeadersSerializer(Encoding.UTF8);

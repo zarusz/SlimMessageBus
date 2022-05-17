@@ -26,12 +26,10 @@ A fitting use case for in memory communication is to integrate your domain layer
 The memory transport is configured using the `.WithProviderMemory()`:
 
 ```cs
-MessageBusBuilder mbb = MessageBusBuilder
-   .Create()
+// MessageBusBuilder mbb;
+mbb.    
    .WithProviderMemory(new MemoryMessageBusSettings())
    .WithSerializer(new JsonMessageSerializer());
-
-IMessageBus bus = mbb.Build();
 ```
 
 ### Disabling serialization
@@ -39,23 +37,21 @@ IMessageBus bus = mbb.Build();
 Since messages are passed within the same process, serializing and deserializing them might be redundant or a desired performance optimization. Serialization can be disabled:
 
 ```cs
-MessageBusBuilder mbb = MessageBusBuilder
-   .Create()
+// MessageBusBuilder mbb;
+mbb.    
    .WithProviderMemory(new MemoryMessageBusSettings
    {
       // Do not serialize the domain events and rather pass the same instance across handlers (faster 
       EnableMessageSerialization = false
    });
    //.WithSerializer(new JsonMessageSerializer()); // no serializer  needed
-
-IMessageBus bus = mbb.Build();
 ```
 
 > When serialization is disabled for in memory passed messages, the exact same object instance send by the producer will be recieved by the consumer. Therefore state changes on the consumer end will be visible by the producer. Consider making the messages immutable (read only).
 
 ### Virtual Topics
 
-Unlike other transport providers, the memory transport does not have true notion of topics (or queues). However, it is still required to use topic names. This is required, so that the bus knows on which virtual topic to deliver the message to and from what virtual topic to consume.
+Unlike other transport providers, memory transport does not have true notion of topics (or queues). However, it is still required to use topic names. This is required, so that the bus knows on which virtual topic to deliver the message to and from what virtual topic to consume.
 
 Here is an example for the producer side:
 
@@ -81,7 +77,7 @@ The benefit is that we can channel messages of the same type via different virtu
 
 ### Autoregistration
 
-During configuration we can discover all the handlers (or messages that will be produced) and register them in the bus. This can be useful to autoregister all of your domain handlers from the application layer. 
+During configuration, we can discover all the handlers (or messages that will be produced) and register them in the bus. This can be useful to autoregister all of your domain handlers from the application layer. 
 
 It required a bit of reflection code and the `.Do(Action<MessageBusBuilder> action)` method:
 

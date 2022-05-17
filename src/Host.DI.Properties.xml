@@ -4,6 +4,6 @@
   <Import Project="Common.Properties.xml" />
 
   <PropertyGroup>
-    <Version>1.6.5</Version>
+    <Version>1.7.0-rc1</Version>
   </PropertyGroup>
 </Project>

@@ -27,7 +27,7 @@ A typical example would be when your service has a domain layer which uses domai
 Here is an example configuration taken from [Sample.Hybrid.ConsoleApp](../src/Samples/Sample.Hybrid.ConsoleApp) sample:
 
 ```cs
-public IMessageBus CreateMessageBus(IServiceProvider svp)
+services.AddMessageBus((mbb, svp) => 
 {
     var hybridBusSettings = new HybridMessageBusSettings
     {
@@ -50,8 +50,8 @@ public IMessageBus CreateMessageBus(IServiceProvider svp)
         }
     };
 
-    var mbb = MessageBusBuilder.Create()
-        .WithDependencyResolver(new LookupDependencyResolver(svp.GetRequiredService)) // DI setup will be shared
+    // MessageBusBuilder mbb;
+    mbb.    
         .WithSerializer(new JsonMessageSerializer()) // serialization setup will be shared between bus 1 and 2
         .WithProviderHybrid(hybridBusSettings); 
 
@@ -59,19 +59,17 @@ public IMessageBus CreateMessageBus(IServiceProvider svp)
     // - The CustomerChangedEvent messages will be going through the SMB Memory provider.
     // - The SendEmailCommand messages will be going through the SMB Azure Service Bus provider.
     // - Each of the bus providers will serialize messages using JSON and use the same DI to resolve consumers/handlers.
-    var mb = mbb.Build();
-    return mb;
-}
+});
 ```
 
-Above we define the hybrid bus as consisting of two transports - Memory and Azure Service Bus:
+In the example above, we define the hybrid bus as consisting of two kinds of transport - Memory and Azure Service Bus:
 
 - The message type `CustomerEmailChangedEvent` published will be routed to the memory bus for delivery.
-- Converely, the `SendEmailCommand` will be routed to the Azure Service Bus transport.
+- Conversely, the `SendEmailCommand` will be routed to the Azure Service Bus transport.
 
-> Currently, routing is determined based on message type. Because of that you cannot have the same message type handled by different bus transports.
+> Currently, routing is determined based on the message type. Because of that, you cannot have the same message type handled by different bus transports.
 
-The `IMessageBus` injected into any layer of your application will in fact be the hybrid bus, therefore production of a message will be routed to the repective bus implementation (memory or Azure SB in our example).
+The `IMessageBus` injected into any layer of your application will be the hybrid bus, therefore production of a message will be routed to the repective bus implementation (memory or Azure SB in our example).
 
 It is important to understand, that handlers (`IHandler<>`) or consumers (`IConsumer<>`) registered will be managed by the respective child bus that they are configured on.
 

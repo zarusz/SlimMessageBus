@@ -1,8 +1,8 @@
-﻿namespace SlimMessageBus.Host.Unity
+﻿namespace SlimMessageBus.Host
 {
     using System;
     using SlimMessageBus.Host.DependencyResolver;
-    using global::Unity;
+    using Unity;
     using Microsoft.Extensions.Logging;
 
     /// <summary>
@@ -10,27 +10,20 @@
     /// </summary>
     public class UnityMessageBusDependencyResolver : IDependencyResolver
     {
-        private readonly ILoggerFactory loggerFactory;
         private readonly ILogger<UnityMessageBusDependencyResolver> logger;
         protected IUnityContainer Container { get; }
 
-        public UnityMessageBusDependencyResolver(IUnityContainer container, ILoggerFactory loggerFactory)
-        {
-            this.loggerFactory = loggerFactory;
-            this.logger = loggerFactory.CreateLogger<UnityMessageBusDependencyResolver>();
-            Container = container;
-        }
-
         public UnityMessageBusDependencyResolver(IUnityContainer container)
-            : this(container, container.Resolve<ILoggerFactory>())
         {
+            logger = container.Resolve<ILogger<UnityMessageBusDependencyResolver>>();
+            Container = container;
         }
 
         public object Resolve(Type type)
         {
-            logger.LogTrace("Resolving type {type}", type);
+            logger.LogTrace("Resolving type {Type}", type);
             var o = Container.Resolve(type);
-            logger.LogTrace("Resolved type {type} to instance {instance}", type, o);
+            logger.LogTrace("Resolved type {Type} to instance {Instance}", type, o);
             return o;
         }
 
@@ -38,7 +31,7 @@
         {
             logger.LogDebug("Creating child scope");
             var childContainer = Container.CreateChildContainer();
-            return new UnityMessageBusChildDependencyResolver(this, childContainer, loggerFactory);
+            return new UnityMessageBusChildDependencyResolver(this, childContainer);
         }
     }
 }

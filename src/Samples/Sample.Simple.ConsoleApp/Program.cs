@@ -15,12 +15,12 @@
     using SlimMessageBus.Host.Kafka;
     using SlimMessageBus.Host.Redis;
     using SlimMessageBus.Host.Memory;
-    using SlimMessageBus.Host.MsDependencyInjection;
     using Microsoft.Extensions.Logging;
     using Confluent.Kafka;
     using Microsoft.Extensions.DependencyInjection;
     using SlimMessageBus.Host;
     using System.Reflection;
+    using SlimMessageBus.Host.MsDependencyInjection;
 
     enum Provider
     {

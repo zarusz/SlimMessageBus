@@ -9,16 +9,17 @@ namespace SlimMessageBus.Host.Hybrid.Test
     using System;
     using System.Collections.Generic;
     using System.Text;
+    using System.Threading;
     using System.Threading.Tasks;
     using Xunit;
 
     public class HybridMessageBusTest
     {
         private readonly Lazy<HybridMessageBus> _subject;
-        private readonly MessageBusSettings _settings = new MessageBusSettings();
-        private readonly HybridMessageBusSettings _providerSettings = new HybridMessageBusSettings();
-        private readonly Mock<IDependencyResolver> _dependencyResolverMock = new Mock<IDependencyResolver>();
-        private readonly Mock<IMessageSerializer> _messageSerializerMock = new Mock<IMessageSerializer>();
+        private readonly MessageBusSettings _settings = new();
+        private readonly HybridMessageBusSettings _providerSettings = new();
+        private readonly Mock<IDependencyResolver> _dependencyResolverMock = new();
+        private readonly Mock<IMessageSerializer> _messageSerializerMock = new();
 
         private Mock<MessageBusBase> _bus1Mock;
         private Mock<MessageBusBase> _bus2Mock;
@@ -43,7 +44,7 @@ namespace SlimMessageBus.Host.Hybrid.Test
                 {
                     _bus1Mock = new Mock<MessageBusBase>(new[] { mbs });
                     _bus1Mock.SetupGet(x => x.Settings).Returns(mbs);
-                    _bus1Mock.Setup(x => x.Publish(It.IsAny<SomeMessage>(), It.IsAny<string>(), It.IsAny<IDictionary<string, object>>())).Returns(Task.CompletedTask);
+                    _bus1Mock.Setup(x => x.Publish(It.IsAny<SomeMessage>(), It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
                     return _bus1Mock.Object;
                 });
@@ -75,9 +76,9 @@ namespace SlimMessageBus.Host.Hybrid.Test
             await _subject.Value.Publish(someDerivedOfDerivedMessage);
 
             // assert
-            _bus1Mock.Verify(x => x.Publish(someMessage, null, null), Times.Once);
-            _bus1Mock.Verify(x => x.Publish(someDerivedMessage, null, null), Times.Once);
-            _bus1Mock.Verify(x => x.Publish(someDerivedOfDerivedMessage, null, null), Times.Once);
+            _bus1Mock.Verify(x => x.Publish(someMessage, null, null, It.IsAny<CancellationToken>()), Times.Once);
+            _bus1Mock.Verify(x => x.Publish(someDerivedMessage, null, null, It.IsAny<CancellationToken>()), Times.Once);
+            _bus1Mock.Verify(x => x.Publish(someDerivedOfDerivedMessage, null, null, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]

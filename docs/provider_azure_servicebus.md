@@ -21,7 +21,8 @@ Azure Service Bus provider requires a connection string:
 ```cs
 var connectionString = "" // Azure Service Bus connection string
 
-MessageBusBuilder mbb = MessageBusBuilder.Create()
+// MessageBusBuilder mbb;
+mbb.    
     // the bus configuration here
     .WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString))
     .WithSerializer(new JsonMessageSerializer());

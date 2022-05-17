@@ -9,17 +9,17 @@
     using SlimMessageBus.Host.Config;
     using Xunit;
 
-    public class ConsumerInstancePoolMessageProcessorTest
+    public class ConsumerInstancePoolMessageProcessorTests
     {
         private readonly MessageBusMock _busMock;
 
-        public ConsumerInstancePoolMessageProcessorTest()
+        public ConsumerInstancePoolMessageProcessorTests()
         {
             _busMock = new MessageBusMock();
         }
 
         [Fact]
-        public void When_NewInstance_Then_DoesNotResolveConsumerInstances()
+        public void When_Consume_Given_NewInstance_Then_DoesNotResolveConsumerInstances()
         {
             // arrange
             var consumerSettings = new ConsumerBuilder<SomeMessage>(new MessageBusSettings()).Topic(null).WithConsumer<IConsumer<SomeMessage>>().Instances(2).ConsumerSettings;
@@ -32,7 +32,7 @@
         }
 
         [Fact]
-        public void When_NewInstance_Then_DoesNotResolveHandlerInstances()
+        public void When_Consume_Given_Then_DoesNotResolveHandlerInstances()
         {
             // arrange
             var consumerSettings = new HandlerBuilder<SomeRequest, SomeResponse>(new MessageBusSettings()).Topic(null).WithHandler<IRequestHandler<SomeRequest, SomeResponse>>().Instances(2).ConsumerSettings;
@@ -45,20 +45,22 @@
         }
 
         [Fact]
-        public async Task When_NInstancesConfigured_Then_ExactlyNConsumerInstancesAreWorking()
+        public async Task When_Consume_Given_NInstancesConfigured_Then_ExactlyNConsumerInstancesAreWorking()
         {
             const int consumerTime = 500;
             const int consumerInstances = 8;
             const int messageCount = 500;
 
             // arrange
-            var consumerSettings = new ConsumerBuilder<SomeMessage>(new MessageBusSettings()).Topic(null).WithConsumer<IConsumer<SomeMessage>>().Instances(consumerInstances).ConsumerSettings;
+            _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeMessage), It.IsAny<byte[]>())).Returns(new SomeMessage());
+
+            var consumerSettings = new ConsumerBuilder<SomeMessage>(new MessageBusSettings()).Topic("topic").WithConsumer<IConsumer<SomeMessage>>().Instances(consumerInstances).ConsumerSettings;
 
             var activeInstances = 0;
             var processedMessageCount = 0;
 
             var maxInstances = 0;
-            var maxInstancesLock = new object();
+            var maxInstancesLock = new object();            
 
             _busMock.ConsumerMock.Setup(x => x.OnHandle(It.IsAny<SomeMessage>(), It.IsAny<string>()))
                 .Returns((SomeMessage msg, string topic) =>
@@ -106,6 +108,6 @@
             Console.WriteLine("The execution time was {0}% away from the best possible time", percent); // smallest number is better
         }
 
-        private static MessageWithHeaders EmptyMessageWithHeadersProvider<T>(T msg) => new MessageWithHeaders(Array.Empty<byte>());
+        private static MessageWithHeaders EmptyMessageWithHeadersProvider<T>(T msg) => new(Array.Empty<byte>());
     }
 }
