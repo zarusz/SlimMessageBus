@@ -5,6 +5,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 - [Configuration](#configuration)
 - [Json](#json)
 - [Avro](#avro)
+- [GoogleProtobuf](#googleprotobuf)
 - [Hybrid](#hybrid)
 
 ## Configuration
@@ -90,6 +91,21 @@ var avroSerializer = new AvroMessageSerializer(mf, sl);
 ```
 
 The default `AvroMessageSerializer` constructor will use the `ReflectionMessageCreationStategy` and `ReflectionSchemaLookupStrategy` strategies. While these are slower bacause of usage of reflection, it is certainly more convenient to use.
+
+## GoogleProtobuf
+
+The GoogleProtobuf plugin brings in Protobuf serialization using the [Google.Protobuf](https://www.nuget.org/packages/Google.Protobuf) library.
+
+Nuget package: [SlimMessageBus.Host.Serialization.GoogleProtobuf](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.GoogleProtobuf)
+
+To use it install the nuget package `SlimMessageBus.Host.Serialization.GoogleProtobuf` and then configure the bus:
+
+```cs
+var googleProtobufMessageSerializer = new GoogleProtobufMessageSerializer();
+mbb.WithSerializer(googleProtobufMessageSerializer);
+```
+
+This will apply the `Google.Protobuf` default serialization settings for converting `IMessage` to `byte[]`.
 
 ## Hybrid
 
