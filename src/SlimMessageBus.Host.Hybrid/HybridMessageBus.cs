@@ -22,7 +22,7 @@
         private readonly ProducerByMessageTypeCache<string> _busNameByMessageType;
         private readonly IDictionary<string, MessageBusBase> _busByName;
 
-        public HybridMessageBus(MessageBusSettings settings, HybridMessageBusSettings providerSettings)
+        public HybridMessageBus(MessageBusSettings settings, HybridMessageBusSettings providerSettings, MessageBusBuilder mbb)
         {
             Settings = settings ?? throw new ArgumentNullException(nameof(settings));
             ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
@@ -38,26 +38,28 @@
             _busNameByMessageType = new ProducerByMessageTypeCache<string>(_logger, busNameByBaseMessageType);
 
             _busByName = new Dictionary<string, MessageBusBase>();
-            foreach (var name in providerSettings.Keys)
+            foreach (var busName in providerSettings.Keys)
             {
-                var builderFunc = providerSettings[name];
+                var busBuilderFunc = providerSettings[busName];
 
-                var bus = BuildBus(builderFunc);
-                _busByName.Add(name, bus);
+                var bus = BuildBus(busBuilderFunc, busName, mbb);
+                _busByName.Add(busName, bus);
 
                 // Register producer routes based on MessageType
                 foreach (var producer in bus.Settings.Producers)
                 {
-                    busNameByBaseMessageType.Add(producer.MessageType, name);
+                    busNameByBaseMessageType.Add(producer.MessageType, busName);
                 }
             }
 
             // ToDo: defer start of busses until here
         }
 
-        protected virtual MessageBusBase BuildBus(Action<MessageBusBuilder> builderFunc)
+        protected virtual MessageBusBase BuildBus(Action<MessageBusBuilder> builderFunc, string busName, MessageBusBuilder parentBuilder)
         {
             var builder = MessageBusBuilder.Create();
+            builder.BusName = busName;
+            builder.Configurators = parentBuilder.Configurators;
             builder.MergeFrom(Settings);
             builderFunc(builder);
 

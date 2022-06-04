@@ -47,7 +47,7 @@
             {
                 foreach (var foundType in ReflectionDiscoveryScanner.From(AddConfiguratorsFromAssembly).GetMessageBusConfiguratorTypes())
                 {
-                    builder.RegisterType(foundType);
+                    builder.RegisterType(foundType).As<IMessageBusConfigurator>();
                 }
             }
 
@@ -66,13 +66,7 @@
                 {
                     var mbb = MessageBusBuilder.Create();
                     mbb.WithDependencyResolver(ctx.Resolve<IDependencyResolver>());
-
-                    var configurators = ctx.Resolve<IEnumerable<IMessageBusConfigurator>>();
-                    foreach (var configurator in configurators)
-                    {
-                        // ToDo: Run on all buses in hybrid 
-                        configurator.Configure(mbb, "default");
-                    }
+                    mbb.Configurators = ctx.Resolve<IEnumerable<IMessageBusConfigurator>>();
 
                     ConfigureBus(mbb, ctx);
 

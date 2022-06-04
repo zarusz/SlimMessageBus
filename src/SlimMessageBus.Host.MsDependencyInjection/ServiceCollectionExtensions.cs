@@ -47,16 +47,9 @@
             // Single master bus that holds the defined consumers and message processing pipelines
             services.AddSingleton((svp) =>
             {
-                var configurators = svp.GetServices<IMessageBusConfigurator>();
-
                 var mbb = MessageBusBuilder.Create();
                 mbb.WithDependencyResolver(svp.GetRequiredService<IDependencyResolver>());
-
-                // ToDo: Run on all buses in hybrid 
-                foreach (var configurator in configurators)
-                {
-                    configurator.Configure(mbb, "default");
-                }
+                mbb.Configurators = svp.GetServices<IMessageBusConfigurator>();
 
                 configure(mbb, svp);
 
