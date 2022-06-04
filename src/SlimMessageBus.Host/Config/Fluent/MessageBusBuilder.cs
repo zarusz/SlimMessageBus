@@ -19,10 +19,12 @@ namespace SlimMessageBus.Host.Config
         /// </summary>
         public IEnumerable<IMessageBusConfigurator> Configurators { get; set; } = Enumerable.Empty<IMessageBusConfigurator>();
 
+        public IDictionary<string, Action<MessageBusBuilder>> ChildBuilders { get; } = new Dictionary<string, Action<MessageBusBuilder>>();
+
         /// <summary>
-        /// The bus name
+        /// The bus name (if not provided then null).
         /// </summary>
-        public string BusName { get; set; } = "Root";
+        public string BusName { get; set; }
 
         private Func<MessageBusSettings, IMessageBus> _factory;
 
@@ -214,6 +216,12 @@ namespace SlimMessageBus.Host.Config
         public MessageBusBuilder AutoStartConsumersEnabled(bool enabled)
         {
             Settings.AutoStartConsumers = enabled;
+            return this;
+        }
+
+        public MessageBusBuilder AddChildBus(string busName, Action<MessageBusBuilder> builderAction)
+        {
+            ChildBuilders.Add(busName, builderAction);
             return this;
         }
 

@@ -25,7 +25,7 @@
         public HybridMessageBus(MessageBusSettings settings, HybridMessageBusSettings providerSettings, MessageBusBuilder mbb)
         {
             Settings = settings ?? throw new ArgumentNullException(nameof(settings));
-            ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
+            ProviderSettings = providerSettings ?? new HybridMessageBusSettings();
 
             // Use the configured logger factory, if not provided try to resolve from DI, if also not available supress logging using the NullLoggerFactory
             LoggerFactory = settings.LoggerFactory
@@ -38,30 +38,28 @@
             _busNameByMessageType = new ProducerByMessageTypeCache<string>(_logger, busNameByBaseMessageType);
 
             _busByName = new Dictionary<string, MessageBusBase>();
-            foreach (var busName in providerSettings.Keys)
+            foreach (var childBus in providerSettings ?? mbb.ChildBuilders)
             {
-                var busBuilderFunc = providerSettings[busName];
-
-                var bus = BuildBus(busBuilderFunc, busName, mbb);
-                _busByName.Add(busName, bus);
+                var bus = BuildBus(childBus.Value, childBus.Key, mbb);
+                _busByName.Add(childBus.Key, bus);
 
                 // Register producer routes based on MessageType
                 foreach (var producer in bus.Settings.Producers)
                 {
-                    busNameByBaseMessageType.Add(producer.MessageType, busName);
+                    busNameByBaseMessageType.Add(producer.MessageType, childBus.Key);
                 }
             }
 
             // ToDo: defer start of busses until here
         }
 
-        protected virtual MessageBusBase BuildBus(Action<MessageBusBuilder> builderFunc, string busName, MessageBusBuilder parentBuilder)
+        protected virtual MessageBusBase BuildBus(Action<MessageBusBuilder> builderAction, string busName, MessageBusBuilder parentBuilder)
         {
             var builder = MessageBusBuilder.Create();
             builder.BusName = busName;
             builder.Configurators = parentBuilder.Configurators;
             builder.MergeFrom(Settings);
-            builderFunc(builder);
+            builderAction(builder);
 
             var bus = builder.Build();
 

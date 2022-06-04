@@ -36,31 +36,26 @@
                 // - The CustomerChangedEvent messages will be going through the SMB Memory provider.
                 // - The SendEmailCommand messages will be going through the SMB Azure Service Bus provider.
                 // - Each of the bus providers will serialize messages using JSON and use the same DI to resolve consumers/handlers.
-
-                var hybridBusSettings = new HybridMessageBusSettings
-                {
+                mbb
                     // Bus 1
-                    ["Memory"] = builder =>
+                    .AddChildBus("Memory", (mbbChild) =>
                     {
-                        builder
+                        mbbChild
                             .Produce<CustomerEmailChangedEvent>(x => x.DefaultTopic(x.MessageType.Name))
                             .Consume<CustomerEmailChangedEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<CustomerChangedEventHandler>())
                             .WithProviderMemory(new MemoryMessageBusSettings { EnableMessageSerialization = false });
-                    },
+                    })
                     // Bus 2
-                    ["AzureSB"] = builder =>
+                    .AddChildBus("AzureSB", (mbbChild) =>
                     {
                         var serviceBusConnectionString = Secrets.Service.PopulateSecrets(Configuration["Azure:ServiceBus"]);
-                        builder
+                        mbbChild
                             .Produce<SendEmailCommand>(x => x.DefaultQueue("test-ping-queue"))
                             .Consume<SendEmailCommand>(x => x.Queue("test-ping-queue").WithConsumer<SmtpEmailService>())
                             .WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString));
-                    }
-                };
-
-                mbb
+                    })
                     .WithSerializer(new JsonMessageSerializer()) // serialization setup will be shared between bus 1 and 2
-                    .WithProviderHybrid(hybridBusSettings);
+                    .WithProviderHybrid();
             },
             addConsumersFromAssembly: new[] { typeof(CustomerChangedEventHandler).Assembly });
         }

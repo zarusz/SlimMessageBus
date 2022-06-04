@@ -148,23 +148,35 @@ namespace SlimMessageBus.Host.Integration
         {
             public void Configure(MessageBusBuilder builder, string busName)
             {
-                if (busName != "Memory") return;
+                if (busName != null) return;
 
-                builder.Produce<InternalMessage>(x => x.DefaultTopic(x.MessageType.Name));
-                builder.Consume<InternalMessage>(x => x.Topic(x.MessageType.Name).WithConsumer<InternalMessageConsumer>());
+                builder.AddChildBus("Memory", (mbb) =>
+                {
+                    mbb.Produce<InternalMessage>(x => x.DefaultTopic(x.MessageType.Name));
+                    mbb.Consume<InternalMessage>(x => x.Topic(x.MessageType.Name).WithConsumer<InternalMessageConsumer>());
+                    mbb.WithProviderMemory(new MemoryMessageBusSettings());
+                });
             }
         }
 
         public class AzureServiceBusConfigurator : IMessageBusConfigurator
         {
+            private readonly IConfiguration _configuration;
+
+            public AzureServiceBusConfigurator(IConfiguration configuration) => _configuration = configuration;
+
             public void Configure(MessageBusBuilder builder, string busName)
             {
-                if (busName != "AzureSB") return;
+                if (busName != null) return;
 
-                var topic = "integration-external-message";
-
-                builder.Produce<ExternalMessage>(x => x.DefaultTopic(topic));
-                builder.Consume<ExternalMessage>(x => x.Topic(topic).SubscriptionName("test").WithConsumer<ExternalMessageConsumer>());
+                builder.AddChildBus("AzureSB", (mbb) =>
+                {
+                    var topic = "integration-external-message";
+                    mbb.Produce<ExternalMessage>(x => x.DefaultTopic(topic));
+                    mbb.Consume<ExternalMessage>(x => x.Topic(topic).SubscriptionName("test").WithConsumer<ExternalMessageConsumer>());
+                    var connectionString = Secrets.Service.PopulateSecrets(_configuration["Azure:ServiceBus"]);
+                    mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString));
+                });
             }
         }
 
@@ -172,18 +184,7 @@ namespace SlimMessageBus.Host.Integration
         {
             mbb
                 .WithSerializer(new JsonMessageSerializer())
-                .WithProviderHybrid(new HybridMessageBusSettings
-                {
-                    ["Memory"] = (mbb) =>
-                    {
-                        mbb.WithProviderMemory(new MemoryMessageBusSettings());
-                    },
-                    ["AzureSB"] = (mbb) =>
-                    {
-                        var connectionString = Secrets.Service.PopulateSecrets(_configuration["Azure:ServiceBus"]);
-                        mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString));
-                    }
-                });
+                .WithProviderHybrid();
         }
 
         public record EventMark(Guid CorrelationId, string Name);
@@ -213,6 +214,8 @@ namespace SlimMessageBus.Host.Integration
 
                     // This is a singleton that will collect all the events that happened to verify later what actually happened.
                     services.AddSingleton<TestEventCollector<EventMark>>();
+
+                    services.AddSingleton<IConfiguration>(_configuration);
                 },
                 servicesBuilderForAutofacDI: builder =>
                 {
@@ -222,6 +225,8 @@ namespace SlimMessageBus.Host.Integration
 
                     // This is a singleton that will collect all the events that happened to verify later what actually happened.
                     builder.RegisterType<TestEventCollector<EventMark>>().SingleInstance();
+
+                    builder.RegisterInstance<IConfiguration>(_configuration);
                 },
                 servicesBuilderForUnityDI: container =>
                 {
@@ -231,8 +236,9 @@ namespace SlimMessageBus.Host.Integration
 
                     // This is a singleton that will collect all the events that happened to verify later what actually happened.
                     container.RegisterType<TestEventCollector<EventMark>>(TypeLifetime.Singleton);
-                }
 
+                    container.RegisterInstance<IConfiguration>(_configuration);
+                }
             );
 
             var bus = (IPublishBus)dependencyResolver.Resolve(typeof(IPublishBus));
