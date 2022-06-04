@@ -6,6 +6,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 - [Use cases](#use-cases)
 - [Configuration](#configuration)
   - [Shared configuration](#shared-configuration)
+  - [Configuration modularization](#configuration-modularization)
 
 ## What is the Hybrid provider?
 
@@ -27,49 +28,44 @@ A typical example would be when your service has a domain layer which uses domai
 Here is an example configuration taken from [Sample.Hybrid.ConsoleApp](../src/Samples/Sample.Hybrid.ConsoleApp) sample:
 
 ```cs
-services.AddMessageBus((mbb, svp) => 
+services.AddSlimMessageBus((mbb, svp) =>
 {
-    var hybridBusSettings = new HybridMessageBusSettings
-    {
-        // Bus 1
-        ["Memory"] = builder =>
-        {
-            builder
-                .Produce<CustomerEmailChangedEvent>(x => x.DefaultTopic(x.Settings.MessageType.Name))
-                .Consume<CustomerEmailChangedEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<CustomerChangedEventHandler>())
-                .WithProviderMemory(new MemoryMessageBusSettings { EnableMessageSerialization = false });
-        },
-        // Bus 2
-        ["AzureSB"] = builder =>
-        {
-            var serviceBusConnectionString = Secrets.Service.PopulateSecrets(Configuration["Azure:ServiceBus"]);
-            builder
-                .Produce<SendEmailCommand>(x => x.DefaultQueue("test-ping-queue"))
-                .Consume<SendEmailCommand>(x => x.Queue("test-ping-queue").WithConsumer<SmtpEmailService>())
-                .WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString));
-        }
-    };
-
-    // MessageBusBuilder mbb;
-    mbb.    
-        .WithSerializer(new JsonMessageSerializer()) // serialization setup will be shared between bus 1 and 2
-        .WithProviderHybrid(hybridBusSettings); 
-
     // In summary:
     // - The CustomerChangedEvent messages will be going through the SMB Memory provider.
     // - The SendEmailCommand messages will be going through the SMB Azure Service Bus provider.
     // - Each of the bus providers will serialize messages using JSON and use the same DI to resolve consumers/handlers.
-});
+    mbb
+        // Bus 1
+        .AddChildBus("Memory", (mbbChild) =>
+        {
+            mbbChild
+                .Produce<CustomerEmailChangedEvent>(x => x.DefaultTopic(x.MessageType.Name))
+                .Consume<CustomerEmailChangedEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<CustomerChangedEventHandler>())
+                .WithProviderMemory(new MemoryMessageBusSettings { EnableMessageSerialization = false });
+        })
+        // Bus 2
+        .AddChildBus("AzureSB", (mbbChild) =>
+        {
+            var serviceBusConnectionString = Secrets.Service.PopulateSecrets(Configuration["Azure:ServiceBus"]);
+            mbbChild
+                .Produce<SendEmailCommand>(x => x.DefaultQueue("test-ping-queue"))
+                .Consume<SendEmailCommand>(x => x.Queue("test-ping-queue").WithConsumer<SmtpEmailService>())
+                .WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString));
+        })
+        .WithSerializer(new JsonMessageSerializer()) // serialization setup will be shared between bus 1 and 2
+        .WithProviderHybrid();
+},
+addConsumersFromAssembly: new[] { typeof(CustomerChangedEventHandler).Assembly });
 ```
 
-In the example above, we define the hybrid bus as consisting of two kinds of transport - Memory and Azure Service Bus:
+In the example above, we define the hybrid bus to create two kinds of transports - Memory and Azure Service Bus:
 
 - The message type `CustomerEmailChangedEvent` published will be routed to the memory bus for delivery.
 - Conversely, the `SendEmailCommand` will be routed to the Azure Service Bus transport.
 
 > Currently, routing is determined based on the message type. Because of that, you cannot have the same message type handled by different bus transports.
 
-The `IMessageBus` injected into any layer of your application will be the hybrid bus, therefore production of a message will be routed to the repective bus implementation (memory or Azure SB in our example).
+The `IMessageBus` injected into any layer of your application will be the hybrid bus, therefore production of a message will be routed to the respective bus implementation (memory or Azure SB in our example).
 
 It is important to understand, that handlers (`IHandler<>`) or consumers (`IConsumer<>`) registered will be managed by the respective child bus that they are configured on.
 
@@ -80,3 +76,38 @@ Any setting applied at the hybrid bus builder level will be inherited by ech chi
 Individual child busses can provide their own serialization (or any other setting) and effectively override the serialization (or any other setting).
 
 > The Hybrid bus builder configurations of the producer (`Produce()`) and consumer (`Consume()`) will be added into every child bus producer/consumer registration list.
+
+### Configuration modularization
+
+The [Modularization of configuration](intro.md#modularization-of-configuration) section mentions the usage of `IMessageBusConfigurator` interface.
+The `busName` param corresponds to the child bus name that was added as part of the hybrid bus setup. During bus creation the DI will be asked to resolve all implementations of `IMessageBusConfigurator` and SMB will execute the interface method against the root bus as well as every child bus.
+
+> The root bus (hybrid transport) will have `busName` set to `null`.
+
+Note that it is also possible to add a child bus from the `IMessageBusConfigurator` like in this case:
+
+```cs
+public class AzureServiceBusConfigurator : IMessageBusConfigurator
+{
+    private readonly IConfiguration _configuration;
+
+    public AzureServiceBusConfigurator(IConfiguration configuration) => _configuration = configuration;
+
+    public void Configure(MessageBusBuilder builder, string busName)
+    {
+        if (busName != null) return; // ensure it only runs for the root (hybrid) bus
+
+        // add Azure Service Bus as child bus
+        builder.AddChildBus("AzureSB", (mbb) =>
+        {
+            var topic = "integration-external-message";
+            mbb.Produce<ExternalMessage>(x => x.DefaultTopic(topic));
+            mbb.Consume<ExternalMessage>(x => x.Topic(topic).SubscriptionName("test").WithConsumer<ExternalMessageConsumer>());
+            var connectionString = Secrets.Service.PopulateSecrets(_configuration["Azure:ServiceBus"]);
+            mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString));
+        });
+    }
+}
+```
+
+That allows for modularization of transports that are being introduced by each of your application layers.
