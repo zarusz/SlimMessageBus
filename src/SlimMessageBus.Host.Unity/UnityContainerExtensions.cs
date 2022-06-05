@@ -5,6 +5,7 @@
     using Unity;
     using SlimMessageBus.Host.Config;
     using System.Reflection;
+    using System.Collections.Generic;
 
     public static class UnityContainerExtensions
     {
@@ -34,33 +35,31 @@
 
             if (addConfiguratorsFromAssembly != null)
             {
+                var i = 0;
                 foreach (var foundType in ReflectionDiscoveryScanner.From(addConfiguratorsFromAssembly).GetMessageBusConfiguratorTypes())
                 {
-                    container.RegisterType(foundType, TypeLifetime.Transient);
+                    // Note: Unity needs to have a unique name assigned to the type for that same interface implementation
+                    container.RegisterType(typeof(IMessageBusConfigurator), foundType, $"Configurator_{i:00}", TypeLifetime.Transient);
+                    i++;
                 }
             }
 
             if (addInterceptorsFromAssembly != null)
             {
+                var i = 0;
                 foreach (var foundType in ReflectionDiscoveryScanner.From(addInterceptorsFromAssembly).GetInterceptorTypes())
                 {
-                    container.RegisterType(foundType.InterfaceType, foundType.Type, TypeLifetime.Transient);
+                    container.RegisterType(foundType.InterfaceType, foundType.Type, $"Interceptor_{i:00}", TypeLifetime.Transient);
+                    i++;
                 }
             }
 
             // Single master bus that holds the defined consumers and message processing pipelines
             container.RegisterFactory<IMasterMessageBus>((c) =>
             {
-                var configurators = c.ResolveAll<IMessageBusConfigurator>();
-
                 var mbb = MessageBusBuilder.Create();
                 mbb.WithDependencyResolver(c.Resolve<IDependencyResolver>());
-
-                // ToDo: Run on all buses in hybrid 
-                foreach (var configurator in configurators)
-                {
-                    configurator.Configure(mbb, "default");
-                }
+                mbb.Configurators = c.Resolve<List<IMessageBusConfigurator>>();
 
                 configure(mbb, c);
 

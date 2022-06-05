@@ -768,14 +768,14 @@ The `container` (of type `IUnityContainer`) parameter can be used to obtain addi
 
 ### Modularization of configuration
 
-> Since version 1.6.4, applies to MsDependencyInjection and Autofac
+> Since version 1.6.4
 
 If you want to avoid configuring the bus all in one place (`Startup.cs`) and rather have modules of the application 
 responsible for configuring their consumers or producers then it can be done using an implementation of `IMessageBusConfigurator` that is placed in each module (assembly).
 
 ```cs
-public MyAppModule : IMessageBusConfigurator {
-
+public MyAppModule : IMessageBusConfigurator
+{
     public MyAppModule(/* dependencies injected by DI */) { }
 
     public void Configure(MessageBusBuilder mbb, string busName) 
@@ -787,14 +787,18 @@ public MyAppModule : IMessageBusConfigurator {
 }
 ```
 
-We can then use `AddMessageBusConfiguratorsFromAssembly` extension method (in Startup.cs) to search for any implementations of `IMessageBusConfigurator` and register them as Transient with the container:
+Implementations of `IMessageBusConfigurator` registered in the DI will be resolved and used to configure the message bus as well as any child bus that was declared (see [Hybrid docs](provider_hybrid.md#configuration-modularization)).
+The `busName` parameter is mostly relevant if you are using the Hybrid bus transport.
+The `mbb` parameter represents the builder for the bus.
+
+When using `MsDependencyInjection` for DI, we can use `AddMessageBusConfiguratorsFromAssembly` extension method (in Startup.cs) to search for any implementations of `IMessageBusConfigurator` and register them as transient with the container:
 
 ```cs
 var accountingModuleAssembly = Assembly.GetExecutingAssembly();
 services.AddMessageBusConfiguratorsFromAssembly(accountingModuleAssembly);
 ```
 
-Implementations of `IMessageBusConfigurator` registered in the DI will be used to configure the message bus inside the `AddSlimMessageBus` extension method.
+The other DI plugns (Unity, Autofac) provide similar means for discovery of configuration types.
 
 ### Autoregistration of consumers, interceptors and configurators
 

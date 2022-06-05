@@ -55,44 +55,40 @@ namespace SlimMessageBus.Host.Integration
 
         private void SetupBus(
             DependencyResolverType dependencyResolverType,
-            Action<MessageBusBuilder> memoryBuilder = null,
-            Action<MessageBusBuilder> asbBuilder = null,
             Action<IServiceCollection> servicesBuilderForMsDI = null,
             Action<ContainerBuilder> servicesBuilderForAutofacDI = null,
             Action<IUnityContainer> servicesBuilderForUnityDI = null,
             Assembly[] addConsumersFromAssembly = null,
-            Assembly[] addInterceptorsFromAssembly = null)
+            Assembly[] addInterceptorsFromAssembly = null,
+            Assembly[] addConfiguratorsFromAssembly = null)
         {
             if (dependencyResolverType == DependencyResolverType.MsDependency)
             {
-                SetupBusForMsDI(memoryBuilder, asbBuilder, servicesBuilderForMsDI, addConsumersFromAssembly, addInterceptorsFromAssembly);
+                SetupBusForMsDI(servicesBuilderForMsDI, addConsumersFromAssembly, addInterceptorsFromAssembly, addConfiguratorsFromAssembly);
             }
             if (dependencyResolverType == DependencyResolverType.Autofac)
             {
-                SetupBusForAutofacDI(memoryBuilder, asbBuilder, servicesBuilderForAutofacDI, addConsumersFromAssembly, addInterceptorsFromAssembly);
+                SetupBusForAutofacDI(servicesBuilderForAutofacDI, addConsumersFromAssembly, addInterceptorsFromAssembly, addConfiguratorsFromAssembly);
             }
             if (dependencyResolverType == DependencyResolverType.Unity)
             {
-                SetupBusForUnityDI(memoryBuilder, asbBuilder, servicesBuilderForUnityDI, addConsumersFromAssembly, addInterceptorsFromAssembly);
+                SetupBusForUnityDI(servicesBuilderForUnityDI, addConsumersFromAssembly, addInterceptorsFromAssembly, addConfiguratorsFromAssembly);
             }
         }
 
         private void SetupBusForMsDI(
-            Action<MessageBusBuilder> memoryBuilder = null,
-            Action<MessageBusBuilder> asbBuilder = null,
             Action<IServiceCollection> servicesBuilderForMsDI = null,
             Assembly[] addConsumersFromAssembly = null,
-            Assembly[] addInterceptorsFromAssembly = null)
+            Assembly[] addInterceptorsFromAssembly = null,
+            Assembly[] addConfiguratorsFromAssembly = null)
         {
             var services = new ServiceCollection();
             services.AddSingleton<ILoggerFactory>(_loggerFactory);
 
-            services.AddSlimMessageBus((mbb, svp) =>
-            {
-                SetupBus(memoryBuilder, asbBuilder, mbb);
-            },
+            services.AddSlimMessageBus((mbb, svp) => SetupBus(mbb),
             addConsumersFromAssembly: addConsumersFromAssembly,
-            addInterceptorsFromAssembly: addInterceptorsFromAssembly);
+            addInterceptorsFromAssembly: addInterceptorsFromAssembly,
+            addConfiguratorsFromAssembly: addConfiguratorsFromAssembly);
 
             servicesBuilderForMsDI?.Invoke(services);
 
@@ -104,22 +100,19 @@ namespace SlimMessageBus.Host.Integration
         }
 
         private void SetupBusForAutofacDI(
-            Action<MessageBusBuilder> memoryBuilder = null,
-            Action<MessageBusBuilder> asbBuilder = null,
             Action<ContainerBuilder> servicesBuilderForAutofacDI = null,
             Assembly[] addConsumersFromAssembly = null,
-            Assembly[] addInterceptorsFromAssembly = null)
+            Assembly[] addInterceptorsFromAssembly = null,
+            Assembly[] addConfiguratorsFromAssembly = null)
         {
             var builder = new ContainerBuilder();
             builder.RegisterInstance(_loggerFactory).As<ILoggerFactory>();
             builder.RegisterModule(new SlimMessageBusModule
             {
-                ConfigureBus = (mbb, ctx) =>
-                {
-                    SetupBus(memoryBuilder, asbBuilder, mbb);
-                },
+                ConfigureBus = (mbb, ctx) => SetupBus(mbb),
                 AddConsumersFromAssembly = addConsumersFromAssembly,
-                AddInterceptorsFromAssembly = addInterceptorsFromAssembly
+                AddInterceptorsFromAssembly = addInterceptorsFromAssembly,
+                AddConfiguratorsFromAssembly = addConfiguratorsFromAssembly
             });
 
             servicesBuilderForAutofacDI?.Invoke(builder);
@@ -132,20 +125,17 @@ namespace SlimMessageBus.Host.Integration
         }
 
         private void SetupBusForUnityDI(
-            Action<MessageBusBuilder> memoryBuilder = null,
-            Action<MessageBusBuilder> asbBuilder = null,
             Action<IUnityContainer> servicesBuilderForUnityDI = null,
             Assembly[] addConsumersFromAssembly = null,
-            Assembly[] addInterceptorsFromAssembly = null)
+            Assembly[] addInterceptorsFromAssembly = null,
+            Assembly[] addConfiguratorsFromAssembly = null)
         {
             var container = new UnityContainer();
             container.AddExtension(new LoggingExtension(_loggerFactory));
-            container.AddSlimMessageBus((mbb, svp) =>
-            {
-                SetupBus(memoryBuilder, asbBuilder, mbb);
-            },
+            container.AddSlimMessageBus((mbb, svp) => SetupBus(mbb),
             addConsumersFromAssembly: addConsumersFromAssembly,
-            addInterceptorsFromAssembly: addInterceptorsFromAssembly);
+            addInterceptorsFromAssembly: addInterceptorsFromAssembly,
+            addConfiguratorsFromAssembly: addConfiguratorsFromAssembly);
 
             servicesBuilderForUnityDI?.Invoke(container);
 
@@ -154,27 +144,47 @@ namespace SlimMessageBus.Host.Integration
             containerDisposable = container;
         }
 
-        private void SetupBus(Action<MessageBusBuilder> memoryBuilder, Action<MessageBusBuilder> asbBuilder, MessageBusBuilder mbb)
+        public class MemoryBusConfigurator : IMessageBusConfigurator
         {
-            var settings = new HybridMessageBusSettings
+            public void Configure(MessageBusBuilder builder, string busName)
             {
-                ["Memory"] = (mbb) =>
+                if (busName != null) return;
+
+                builder.AddChildBus("Memory", (mbb) =>
                 {
-                    memoryBuilder?.Invoke(mbb);
+                    mbb.Produce<InternalMessage>(x => x.DefaultTopic(x.MessageType.Name));
+                    mbb.Consume<InternalMessage>(x => x.Topic(x.MessageType.Name).WithConsumer<InternalMessageConsumer>());
                     mbb.WithProviderMemory(new MemoryMessageBusSettings());
-                },
-                ["AzureSB"] = (mbb) =>
+                });
+            }
+        }
+
+        public class AzureServiceBusConfigurator : IMessageBusConfigurator
+        {
+            private readonly IConfiguration _configuration;
+
+            public AzureServiceBusConfigurator(IConfiguration configuration) => _configuration = configuration;
+
+            public void Configure(MessageBusBuilder builder, string busName)
+            {
+                if (busName != null) return;
+
+                builder.AddChildBus("AzureSB", (mbb) =>
                 {
+                    var topic = "integration-external-message";
+                    mbb.Produce<ExternalMessage>(x => x.DefaultTopic(topic));
+                    mbb.Consume<ExternalMessage>(x => x.Topic(topic).SubscriptionName("test").WithConsumer<ExternalMessageConsumer>());
                     var connectionString = Secrets.Service.PopulateSecrets(_configuration["Azure:ServiceBus"]);
-
-                    asbBuilder?.Invoke(mbb);
                     mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString));
-                }
-            };
+                });
+            }
+        }
 
+        private void SetupBus(MessageBusBuilder mbb)
+        {
             mbb
                 .WithSerializer(new JsonMessageSerializer())
-                .WithProviderHybrid(settings);
+                .WithProviderHybrid();
         }
 
         public record EventMark(Guid CorrelationId, string Name);
@@ -191,22 +201,11 @@ namespace SlimMessageBus.Host.Integration
         public async Task When_PublishToMemoryBus_Given_InsideConsumerWithMessageScope_Then_MessageScopeIsCarriedOverToMemoryBusConsumer(DependencyResolverType dependencyResolverType)
         {
             // arrange
-            var topic = "integration-external-message";
-
             SetupBus(
                 dependencyResolverType: dependencyResolverType,
-                memoryBuilder: (mbb) =>
-                {
-                    mbb.Produce<InternalMessage>(x => x.DefaultTopic(x.MessageType.Name));
-                    mbb.Consume<InternalMessage>(x => x.Topic(x.MessageType.Name).WithConsumer<InternalMessageConsumer>());
-                },
-                asbBuilder: (mbb) =>
-                {
-                    mbb.Produce<ExternalMessage>(x => x.DefaultTopic(topic));
-                    mbb.Consume<ExternalMessage>(x => x.Topic(topic).SubscriptionName("test").WithConsumer<ExternalMessageConsumer>());
-                },
                 addConsumersFromAssembly: new[] { typeof(InternalMessageConsumer).Assembly },
                 addInterceptorsFromAssembly: new[] { typeof(InternalMessagePublishInterceptor).Assembly },
+                addConfiguratorsFromAssembly: new[] { typeof(MemoryBusConfigurator).Assembly },
                 servicesBuilderForMsDI: services =>
                 {
                     // Unit of work should be shared between InternalMessageConsumer and ExternalMessageConsumer.
@@ -215,6 +214,8 @@ namespace SlimMessageBus.Host.Integration
 
                     // This is a singleton that will collect all the events that happened to verify later what actually happened.
                     services.AddSingleton<TestEventCollector<EventMark>>();
+
+                    services.AddSingleton<IConfiguration>(_configuration);
                 },
                 servicesBuilderForAutofacDI: builder =>
                 {
@@ -224,6 +225,8 @@ namespace SlimMessageBus.Host.Integration
 
                     // This is a singleton that will collect all the events that happened to verify later what actually happened.
                     builder.RegisterType<TestEventCollector<EventMark>>().SingleInstance();
+
+                    builder.RegisterInstance<IConfiguration>(_configuration);
                 },
                 servicesBuilderForUnityDI: container =>
                 {
@@ -233,8 +236,9 @@ namespace SlimMessageBus.Host.Integration
 
                     // This is a singleton that will collect all the events that happened to verify later what actually happened.
                     container.RegisterType<TestEventCollector<EventMark>>(TypeLifetime.Singleton);
-                }
 
+                    container.RegisterInstance<IConfiguration>(_configuration);
+                }
             );
 
             var bus = (IPublishBus)dependencyResolver.Resolve(typeof(IPublishBus));

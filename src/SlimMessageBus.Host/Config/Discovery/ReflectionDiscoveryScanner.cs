@@ -30,7 +30,7 @@
         {
             prospectTypes = assemblies
                 .SelectMany(x => x.GetTypes())
-                .Where(t => t.IsClass && !t.IsAbstract && t.IsVisible)
+                .Where(t => t.IsClass && !t.IsAbstract)
                 .SelectMany(t => t.GetInterfaces(), (t, i) => new DiscoveryProspectType { Type = t, InterfaceType = i })
                 .ToList();
         }

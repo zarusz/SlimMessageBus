@@ -2,23 +2,37 @@ namespace SlimMessageBus.Host.Config
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.DependencyResolver;
     using SlimMessageBus.Host.Serialization;
 
     public class MessageBusBuilder
     {
+        /// <summary>
+        /// The current settings that are being built.
+        /// </summary>
         public MessageBusSettings Settings { get; } = new MessageBusSettings();
+
+        /// <summary>
+        /// Represents global configurators that are part for this builder.
+        /// </summary>
+        public IEnumerable<IMessageBusConfigurator> Configurators { get; set; } = Enumerable.Empty<IMessageBusConfigurator>();
+
+        public IDictionary<string, Action<MessageBusBuilder>> ChildBuilders { get; } = new Dictionary<string, Action<MessageBusBuilder>>();
+
+        /// <summary>
+        /// The bus name (if not provided then null).
+        /// </summary>
+        public string BusName { get; set; }
+
         private Func<MessageBusSettings, IMessageBus> _factory;
 
         protected MessageBusBuilder()
         {
         }
 
-        public static MessageBusBuilder Create()
-        {
-            return new MessageBusBuilder();
-        }
+        public static MessageBusBuilder Create() => new();
 
         public MessageBusBuilder MergeFrom(MessageBusSettings settings)
         {
@@ -148,7 +162,7 @@ namespace SlimMessageBus.Host.Config
         public MessageBusBuilder AttachEvents(Action<IProducerEvents> eventsConfig)
         {
             if (eventsConfig == null) throw new ArgumentNullException(nameof(eventsConfig));
-            
+
             eventsConfig(Settings);
             return this;
         }
@@ -205,11 +219,22 @@ namespace SlimMessageBus.Host.Config
             return this;
         }
 
+        public MessageBusBuilder AddChildBus(string busName, Action<MessageBusBuilder> builderAction)
+        {
+            ChildBuilders.Add(busName, builderAction);
+            return this;
+        }
+
         public IMessageBus Build()
         {
             if (_factory is null)
             {
                 throw new ConfigurationMessageBusException("The bus provider was not configured. Check your MessageBus configuration.");
+            }
+
+            foreach (var configurator in Configurators)
+            {
+                configurator.Configure(this, BusName);
             }
 
             return _factory(Settings);

@@ -11,7 +11,6 @@
     /// </summary>
     public class AutofacMessageBusDependencyResolver : IDependencyResolver
     {
-        private readonly ILoggerFactory loggerFactory;
         private readonly ILogger<AutofacMessageBusDependencyResolver> logger;
         private readonly Func<IComponentContext> componentContextFunc;
         private readonly IComponentContext componentContext;

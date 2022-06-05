@@ -36,7 +36,7 @@ namespace SlimMessageBus.Host.Hybrid.Test
                 .Setup(x => x.Deserialize(It.IsAny<Type>(), It.IsAny<byte[]>()))
                 .Returns((Type type, byte[] payload) => JsonConvert.DeserializeObject(Encoding.UTF8.GetString(payload), type));
 
-            _subject = new Lazy<HybridMessageBus>(() => new HybridMessageBus(_settings, _providerSettings));
+            _subject = new Lazy<HybridMessageBus>(() => new HybridMessageBus(_settings, _providerSettings, MessageBusBuilder.Create()));
 
             _providerSettings["bus1"] = (mbb) =>
             {
