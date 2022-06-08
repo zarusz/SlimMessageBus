@@ -33,7 +33,7 @@
         #region Implementation of IPublishBus
 
         public Task Publish<TMessage>(TMessage message, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
-            => Target.Publish(typeof(TMessage), message, path: path, headers: headers, cancellationToken: cancellationToken, currentDependencyResolver: dependencyResolver);
+            => Target.Publish(message, path: path, headers: headers, cancellationToken: cancellationToken, currentDependencyResolver: dependencyResolver);
 
         #endregion
 

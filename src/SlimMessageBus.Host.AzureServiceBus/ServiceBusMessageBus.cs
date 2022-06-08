@@ -141,10 +141,11 @@
             }
         }
 
-        public override async Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
+        public override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
         {
-            if (messageType is null) throw new ArgumentNullException(nameof(messageType));
             if (messagePayload is null) throw new ArgumentNullException(nameof(messagePayload));
+
+            var messageType = message.GetType();
 
             AssertActive();
 

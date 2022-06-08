@@ -177,10 +177,11 @@ namespace SlimMessageBus.Host.Kafka
             }
         }
 
-        public override async Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
+        public override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
         {
             AssertActive();
 
+            var messageType = message.GetType();
             var producerSettings = GetProducerSettings(messageType);
 
             // calculate message key

@@ -53,8 +53,9 @@
                 .ToDictionary(x => x.Key, x => x.Select(consumerSettings => new MessageHandler(consumerSettings, this)).ToList());
         }
 
-        public override async Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
+        public override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
         {
+            var messageType = message.GetType();
             if (!_handlersByPath.TryGetValue(path, out var consumers) || consumers.Count == 0)
             {
                 _logger.LogDebug("No consumers interested in message type {MessageType} on path {Path}", messageType, path);
