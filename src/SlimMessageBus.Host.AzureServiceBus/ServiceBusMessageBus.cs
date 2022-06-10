@@ -143,15 +143,13 @@
 
         public override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
         {
-            if (messagePayload is null) throw new ArgumentNullException(nameof(messagePayload));
-
             var messageType = message.GetType();
 
             AssertActive();
 
-            logger.LogDebug("Producing message {Message} of type {MessageType} to path {Path} with size {MessageSize}", message, messageType.Name, path, messagePayload.Length);
+            logger.LogDebug("Producing message {Message} of type {MessageType} to path {Path} with size {MessageSize}", message, messageType.Name, path, messagePayload?.Length ?? 0);
 
-            var m = new ServiceBusMessage(messagePayload);
+            var m = messagePayload != null ? new ServiceBusMessage(messagePayload) : new ServiceBusMessage();
 
             // add headers
             if (messageHeaders != null)
