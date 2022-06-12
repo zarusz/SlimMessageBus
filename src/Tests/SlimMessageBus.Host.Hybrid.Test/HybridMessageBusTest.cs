@@ -73,12 +73,26 @@ namespace SlimMessageBus.Host.Hybrid.Test
             // act
             await _subject.Value.Publish(someMessage);
             await _subject.Value.Publish(someDerivedMessage);
+            await _subject.Value.Publish<SomeMessage>(someDerivedMessage);
+            await _subject.Value.Publish<ISomeMessageMarkerInterface>(someDerivedMessage);
             await _subject.Value.Publish(someDerivedOfDerivedMessage);
+            await _subject.Value.Publish<SomeMessage>(someDerivedOfDerivedMessage);
+            await _subject.Value.Publish<ISomeMessageMarkerInterface>(someDerivedOfDerivedMessage);
 
             // assert
-            _bus1Mock.Verify(x => x.Publish(someMessage, null, null, It.IsAny<CancellationToken>()), Times.Once);
-            _bus1Mock.Verify(x => x.Publish(someDerivedMessage, null, null, It.IsAny<CancellationToken>()), Times.Once);
-            _bus1Mock.Verify(x => x.Publish(someDerivedOfDerivedMessage, null, null, It.IsAny<CancellationToken>()), Times.Once);
+            
+            // note: Moq does not match exact generic types but with match with assignment compatibility
+            // - cannot count the exact times a specific generic method ws executed
+            // see https://stackoverflow.com/a/54721582
+            _bus1Mock.Verify(x => x.Publish(someMessage, null, null, It.IsAny<CancellationToken>()));
+            _bus1Mock.Verify(x => x.Publish(someDerivedMessage, null, null, It.IsAny<CancellationToken>()));
+            _bus1Mock.Verify(x => x.Publish<SomeMessage>(someDerivedMessage, null, null, It.IsAny<CancellationToken>()));
+            _bus1Mock.Verify(x => x.Publish<ISomeMessageMarkerInterface>(someDerivedMessage, null, null, It.IsAny<CancellationToken>()));
+            _bus1Mock.Verify(x => x.Publish(someDerivedOfDerivedMessage, null, null, It.IsAny<CancellationToken>()));
+            _bus1Mock.Verify(x => x.Publish<SomeMessage>(someDerivedOfDerivedMessage, null, null, It.IsAny<CancellationToken>()));
+            _bus1Mock.Verify(x => x.Publish<ISomeMessageMarkerInterface>(someDerivedOfDerivedMessage, null, null, It.IsAny<CancellationToken>()));
+            _bus1Mock.VerifyGet(x => x.Settings, Times.Once);
+            _bus1Mock.VerifyNoOtherCalls();
         }
 
         [Fact]
@@ -109,7 +123,11 @@ namespace SlimMessageBus.Host.Hybrid.Test
             await notDeclaredTypePublish.Should().ThrowAsync<ConfigurationMessageBusException>();
         }
 
-        internal class SomeMessage
+        internal interface ISomeMessageMarkerInterface
+        {
+        }
+
+        internal class SomeMessage : ISomeMessageMarkerInterface
         {
         }
 
@@ -121,7 +139,7 @@ namespace SlimMessageBus.Host.Hybrid.Test
         {
         }
 
-        internal class SomeRequest : IRequestMessage<SomeResponse>
+        internal class SomeRequest : IRequestMessage<SomeResponse>, ISomeMessageMarkerInterface
         {
         }
 

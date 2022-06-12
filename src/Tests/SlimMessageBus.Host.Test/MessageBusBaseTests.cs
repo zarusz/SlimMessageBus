@@ -315,27 +315,41 @@
             _producedMessages.Should().ContainSingle(x => x.MessageType == typeof(SomeDerivedMessage) && x.Message == m && x.Path == someMessageTopic);
         }
 
-        [Fact]
-        public async Task When_Produce_DerivedMessage_Given_DeriveMessageConfigured_Then_DerivedMessageProducerConfigUsed()
+        [Theory]
+        [InlineData(1)]
+        [InlineData(2)]
+        [InlineData(3)]
+        public async Task When_Publish_DerivedMessage_Given_DeriveMessageConfigured_Then_DerivedMessageProducerConfigUsed(int caseId)
         {
             // arrange
             var someMessageTopic = "some-messages";
             var someMessageDerived2Topic = "some-messages-2";
 
             BusBuilder
-                .Produce<SomeMessage>(x =>
-                {
-                    x.DefaultTopic(someMessageTopic);
-                })
-                .Produce<SomeDerived2Message>(x =>
-                {
-                    x.DefaultTopic(someMessageDerived2Topic);
-                });
+                .Produce<SomeMessage>(x => x.DefaultTopic(someMessageTopic))
+                .Produce<SomeDerived2Message>(x => x.DefaultTopic(someMessageDerived2Topic));
 
             var m = new SomeDerived2Message();
 
             // act
-            await Bus.Publish(m);
+            if (caseId == 1)
+            {
+                // act
+                await Bus.Publish(m);
+
+            }
+
+            if (caseId == 2)
+            {
+                // act
+                await Bus.Publish<SomeMessage>(m);
+            }
+
+            if (caseId == 3)
+            {
+                // act
+                await Bus.Publish<ISomeMessageMarkerInterface>(m);
+            }
 
             // assert
             _producedMessages.Count.Should().Be(1);

@@ -3,11 +3,15 @@ namespace SlimMessageBus.Host.Test
     using System;
     using System.Threading.Tasks;
 
-    public class SomeMessage
+    public interface ISomeMessageMarkerInterface
     {
     }
 
-    public class SomeRequest : IRequestMessage<SomeResponse>
+    public class SomeMessage : ISomeMessageMarkerInterface
+    {
+    }
+
+    public class SomeRequest : IRequestMessage<SomeResponse>, ISomeMessageMarkerInterface
     {
     }
 
