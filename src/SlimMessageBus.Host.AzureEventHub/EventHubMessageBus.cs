@@ -137,12 +137,13 @@
             await Task.WhenAll(groupConsumers.Select(x => x.Stop()));
         }
 
-        public override async Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
+        public override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
         {
-            if (messageType is null) throw new ArgumentNullException(nameof(messageType));
             if (messagePayload is null) throw new ArgumentNullException(nameof(messagePayload));
 
             AssertActive();
+
+            var messageType = message.GetType();
 
             logger.LogDebug("Producing message {Message} of Type {MessageType} on Path {Path} with Size {MessageSize}", message, messageType.Name, path, messagePayload.Length);
 

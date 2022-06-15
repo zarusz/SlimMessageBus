@@ -176,10 +176,10 @@
 
         #endregion
 
-        public Task Publish(Type messageType, object message, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, IDependencyResolver currentDependencyResolver = null)
+        public Task Publish(object message, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, IDependencyResolver currentDependencyResolver = null)
         {
             var bus = Route(message, path);
-            return bus.Publish(messageType, message, path, headers, cancellationToken, currentDependencyResolver);
+            return bus.Publish(message, path, headers, cancellationToken, currentDependencyResolver);
         }
 
         public Task<TResponseMessage> SendInternal<TResponseMessage>(object request, TimeSpan? timeout, string path, IDictionary<string, object> headers, CancellationToken cancellationToken, IDependencyResolver currentDependencyResolver = null)

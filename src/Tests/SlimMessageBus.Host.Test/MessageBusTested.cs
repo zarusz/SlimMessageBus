@@ -27,8 +27,9 @@
 
         #region Overrides of MessageBusBase
 
-        public override Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken = default)
+        public override Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken = default)
         {
+            var messageType = message.GetType();
             OnProduced(messageType, path, message);
 
             if (messageType.GetInterfaces().Any(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IRequestMessage<>)))

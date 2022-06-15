@@ -191,8 +191,10 @@
 
         #region Overrides of MessageBusBase
 
-        public override Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
+        public override Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
         {
+            var messageType = message.GetType();
+
             // determine the SMB topic name if its a Azure SB queue or topic
             var kind = kindMapping.GetKind(messageType, path);
 
