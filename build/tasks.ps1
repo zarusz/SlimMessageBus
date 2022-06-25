@@ -26,7 +26,6 @@ $projects = @(
 
 	"SlimMessageBus.Host.AspNetCore",
 	"SlimMessageBus.Host.MsDependencyInjection",
-	"SlimMessageBus.Host.ServiceLocator", 
 	"SlimMessageBus.Host.Autofac",
 	"SlimMessageBus.Host.Unity",
 
