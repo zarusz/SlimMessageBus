@@ -1,37 +1,36 @@
-﻿namespace Sample.Hybrid.ConsoleApp
+﻿namespace Sample.Hybrid.ConsoleApp;
+
+using System;
+using System.Threading.Tasks;
+using Sample.Hybrid.ConsoleApp.Domain;
+using SlimMessageBus;
+
+public class MainApplication
 {
-    using System;
-    using System.Threading.Tasks;
-    using Sample.Hybrid.ConsoleApp.DomainModel;
-    using SlimMessageBus;
+    private readonly IMessageBus bus;
+    private bool canRun = true;
 
-    public class Application
+    // Inject to ensure that bus is started (the singletons are lazy created by default by MS dependency injector)
+    public MainApplication(IMessageBus bus) => this.bus = bus;
+
+    public void Run()
     {
-        private readonly IMessageBus bus;
-        private bool canRun = true;
+        var task = Task.Run(CustomerDoesSomeStuff);
 
-        // Inject to ensure that bus is started (the singletons are lazy created by default by MS dependency injector)
-        public Application(IMessageBus bus) => this.bus = bus;
+        Console.WriteLine("Application started. Press any key to terminate.");
+        Console.ReadLine();
 
-        public void Run()
+        canRun = false;
+    }
+
+    public async Task CustomerDoesSomeStuff()
+    {
+        while (canRun)
         {
-            var task = Task.Run(CustomerDoesSomeStuff);
+            var customer = new Customer("John", "Doe");
+            await customer.ChangeEmail("john@doe.com");
 
-            Console.WriteLine("Application started. Press any key to terminate.");
-            Console.ReadLine();
-
-            canRun = false;
-        }
-
-        public async Task CustomerDoesSomeStuff()
-        {
-            while (canRun)
-            {
-                var customer = new Customer("John", "Doe");
-                await customer.ChangeEmail("john@doe.com");
-
-                await Task.Delay(2000);
-            }
+            await Task.Delay(2000);
         }
     }
 }

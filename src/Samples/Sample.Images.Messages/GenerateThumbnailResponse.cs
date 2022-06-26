@@ -1,7 +1,6 @@
-﻿namespace Sample.Images.Messages
+﻿namespace Sample.Images.Messages;
+
+public class GenerateThumbnailResponse
 {
-    public class GenerateThumbnailResponse
-    {
-        public string FileId { get; set; }
-    }
+    public string FileId { get; set; }
 }

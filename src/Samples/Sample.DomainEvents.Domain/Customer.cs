@@ -1,21 +1,20 @@
-﻿namespace Sample.DomainEvents.Domain
+﻿namespace Sample.DomainEvents.Domain;
+
+using System;
+
+/// <summary>
+/// aggregate root 
+/// </summary>
+public class Customer
 {
-    using System;
+    public string CustomerId { get; private set; }
+    public string Firstname { get; private set; }
+    public string Lastname { get; private set; }
 
-    /// <summary>
-    /// aggregate root 
-    /// </summary>
-    public class Customer
+    public Customer(string firstname, string lastname)
     {
-        public string CustomerId { get; private set; }
-        public string Firstname { get; private set; }
-        public string Lastname { get; private set; }
-
-        public Customer(string firstname, string lastname)
-        {
-            CustomerId = Guid.NewGuid().ToString();
-            Firstname = firstname;
-            Lastname = lastname;
-        }
+        CustomerId = Guid.NewGuid().ToString();
+        Firstname = firstname;
+        Lastname = lastname;
     }
 }

@@ -1,19 +1,18 @@
-﻿namespace Sample.DomainEvents.Domain
+﻿namespace Sample.DomainEvents.Domain;
+
+using System;
+
+/// <summary>
+/// Domain event
+/// </summary>
+public class OrderSubmittedEvent
 {
-    using System;
+    public Order Order { get; }
+    public DateTime Timestamp { get; }
 
-    /// <summary>
-    /// Domain event
-    /// </summary>
-    public class OrderSubmittedEvent
+    public OrderSubmittedEvent(Order order)
     {
-        public Order Order { get; }
-        public DateTime Timestamp { get; }
-
-        public OrderSubmittedEvent(Order order)
-        {
-            Order = order;
-            Timestamp = DateTime.UtcNow;
-        }
+        Order = order;
+        Timestamp = DateTime.UtcNow;
     }
 }

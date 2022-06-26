@@ -1,9 +1,8 @@
-﻿namespace Sample.DomainEvents.Domain
+﻿namespace Sample.DomainEvents.Domain;
+
+public enum OrderState
 {
-    public enum OrderState
-    {
-        New,
-        Submitted,
-        Fulfilled,
-    }
+    New,
+    Submitted,
+    Fulfilled,
 }

@@ -1,46 +1,45 @@
-﻿namespace Sample.DomainEvents.Domain
+﻿namespace Sample.DomainEvents.Domain;
+
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using SlimMessageBus;
+
+/// <summary>
+/// Order aggregate root
+/// </summary>
+public class Order
 {
-    using System.Collections.Generic;
-    using System.Linq;
-    using System.Threading.Tasks;
-    using SlimMessageBus;
+    public Customer Customer { get; }
+    public OrderState State { get; private set; }
 
-    /// <summary>
-    /// Order aggregate root
-    /// </summary>
-    public class Order
+    private readonly IList<OrderLine> _lines = new List<OrderLine>();
+    public IEnumerable<OrderLine> Lines => _lines.AsEnumerable();
+
+    public Order(Customer customer)
     {
-        public Customer Customer { get; }
-        public OrderState State { get; private set; }
+        State = OrderState.New;
+        Customer = customer;
+    }
 
-        private readonly IList<OrderLine> _lines = new List<OrderLine>();
-        public IEnumerable<OrderLine> Lines => _lines.AsEnumerable();
-
-        public Order(Customer customer)
+    public OrderLine Add(string productId, int quantity)
+    {
+        var orderLine = _lines.SingleOrDefault(x => x.ProductId == productId);
+        if (orderLine == null)
         {
-            State = OrderState.New;
-            Customer = customer;
+            orderLine = new OrderLine(productId);
+            _lines.Add(orderLine);
         }
+        orderLine.Quantity += quantity;
 
-        public OrderLine Add(string productId, int quantity)
-        {
-            var orderLine = _lines.SingleOrDefault(x => x.ProductId == productId);
-            if (orderLine == null)
-            {
-                orderLine = new OrderLine(productId);
-                _lines.Add(orderLine);
-            }
-            orderLine.Quantity += quantity;
+        return orderLine;
+    }
 
-            return orderLine;
-        }
+    public async Task Submit()
+    {
+        State = OrderState.Submitted;
 
-        public async Task Submit()
-        {
-            State = OrderState.Submitted;
-
-            var e = new OrderSubmittedEvent(this);
-            await MessageBus.Current.Publish(e);
-        }
+        var e = new OrderSubmittedEvent(this);
+        await MessageBus.Current.Publish(e);
     }
 }

@@ -1,33 +1,32 @@
-﻿namespace Sample.DomainEvents.Application
+﻿namespace Sample.DomainEvents.Application;
+
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Sample.DomainEvents.Domain;
+using SlimMessageBus;
+
+/// <summary>
+/// The domain event handler for <see cref="OrderSubmittedEvent"/>
+/// </summary>
+public class OrderSubmittedHandler : IConsumer<OrderSubmittedEvent>
 {
-    using System.Threading.Tasks;
-    using Microsoft.Extensions.Logging;
-    using Sample.DomainEvents.Domain;
-    using SlimMessageBus;
+    private readonly ILogger _logger;
 
-    /// <summary>
-    /// The domain event handler for <see cref="OrderSubmittedEvent"/>
-    /// </summary>
-    public class OrderSubmittedHandler : IConsumer<OrderSubmittedEvent>
+    public OrderSubmittedHandler(ILogger<OrderSubmittedHandler> logger)
     {
-        private readonly ILogger _logger;
+        _logger = logger;
+    }
 
-        public OrderSubmittedHandler(ILogger<OrderSubmittedHandler> logger)
+    public Task OnHandle(OrderSubmittedEvent e, string name)
+    {
+        _logger.LogInformation("Customer {0} {1} just placed an order for:", e.Order.Customer.Firstname, e.Order.Customer.Lastname);
+        foreach (var orderLine in e.Order.Lines)
         {
-            _logger = logger;
+            _logger.LogInformation("- {0}x {1}", orderLine.Quantity, orderLine.ProductId);
         }
 
-        public Task OnHandle(OrderSubmittedEvent e, string name)
-        {
-            _logger.LogInformation("Customer {0} {1} just placed an order for:", e.Order.Customer.Firstname, e.Order.Customer.Lastname);
-            foreach (var orderLine in e.Order.Lines)
-            {
-                _logger.LogInformation("- {0}x {1}", orderLine.Quantity, orderLine.ProductId);
-            }
-
-            _logger.LogInformation("Generating a shipping order...");
-            return Task.Delay(1000);
-        }
+        _logger.LogInformation("Generating a shipping order...");
+        return Task.Delay(1000);
     }
 }
 
