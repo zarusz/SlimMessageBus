@@ -4,6 +4,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 17.0.32014.148
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{9F005B5C-A856-4351-8C0C-47A8B785C637}"
+	ProjectSection(SolutionItems) = preProject
+		Tests\Host.Test.Properties.xml = Tests\Host.Test.Properties.xml
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Samples", "Samples", "{A5B15524-93B8-4CCE-AC6D-A22984498BA0}"
 EndProject

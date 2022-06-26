@@ -1,12 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
-
-    <IsPackable>false</IsPackable>
-
-    <Version>1.0.0-rc1</Version>
-  </PropertyGroup>
+  <Import Project="../Host.Test.Properties.xml" />
 
   <ItemGroup>
     <PackageReference Include="FluentAssertions" Version="6.5.1" />

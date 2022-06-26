@@ -1,7 +1,6 @@
-﻿namespace Sample.Images.Messages
+﻿namespace Sample.Images.Messages;
+
+public interface IThumbnailFileIdStrategy
 {
-    public interface IThumbnailFileIdStrategy
-    {
-        string GetFileId(string fileId, int w, int h, ThumbnailMode mode);
-    }
+    string GetFileId(string fileId, int w, int h, ThumbnailMode mode);
 }

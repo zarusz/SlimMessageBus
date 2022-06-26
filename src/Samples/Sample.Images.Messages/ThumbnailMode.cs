@@ -1,8 +1,7 @@
-﻿namespace Sample.Images.Messages
+﻿namespace Sample.Images.Messages;
+
+public enum ThumbnailMode
 {
-    public enum ThumbnailMode
-    {
-        FitInside = 1,
-        FitOutside = 2,
-    }
+    FitInside = 1,
+    FitOutside = 2,
 }

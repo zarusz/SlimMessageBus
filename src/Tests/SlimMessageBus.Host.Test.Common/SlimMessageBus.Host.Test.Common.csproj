@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <Import Project="../Host.Test.Properties.xml" />
+
   <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
     <Nullable>enable</Nullable>
     <IsTestProject>false</IsTestProject>
   </PropertyGroup>

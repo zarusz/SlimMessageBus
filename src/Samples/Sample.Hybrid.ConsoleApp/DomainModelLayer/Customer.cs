@@ -1,40 +1,39 @@
-﻿namespace Sample.Hybrid.ConsoleApp.DomainModel
+﻿namespace Sample.Hybrid.ConsoleApp.Domain;
+
+using SlimMessageBus;
+using System;
+using System.Threading.Tasks;
+
+public class Customer
 {
-    using SlimMessageBus;
-    using System;
-    using System.Threading.Tasks;
+    public string Id { get; protected set; }
+    public DateTime Created { get; protected set; }
+    public DateTime Updated { get; protected set; }
 
-    public class Customer
+    public string Firstname { get; protected set; }
+    public string Lastname { get; protected set; }
+
+    public string Email { get; protected set; }
+
+    protected Customer()
     {
-        public string Id { get; protected set; }
-        public DateTime Created { get; protected set; }
-        public DateTime Updated { get; protected set; }
+    }
 
-        public string Firstname { get; protected set; }
-        public string Lastname { get; protected set; }
+    public Customer(string firstname, string lastname)
+    {
+        Id = Guid.NewGuid().ToString();
+        Created = Updated = DateTime.UtcNow;
+        Firstname = firstname;
+        Lastname = lastname;
+    }
 
-        public string Email { get; protected set; }
+    public Task ChangeEmail(string email)
+    {
+        var oldEmail = Email;
 
-        protected Customer()
-        {
-        }
+        Email = email;
+        Updated = DateTime.UtcNow;
 
-        public Customer(string firstname, string lastname)
-        {
-            Id = Guid.NewGuid().ToString();
-            Created = Updated = DateTime.UtcNow;
-            Firstname = firstname;
-            Lastname = lastname;
-        }
-
-        public Task ChangeEmail(string email)
-        {
-            var oldEmail = Email;
-
-            Email = email;
-            Updated = DateTime.UtcNow;
-
-            return MessageBus.Current.Publish(new CustomerEmailChangedEvent(this, oldEmail));
-        }
+        return MessageBus.Current.Publish(new CustomerEmailChangedEvent(this, oldEmail));
     }
 }

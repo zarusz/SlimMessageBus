@@ -1,29 +1,28 @@
-﻿namespace Sample.Hybrid.ConsoleApp.ApplicationLayer
+﻿namespace Sample.Hybrid.ConsoleApp.Application;
+
+using Sample.Hybrid.ConsoleApp.Domain;
+using Sample.Hybrid.ConsoleApp.EmailService.Contract;
+using SlimMessageBus;
+using System.Threading.Tasks;
+
+public class CustomerChangedEventHandler : IConsumer<CustomerEmailChangedEvent>
 {
-    using Sample.Hybrid.ConsoleApp.DomainModel;
-    using Sample.Hybrid.ConsoleApp.EmailService.Contract;
-    using SlimMessageBus;
-    using System.Threading.Tasks;
+    private readonly IMessageBus bus;
 
-    public class CustomerChangedEventHandler : IConsumer<CustomerEmailChangedEvent>
+    public CustomerChangedEventHandler(IMessageBus bus) => this.bus = bus;
+
+    public async Task OnHandle(CustomerEmailChangedEvent message, string name)
     {
-        private readonly IMessageBus bus;
+        // Send confirmation email
 
-        public CustomerChangedEventHandler(IMessageBus bus) => this.bus = bus;
-
-        public async Task OnHandle(CustomerEmailChangedEvent message, string name)
+        var cmd = new SendEmailCommand
         {
-            // Send confirmation email
+            Recipient = message.Customer.Email,
+            Title = "Please confirm your email",
+            Body = "Click <a href=\"https://google.com\">here</a> to confirm your new email."
+        };
+        await bus.Publish(cmd);
 
-            var cmd = new SendEmailCommand
-            {
-                Recipient = message.Customer.Email,
-                Title = "Please confirm your email",
-                Body = "Click <a href=\"https://google.com\">here</a> to confirm your new email."
-            };
-            await bus.Publish(cmd);
-
-            // Do other logic ...
-        }
+        // Do other logic ...
     }
 }
