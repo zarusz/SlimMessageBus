@@ -4,7 +4,7 @@
 
     public interface IMessageTypeResolver
     {
-        string ToName(Type message);
+        string ToName(Type messageType);
         Type ToType(string name);
     }
 }
