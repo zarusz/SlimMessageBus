@@ -196,7 +196,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Seriali
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Serialization.GoogleProtobuf.Test", "Tests\SlimMessageBus.Host.Serialization.GoogleProtobuf.Test\SlimMessageBus.Host.Serialization.GoogleProtobuf.Test.csproj", "{CA08F02B-4BFE-43DE-8BAB-46C4202E4C24}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Integration", "Tests\SlimMessageBus.Host.Integration\SlimMessageBus.Host.Integration.csproj", "{14759C5E-A787-4AF3-A610-5DB9389B79BE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Integration.Test", "Tests\SlimMessageBus.Host.Integration.Test\SlimMessageBus.Host.Integration.Test.csproj", "{14759C5E-A787-4AF3-A610-5DB9389B79BE}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Interceptor", "SlimMessageBus.Host.Interceptor\SlimMessageBus.Host.Interceptor.csproj", "{9E424B40-773E-429A-9C07-D64D014BB571}"
 EndProject
