@@ -10,16 +10,24 @@
         /// </summary>
         public bool Enabled { get; set; } = true;
         /// <summary>
-        /// Default configuration action called when any queue needs to be created.
+        /// A filter that allows (or not) for declared producers to provision needed topology (topics or queues). True by default.
         /// </summary>
-        public Action<CreateQueueOptions> QueueOptions { get; set; }
+        public bool UseDeclaredProducers { get; set; } = true;
         /// <summary>
-        /// Default configuration action called when any topic needs to be created.
+        /// A filter that allows (or not) for declared consumers to provision needed topology (topics, subscriptions or queues). True by default.
         /// </summary>
-        public Action<CreateTopicOptions> TopicOptions { get; set; }
+        public bool UserDeclaredConsumers{ get; set; } = true;
         /// <summary>
-        /// Default configuration action called when any subscription needs to be created.
+        /// Default configuration to be applied when a queue needs to be created.
         /// </summary>
-        public Action<CreateSubscriptionOptions> SubscriptionOptions { get; set; }
+        public Action<CreateQueueOptions> CreateQueueOptions { get; set; }
+        /// <summary>
+        /// Default configuration to be applied when a topic needs to be created.
+        /// </summary>
+        public Action<CreateTopicOptions> CreateTopicOptions { get; set; }
+        /// <summary>
+        /// Default configuration to be applied when a subscription needs to be created.
+        /// </summary>
+        public Action<CreateSubscriptionOptions> CreateSubscriptionOptions { get; set; }
     }
 }
