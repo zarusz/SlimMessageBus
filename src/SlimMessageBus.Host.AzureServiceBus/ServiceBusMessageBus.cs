@@ -64,16 +64,13 @@
             this.consumers.Add(consumer);
         }
 
-        private Task provisionTopologyTask;
-
         #region Overrides of MessageBusBase
 
         protected override void Build()
         {
             base.Build();
 
-            // fire and forget
-            provisionTopologyTask = ProviderSettings.TopologyProvisioning?.Enabled ?? false
+            BeforeStartTask = ProviderSettings.TopologyProvisioning?.Enabled ?? false
                 ? ProvisionTopology() // provisining happens asynchronously
                 : Task.CompletedTask;
 
@@ -114,6 +111,8 @@
         {
             try
             {
+                logger.LogInformation("Topology provisioning started...");
+
                 var adminClient = ProviderSettings.AdminClientFactory();
 
                 async Task SwallowExceptionIfEntityExists(Func<Task> task)
@@ -133,7 +132,7 @@
                     if (!await adminClient.QueueExistsAsync(path))
                     {
                         var options = new CreateQueueOptions(path);
-                        ProviderSettings.TopologyProvisioning?.QueueOptions?.Invoke(options);
+                        ProviderSettings.TopologyProvisioning?.CreateQueueOptions?.Invoke(options);
                         action?.Invoke(options);
 
                         logger.LogInformation("Creating queue: {Path} ...", path);
@@ -146,7 +145,7 @@
                     if (!await adminClient.TopicExistsAsync(path))
                     {
                         var options = new CreateTopicOptions(path);
-                        ProviderSettings.TopologyProvisioning?.TopicOptions?.Invoke(options);
+                        ProviderSettings.TopologyProvisioning?.CreateTopicOptions?.Invoke(options);
                         action?.Invoke(options);
 
                         logger.LogInformation("Creating topic: {Path} ...", path);
@@ -159,7 +158,7 @@
                     if (!await adminClient.SubscriptionExistsAsync(path, subscriptionName))
                     {
                         var options = new CreateSubscriptionOptions(path, subscriptionName);
-                        ProviderSettings.TopologyProvisioning?.SubscriptionOptions?.Invoke(options);
+                        ProviderSettings.TopologyProvisioning?.CreateSubscriptionOptions?.Invoke(options);
                         action?.Invoke(options);
 
                         logger.LogInformation("Creating subscription: {SubscriptionName} on topic: {Path} ...", subscriptionName, path);
@@ -167,59 +166,65 @@
                     }
                 });
 
-                foreach (var producerSettings in Settings.Producers)
+                if (ProviderSettings.TopologyProvisioning.UseDeclaredProducers)
                 {
-                    if (producerSettings.PathKind == PathKind.Queue)
+                    foreach (var producerSettings in Settings.Producers)
                     {
-                        await TryCreateQueue(producerSettings.DefaultPath, options => producerSettings.GetQueueOptions()?.Invoke(options));
-                    }
-                    if (producerSettings.PathKind == PathKind.Topic)
-                    {
-                        await TryCreateTopic(producerSettings.DefaultPath, options => producerSettings.GetTopicOptions()?.Invoke(options));
+                        if (producerSettings.PathKind == PathKind.Queue)
+                        {
+                            await TryCreateQueue(producerSettings.DefaultPath, options => producerSettings.GetQueueOptions()?.Invoke(options));
+                        }
+                        if (producerSettings.PathKind == PathKind.Topic)
+                        {
+                            await TryCreateTopic(producerSettings.DefaultPath, options => producerSettings.GetTopicOptions()?.Invoke(options));
+                        }
                     }
                 }
 
-                var consumersSettingsByPath = Settings.Consumers.OfType<AbstractConsumerSettings>()
+                if (ProviderSettings.TopologyProvisioning.UserDeclaredConsumers)
+                {
+                    var consumersSettingsByPath = Settings.Consumers.OfType<AbstractConsumerSettings>()
                     .Concat(new[] { Settings.RequestResponse })
                     .Where(x => x != null)
                     .GroupBy(x => (x.Path, x.PathKind));
 
-                foreach (var consumerSettingsByPath in consumersSettingsByPath)
-                {
-                    if (consumerSettingsByPath.Key.PathKind == PathKind.Queue)
+                    foreach (var consumerSettingsByPath in consumersSettingsByPath)
                     {
-                        await TryCreateQueue(consumerSettingsByPath.Key.Path, options =>
+                        if (consumerSettingsByPath.Key.PathKind == PathKind.Queue)
                         {
-                            foreach (var consumerSettings in consumerSettingsByPath)
+                            await TryCreateQueue(consumerSettingsByPath.Key.Path, options =>
                             {
-                                consumerSettings.GetQueueOptions()?.Invoke(options);
-                            }
-                        });
-                    }
-                    if (consumerSettingsByPath.Key.PathKind == PathKind.Topic)
-                    {
-                        await TryCreateTopic(consumerSettingsByPath.Key.Path, options =>
-                        {
-                            foreach (var consumerSettings in consumerSettingsByPath)
-                            {
-                                consumerSettings.GetTopicOptions()?.Invoke(options);
-                            }
-                        });
-
-                        var subscriptionsForPath = consumerSettingsByPath
-                            .Select(x => (ConsumerSettings: x, SubscriptionName: x.GetSubscriptionName(required: false)))
-                            .Where(x => x.SubscriptionName != null)
-                            .ToList();
-
-                        foreach (var subscription in subscriptionsForPath)
-                        {
-                            await TryCreateSubscription(consumerSettingsByPath.Key.Path, subscription.SubscriptionName, options =>
-                            {
-                                // Note: Populate the require session flag on the subscription
-                                options.RequiresSession = subscription.ConsumerSettings.GetEnableSession();
-
-                                subscription.ConsumerSettings.GetSubscriptionOptions()?.Invoke(options);
+                                foreach (var consumerSettings in consumerSettingsByPath)
+                                {
+                                    consumerSettings.GetQueueOptions()?.Invoke(options);
+                                }
                             });
+                        }
+                        if (consumerSettingsByPath.Key.PathKind == PathKind.Topic)
+                        {
+                            await TryCreateTopic(consumerSettingsByPath.Key.Path, options =>
+                            {
+                                foreach (var consumerSettings in consumerSettingsByPath)
+                                {
+                                    consumerSettings.GetTopicOptions()?.Invoke(options);
+                                }
+                            });
+
+                            var subscriptionsForPath = consumerSettingsByPath
+                                .Select(x => (ConsumerSettings: x, SubscriptionName: x.GetSubscriptionName(required: false)))
+                                .Where(x => x.SubscriptionName != null)
+                                .ToList();
+
+                            foreach (var subscription in subscriptionsForPath)
+                            {
+                                await TryCreateSubscription(consumerSettingsByPath.Key.Path, subscription.SubscriptionName, options =>
+                                {
+                                    // Note: Populate the require session flag on the subscription
+                                    options.RequiresSession = subscription.ConsumerSettings.GetEnableSession();
+
+                                    subscription.ConsumerSettings.GetSubscriptionOptions()?.Invoke(options);
+                                });
+                            }
                         }
                     }
                 }
@@ -228,12 +233,14 @@
             {
                 logger.LogError(e, "Could not provision Azure Service Bus topology");
             }
+            finally
+            {
+                logger.LogInformation("Topology provisioning finished");
+            }
         }
 
         protected override async Task OnStart()
         {
-            // ensure the topology provisioning finish before start
-            await provisionTopologyTask;
             await base.OnStart();
             await Task.WhenAll(consumers.Select(x => x.Start()));
         }

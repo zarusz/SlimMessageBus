@@ -36,6 +36,8 @@ namespace SlimMessageBus.Host
         protected bool IsDisposing { get; private set; }
         protected bool IsDisposed { get; private set; }
 
+        protected Task BeforeStartTask { get; set; } = Task.CompletedTask;
+
         protected MessageBusBase(MessageBusSettings settings)
         {
             Settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -111,6 +113,8 @@ namespace SlimMessageBus.Host
         {
             if (!IsStarted)
             {
+                await BeforeStartTask;
+
                 _logger.LogInformation("Starting consumers...");
                 await OnStart();
                 _logger.LogInformation("Started consumers");
