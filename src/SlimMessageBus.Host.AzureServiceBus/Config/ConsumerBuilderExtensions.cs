@@ -2,6 +2,7 @@
 {
     using System;
     using Azure.Messaging.ServiceBus;
+    using Azure.Messaging.ServiceBus.Administration;
     using SlimMessageBus.Host.Config;
 
     public static class ConsumerBuilderExtensions
@@ -81,7 +82,6 @@
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="builder"></param>
-        /// <param name="enable"></param>
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
         public static ConsumerBuilder<T> EnableSession<T>(this ConsumerBuilder<T> builder, Action<ConsumerSessionBuilder> sessionConfiguration = null)
@@ -94,6 +94,51 @@
                 sessionConfiguration(new ConsumerSessionBuilder(builder.ConsumerSettings));
             }
 
+            return builder;
+        }
+
+        /// <summary>
+        /// <see cref="CreateQueueOptions"/> when the ASB queue does not exist and needs to be created
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="builder"></param>
+        /// <returns></returns>
+        public static T CreateQueueOptions<T>(this T builder, Action<CreateQueueOptions> action) where T : AbstractConsumerBuilder
+        {
+            if (builder is null) throw new ArgumentNullException(nameof(builder));
+            if (action is null) throw new ArgumentNullException(nameof(action));
+
+            builder.ConsumerSettings.SetQueueOptions(action);
+            return builder;
+        }
+
+        /// <summary>
+        /// <see cref="CreateTopicOptions"/> when the ASB topic does not exist and needs to be created
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="builder"></param>
+        /// <returns></returns>
+        public static T CreateTopicOptions<T>(this T builder, Action<CreateTopicOptions> action) where T : AbstractConsumerBuilder
+        {
+            if (builder is null) throw new ArgumentNullException(nameof(builder));
+            if (action is null) throw new ArgumentNullException(nameof(action));
+
+            builder.ConsumerSettings.SetTopicOptions(action);
+            return builder;
+        }
+
+        /// <summary>
+        /// <see cref="CreateSubscriptionOptions"/> when the ASB subscription does not exist and needs to be created
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="builder"></param>
+        /// <returns></returns>
+        public static T CreateSubscriptionOptions<T>(this T builder, Action<CreateSubscriptionOptions> action) where T : AbstractConsumerBuilder
+        {
+            if (builder is null) throw new ArgumentNullException(nameof(builder));
+            if (action is null) throw new ArgumentNullException(nameof(action));
+
+            builder.ConsumerSettings.SetSubscriptionOptions(action);
             return builder;
         }
 
