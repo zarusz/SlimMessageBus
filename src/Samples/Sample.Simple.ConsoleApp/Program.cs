@@ -82,7 +82,7 @@ internal static class Program
     private static void ConfigureMessageBus(MessageBusBuilder mbb, IConfiguration configuration, IServiceProvider services)
     {
         // Choose your provider
-        var provider = Provider.Redis;
+        var provider = Provider.AzureServiceBus;
 
         // Provide your event hub-names OR kafka/service bus topic names
         var topicForAddCommand = "add-command";

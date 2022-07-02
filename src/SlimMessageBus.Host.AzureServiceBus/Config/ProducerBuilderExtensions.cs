@@ -2,6 +2,7 @@
 {
     using System;
     using Azure.Messaging.ServiceBus;
+    using Azure.Messaging.ServiceBus.Administration;
     using SlimMessageBus.Host.Config;
 
     public static class ProducerBuilderExtensions
@@ -60,6 +61,36 @@
             {
                 modifierAction((T)e, m);
             });
+            return producerBuilder;
+        }
+
+        /// <summary>
+        /// <see cref="CreateQueueOptions"/> when the ASB queue does not exist and needs to be created
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="producerBuilder"></param>
+        /// <returns></returns>
+        public static ProducerBuilder<T> CreateQueueOptions<T>(this ProducerBuilder<T> producerBuilder, Action<CreateQueueOptions> action)
+        {
+            if (producerBuilder is null) throw new ArgumentNullException(nameof(producerBuilder));
+            if (action is null) throw new ArgumentNullException(nameof(action));
+
+            producerBuilder.Settings.SetQueueOptions(action);
+            return producerBuilder;
+        }
+
+        /// <summary>
+        /// <see cref="CreateTopicOptions"/> when the ASB topic does not exist and needs to be created
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="producerBuilder"></param>
+        /// <returns></returns>
+        public static ProducerBuilder<T> CreateTopicOptions<T>(this ProducerBuilder<T> producerBuilder, Action<CreateTopicOptions> action)
+        {
+            if (producerBuilder is null) throw new ArgumentNullException(nameof(producerBuilder));
+            if (action is null) throw new ArgumentNullException(nameof(action));
+
+            producerBuilder.Settings.SetTopicOptions(action);
             return producerBuilder;
         }
     }

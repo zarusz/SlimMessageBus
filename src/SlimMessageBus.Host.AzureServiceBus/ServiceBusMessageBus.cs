@@ -6,6 +6,7 @@
     using System.Threading;
     using System.Threading.Tasks;
     using Azure.Messaging.ServiceBus;
+    using Azure.Messaging.ServiceBus.Administration;
     using Microsoft.Extensions.Logging;
     using SlimMessageBus.Host.AzureServiceBus.Consumer;
     using SlimMessageBus.Host.Collections;
@@ -63,11 +64,18 @@
             this.consumers.Add(consumer);
         }
 
+        private Task provisionTopologyTask;
+
         #region Overrides of MessageBusBase
 
         protected override void Build()
         {
             base.Build();
+
+            // fire and forget
+            provisionTopologyTask = ProviderSettings.TopologyProvisioning?.Enabled ?? false
+                ? ProvisionTopology() // provisining happens asynchronously
+                : Task.CompletedTask;
 
             client = ProviderSettings.ClientFactory();
 
@@ -102,8 +110,130 @@
             }
         }
 
+        private async Task ProvisionTopology()
+        {
+            try
+            {
+                var adminClient = ProviderSettings.AdminClientFactory();
+
+                async Task SwallowExceptionIfEntityExists(Func<Task> task)
+                {
+                    try
+                    {
+                        await task();
+                    }
+                    catch (ServiceBusException e) when (e.Reason == ServiceBusFailureReason.MessagingEntityAlreadyExists)
+                    {
+                        // do nothing as another service instance might have created that in the meantime
+                    }
+                }
+
+                Task TryCreateQueue(string path, Action<CreateQueueOptions> action) => SwallowExceptionIfEntityExists(async () =>
+                {
+                    if (!await adminClient.QueueExistsAsync(path))
+                    {
+                        var options = new CreateQueueOptions(path);
+                        ProviderSettings.TopologyProvisioning?.QueueOptions?.Invoke(options);
+                        action?.Invoke(options);
+
+                        logger.LogInformation("Creating queue: {Path} ...", path);
+                        await adminClient.CreateQueueAsync(options);
+                    }
+                });
+
+                Task TryCreateTopic(string path, Action<CreateTopicOptions> action) => SwallowExceptionIfEntityExists(async () =>
+                {
+                    if (!await adminClient.TopicExistsAsync(path))
+                    {
+                        var options = new CreateTopicOptions(path);
+                        ProviderSettings.TopologyProvisioning?.TopicOptions?.Invoke(options);
+                        action?.Invoke(options);
+
+                        logger.LogInformation("Creating topic: {Path} ...", path);
+                        await adminClient.CreateTopicAsync(options);
+                    }
+                });
+
+                Task TryCreateSubscription(string path, string subscriptionName, Action<CreateSubscriptionOptions> action) => SwallowExceptionIfEntityExists(async () =>
+                {
+                    if (!await adminClient.SubscriptionExistsAsync(path, subscriptionName))
+                    {
+                        var options = new CreateSubscriptionOptions(path, subscriptionName);
+                        ProviderSettings.TopologyProvisioning?.SubscriptionOptions?.Invoke(options);
+                        action?.Invoke(options);
+
+                        logger.LogInformation("Creating subscription: {SubscriptionName} on topic: {Path} ...", subscriptionName, path);
+                        await adminClient.CreateSubscriptionAsync(options);
+                    }
+                });
+
+                foreach (var producerSettings in Settings.Producers)
+                {
+                    if (producerSettings.PathKind == PathKind.Queue)
+                    {
+                        await TryCreateQueue(producerSettings.DefaultPath, options => producerSettings.GetQueueOptions()?.Invoke(options));
+                    }
+                    if (producerSettings.PathKind == PathKind.Topic)
+                    {
+                        await TryCreateTopic(producerSettings.DefaultPath, options => producerSettings.GetTopicOptions()?.Invoke(options));
+                    }
+                }
+
+                var consumersSettingsByPath = Settings.Consumers.OfType<AbstractConsumerSettings>()
+                    .Concat(new[] { Settings.RequestResponse })
+                    .Where(x => x != null)
+                    .GroupBy(x => (x.Path, x.PathKind));
+
+                foreach (var consumerSettingsByPath in consumersSettingsByPath)
+                {
+                    if (consumerSettingsByPath.Key.PathKind == PathKind.Queue)
+                    {
+                        await TryCreateQueue(consumerSettingsByPath.Key.Path, options =>
+                        {
+                            foreach (var consumerSettings in consumerSettingsByPath)
+                            {
+                                consumerSettings.GetQueueOptions()?.Invoke(options);
+                            }
+                        });
+                    }
+                    if (consumerSettingsByPath.Key.PathKind == PathKind.Topic)
+                    {
+                        await TryCreateTopic(consumerSettingsByPath.Key.Path, options =>
+                        {
+                            foreach (var consumerSettings in consumerSettingsByPath)
+                            {
+                                consumerSettings.GetTopicOptions()?.Invoke(options);
+                            }
+                        });
+
+                        var subscriptionsForPath = consumerSettingsByPath
+                            .Select(x => (ConsumerSettings: x, SubscriptionName: x.GetSubscriptionName(required: false)))
+                            .Where(x => x.SubscriptionName != null)
+                            .ToList();
+
+                        foreach (var subscription in subscriptionsForPath)
+                        {
+                            await TryCreateSubscription(consumerSettingsByPath.Key.Path, subscription.SubscriptionName, options =>
+                            {
+                                // Note: Populate the require session flag on the subscription
+                                options.RequiresSession = subscription.ConsumerSettings.GetEnableSession();
+
+                                subscription.ConsumerSettings.GetSubscriptionOptions()?.Invoke(options);
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Could not provision Azure Service Bus topology");
+            }
+        }
+
         protected override async Task OnStart()
         {
+            // ensure the topology provisioning finish before start
+            await provisionTopologyTask;
             await base.OnStart();
             await Task.WhenAll(consumers.Select(x => x.Start()));
         }
@@ -143,11 +273,11 @@
 
         public override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
         {
-            var messageType = message.GetType();
+            var messageType = message?.GetType();
 
             AssertActive();
 
-            logger.LogDebug("Producing message {Message} of type {MessageType} to path {Path} with size {MessageSize}", message, messageType.Name, path, messagePayload?.Length ?? 0);
+            logger.LogDebug("Producing message {Message} of type {MessageType} to path {Path} with size {MessageSize}", message, messageType?.Name, path, messagePayload?.Length ?? 0);
 
             var m = messagePayload != null ? new ServiceBusMessage(messagePayload) : new ServiceBusMessage();
 
@@ -160,17 +290,20 @@
                 }
             }
 
-            var producerSettings = GetProducerSettings(messageType);
+            if (messageType != null)
+            {
+                var producerSettings = GetProducerSettings(messageType);
 
-            // execute message modifier
-            try
-            {
-                var messageModifier = producerSettings.GetMessageModifier();
-                messageModifier?.Invoke(message, m);
-            }
-            catch (Exception e)
-            {
-                logger.LogWarning(e, "The configured message modifier failed for message type {MessageType} and message {Message}", messageType, message);
+                // execute message modifier
+                try
+                {
+                    var messageModifier = producerSettings.GetMessageModifier();
+                    messageModifier?.Invoke(message, m);
+                }
+                catch (Exception e)
+                {
+                    logger.LogWarning(e, "The configured message modifier failed for message type {MessageType} and message {Message}", messageType, message);
+                }
             }
 
             var senderClient = producerByPath.GetOrAdd(path);
@@ -179,12 +312,12 @@
             {
                 await senderClient.SendMessageAsync(m, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-                logger.LogDebug("Delivered message {Message} of type {MessageType} to {Path}", message, messageType.Name, path);
+                logger.LogDebug("Delivered message {Message} of type {MessageType} to {Path}", message, messageType?.Name, path);
             }
             catch (Exception ex)
             {
-                logger.LogDebug(ex, "Producing message {Message} of type {MessageType} to path {Path} resulted in error {Error}", message, messageType.Name, path, ex.Message);
-                throw new PublishMessageBusException($"Producing message {message} of type {messageType.Name} to path {path} resulted in error: {ex.Message}", ex);
+                logger.LogDebug(ex, "Producing message {Message} of type {MessageType} to path {Path} resulted in error {Error}", message, messageType?.Name, path, ex.Message);
+                throw new PublishMessageBusException($"Producing message {message} of type {messageType?.Name} to path {path} resulted in error: {ex.Message}", ex);
             }
         }
 

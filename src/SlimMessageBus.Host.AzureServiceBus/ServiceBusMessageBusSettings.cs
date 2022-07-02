@@ -1,12 +1,14 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus
 {
     using Azure.Messaging.ServiceBus;
+    using Azure.Messaging.ServiceBus.Administration;
     using System;
 
     public class ServiceBusMessageBusSettings
     {
         public string ServiceBusConnectionString { get; set; }
         public Func<ServiceBusClient> ClientFactory { get; set; }
+        public Func<ServiceBusAdministrationClient> AdminClientFactory { get; set; }
         public Func<string, ServiceBusClient, ServiceBusSender> SenderFactory { get; set; }
         public Func<TopicSubscriptionParams, ServiceBusProcessorOptions> ProcessorOptionsFactory { get; set; }
         public Func<TopicSubscriptionParams, ServiceBusProcessorOptions, ServiceBusClient, ServiceBusProcessor> ProcessorFactory { get; set; }
@@ -37,9 +39,15 @@
         /// </summary>
         public int? MaxConcurrentSessions { get; set; }
 
+        /// <summary>
+        /// Indicates wheather SMB can create quues, topics and subscriptions if they don't exist.
+        /// </summary>
+        public ServiceBusTopologyProvisioningSettings TopologyProvisioning { get; set; }
+
         public ServiceBusMessageBusSettings()
         {
             ClientFactory = () => new ServiceBusClient(ServiceBusConnectionString);
+            AdminClientFactory = () => new ServiceBusAdministrationClient(ServiceBusConnectionString);
 
             SenderFactory = (path, client) => client.CreateSender(path);
 
@@ -58,6 +66,8 @@
                     ? client.CreateSessionProcessor(p.Path, p.SubscriptionName, options)
                     : client.CreateSessionProcessor(p.Path, options);
             };
+
+            TopologyProvisioning = new ServiceBusTopologyProvisioningSettings();
         }
 
         public ServiceBusMessageBusSettings(string serviceBusConnectionString)
