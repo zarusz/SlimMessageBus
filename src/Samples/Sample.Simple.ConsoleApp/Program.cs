@@ -126,13 +126,22 @@ internal static class Program
                                        //.WithConsumer<AddCommandConsumer>(nameof(AddCommandConsumer.OnHandle))
                                        //.WithConsumer<AddCommandConsumer>((consumer, message, name) => consumer.OnHandle(message, name))
                                        .KafkaGroup(consumerGroup) // for Apache Kafka & Azure Event Hub
-                                       .SubscriptionName(consumerGroup) // for Azure Service Bus
+                                       .SubscriptionName(consumerGroup)
+                                       .CreateTopicOptions((options) =>
+                                       {
+                                           options.RequiresDuplicateDetection = true;
+                                       })
+// for Azure Service Bus
             )
             // Req/Resp example
             .Produce<MultiplyRequest>(x =>
             {
                 // By default AddCommand messages will go to topic/event-hub named 'multiply-request'
                 x.DefaultTopic(topicForMultiplyRequest);
+                x.CreateTopicOptions((options) =>
+                {
+                    options.EnablePartitioning = true;
+                });
 
                 if (provider == Provider.AzureServiceBus) // Azure SB specific
                 {
@@ -186,7 +195,27 @@ internal static class Program
                         // Provide connection string to your Azure SB
                         var serviceBusConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
 
-                        builder.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString)); // Use Azure Service Bus as provider
+                        // Use Azure Service Bus as provider
+                        builder.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString)
+                        {
+                            TopologyProvisioning = new ServiceBusTopologyProvisioningSettings()
+                            {
+                                Enabled = true,
+                                CreateQueueOptions = (options) =>
+                                {
+                                    options.EnablePartitioning = true;
+                                    options.LockDuration = TimeSpan.FromMinutes(5);
+                                },
+                                CreateTopicOptions = (options) =>
+                                {
+                                    options.EnablePartitioning = true;
+                                },
+                                CreateSubscriptionOptions = (options) =>
+                                {
+                                    options.LockDuration = TimeSpan.FromMinutes(5);
+                                }
+                            }
+                        });
                         break;
 
                     case Provider.AzureEventHub:
