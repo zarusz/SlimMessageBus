@@ -1,17 +1,16 @@
-﻿namespace SlimMessageBus.Host.AzureServiceBus
+﻿namespace SlimMessageBus.Host.AzureServiceBus;
+
+public class TopicSubscriptionParams
 {
-    public class TopicSubscriptionParams
+    public string Path { get; set; }
+    public string SubscriptionName { get; set; }
+
+    public TopicSubscriptionParams(string path, string subscriptionName)
     {
-        public string Path { get; set; }
-        public string SubscriptionName { get; set; }
-
-        public TopicSubscriptionParams(string path, string subscriptionName)
-        {
-            Path = path;
-            SubscriptionName = subscriptionName;
-        }
-
-        public override string ToString()
-            => SubscriptionName == null ? Path : $"{Path}/{SubscriptionName}";
+        Path = path;
+        SubscriptionName = subscriptionName;
     }
+
+    public override string ToString()
+        => SubscriptionName == null ? Path : $"{Path}/{SubscriptionName}";
 }

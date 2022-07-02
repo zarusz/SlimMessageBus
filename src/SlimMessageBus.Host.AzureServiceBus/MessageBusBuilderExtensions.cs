@@ -1,15 +1,14 @@
-namespace SlimMessageBus.Host.AzureServiceBus
+namespace SlimMessageBus.Host.AzureServiceBus;
+
+using SlimMessageBus.Host.Config;
+using System;
+
+public static class MessageBusBuilderExtensions
 {
-    using SlimMessageBus.Host.Config;
-    using System;
-
-    public static class MessageBusBuilderExtensions
+    public static MessageBusBuilder WithProviderServiceBus(this MessageBusBuilder mbb, ServiceBusMessageBusSettings providerSettings)
     {
-        public static MessageBusBuilder WithProviderServiceBus(this MessageBusBuilder mbb, ServiceBusMessageBusSettings providerSettings)
-        {
-            if (mbb is null) throw new ArgumentNullException(nameof(mbb));
+        if (mbb is null) throw new ArgumentNullException(nameof(mbb));
 
-            return mbb.WithProvider(settings => new ServiceBusMessageBus(settings, providerSettings));
-        }
+        return mbb.WithProvider(settings => new ServiceBusMessageBus(settings, providerSettings));
     }
 }

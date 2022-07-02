@@ -13,6 +13,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
   - [Produce Request Messages](#produce-request-messages)
   - [Handle Request Messages](#handle-request-messages)
 - [ASB Sessions](#asb-sessions)
+- [Topology Provisioning](#topology-provisioning)
 
 ## Configuration
 
@@ -294,3 +295,101 @@ mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString)
 When there is a need to get ahold of the `SessionId` for the message processed, the [`IConsumerWithContext`](#consumer-context) should be helpful.
 
 > ASB also allows storage and retrieval of session-specific data. Currently, SMB does not support that. This feature can be added if there are asks from the community.
+
+## Topology Provisioning
+
+> Since 1.19.0
+
+ASB transport provider can automatically create the required ASB queues/topic/subscriptions that have been declared as part of the SMB configuration.
+The provisioning happens as soon as the SMB instance is created and prior any consumers start processing messages. The creation happens only when a particular topic/queue/subscription does not exist. If it exist the SMB will not alter it.
+
+> In order for the ASB provisioning to work, the Azure Service Bus connection string has to use a key with the `Manage` scope permission.
+
+The topology creation is turned on by default.
+If you want to disable it:
+
+```cs
+mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString)
+{
+   TopologyProvisioning = new ServiceBusTopologyProvisioningSettings
+   {
+      Enabled = false
+   }
+});
+```
+
+When a queue/topic/subscription needs to be created, SMB will create the underlying ASB client options object, then will use the provided delegate to populate the settings ([CreateQueueOptions](https://docs.microsoft.com/en-us/dotnet/api/azure.messaging.servicebus.administration.createqueueoptions?view=azure-dotnet), [CreateTopicOptions](https://docs.microsoft.com/en-us/dotnet/api/azure.messaging.servicebus.administration.createtopicoptions?view=azure-dotnet), [CreateSubscriptionOptions](https://docs.microsoft.com/en-us/dotnet/api/azure.messaging.servicebus.administration.createsubscriptionoptions?view=azure-dotnet)).
+
+The bus wide default creation options can be set in this way:
+
+```cs
+mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString)
+{
+   TopologyProvisioning = new ServiceBusTopologyProvisioningSettings
+   {
+      CreateQueueOptions = (options) =>
+      {
+         options.EnablePartitioning = true;
+         options.RequiresDuplicateDetection = true;
+         options.DuplicateDetectionHistoryTimeWindow = TimeSpan.FromMinutes(5);
+      },
+      CreateTopicOptions = (options) =>
+      {
+         options.EnablePartitioning = true;
+         options.RequiresDuplicateDetection = true;
+         options.DuplicateDetectionHistoryTimeWindow = TimeSpan.FromMinutes(5);
+      },
+      CreateSubscriptionOptions = (options) =>
+      {
+         options.LockDuration = TimeSpan.FromMinutes(5);
+      }
+   }
+});
+```
+
+The particular producer or consumer can introduce more specific settings:
+
+```cs
+mbb.Produce<SomeMessage>(x => x
+      .DefaultTopic("some-topic")
+      .CreateTopicOptions((options) =>
+      {
+         options.RequiresDuplicateDetection = false;
+      })
+   );
+
+mbb.Consume<SomeMessage>(x => x
+      .Topic("some-topic")
+      .WithConsumer<SomeMessageConsumer>()
+      .SubscriptionName("some-service")
+      .CreateTopicOptions((options) =>
+      {
+         options.RequiresDuplicateDetection = false;
+      })
+   );
+```
+
+For any queue/topic/subscription that needs to be created, the relevant options object is created, bus wide options are applied, consumer/producer specific settings are applied and lastly the resource is created in ASB. That allows to combine settings and ensure more specific values can be applied.
+
+> The setting `RequiresSession` on the `CreateQueueOptions` and `CreateSubscriptionOptions` is automatically populated by SMB depending if [sessions have been enabled](#asb-sessions) for the queue/subscription consumer.
+
+Also, it might be desired that only producers or consumers can create the respective queue/topic/subscription. This can be specified:
+
+```cs
+mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString)
+{
+      TopologyProvisioning = new ServiceBusTopologyProvisioningSettings
+      {
+         Enabled = true,
+         CanProducerCreateQueue = true, // only declared producers will be used to provision queues
+         CanProducerCreateTopic = true, // only declared producers will be used to provision topics
+         CanConsumerCreateQueue = false, // the consumers will not be able to provision a missing queue
+         CanConsumerCreateTopic = false, // the consumers will not be able to provision a missing topic
+         CanConsumerCreateSubscription = true, // but the consumers will add the missing subscription if needed
+      }
+});
+```
+
+This allows to establish ownership between services as to which one owns the topic/queue creation. In the example above, the producer of messages would own the creation of topics or queues. The consumer service only owns the creation of the subscriptions in pub/sub.
+
+By default, all the flags are enabled (set to `true`). This is for convenience.
