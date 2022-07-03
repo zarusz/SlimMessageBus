@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SlimMessageBus.Host.MSDependencyInjection\SlimMessageBus.Host.MsDependencyInjection.csproj" />
+    <ProjectReference Include="..\SlimMessageBus.Host.MsDependencyInjection\SlimMessageBus.Host.MsDependencyInjection.csproj" />
     <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
   </ItemGroup>
 
