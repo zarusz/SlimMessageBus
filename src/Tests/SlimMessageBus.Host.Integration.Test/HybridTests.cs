@@ -34,6 +34,7 @@ namespace SlimMessageBus.Host.Integration
         Unity = 3,
     }
 
+    [Trait("Category", "Integration")]
     public class HybridTests : IDisposable
     {
         private IDependencyResolver dependencyResolver;
