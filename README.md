@@ -474,9 +474,13 @@ dotnet test --filter Category!=Integration
 
 ## Credits
 
+Thanks to [Gravity9](https://www.gravity9.com/) for providing an Azure subscription that allows to run our integration test infrastructure.
+
+<a href="https://www.gravity9.com/" target="_blank"><img src="https://uploads-ssl.webflow.com/5ce7ef1205884e25c3d2daa4/5f71f56c89fd4db58dd214d3_Gravity9_logo.svg" width="100" alt="Gravity9"></a>
+
 Thanks to the following service cloud providers for providing free instances for our integration tests:
 
 - Redis https://redislabs.com/
 - Kafka https://www.cloudkarafka.com/
 
-Other test instances are hosted in Azure and paid for by the project maintainer. If you want to help and sponsor, please write to me.
+If you want to help and sponsor, please write to me.
