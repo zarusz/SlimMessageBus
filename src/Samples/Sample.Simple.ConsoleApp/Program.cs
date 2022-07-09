@@ -125,13 +125,14 @@ internal static class Program
                                        .WithConsumer<AddCommandConsumer>()
                                        //.WithConsumer<AddCommandConsumer>(nameof(AddCommandConsumer.OnHandle))
                                        //.WithConsumer<AddCommandConsumer>((consumer, message, name) => consumer.OnHandle(message, name))
-                                       .KafkaGroup(consumerGroup) // for Apache Kafka & Azure Event Hub
-                                       .SubscriptionName(consumerGroup)
+                                       .KafkaGroup(consumerGroup) // for Apache Kafka
+                                       .EventHubGroup(consumerGroup) // for Azure Event Hub
+                                       .SubscriptionName(consumerGroup) // for Azure Service Bus
+                                       // for Azure Service Bus
                                        .CreateTopicOptions((options) =>
                                        {
                                            options.RequiresDuplicateDetection = true;
                                        })
-// for Azure Service Bus
             )
             // Req/Resp example
             .Produce<MultiplyRequest>(x =>
@@ -164,14 +165,16 @@ internal static class Program
             .Handle<MultiplyRequest, MultiplyResponse>(x => x
                 .Topic(topicForMultiplyRequest) // topic to expect the requests
                 .WithHandler<MultiplyRequestHandler>()
-                .KafkaGroup(consumerGroup) // for Apache Kafka & Azure Event Hub
+                .KafkaGroup(consumerGroup) // for Apache Kafka
+                .EventHubGroup(consumerGroup) // for Azure Event Hub
                 .SubscriptionName(consumerGroup) // for Azure Service Bus
             )
             // Configure response message queue (on topic) when using req/resp
             .ExpectRequestResponses(x =>
             {
                 x.ReplyToTopic(topicForResponses); // All responses from req/resp will return on this topic (the EventHub name)
-                x.KafkaGroup(responseGroup);  // for Apache Kafka & Azure Event Hub
+                x.KafkaGroup(responseGroup); // for Apache Kafka
+                x.EventHubGroup(responseGroup); // Azure Event Hub
                 x.SubscriptionName(responseGroup); // for Azure Service Bus
                 x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
             })

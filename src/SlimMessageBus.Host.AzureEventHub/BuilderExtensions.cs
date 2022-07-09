@@ -14,6 +14,26 @@
         /// <returns></returns>
         public static T Group<T>(this T builder, string group)
             where T : AbstractConsumerBuilder
+            => builder.EventHubGroup(group);
+
+        /// <summary>
+        /// Set Azure EventHub subscriber name.
+        /// </summary>
+        /// <param name="builder"></param>
+        /// <param name="group"></param>
+        /// <returns></returns>
+        public static RequestResponseBuilder Group(this RequestResponseBuilder builder, string group)
+            => builder.EventHubGroup(group);
+
+        /// <summary>
+        /// Set Azure EventHub subscriber name.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="builder"></param>
+        /// <param name="group"></param>
+        /// <returns></returns>
+        public static T EventHubGroup<T>(this T builder, string group)
+            where T : AbstractConsumerBuilder
         {
             builder.ConsumerSettings.SetGroup(group);
             return builder;
@@ -25,7 +45,7 @@
         /// <param name="builder"></param>
         /// <param name="group"></param>
         /// <returns></returns>
-        public static RequestResponseBuilder Group(this RequestResponseBuilder builder, string group)
+        public static RequestResponseBuilder EventHubGroup(this RequestResponseBuilder builder, string group)
         {
             builder.Settings.SetGroup(group);
             return builder;

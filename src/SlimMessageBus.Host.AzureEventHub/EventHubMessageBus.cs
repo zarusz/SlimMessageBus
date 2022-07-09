@@ -139,15 +139,13 @@
 
         public override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
         {
-            if (messagePayload is null) throw new ArgumentNullException(nameof(messagePayload));
-
             AssertActive();
 
-            var messageType = message.GetType();
+            var messageType = message?.GetType();
 
-            logger.LogDebug("Producing message {Message} of Type {MessageType} on Path {Path} with Size {MessageSize}", message, messageType.Name, path, messagePayload.Length);
+            logger.LogDebug("Producing message {Message} of Type {MessageType} on Path {Path} with Size {MessageSize}", message, messageType?.Name, path, messagePayload?.Length ?? 0);
 
-            var ev = new EventData(messagePayload);
+            var ev = messagePayload != null ? new EventData(messagePayload) : new EventData();
 
             if (messageHeaders != null)
             {
@@ -157,7 +155,9 @@
                 }
             }
 
-            var partitionKey = GetPartitionKey(messageType, message);
+            var partitionKey = messageType != null
+                ? GetPartitionKey(messageType, message)
+                : null;
 
             var producer = producerByPath.GetOrAdd(path);
 
@@ -167,14 +167,15 @@
                 // When null the partition will be automatically assigned
                 PartitionKey = partitionKey
             }, cancellationToken);
+
             if (!eventBatch.TryAdd(ev))
             {
-                throw new PublishMessageBusException($"Could not add message {message} of Type {messageType.Name} on Path {path} to the send batch");
+                throw new PublishMessageBusException($"Could not add message {message} of Type {messageType?.Name} on Path {path} to the send batch");
             }
 
             await producer.SendAsync(eventBatch, cancellationToken).ConfigureAwait(false);
 
-            logger.LogDebug("Delivered message {Message} of Type {MessageType} on Path {Path} with PartitionKey {PartitionKey}", message, messageType.Name, path, partitionKey);
+            logger.LogDebug("Delivered message {Message} of Type {MessageType} on Path {Path} with PartitionKey {PartitionKey}", message, messageType?.Name, path, partitionKey);
         }
 
         #endregion
