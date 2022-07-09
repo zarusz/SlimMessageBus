@@ -160,7 +160,7 @@ class Program
 public class MainProgram
 {
     private readonly IMessageBus _bus;
-    private readonly Random _random = new Random();
+    private readonly Random _random = new();
     private volatile bool _canRun = true;
 
     public MainProgram(IMessageBus bus)
@@ -178,7 +178,7 @@ public class MainProgram
 
         _canRun = false;
 
-        await Task.WhenAll(addTask);
+        await Task.WhenAll(addTask, multiplyTask);
     }
 
     protected async Task AddLoop()

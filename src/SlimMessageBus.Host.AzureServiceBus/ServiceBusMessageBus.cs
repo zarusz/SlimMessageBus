@@ -23,6 +23,8 @@ public class ServiceBusMessageBus : MessageBusBase
 
     private readonly List<AsbBaseConsumer> consumers = new();
 
+    private Task provisionTopologyTask = null;
+
     public ServiceBusMessageBus(MessageBusSettings settings, ServiceBusMessageBusSettings providerSettings)
         : base(settings)
     {
@@ -40,6 +42,7 @@ public class ServiceBusMessageBus : MessageBusBase
         // This will validae if one path is mapped to both a topic and a queue
         kindMapping.Configure(Settings);
     }
+
 
     protected override void AssertConsumerSettings(ConsumerSettings consumerSettings)
     {
@@ -70,9 +73,11 @@ public class ServiceBusMessageBus : MessageBusBase
     {
         base.Build();
 
-        BeforeStartTask = ProviderSettings.TopologyProvisioning?.Enabled ?? false
-            ? ProvisionTopology() // provisining happens asynchronously
-            : Task.CompletedTask;
+        if (ProviderSettings.TopologyProvisioning?.Enabled ?? false)
+        {
+            provisionTopologyTask = ProvisionTopology(); // provisining happens asynchronously
+            BeforeStartTask = provisionTopologyTask;
+        }
 
         client = ProviderSettings.ClientFactory();
 
@@ -166,18 +171,6 @@ public class ServiceBusMessageBus : MessageBusBase
                 }
             });
 
-            foreach (var producerSettings in Settings.Producers)
-            {
-                if (producerSettings.PathKind == PathKind.Queue && ProviderSettings.TopologyProvisioning.CanProducerCreateQueue)
-                {
-                    await TryCreateQueue(producerSettings.DefaultPath, options => producerSettings.GetQueueOptions()?.Invoke(options));
-                }
-                if (producerSettings.PathKind == PathKind.Topic && ProviderSettings.TopologyProvisioning.CanProducerCreateTopic)
-                {
-                    await TryCreateTopic(producerSettings.DefaultPath, options => producerSettings.GetTopicOptions()?.Invoke(options));
-                }
-            }
-
             var consumersSettingsByPath = Settings.Consumers.OfType<AbstractConsumerSettings>()
                 .Concat(new[] { Settings.RequestResponse })
                 .Where(x => x != null)
@@ -225,6 +218,18 @@ public class ServiceBusMessageBus : MessageBusBase
                     }
                 }
             }
+
+            foreach (var producerSettings in Settings.Producers)
+            {
+                if (producerSettings.PathKind == PathKind.Queue && ProviderSettings.TopologyProvisioning.CanProducerCreateQueue)
+                {
+                    await TryCreateQueue(producerSettings.DefaultPath, options => producerSettings.GetQueueOptions()?.Invoke(options));
+                }
+                if (producerSettings.PathKind == PathKind.Topic && ProviderSettings.TopologyProvisioning.CanProducerCreateTopic)
+                {
+                    await TryCreateTopic(producerSettings.DefaultPath, options => producerSettings.GetTopicOptions()?.Invoke(options));
+                }
+            }
         }
         catch (Exception e)
         {
@@ -232,6 +237,7 @@ public class ServiceBusMessageBus : MessageBusBase
         }
         finally
         {
+            provisionTopologyTask = null;
             logger.LogInformation("Topology provisioning finished");
         }
     }
@@ -314,6 +320,13 @@ public class ServiceBusMessageBus : MessageBusBase
 
         try
         {
+            var t = provisionTopologyTask;
+            if (t != null)
+            {
+                // await until topology is provisioned for the first time
+                await t;
+            }
+            
             await senderClient.SendMessageAsync(m, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             logger.LogDebug("Delivered message {Message} of type {MessageType} to {Path}", message, messageType?.Name, path);
