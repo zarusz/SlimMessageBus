@@ -128,7 +128,7 @@ internal static class Program
                                        .KafkaGroup(consumerGroup) // for Apache Kafka
                                        .EventHubGroup(consumerGroup) // for Azure Event Hub
                                        .SubscriptionName(consumerGroup) // for Azure Service Bus
-                                       .SqlFilter("2=2")
+                                       .SubscriptionSqlFilter("2=2")
                                        // for Azure Service Bus
                                        .CreateTopicOptions((options) =>
                                        {

@@ -108,7 +108,7 @@
         /// <param name="actionSql">The action to be performed on the filter</param>
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
-        public static ConsumerBuilder<T> SqlFilter<T>(this ConsumerBuilder<T> builder, string filterSql, string ruleName = "default", string actionSql = null)
+        public static ConsumerBuilder<T> SubscriptionSqlFilter<T>(this ConsumerBuilder<T> builder, string filterSql, string ruleName = "default", string actionSql = null)
         {
             if (builder is null) throw new ArgumentNullException(nameof(builder));
 
