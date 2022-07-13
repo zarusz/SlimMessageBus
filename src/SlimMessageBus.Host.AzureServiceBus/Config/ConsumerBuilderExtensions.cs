@@ -1,6 +1,7 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus
 {
     using System;
+    using System.Collections.Generic;
     using Azure.Messaging.ServiceBus;
     using Azure.Messaging.ServiceBus.Administration;
     using SlimMessageBus.Host.Config;
@@ -98,6 +99,26 @@
         }
 
         /// <summary>
+        /// Adds a named SQL filter to the subscription (Azure Service Bus). Setting relevant only if topology provisioning enabled.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="builder"></param>
+        /// <param name="ruleName">The name of the filter</param>
+        /// <param name="filterSql">The SQL expression of the filter</param>
+        /// <param name="actionSql">The action to be performed on the filter</param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static ConsumerBuilder<T> SqlFilter<T>(this ConsumerBuilder<T> builder, string filterSql, string ruleName = "default", string actionSql = null)
+        {
+            if (builder is null) throw new ArgumentNullException(nameof(builder));
+
+            var filterByName = builder.ConsumerSettings.GetRules(createIfNotExists: true);
+            filterByName[ruleName] = new SubscriptionSqlRule { Name = ruleName, SqlFilter = filterSql, SqlAction = actionSql };
+
+            return builder;
+        }
+
+        /// <summary>
         /// <see cref="CreateQueueOptions"/> when the ASB queue does not exist and needs to be created
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -148,6 +169,7 @@
         private const string EnableSessionKey = "Asb_SessionEnabled";
         private const string SessionIdleTimeoutKey = "Asb_SessionIdleTimeout";
         private const string MaxConcurrentSessionsKey = "Asb_MaxConcurrentSessions";
+        private const string RulesKey = "Asb_Rules";
 
         internal static void SetMaxAutoLockRenewalDuration(this AbstractConsumerSettings consumerSettings, TimeSpan duration)
             => consumerSettings.Properties[MaxAutoLockRenewalDurationKey] = duration;
@@ -184,5 +206,16 @@
 
         internal static int? GetMaxConcurrentSessions(this AbstractConsumerSettings consumerSettings)
             => consumerSettings.GetOrDefault<int?>(MaxConcurrentSessionsKey);
+
+        internal static IDictionary<string, SubscriptionSqlRule> GetRules(this AbstractConsumerSettings consumerSettings, bool createIfNotExists = false)
+        {
+            var filterByName = consumerSettings.GetOrDefault<IDictionary<string, SubscriptionSqlRule>>(RulesKey);
+            if (filterByName == null && createIfNotExists)
+            {
+                filterByName = new Dictionary<string, SubscriptionSqlRule>();
+                consumerSettings.Properties[RulesKey] = filterByName;
+            }
+            return filterByName;
+        }
     }
 }

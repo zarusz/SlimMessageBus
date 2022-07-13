@@ -120,19 +120,20 @@ public class ServiceBusMessageBus : MessageBusBase
 
             var adminClient = ProviderSettings.AdminClientFactory();
 
-            async Task SwallowExceptionIfEntityExists(Func<Task> task)
+            async Task<bool> SwallowExceptionIfEntityExists(Func<Task<bool>> task)
             {
                 try
                 {
-                    await task();
+                    return await task();
                 }
                 catch (ServiceBusException e) when (e.Reason == ServiceBusFailureReason.MessagingEntityAlreadyExists)
                 {
                     // do nothing as another service instance might have created that in the meantime
+                    return false;
                 }
             }
 
-            Task TryCreateQueue(string path, Action<CreateQueueOptions> action) => SwallowExceptionIfEntityExists(async () =>
+            Task<bool> TryCreateQueue(string path, Action<CreateQueueOptions> action) => SwallowExceptionIfEntityExists(async () =>
             {
                 if (!await adminClient.QueueExistsAsync(path))
                 {
@@ -142,10 +143,12 @@ public class ServiceBusMessageBus : MessageBusBase
 
                     logger.LogInformation("Creating queue: {Path} ...", path);
                     await adminClient.CreateQueueAsync(options);
+                    return true;
                 }
+                return false;
             });
 
-            Task TryCreateTopic(string path, Action<CreateTopicOptions> action) => SwallowExceptionIfEntityExists(async () =>
+            Task<bool> TryCreateTopic(string path, Action<CreateTopicOptions> action) => SwallowExceptionIfEntityExists(async () =>
             {
                 if (!await adminClient.TopicExistsAsync(path))
                 {
@@ -155,10 +158,12 @@ public class ServiceBusMessageBus : MessageBusBase
 
                     logger.LogInformation("Creating topic: {Path} ...", path);
                     await adminClient.CreateTopicAsync(options);
+                    return true;
                 }
+                return false;
             });
 
-            Task TryCreateSubscription(string path, string subscriptionName, Action<CreateSubscriptionOptions> action) => SwallowExceptionIfEntityExists(async () =>
+            Task<bool> TryCreateSubscription(string path, string subscriptionName, Action<CreateSubscriptionOptions> action) => SwallowExceptionIfEntityExists(async () =>
             {
                 if (!await adminClient.SubscriptionExistsAsync(path, subscriptionName))
                 {
@@ -168,21 +173,39 @@ public class ServiceBusMessageBus : MessageBusBase
 
                     logger.LogInformation("Creating subscription: {SubscriptionName} on topic: {Path} ...", subscriptionName, path);
                     await adminClient.CreateSubscriptionAsync(options);
+                    return true;
                 }
+                return false;
+            });
+
+            Task<bool> TryCreateRule(string path, string subscriptionName, string ruleName, Action<CreateRuleOptions> action) => SwallowExceptionIfEntityExists(async () =>
+            {
+                if (!await adminClient.RuleExistsAsync(path, subscriptionName, ruleName))
+                {
+                    var options = new CreateRuleOptions(ruleName);
+                    ProviderSettings.TopologyProvisioning?.CreateRuleOptions?.Invoke(options);
+                    action?.Invoke(options);
+
+                    logger.LogInformation("Creating rule: {RuleName} on subscription {SubscriptionName} on topic: {Path} ...", ruleName, subscriptionName, path);
+                    await adminClient.CreateRuleAsync(path, subscriptionName, options);
+                    return true;
+                }
+                return false;
             });
 
             var consumersSettingsByPath = Settings.Consumers.OfType<AbstractConsumerSettings>()
                 .Concat(new[] { Settings.RequestResponse })
                 .Where(x => x != null)
-                .GroupBy(x => (x.Path, x.PathKind));
+                .GroupBy(x => (x.Path, x.PathKind))
+                .ToDictionary(x => x.Key, x => x.ToList());
 
-            foreach (var consumerSettingsByPath in consumersSettingsByPath)
+            foreach (var ((path, pathKind), consumerSettingsList) in consumersSettingsByPath)
             {
-                if (consumerSettingsByPath.Key.PathKind == PathKind.Queue && ProviderSettings.TopologyProvisioning.CanConsumerCreateQueue)
+                if (pathKind == PathKind.Queue && ProviderSettings.TopologyProvisioning.CanConsumerCreateQueue)
                 {
-                    await TryCreateQueue(consumerSettingsByPath.Key.Path, options =>
+                    await TryCreateQueue(path, options =>
                     {
-                        foreach (var consumerSettings in consumerSettingsByPath)
+                        foreach (var consumerSettings in consumerSettingsList)
                         {
                             // Note: Populate the require session flag on the queue
                             options.RequiresSession = consumerSettings.GetEnableSession();
@@ -191,30 +214,50 @@ public class ServiceBusMessageBus : MessageBusBase
                         }
                     });
                 }
-                if (consumerSettingsByPath.Key.PathKind == PathKind.Topic && ProviderSettings.TopologyProvisioning.CanConsumerCreateTopic)
+                if (pathKind == PathKind.Topic && ProviderSettings.TopologyProvisioning.CanConsumerCreateTopic)
                 {
-                    await TryCreateTopic(consumerSettingsByPath.Key.Path, options =>
+                    await TryCreateTopic(path, options =>
                     {
-                        foreach (var consumerSettings in consumerSettingsByPath)
+                        foreach (var consumerSettings in consumerSettingsList)
                         {
                             consumerSettings.GetTopicOptions()?.Invoke(options);
                         }
                     });
 
-                    var subscriptionsForPath = consumerSettingsByPath
+                    var consumerSettingsBySubscription = consumerSettingsList
                         .Select(x => (ConsumerSettings: x, SubscriptionName: x.GetSubscriptionName(required: false)))
                         .Where(x => x.SubscriptionName != null)
-                        .ToList();
+                        .ToDictionary(x => x.SubscriptionName, x => x.ConsumerSettings);
 
-                    foreach (var subscription in subscriptionsForPath)
+                    foreach (var (subscriptionName, consumerSettings) in consumerSettingsBySubscription)
                     {
-                        await TryCreateSubscription(consumerSettingsByPath.Key.Path, subscription.SubscriptionName, options =>
+                        var subscriptionCreated = await TryCreateSubscription(path, subscriptionName, options =>
                         {
                             // Note: Populate the require session flag on the subscription
-                            options.RequiresSession = subscription.ConsumerSettings.GetEnableSession();
+                            options.RequiresSession = consumerSettings.GetEnableSession();
 
-                            subscription.ConsumerSettings.GetSubscriptionOptions()?.Invoke(options);
+                            consumerSettings.GetSubscriptionOptions()?.Invoke(options);
                         });
+
+                        var filters = consumerSettings.GetRules()?.Values;
+                        if (filters != null && filters.Count > 0)
+                        {
+                            if (subscriptionCreated)
+                            {
+                                // Note: for a newly created subscription, ASB creates a default filter automatically, we need to remove it and let the user defined rules take over
+                                await adminClient.DeleteRuleAsync(path, subscriptionName, "$Default");
+                            }
+
+                            var tasks = filters.Select(filter => TryCreateRule(path, subscriptionName, filter.Name, options =>
+                            {
+                                options.Filter = new SqlRuleFilter(filter.SqlFilter);
+                                if (filter.SqlAction != null)
+                                {
+                                    options.Action = new SqlRuleAction(filter.SqlAction);
+                                }
+                            }));
+                            await Task.WhenAll(tasks);
+                        }
                     }
                 }
             }
@@ -326,7 +369,7 @@ public class ServiceBusMessageBus : MessageBusBase
                 // await until topology is provisioned for the first time
                 await t;
             }
-            
+
             await senderClient.SendMessageAsync(m, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             logger.LogDebug("Delivered message {Message} of type {MessageType} to {Path}", message, messageType?.Name, path);
