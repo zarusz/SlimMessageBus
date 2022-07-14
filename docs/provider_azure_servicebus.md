@@ -117,7 +117,7 @@ To consume `TMessage` by `TConsumer` from `some-topic` Azure Service Bus topic u
 ```cs
 mbb.Consume<TMessage>(x => x
    .Topic("some-topic")
-   .SubscriptionName("subscriber-name")
+   .SubscriptionName("subscriber-name")   
    .WithConsumer<TConsumer>()
    .Instances(1));
 ```
@@ -180,6 +180,7 @@ mbb.Consume<TMessage>(x => x
    .MaxAutoLockRenewalDuration(TimeSpan.FromMinutes(7))
    .SubQueue(SubQueue.DeadLetter)
    .PrefetchCount(10)
+   .SubscriptionSqlFilter("1=1") // ASB subscription SQL filters can also be created - see topology creation section
    .Instances(1));
 ```
 
@@ -300,8 +301,8 @@ When there is a need to get ahold of the `SessionId` for the message processed, 
 
 > Since 1.19.0
 
-ASB transport provider can automatically create the required ASB queues/topic/subscriptions that have been declared as part of the SMB configuration.
-The provisioning happens as soon as the SMB instance is created and prior any consumers start processing messages. The creation happens only when a particular topic/queue/subscription does not exist. If it exist the SMB will not alter it.
+ASB transport provider can automatically create the required ASB queue/topic/subscription/rule that have been declared as part of the SMB configuration.
+The provisioning happens as soon as the SMB instance is created and prior any consumers start processing messages. The creation happens only when a particular topic/queue/subscription/rule does not exist. If it exist the SMB will not alter it.
 
 > In order for the ASB provisioning to work, the Azure Service Bus connection string has to use a key with the `Manage` scope permission.
 
@@ -318,7 +319,7 @@ mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnection
 });
 ```
 
-When a queue/topic/subscription needs to be created, SMB will create the underlying ASB client options object, then will use the provided delegate to populate the settings ([CreateQueueOptions](https://docs.microsoft.com/en-us/dotnet/api/azure.messaging.servicebus.administration.createqueueoptions?view=azure-dotnet), [CreateTopicOptions](https://docs.microsoft.com/en-us/dotnet/api/azure.messaging.servicebus.administration.createtopicoptions?view=azure-dotnet), [CreateSubscriptionOptions](https://docs.microsoft.com/en-us/dotnet/api/azure.messaging.servicebus.administration.createsubscriptionoptions?view=azure-dotnet)).
+When a queue/topic/subscription/rule needs to be created, SMB will create the underlying ASB client options object, then will use the provided delegate to populate the settings ([CreateQueueOptions](https://docs.microsoft.com/en-us/dotnet/api/azure.messaging.servicebus.administration.createqueueoptions?view=azure-dotnet), [CreateTopicOptions](https://docs.microsoft.com/en-us/dotnet/api/azure.messaging.servicebus.administration.createtopicoptions?view=azure-dotnet), [CreateSubscriptionOptions](https://docs.microsoft.com/en-us/dotnet/api/azure.messaging.servicebus.administration.createsubscriptionoptions?view=azure-dotnet)).
 
 The bus wide default creation options can be set in this way:
 
@@ -362,6 +363,7 @@ mbb.Consume<SomeMessage>(x => x
       .Topic("some-topic")
       .WithConsumer<SomeMessageConsumer>()
       .SubscriptionName("some-service")
+      .SubscriptionSqlFilter("1=1") // this will create a rule with SQL filter
       .CreateTopicOptions((options) =>
       {
          options.RequiresDuplicateDetection = false;
@@ -369,7 +371,7 @@ mbb.Consume<SomeMessage>(x => x
    );
 ```
 
-For any queue/topic/subscription that needs to be created, the relevant options object is created, bus wide options are applied, consumer/producer specific settings are applied and lastly the resource is created in ASB. That allows to combine settings and ensure more specific values can be applied.
+For any queue/topic/subscription/rule that needs to be created, the relevant options object is created, bus wide options are applied, consumer/producer specific settings are applied and lastly the resource is created in ASB. That allows to combine settings and ensure more specific values can be applied.
 
 > The setting `RequiresSession` on the `CreateQueueOptions` and `CreateSubscriptionOptions` is automatically populated by SMB depending if [sessions have been enabled](#asb-sessions) for the queue/subscription consumer.
 

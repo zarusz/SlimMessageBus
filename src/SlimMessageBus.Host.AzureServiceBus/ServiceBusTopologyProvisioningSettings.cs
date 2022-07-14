@@ -41,4 +41,8 @@ public class ServiceBusTopologyProvisioningSettings
     /// Default configuration to be applied when a subscription needs to be created (<see cref="CreateSubscriptionOptions"/>).
     /// </summary>
     public Action<CreateSubscriptionOptions> CreateSubscriptionOptions { get; set; }
+    /// <summary>
+    /// Default configuration to be applied when a rule needs to be created (<see cref="CreateRuleOptions"/>).
+    /// </summary>
+    public Action<CreateRuleOptions> CreateRuleOptions { get; set; }
 }
