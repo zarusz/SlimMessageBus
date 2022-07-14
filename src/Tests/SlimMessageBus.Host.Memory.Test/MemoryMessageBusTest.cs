@@ -15,7 +15,7 @@ namespace SlimMessageBus.Host.Memory.Test
     using SlimMessageBus.Host.Serialization;
     using Xunit;
 
-    public class MemoryMessageBusTest
+    public class MemoryMessageBusTests
     {
         private readonly Lazy<MemoryMessageBus> _subject;
         private readonly MessageBusSettings _settings = new();
@@ -23,7 +23,7 @@ namespace SlimMessageBus.Host.Memory.Test
         private readonly Mock<IDependencyResolver> _dependencyResolverMock = new();
         private readonly Mock<IMessageSerializer> _messageSerializerMock = new();
 
-        public MemoryMessageBusTest()
+        public MemoryMessageBusTests()
         {
             _dependencyResolverMock.Setup(x => x.Resolve(It.IsAny<Type>())).Returns((Type t) =>
             {

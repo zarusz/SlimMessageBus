@@ -5,11 +5,12 @@
 
     public static class MemoryMessageBusBuilderExtensions
     {
-        public static MessageBusBuilder WithProviderMemory(this MessageBusBuilder mbb, MemoryMessageBusSettings providerSettings)
+        public static MemoryMessageBusBuilder WithProviderMemory(this MessageBusBuilder mbb, MemoryMessageBusSettings providerSettings)
         {
             if (mbb is null) throw new ArgumentNullException(nameof(mbb));
-            return mbb.WithProvider(settings => new MemoryMessageBus(settings, providerSettings));
+            if (providerSettings is null) throw new ArgumentNullException(nameof(providerSettings));
+
+            return new MemoryMessageBusBuilder(mbb.WithProvider(settings => new MemoryMessageBus(settings, providerSettings)));
         }
     }
-
 }

@@ -2,16 +2,18 @@ namespace SlimMessageBus.Host.Config
 {
     using System;
     using System.Linq;
+    using System.Linq.Expressions;
+    using System.Reflection;
     using System.Threading.Tasks;
 
     public class HandlerBuilder<TRequest, TResponse> : AbstractConsumerBuilder
     {
-        public HandlerBuilder(MessageBusSettings settings)
-            : base(settings, typeof(TRequest))
+        public HandlerBuilder(MessageBusSettings settings, Type requestType = null, Type responseType = null)
+            : base(settings, requestType ?? typeof(TRequest))
         {
             if (settings == null) throw new ArgumentNullException(nameof(settings));
 
-            ConsumerSettings.ResponseType = typeof(TResponse);
+            ConsumerSettings.ResponseType = responseType ?? typeof(TResponse);
         }
 
         /// <summary>
@@ -66,10 +68,27 @@ namespace SlimMessageBus.Host.Config
 
             ConsumerSettings.ConsumerMode = ConsumerMode.RequestResponse;
             ConsumerSettings.ConsumerType = typeof(THandler);
-            ConsumerSettings.ConsumerMethod = (consumer, message, name) => ((THandler)consumer).OnHandle((TRequest)message, name);
+            ConsumerSettings.ConsumerMethod = (consumer, message, path) => ((THandler)consumer).OnHandle((TRequest)message, path);
             ConsumerSettings.ConsumerMethodResult = (task) => ((Task<TResponse>)task).Result;
 
-            ConsumerSettings.ConsumersByMessageType.Add(typeof(TRequest), ConsumerSettings);
+            ConsumerSettings.ConsumersByMessageType.Add(MessageType, ConsumerSettings);
+
+            return this;
+        }
+
+        public HandlerBuilder<TRequest, TResponse> WithHandler(Type handlerType)
+        {
+            Assert.IsNotNull(ConsumerSettings.ResponseType,
+                () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(ConsumerSettings.ResponseType)} is not set"));
+
+            ConsumerSettings.ConsumerMode = ConsumerMode.RequestResponse;
+            ConsumerSettings.ConsumerType = handlerType;
+            SetupConsumerOnHandleMethod(ConsumerSettings);
+
+            var taskOfResponseTypeResultPropertyInfo = typeof(Task<>).MakeGenericType(ConsumerSettings.ResponseType).GetProperty(nameof(Task<object>.Result));
+            ConsumerSettings.ConsumerMethodResult = ReflectionUtils.GenerateGetterLambda(taskOfResponseTypeResultPropertyInfo);
+
+            ConsumerSettings.ConsumersByMessageType.Add(MessageType, ConsumerSettings);
 
             return this;
         }

@@ -26,10 +26,22 @@ namespace SlimMessageBus.Host.Config
         /// </summary>
         public string BusName { get; set; }
 
-        private Func<MessageBusSettings, IMessageBus> _factory;
+        /// <summary>
+        /// The bus factory method.
+        /// </summary>
+        public Func<MessageBusSettings, IMessageBus> BusFactory { get; private set; }
 
         protected MessageBusBuilder()
         {
+        }
+
+        protected MessageBusBuilder(MessageBusBuilder other)
+        {
+            Settings = other.Settings;
+            Configurators = other.Configurators;
+            ChildBuilders = other.ChildBuilders;
+            BusName = other.BusName;
+            BusFactory = other.BusFactory;
         }
 
         public static MessageBusBuilder Create() => new();
@@ -75,7 +87,7 @@ namespace SlimMessageBus.Host.Config
         }
 
         /// <summary>
-        /// Configures (declares) the subscriber of given message types in pub/sub communication.
+        /// Configures (declares) the consumer of given message types in pub/sub or queue communication.
         /// </summary>
         /// <typeparam name="TMessage">Type of message</typeparam>
         /// <param name="consumerBuilder"></param>
@@ -89,7 +101,7 @@ namespace SlimMessageBus.Host.Config
         }
 
         /// <summary>
-        /// Configures (declares) the subscriber of given message types in pub/sub communication.
+        /// Configures (declares) the consumer of given message types in pub/sub or queue communication.
         /// </summary>
         /// <param name="messageType">Type of message</param>
         /// <param name="consumerBuilder"></param>
@@ -114,6 +126,23 @@ namespace SlimMessageBus.Host.Config
             if (handlerBuilder == null) throw new ArgumentNullException(nameof(handlerBuilder));
 
             handlerBuilder(new HandlerBuilder<TRequest, TResponse>(Settings));
+            return this;
+        }
+
+        /// <summary>
+        /// Configures (declares) the handler of a given request message type in request-response communication.
+        /// </summary>
+        /// <typeparam name="TRequest"></typeparam>
+        /// <typeparam name="TResponse"></typeparam>
+        /// <param name="handlerBuilder"></param>
+        /// <returns></returns>
+        public MessageBusBuilder Handle(Type requestType, Type responseType, Action<HandlerBuilder<object, object>> handlerBuilder)
+        {
+            if (requestType == null) throw new ArgumentNullException(nameof(requestType));
+            if (responseType == null) throw new ArgumentNullException(nameof(responseType));
+            if (handlerBuilder == null) throw new ArgumentNullException(nameof(handlerBuilder));
+
+            handlerBuilder(new HandlerBuilder<object, object>(Settings, requestType, responseType));
             return this;
         }
 
@@ -147,7 +176,7 @@ namespace SlimMessageBus.Host.Config
 
         public MessageBusBuilder WithProvider(Func<MessageBusSettings, IMessageBus> provider)
         {
-            _factory = provider ?? throw new ArgumentNullException(nameof(provider));
+            BusFactory = provider ?? throw new ArgumentNullException(nameof(provider));
             return this;
         }
 
@@ -227,7 +256,7 @@ namespace SlimMessageBus.Host.Config
 
         public IMessageBus Build()
         {
-            if (_factory is null)
+            if (BusFactory is null)
             {
                 throw new ConfigurationMessageBusException("The bus provider was not configured. Check your MessageBus configuration.");
             }
@@ -237,7 +266,7 @@ namespace SlimMessageBus.Host.Config
                 configurator.Configure(this, BusName);
             }
 
-            return _factory(Settings);
+            return BusFactory(Settings);
         }
     }
 }
