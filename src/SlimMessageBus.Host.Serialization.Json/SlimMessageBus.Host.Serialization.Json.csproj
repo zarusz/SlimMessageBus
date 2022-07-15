@@ -8,6 +8,8 @@
     <PackageTags>SlimMessageBus JSON Serialization messaging</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <LangVersion>default</LangVersion>
+    <Nullable>warnings</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
