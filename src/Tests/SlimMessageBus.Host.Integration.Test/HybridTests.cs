@@ -153,7 +153,7 @@ namespace SlimMessageBus.Host.Integration
 
                 builder.AddChildBus("Memory", (mbb) =>
                 {
-                    mbb.WithProviderMemory(new MemoryMessageBusSettings())
+                    mbb.WithProviderMemory()
                        .AutoDeclareFromConsumers(Assembly.GetExecutingAssembly(), consumerTypeFilter: (consumerType) => consumerType.Name.Contains("Internal"));
                 });
             }

@@ -192,7 +192,7 @@ internal static class Program
                 switch (provider)
                 {
                     case Provider.Memory:
-                        builder.WithProviderMemory(new MemoryMessageBusSettings()); // Use Azure Service Bus as provider
+                        builder.WithProviderMemory(); // Use Memory as provider
                         break;
 
                     case Provider.AzureServiceBus:

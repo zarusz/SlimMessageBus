@@ -4,7 +4,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 
 - [Introduction](#introduction)
 - [Configuration](#configuration)
-  - [Disabling serialization](#disabling-serialization)
+  - [Serialization](#serialization)
   - [Virtual Topics](#virtual-topics)
   - [Auto Declaration](#auto-declaration)
 - [Lifecycle](#lifecycle)
@@ -15,7 +15,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 
 The Memory transport provider can be used for internal communication within the same process. It is the simplest transport provider and does not require any external messaging infrastructure.
 
-> Since messages are passed in memory and never persisted, they will be lost if your app dies while consuming these messages.
+> Since messages are passed in memory and never persisted, they will be lost if the application process dies while consuming these messages.
 
 Good use case for in memory communication is to integrate the domain layer with other application layers via domain events pattern.
 
@@ -26,20 +26,23 @@ The memory transport is configured using the `.WithProviderMemory()`:
 ```cs
 // MessageBusBuilder mbb;
 mbb
-   .WithProviderMemory(new MemoryMessageBusSettings())
-   .WithSerializer(new JsonMessageSerializer());
+   .WithProviderMemory();
 ```
 
-### Disabling serialization
+### Serialization
 
-Since messages are passed within the same process, serializing and deserializing them might be redundant or a desired performance optimization. Serialization can be disabled:
+Since messages are passed within the same process, serializing and deserializing them is redundant. Also disabling serialization gives a performance optimization.
+
+> Serialization is disabled by default for memory bus.
+
+Serialization can be disabled or enabled:
 
 ```cs
 // MessageBusBuilder mbb;
 mbb
    .WithProviderMemory(new MemoryMessageBusSettings
    {
-      // Do not serialize the domain events and rather pass the same instance across handlers (faster 
+      // Do not serialize the domain events and rather pass the same instance across handlers
       EnableMessageSerialization = false
    });
    //.WithSerializer(new JsonMessageSerializer()); // no serializer  needed
@@ -71,17 +74,15 @@ mbb.Consume<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<O
 mbb.Consume<OrderSubmittedEvent>(x => x.Topic("OrderSubmittedEvent").WithConsumer<OrderSubmittedHandler>());
 ```
 
-The benefit is that we can channel messages of the same type via different virtual topics.
-
 ### Auto Declaration
 
 > Since 1.19.1
 
-During bus configuration, we can leverage `AutoDeclareFromConsumers()` method to discover all the consumers (`IConsumer<T>`) and handlers (`IRequestHandler<T,R>`) types and auto declare the respective producers and consumers/handlers in the bus. This can be useful to auto declare all of the domain event handlers in an application layer.
+For bus configuration, we can leverage `AutoDeclareFromConsumers()` method to discover all the consumers (`IConsumer<T>`) and handlers (`IRequestHandler<T,R>`) types and auto declare the respective producers and consumers/handlers in the bus. This can be useful to auto declare all of the domain event handlers in an application layer.
 
 ```cs
 mbb
-   .WithProviderMemory(new MemoryMessageBusSettings())
+   .WithProviderMemory()
    .AutoDeclareFromConsumers(Assembly.GetExecutingAssembly());
    // If we want to filter to specific consumer/handler types then we can supply an additional filter:
    //.AutoDeclareFromConsumers(Assembly.GetExecutingAssembly(), consumerTypeFilter: (consumerType) => consumerType.Name.EndsWith("Handler"));

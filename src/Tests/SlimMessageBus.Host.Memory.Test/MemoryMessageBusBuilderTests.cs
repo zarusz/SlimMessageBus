@@ -12,7 +12,7 @@ public class MemoryMessageBusBuilderTests
 
     public MemoryMessageBusBuilderTests()
     {
-        subject = MessageBusBuilder.Create().WithProviderMemory(new MemoryMessageBusSettings());
+        subject = MessageBusBuilder.Create().WithProviderMemory();
     }
 
     [Fact]

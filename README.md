@@ -261,8 +261,8 @@ IServiceCollection services; // for MsDependencyInjection or AspNetCore
 services.AddSlimMessageBus((mbb, svp) => 
    {
       mbb            
-         .WithProviderMemory(new MemoryMessageBusSettings { EnableMessageSerialization = false }) // Suppress serialization and pass the same event instance to consumers (gain in performance, events are immutable)
-         .AutoDeclareFromConsumers(Assembly.GetExecutingAssembly()); // Find all the IConsumer<T> and IRequestHandler<T, R> and declare producers and consumers for them
+         .WithProviderMemory()
+         .AutoDeclareFromConsumers(Assembly.GetExecutingAssembly()); // Find types that implement IConsumer<T> and IRequestHandler<T, R> and declare producers and consumers for them
    },
    addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() } // Auto discover consumers and register into DI
 );

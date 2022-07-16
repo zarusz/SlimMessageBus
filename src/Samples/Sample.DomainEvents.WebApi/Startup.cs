@@ -72,36 +72,9 @@ public class Startup
         // Make the MessageBus per request scope
         services.AddSlimMessageBus((mbb, svp) =>
         {
-            var appAssembly = typeof(OrderSubmittedEvent).Assembly;
-
             mbb
-                // declare that OrderSubmittedEvent will be produced (option 1 - explicit declaration)
-                .Produce<OrderSubmittedEvent>(x => x.DefaultTopic(x.MessageType.Name))
-                // declare that OrderSubmittedEvent will be consumed by OrderSubmittedHandler (option 1 - explicit declaration)
-                .Consume<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<OrderSubmittedHandler>())
-
-                // Note: we could discover messages and handlers using reflection and register them automatically (option 2 - auto discovery)
-                /*
-                .Do(builder => appAssembly
-                    .GetTypes()
-                    .Where(t => t.IsClass && !t.IsAbstract)
-                    .SelectMany(t => t.GetInterfaces(), (t, i) => new { Type = t, Interface = i })
-                    .Where(x => x.Interface.IsGenericType && x.Interface.GetGenericTypeDefinition() == typeof(IConsumer<>))
-                    .Select(x => new { HandlerType = x.Type, EventType = x.Interface.GetGenericArguments()[0] })
-                    .ToList()
-                    .ForEach(find =>
-                    {
-                        builder.Produce(find.EventType, x => x.DefaultTopic(x.MessageType.Name));
-                        builder.Consume(find.EventType, x => x.Topic(x.MessageType.Name).WithConsumer(find.HandlerType));
-                    })
-                )
-                */
-                //.WithSerializer(new JsonMessageSerializer()) // No need to use the serializer because of `MemoryMessageBusSettings.EnableMessageSerialization = false`
-                .WithProviderMemory(new MemoryMessageBusSettings
-                {
-                    // Do not serialize the domain events and rather pass the same instance across handlers
-                    EnableMessageSerialization = false
-                });
+                .WithProviderMemory()
+                .AutoDeclareFromConsumers(typeof(OrderSubmittedHandler).Assembly);
         },
         addConsumersFromAssembly: new[] { typeof(OrderSubmittedHandler).Assembly });
     }
