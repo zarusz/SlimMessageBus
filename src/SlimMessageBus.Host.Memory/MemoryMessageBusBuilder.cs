@@ -13,6 +13,12 @@
     {
         internal MemoryMessageBusBuilder(MessageBusBuilder other) : base(other)
         {
+            // If the user did not setup RequestResponse settings, apply a defult setting with long TimeOut
+            Settings.RequestResponse ??= new RequestResponseSettings
+            {
+                Timeout = TimeSpan.FromHours(1),
+                Path = "responses"
+            };
         }
 
         private static string DefaultMessageTypeToTopicConverter(Type type) => type.Name;

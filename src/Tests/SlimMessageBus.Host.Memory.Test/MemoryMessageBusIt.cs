@@ -68,10 +68,7 @@ public class MemoryMessageBusIt : IDisposable
         var topic = "test-ping";
 
         MessageBusBuilder
-            .Produce<PingMessage>(x =>
-            {
-                x.DefaultTopic(topic);
-            })
+            .Produce<PingMessage>(x => x.DefaultTopic(topic))
             .Do(builder => Enumerable.Range(0, subscribers).ToList().ForEach(i =>
             {
                 builder.Consume<PingMessage>(x => x
@@ -146,18 +143,10 @@ public class MemoryMessageBusIt : IDisposable
         var topic = "test-echo";
 
         MessageBusBuilder
-            .Produce<EchoRequest>(x =>
-            {
-                x.DefaultTopic(topic);
-            })
+            .Produce<EchoRequest>(x => x.DefaultTopic(topic))
             .Handle<EchoRequest, EchoResponse>(x => x.Topic(topic)
                 .WithHandler<EchoRequestHandler>()
-                .Instances(2))
-            .ExpectRequestResponses(x =>
-            {
-                x.ReplyToTopic("test-echo-resp");
-                x.DefaultTimeout(TimeSpan.FromSeconds(60));
-            });
+                .Instances(2));
 
         await BasicReqResp().ConfigureAwait(false);
     }
