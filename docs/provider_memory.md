@@ -45,7 +45,7 @@ mbb
       // Do not serialize the domain events and rather pass the same instance across handlers
       EnableMessageSerialization = false
    });
-   //.WithSerializer(new JsonMessageSerializer()); // no serializer  needed
+   //.WithSerializer(new JsonMessageSerializer()); //  serializer not needed if EnableMessageSerialization = false
 ```
 
 > When serialization is disabled for in memory passed messages, the exact same object instance send by the producer will be recieved by the consumer. Therefore state changes on the consumer end will be visible by the producer. Consider making the messages immutable (read only).
@@ -93,7 +93,7 @@ For example, assuming this is the discovered type:
 ```cs
 public class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
 {
-   public Task<EchoResponse> OnHandle(EchoRequest request, string name) { /* ... */ }
+   public Task<EchoResponse> OnHandle(EchoRequest request, string path) { /* ... */ }
 }
 ```
 
@@ -104,7 +104,9 @@ mbb.Produce<EchoRequest>(x => x.DefaultTopic(x.MessageType.Name));
 mbb.Handle<EchoRequest, EchoResponse>(x => x.Topic(x.MessageType.Name).WithConsumer<EchoRequestHandler>());
 ```
 
-> Using `AutoDeclareFrom` to configure the memory bus is recommended, as it provides a good developer experience.
+Using `AutoDeclareFrom` to configure the memory bus is recommended, as it provides a good developer experience.
+
+> Note that it is still required to register (or auto register) the consumer/handler types in the underlying DI (see [here](intro.md#autoregistration-of-consumers-interceptors-and-configurators)).
 
 ## Lifecycle
 
