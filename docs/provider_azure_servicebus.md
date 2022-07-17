@@ -312,7 +312,7 @@ If you want to disable it:
 ```cs
 mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString)
 {
-   TopologyProvisioning = new ServiceBusTopologyProvisioningSettings
+   TopologyProvisioning = new ServiceBusTopologySettings
    {
       Enabled = false
    }
@@ -326,7 +326,7 @@ The bus wide default creation options can be set in this way:
 ```cs
 mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString)
 {
-   TopologyProvisioning = new ServiceBusTopologyProvisioningSettings
+   TopologyProvisioning = new ServiceBusTopologySettings
    {
       CreateQueueOptions = (options) =>
       {
@@ -383,7 +383,7 @@ Also, it might be desired that only producers or consumers can create the respec
 ```cs
 mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString)
 {
-      TopologyProvisioning = new ServiceBusTopologyProvisioningSettings
+      TopologyProvisioning = new ServiceBusTopologySettings
       {
          Enabled = true,
          CanProducerCreateQueue = true, // only declared producers will be used to provision queues
