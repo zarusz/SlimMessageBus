@@ -3,7 +3,7 @@
 using Azure.Messaging.ServiceBus.Administration;
 using System;
 
-public class ServiceBusTopologyProvisioningSettings
+public class ServiceBusTopologySettings
 {
     /// <summary>
     /// Indicates wheather topology provisioning is enabled. Default is true.
@@ -30,6 +30,10 @@ public class ServiceBusTopologyProvisioningSettings
     /// </summary>
     public bool CanConsumerCreateSubscription { get; set; } = true;
     /// <summary>
+    /// A filter that allows (or not) for declared consumers to provision needed filter. True by default.
+    /// </summary>
+    public bool CanConsumerCreateSubscriptionFilter { get; set; } = true;
+    /// <summary>
     /// Default configuration to be applied when a queue needs to be created (<see cref="CreateQueueOptions"/>).
     /// </summary>
     public Action<CreateQueueOptions> CreateQueueOptions { get; set; }
@@ -42,7 +46,7 @@ public class ServiceBusTopologyProvisioningSettings
     /// </summary>
     public Action<CreateSubscriptionOptions> CreateSubscriptionOptions { get; set; }
     /// <summary>
-    /// Default configuration to be applied when a rule needs to be created (<see cref="CreateRuleOptions"/>).
+    /// Default configuration to be applied when a rule needs to be created (<see cref="CreateSubscriptionFilterOptions"/>).
     /// </summary>
-    public Action<CreateRuleOptions> CreateRuleOptions { get; set; }
+    public Action<CreateRuleOptions> CreateSubscriptionFilterOptions { get; set; }
 }

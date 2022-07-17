@@ -47,6 +47,10 @@
                     var m = new Mock<ServiceBusSender>();
                     SenderMockByPath.Add(path, m);
                     return m.Object;
+                },
+                TopologyProvisioning = new ServiceBusTopologySettings
+                {
+                    Enabled = false
                 }
             };
             BusBuilder.WithProvider(mbSettings => new WrappedProviderMessageBus(mbSettings, ProviderBusSettings));
@@ -98,7 +102,7 @@
         }
 
         [Fact]
-        public async Task WhenPublishGivenModifierConfiguredForMessageTypeThatThrowsErrorThenModifierDoesNotPreventMessageDelivery()
+        public async Task When_Publish_Given_ModifierConfiguredForMessageTypeThatThrowsError_Then_ModifierDoesNotPreventMessageDelivery()
         {
             // arrange
             BusBuilder.Produce<SomeMessage>(x =>
