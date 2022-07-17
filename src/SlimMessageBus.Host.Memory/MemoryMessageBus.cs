@@ -43,7 +43,7 @@
                 base.AssertSerializerSettings();
             }
         }
-
+        
         protected override void Build()
         {
             base.Build();

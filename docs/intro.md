@@ -107,8 +107,7 @@ In most scenarios having a singleton `IMessageBus` for your entire application w
 
 > The `IMessageBus` is disposable (implements `IDisposable` and `IAsyncDisposable`).
 
-When your service uses `Microsoft.Extensions.DependencyInjection`, 
-the SMB can be configured in a more compact way (requires `SlimMessageBus.Host.MsDependencyInjection` or `SlimMessageBus.Host.AspNetCore` package):
+When your service uses `Microsoft.Extensions.DependencyInjection`, the SMB can be configured in a more compact way (requires `SlimMessageBus.Host.MsDependencyInjection` or `SlimMessageBus.Host.AspNetCore` package):
 
 ```cs
 // Startup.cs:

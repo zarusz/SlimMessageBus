@@ -257,18 +257,15 @@ The `SlimMessageBus` configuration for in-memory provider looks like this:
 ```cs
 IServiceCollection services; // for MsDependencyInjection or AspNetCore
 
-services.AddSlimMessageBus((mbb, svp) =>
-{
-   // Define how to cofigure Message Bus
-   mbb
-      .Produce<OrderSubmittedEvent>(x => x.DefaultTopic(x.MessageType.Name))
-      .Consume<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<OrderSubmittedHandler>())
-      .WithProviderMemory(new MemoryMessageBusSettings
-      {
-         // Suppress serialization and pass the same event instance to subscribers (domain events contain domain objects we do not want to be serialized, we also gain on speed)
-         EnableMessageSerialization = false
-      });
-});
+// Cofigure the message bus
+services.AddSlimMessageBus((mbb, svp) => 
+   {
+      mbb            
+         .WithProviderMemory()
+         .AutoDeclareFrom(Assembly.GetExecutingAssembly()); // Find types that implement IConsumer<T> and IRequestHandler<T, R> and declare producers and consumers for them
+   },
+   addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() } // Auto discover consumers and register into DI
+);
 ```
 
 In `Startup.cs` for the ASP.NET project, set up the `MessageBus.Current` helper (if you want to use it):

@@ -64,6 +64,7 @@
             public Type MessageType { get; }
             public Type GenericType { get; }
             public Type EnumerableOfGenericType { get; }
+            // ToDo: Replace with lambda from compiled expression
             public MethodInfo Method { get; }
 
             public GenericInterfaceType(Type messageType, Type genericType, MethodInfo method)
