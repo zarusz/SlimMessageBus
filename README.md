@@ -262,7 +262,7 @@ services.AddSlimMessageBus((mbb, svp) =>
    {
       mbb            
          .WithProviderMemory()
-         .AutoDeclareFromConsumers(Assembly.GetExecutingAssembly()); // Find types that implement IConsumer<T> and IRequestHandler<T, R> and declare producers and consumers for them
+         .AutoDeclareFrom(Assembly.GetExecutingAssembly()); // Find types that implement IConsumer<T> and IRequestHandler<T, R> and declare producers and consumers for them
    },
    addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() } // Auto discover consumers and register into DI
 );

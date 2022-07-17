@@ -21,7 +21,7 @@ public class MemoryMessageBusBuilderTests
         // arrange
 
         // act
-        subject.AutoDeclareFromConsumers(Assembly.GetExecutingAssembly());
+        subject.AutoDeclareFrom(Assembly.GetExecutingAssembly());
 
         // assert
 
@@ -48,7 +48,7 @@ public class MemoryMessageBusBuilderTests
         // arrange
 
         // act
-        subject.AutoDeclareFromConsumers(Assembly.GetExecutingAssembly(), 
+        subject.AutoDeclareFrom(Assembly.GetExecutingAssembly(),
             consumerTypeFilter: (consumerType) => !consumerType.Name.Contains("Some")); // exclude consumers with Some in the name
 
         // assert

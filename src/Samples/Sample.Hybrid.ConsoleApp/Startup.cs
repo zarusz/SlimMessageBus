@@ -41,7 +41,7 @@ public class Startup
                 {
                     mbbChild
                         .WithProviderMemory()
-                        .AutoDeclareFromConsumers(typeof(CustomerChangedEventHandler).Assembly, consumerTypeFilter: consumerType => consumerType.Namespace.Contains("Application"));
+                        .AutoDeclareFrom(typeof(CustomerChangedEventHandler).Assembly, consumerTypeFilter: consumerType => consumerType.Namespace.Contains("Application"));
                 })
                 // Bus 2
                 .AddChildBus("AzureSB", (mbbChild) =>

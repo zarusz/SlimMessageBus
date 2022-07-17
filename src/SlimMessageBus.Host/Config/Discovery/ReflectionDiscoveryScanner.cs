@@ -17,22 +17,24 @@
         {
             var scanner = new ReflectionDiscoveryScanner(assemblies);
             scanner.Scan();
-            
+
             return scanner;
         }
 
-        public ReflectionDiscoveryScanner(IEnumerable<Assembly> assemblies = null) 
+        public ReflectionDiscoveryScanner(IEnumerable<Assembly> assemblies = null)
             => this.assemblies = new List<Assembly>(assemblies ?? Enumerable.Empty<Assembly>());
 
         public void AddAssembly(Assembly assembly) => assemblies.Add(assembly);
 
-        public void Scan()
+        public ReflectionDiscoveryScanner Scan()
         {
             prospectTypes = assemblies
                 .SelectMany(x => x.GetTypes())
                 .Where(t => t.IsClass && !t.IsAbstract)
                 .SelectMany(t => t.GetInterfaces(), (t, i) => new DiscoveryProspectType { Type = t, InterfaceType = i })
                 .ToList();
+
+            return this;
         }
 
         public IReadOnlyCollection<DiscoveryConsumerType> GetConsumerTypes(Func<Type, bool> filterPredicate = null)
@@ -46,6 +48,7 @@
                     return new DiscoveryConsumerType
                     {
                         ConsumerType = x.Type,
+                        InterfaceType = x.InterfaceType,
                         MessageType = genericArguments[0],
                         ResponseType = genericArguments.Length > 1 ? genericArguments[1] : null
                     };

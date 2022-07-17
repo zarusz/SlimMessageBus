@@ -74,7 +74,7 @@ public class Startup
         {
             mbb
                 .WithProviderMemory()
-                .AutoDeclareFromConsumers(typeof(OrderSubmittedHandler).Assembly);
+                .AutoDeclareFrom(typeof(OrderSubmittedHandler).Assembly);
         },
         addConsumersFromAssembly: new[] { typeof(OrderSubmittedHandler).Assembly });
     }

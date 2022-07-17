@@ -78,14 +78,14 @@ mbb.Consume<OrderSubmittedEvent>(x => x.Topic("OrderSubmittedEvent").WithConsume
 
 > Since 1.19.1
 
-For bus configuration, we can leverage `AutoDeclareFromConsumers()` method to discover all the consumers (`IConsumer<T>`) and handlers (`IRequestHandler<T,R>`) types and auto declare the respective producers and consumers/handlers in the bus. This can be useful to auto declare all of the domain event handlers in an application layer.
+For bus configuration, we can leverage `AutoDeclareFrom()` method to discover all the consumers (`IConsumer<T>`) and handlers (`IRequestHandler<T,R>`) types and auto declare the respective producers and consumers/handlers in the bus. This can be useful to auto declare all of the domain event handlers in an application layer.
 
 ```cs
 mbb
    .WithProviderMemory()
-   .AutoDeclareFromConsumers(Assembly.GetExecutingAssembly());
+   .AutoDeclareFrom(Assembly.GetExecutingAssembly());
    // If we want to filter to specific consumer/handler types then we can supply an additional filter:
-   //.AutoDeclareFromConsumers(Assembly.GetExecutingAssembly(), consumerTypeFilter: (consumerType) => consumerType.Name.EndsWith("Handler"));
+   //.AutoDeclareFrom(Assembly.GetExecutingAssembly(), consumerTypeFilter: (consumerType) => consumerType.Name.EndsWith("Handler"));
 ```
 
 For example, assuming this is the discovered type:
@@ -104,7 +104,7 @@ mbb.Produce<EchoRequest>(x => x.DefaultTopic(x.MessageType.Name));
 mbb.Handle<EchoRequest, EchoResponse>(x => x.Topic(x.MessageType.Name).WithConsumer<EchoRequestHandler>());
 ```
 
-> Using `AutoDeclareFromConsumers` to configure the memory bus is recommended, as it provides a good developer experience.
+> Using `AutoDeclareFrom` to configure the memory bus is recommended, as it provides a good developer experience.
 
 ## Lifecycle
 
