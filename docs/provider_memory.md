@@ -17,7 +17,7 @@ The Memory transport provider can be used for internal communication within the 
 
 > Since messages are passed in memory and never persisted, they will be lost if the application process dies while consuming these messages.
 
-Good use case for in memory communication is to integrate the domain layer with other application layers via domain events pattern.
+Good use case for in memory communication is to integrate the domain layer with other application layers via domain events pattern, or for mediator pattern (when combined with [interceptors](intro.md#interceptors)).
 
 ## Configuration
 
