@@ -202,7 +202,7 @@ internal static class Program
                         // Use Azure Service Bus as provider
                         builder.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString)
                         {
-                            TopologyProvisioning = new ServiceBusTopologyProvisioningSettings()
+                            TopologyProvisioning = new ServiceBusTopologySettings()
                             {
                                 Enabled = true,
                                 CreateQueueOptions = (options) =>

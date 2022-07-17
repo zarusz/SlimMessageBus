@@ -343,7 +343,10 @@ mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnection
       CreateSubscriptionOptions = (options) =>
       {
          options.LockDuration = TimeSpan.FromMinutes(5);
-      }
+      },
+      CreateSubscriptionFilterOptions = (options) => {
+
+      },
    }
 });
 ```
@@ -388,6 +391,7 @@ mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnection
          CanConsumerCreateQueue = false, // the consumers will not be able to provision a missing queue
          CanConsumerCreateTopic = false, // the consumers will not be able to provision a missing topic
          CanConsumerCreateSubscription = true, // but the consumers will add the missing subscription if needed
+         CanConsumerCreateSubscriptionFilter = true, // but the consumers will add the missing filter on subscription if needed
       }
 });
 ```
