@@ -24,7 +24,7 @@
                 new JsonMessageSerializer()),
             new Scenario("NativeJson",
                 new AddCommand { OperationId = Guid.NewGuid().ToString(), Left = 100, Right = 200 },
-                new NativeJson.JsonMessageSerializer()),
+                new SystemTextJson.JsonMessageSerializer()),
             new Scenario("Avro_Default",
                 new Sample.Serialization.MessagesAvro.AddCommand { OperationId = Guid.NewGuid().ToString(), Left = 100, Right = 200 },
                 new AvroMessageSerializer(NullLoggerFactory.Instance)),

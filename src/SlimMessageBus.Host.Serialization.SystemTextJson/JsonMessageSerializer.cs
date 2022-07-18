@@ -2,7 +2,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace SlimMessageBus.Host.Serialization.NativeJson
+namespace SlimMessageBus.Host.Serialization.SystemTextJson
 {
     public class JsonMessageSerializer : IMessageSerializer
     {

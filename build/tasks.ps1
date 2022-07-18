@@ -18,7 +18,8 @@ $projects = @(
 	"SlimMessageBus.Host.Serialization", 
 
 	"SlimMessageBus.Host.Serialization.Hybrid", 
-	"SlimMessageBus.Host.Serialization.Json", 
+	"SlimMessageBus.Host.Serialization.Json",
+	"SlimMessageBus.Host.Serialization.SystemTextJson",
 	"SlimMessageBus.Host.Serialization.Avro", 
 	"SlimMessageBus.Host.Serialization.GoogleProtobuf", 
 
