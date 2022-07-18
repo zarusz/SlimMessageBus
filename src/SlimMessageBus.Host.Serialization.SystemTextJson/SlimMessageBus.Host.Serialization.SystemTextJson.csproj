@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <Import Project="../Host.Serialization.Properties.xml" />
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <Description>Plugin for SlimMessageBus that provides JSON serialization based on the native System.Text.Json library</Description>
+        <PackageTags>SlimMessageBus JSON Serialization messaging</PackageTags>
+        <PackageIcon>icon.png</PackageIcon>
+        <EnableNETAnalyzers>true</EnableNETAnalyzers>
+        <LangVersion>latest</LangVersion>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.0.0" />
+        <PackageReference Include="System.Text.Json" Version="6.0.5" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\SlimMessageBus.Host.Serialization\SlimMessageBus.Host.Serialization.csproj" />
+    </ItemGroup>
+    
+    <ItemGroup>
+      <None Include="..\..\icon.png">
+        <Pack>True</Pack>
+        <PackagePath></PackagePath>
+        <Link>icon.png</Link>
+      </None>
+    </ItemGroup>
+
+</Project>

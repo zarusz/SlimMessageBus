@@ -49,6 +49,14 @@ var jsonSerializerSettings = new Newtonsoft.Json.JsonSerializerSettings
 var jsonSerializer = new JsonMessageSerializer(jsonSerializerSettings, Encoding.UTF8)
 ```
 
+## Native Json
+
+Nuget package: [SlimMessageBus.Host.Serialization.NativeJson](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.NativeJson)
+
+The Json plugin brings in JSON serialization using the [System.Text.Json](https://www.nuget.org/packages/System.Text.Json) library.
+
+To use it install the nuget package `SlimMessageBus.Host.Serialization.NativeJson` and then configure the bus similar to Json above.
+
 ## Avro
 
 Nuget package: [SlimMessageBus.Host.Serialization.Avro](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Avro)
