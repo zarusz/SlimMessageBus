@@ -312,7 +312,7 @@ If you want to disable it:
 ```cs
 mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString)
 {
-   TopologyProvisioning = new ServiceBusTopologyProvisioningSettings
+   TopologyProvisioning = new ServiceBusTopologySettings
    {
       Enabled = false
    }
@@ -326,7 +326,7 @@ The bus wide default creation options can be set in this way:
 ```cs
 mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString)
 {
-   TopologyProvisioning = new ServiceBusTopologyProvisioningSettings
+   TopologyProvisioning = new ServiceBusTopologySettings
    {
       CreateQueueOptions = (options) =>
       {
@@ -343,7 +343,10 @@ mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnection
       CreateSubscriptionOptions = (options) =>
       {
          options.LockDuration = TimeSpan.FromMinutes(5);
-      }
+      },
+      CreateSubscriptionFilterOptions = (options) => {
+
+      },
    }
 });
 ```
@@ -380,7 +383,7 @@ Also, it might be desired that only producers or consumers can create the respec
 ```cs
 mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString)
 {
-      TopologyProvisioning = new ServiceBusTopologyProvisioningSettings
+      TopologyProvisioning = new ServiceBusTopologySettings
       {
          Enabled = true,
          CanProducerCreateQueue = true, // only declared producers will be used to provision queues
@@ -388,6 +391,7 @@ mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnection
          CanConsumerCreateQueue = false, // the consumers will not be able to provision a missing queue
          CanConsumerCreateTopic = false, // the consumers will not be able to provision a missing topic
          CanConsumerCreateSubscription = true, // but the consumers will add the missing subscription if needed
+         CanConsumerCreateSubscriptionFilter = true, // but the consumers will add the missing filter on subscription if needed
       }
 });
 ```

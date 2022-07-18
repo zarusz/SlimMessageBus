@@ -40,9 +40,9 @@ public class ServiceBusMessageBusSettings
     public int? MaxConcurrentSessions { get; set; }
 
     /// <summary>
-    /// Indicates wheather SMB can create quues, topics and subscriptions if they don't exist.
+    /// Settings for auto creation of queues, topics, subscriptions and rules if they don't exist.
     /// </summary>
-    public ServiceBusTopologyProvisioningSettings TopologyProvisioning { get; set; }
+    public ServiceBusTopologySettings TopologyProvisioning { get; set; }
 
     public ServiceBusMessageBusSettings()
     {
@@ -67,7 +67,7 @@ public class ServiceBusMessageBusSettings
                 : client.CreateSessionProcessor(p.Path, options);
         };
 
-        TopologyProvisioning = new ServiceBusTopologyProvisioningSettings();
+        TopologyProvisioning = new ServiceBusTopologySettings();
     }
 
     public ServiceBusMessageBusSettings(string serviceBusConnectionString)
