@@ -10,13 +10,13 @@ using System.Linq;
 
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
 [MemoryDiagnoser]
-public class PubSubBenchmark : IDisposable
+public class ReqRespBenchmark : IDisposable
 {
     private ServiceProvider svp;
     private TestResult testResult;
     private IMessageBus bus;
 
-    public PubSubBenchmark()
+    public ReqRespBenchmark()
     {
         var services = new ServiceCollection();
 
@@ -24,12 +24,12 @@ public class PubSubBenchmark : IDisposable
         {
             mbb
                 .WithProviderMemory()
-                .Produce<SomeEvent>(x => x.DefaultPath(x.MessageType.Name))
-                .Consume<SomeEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<SomeEventConsumer>());
+                .Produce<SomeRequest>(x => x.DefaultPath(x.MessageType.Name))
+                .Handle<SomeRequest, SomeResponse>(x => x.Topic(x.MessageType.Name).WithHandler<SomeRequestHandler>());
         });
 
         services.AddSingleton<TestResult>();
-        services.AddTransient<SomeEventConsumer>();
+        services.AddTransient<SomeRequestHandler>();
 
         svp = services.BuildServiceProvider();
 
@@ -45,37 +45,39 @@ public class PubSubBenchmark : IDisposable
             svp = null;
         }
     }
-
+  
     [Benchmark]
     [Arguments(100)]
     [Arguments(1000)]
     [Arguments(10000)]
     [Arguments(100000)]
     [Arguments(1000000)]
-    public async Task PubSub(int messageCount)
+    public async Task RequestResponse(int messageCount)
     {
-        var publishTasks = Enumerable.Range(0, messageCount).Select(x => bus.Publish(new SomeEvent(DateTimeOffset.Now, x)));
+        var sendRequests = Enumerable.Range(0, messageCount).Select(x => bus.Send(new SomeRequest(DateTimeOffset.Now, x)));
 
-        await Task.WhenAll(publishTasks);
+        await Task.WhenAll(sendRequests);
 
         while (testResult.ArrivedCount < messageCount)
         {
             await Task.Yield();
         }
-    }  
+    }
 }
 
-public record SomeEvent(DateTimeOffset Timestamp, long Id);
+public record SomeRequest(DateTimeOffset Timestamp, long Id) : IRequestMessage<SomeResponse>;
 
-public class SomeEventConsumer : IConsumer<SomeEvent>
+public record SomeResponse(DateTimeOffset Timestamp, long Id);
+
+public class SomeRequestHandler : IRequestHandler<SomeRequest, SomeResponse>
 {
     private readonly TestResult testResult;
 
-    public SomeEventConsumer(TestResult testResult) => this.testResult = testResult;
+    public SomeRequestHandler(TestResult testResult) => this.testResult = testResult;
 
-    public Task OnHandle(SomeEvent message, string path)
+    public Task<SomeResponse> OnHandle(SomeRequest request, string path)
     {
         testResult.OnArrived();
-        return Task.CompletedTask;
+        return Task.FromResult(new SomeResponse(DateTimeOffset.Now, request.Id));
     }
 }
