@@ -33,6 +33,11 @@ public class MemoryMessageBusTests
 
         _settings.DependencyResolver = _dependencyResolverMock.Object;
         _settings.Serializer = _messageSerializerMock.Object;
+        _settings.RequestResponse ??= new RequestResponseSettings
+        {
+            Timeout = TimeSpan.FromHours(1),
+            Path = "responses"
+        };
 
         _messageSerializerMock
             .Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<object>()))
@@ -44,19 +49,17 @@ public class MemoryMessageBusTests
         _subject = new Lazy<MemoryMessageBus>(() => new MemoryMessageBus(_settings, _providerSettings));
     }
 
-    private static ProducerSettings Producer(Type messageType, string defaultTopic)
+    private static ProducerSettings Producer(Type messageType, string defaultTopic) => new()
     {
-        return new ProducerSettings
-        {
-            MessageType = messageType,
-            DefaultPath = defaultTopic
-        };
-    }
+        MessageType = messageType,
+        DefaultPath = defaultTopic
+    };
 
-    private static ConsumerSettings Consumer(Type messageType, string topic, Type consumerType)
-    {
-        return new ConsumerBuilder<object>(new MessageBusSettings(), messageType).Topic(topic).WithConsumer(consumerType).ConsumerSettings;
-    }
+    private static ConsumerSettings Consumer(Type messageType, string topic, Type consumerType) 
+        => new ConsumerBuilder<object>(new MessageBusSettings(), messageType).Topic(topic).WithConsumer(consumerType).ConsumerSettings;
+
+    private static ConsumerSettings Handler<TRequest, TResponse, THandler>(string topic) where THandler : IRequestHandler<TRequest, TResponse>
+        => new HandlerBuilder<TRequest, TResponse>(new MessageBusSettings(), typeof(TRequest)).Topic(topic).WithHandler<THandler>().ConsumerSettings;
 
     [Fact]
     public void When_Create_Given_MessageSerializationDisabled_And_NoSerializerProvided_Then_NoException()
@@ -111,7 +114,7 @@ public class MemoryMessageBusTests
 
         _providerSettings.EnableMessageSerialization = enableMessageSerialization;
 
-        var m = new SomeMessageA();
+        var m = new SomeMessageA(Guid.NewGuid());
 
         // act
         await _subject.Value.Publish(m);
@@ -154,7 +157,7 @@ public class MemoryMessageBusTests
 
         _providerSettings.EnableMessageSerialization = false;
 
-        var m = new SomeMessageA();
+        var m = new SomeMessageA(Guid.NewGuid());
 
         // act
         await _subject.Value.Publish(m);
@@ -196,7 +199,7 @@ public class MemoryMessageBusTests
 
         _providerSettings.EnableMessageSerialization = false;
 
-        var m = new SomeMessageA();
+        var m = new SomeMessageA(Guid.NewGuid());
 
         // act
         await _subject.Value.Publish(m);
@@ -240,7 +243,7 @@ public class MemoryMessageBusTests
 
         _providerSettings.EnableMessageSerialization = false;
 
-        var m = new SomeMessageA();
+        var m = new SomeMessageA(Guid.NewGuid());
 
         // set current scope
         MessageScope.Current = currentScopeDependencyResolverMock.Object;
@@ -269,52 +272,102 @@ public class MemoryMessageBusTests
         consumerMock.Verify(x => x.Dispose(), Times.Once);
         consumerMock.VerifyNoOtherCalls();
     }
-}
 
-public class SomeMessageA
-{
-    public Guid Value { get; set; }
-
-    #region Equality members
-
-    protected bool Equals(SomeMessageA other)
+    [Fact]
+    public async Task When_Publish_Given_TwoConsumersOnSameTopic_Then_BothAreInvoked()
     {
-        return Value.Equals(other.Value);
+        var consumer1Mock = new Mock<SomeMessageAConsumer>();
+        var consumer2Mock = new Mock<SomeMessageAConsumer2>();
+
+        _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageAConsumer))).Returns(() => consumer1Mock.Object);
+        _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageAConsumer2))).Returns(() => consumer2Mock.Object);
+
+        const string topic = "topic-a";
+
+        _settings.Producers.Add(Producer(typeof(SomeMessageA), topic));
+
+        var consumer1Settings = Consumer(typeof(SomeMessageA), topic, typeof(SomeMessageAConsumer));
+        var consumer2Settings = Consumer(typeof(SomeMessageA), topic, typeof(SomeMessageAConsumer2));
+
+        _settings.Consumers.Add(consumer1Settings);
+        _settings.Consumers.Add(consumer2Settings);
+
+        var m = new SomeMessageA(Guid.NewGuid());
+
+        // act
+        await _subject.Value.Publish(m);
+
+        // assert
+
+        // current scope is not changed
+        _dependencyResolverMock.Verify(x => x.Resolve(typeof(ILoggerFactory)), Times.Once);
+        _dependencyResolverMock.Verify(x => x.CreateScope(), Times.Never);
+        _dependencyResolverMock.Verify(x => x.Resolve(typeof(SomeMessageAConsumer)), Times.Once);
+        _dependencyResolverMock.Verify(x => x.Resolve(typeof(SomeMessageAConsumer2)), Times.Once);
+        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IProducerInterceptor<SomeMessageA>>)), Times.Once);
+        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IPublishInterceptor<SomeMessageA>>)), Times.Once);
+        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IConsumerInterceptor<SomeMessageA>>)), Times.Once);
+        _dependencyResolverMock.VerifyNoOtherCalls();
+
+        consumer1Mock.Verify(x => x.OnHandle(m, topic), Times.Once);
+        consumer1Mock.VerifyNoOtherCalls();
+
+        consumer2Mock.Verify(x => x.OnHandle(m, topic), Times.Once);
+        consumer2Mock.VerifyNoOtherCalls();
     }
 
-    public override bool Equals(object obj)
+    [Fact]
+    public async Task When_Send_Given_AConsumersAndHandlerOnSameTopic_Then_BothAreInvokedAndHandlerResponseIsUsed()
     {
-        if (ReferenceEquals(null, obj)) return false;
-        if (ReferenceEquals(this, obj)) return true;
-        if (obj.GetType() != this.GetType()) return false;
-        return Equals((SomeMessageA)obj);
+        const string topic = "topic-a";
+
+        var m = new SomeRequest(Guid.NewGuid());
+
+        var consumer1Mock = new Mock<SomeRequestConsumer>();
+        consumer1Mock.Setup(x => x.OnHandle(m, topic)).CallBase();
+
+        var consumer2Mock = new Mock<SomeRequestHandler>();
+        consumer2Mock.Setup(x => x.OnHandle(m, topic)).CallBase();
+
+        _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeRequestConsumer))).Returns(() => consumer1Mock.Object);
+        _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeRequestHandler))).Returns(() => consumer2Mock.Object);
+
+        _settings.Producers.Add(Producer(typeof(SomeRequest), topic));
+
+        var consumer1Settings = Consumer(typeof(SomeRequest), topic, typeof(SomeRequestConsumer));
+        var consumer2Settings = Handler<SomeRequest, SomeResponse, SomeRequestHandler>(topic);
+
+        _settings.Consumers.Add(consumer1Settings);
+        _settings.Consumers.Add(consumer2Settings);
+
+        // act
+        var response = await _subject.Value.Send(m);
+
+        // assert
+        response.Should().NotBeNull();
+
+        // current scope is not changed
+        _dependencyResolverMock.Verify(x => x.Resolve(typeof(ILoggerFactory)), Times.Once);
+        _dependencyResolverMock.Verify(x => x.CreateScope(), Times.Never);
+        _dependencyResolverMock.Verify(x => x.Resolve(typeof(SomeRequestConsumer)), Times.Once);
+        _dependencyResolverMock.Verify(x => x.Resolve(typeof(SomeRequestHandler)), Times.Once);
+        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IProducerInterceptor<SomeRequest>>)), Times.Once);
+        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<ISendInterceptor<SomeRequest, SomeResponse>>)), Times.Once);
+        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IConsumerInterceptor<SomeRequest>>)), Times.Once);
+        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IRequestHandlerInterceptor<SomeRequest, SomeResponse>>)), Times.Once);
+        _dependencyResolverMock.VerifyNoOtherCalls();
+
+        consumer1Mock.Verify(x => x.OnHandle(m, topic), Times.Once);
+        consumer1Mock.VerifyNoOtherCalls();
+
+        consumer2Mock.Verify(x => x.OnHandle(m, topic), Times.Once);
+        consumer2Mock.VerifyNoOtherCalls();
     }
-
-    public override int GetHashCode() => Value.GetHashCode();
-
-    #endregion
 }
 
-public class SomeMessageB
-{
-    public Guid Value { get; set; }
+public record SomeMessageA(Guid Value);
 
-    #region Equality members
-
-    protected bool Equals(SomeMessageB other) => Value.Equals(other.Value);
-
-    public override bool Equals(object obj)
-    {
-        if (ReferenceEquals(null, obj)) return false;
-        if (ReferenceEquals(this, obj)) return true;
-        if (obj.GetType() != this.GetType()) return false;
-        return Equals((SomeMessageB)obj);
-    }
-
-    public override int GetHashCode() => Value.GetHashCode();
-
-    #endregion
-}
+public record SomeMessageB(Guid Value);
 
 public class SomeMessageAConsumer : IConsumer<SomeMessageA>, IDisposable
 {
@@ -334,4 +387,17 @@ public class SomeMessageAConsumer2 : IConsumer<SomeMessageA>
 public class SomeMessageBConsumer : IConsumer<SomeMessageB>
 {
     public virtual Task OnHandle(SomeMessageB message, string name) => Task.CompletedTask;
+}
+
+public record SomeRequest(Guid Id) : IRequestMessage<SomeResponse>;
+public record SomeResponse(Guid Id);
+
+public class SomeRequestHandler : IRequestHandler<SomeRequest, SomeResponse>
+{
+    public virtual Task<SomeResponse> OnHandle(SomeRequest request, string path) => Task.FromResult(new SomeResponse(request.Id));
+}
+
+public class SomeRequestConsumer : IConsumer<SomeRequest>
+{
+    public virtual Task OnHandle(SomeRequest message, string path) => Task.CompletedTask;
 }
