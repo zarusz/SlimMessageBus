@@ -1,6 +1,8 @@
 ﻿namespace SlimMessageBus.Host.Test
 {
     using System;
+    using System.Collections.Generic;
+    using System.Linq;
     using System.Threading;
     using Microsoft.Extensions.Logging.Abstractions;
     using Moq;
@@ -54,7 +56,7 @@
             _subject.CleanPendingRequests();
 
             // assert
-            _store.Verify(x => x.Remove("r1"), Times.Once);
+            _store.Verify(x => x.RemoveAll(It.Is((IEnumerable<string> y) => y.Contains("r1"))), Times.Once);
             _timeoutCallback.Verify(x => x("request1"), Times.Once);
         }
 

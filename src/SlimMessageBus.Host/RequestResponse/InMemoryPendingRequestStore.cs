@@ -10,8 +10,8 @@ namespace SlimMessageBus.Host
     /// </summary>
     public class InMemoryPendingRequestStore : IPendingRequestStore
     {
-        private readonly object _itemsLock = new object();
-        private readonly IDictionary<string, PendingRequestState> _items = new Dictionary<string, PendingRequestState>();
+        private readonly object _itemsLock = new();
+        private readonly Dictionary<string, PendingRequestState> _items = new();
 
         #region Implementation of IPendingRequestsStore
 
@@ -30,6 +30,17 @@ namespace SlimMessageBus.Host
             lock (_itemsLock)
             {
                 return _items.Remove(id);
+            }
+        }
+
+        public void RemoveAll(IEnumerable<string> ids)
+        {
+            lock (_itemsLock)
+            {
+                foreach (var id in ids)
+                {
+                    _items.Remove(id);
+                }
             }
         }
 

@@ -1,6 +1,7 @@
 ﻿namespace SlimMessageBus.Host
 {
     using System;
+    using System.Linq;
     using System.Threading;
     using Microsoft.Extensions.Logging;
 
@@ -12,7 +13,7 @@
         private readonly ILogger _logger;
 
         private readonly Timer _timer;
-        private readonly object _timerSync = new object();
+        private readonly object _timerSync = new();
         private readonly TimeSpan _timerInterval;
 
         private readonly Func<DateTimeOffset> _timeProvider;
@@ -92,12 +93,13 @@
                     ? requestState.TaskCompletionSource.TrySetCanceled(requestState.CancellationToken)
                     : requestState.TaskCompletionSource.TrySetCanceled();
 
-                if (Store.Remove(requestState.Id) && canceled)
+                if (canceled)
                 {
                     _logger.LogDebug("Pending request timed-out: {0}, now: {1}", requestState, now);
                     _onRequestTimeout(requestState.Request);
                 }
             }
+            Store.RemoveAll(requestsToCancel.Select(x => x.Id));
         }
     }
 }

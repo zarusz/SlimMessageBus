@@ -13,8 +13,8 @@ using System.Linq;
 public class ReqRespBenchmark : IDisposable
 {
     private ServiceProvider svp;
-    private TestResult testResult;
-    private IMessageBus bus;
+    private readonly TestResult testResult;
+    private readonly IMessageBus bus;
 
     public ReqRespBenchmark()
     {
@@ -24,7 +24,7 @@ public class ReqRespBenchmark : IDisposable
         {
             mbb
                 .WithProviderMemory()
-                .Produce<SomeRequest>(x => x.DefaultPath(x.MessageType.Name))
+                .Produce<SomeRequest>(x => x.DefaultTopic(x.MessageType.Name))
                 .Handle<SomeRequest, SomeResponse>(x => x.Topic(x.MessageType.Name).WithHandler<SomeRequestHandler>());
         });
 
