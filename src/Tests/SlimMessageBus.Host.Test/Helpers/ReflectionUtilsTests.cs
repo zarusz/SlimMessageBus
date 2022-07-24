@@ -37,7 +37,7 @@ public class ReflectionUtilsTests
         consumerMock.Setup(x => x.OnHandle(message, path)).Returns(Task.CompletedTask);
 
         // act
-        var callAsyncMethodFunc = ReflectionUtils.GenerateAsyncMethodCallLambda(consumerOnHandleMethodInfo, instanceType, typeof(SomeMessage), typeof(string));
+        var callAsyncMethodFunc = ReflectionUtils.GenerateAsyncMethodCallFunc2(consumerOnHandleMethodInfo, instanceType, typeof(SomeMessage), typeof(string));
         
         await callAsyncMethodFunc(consumerMock.Object, message, path);
 

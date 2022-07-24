@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using SlimMessageBus.Host.MsDependencyInjection;
 using System;
 using System.Linq;
+using System.Reflection;
 
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
 [MemoryDiagnoser]
@@ -24,8 +25,9 @@ public class ReqRespBenchmark : IDisposable
         {
             mbb
                 .WithProviderMemory()
-                .Produce<SomeRequest>(x => x.DefaultTopic(x.MessageType.Name))
-                .Handle<SomeRequest, SomeResponse>(x => x.Topic(x.MessageType.Name).WithHandler<SomeRequestHandler>());
+                .AutoDeclareFrom(Assembly.GetExecutingAssembly());
+                //.Produce<SomeRequest>(x => x.DefaultTopic(x.MessageType.Name))
+                //.Handle<SomeRequest, SomeResponse>(x => x.Topic(x.MessageType.Name).WithHandler<SomeRequestHandler>());
         });
 
         services.AddSingleton<TestResult>();

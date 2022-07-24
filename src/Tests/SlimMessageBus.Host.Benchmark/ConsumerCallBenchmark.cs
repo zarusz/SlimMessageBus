@@ -36,7 +36,7 @@ public class CallConsumerBenchmark
                 new Scenario("CompiledExpression",
                     message,
                     consumer,
-                    ReflectionUtils.GenerateAsyncMethodCallLambda(onHandleMethodInfo, typeof(SomeMessageConsumer), typeof(SomeMessage), typeof(string)))
+                    ReflectionUtils.GenerateAsyncMethodCallFunc2(onHandleMethodInfo, typeof(SomeMessageConsumer), typeof(SomeMessage), typeof(string)))
             };
         }
     }

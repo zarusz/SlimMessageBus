@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using SlimMessageBus.Host.MsDependencyInjection;
 using System;
 using System.Linq;
+using System.Reflection;
 
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
 [MemoryDiagnoser]
@@ -24,8 +25,9 @@ public class PubSubBenchmark : IDisposable
         {
             mbb
                 .WithProviderMemory()
-                .Produce<SomeEvent>(x => x.DefaultPath(x.MessageType.Name))
-                .Consume<SomeEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<SomeEventConsumer>());
+                .AutoDeclareFrom(Assembly.GetExecutingAssembly());
+                //.Produce<SomeEvent>(x => x.DefaultPath(x.MessageType.Name))
+                //.Consume<SomeEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<SomeEventConsumer>());
         });
 
         services.AddSingleton<TestResult>();

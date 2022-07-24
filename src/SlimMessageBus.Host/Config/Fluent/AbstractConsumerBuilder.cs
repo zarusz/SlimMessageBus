@@ -47,29 +47,33 @@ namespace SlimMessageBus.Host.Config
 
             methodName ??= nameof(IConsumer<object>.OnHandle);
 
-            // ToDo: Convert into compiled expression
-
             /// See <see cref="IConsumer{TMessage}.OnHandle(TMessage, string)"/> and <see cref="IRequestHandler{TRequest, TResponse}.OnHandle(TRequest, string)"/> 
-            var numArgs = 2;
+            var methodArgumentTypes = new[] { consumerInvokerSettings.MessageType, typeof(string) };
             // try to see if two param method exists
-            var consumerOnHandleMethod = consumerInvokerSettings.ConsumerType.GetMethod(methodName, new[] { consumerInvokerSettings.MessageType, typeof(string) });
-            if (consumerOnHandleMethod == null)
+            var consumerOnHandleMethod = consumerInvokerSettings.ConsumerType.GetMethod(methodName, methodArgumentTypes);
+            if (consumerOnHandleMethod != null)
+            {
+                var method = ReflectionUtils.GenerateAsyncMethodCallFunc2(consumerOnHandleMethod, consumerInvokerSettings.ConsumerType, consumerInvokerSettings.MessageType, typeof(string));
+                consumerInvokerSettings.ConsumerMethod = (consumer, message, path) => method(consumer, message, path);
+            }
+            else
             {
                 // try to see if one param method exists
-                numArgs = 1;
-                consumerOnHandleMethod = consumerInvokerSettings.ConsumerType.GetMethod(methodName, new[] { consumerInvokerSettings.MessageType });
-
-                Assert.IsNotNull(consumerOnHandleMethod,
-                    () => new ConfigurationMessageBusException($"Consumer type {consumerInvokerSettings.ConsumerType} validation error: the method {methodName} with parameters of type {consumerInvokerSettings.MessageType} and {typeof(string)} was not found."));
+                methodArgumentTypes = new[] { consumerInvokerSettings.MessageType };
+                consumerOnHandleMethod = consumerInvokerSettings.ConsumerType.GetMethod(methodName, methodArgumentTypes);
+                if (consumerOnHandleMethod != null)
+                {
+                    var method = ReflectionUtils.GenerateAsyncMethodCallFunc1(consumerOnHandleMethod, consumerInvokerSettings.ConsumerType, consumerInvokerSettings.MessageType);
+                    consumerInvokerSettings.ConsumerMethod = (consumer, message, path) => method(consumer, message);
+                }
             }
+
+            Assert.IsNotNull(consumerOnHandleMethod,
+                () => new ConfigurationMessageBusException($"Consumer type {consumerInvokerSettings.ConsumerType} validation error: the method {methodName} with parameters of type {consumerInvokerSettings.MessageType} and {typeof(string)} was not found."));
 
             // ensure the method returns a Task or Task<T>
             Assert.IsTrue(typeof(Task).IsAssignableFrom(consumerOnHandleMethod.ReturnType),
                 () => new ConfigurationMessageBusException($"Consumer type {consumerInvokerSettings.ConsumerType} validation error: the response type of method {methodName} must return {typeof(Task)}"));
-
-            consumerInvokerSettings.ConsumerMethod = numArgs == 2
-                ? (consumer, message, path) => (Task)consumerOnHandleMethod.Invoke(consumer, new[] { message, path })
-                : (consumer, message, path) => (Task)consumerOnHandleMethod.Invoke(consumer, new[] { message });
         }
     }
 }

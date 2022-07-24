@@ -9,6 +9,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
   - [Auto Declaration](#auto-declaration)
 - [Lifecycle](#lifecycle)
   - [Blocking Publish](#blocking-publish)
+  - [Error Handling](#error-handling)
   - [Per-Message DI scope](#per-message-di-scope)
 - [Benchmarks](#benchmarks)
   
@@ -120,9 +121,16 @@ ToDo: In the future we will want to expose a setting to make the `Publish<T>()` 
 
 > In contrast to MediatR, having the `Publish<T>` blocking, allows us to avoid having to use `Send<T, R>` and have the developer to use `Unit` or `VoidResult`.
 
+### Error Handling
+
+The exceptions raised in an handler (`IRequestHandler<T, R>`) are bubbled up to the sender (`await bus.Send(request)`).
+Likewise, the exceptions raised in an consumer (`IConsumer<T>`) are also bubbled up to the publisher (`await bus.Publish<T>(message)`).
+
+The [interceptors](intro.md#interceptors) are able to handle the error before it reaches back to the publisher or sender.
+
 ### Per-Message DI scope
 
-> Unlike stated for the [Introduction](intro.md) the memory bus has per-message scoped disabled by default. However, the memory bus consumer/handler would join the already ongoing DI scope. This is desired in scenarios where an external message is being handled as part of the unit of work (Kafka/ASB, etc) or an API HTTP request is being handled - the memory bus consumer/handler will be looked up in the ongoing/current DI scope.
+Unlike stated for the [Introduction](intro.md) the memory bus has per-message scoped disabled by default. However, the memory bus consumer/handler would join the already ongoing DI scope. This is desired in scenarios where an external message is being handled as part of the unit of work (Kafka/ASB, etc) or an API HTTP request is being handled - the memory bus consumer/handler will be looked up in the ongoing/current DI scope.
 
 ## Benchmarks
 
@@ -136,24 +144,24 @@ The project [`SlimMessageBus.Host.Memory.Benchmark`](/src/Tests/SlimMessageBus.H
 Pub/Sub scenario results:
 
 | Method | messageCount |           Mean |        Error |       StdDev |       Gen 0 |     Gen 1 |     Gen 2 |  Allocated |
-| ------ | ------------ | -------------: | -----------: | -----------: | ----------: | --------: | --------: | ---------: |
-| PubSub | 100          |       114.7 us |      1.75 us |      1.36 us |     13.3057 |         - |         - |      55 KB |
-| PubSub | 1000         |     1,181.5 us |      4.57 us |      3.81 us |    130.8594 |         - |         - |     540 KB |
-| PubSub | 10000        |    11,891.2 us |    116.28 us |    108.77 us |   1296.8750 |   62.5000 |   31.2500 |   5,491 KB |
-| PubSub | 100000       |   117,676.6 us |  1,641.94 us |  1,455.54 us |  12800.0000 |  600.0000 |  600.0000 |  54,394 KB |
-| PubSub | 1000000      | 1,204,072.3 us | 17,743.36 us | 18,221.12 us | 128000.0000 | 3000.0000 | 3000.0000 | 539,825 KB |
+| ------ | -----------: | -------------: | -----------: | -----------: | ----------: | --------: | --------: | ---------: |
+| PubSub |          100 |       114.7 us |      1.75 us |      1.36 us |     13.3057 |         - |         - |      55 KB |
+| PubSub |         1000 |     1,181.5 us |      4.57 us |      3.81 us |    130.8594 |         - |         - |     540 KB |
+| PubSub |        10000 |    11,891.2 us |    116.28 us |    108.77 us |   1296.8750 |   62.5000 |   31.2500 |   5,491 KB |
+| PubSub |       100000 |   117,676.6 us |  1,641.94 us |  1,455.54 us |  12800.0000 |  600.0000 |  600.0000 |  54,394 KB |
+| PubSub |      1000000 | 1,204,072.3 us | 17,743.36 us | 18,221.12 us | 128000.0000 | 3000.0000 | 3000.0000 | 539,825 KB |
 
 > Pub/Sub rate is 830515 messages/s on the tested machine.
 
 Request/Response scenario results:
 
 | Method          | messageCount |           Mean |        Error |       StdDev |       Gen 0 |      Gen 1 |     Gen 2 |    Allocated |
-| --------------- | ------------ | -------------: | -----------: | -----------: | ----------: | ---------: | --------: | -----------: |
-| RequestResponse | 100          |       215.6 us |      2.78 us |      2.46 us |     28.0762 |     0.2441 |         - |       115 KB |
-| RequestResponse | 1000         |     2,119.3 us |     30.73 us |     25.66 us |    277.3438 |    35.1563 |         - |     1,141 KB |
-| RequestResponse | 10000        |    24,601.0 us |    221.66 us |    185.10 us |   2000.0000 |   968.7500 |  468.7500 |    11,507 KB |
-| RequestResponse | 100000       |   278,643.3 us |  5,465.46 us |  8,509.06 us |  19000.0000 |  6000.0000 | 2000.0000 |   114,559 KB |
-| RequestResponse | 1000000      | 2,753,348.9 us | 25,449.35 us | 23,805.34 us | 186000.0000 | 51000.0000 | 6000.0000 | 1,141,392 KB |
+| --------------- | -----------: | -------------: | -----------: | -----------: | ----------: | ---------: | --------: | -----------: |
+| RequestResponse |          100 |       215.6 us |      2.78 us |      2.46 us |     28.0762 |     0.2441 |         - |       115 KB |
+| RequestResponse |         1000 |     2,119.3 us |     30.73 us |     25.66 us |    277.3438 |    35.1563 |         - |     1,141 KB |
+| RequestResponse |        10000 |    24,601.0 us |    221.66 us |    185.10 us |   2000.0000 |   968.7500 |  468.7500 |    11,507 KB |
+| RequestResponse |       100000 |   278,643.3 us |  5,465.46 us |  8,509.06 us |  19000.0000 |  6000.0000 | 2000.0000 |   114,559 KB |
+| RequestResponse |      1000000 | 2,753,348.9 us | 25,449.35 us | 23,805.34 us | 186000.0000 | 51000.0000 | 6000.0000 | 1,141,392 KB |
 
 > Request/Response rate is 363194 messages/s on the tested machine.
 
