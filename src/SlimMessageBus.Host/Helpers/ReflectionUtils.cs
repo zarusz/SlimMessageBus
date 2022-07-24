@@ -1,23 +1,36 @@
 ﻿namespace SlimMessageBus.Host
 {
     using System;
+    using System.Linq;
     using System.Linq.Expressions;
     using System.Reflection;
+    using System.Threading.Tasks;
 
     public static class ReflectionUtils
     {
-        public static Func<object, object> GenerateGetterLambda(PropertyInfo property)
+        public static Func<object, object> GenerateGetterFunc(PropertyInfo property)
         {
-            // Define our instance parameter, which will be the input of the Func
-            var objParameterExpr = Expression.Parameter(typeof(object), "instance");
-            // 1. Cast the instance to the correct type
-            var instanceExpr = Expression.TypeAs(objParameterExpr, property.DeclaringType);
-            // 2. Call the getter and retrieve the value of the property
-            var propertyExpr = Expression.Property(instanceExpr, property);
-            // 3. Convert the property's value to object
+            var objInstanceExpr = Expression.Parameter(typeof(object), "instance");
+            var typedInstanceExpr = Expression.TypeAs(objInstanceExpr, property.DeclaringType);
+
+            var propertyExpr = Expression.Property(typedInstanceExpr, property);
             var propertyObjExpr = Expression.Convert(propertyExpr, typeof(object));
-            // Create a lambda expression of the latest call & compile it
-            return Expression.Lambda<Func<object, object>>(propertyObjExpr, objParameterExpr).Compile();
+
+            return Expression.Lambda<Func<object, object>>(propertyObjExpr, objInstanceExpr).Compile();
+        }
+
+        public static Func<object, object, object, Task> GenerateAsyncMethodCallLambda(MethodInfo method, Type instanceType, params Type[] argumentTypes)
+        {
+            var objInstanceExpr = Expression.Parameter(typeof(object), "instance");
+            var typedInstanceExpr = Expression.TypeAs(objInstanceExpr, instanceType);
+
+            var objArguments = argumentTypes.Select((x, i) => Expression.Parameter(typeof(object), $"arg{i + 1}")).ToList();
+            var typedArgumentsExpr = objArguments.Select((x, i) => Expression.TypeAs(x, argumentTypes[i])).ToList();
+
+            var methodResultExpr = Expression.Call(typedInstanceExpr, method, typedArgumentsExpr);
+            var methodResultAsTaskExpr = Expression.Convert(methodResultExpr, typeof(Task));
+
+            return Expression.Lambda<Func<object, object, object, Task>>(methodResultAsTaskExpr, new[] { objInstanceExpr }.Concat(objArguments)).Compile();
         }
     }
 }

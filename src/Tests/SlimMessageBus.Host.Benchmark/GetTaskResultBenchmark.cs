@@ -31,7 +31,7 @@ public class GetTaskResultBenchmark
                     target => taskResultPropertyInfoGetMethod.Invoke(target, null)),
                 new Scenario("CompiledExpression",
                     Task.FromResult(1),
-                    ReflectionUtils.GenerateGetterLambda(taskResultPropertyInfo))
+                    ReflectionUtils.GenerateGetterFunc(taskResultPropertyInfo))
             };
         }
     }
