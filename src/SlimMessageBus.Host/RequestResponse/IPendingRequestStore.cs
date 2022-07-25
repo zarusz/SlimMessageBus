@@ -7,6 +7,7 @@ namespace SlimMessageBus.Host
     {
         void Add(PendingRequestState requestState);
         bool Remove(string id);
+        void RemoveAll(IEnumerable<string> ids);
 
         int GetCount();
         PendingRequestState GetById(string id);

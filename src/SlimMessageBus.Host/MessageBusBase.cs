@@ -76,6 +76,11 @@ namespace SlimMessageBus.Host
         {
             ProducerSettingsByMessageType = new ProducerByMessageTypeCache<ProducerSettings>(_logger, BuildProducerByBaseMessageType());
 
+            BuildPendingRequestStore();
+        }
+
+        protected virtual void BuildPendingRequestStore()
+        {
             PendingRequestStore = new InMemoryPendingRequestStore();
             PendingRequestManager = new PendingRequestManager(PendingRequestStore, () => CurrentTime, TimeSpan.FromSeconds(1), LoggerFactory, request =>
             {
@@ -324,7 +329,10 @@ namespace SlimMessageBus.Host
             path ??= GetDefaultPath(producerSettings.MessageType, producerSettings);
 
             var messageHeaders = CreateHeaders();
-            AddMessageHeaders(messageHeaders, headers, message, producerSettings);
+            if (messageHeaders != null)
+            {
+                AddMessageHeaders(messageHeaders, headers, message, producerSettings);
+            }
 
             var resolver = currentDependencyResolver ?? Settings.DependencyResolver;
 
@@ -446,10 +454,14 @@ namespace SlimMessageBus.Host
             // generate the request guid
             var requestId = GenerateRequestId();
 
+            // ToDo: Make this optional
             var requestHeaders = CreateHeaders();
-            AddMessageHeaders(requestHeaders, headers, request, producerSettings);
-            requestHeaders.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
-            requestHeaders.SetHeader(ReqRespMessageHeaders.Expires, expires);
+            if (requestHeaders != null)
+            {
+                AddMessageHeaders(requestHeaders, headers, request, producerSettings);
+                requestHeaders.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
+                requestHeaders.SetHeader(ReqRespMessageHeaders.Expires, expires);
+            }
 
             var resolver = currentDependencyResolver ?? Settings.DependencyResolver;
 
@@ -496,7 +508,7 @@ namespace SlimMessageBus.Host
             return await SendInternal<TResponse>(request, path, requestType, responseType, producerSettings, created, expires, requestId, requestHeaders, cancellationToken);
         }
 
-        private async Task<TResponseMessage> SendInternal<TResponseMessage>(object request, string path, Type requestType, Type responseType, ProducerSettings producerSettings, DateTimeOffset created, DateTimeOffset expires, string requestId, IDictionary<string, object> requestHeaders, CancellationToken cancellationToken)
+        protected virtual async Task<TResponseMessage> SendInternal<TResponseMessage>(object request, string path, Type requestType, Type responseType, ProducerSettings producerSettings, DateTimeOffset created, DateTimeOffset expires, string requestId, IDictionary<string, object> requestHeaders, CancellationToken cancellationToken)
         {
             // record the request state
             var requestState = new PendingRequestState(requestId, request, requestType, responseType, created, expires, cancellationToken);
@@ -541,13 +553,15 @@ namespace SlimMessageBus.Host
         public virtual Task ProduceRequest(object request, IDictionary<string, object> requestHeaders, string path, ProducerSettings producerSettings)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
-            if (requestHeaders == null) throw new ArgumentNullException(nameof(requestHeaders));
             if (producerSettings == null) throw new ArgumentNullException(nameof(producerSettings));
 
             var requestPayload = Serializer.Serialize(producerSettings.MessageType, request);
 
-            requestHeaders.SetHeader(ReqRespMessageHeaders.ReplyTo, Settings.RequestResponse.Path);
-            AddMessageTypeHeader(request, requestHeaders);
+            if (requestHeaders != null)
+            {
+                requestHeaders.SetHeader(ReqRespMessageHeaders.ReplyTo, Settings.RequestResponse.Path);
+                AddMessageTypeHeader(request, requestHeaders);
+            }
 
             return ProduceToTransport(request, path, requestPayload, requestHeaders);
         }

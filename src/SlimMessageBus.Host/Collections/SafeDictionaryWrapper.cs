@@ -88,6 +88,18 @@
             }
         }
 
+        public void Mutate(Action<IDictionary<TKey, TValue>> action)
+        {
+            lock (this)
+            {
+                // allocate a new dictonary to avoid mutation while reading in another thread
+                var dict = new Dictionary<TKey, TValue>(_mutableDict);
+                action(dict);
+                _mutableDict = dict;
+                OnChanged();
+            }
+        }
+
         public TValue GetOrAdd(TKey key)
         {
             if (_valueFactory == null)

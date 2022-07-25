@@ -86,7 +86,7 @@ namespace SlimMessageBus.Host.Config
             SetupConsumerOnHandleMethod(ConsumerSettings);
 
             var taskOfResponseTypeResultPropertyInfo = typeof(Task<>).MakeGenericType(ConsumerSettings.ResponseType).GetProperty(nameof(Task<object>.Result));
-            ConsumerSettings.ConsumerMethodResult = ReflectionUtils.GenerateGetterLambda(taskOfResponseTypeResultPropertyInfo);
+            ConsumerSettings.ConsumerMethodResult = ReflectionUtils.GenerateGetterFunc(taskOfResponseTypeResultPropertyInfo);
 
             ConsumerSettings.ConsumersByMessageType.Add(MessageType, ConsumerSettings);
 

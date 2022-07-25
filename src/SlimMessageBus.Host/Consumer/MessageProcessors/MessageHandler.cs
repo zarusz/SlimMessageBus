@@ -48,9 +48,9 @@
             Exception responseException = null;
             string requestId = null;
 
-            if (hasResponse && (messageHeaders == null || !messageHeaders.TryGetHeader(ReqRespMessageHeaders.RequestId, out requestId)))
+            if (hasResponse && messageHeaders != null)
             {
-                throw new MessageBusException($"The message header {ReqRespMessageHeaders.RequestId} was not present at this time");
+                messageHeaders.TryGetHeader(ReqRespMessageHeaders.RequestId, out requestId);
             }
 
             using (var messageScope = messageBus.GetMessageScope(consumerSettings, message))
