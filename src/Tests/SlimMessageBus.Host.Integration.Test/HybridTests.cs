@@ -14,7 +14,6 @@ namespace SlimMessageBus.Host.Integration
     using SlimMessageBus.Host.Interceptor;
     using SlimMessageBus.Host.Memory;
     using SlimMessageBus.Host.MsDependencyInjection;
-    using SlimMessageBus.Host.Serialization.Json;
     using SlimMessageBus.Host.Test.Common;
     using System;
     using System.Collections.Generic;
@@ -32,6 +31,12 @@ namespace SlimMessageBus.Host.Integration
         MsDependency = 1,
         Autofac = 2,
         Unity = 3,
+    }
+
+    public enum SerializerType
+    {
+        NewtonsoftJson = 1,
+        SystemTextJson = 2
     }
 
     [Trait("Category", "Integration")]
@@ -56,6 +61,7 @@ namespace SlimMessageBus.Host.Integration
 
         private void SetupBus(
             DependencyResolverType dependencyResolverType,
+            SerializerType serializerType,
             Action<IServiceCollection> servicesBuilderForMsDI = null,
             Action<ContainerBuilder> servicesBuilderForAutofacDI = null,
             Action<IUnityContainer> servicesBuilderForUnityDI = null,
@@ -65,19 +71,20 @@ namespace SlimMessageBus.Host.Integration
         {
             if (dependencyResolverType == DependencyResolverType.MsDependency)
             {
-                SetupBusForMsDI(servicesBuilderForMsDI, addConsumersFromAssembly, addInterceptorsFromAssembly, addConfiguratorsFromAssembly);
+                SetupBusForMsDI(serializerType, servicesBuilderForMsDI, addConsumersFromAssembly, addInterceptorsFromAssembly, addConfiguratorsFromAssembly);
             }
             if (dependencyResolverType == DependencyResolverType.Autofac)
             {
-                SetupBusForAutofacDI(servicesBuilderForAutofacDI, addConsumersFromAssembly, addInterceptorsFromAssembly, addConfiguratorsFromAssembly);
+                SetupBusForAutofacDI(serializerType, servicesBuilderForAutofacDI, addConsumersFromAssembly, addInterceptorsFromAssembly, addConfiguratorsFromAssembly);
             }
             if (dependencyResolverType == DependencyResolverType.Unity)
             {
-                SetupBusForUnityDI(servicesBuilderForUnityDI, addConsumersFromAssembly, addInterceptorsFromAssembly, addConfiguratorsFromAssembly);
+                SetupBusForUnityDI(serializerType, servicesBuilderForUnityDI, addConsumersFromAssembly, addInterceptorsFromAssembly, addConfiguratorsFromAssembly);
             }
         }
 
         private void SetupBusForMsDI(
+            SerializerType serializerType,
             Action<IServiceCollection> servicesBuilderForMsDI = null,
             Assembly[] addConsumersFromAssembly = null,
             Assembly[] addInterceptorsFromAssembly = null,
@@ -86,10 +93,11 @@ namespace SlimMessageBus.Host.Integration
             var services = new ServiceCollection();
             services.AddSingleton<ILoggerFactory>(_loggerFactory);
 
-            services.AddSlimMessageBus((mbb, svp) => SetupBus(mbb),
-            addConsumersFromAssembly: addConsumersFromAssembly,
-            addInterceptorsFromAssembly: addInterceptorsFromAssembly,
-            addConfiguratorsFromAssembly: addConfiguratorsFromAssembly);
+            services.AddSlimMessageBus(
+                (mbb, svp) => SetupBus(mbb, serializerType),
+                addConsumersFromAssembly: addConsumersFromAssembly,
+                addInterceptorsFromAssembly: addInterceptorsFromAssembly,
+                addConfiguratorsFromAssembly: addConfiguratorsFromAssembly);
 
             servicesBuilderForMsDI?.Invoke(services);
 
@@ -101,6 +109,7 @@ namespace SlimMessageBus.Host.Integration
         }
 
         private void SetupBusForAutofacDI(
+            SerializerType serializerType,
             Action<ContainerBuilder> servicesBuilderForAutofacDI = null,
             Assembly[] addConsumersFromAssembly = null,
             Assembly[] addInterceptorsFromAssembly = null,
@@ -110,7 +119,7 @@ namespace SlimMessageBus.Host.Integration
             builder.RegisterInstance(_loggerFactory).As<ILoggerFactory>();
             builder.RegisterModule(new SlimMessageBusModule
             {
-                ConfigureBus = (mbb, ctx) => SetupBus(mbb),
+                ConfigureBus = (mbb, ctx) => SetupBus(mbb, serializerType),
                 AddConsumersFromAssembly = addConsumersFromAssembly,
                 AddInterceptorsFromAssembly = addInterceptorsFromAssembly,
                 AddConfiguratorsFromAssembly = addConfiguratorsFromAssembly
@@ -126,6 +135,7 @@ namespace SlimMessageBus.Host.Integration
         }
 
         private void SetupBusForUnityDI(
+            SerializerType serializerType,
             Action<IUnityContainer> servicesBuilderForUnityDI = null,
             Assembly[] addConsumersFromAssembly = null,
             Assembly[] addInterceptorsFromAssembly = null,
@@ -133,10 +143,11 @@ namespace SlimMessageBus.Host.Integration
         {
             var container = new UnityContainer();
             container.AddExtension(new LoggingExtension(_loggerFactory));
-            container.AddSlimMessageBus((mbb, svp) => SetupBus(mbb),
-            addConsumersFromAssembly: addConsumersFromAssembly,
-            addInterceptorsFromAssembly: addInterceptorsFromAssembly,
-            addConfiguratorsFromAssembly: addConfiguratorsFromAssembly);
+            container.AddSlimMessageBus(
+                (mbb, svp) => SetupBus(mbb, serializerType),
+                addConsumersFromAssembly: addConsumersFromAssembly,
+                addInterceptorsFromAssembly: addInterceptorsFromAssembly,
+                addConfiguratorsFromAssembly: addConfiguratorsFromAssembly);
 
             servicesBuilderForUnityDI?.Invoke(container);
 
@@ -180,11 +191,15 @@ namespace SlimMessageBus.Host.Integration
             }
         }
 
-        private void SetupBus(MessageBusBuilder mbb)
+        private void SetupBus(MessageBusBuilder mbb, SerializerType serializerType)
         {
-            mbb
-                .WithSerializer(new JsonMessageSerializer())
-                .WithProviderHybrid();
+            mbb.WithProviderHybrid();
+            mbb.WithSerializer(serializerType switch
+            {
+                SerializerType.NewtonsoftJson => new Host.Serialization.Json.JsonMessageSerializer(),
+                SerializerType.SystemTextJson => new Host.Serialization.SystemTextJson.JsonMessageSerializer(),
+                _ => throw new ArgumentOutOfRangeException(nameof(serializerType))
+            });
         }
 
         public record EventMark(Guid CorrelationId, string Name);
@@ -195,13 +210,15 @@ namespace SlimMessageBus.Host.Integration
         /// </summary>
         /// <returns></returns>
         [Theory]
-        [InlineData(DependencyResolverType.MsDependency)]
-        [InlineData(DependencyResolverType.Autofac)]
-        [InlineData(DependencyResolverType.Unity)]
-        public async Task When_PublishToMemoryBus_Given_InsideConsumerWithMessageScope_Then_MessageScopeIsCarriedOverToMemoryBusConsumer(DependencyResolverType dependencyResolverType)
+        [InlineData(DependencyResolverType.MsDependency, SerializerType.NewtonsoftJson)]
+        [InlineData(DependencyResolverType.MsDependency, SerializerType.SystemTextJson)]
+        [InlineData(DependencyResolverType.Autofac, SerializerType.NewtonsoftJson)]
+        [InlineData(DependencyResolverType.Unity, SerializerType.NewtonsoftJson)]
+        public async Task When_PublishToMemoryBus_Given_InsideConsumerWithMessageScope_Then_MessageScopeIsCarriedOverToMemoryBusConsumer(DependencyResolverType dependencyResolverType, SerializerType serializerType)
         {
             // arrange
             SetupBus(
+                serializerType: serializerType,
                 dependencyResolverType: dependencyResolverType,
                 addConsumersFromAssembly: new[] { typeof(InternalMessageConsumer).Assembly },
                 addInterceptorsFromAssembly: new[] { typeof(InternalMessagePublishInterceptor).Assembly },
