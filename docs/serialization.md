@@ -3,7 +3,8 @@
 Please read the [Introduction](intro.md) before reading this provider documentation.
 
 - [Configuration](#configuration)
-- [Json](#json)
+- [Json (Newtonsoft.Json)](#json-newtonsoftjson)
+- [Json (System.Text.Json)](#json-systemtextjson)
 - [Avro](#avro)
 - [GoogleProtobuf](#googleprotobuf)
 - [Hybrid](#hybrid)
@@ -23,7 +24,7 @@ mbb.
 
 > One serializer instance will be used across all the concurently running tasks of producing and consuming messages in a given bus instance. The serializers are designed, so that they are Thread-safe.
 
-## Json
+## Json (Newtonsoft.Json)
 
 Nuget package: [SlimMessageBus.Host.Serialization.Json](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json)
 
@@ -49,7 +50,7 @@ var jsonSerializerSettings = new Newtonsoft.Json.JsonSerializerSettings
 var jsonSerializer = new JsonMessageSerializer(jsonSerializerSettings, Encoding.UTF8)
 ```
 
-## Native Json
+## Json (System.Text.Json)
 
 Nuget package: [SlimMessageBus.Host.Serialization.NativeJson](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.NativeJson)
 
