@@ -35,7 +35,9 @@ $projects = @(
 	"SlimMessageBus.Host.AzureServiceBus",
 	"SlimMessageBus.Host.Memory",
 	"SlimMessageBus.Host.Redis",
-	"SlimMessageBus.Host.Hybrid"
+	"SlimMessageBus.Host.Hybrid",
+	
+	"SlimMessageBus.Host.Validation.FluentValidation"
 )
 
 # msbuild.exe https://msdn.microsoft.com/pl-pl/library/ms164311(v=vs.80).aspx
