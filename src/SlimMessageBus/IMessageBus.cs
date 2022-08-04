@@ -1,8 +1,5 @@
-﻿namespace SlimMessageBus
-{
-    using System;
+﻿namespace SlimMessageBus;
 
-    public interface IMessageBus : IDisposable, IRequestResponseBus, IPublishBus
-    {
-    }
+public interface IMessageBus : IDisposable, IRequestResponseBus, IPublishBus
+{
 }

@@ -1,39 +1,33 @@
-﻿namespace SlimMessageBus.Host.MsDependencyInjection
+﻿namespace SlimMessageBus.Host.MsDependencyInjection;
+
+/// <summary>
+/// An SMB DI adapter for the <see cref="IServiceProvider"/>.
+/// </summary>
+public class MsDependencyInjectionDependencyResolver : IDependencyResolver
 {
-    using Microsoft.Extensions.Logging;
-    using Microsoft.Extensions.Logging.Abstractions;
-    using SlimMessageBus.Host.DependencyResolver;
-    using System;
+    protected readonly ILoggerFactory LoggerFactory;
+    protected readonly IServiceProvider ServiceProvider;
+    
+    private readonly ILogger<MsDependencyInjectionDependencyResolver> logger;
 
-    /// <summary>
-    /// An SMB DI adapter for the <see cref="IServiceProvider"/>.
-    /// </summary>
-    public class MsDependencyInjectionDependencyResolver : IDependencyResolver
+    public MsDependencyInjectionDependencyResolver(IServiceProvider serviceProvider)
     {
-        protected readonly ILoggerFactory LoggerFactory;
-        protected readonly IServiceProvider ServiceProvider;
-        
-        private readonly ILogger<MsDependencyInjectionDependencyResolver> logger;
+        LoggerFactory = (ILoggerFactory)serviceProvider.GetService(typeof(ILoggerFactory)) ?? NullLoggerFactory.Instance;
+        logger = LoggerFactory.CreateLogger<MsDependencyInjectionDependencyResolver>();
+        ServiceProvider = serviceProvider;
+    }
 
-        public MsDependencyInjectionDependencyResolver(IServiceProvider serviceProvider)
-        {
-            LoggerFactory = (ILoggerFactory)serviceProvider.GetService(typeof(ILoggerFactory)) ?? NullLoggerFactory.Instance;
-            logger = LoggerFactory.CreateLogger<MsDependencyInjectionDependencyResolver>();
-            ServiceProvider = serviceProvider;
-        }
+    /// <inheritdoc/>
+    public virtual object Resolve(Type type)
+    {
+        logger.LogDebug("Resolving type {Type}", type);
+        return ServiceProvider.GetService(type);
+    }
 
-        /// <inheritdoc/>
-        public virtual object Resolve(Type type)
-        {
-            logger.LogDebug("Resolving type {Type}", type);
-            return ServiceProvider.GetService(type);
-        }
-
-        /// <inheritdoc/>
-        public IChildDependencyResolver CreateScope()
-        {
-            logger.LogDebug("Creating child scope");
-            return new MsDependencyInjectionChildDependencyResolver(this, ServiceProvider, LoggerFactory);
-        }
+    /// <inheritdoc/>
+    public IChildDependencyResolver CreateScope()
+    {
+        logger.LogDebug("Creating child scope");
+        return new MsDependencyInjectionChildDependencyResolver(this, ServiceProvider, LoggerFactory);
     }
 }

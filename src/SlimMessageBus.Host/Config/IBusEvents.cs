@@ -1,6 +1,5 @@
-﻿namespace SlimMessageBus.Host.Config
+﻿namespace SlimMessageBus.Host.Config;
+
+public interface IBusEvents : IProducerEvents, IConsumerEvents
 {
-    public interface IBusEvents : IProducerEvents, IConsumerEvents
-    {
-    }
 }

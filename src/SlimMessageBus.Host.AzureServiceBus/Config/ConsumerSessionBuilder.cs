@@ -1,42 +1,40 @@
-﻿namespace SlimMessageBus.Host.AzureServiceBus
+﻿namespace SlimMessageBus.Host.AzureServiceBus;
+
+using SlimMessageBus.Host.Config;
+
+public class ConsumerSessionBuilder
 {
-    using System;
-    using SlimMessageBus.Host.Config;
+    internal ConsumerSettings ConsumerSettings { get; }
 
-    public class ConsumerSessionBuilder
+    public ConsumerSessionBuilder(ConsumerSettings consumerSettings) => ConsumerSettings = consumerSettings;
+
+    /// <summary>
+    /// Sets the Azue Service Bus session idle timeout.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="builder"></param>
+    /// <param name="enable"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentNullException"></exception>
+    public ConsumerSessionBuilder SessionIdleTimeout(TimeSpan idleTimeout)
     {
-        internal ConsumerSettings ConsumerSettings { get; }
+        ConsumerSettings.SetSessionIdleTimeout(idleTimeout);
 
-        public ConsumerSessionBuilder(ConsumerSettings consumerSettings) => ConsumerSettings = consumerSettings;
+        return this;
+    }
 
-        /// <summary>
-        /// Sets the Azue Service Bus session idle timeout.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="builder"></param>
-        /// <param name="enable"></param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentNullException"></exception>
-        public ConsumerSessionBuilder SessionIdleTimeout(TimeSpan idleTimeout)
-        {
-            ConsumerSettings.SetSessionIdleTimeout(idleTimeout);
+    /// <summary>
+    /// Sets the Azue Service Bus maximmum concurrent sessions that can be handled by this consumer.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="builder"></param>
+    /// <param name="enable"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentNullException"></exception>
+    public ConsumerSessionBuilder MaxConcurrentSessions(int maxConcurrentSessions)
+    {
+        ConsumerSettings.SetMaxConcurrentSessions(maxConcurrentSessions);
 
-            return this;
-        }
-
-        /// <summary>
-        /// Sets the Azue Service Bus maximmum concurrent sessions that can be handled by this consumer.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="builder"></param>
-        /// <param name="enable"></param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentNullException"></exception>
-        public ConsumerSessionBuilder MaxConcurrentSessions(int maxConcurrentSessions)
-        {
-            ConsumerSettings.SetMaxConcurrentSessions(maxConcurrentSessions);
-
-            return this;
-        }
+        return this;
     }
 }

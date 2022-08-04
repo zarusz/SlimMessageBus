@@ -1,76 +1,73 @@
-﻿namespace SlimMessageBus.Host.Serialization.Hybrid
+﻿namespace SlimMessageBus.Host.Serialization.Hybrid;
+
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+
+/// <summary>
+/// <see cref="IMessageSerializer"/> implementation that delegates (routes) the serialization to the respective serializer based on message type.
+/// </summary>
+public class HybridMessageSerializer : IMessageSerializer
 {
-    using Microsoft.Extensions.Logging;
-    using Microsoft.Extensions.Logging.Abstractions;
-    using System;
-    using System.Collections.Generic;
+    private readonly ILogger _logger;
+    private readonly IList<IMessageSerializer> _serializers = new List<IMessageSerializer>();
+    private readonly IDictionary<Type, IMessageSerializer> _serializerByType = new Dictionary<Type, IMessageSerializer>();
+    public IMessageSerializer DefaultSerializer { get; set; }
 
-    /// <summary>
-    /// <see cref="IMessageSerializer"/> implementation that delegates (routes) the serialization to the respective serializer based on message type.
-    /// </summary>
-    public class HybridMessageSerializer : IMessageSerializer
+    public HybridMessageSerializer()
     {
-        private readonly ILogger _logger;
-        private readonly IList<IMessageSerializer> _serializers = new List<IMessageSerializer>();
-        private readonly IDictionary<Type, IMessageSerializer> _serializerByType = new Dictionary<Type, IMessageSerializer>();
-        public IMessageSerializer DefaultSerializer { get; set; }
+        _logger = NullLogger<HybridMessageSerializer>.Instance;
+    }
 
-        public HybridMessageSerializer()
+    public HybridMessageSerializer(IDictionary<IMessageSerializer, Type[]> registration, ILogger<HybridMessageSerializer> logger)
+    {
+        _logger = logger;
+        foreach (var entry in registration)
         {
-            _logger = NullLogger<HybridMessageSerializer>.Instance;
+            Add(entry.Key, entry.Value);
+        }
+    }
+
+    public void Add(IMessageSerializer serializer, params Type[] supportedTypes)
+    {
+        if (_serializers.Count == 0 && DefaultSerializer == null)
+        {
+            DefaultSerializer = serializer;
         }
 
-        public HybridMessageSerializer(IDictionary<IMessageSerializer, Type[]> registration, ILogger<HybridMessageSerializer> logger)
+        _serializers.Add(serializer);
+        foreach (var type in supportedTypes)
         {
-            _logger = logger;
-            foreach (var entry in registration)
-            {
-                Add(entry.Key, entry.Value);
-            }
+            _serializerByType.Add(type, serializer);
+        }
+    }
+
+    protected virtual IMessageSerializer MatchSerializer(Type t)
+    {
+        if (_serializers.Count == 0)
+        {
+            throw new InvalidOperationException("No serializers registered.");
         }
 
-        public void Add(IMessageSerializer serializer, params Type[] supportedTypes)
+        if (!_serializerByType.TryGetValue(t, out var serializer))
         {
-            if (_serializers.Count == 0 && DefaultSerializer == null)
-            {
-                DefaultSerializer = serializer;
-            }
-
-            _serializers.Add(serializer);
-            foreach (var type in supportedTypes)
-            {
-                _serializerByType.Add(type, serializer);
-            }
+            // use first as default
+            _logger.LogTrace("Serializer for type {0} not registered, will use default serializer", t);
+            serializer = DefaultSerializer;
         }
 
-        protected virtual IMessageSerializer MatchSerializer(Type t)
-        {
-            if (_serializers.Count == 0)
-            {
-                throw new InvalidOperationException("No serializers registered.");
-            }
+        _logger.LogDebug("Serializer for type {0} will be {1}", t, serializer);
+        return serializer;
+    }
 
-            if (!_serializerByType.TryGetValue(t, out var serializer))
-            {
-                // use first as default
-                _logger.LogTrace("Serializer for type {0} not registered, will use default serializer", t);
-                serializer = DefaultSerializer;
-            }
+    public object Deserialize(Type t, byte[] payload)
+    {
+        var serializer = MatchSerializer(t);
+        return serializer.Deserialize(t, payload);
+    }
 
-            _logger.LogDebug("Serializer for type {0} will be {1}", t, serializer);
-            return serializer;
-        }
-
-        public object Deserialize(Type t, byte[] payload)
-        {
-            var serializer = MatchSerializer(t);
-            return serializer.Deserialize(t, payload);
-        }
-
-        public byte[] Serialize(Type t, object message)
-        {
-            var serializer = MatchSerializer(t);
-            return serializer.Serialize(t, message);
-        }
+    public byte[] Serialize(Type t, object message)
+    {
+        var serializer = MatchSerializer(t);
+        return serializer.Serialize(t, message);
     }
 }

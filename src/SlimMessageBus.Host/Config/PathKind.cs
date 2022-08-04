@@ -1,8 +1,7 @@
-﻿namespace SlimMessageBus.Host.Config
+﻿namespace SlimMessageBus.Host.Config;
+
+public enum PathKind
 {
-    public enum PathKind
-    {
-        Topic,
-        Queue
-    }
+    Topic,
+    Queue
 }

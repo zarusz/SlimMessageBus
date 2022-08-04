@@ -1,17 +1,16 @@
-﻿namespace SlimMessageBus.Host.AzureServiceBus.Consumer
+﻿namespace SlimMessageBus.Host.AzureServiceBus.Consumer;
+
+using Azure.Messaging.ServiceBus;
+using SlimMessageBus.Host.Config;
+
+public class ConsumerInvoker
 {
-    using Azure.Messaging.ServiceBus;
-    using SlimMessageBus.Host.Config;
+    public IMessageProcessor<ServiceBusReceivedMessage> Processor { get; }
+    public IMessageTypeConsumerInvokerSettings Invoker { get; }
 
-    public class ConsumerInvoker
+    public ConsumerInvoker(IMessageProcessor<ServiceBusReceivedMessage> processor, IMessageTypeConsumerInvokerSettings invoker)
     {
-        public IMessageProcessor<ServiceBusReceivedMessage> Processor { get; }
-        public IMessageTypeConsumerInvokerSettings Invoker { get; }
-
-        public ConsumerInvoker(IMessageProcessor<ServiceBusReceivedMessage> processor, IMessageTypeConsumerInvokerSettings invoker)
-        {
-            Processor = processor;
-            Invoker = invoker;
-        }
+        Processor = processor;
+        Invoker = invoker;
     }
 }

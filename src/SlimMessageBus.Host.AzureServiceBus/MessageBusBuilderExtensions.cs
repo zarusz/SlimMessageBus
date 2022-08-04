@@ -1,7 +1,6 @@
 namespace SlimMessageBus.Host.AzureServiceBus;
 
 using SlimMessageBus.Host.Config;
-using System;
 
 public static class MessageBusBuilderExtensions
 {

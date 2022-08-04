@@ -2,7 +2,6 @@
 
 using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
-using System;
 
 public class ServiceBusMessageBusSettings
 {

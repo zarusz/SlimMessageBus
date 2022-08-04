@@ -1,9 +1,8 @@
-﻿namespace SlimMessageBus.Host
-{
-    using System;
+﻿namespace SlimMessageBus.Host;
 
-    [Obsolete("Please use the new IConsumerWithContext interface instead")]
-    public interface IConsumerContextAware : IConsumerWithContext
-    {
-    }
+using System;
+
+[Obsolete("Please use the new IConsumerWithContext interface instead")]
+public interface IConsumerContextAware : IConsumerWithContext
+{
 }

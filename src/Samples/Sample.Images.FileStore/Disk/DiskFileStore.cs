@@ -1,9 +1,5 @@
 ﻿namespace Sample.Images.FileStore.Disk;
 
-using System;
-using System.IO;
-using System.Threading.Tasks;
-
 public class DiskFileStore : IFileStore
 {
     private readonly string _folder;

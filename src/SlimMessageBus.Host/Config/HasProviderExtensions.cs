@@ -1,21 +1,18 @@
-﻿namespace SlimMessageBus.Host.Config
+﻿namespace SlimMessageBus.Host.Config;
+
+public abstract class HasProviderExtensions
 {
-    using System.Collections.Generic;
+    /// <summary>
+    /// Provider specific properties bag.
+    /// </summary>
+    public IDictionary<string, object> Properties { get; } = new Dictionary<string, object>();
 
-    public abstract class HasProviderExtensions
+    public T GetOrDefault<T>(string key, T defaultValue = default)
     {
-        /// <summary>
-        /// Provider specific properties bag.
-        /// </summary>
-        public IDictionary<string, object> Properties { get; } = new Dictionary<string, object>();
-
-        public T GetOrDefault<T>(string key, T defaultValue = default)
+        if (Properties.TryGetValue(key, out var value))
         {
-            if (Properties.TryGetValue(key, out var value))
-            {
-                return (T) value;
-            }
-            return defaultValue;
+            return (T) value;
         }
+        return defaultValue;
     }
 }

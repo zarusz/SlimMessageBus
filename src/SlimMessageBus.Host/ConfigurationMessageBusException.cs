@@ -1,19 +1,16 @@
-﻿namespace SlimMessageBus.Host
+﻿namespace SlimMessageBus.Host;
+
+public class ConfigurationMessageBusException : MessageBusException
 {
-    using System;
-
-    public class ConfigurationMessageBusException : MessageBusException
+    public ConfigurationMessageBusException()
     {
-        public ConfigurationMessageBusException()
-        {
-        }
+    }
 
-        public ConfigurationMessageBusException(string message) : base(message)
-        {
-        }
+    public ConfigurationMessageBusException(string message) : base(message)
+    {
+    }
 
-        public ConfigurationMessageBusException(string message, Exception innerException) : base(message, innerException)
-        {
-        }
+    public ConfigurationMessageBusException(string message, Exception innerException) : base(message, innerException)
+    {
     }
 }

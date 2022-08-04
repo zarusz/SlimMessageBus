@@ -1,16 +1,13 @@
-﻿namespace SecretStore
+﻿namespace SecretStore;
+
+public class EnvironmentVariableSecretStore : ISecretStore
 {
-    using System;
+    #region Implementation of ISecretStore
 
-    public class EnvironmentVariableSecretStore : ISecretStore
+    public string GetSecret(string name)
     {
-        #region Implementation of ISecretStore
-
-        public string GetSecret(string name)
-        {
-            return Environment.GetEnvironmentVariable(name);
-        }
-
-        #endregion
+        return Environment.GetEnvironmentVariable(name);
     }
+
+    #endregion
 }

@@ -1,16 +1,12 @@
-﻿namespace SlimMessageBus.Host
+﻿namespace SlimMessageBus.Host;
+
+public static class MessageScope
 {
-    using SlimMessageBus.Host.DependencyResolver;
-    using System.Threading;
+    private static readonly AsyncLocal<IDependencyResolver> _current = new();
 
-    public static class MessageScope
+    public static IDependencyResolver Current
     {
-        private static readonly AsyncLocal<IDependencyResolver> _current = new();
-
-        public static IDependencyResolver Current
-        {
-            get => _current.Value;
-            set => _current.Value = value;
-        }
+        get => _current.Value;
+        set => _current.Value = value;
     }
 }

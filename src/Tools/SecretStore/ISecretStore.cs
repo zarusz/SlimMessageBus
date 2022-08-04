@@ -1,7 +1,6 @@
-﻿namespace SecretStore
+﻿namespace SecretStore;
+
+public interface ISecretStore
 {
-    public interface ISecretStore
-    {
-        string GetSecret(string name);
-    }
+    string GetSecret(string name);
 }

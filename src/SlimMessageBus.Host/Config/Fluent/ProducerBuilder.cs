@@ -1,56 +1,52 @@
-﻿namespace SlimMessageBus.Host.Config
+﻿namespace SlimMessageBus.Host.Config;
+
+public class ProducerBuilder<T>
 {
-    using System;
-    using System.Collections.Generic;
+    public ProducerSettings Settings { get; }
 
-    public class ProducerBuilder<T>
+    public Type MessageType => Settings.MessageType;
+
+    public ProducerBuilder(ProducerSettings settings)
+        : this(settings, typeof(T))
     {
-        public ProducerSettings Settings { get; }
+    }
 
-        public Type MessageType => Settings.MessageType;
+    public ProducerBuilder(ProducerSettings settings, Type messageType)
+    {
+        Settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        Settings.MessageType = messageType;
+    }
 
-        public ProducerBuilder(ProducerSettings settings)
-            : this(settings, typeof(T))
-        {
-        }
+    public ProducerBuilder<T> DefaultPath(string path)
+    {
+        Settings.DefaultPath = path ?? throw new ArgumentNullException(nameof(path));
+        return this;
+    }
 
-        public ProducerBuilder(ProducerSettings settings, Type messageType)
-        {
-            Settings = settings ?? throw new ArgumentNullException(nameof(settings));
-            Settings.MessageType = messageType;
-        }
+    public ProducerBuilder<T> DefaultTopic(string topic) => DefaultPath(topic);
 
-        public ProducerBuilder<T> DefaultPath(string path)
-        {
-            Settings.DefaultPath = path ?? throw new ArgumentNullException(nameof(path));
-            return this;
-        }
+    public ProducerBuilder<T> DefaultTimeout(TimeSpan timeout)
+    {
+        Settings.Timeout = timeout;
+        return this;
+    }
 
-        public ProducerBuilder<T> DefaultTopic(string topic) => DefaultPath(topic);
+    public ProducerBuilder<T> AttachEvents(Action<IProducerEvents> eventsConfig)
+    {
+        if (eventsConfig == null) throw new ArgumentNullException(nameof(eventsConfig));
 
-        public ProducerBuilder<T> DefaultTimeout(TimeSpan timeout)
-        {
-            Settings.Timeout = timeout;
-            return this;
-        }
+        eventsConfig(Settings);
+        return this;
+    }
 
-        public ProducerBuilder<T> AttachEvents(Action<IProducerEvents> eventsConfig)
-        {
-            if (eventsConfig == null) throw new ArgumentNullException(nameof(eventsConfig));
+    /// <summary>
+    /// Hook called whenver message is being produced. Can be used to add (or mutate) message headers.
+    /// </summary>
+    public ProducerBuilder<T> WithHeaderModifier(Action<IDictionary<string, object>, T> headerModifierAction)
+    {
+        if (headerModifierAction == null) throw new ArgumentNullException(nameof(headerModifierAction));
 
-            eventsConfig(Settings);
-            return this;
-        }
-
-        /// <summary>
-        /// Hook called whenver message is being produced. Can be used to add (or mutate) message headers.
-        /// </summary>
-        public ProducerBuilder<T> WithHeaderModifier(Action<IDictionary<string, object>, T> headerModifierAction)
-        {
-            if (headerModifierAction == null) throw new ArgumentNullException(nameof(headerModifierAction));
-
-            Settings.HeaderModifier = (headers, message) => headerModifierAction(headers, (T)message);
-            return this;
-        }
+        Settings.HeaderModifier = (headers, message) => headerModifierAction(headers, (T)message);
+        return this;
     }
 }

@@ -1,19 +1,16 @@
-﻿namespace SlimMessageBus
+﻿namespace SlimMessageBus;
+
+public class MessageBusException : Exception
 {
-    using System;
-
-    public class MessageBusException : Exception
+    public MessageBusException()
     {
-        public MessageBusException()
-        {
-        }
+    }
 
-        public MessageBusException(string message) : base(message)
-        {
-        }
+    public MessageBusException(string message) : base(message)
+    {
+    }
 
-        public MessageBusException(string message, Exception innerException) : base(message, innerException)
-        {
-        }
+    public MessageBusException(string message, Exception innerException) : base(message, innerException)
+    {
     }
 }

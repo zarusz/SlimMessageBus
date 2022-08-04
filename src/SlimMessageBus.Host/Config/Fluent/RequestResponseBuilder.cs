@@ -1,26 +1,23 @@
-namespace SlimMessageBus.Host.Config
+namespace SlimMessageBus.Host.Config;
+
+public class RequestResponseBuilder
 {
-    using System;
+    public RequestResponseSettings Settings { get; }
 
-    public class RequestResponseBuilder
+    public RequestResponseBuilder(RequestResponseSettings settings)
     {
-        public RequestResponseSettings Settings { get; }
+        Settings = settings;
+    }
 
-        public RequestResponseBuilder(RequestResponseSettings settings)
-        {
-            Settings = settings;
-        }
+    public RequestResponseBuilder DefaultTimeout(TimeSpan timeout)
+    {
+        Settings.Timeout = timeout;
+        return this;
+    }
 
-        public RequestResponseBuilder DefaultTimeout(TimeSpan timeout)
-        {
-            Settings.Timeout = timeout;
-            return this;
-        }
-
-        public RequestResponseBuilder ReplyToTopic(string topic)
-        {
-            Settings.Path = topic;
-            return this;
-        }
+    public RequestResponseBuilder ReplyToTopic(string topic)
+    {
+        Settings.Path = topic;
+        return this;
     }
 }

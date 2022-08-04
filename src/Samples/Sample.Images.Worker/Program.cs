@@ -1,6 +1,5 @@
 ﻿namespace Sample.Images.Worker;
 
-using System;
 using Autofac;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;

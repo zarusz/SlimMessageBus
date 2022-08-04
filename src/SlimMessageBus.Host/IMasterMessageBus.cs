@@ -1,6 +1,5 @@
-﻿namespace SlimMessageBus.Host
+﻿namespace SlimMessageBus.Host;
+
+public interface IMasterMessageBus : IMessageBus, IConsumerControl, IMessageBusProducer
 {
-    public interface IMasterMessageBus : IMessageBus, IConsumerControl, IMessageBusProducer
-    {
-    }
 }

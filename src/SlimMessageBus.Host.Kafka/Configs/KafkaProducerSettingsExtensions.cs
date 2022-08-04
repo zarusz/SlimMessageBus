@@ -1,21 +1,19 @@
-﻿namespace SlimMessageBus.Host.Kafka
+﻿namespace SlimMessageBus.Host.Kafka;
+
+using SlimMessageBus.Host.Config;
+
+public static class KafkaProducerSettingsExtensions
 {
-    using System;
-    using SlimMessageBus.Host.Config;
+    internal const string KeyProviderKey = "Kafka_KeyProvider";
+    internal const string PartitionProviderKey = "Kafka_PartitionProvider";
 
-    public static class KafkaProducerSettingsExtensions
+    public static Func<object, string, byte[]> GetKeyProvider(this ProducerSettings ps)
     {
-        internal const string KeyProviderKey = "Kafka_KeyProvider";
-        internal const string PartitionProviderKey = "Kafka_PartitionProvider";
+        return ps.GetOrDefault<Func<object, string, byte[]>>(KeyProviderKey, null);
+    }
 
-        public static Func<object, string, byte[]> GetKeyProvider(this ProducerSettings ps)
-        {
-            return ps.GetOrDefault<Func<object, string, byte[]>>(KeyProviderKey, null);
-        }
-
-        public static Func<object, string, int> GetPartitionProvider(this ProducerSettings ps)
-        {
-            return ps.GetOrDefault<Func<object, string, int>>(PartitionProviderKey, null);
-        }
+    public static Func<object, string, int> GetPartitionProvider(this ProducerSettings ps)
+    {
+        return ps.GetOrDefault<Func<object, string, int>>(PartitionProviderKey, null);
     }
 }

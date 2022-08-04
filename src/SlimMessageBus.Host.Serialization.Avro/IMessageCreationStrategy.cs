@@ -1,9 +1,6 @@
-﻿namespace SlimMessageBus.Host.Serialization.Avro
-{
-    using System;
+﻿namespace SlimMessageBus.Host.Serialization.Avro;
 
-    public interface IMessageCreationStrategy
-    {
-        object Create(Type type);
-    }
+public interface IMessageCreationStrategy
+{
+    object Create(Type type);
 }

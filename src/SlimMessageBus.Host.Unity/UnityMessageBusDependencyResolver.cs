@@ -1,38 +1,33 @@
-﻿namespace SlimMessageBus.Host
+﻿namespace SlimMessageBus.Host;
+
+using Unity;
+
+/// <summary>
+/// An SMB DI adapter for the <see cref="IUnityContainer"/>.
+/// </summary>
+public class UnityMessageBusDependencyResolver : IDependencyResolver
 {
-    using System;
-    using SlimMessageBus.Host.DependencyResolver;
-    using Unity;
-    using Microsoft.Extensions.Logging;
+    private readonly ILogger<UnityMessageBusDependencyResolver> logger;
+    protected IUnityContainer Container { get; }
 
-    /// <summary>
-    /// An SMB DI adapter for the <see cref="IUnityContainer"/>.
-    /// </summary>
-    public class UnityMessageBusDependencyResolver : IDependencyResolver
+    public UnityMessageBusDependencyResolver(IUnityContainer container)
     {
-        private readonly ILogger<UnityMessageBusDependencyResolver> logger;
-        protected IUnityContainer Container { get; }
+        logger = container.Resolve<ILogger<UnityMessageBusDependencyResolver>>();
+        Container = container;
+    }
 
-        public UnityMessageBusDependencyResolver(IUnityContainer container)
-        {
-            logger = container.Resolve<ILogger<UnityMessageBusDependencyResolver>>();
-            Container = container;
-        }
+    public object Resolve(Type type)
+    {
+        logger.LogTrace("Resolving type {Type}", type);
+        var o = Container.Resolve(type);
+        logger.LogTrace("Resolved type {Type} to instance {Instance}", type, o);
+        return o;
+    }
 
-        public object Resolve(Type type)
-        {
-            logger.LogTrace("Resolving type {Type}", type);
-            var o = Container.Resolve(type);
-            logger.LogTrace("Resolved type {Type} to instance {Instance}", type, o);
-            return o;
-        }
-
-        public IChildDependencyResolver CreateScope()
-        {
-            logger.LogDebug("Creating child scope");
-            var childContainer = Container.CreateChildContainer();
-            return new UnityMessageBusChildDependencyResolver(this, childContainer);
-        }
+    public IChildDependencyResolver CreateScope()
+    {
+        logger.LogDebug("Creating child scope");
+        var childContainer = Container.CreateChildContainer();
+        return new UnityMessageBusChildDependencyResolver(this, childContainer);
     }
 }
-

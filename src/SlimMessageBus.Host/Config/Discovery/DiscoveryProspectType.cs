@@ -1,10 +1,7 @@
-﻿namespace SlimMessageBus.Host.Config
-{
-    using System;
+﻿namespace SlimMessageBus.Host.Config;
 
-    public class DiscoveryProspectType
-    {
-        public Type Type { get; set; }
-        public Type InterfaceType { get; set; }
-    }
+public class DiscoveryProspectType
+{
+    public Type Type { get; set; }
+    public Type InterfaceType { get; set; }
 }

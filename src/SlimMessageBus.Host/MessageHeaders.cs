@@ -1,7 +1,6 @@
-﻿namespace SlimMessageBus.Host
+﻿namespace SlimMessageBus.Host;
+
+public static class MessageHeaders
 {
-    public static class MessageHeaders
-    {
-        public const string MessageType = "MessageType";
-    }
+    public const string MessageType = "MessageType";
 }

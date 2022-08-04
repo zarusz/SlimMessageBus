@@ -14,11 +14,6 @@ using SlimMessageBus.Host.Serialization;
 using SlimMessageBus.Host.Serialization.Avro;
 using SlimMessageBus.Host.Serialization.Hybrid;
 using SlimMessageBus.Host.Serialization.Json;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 enum Provider
 {

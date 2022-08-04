@@ -1,12 +1,6 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus;
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Azure.Messaging.ServiceBus;
-using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.AzureServiceBus.Consumer;
 using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.Config;
