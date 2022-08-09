@@ -2,9 +2,6 @@
 
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 /// <summary>
 /// The Task<T>.Result is used anytime a response message has to be taken from the message handler. It is important that getting the Task<T> Result is fast.

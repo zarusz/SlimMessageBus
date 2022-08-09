@@ -3,10 +3,7 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
 using Microsoft.Extensions.DependencyInjection;
-using System.Threading.Tasks;
 using SlimMessageBus.Host.MsDependencyInjection;
-using System;
-using System.Linq;
 using System.Reflection;
 
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]

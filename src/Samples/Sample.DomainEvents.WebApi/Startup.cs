@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Sample.DomainEvents.Application;
-using Sample.DomainEvents.Domain;
 using SlimMessageBus;
 using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Memory;

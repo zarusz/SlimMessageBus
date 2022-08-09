@@ -1,11 +1,9 @@
 ﻿namespace Sample.Hybrid.ConsoleApp.Domain;
 
-using System;
-
 /// <summary>
 /// Some domain event
 /// </summary>
-public class CustomerEmailChangedEvent
+public record CustomerEmailChangedEvent
 {
     public DateTime Timestamp { get; }
     public Customer Customer { get; }

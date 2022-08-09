@@ -1,11 +1,9 @@
 ﻿namespace Sample.Images.Worker.Handlers;
 
-using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
-using System.Threading.Tasks;
 using Sample.Images.FileStore;
 using Sample.Images.Messages;
 using SlimMessageBus;

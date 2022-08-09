@@ -1,9 +1,8 @@
-﻿namespace SlimMessageBus.Host.Serialization.Benchmark
+﻿namespace SlimMessageBus.Host.Serialization.Benchmark;
+
+public class AddCommand
 {
-    public class AddCommand
-    {
-        public string OperationId { get; set; }
-        public int Left { get; set; }
-        public int Right { get; set; }
-    }
+    public string OperationId { get; set; }
+    public int Left { get; set; }
+    public int Right { get; set; }
 }

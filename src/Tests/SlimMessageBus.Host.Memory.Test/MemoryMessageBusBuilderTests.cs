@@ -1,9 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Memory.Test;
 
-using FluentAssertions;
 using SlimMessageBus.Host.Config;
 using System.Reflection;
-using Xunit;
 using static SlimMessageBus.Host.Memory.Test.MemoryMessageBusIt;
 
 public class MemoryMessageBusBuilderTests

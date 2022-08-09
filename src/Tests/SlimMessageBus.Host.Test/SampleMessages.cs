@@ -1,41 +1,37 @@
-namespace SlimMessageBus.Host.Test
+namespace SlimMessageBus.Host.Test;
+
+public interface ISomeMessageMarkerInterface
 {
-    using System;
-    using System.Threading.Tasks;
+}
 
-    public interface ISomeMessageMarkerInterface
-    {
-    }
+public record SomeMessage : ISomeMessageMarkerInterface
+{
+}
 
-    public class SomeMessage : ISomeMessageMarkerInterface
-    {
-    }
+public record SomeRequest : IRequestMessage<SomeResponse>, ISomeMessageMarkerInterface
+{
+}
 
-    public class SomeRequest : IRequestMessage<SomeResponse>, ISomeMessageMarkerInterface
-    {
-    }
+public record SomeResponse
+{
+}
 
-    public class SomeResponse
-    {
-    }
+public class SomeMessageConsumer : IConsumer<SomeMessage>
+{
+    public Task OnHandle(SomeMessage message, string name)
+        => throw new NotImplementedException();
+}
 
-    public class SomeMessageConsumer : IConsumer<SomeMessage>
-    {
-        public Task OnHandle(SomeMessage message, string name)
-            => throw new NotImplementedException();
-    }
+public class SomeRequestMessageHandler : IRequestHandler<SomeRequest, SomeResponse>
+{
+    public Task<SomeResponse> OnHandle(SomeRequest request, string name)
+        => throw new NotImplementedException(nameof(SomeRequest));
+}
 
-    public class SomeRequestMessageHandler : IRequestHandler<SomeRequest, SomeResponse>
-    {
-        public Task<SomeResponse> OnHandle(SomeRequest request, string name)
-            => throw new NotImplementedException(nameof(SomeRequest));
-    }
+public record SomeDerivedMessage : SomeMessage
+{
+}
 
-    public class SomeDerivedMessage : SomeMessage
-    {
-    }
-
-    public class SomeDerived2Message : SomeMessage
-    {
-    }
+public record SomeDerived2Message : SomeMessage
+{
 }

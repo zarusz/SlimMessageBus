@@ -1,6 +1,5 @@
 ﻿namespace Sample.Hybrid.ConsoleApp;
 
-using System;
 using System.IO;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

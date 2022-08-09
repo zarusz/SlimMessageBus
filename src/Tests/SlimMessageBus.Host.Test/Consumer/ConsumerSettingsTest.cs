@@ -1,59 +1,56 @@
-﻿namespace SlimMessageBus.Host.Test
+﻿namespace SlimMessageBus.Host.Test;
+
+using SlimMessageBus.Host.Config;
+
+public class ConsumerSettingsTest
 {
-    using FluentAssertions;
-    using SlimMessageBus.Host.Config;
-    using Xunit;
-
-    public class ConsumerSettingsTest
+    [Fact]
+    public void When_SetMessageTypeSet_Given_MessageIsNotRequest_Then_ResponseTypeShouldBeNull()
     {
-        [Fact]
-        public void When_SetMessageTypeSet_Given_MessageIsNotRequest_Then_ResponseTypeShouldBeNull()
-        {
-            // arrange
+        // arrange
 
-            // act
-            var cs = new ConsumerSettings { MessageType = typeof(SomeMessage) };
+        // act
+        var cs = new ConsumerSettings { MessageType = typeof(SomeMessage) };
 
-            // assert
-            cs.ResponseType.Should().BeNull();
-            cs.IsRequestMessage.Should().BeFalse();
-        }
+        // assert
+        cs.ResponseType.Should().BeNull();
+        cs.IsRequestMessage.Should().BeFalse();
+    }
 
-        [Fact]
-        public void When_RequestMessage_GivenRequestMessageWhenSetMessageType_Then_ResponseTypeShouldBeInferred()
-        {
-            // arrange
+    [Fact]
+    public void When_RequestMessage_GivenRequestMessageWhenSetMessageType_Then_ResponseTypeShouldBeInferred()
+    {
+        // arrange
 
-            // act
-            var cs = new ConsumerSettings { MessageType = typeof(SomeRequest) };
+        // act
+        var cs = new ConsumerSettings { MessageType = typeof(SomeRequest) };
 
-            // assert
-            cs.ResponseType.Should().Be(typeof(SomeResponse));
-            cs.IsRequestMessage.Should().BeTrue();
-        }
+        // assert
+        cs.ResponseType.Should().Be(typeof(SomeResponse));
+        cs.IsRequestMessage.Should().BeTrue();
+    }
 
-        [Fact]
-        public void When_Creation_Then_DefaultInstancesIs1()
-        {
-            // arrange
+    [Fact]
+    public void When_Creation_Then_DefaultInstancesIs1()
+    {
+        // arrange
 
-            // act
-            var cs = new ConsumerSettings();
+        // act
+        var cs = new ConsumerSettings();
 
-            // assert
-            cs.Instances.Should().Be(1);
-        }
+        // assert
+        cs.Instances.Should().Be(1);
+    }
 
-        [Fact]
-        public void When_Creation_Then_DefaultIsDisposeConsumerEnabledIsFalse()
-        {
-            // arrange
+    [Fact]
+    public void When_Creation_Then_DefaultIsDisposeConsumerEnabledIsFalse()
+    {
+        // arrange
 
-            // act
-            var cs = new ConsumerSettings();
+        // act
+        var cs = new ConsumerSettings();
 
-            // assert
-            cs.IsDisposeConsumerEnabled.Should().Be(false);
-        }
+        // assert
+        cs.IsDisposeConsumerEnabled.Should().Be(false);
     }
 }

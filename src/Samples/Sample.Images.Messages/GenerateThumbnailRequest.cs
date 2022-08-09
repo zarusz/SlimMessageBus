@@ -2,7 +2,7 @@
 
 using SlimMessageBus;
 
-public class GenerateThumbnailRequest : IRequestMessage<GenerateThumbnailResponse>
+public record GenerateThumbnailRequest : IRequestMessage<GenerateThumbnailResponse>
 {
     public string FileId { get; set; }
     public ThumbnailMode Mode { get; set; }

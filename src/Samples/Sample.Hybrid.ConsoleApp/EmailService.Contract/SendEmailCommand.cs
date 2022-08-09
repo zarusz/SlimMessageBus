@@ -1,8 +1,8 @@
 ﻿namespace Sample.Hybrid.ConsoleApp.EmailService.Contract;
 
-public class SendEmailCommand
+public record SendEmailCommand
 {
-    public string Recipient { get; set; }
-    public string Title { get; set; }
-    public string Body { get; set; }
+    public string Recipient { get; init; }
+    public string Title { get; init; }
+    public string Body { get; init; }
 }

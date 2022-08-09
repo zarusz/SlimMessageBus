@@ -1,8 +1,6 @@
 ﻿namespace Sample.Hybrid.ConsoleApp.Domain;
 
 using SlimMessageBus;
-using System;
-using System.Threading.Tasks;
 
 public class Customer
 {

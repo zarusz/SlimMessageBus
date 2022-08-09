@@ -1,17 +1,13 @@
-namespace SlimMessageBus.Host.AzureEventHub.Test
+namespace SlimMessageBus.Host.AzureEventHub.Test;
+
+public record SomeMessage
 {
-    public class SomeMessage
-    {
+}
 
-    }
+public record SomeRequest : IRequestMessage<SomeResponse>
+{
+}
 
-    public class SomeRequest : IRequestMessage<SomeResponse>
-    {
-
-    }
-
-    public class SomeResponse
-    {
-        
-    }
+public record SomeResponse
+{
 }

@@ -1,4 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Memory.Benchmark;
+
 using BenchmarkDotNet.Running;
 
 class Program

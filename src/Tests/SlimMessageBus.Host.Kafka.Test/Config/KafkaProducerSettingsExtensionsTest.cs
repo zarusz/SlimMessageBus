@@ -1,35 +1,32 @@
-﻿namespace SlimMessageBus.Host.Kafka.Test
+﻿namespace SlimMessageBus.Host.Kafka.Test;
+
+using SlimMessageBus.Host.Config;
+
+public class KafkaProducerSettingsExtensionsTest
 {
-    using FluentAssertions;
-    using SlimMessageBus.Host.Config;
-    using Xunit;
-
-    public class KafkaProducerSettingsExtensionsTest
+    [Fact]
+    public void GivenDefaultWhenGetKeyProviderThenReturnsNull()
     {
-        [Fact]
-        public void GivenDefaultWhenGetKeyProviderThenReturnsNull()
-        {
-            // arrange
-            var ps = new ProducerSettings();
+        // arrange
+        var ps = new ProducerSettings();
 
-            // act
-            var keyProvider = ps.GetKeyProvider();
+        // act
+        var keyProvider = ps.GetKeyProvider();
 
-            // assert
-            keyProvider.Should().BeNull();
-        }
+        // assert
+        keyProvider.Should().BeNull();
+    }
 
-        [Fact]
-        public void GivenDefaultWhenGetPartitionProviderThenReturnsNull()
-        {
-            // arrange
-            var ps = new ProducerSettings();
+    [Fact]
+    public void GivenDefaultWhenGetPartitionProviderThenReturnsNull()
+    {
+        // arrange
+        var ps = new ProducerSettings();
 
-            // act
-            var partitionProvider = ps.GetPartitionProvider();
+        // act
+        var partitionProvider = ps.GetPartitionProvider();
 
-            // assert
-            partitionProvider.Should().BeNull();
-        }
+        // assert
+        partitionProvider.Should().BeNull();
     }
 }

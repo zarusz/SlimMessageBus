@@ -4,10 +4,7 @@ public class DiskFileStore : IFileStore
 {
     private readonly string _folder;
 
-    public DiskFileStore(string folder)
-    {
-        _folder = folder;
-    }
+    public DiskFileStore(string folder) => _folder = folder;
 
     #region Implementation of IFileStore
 

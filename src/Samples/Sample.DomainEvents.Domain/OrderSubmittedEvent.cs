@@ -1,11 +1,9 @@
 ﻿namespace Sample.DomainEvents.Domain;
 
-using System;
-
 /// <summary>
 /// Domain event
 /// </summary>
-public class OrderSubmittedEvent
+public record OrderSubmittedEvent
 {
     public Order Order { get; }
     public DateTime Timestamp { get; }
