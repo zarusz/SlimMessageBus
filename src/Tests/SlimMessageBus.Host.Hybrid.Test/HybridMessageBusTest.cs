@@ -73,7 +73,7 @@ public class HybridMessageBusTest
         await _subject.Value.Publish<ISomeMessageMarkerInterface>(someDerivedOfDerivedMessage);
 
         // assert
-        
+
         // note: Moq does not match exact generic types but with match with assignment compatibility
         // - cannot count the exact times a specific generic method ws executed
         // see https://stackoverflow.com/a/54721582

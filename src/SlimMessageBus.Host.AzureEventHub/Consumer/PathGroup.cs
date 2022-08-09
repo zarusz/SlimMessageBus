@@ -1,4 +1,4 @@
-﻿namespace SlimMessageBus.Host.AzureEventHub; 
+﻿namespace SlimMessageBus.Host.AzureEventHub;
 
 public class PathGroup
 {

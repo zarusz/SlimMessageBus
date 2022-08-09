@@ -8,7 +8,7 @@ using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte
 /// The processor of assigned partition (<see cref="TopicPartition"/>).
 /// </summary>
 public interface IKafkaPartitionConsumer : IAsyncDisposable
-{        
+{
     TopicPartition TopicPartition { get; }
 
     void OnPartitionAssigned([NotNull] TopicPartition partition);

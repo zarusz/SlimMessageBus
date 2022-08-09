@@ -2,7 +2,7 @@
 
 using global::Avro;
 using global::Avro.IO;
-using global::Avro.Specific;    
+using global::Avro.Specific;
 
 /// <summary>
 /// Apache Avro serialization implementation of <see cref="IMessageSerializer"/>

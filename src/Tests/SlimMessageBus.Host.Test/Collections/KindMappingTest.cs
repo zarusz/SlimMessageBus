@@ -96,7 +96,7 @@ public class KindMappingTest
     public void Given_TwoProducerWithSamePathButOtherKind_Then_ExceptionIsRaised()
     {
         // Arrange
-        
+
         Action configuration = () => Configure(
             new RequestResponseSettings
             {

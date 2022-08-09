@@ -21,7 +21,7 @@ internal static class HasProviderExtensionsExtensions
     {
         producerSettings.Properties[nameof(SetQueueOptions)] = optionsAction;
         return producerSettings;
-    }   
+    }
 
     internal static Action<CreateQueueOptions> GetQueueOptions(this HasProviderExtensions producerSettings)
     {

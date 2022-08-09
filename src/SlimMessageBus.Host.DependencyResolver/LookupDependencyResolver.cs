@@ -20,7 +20,7 @@ public class LookupDependencyResolver : IDependencyResolver
         public ChildDependencyResolver(IDependencyResolver parent) => Parent = parent;
 
         public object Resolve(Type type) => Parent.Resolve(type);
-        
+
         public IChildDependencyResolver CreateScope() => new ChildDependencyResolver(this);
 
         public void Dispose()

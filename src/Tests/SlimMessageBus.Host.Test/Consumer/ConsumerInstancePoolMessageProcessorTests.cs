@@ -54,7 +54,7 @@ public class ConsumerInstancePoolMessageProcessorTests
         var processedMessageCount = 0;
 
         var maxInstances = 0;
-        var maxInstancesLock = new object();            
+        var maxInstancesLock = new object();
 
         _busMock.ConsumerMock.Setup(x => x.OnHandle(It.IsAny<SomeMessage>(), It.IsAny<string>()))
             .Returns((SomeMessage msg, string topic) =>

@@ -42,7 +42,7 @@ public class GenerateThumbnailRequestHandler : IRequestHandler<GenerateThumbnail
                 {
                     FileId = thumbnailFileId
                 };
-            }                
+            }
         }
     }
 
@@ -82,8 +82,8 @@ public class GenerateThumbnailRequestHandler : IRequestHandler<GenerateThumbnail
         var sourceWidth = imgPhoto.Width;
         var sourceHeight = imgPhoto.Height;
 
-        var scaleW = targetW / (float) sourceWidth;
-        var scaleH = targetH / (float) sourceHeight;
+        var scaleW = targetW / (float)sourceWidth;
+        var scaleH = targetH / (float)sourceHeight;
         var scale = Math.Min(scaleW, scaleH);
 
         var destX = 0;

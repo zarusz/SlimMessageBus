@@ -37,7 +37,7 @@ class Program
         using var scope = serviceProvider.CreateScope();
 
         MessageBus.SetProvider(() => scope.ServiceProvider.GetRequiredService<IMessageBus>());
-        
+
         // Run the application
         scope.ServiceProvider.GetRequiredService<MainApplication>().Run();
     }

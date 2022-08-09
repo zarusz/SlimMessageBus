@@ -23,8 +23,8 @@ public class ReqRespBenchmark : IDisposable
             mbb
                 .WithProviderMemory()
                 .AutoDeclareFrom(Assembly.GetExecutingAssembly());
-                //.Produce<SomeRequest>(x => x.DefaultTopic(x.MessageType.Name))
-                //.Handle<SomeRequest, SomeResponse>(x => x.Topic(x.MessageType.Name).WithHandler<SomeRequestHandler>());
+            //.Produce<SomeRequest>(x => x.DefaultTopic(x.MessageType.Name))
+            //.Handle<SomeRequest, SomeResponse>(x => x.Topic(x.MessageType.Name).WithHandler<SomeRequestHandler>());
         });
 
         services.AddSingleton<TestResult>();
@@ -44,7 +44,7 @@ public class ReqRespBenchmark : IDisposable
             svp = null;
         }
     }
-  
+
     [Benchmark]
     [Arguments(100)]
     [Arguments(1000)]

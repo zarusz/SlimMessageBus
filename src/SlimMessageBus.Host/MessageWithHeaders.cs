@@ -30,7 +30,7 @@ public struct MessageWithHeaders : IEquatable<MessageWithHeaders>
 
     public static bool operator !=(MessageWithHeaders left, MessageWithHeaders right) => !(left == right);
 
-    public bool Equals(MessageWithHeaders other) => 
+    public bool Equals(MessageWithHeaders other) =>
         EqualityComparer<byte[]>.Default.Equals(Payload, other.Payload) &&
         EqualityComparer<IDictionary<string, object>>.Default.Equals(Headers, other.Headers);
 }

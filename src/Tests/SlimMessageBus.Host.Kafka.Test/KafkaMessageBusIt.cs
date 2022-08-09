@@ -68,14 +68,15 @@ public class KafkaMessageBusIt : IDisposable
                 config.LingerMs = 5; // 5ms
                 config.SocketNagleDisable = true;
             },
-            ConsumerConfig = (config) => {
+            ConsumerConfig = (config) =>
+            {
                 AddSsl(kafkaUsername, kafkaPassword, config);
 
                 config.FetchErrorBackoffMs = 1;
                 config.SocketNagleDisable = true;
 
                 config.StatisticsIntervalMs = 500000;
-                config.AutoOffsetReset = AutoOffsetReset.Earliest;                    
+                config.AutoOffsetReset = AutoOffsetReset.Earliest;
             }
         };
 

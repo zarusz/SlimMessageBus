@@ -50,7 +50,7 @@ public class CheckpointTrigger : ICheckpointTrigger
         {
             _logger.LogDebug("Checkpoint triggered after Count: {CheckpointCount}, Duration: {CheckpointDuration} (s)", _lastCheckpointCount, _lastCheckpointDuration.Elapsed.Seconds);
         }
-        
+
         return enabled;
     }
 

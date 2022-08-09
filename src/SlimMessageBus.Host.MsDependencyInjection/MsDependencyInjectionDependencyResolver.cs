@@ -7,7 +7,7 @@ public class MsDependencyInjectionDependencyResolver : IDependencyResolver
 {
     protected readonly ILoggerFactory LoggerFactory;
     protected readonly IServiceProvider ServiceProvider;
-    
+
     private readonly ILogger<MsDependencyInjectionDependencyResolver> logger;
 
     public MsDependencyInjectionDependencyResolver(IServiceProvider serviceProvider)

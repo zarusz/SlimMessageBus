@@ -67,7 +67,7 @@ public class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : IMessage
 
     public async Task WaitAll()
     {
-        while(pendingCount > 0)
+        while (pendingCount > 0)
         {
             await Task.Delay(200).ConfigureAwait(false);
         }

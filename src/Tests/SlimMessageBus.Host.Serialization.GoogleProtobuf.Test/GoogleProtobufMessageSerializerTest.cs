@@ -23,6 +23,6 @@ public class GoogleProtobufMessageSerializerTest
 
         // assert
         var deserializedPerson = serializer.Deserialize(typeof(PersonMessage), serializedPerson);
-        ((PersonMessage) deserializedPerson).Should().BeEquivalentTo(personMessage);
+        ((PersonMessage)deserializedPerson).Should().BeEquivalentTo(personMessage);
     }
 }

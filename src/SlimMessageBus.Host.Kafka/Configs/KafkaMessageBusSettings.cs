@@ -28,7 +28,7 @@ public class KafkaMessageBusSettings
     /// Factory method that creates settings based on the consumer GroupId.
     /// See also: https://kafka.apache.org/documentation/#newconsumerconfigs
     /// </summary>
-    public Action< ConsumerConfig> ConsumerConfig { get; set; }
+    public Action<ConsumerConfig> ConsumerConfig { get; set; }
     /// <summary>
     /// The timespan of the Poll retry when kafka consumer Poll operation errors out.
     /// </summary>

@@ -16,8 +16,8 @@ public static class KafkaProducerBuilderExtensions
     {
         Assert.IsNotNull(keyProvider, () => new ConfigurationMessageBusException("Null value provided"));
 
-        byte[] UntypedProvider(object message, string topic) => keyProvider((T) message, topic);
-        builder.Settings.Properties[KafkaProducerSettingsExtensions.KeyProviderKey] = (Func<object, string, byte[]>) UntypedProvider;
+        byte[] UntypedProvider(object message, string topic) => keyProvider((T)message, topic);
+        builder.Settings.Properties[KafkaProducerSettingsExtensions.KeyProviderKey] = (Func<object, string, byte[]>)UntypedProvider;
         return builder;
     }
 
@@ -33,8 +33,8 @@ public static class KafkaProducerBuilderExtensions
     {
         Assert.IsNotNull(partitionProvider, () => new ConfigurationMessageBusException("Null value provided"));
 
-        int UntypedProvider(object message, string topic) => partitionProvider((T) message, topic);
-        builder.Settings.Properties[KafkaProducerSettingsExtensions.PartitionProviderKey] = (Func<object, string, int>) UntypedProvider;
+        int UntypedProvider(object message, string topic) => partitionProvider((T)message, topic);
+        builder.Settings.Properties[KafkaProducerSettingsExtensions.PartitionProviderKey] = (Func<object, string, int>)UntypedProvider;
         return builder;
     }
 

@@ -8,7 +8,7 @@ public class MessageBusCurrentProviderBuilder
     private Func<IMessageBus> provider;
 
     protected MessageBusCurrentProviderBuilder()
-    {            
+    {
     }
 
     public static MessageBusCurrentProviderBuilder Create() => new MessageBusCurrentProviderBuilder();

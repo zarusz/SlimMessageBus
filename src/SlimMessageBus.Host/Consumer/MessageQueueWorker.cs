@@ -21,7 +21,7 @@ public class MessageQueueWorker<TMessage> : IAsyncDisposable where TMessage : cl
     /// <summary>
     /// Clears the pending messages
     /// </summary>
-    public virtual void Clear() 
+    public virtual void Clear()
         => _pendingMessages.Clear();
 
     /// <summary>

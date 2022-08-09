@@ -107,10 +107,10 @@ public class KafkaMessageBusTest : IDisposable
         {
         }
 
-        public byte[] Public_GetMessageKey(ProducerSettings producerSettings, Type messageType, object message, string topic) 
+        public byte[] Public_GetMessageKey(ProducerSettings producerSettings, Type messageType, object message, string topic)
             => GetMessageKey(producerSettings, messageType, message, topic);
 
-        public int Public_GetMessagePartition(ProducerSettings producerSettings, Type messageType, object message, string topic) 
+        public int Public_GetMessagePartition(ProducerSettings producerSettings, Type messageType, object message, string topic)
             => GetMessagePartition(producerSettings, messageType, message, topic);
     }
 }

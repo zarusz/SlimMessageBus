@@ -5,7 +5,7 @@ using SlimMessageBus.Host.Config;
 public interface IMessageProcessor<TMessage> : IAsyncDisposable where TMessage : class
 {
     AbstractConsumerSettings ConsumerSettings { get; }
-    
+
     /// <summary>
     /// Processes the arrived message
     /// </summary>

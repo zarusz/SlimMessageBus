@@ -11,7 +11,7 @@ public abstract class HasProviderExtensions
     {
         if (Properties.TryGetValue(key, out var value))
         {
-            return (T) value;
+            return (T)value;
         }
         return defaultValue;
     }

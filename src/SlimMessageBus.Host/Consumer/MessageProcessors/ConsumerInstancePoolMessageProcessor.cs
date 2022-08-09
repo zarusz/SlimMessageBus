@@ -10,7 +10,7 @@ using SlimMessageBus.Host.Config;
 public class ConsumerInstancePoolMessageProcessor<TMessage> : IMessageProcessor<TMessage> where TMessage : class
 {
     private IMessageProcessor<TMessage> strategy;
-    
+
     public AbstractConsumerSettings ConsumerSettings { get; }
 
     public ConsumerInstancePoolMessageProcessor(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, MessageWithHeaders> messageProvider, Action<object, ConsumerContext> consumerContextInitializer = null)

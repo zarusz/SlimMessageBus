@@ -10,7 +10,7 @@ public class ConcurrencyIncreasingMessageProcessorDecoratorTest
 
     public ConcurrencyIncreasingMessageProcessorDecoratorTest()
     {
-        _busMock = new MessageBusMock();           
+        _busMock = new MessageBusMock();
         _messageProcessorMock = new Mock<IMessageProcessor<SomeMessage>>();
     }
 

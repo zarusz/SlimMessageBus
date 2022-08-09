@@ -23,8 +23,8 @@ public class PubSubBenchmark : IDisposable
             mbb
                 .WithProviderMemory()
                 .AutoDeclareFrom(Assembly.GetExecutingAssembly());
-                //.Produce<SomeEvent>(x => x.DefaultPath(x.MessageType.Name))
-                //.Consume<SomeEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<SomeEventConsumer>());
+            //.Produce<SomeEvent>(x => x.DefaultPath(x.MessageType.Name))
+            //.Consume<SomeEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<SomeEventConsumer>());
         });
 
         services.AddSingleton<TestResult>();
@@ -61,7 +61,7 @@ public class PubSubBenchmark : IDisposable
         {
             await Task.Yield();
         }
-    }  
+    }
 }
 
 public record SomeEvent(DateTimeOffset Timestamp, long Id);
