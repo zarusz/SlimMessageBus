@@ -1,23 +1,18 @@
-﻿namespace SlimMessageBus.Host.Test.Common
+﻿namespace SlimMessageBus.Host.Test.Common;
+
+public class XunitLoggerFactory : ILoggerFactory
 {
-    using Microsoft.Extensions.Logging;
-    using System;
-    using Xunit.Abstractions;
+    private readonly ITestOutputHelper output;
 
-    public class XunitLoggerFactory : ILoggerFactory
+    public XunitLoggerFactory(ITestOutputHelper output) => this.output = output;
+
+    public void AddProvider(ILoggerProvider provider)
     {
-        private readonly ITestOutputHelper output;
+    }
 
-        public XunitLoggerFactory(ITestOutputHelper output) => this.output = output;
+    public ILogger CreateLogger(string categoryName) => new XunitLogger(output, categoryName);
 
-        public void AddProvider(ILoggerProvider provider)
-        {
-        }
-
-        public ILogger CreateLogger(string categoryName) => new XunitLogger(output, categoryName);
-
-        public void Dispose()
-        {
-        }
+    public void Dispose()
+    {
     }
 }

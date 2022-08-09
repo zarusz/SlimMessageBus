@@ -1,8 +1,5 @@
-﻿namespace SlimMessageBus.Host.Redis
-{
-    using System;
+﻿namespace SlimMessageBus.Host.Redis;
 
-    public interface IRedisConsumer : IAsyncDisposable, IConsumerControl
-    {
-    }
+public interface IRedisConsumer : IAsyncDisposable, IConsumerControl
+{
 }

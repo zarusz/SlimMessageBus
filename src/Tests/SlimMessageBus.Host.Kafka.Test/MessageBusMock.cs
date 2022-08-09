@@ -1,39 +1,36 @@
-﻿namespace SlimMessageBus.Host.Kafka.Test
+﻿namespace SlimMessageBus.Host.Kafka.Test;
+
+using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host.DependencyResolver;
+using SlimMessageBus.Host.Serialization;
+
+public class MessageBusMock
 {
-    using Moq;
-    using SlimMessageBus.Host.Config;
-    using System;
-    using SlimMessageBus.Host.DependencyResolver;
-    using SlimMessageBus.Host.Serialization;
+    public Mock<IDependencyResolver> DependencyResolverMock { get; }
+    public Mock<IMessageSerializer> SerializerMock { get; }
+    public MessageBusSettings BusSettings { get; }
 
-    public class MessageBusMock
+    public DateTimeOffset CurrentTime { get; set; }
+    public Mock<MessageBusBase> BusMock { get; }
+    public MessageBusBase Bus => BusMock.Object;
+
+    public MessageBusMock()
     {
-        public Mock<IDependencyResolver> DependencyResolverMock { get; }
-        public Mock<IMessageSerializer> SerializerMock { get; }
-        public MessageBusSettings BusSettings { get; }
+        DependencyResolverMock = new Mock<IDependencyResolver>();
 
-        public DateTimeOffset CurrentTime { get; set; }
-        public Mock<MessageBusBase> BusMock { get; }
-        public MessageBusBase Bus => BusMock.Object;
+        SerializerMock = new Mock<IMessageSerializer>();
 
-        public MessageBusMock()
+        BusSettings = new MessageBusSettings
         {
-            DependencyResolverMock = new Mock<IDependencyResolver>();
+            DependencyResolver = DependencyResolverMock.Object,
+            Serializer = SerializerMock.Object
+        };
 
-            SerializerMock = new Mock<IMessageSerializer>();
+        CurrentTime = DateTimeOffset.UtcNow;
 
-            BusSettings = new MessageBusSettings
-            {
-                DependencyResolver = DependencyResolverMock.Object,
-                Serializer = SerializerMock.Object
-            };
-
-            CurrentTime = DateTimeOffset.UtcNow;
-
-            BusMock = new Mock<MessageBusBase>(BusSettings);
-            BusMock.SetupGet(x => x.Settings).Returns(BusSettings);
-            BusMock.SetupGet(x => x.CurrentTime).Returns(() => CurrentTime);
-        }
+        BusMock = new Mock<MessageBusBase>(BusSettings);
+        BusMock.SetupGet(x => x.Settings).Returns(BusSettings);
+        BusMock.SetupGet(x => x.CurrentTime).Returns(() => CurrentTime);
     }
-
 }
+

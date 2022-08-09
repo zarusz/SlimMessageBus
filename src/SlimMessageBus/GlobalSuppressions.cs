@@ -6,5 +6,5 @@
 
 using System.Diagnostics.CodeAnalysis;
 
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1040:Avoid empty interfaces", Justification = "This is a marker interface", Scope = "type", Target = "~T:SlimMessageBus.IRequestMessage`1")]
+[assembly: SuppressMessage("Design", "CA1040:Avoid empty interfaces", Justification = "This is a marker interface", Scope = "type", Target = "~T:SlimMessageBus.IRequestMessage`1")]
 [assembly: SuppressMessage("Design", "CA1044:Properties should not be write only", Justification = "Intended", Scope = "member", Target = "~P:SlimMessageBus.IConsumerWithHeaders.Headers")]

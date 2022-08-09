@@ -1,9 +1,8 @@
-namespace SlimMessageBus.Host
+namespace SlimMessageBus.Host;
+
+public interface ICheckpointTrigger
 {
-    public interface ICheckpointTrigger
-    {
-        bool IsEnabled { get; }
-        bool Increment();
-        void Reset();
-    }
+    bool IsEnabled { get; }
+    bool Increment();
+    void Reset();
 }

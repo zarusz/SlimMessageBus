@@ -1,28 +1,26 @@
-﻿namespace SlimMessageBus.Host.Kafka
+﻿namespace SlimMessageBus.Host.Kafka;
+
+using SlimMessageBus.Host.Config;
+
+public static class SettingsExtensions
 {
-    using SlimMessageBus.Host.Config;
-    using System;
+    private const string GroupKey = "Group";
 
-    public static class SettingsExtensions
+    public static void SetGroup(this AbstractConsumerSettings consumerSettings, string group)
     {
-        private const string GroupKey = "Group";
+        if (consumerSettings == null) throw new ArgumentNullException(nameof(consumerSettings));
 
-        public static void SetGroup(this AbstractConsumerSettings consumerSettings, string group)
+        consumerSettings.Properties[GroupKey] = group;
+    }
+
+    public static string GetGroup(this AbstractConsumerSettings consumerSettings)
+    {
+        if (consumerSettings == null) throw new ArgumentNullException(nameof(consumerSettings));
+
+        if (!consumerSettings.Properties.TryGetValue(GroupKey, out var group))
         {
-            if (consumerSettings == null) throw new ArgumentNullException(nameof(consumerSettings));
-
-            consumerSettings.Properties[GroupKey] = group;
+            return null;
         }
-
-        public static string GetGroup(this AbstractConsumerSettings consumerSettings)
-        {
-            if (consumerSettings == null) throw new ArgumentNullException(nameof(consumerSettings));
-
-            if (!consumerSettings.Properties.TryGetValue(GroupKey, out var group))
-            {
-                return null;
-            }
-            return group as string;
-        }
+        return group as string;
     }
 }

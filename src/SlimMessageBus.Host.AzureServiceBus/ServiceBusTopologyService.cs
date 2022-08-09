@@ -2,11 +2,7 @@
 
 using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
-using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.Config;
-using System;
-using System.Linq;
-using System.Threading.Tasks;
 
 public class ServiceBusTopologyService
 {

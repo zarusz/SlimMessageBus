@@ -1,36 +1,32 @@
-﻿namespace SlimMessageBus.Host.Test.Common
+﻿namespace SlimMessageBus.Host.Test.Common;
+
+using System.Diagnostics.CodeAnalysis;
+
+public class XunitLogger : ILogger, IDisposable
 {
-    using System;
-    using System.Diagnostics.CodeAnalysis;
-    using Microsoft.Extensions.Logging;
-    using Xunit.Abstractions;
+    private readonly ITestOutputHelper output;
+    private readonly string categoryName;
 
-    public class XunitLogger : ILogger, IDisposable
+    public XunitLogger(ITestOutputHelper output, string categoryName)
     {
-        private readonly ITestOutputHelper output;
-        private readonly string categoryName;
+        this.output = output;
+        this.categoryName = categoryName;
+    }
 
-        public XunitLogger(ITestOutputHelper output, string categoryName)
+    public void Log<TState>(LogLevel logLevel, EventId eventId, [NotNull] TState state, Exception exception, Func<TState, Exception, string> formatter)
+    {
+        output.WriteLine("{0}|{1}|{2}", logLevel.ToString()[..3], categoryName, state?.ToString());
+        if (exception != null)
         {
-            this.output = output;
-            this.categoryName = categoryName;
+            output.WriteLine("Exception: {0}", exception);
         }
+    }
 
-        public void Log<TState>(LogLevel logLevel, EventId eventId, [NotNull] TState state, Exception exception, Func<TState, Exception, string> formatter)
-        {
-            output.WriteLine("{0}|{1}|{2}", logLevel.ToString()[..3], categoryName, state?.ToString());
-            if (exception != null)
-            {
-                output.WriteLine("Exception: {0}", exception);
-            }
-        }
+    public bool IsEnabled(LogLevel logLevel) => true;
 
-        public bool IsEnabled(LogLevel logLevel) => true;
+    public IDisposable BeginScope<TState>(TState state) => this;
 
-        public IDisposable BeginScope<TState>(TState state) => this;
-
-        public void Dispose()
-        {
-        }
+    public void Dispose()
+    {
     }
 }

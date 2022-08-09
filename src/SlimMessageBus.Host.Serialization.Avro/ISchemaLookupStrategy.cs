@@ -1,10 +1,8 @@
-﻿namespace SlimMessageBus.Host.Serialization.Avro
-{
-    using global::Avro;
-    using System;
+﻿namespace SlimMessageBus.Host.Serialization.Avro;
 
-    public interface ISchemaLookupStrategy
-    {
-        Schema Lookup(Type type);
-    }
+using global::Avro;
+
+public interface ISchemaLookupStrategy
+{
+    Schema Lookup(Type type);
 }

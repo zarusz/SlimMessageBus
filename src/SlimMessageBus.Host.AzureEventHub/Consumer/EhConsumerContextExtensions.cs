@@ -1,24 +1,22 @@
-﻿namespace SlimMessageBus.Host.AzureEventHub
+﻿namespace SlimMessageBus.Host.AzureEventHub;
+
+using Azure.Messaging.EventHubs;
+
+public static class EhConsumerContextExtensions
 {
-    using Azure.Messaging.EventHubs;
-    using System;
+    private const string MessageKey = "Eh_Message";
 
-    public static class EhConsumerContextExtensions
+    public static EventData GetTransportMessage(this IConsumerContext context)
     {
-        private const string MessageKey = "Eh_Message";
+        if (context is null) throw new ArgumentNullException(nameof(context));
 
-        public static EventData GetTransportMessage(this IConsumerContext context)
-        {
-            if (context is null) throw new ArgumentNullException(nameof(context));
+        return context.GetPropertyOrDefault<EventData>(MessageKey);
+    }
 
-            return context.GetPropertyOrDefault<EventData>(MessageKey);
-        }
+    public static void SetTransportMessage(this ConsumerContext context, EventData message)
+    {
+        if (context is null) throw new ArgumentNullException(nameof(context));
 
-        public static void SetTransportMessage(this ConsumerContext context, EventData message)
-        {
-            if (context is null) throw new ArgumentNullException(nameof(context));
-
-            context.SetProperty(MessageKey, message);
-        }
+        context.SetProperty(MessageKey, message);
     }
 }

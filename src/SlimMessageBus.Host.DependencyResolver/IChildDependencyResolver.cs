@@ -1,9 +1,6 @@
-﻿namespace SlimMessageBus.Host.DependencyResolver
-{
-    using System;
+﻿namespace SlimMessageBus.Host.DependencyResolver;
 
-    public interface IChildDependencyResolver : IDependencyResolver, IDisposable
-    {
-        IDependencyResolver Parent { get; }
-    }
+public interface IChildDependencyResolver : IDependencyResolver, IDisposable
+{
+    IDependencyResolver Parent { get; }
 }

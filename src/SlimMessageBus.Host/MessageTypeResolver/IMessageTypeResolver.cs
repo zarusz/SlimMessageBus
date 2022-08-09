@@ -1,10 +1,7 @@
-﻿namespace SlimMessageBus.Host
-{
-    using System;
+﻿namespace SlimMessageBus.Host;
 
-    public interface IMessageTypeResolver
-    {
-        string ToName(Type messageType);
-        Type ToType(string name);
-    }
+public interface IMessageTypeResolver
+{
+    string ToName(Type messageType);
+    Type ToType(string name);
 }

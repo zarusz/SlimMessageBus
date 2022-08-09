@@ -1,7 +1,5 @@
 ﻿namespace Sample.Hybrid.ConsoleApp;
 
-using System;
-using System.Threading.Tasks;
 using Sample.Hybrid.ConsoleApp.Domain;
 using SlimMessageBus;
 

@@ -1,6 +1,5 @@
 ﻿namespace Sample.Hybrid.ConsoleApp;
 
-using System;
 using System.IO;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,7 +37,7 @@ class Program
         using var scope = serviceProvider.CreateScope();
 
         MessageBus.SetProvider(() => scope.ServiceProvider.GetRequiredService<IMessageBus>());
-        
+
         // Run the application
         scope.ServiceProvider.GetRequiredService<MainApplication>().Run();
     }

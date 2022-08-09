@@ -1,6 +1,5 @@
 ﻿namespace Sample.DomainEvents.WebApi.Controllers;
 
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Sample.DomainEvents.Domain;
 

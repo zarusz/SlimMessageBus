@@ -1,120 +1,115 @@
-﻿namespace SlimMessageBus.Host.Test.Collections
+﻿namespace SlimMessageBus.Host.Test.Collections;
+
+using SlimMessageBus.Host.Collections;
+using SlimMessageBus.Host.Config;
+
+public class KindMappingTest
 {
-    using SlimMessageBus.Host.Collections;
-    using Xunit;
-    using FluentAssertions;
-    using SlimMessageBus.Host.Config;
-    using System.Collections.Generic;
-    using System;
+    private readonly KindMapping subject = new KindMapping();
 
-    public class KindMappingTest
+    private void Configure(RequestResponseSettings reqRespSettings, IEnumerable<ProducerSettings> producers)
     {
-        private readonly KindMapping subject = new KindMapping();
-
-        private void Configure(RequestResponseSettings reqRespSettings, IEnumerable<ProducerSettings> producers)
+        var settings = new MessageBusSettings
         {
-            var settings = new MessageBusSettings
+            RequestResponse = reqRespSettings
+        };
+        foreach (var producer in producers)
+        {
+            settings.Producers.Add(producer);
+        }
+
+        subject.Configure(settings);
+    }
+
+    [Fact]
+    public void Given_RequestResponseOnTopic_Then_AnyTypeOnThatPathIsReturnedAsTopic()
+    {
+        // Arrange
+        Configure(
+            new RequestResponseSettings
             {
-                RequestResponse = reqRespSettings
-            };
-            foreach (var producer in producers)
-            {
-                settings.Producers.Add(producer);
+                Path = "response-topic",
+                PathKind = PathKind.Topic
+            },
+            new[] {
+                new ProducerSettings() { DefaultPath = "topic1", PathKind = PathKind.Topic, MessageType = typeof(SomeMessage) },
+                new ProducerSettings() { DefaultPath = "topic2", PathKind = PathKind.Topic, MessageType = typeof(SomeDerivedMessage) },
+                new ProducerSettings() { DefaultPath = "queue1", PathKind = PathKind.Queue, MessageType = typeof(SomeDerived2Message) }
             }
+        );
 
-            subject.Configure(settings);
-        }
+        // act
+        var pathKind = subject.GetKind(typeof(SomeResponse), "response-topic");
 
-        [Fact]
-        public void Given_RequestResponseOnTopic_Then_AnyTypeOnThatPathIsReturnedAsTopic()
-        {
-            // Arrange
-            Configure(
-                new RequestResponseSettings
-                {
-                    Path = "response-topic",
-                    PathKind = PathKind.Topic
-                },
-                new[] {
-                    new ProducerSettings() { DefaultPath = "topic1", PathKind = PathKind.Topic, MessageType = typeof(SomeMessage) },
-                    new ProducerSettings() { DefaultPath = "topic2", PathKind = PathKind.Topic, MessageType = typeof(SomeDerivedMessage) },
-                    new ProducerSettings() { DefaultPath = "queue1", PathKind = PathKind.Queue, MessageType = typeof(SomeDerived2Message) }
-                }
-            );
+        // assert
+        pathKind.Should().Be(PathKind.Topic);
+    }
 
-            // act
-            var pathKind = subject.GetKind(typeof(SomeResponse), "response-topic");
+    [Fact]
+    public void Given_RequestResponseOnQueue_Then_AnyTypeOnThatPathIsReturnedAsQueue()
+    {
+        // Arrange
+        Configure(
+            new RequestResponseSettings
+            {
+                Path = "response-queue",
+                PathKind = PathKind.Queue
+            },
+            new[] {
+                new ProducerSettings() { DefaultPath = "topic1", PathKind = PathKind.Topic, MessageType = typeof(SomeMessage) },
+                new ProducerSettings() { DefaultPath = "topic2", PathKind = PathKind.Topic, MessageType = typeof(SomeDerivedMessage) },
+                new ProducerSettings() { DefaultPath = "queue1", PathKind = PathKind.Queue, MessageType = typeof(SomeDerived2Message) }
+            }
+        );
 
-            // assert
-            pathKind.Should().Be(PathKind.Topic);
-        }
+        // act
+        var pathKind = subject.GetKind(typeof(SomeResponse), "response-queue");
 
-        [Fact]
-        public void Given_RequestResponseOnQueue_Then_AnyTypeOnThatPathIsReturnedAsQueue()
-        {
-            // Arrange
-            Configure(
-                new RequestResponseSettings
-                {
-                    Path = "response-queue",
-                    PathKind = PathKind.Queue
-                },
-                new[] {
-                    new ProducerSettings() { DefaultPath = "topic1", PathKind = PathKind.Topic, MessageType = typeof(SomeMessage) },
-                    new ProducerSettings() { DefaultPath = "topic2", PathKind = PathKind.Topic, MessageType = typeof(SomeDerivedMessage) },
-                    new ProducerSettings() { DefaultPath = "queue1", PathKind = PathKind.Queue, MessageType = typeof(SomeDerived2Message) }
-                }
-            );
+        // assert
+        pathKind.Should().Be(PathKind.Queue);
+    }
 
-            // act
-            var pathKind = subject.GetKind(typeof(SomeResponse), "response-queue");
+    [Fact]
+    public void Given_UndeclaredProducerTypeOrPath_Then_TheKindIsTopicByDefault()
+    {
+        // Arrange
+        Configure(
+            new RequestResponseSettings
+            {
+                Path = "response-queue",
+                PathKind = PathKind.Queue
+            },
+            new[] {
+                new ProducerSettings() { DefaultPath = "topic1", PathKind = PathKind.Topic, MessageType = typeof(SomeMessage) },
+                new ProducerSettings() { DefaultPath = "topic2", PathKind = PathKind.Topic, MessageType = typeof(SomeDerivedMessage) },
+            }
+        );
 
-            // assert
-            pathKind.Should().Be(PathKind.Queue);
-        }
+        // act
+        var pathKind = subject.GetKind(typeof(SomeDerived2Message), "non-existing-topic");
 
-        [Fact]
-        public void Given_UndeclaredProducerTypeOrPath_Then_TheKindIsTopicByDefault()
-        {
-            // Arrange
-            Configure(
-                new RequestResponseSettings
-                {
-                    Path = "response-queue",
-                    PathKind = PathKind.Queue
-                },
-                new[] {
-                    new ProducerSettings() { DefaultPath = "topic1", PathKind = PathKind.Topic, MessageType = typeof(SomeMessage) },
-                    new ProducerSettings() { DefaultPath = "topic2", PathKind = PathKind.Topic, MessageType = typeof(SomeDerivedMessage) },
-                }
-            );
+        // assert
+        pathKind.Should().Be(PathKind.Topic);
+    }
 
-            // act
-            var pathKind = subject.GetKind(typeof(SomeDerived2Message), "non-existing-topic");
+    [Fact]
+    public void Given_TwoProducerWithSamePathButOtherKind_Then_ExceptionIsRaised()
+    {
+        // Arrange
 
-            // assert
-            pathKind.Should().Be(PathKind.Topic);
-        }
+        Action configuration = () => Configure(
+            new RequestResponseSettings
+            {
+                Path = "response-topic",
+                PathKind = PathKind.Topic
+            },
+            new[] {
+                new ProducerSettings() { DefaultPath = "message-a", PathKind = PathKind.Topic, MessageType = typeof(SomeMessage) },
+                new ProducerSettings() { DefaultPath = "message-a", PathKind = PathKind.Queue, MessageType = typeof(SomeDerivedMessage) },
+            }
+        );
 
-        [Fact]
-        public void Given_TwoProducerWithSamePathButOtherKind_Then_ExceptionIsRaised()
-        {
-            // Arrange
-            
-            Action configuration = () => Configure(
-                new RequestResponseSettings
-                {
-                    Path = "response-topic",
-                    PathKind = PathKind.Topic
-                },
-                new[] {
-                    new ProducerSettings() { DefaultPath = "message-a", PathKind = PathKind.Topic, MessageType = typeof(SomeMessage) },
-                    new ProducerSettings() { DefaultPath = "message-a", PathKind = PathKind.Queue, MessageType = typeof(SomeDerivedMessage) },
-                }
-            );
-
-            // act & assert
-            configuration.Should().Throw<ConfigurationMessageBusException>();
-        }
+        // act & assert
+        configuration.Should().Throw<ConfigurationMessageBusException>();
     }
 }

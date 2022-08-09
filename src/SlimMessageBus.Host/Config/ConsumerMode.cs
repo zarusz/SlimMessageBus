@@ -1,8 +1,7 @@
-﻿namespace SlimMessageBus.Host.Config
+﻿namespace SlimMessageBus.Host.Config;
+
+public enum ConsumerMode
 {
-    public enum ConsumerMode
-    {
-        Consumer,
-        RequestResponse,
-    }
+    Consumer,
+    RequestResponse,
 }

@@ -1,19 +1,16 @@
-namespace SlimMessageBus
+namespace SlimMessageBus;
+
+public class RequestHandlerFaultedMessageBusException : MessageBusException
 {
-    using System;
-
-    public class RequestHandlerFaultedMessageBusException : MessageBusException
+    public RequestHandlerFaultedMessageBusException()
     {
-        public RequestHandlerFaultedMessageBusException()
-        {
-        }
+    }
 
-        public RequestHandlerFaultedMessageBusException(string message) : base(message)
-        {
-        }
+    public RequestHandlerFaultedMessageBusException(string message) : base(message)
+    {
+    }
 
-        public RequestHandlerFaultedMessageBusException(string message, Exception innerException) : base(message, innerException)
-        {
-        }
+    public RequestHandlerFaultedMessageBusException(string message, Exception innerException) : base(message, innerException)
+    {
     }
 }

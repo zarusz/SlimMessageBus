@@ -1,11 +1,9 @@
 ﻿namespace Sample.Images.Worker.Handlers;
 
-using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
-using System.Threading.Tasks;
 using Sample.Images.FileStore;
 using Sample.Images.Messages;
 using SlimMessageBus;
@@ -44,7 +42,7 @@ public class GenerateThumbnailRequestHandler : IRequestHandler<GenerateThumbnail
                 {
                     FileId = thumbnailFileId
                 };
-            }                
+            }
         }
     }
 
@@ -84,8 +82,8 @@ public class GenerateThumbnailRequestHandler : IRequestHandler<GenerateThumbnail
         var sourceWidth = imgPhoto.Width;
         var sourceHeight = imgPhoto.Height;
 
-        var scaleW = targetW / (float) sourceWidth;
-        var scaleH = targetH / (float) sourceHeight;
+        var scaleW = targetW / (float)sourceWidth;
+        var scaleH = targetH / (float)sourceHeight;
         var scale = Math.Min(scaleW, scaleH);
 
         var destX = 0;

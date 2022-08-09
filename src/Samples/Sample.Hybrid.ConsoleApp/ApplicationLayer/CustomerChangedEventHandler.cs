@@ -3,7 +3,6 @@
 using Sample.Hybrid.ConsoleApp.Domain;
 using Sample.Hybrid.ConsoleApp.EmailService.Contract;
 using SlimMessageBus;
-using System.Threading.Tasks;
 
 public class CustomerChangedEventHandler : IConsumer<CustomerEmailChangedEvent>
 {

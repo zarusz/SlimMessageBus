@@ -1,54 +1,51 @@
-﻿namespace SlimMessageBus.Host.Test.Common
+﻿namespace SlimMessageBus.Host.Test.Common;
+
+public class TestEventCollector<T>
 {
-    using System.Collections.Generic;
+    private readonly IList<T> list = new List<T>();
 
-    public class TestEventCollector<T>
+    private bool isStarted = false;
+
+    public bool IsStarted => isStarted;
+
+    public void Add(T item)
     {
-        private readonly IList<T> list = new List<T>();
+        lock (list)
+        {
+            list.Add(item);
+        }
+    }
 
-        private bool isStarted = false;
+    public IList<T> Snapshot()
+    {
+        lock (list)
+        {
+            var snapshot = new List<T>(list);
+            return snapshot;
+        }
+    }
 
-        public bool IsStarted => isStarted;
+    public void Start()
+    {
+        isStarted = true;
+    }
 
-        public void Add(T item)
+    public int Count
+    {
+        get
         {
             lock (list)
             {
-                list.Add(item);
+                return list.Count;
             }
         }
+    }
 
-        public IList<T> Snapshot()
+    public void Clear()
+    {
+        lock (list)
         {
-            lock (list)
-            {
-                var snapshot = new List<T>(list);
-                return snapshot;
-            }
-        }
-
-        public void Start()
-        {
-            isStarted = true;
-        }
-
-        public int Count
-        {
-            get
-            {
-                lock (list)
-                {
-                    return list.Count;
-                }
-            }
-        }
-
-        public void Clear()
-        {
-            lock (list)
-            {
-                list.Clear();
-            }
+            list.Clear();
         }
     }
 }

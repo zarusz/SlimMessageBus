@@ -1,9 +1,6 @@
-﻿namespace SlimMessageBus.Host
-{
-    using SlimMessageBus.Host.Interceptor;
+﻿namespace SlimMessageBus.Host;
 
-    public static class InterceptorExtensions
-    {
-        public static int GetOrder(this IInterceptor interceptor) => (interceptor as IInterceptorWithOrder)?.Order ?? 0;
-    }
+public static class InterceptorExtensions
+{
+    public static int GetOrder(this IInterceptor interceptor) => (interceptor as IInterceptorWithOrder)?.Order ?? 0;
 }

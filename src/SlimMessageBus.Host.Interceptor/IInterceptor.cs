@@ -1,9 +1,8 @@
-﻿namespace SlimMessageBus.Host.Interceptor
+﻿namespace SlimMessageBus.Host.Interceptor;
+
+/// <summary>
+/// Marker interface for SlimMessageBus interceptors
+/// </summary>
+public interface IInterceptor
 {
-    /// <summary>
-    /// Marker interface for SlimMessageBus interceptors
-    /// </summary>
-    public interface IInterceptor
-    {
-    }
 }

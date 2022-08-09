@@ -1,60 +1,56 @@
-﻿namespace SlimMessageBus.Host.Serialization.Avro
+﻿namespace SlimMessageBus.Host.Serialization.Avro;
+
+using System.Reflection;
+
+/// <summary>
+/// Strategy to creates message instances using reflection.
+/// Constructor objects <see cref="ConstructorInfo"> are cached.
+/// </summary>
+public class ReflectionMessageCreationStategy : IMessageCreationStrategy
 {
-    using Microsoft.Extensions.Logging;
-    using System;
-    using System.Collections.Generic;
-    using System.Reflection;
+    private readonly ILogger _logger;
+    private readonly IDictionary<Type, ConstructorInfo> _constructorByType = new Dictionary<Type, ConstructorInfo>();
+    private readonly object _constructorByTypeLock = new object();
 
-    /// <summary>
-    /// Strategy to creates message instances using reflection.
-    /// Constructor objects <see cref="ConstructorInfo"> are cached.
-    /// </summary>
-    public class ReflectionMessageCreationStategy : IMessageCreationStrategy
+    public ReflectionMessageCreationStategy(ILogger logger)
     {
-        private readonly ILogger _logger;
-        private readonly IDictionary<Type, ConstructorInfo> _constructorByType = new Dictionary<Type, ConstructorInfo>();
-        private readonly object _constructorByTypeLock = new object();
+        _logger = logger;
+    }
 
-        public ReflectionMessageCreationStategy(ILogger logger)
+    protected virtual ConstructorInfo GetTypeConstructorSafe(Type type)
+    {
+        if (!_constructorByType.TryGetValue(type, out var constructor))
         {
-            _logger = logger;
+            constructor = type.GetConstructor(Type.EmptyTypes);
+            if (constructor == null)
+            {
+                throw new InvalidOperationException($"The type {type} does not have a paremeteless constructor");
+            }
+
+            lock (_constructorByTypeLock)
+            {
+                // Note of the key entry is already added it will be overriden here (expected)
+                _constructorByType[type] = constructor;
+            }
         }
 
-        protected virtual ConstructorInfo GetTypeConstructorSafe(Type type)
+        return constructor;
+    }
+
+    public virtual object Create(Type type)
+    {
+        try
         {
-            if (!_constructorByType.TryGetValue(type, out var constructor))
-            {
-                constructor = type.GetConstructor(Type.EmptyTypes);
-                if (constructor == null)
-                {
-                    throw new InvalidOperationException($"The type {type} does not have a paremeteless constructor");
-                }
+            // by default create types using reflection
+            _logger.LogDebug("Instantiating type {0}", type);
 
-                lock (_constructorByTypeLock)
-                {
-                    // Note of the key entry is already added it will be overriden here (expected)
-                    _constructorByType[type] = constructor;
-                }
-            }
-
-            return constructor;
+            var constructor = GetTypeConstructorSafe(type);
+            return constructor.Invoke(null);
         }
-
-        public virtual object Create(Type type)
+        catch (Exception e)
         {
-            try
-            {
-                // by default create types using reflection
-                _logger.LogDebug("Instantiating type {0}", type);
-
-                var constructor = GetTypeConstructorSafe(type);
-                return constructor.Invoke(null);
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "Error intantiating message type {0}", type);
-                throw;
-            }
+            _logger.LogError(e, "Error intantiating message type {0}", type);
+            throw;
         }
     }
 }

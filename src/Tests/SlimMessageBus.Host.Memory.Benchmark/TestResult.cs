@@ -1,5 +1,4 @@
 ﻿namespace SlimMessageBus.Host.Memory.Benchmark;
-using System.Threading;
 
 public class TestResult
 {

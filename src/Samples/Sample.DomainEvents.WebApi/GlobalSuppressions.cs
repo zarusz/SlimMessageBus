@@ -4,6 +4,5 @@
 // Project-level suppressions either have no target or are given 
 // a specific target and scoped to a namespace, type, member, etc.
 
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA2007:Do not directly await a Task", Justification = "<Pending>", Scope = "member", Target = "~M:Sample.DomainEvents.WebApi.Controllers.OrdersController.Post(System.String)~System.Threading.Tasks.Task")]
 [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA2007:Do not directly await a Task", Justification = "<Pending>", Scope = "member", Target = "~M:Sample.DomainEvents.WebApi.Controllers.OrdersController.Post~System.Threading.Tasks.Task{Microsoft.AspNetCore.Mvc.IActionResult}")]
 

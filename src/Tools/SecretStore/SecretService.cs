@@ -1,41 +1,39 @@
-﻿namespace SecretStore
+﻿namespace SecretStore;
+
+using System.Text.RegularExpressions;
+
+public class SecretService
 {
-    using System;
-    using System.Text.RegularExpressions;
+    private readonly Regex _placeholder = new Regex(@"\{\{(\w+)\}\}");
+    private readonly ISecretStore _secretStore;
 
-    public class SecretService
+    public SecretService(ISecretStore secretStore)
     {
-        private readonly Regex _placeholder = new Regex(@"\{\{(\w+)\}\}");
-        private readonly ISecretStore _secretStore;
+        _secretStore = secretStore;
+    }
 
-        public SecretService(ISecretStore secretStore)
+    public string PopulateSecrets(string value)
+    {
+        if (!string.IsNullOrEmpty(value))
         {
-            _secretStore = secretStore;
-        }
-
-        public string PopulateSecrets(string value)
-        {
-            if (!string.IsNullOrEmpty(value))
+            var index = 0;
+            Match match;
+            do
             {
-                var index = 0;
-                Match match;
-                do
+                match = _placeholder.Match(value, index);
+                if (match.Success)
                 {
-                    match = _placeholder.Match(value, index);
-                    if (match.Success)
+                    var secretName = match.Groups[1].Value;
+                    var secretValue = _secretStore.GetSecret(secretName);
+                    if (secretValue == null)
                     {
-                        var secretName = match.Groups[1].Value;
-                        var secretValue = _secretStore.GetSecret(secretName);
-                        if (secretValue == null)
-                        {
-                            throw new ApplicationException($"The secret name '{secretName}' was not present in vault. Ensure that you have a local secrets.txt file in the src folder.");
-                        }
-                        value = value.Replace(match.Value, secretValue, StringComparison.InvariantCulture);
-                        index = match.Index + 1;
+                        throw new ApplicationException($"The secret name '{secretName}' was not present in vault. Ensure that you have a local secrets.txt file in the src folder.");
                     }
-                } while (match.Success);
-            }
-            return value;
+                    value = value.Replace(match.Value, secretValue, StringComparison.InvariantCulture);
+                    index = match.Index + 1;
+                }
+            } while (match.Success);
         }
+        return value;
     }
 }

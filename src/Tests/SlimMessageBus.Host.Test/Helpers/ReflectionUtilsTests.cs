@@ -1,10 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Test;
 
-using FluentAssertions;
-using Moq;
-using System.Threading.Tasks;
-using Xunit;
-
 public class ReflectionUtilsTests
 {
     [Fact]
@@ -38,7 +33,7 @@ public class ReflectionUtilsTests
 
         // act
         var callAsyncMethodFunc = ReflectionUtils.GenerateAsyncMethodCallFunc2(consumerOnHandleMethodInfo, instanceType, typeof(SomeMessage), typeof(string));
-        
+
         await callAsyncMethodFunc(consumerMock.Object, message, path);
 
         // assert

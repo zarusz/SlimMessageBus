@@ -1,19 +1,16 @@
-﻿namespace SlimMessageBus.Host
+﻿namespace SlimMessageBus.Host;
+
+public interface IConsumerControl
 {
-    using System.Threading.Tasks;
+    /// <summary>
+    /// Starts message consumption
+    /// </summary>
+    /// <returns></returns>
+    Task Start();
 
-    public interface IConsumerControl
-    {
-        /// <summary>
-        /// Starts message consumption
-        /// </summary>
-        /// <returns></returns>
-        Task Start();
-
-        /// <summary>
-        /// Stops message consumption
-        /// </summary>
-        /// <returns></returns>
-        Task Stop();
-    }
+    /// <summary>
+    /// Stops message consumption
+    /// </summary>
+    /// <returns></returns>
+    Task Stop();
 }

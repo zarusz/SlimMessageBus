@@ -1,79 +1,72 @@
-﻿namespace SlimMessageBus.Host.Collections
+﻿namespace SlimMessageBus.Host.Collections;
+
+public class GenericInterfaceTypeCache
 {
-    using SlimMessageBus.Host.DependencyResolver;
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
-    using System.Reflection;
+    private readonly Type openGenericType;
+    private readonly string methodName;
+    private readonly SafeDictionaryWrapper<Type, GenericInterfaceType> messageTypeToGenericInterfaceType;
+    private readonly SafeDictionaryWrapper<Type, bool> messageTypeToResolveIsEmpty;
 
-    public class GenericInterfaceTypeCache
+    public GenericInterfaceTypeCache(Type openGenericType, string methodName)
     {
-        private readonly Type openGenericType;
-        private readonly string methodName;
-        private readonly SafeDictionaryWrapper<Type, GenericInterfaceType> messageTypeToGenericInterfaceType;
-        private readonly SafeDictionaryWrapper<Type, bool> messageTypeToResolveIsEmpty;
+        this.openGenericType = openGenericType;
+        this.methodName = methodName;
+        messageTypeToGenericInterfaceType = new SafeDictionaryWrapper<Type, GenericInterfaceType>(CreateInterceptorType);
+        messageTypeToResolveIsEmpty = new SafeDictionaryWrapper<Type, bool>();
+    }
 
-        public GenericInterfaceTypeCache(Type openGenericType, string methodName)
+    private GenericInterfaceType CreateInterceptorType(Type messageType)
+    {
+        var genericType = openGenericType.MakeGenericType(messageType);
+        var method = genericType.GetMethod(methodName);
+        return new GenericInterfaceType(messageType, genericType, method);
+    }
+
+    /// <summary>
+    /// Returns the resolved instances, or null if none are registered.
+    /// </summary>
+    /// <param name="scope"></param>
+    /// <param name="messageType"></param>
+    /// <returns></returns>
+    public IEnumerable<object> ResolveAll(IDependencyResolver scope, Type messageType)
+    {
+        var git = Get(messageType);
+
+        var cacheExists = messageTypeToResolveIsEmpty.TryGet(messageType, out var resolveIsEmpty);
+        if (!cacheExists || !resolveIsEmpty)
         {
-            this.openGenericType = openGenericType;
-            this.methodName = methodName;
-            messageTypeToGenericInterfaceType = new SafeDictionaryWrapper<Type, GenericInterfaceType>(CreateInterceptorType);
-            messageTypeToResolveIsEmpty = new SafeDictionaryWrapper<Type, bool>();
-        }
+            var interceptors = (IEnumerable<object>)scope.Resolve(git.EnumerableOfGenericType);
 
-        private GenericInterfaceType CreateInterceptorType(Type messageType)
-        {
-            var genericType = openGenericType.MakeGenericType(messageType);
-            var method = genericType.GetMethod(methodName);
-            return new GenericInterfaceType(messageType, genericType, method);
-        }
-
-        /// <summary>
-        /// Returns the resolved instances, or null if none are registered.
-        /// </summary>
-        /// <param name="scope"></param>
-        /// <param name="messageType"></param>
-        /// <returns></returns>
-        public IEnumerable<object> ResolveAll(IDependencyResolver scope, Type messageType)
-        {
-            var git = Get(messageType);
-
-            var cacheExists = messageTypeToResolveIsEmpty.TryGet(messageType, out var resolveIsEmpty);
-            if (!cacheExists || !resolveIsEmpty)
+            if (!cacheExists)
             {
-                var interceptors = (IEnumerable<object>)scope.Resolve(git.EnumerableOfGenericType);
-
-                if (!cacheExists)
-                {
-                    resolveIsEmpty = interceptors == null || !interceptors.Any();
-                    messageTypeToResolveIsEmpty.Set(messageType, resolveIsEmpty);
-                }
-
-                if (!resolveIsEmpty)
-                {
-                    return interceptors;
-                }
+                resolveIsEmpty = interceptors == null || !interceptors.Any();
+                messageTypeToResolveIsEmpty.Set(messageType, resolveIsEmpty);
             }
-            return null;
-        }
 
-        public GenericInterfaceType Get(Type messageType) => messageTypeToGenericInterfaceType.GetOrAdd(messageType);
-
-        public class GenericInterfaceType
-        {
-            public Type MessageType { get; }
-            public Type GenericType { get; }
-            public Type EnumerableOfGenericType { get; }
-            // ToDo: Replace with lambda from compiled expression
-            public MethodInfo Method { get; }
-
-            public GenericInterfaceType(Type messageType, Type genericType, MethodInfo method)
+            if (!resolveIsEmpty)
             {
-                MessageType = messageType;
-                GenericType = genericType;
-                EnumerableOfGenericType = typeof(IEnumerable<>).MakeGenericType(genericType);
-                Method = method;
+                return interceptors;
             }
+        }
+        return null;
+    }
+
+    public GenericInterfaceType Get(Type messageType) => messageTypeToGenericInterfaceType.GetOrAdd(messageType);
+
+    public class GenericInterfaceType
+    {
+        public Type MessageType { get; }
+        public Type GenericType { get; }
+        public Type EnumerableOfGenericType { get; }
+        // ToDo: Replace with lambda from compiled expression
+        public MethodInfo Method { get; }
+
+        public GenericInterfaceType(Type messageType, Type genericType, MethodInfo method)
+        {
+            MessageType = messageType;
+            GenericType = genericType;
+            EnumerableOfGenericType = typeof(IEnumerable<>).MakeGenericType(genericType);
+            Method = method;
         }
     }
 }

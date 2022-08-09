@@ -1,16 +1,13 @@
-namespace SlimMessageBus.Host
+namespace SlimMessageBus.Host;
+
+public class MessageProcessingResult<TMessage> where TMessage : class
 {
-    using System.Threading.Tasks;
+    public Task Task { get; }
+    public TMessage Message { get; }
 
-    public class MessageProcessingResult<TMessage> where TMessage : class
+    public MessageProcessingResult(Task task, TMessage message)
     {
-        public Task Task { get; }
-        public TMessage Message { get; }
-
-        public MessageProcessingResult(Task task, TMessage message)
-        {
-            Task = task;
-            Message = message;
-        }
+        Task = task;
+        Message = message;
     }
 }

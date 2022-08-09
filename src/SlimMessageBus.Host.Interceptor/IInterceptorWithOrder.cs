@@ -1,7 +1,6 @@
-﻿namespace SlimMessageBus.Host.Interceptor
+﻿namespace SlimMessageBus.Host.Interceptor;
+
+public interface IInterceptorWithOrder : IInterceptor
 {
-    public interface IInterceptorWithOrder  : IInterceptor
-    {
-        int Order { get; }
-    }
+    int Order { get; }
 }

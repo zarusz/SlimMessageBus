@@ -1,9 +1,6 @@
-using System;
+namespace SlimMessageBus.Host.Serialization.GoogleProtobuf;
 
-namespace SlimMessageBus.Host.Serialization.GoogleProtobuf
+public interface IMessageParserFactory
 {
-    public interface IMessageParserFactory
-    {
-        object CreateMessageParser(Type messageType);
-    }
+    object CreateMessageParser(Type messageType);
 }

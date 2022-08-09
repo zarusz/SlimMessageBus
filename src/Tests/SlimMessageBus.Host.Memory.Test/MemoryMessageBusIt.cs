@@ -1,20 +1,11 @@
 ﻿namespace SlimMessageBus.Host.Memory.Test;
 
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Threading.Tasks;
-using FluentAssertions;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using SecretStore;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.Test.Common;
-using Xunit;
-using Xunit.Abstractions;
 
 [Trait("Category", "Integration")]
 public class MemoryMessageBusIt : IDisposable

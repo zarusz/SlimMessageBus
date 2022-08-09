@@ -1,25 +1,22 @@
-namespace SlimMessageBus.Host.Config
+namespace SlimMessageBus.Host.Config;
+
+/// <summary>
+/// The request/response settings.
+/// </summary>
+public class RequestResponseSettings : AbstractConsumerSettings
 {
-    using System;
+    /// <summary>
+    /// Default wait time for the response to arrive. This is used when the timeout during request send method was not provided.
+    /// </summary>
+    public TimeSpan Timeout { get; set; }
 
     /// <summary>
-    /// The request/response settings.
+    /// Called whenever an incoming response message errors out.
     /// </summary>
-    public class RequestResponseSettings : AbstractConsumerSettings
+    public Action<RequestResponseSettings, object, Exception> OnResponseMessageFault { get; set; }
+
+    public RequestResponseSettings()
     {
-        /// <summary>
-        /// Default wait time for the response to arrive. This is used when the timeout during request send method was not provided.
-        /// </summary>
-        public TimeSpan Timeout { get; set; }
-
-        /// <summary>
-        /// Called whenever an incoming response message errors out.
-        /// </summary>
-        public Action<RequestResponseSettings, object, Exception> OnResponseMessageFault { get; set; }
-
-        public RequestResponseSettings()
-        {
-            Timeout = TimeSpan.FromSeconds(20);
-        }
+        Timeout = TimeSpan.FromSeconds(20);
     }
 }

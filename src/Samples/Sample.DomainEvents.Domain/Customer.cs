@@ -1,7 +1,5 @@
 ﻿namespace Sample.DomainEvents.Domain;
 
-using System;
-
 /// <summary>
 /// aggregate root 
 /// </summary>

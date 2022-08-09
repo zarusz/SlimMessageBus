@@ -1,10 +1,7 @@
 ﻿namespace Sample.Simple.ConsoleApp;
 
-using System;
 using System.Globalization;
-using System.Threading.Tasks;
 using System.Text;
-using System.Threading;
 using Microsoft.Extensions.Configuration;
 using SecretStore;
 using SlimMessageBus;

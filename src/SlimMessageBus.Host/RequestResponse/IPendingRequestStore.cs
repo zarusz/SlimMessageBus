@@ -1,22 +1,18 @@
-namespace SlimMessageBus.Host
+namespace SlimMessageBus.Host;
+
+public interface IPendingRequestStore
 {
-    using System;
-    using System.Collections.Generic;
+    void Add(PendingRequestState requestState);
+    bool Remove(string id);
+    void RemoveAll(IEnumerable<string> ids);
 
-    public interface IPendingRequestStore
-    {
-        void Add(PendingRequestState requestState);
-        bool Remove(string id);
-        void RemoveAll(IEnumerable<string> ids);
+    int GetCount();
+    PendingRequestState GetById(string id);
 
-        int GetCount();
-        PendingRequestState GetById(string id);
-
-        /// <summary>
-        /// Find all the requests which either expired or cancellation was requested
-        /// </summary>
-        /// <param name="now"></param>
-        /// <returns></returns>
-        ICollection<PendingRequestState> FindAllToCancel(DateTimeOffset now);
-    }
+    /// <summary>
+    /// Find all the requests which either expired or cancellation was requested
+    /// </summary>
+    /// <param name="now"></param>
+    /// <returns></returns>
+    ICollection<PendingRequestState> FindAllToCancel(DateTimeOffset now);
 }

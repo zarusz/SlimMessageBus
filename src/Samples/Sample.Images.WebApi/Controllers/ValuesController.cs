@@ -1,6 +1,5 @@
 ﻿namespace Sample.Images.WebApi.Controllers;
 
-using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
 
 [Route("api/[controller]")]
