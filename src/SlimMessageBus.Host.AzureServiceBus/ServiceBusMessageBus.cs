@@ -64,17 +64,18 @@ public class ServiceBusMessageBus : MessageBusBase
     {
         await base.ProvisionTopology();
 
+        var prevProvisionTopologyTask = provisionTopologyTask;
+        if (prevProvisionTopologyTask != null)
+        {
+            // if previous provisioning is pending, skip it
+            await prevProvisionTopologyTask;
+        }
+
         if (ProviderSettings.TopologyProvisioning?.Enabled ?? false)
         {
-            if (provisionTopologyTask != null)
-            {
-                // if previous provisioning is pending, skip it
-                return;
-            }
-
             var provisioningService = new ServiceBusTopologyService(LoggerFactory.CreateLogger<ServiceBusTopologyService>(), Settings, ProviderSettings);
-            provisionTopologyTask = provisioningService
-                .ProvisionTopology() // provisining happens asynchronously
+
+            provisionTopologyTask = provisioningService.ProvisionTopology() // provisining happens asynchronously
                 .ContinueWith(x => provisionTopologyTask = null); // mark when it completed
 
             var beforeStartTask = BeforeStartTask;
