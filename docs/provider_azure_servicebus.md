@@ -14,7 +14,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
   - [Handle Request Messages](#handle-request-messages)
 - [ASB Sessions](#asb-sessions)
 - [Topology Provisioning](#topology-provisioning)
-  - [Triger Topology Creation](#triger-topology-creation)
+  - [Triger Topology Provisioning](#triger-topology-provisioning)
 
 ## Configuration
 
@@ -401,7 +401,9 @@ This allows to establish ownership between services as to which one owns the top
 
 By default, all the flags are enabled (set to `true`). This is for convenience.
 
-### Triger Topology Creation
+### Triger Topology Provisioning
+
+> Since 1.19.3
 
 Typically when the bus is created (on application process start) the topology provisioning happens (when enabled).
 However, in situations when the underlying ASB topology changes (queue / topic is removed manually) and you may want to trigger topology provisioning again. It is possible by injecting the `ITopologyControl` that allows to achieve that:
