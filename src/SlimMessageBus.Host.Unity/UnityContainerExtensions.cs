@@ -66,6 +66,7 @@ public static class UnityContainerExtensions
         container.RegisterType<IDependencyResolver, UnityMessageBusDependencyResolver>(TypeLifetime.Hierarchical);
 
         container.RegisterFactory<IConsumerControl>(c => c.Resolve<IMasterMessageBus>(), FactoryLifetime.PerResolve);
+        container.RegisterFactory<ITopologyControl>(c => c.Resolve<IMasterMessageBus>(), FactoryLifetime.PerResolve);
 
         // Register transient message bus - this is a lightweight proxy that just introduces the current DI scope
         container.RegisterFactory<MessageBusProxy>(c => new MessageBusProxy(c.Resolve<IMasterMessageBus>(), c.Resolve<IDependencyResolver>()), FactoryLifetime.PerResolve);

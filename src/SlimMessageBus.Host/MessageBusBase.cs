@@ -704,7 +704,10 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable
     public Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
         => SendInternal<TResponseMessage>(request, timeout, path, headers, cancellationToken);
 
+
     #endregion
 
     #endregion
+    
+    public virtual Task ProvisionTopology() => Task.CompletedTask;
 }

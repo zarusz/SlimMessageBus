@@ -181,4 +181,11 @@ public class HybridMessageBus : IMasterMessageBus, IAsyncDisposable
         var bus = Route(request, path);
         return bus.SendInternal<TResponseMessage>(request, timeout, path, headers, cancellationToken, currentDependencyResolver);
     }
+
+    public Task ProvisionTopology()
+    {
+        // Trigger provisioning to all child buses
+        var tasks = _busByName.Values.Select(x => x.ProvisionTopology());
+        return Task.WhenAll(tasks);
+    }
 }

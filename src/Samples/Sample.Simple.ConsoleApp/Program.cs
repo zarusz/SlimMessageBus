@@ -117,16 +117,17 @@ internal static class Program
         // Create message bus using the fluent builder interface
         mbb
             // Pub/Sub example
-            .Produce<AddCommand>(x => x.DefaultTopic(topicForAddCommand)) // By default AddCommand messages will go to event-hub/topic named 'add-command'
+            .Produce<AddCommand>(x => x.DefaultTopic(topicForAddCommand)
+                                       .WithModifier((msg, nativeMsg) => nativeMsg.PartitionKey = msg.Left.ToString())) // By default AddCommand messages will go to event-hub/topic named 'add-command'
             .Consume<AddCommand>(x => x.Topic(topicForAddCommand)
                                        .WithConsumer<AddCommandConsumer>()
                                        //.WithConsumer<AddCommandConsumer>(nameof(AddCommandConsumer.OnHandle))
                                        //.WithConsumer<AddCommandConsumer>((consumer, message, name) => consumer.OnHandle(message, name))
                                        .KafkaGroup(consumerGroup) // for Apache Kafka
                                        .EventHubGroup(consumerGroup) // for Azure Event Hub
-                                       .SubscriptionName(consumerGroup) // for Azure Service Bus
-                                       .SubscriptionSqlFilter("2=2")
                                        // for Azure Service Bus
+                                       .SubscriptionName(consumerGroup)
+                                       .SubscriptionSqlFilter("2=2")
                                        .CreateTopicOptions((options) =>
                                        {
                                            options.RequiresDuplicateDetection = true;
@@ -281,9 +282,9 @@ internal static class Program
             {
                 await bus.Publish(new AddCommand { Left = a, Right = b });
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                Console.WriteLine("Producer: publish error");
+                Console.WriteLine("Producer: publish error {0}", ex.Message);
             }
 
             await Task.Delay(50); // Simulate some delay

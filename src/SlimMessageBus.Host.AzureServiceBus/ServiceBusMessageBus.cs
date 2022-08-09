@@ -60,21 +60,41 @@ public class ServiceBusMessageBus : MessageBusBase
         this.consumers.Add(consumer);
     }
 
+    public override async Task ProvisionTopology()
+    {
+        await base.ProvisionTopology();
+
+        var prevProvisionTopologyTask = provisionTopologyTask;
+        if (prevProvisionTopologyTask != null)
+        {
+            // if previous provisioning is pending, skip it
+            await prevProvisionTopologyTask;
+        }
+
+        if (ProviderSettings.TopologyProvisioning?.Enabled ?? false)
+        {
+            var provisioningService = new ServiceBusTopologyService(LoggerFactory.CreateLogger<ServiceBusTopologyService>(), Settings, ProviderSettings);
+
+            provisionTopologyTask = provisioningService.ProvisionTopology() // provisining happens asynchronously
+                .ContinueWith(x => provisionTopologyTask = null); // mark when it completed
+
+            var beforeStartTask = BeforeStartTask;
+
+            BeforeStartTask = beforeStartTask != null
+                ? beforeStartTask.ContinueWith(x => provisionTopologyTask)
+                : provisionTopologyTask;
+
+            await provisionTopologyTask.ConfigureAwait(false);
+        }
+    }
+
     #region Overrides of MessageBusBase
 
     protected override void Build()
     {
         base.Build();
 
-        if (ProviderSettings.TopologyProvisioning?.Enabled ?? false)
-        {
-            var provisioningService = new ServiceBusTopologyService(LoggerFactory.CreateLogger<ServiceBusTopologyService>(), Settings, ProviderSettings);
-            provisionTopologyTask = provisioningService
-                .ProvisionTopology() // provisining happens asynchronously
-                .ContinueWith(x => provisionTopologyTask = null); // mark when it completed
-
-            BeforeStartTask = provisionTopologyTask;
-        }
+        _ = ProvisionTopology();
 
         client = ProviderSettings.ClientFactory();
 
