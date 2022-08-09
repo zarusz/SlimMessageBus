@@ -59,6 +59,7 @@ public static class ServiceCollectionExtensions
         }
 
         services.AddTransient<IConsumerControl>(svp => svp.GetRequiredService<IMasterMessageBus>());
+        services.AddTransient<ITopologyControl>(svp => svp.GetRequiredService<IMasterMessageBus>());
 
         // Register transient message bus - this is a lightweight proxy that just introduces the current DI scope
         services.AddTransient(svp => new MessageBusProxy(svp.GetRequiredService<IMasterMessageBus>(), svp.GetRequiredService<IDependencyResolver>()));

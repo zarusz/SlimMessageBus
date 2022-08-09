@@ -14,6 +14,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
   - [Handle Request Messages](#handle-request-messages)
 - [ASB Sessions](#asb-sessions)
 - [Topology Provisioning](#topology-provisioning)
+  - [Triger Topology Creation](#triger-topology-creation)
 
 ## Configuration
 
@@ -399,3 +400,14 @@ mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnection
 This allows to establish ownership between services as to which one owns the topic/queue creation. In the example above, the producer of messages would own the creation of topics or queues. The consumer service only owns the creation of the subscriptions in pub/sub.
 
 By default, all the flags are enabled (set to `true`). This is for convenience.
+
+### Triger Topology Creation
+
+Typically when the bus is created (on application process start) the topology provisioning happens (when enabled).
+However, in situations when the underlying ASB topology changes (queue / topic is removed manually) and you may want to trigger topology provisioning again. It is possible by injecting the `ITopologyControl` that allows to achieve that:
+
+```cs
+ITopologyControl ctrl = // injected
+
+await ctrl.ProvisionTopology();
+```

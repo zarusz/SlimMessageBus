@@ -71,6 +71,7 @@ public class SlimMessageBusModule : Autofac.Module
             .SingleInstance();
 
         builder.Register<IConsumerControl>(ctx => ctx.Resolve<IMasterMessageBus>());
+        builder.Register<ITopologyControl>(ctx => ctx.Resolve<IMasterMessageBus>());
 
         // Register transient message bus - this is a lightweight proxy that just introduces the current DI scope
         builder.Register(ctx => new MessageBusProxy(ctx.Resolve<IMasterMessageBus>(), ctx.Resolve<IDependencyResolver>()));
