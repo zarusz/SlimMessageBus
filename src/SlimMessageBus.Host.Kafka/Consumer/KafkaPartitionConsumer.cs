@@ -123,7 +123,7 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
 
     public void Commit(TopicPartitionOffset offset)
     {
-        if (lastCheckpointOffset == null || offset.Offset > lastCheckpointOffset.Offset)
+        if (offset != null && (lastCheckpointOffset == null || offset.Offset > lastCheckpointOffset.Offset))
         {
             logger.LogDebug("Group [{Group}]: Commit at Offset: {Offset}, Partition: {Partition}, Topic: {Topic}", consumerSettings.GetGroup(), offset.Offset, offset.Partition, offset.Topic);
 

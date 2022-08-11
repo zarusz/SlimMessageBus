@@ -175,12 +175,11 @@ public class KafkaMessageBus : MessageBusBase
     {
         AssertActive();
 
-        var messageType = message.GetType();
-        var producerSettings = GetProducerSettings(messageType);
+        var messageType = message?.GetType();
+        var producerSettings = messageType != null ? GetProducerSettings(messageType) : null;
 
         // calculate message key
         var key = GetMessageKey(producerSettings, messageType, message, path);
-
         var kafkaMessage = new Message { Key = key, Value = messagePayload };
 
         if (messageHeaders != null && messageHeaders.Count > 0)
@@ -195,10 +194,12 @@ public class KafkaMessageBus : MessageBusBase
         }
 
         // calculate partition
-        var partition = GetMessagePartition(producerSettings, messageType, message, path);
+        var partition = producerSettings != null
+            ? GetMessagePartition(producerSettings, messageType, message, path)
+            : NoPartition;
 
         logger.LogTrace("Producing message {Message} of type {MessageType}, on topic {Topic}, partition {Partition}, key size {KeySize}, payload size {MessageSize}",
-            message, messageType.Name, path, partition, key?.Length ?? 0, messagePayload.Length);
+            message, messageType?.Name, path, partition, key?.Length ?? 0, messagePayload?.Length ?? 0);
 
         // send the message to topic
         var task = partition == NoPartition
@@ -215,12 +216,12 @@ public class KafkaMessageBus : MessageBusBase
 
         // log some debug information
         logger.LogDebug("Message {Message} of type {MessageType} delivered to topic {Topic}, partition {Partition}, offset: {Offset}",
-            message, messageType.Name, deliveryResult.Topic, deliveryResult.Partition, deliveryResult.Offset);
+            message, messageType?.Name, deliveryResult.Topic, deliveryResult.Partition, deliveryResult.Offset);
     }
 
     protected byte[] GetMessageKey(ProducerSettings producerSettings, [NotNull] Type messageType, object message, string topic)
     {
-        var keyProvider = producerSettings.GetKeyProvider();
+        var keyProvider = producerSettings?.GetKeyProvider();
         if (keyProvider != null)
         {
             var key = keyProvider(message, topic);
@@ -232,7 +233,7 @@ public class KafkaMessageBus : MessageBusBase
 
             return key;
         }
-        return null;
+        return Array.Empty<byte>();
     }
 
     private const int NoPartition = -1;
