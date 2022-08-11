@@ -36,7 +36,7 @@ public class ServiceBusTopologyService
         catch (ServiceBusException e) when (e.Reason == ServiceBusFailureReason.MessagingEntityAlreadyExists)
         {
             // do nothing as another service instance might have created that in the meantime
-            return TopologyCreationStatus.NotExists;
+            return TopologyCreationStatus.Exists;
         }
     }
 

@@ -62,7 +62,7 @@ public class KafkaMessageBusTest : IDisposable
 
         // assert
         msgAKey.Should().BeSameAs(msgA.Key);
-        msgBKey.Should().BeNull();
+        msgBKey.Should().BeEmpty();
     }
 
     [Fact]
