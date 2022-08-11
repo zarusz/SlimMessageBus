@@ -12,12 +12,12 @@ using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.Kafka;
 using SlimMessageBus.Host.Redis;
 using SlimMessageBus.Host.Memory;
-using Microsoft.Extensions.Logging;
 using Confluent.Kafka;
 using Microsoft.Extensions.DependencyInjection;
 using SlimMessageBus.Host;
 using System.Reflection;
 using SlimMessageBus.Host.MsDependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 enum Provider
 {
@@ -28,58 +28,111 @@ enum Provider
     Memory,
 }
 
+/// <summary>
+/// This sample is a console app that uses the .NET Generic Host https://docs.microsoft.com/en-us/dotnet/core/extensions/generic-host
+/// </summary>
 internal static class Program
 {
-    private static readonly Random Random = new();
-    private static bool _canRun = true;
-
-    private static async Task Main()
+    private static async Task Main(string[] args)
     {
-        // Load configuration
-        var configuration = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
-
         // Local file with secrets
         Secrets.Load(@"..\..\..\..\..\secrets.txt");
 
-        // Setup DI
-        using var serviceProvider = new ServiceCollection()
-            // Register MS logging
-            .AddLogging(cfg => cfg.AddConfiguration(configuration.GetSection("Logging")).AddConsole())
-            // Register bus
-            .AddSlimMessageBus((mbb, services) =>
+        await Host.CreateDefaultBuilder(args)
+            .ConfigureServices((ctx, services) =>
+            {
+                services.AddHostedService<ApplicationService>();
+
+                services.AddSlimMessageBus((mbb, svp) =>
+                    {
+                        ConfigureMessageBus(mbb, ctx.Configuration);
+                    },
+                    // Option 1
+                    addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() },
+                    addConfiguratorsFromAssembly: new[] { Assembly.GetExecutingAssembly() }
+                );
+                // Option 2
+                //services.AddMessageBusConsumersFromAssembly(Assembly.GetExecutingAssembly())
+                //services.AddMessageBusConfiguratorsFromAssembly(Assembly.GetExecutingAssembly())
+            })
+            .Build()
+            .RunAsync();
+    }
+
+    internal class ApplicationService : IHostedService
+    {
+        private readonly IMessageBus _messageBus;
+        
+        private readonly Random _random = new();
+        private bool _canRun = true;
+
+        // Note: Injecting IMessageBus will force MsDependencyInjection to eagerly load SMB consumers upon start.
+        public ApplicationService(IMessageBus messageBus) => _messageBus = messageBus;
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            var addTask = Task.Factory.StartNew(AddLoop, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            var multiplyTask = Task.Factory.StartNew(MultiplyLoop, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            return Task.CompletedTask;
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _canRun = false;
+            return Task.CompletedTask;
+        }
+
+        private async Task AddLoop()
+        {
+            while (_canRun)
+            {
+                var a = _random.Next(100);
+                var b = _random.Next(100);
+
+                Console.WriteLine("Producer: Sending numbers {0} and {1}", a, b);
+                try
                 {
-                    ConfigureMessageBus(mbb, configuration, services);
-                },
-                // Option 1
-                addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() },
-                addConfiguratorsFromAssembly: new[] { Assembly.GetExecutingAssembly() }
-            )
-            // Option 2
-            //.AddMessageBusConsumersFromAssembly(Assembly.GetExecutingAssembly())
-            //.AddMessageBusConfiguratorsFromAssembly(Assembly.GetExecutingAssembly())
+                    await _messageBus.Publish(new AddCommand { Left = a, Right = b });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Producer: publish error {0}", ex.Message);
+                }
 
-            .BuildServiceProvider();
+                await Task.Delay(50); // Simulate some delay
+            }
+        }
 
-        // Create the bus and process messages
-        using var messageBus = serviceProvider.GetRequiredService<IMessageBus>();
+        private async Task MultiplyLoop()
+        {
+            while (_canRun)
+            {
+                var a = _random.Next(100);
+                var b = _random.Next(100);
 
-        var addTask = Task.Factory.StartNew(() => AddLoop(messageBus), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
-        var multiplyTask = Task.Factory.StartNew(() => MultiplyLoop(messageBus), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+                Console.WriteLine("Sender: Sending numbers {0} and {1}", a, b);
+                try
+                {
+                    var response = await _messageBus.Send(new MultiplyRequest { Left = a, Right = b });
+                    Console.WriteLine("Sender: Got response back with result {0}", response.Result);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Sender: request error or timeout: " + e);
+                }
 
-        Console.WriteLine("Press any key to stop...");
-        Console.ReadKey();
-
-        _canRun = false;
-        await Task.WhenAll(addTask, multiplyTask);
+                await Task.Delay(50); // Simulate some work
+            }
+        }
     }
 
     /**
      * Performs IMessageBus creation & configuration
      */
-    private static void ConfigureMessageBus(MessageBusBuilder mbb, IConfiguration configuration, IServiceProvider services)
+    private static void ConfigureMessageBus(MessageBusBuilder mbb, IConfiguration configuration)
     {
         // Choose your provider
-        var provider = Provider.AzureServiceBus;
+        var provider = Provider.Kafka;
 
         // Provide your event hub-names OR kafka/service bus topic names
         var topicForAddCommand = "add-command";
@@ -268,49 +321,6 @@ internal static class Program
                         break;
                 }
             });
-    }
-
-    static async Task AddLoop(IMessageBus bus)
-    {
-        while (_canRun)
-        {
-            var a = Random.Next(100);
-            var b = Random.Next(100);
-
-            Console.WriteLine("Producer: Sending numbers {0} and {1}", a, b);
-            try
-            {
-                await bus.Publish(new AddCommand { Left = a, Right = b });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Producer: publish error {0}", ex.Message);
-            }
-
-            await Task.Delay(50); // Simulate some delay
-        }
-    }
-
-    static async Task MultiplyLoop(IMessageBus bus)
-    {
-        while (_canRun)
-        {
-            var a = Random.Next(100);
-            var b = Random.Next(100);
-
-            Console.WriteLine("Sender: Sending numbers {0} and {1}", a, b);
-            try
-            {
-                var response = await bus.Send(new MultiplyRequest { Left = a, Right = b });
-                Console.WriteLine("Sender: Got response back with result {0}", response.Result);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("Sender: request error or timeout: " + e);
-            }
-
-            await Task.Delay(50); // Simulate some work
-        }
     }
 }
 
