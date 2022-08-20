@@ -1,4 +1,4 @@
-# FluentValidation Validator Extension for SlimMessageBus <!-- omit in toc -->
+# FluentValidation Plugin for SlimMessageBus <!-- omit in toc -->
 
 Please read the [Introduction](intro.md) before reading this provider documentation.
 
@@ -77,21 +77,19 @@ For example given an ASP.NET Mimimal WebApi, the request can be delegated to Sli
 // Using minimal APIs
 var app = builder.Build();
 
-app
-    .MapPost("/customer", (CreateCustomerCommand command, IMessageBus bus) => bus.Send(command))
-    .WithName("CreateCustomer");
+app.MapPost("/customer", (CreateCustomerCommand command, IMessageBus bus) => bus.Send(command));    
 
 await app.RunAsync();
 ```
 
 In the situation that the incomming HTTP request where to deliver an invalid command, the request will fail with `FluentValidation.ValidationException: Validation failed` exception.
 
-For full example, please see the [Sample.ValidatingWebApi](../src/SlimMessageBus.Host.FluentValidation/) sample.
+For full example, please see the [Sample.ValidatingWebApi](../src/Samples/Sample.ValidatingWebApi/) sample.
 
 ### Consumer side validation
 
 We can also enable validation of the incoming message just before it gets delivered to the respective `IConsumer<T>` or `IRequestHandler<T, R>` - on the consumer side.
-Such validation would be needed in scenarios when an external system deliveres messages onto the transport (Kafka, Azure Service Bus) which we do not trust, and therefore we could enable validation on the consumer end. This will prevent the invalid messages to enter the consumer or handler.
+Such validation would be needed in scenarios when an external system delivers messages onto the transport (Kafka, Azure Service Bus) which we do not trust, and therefore we could enable validation on the consumer end. This will prevent the invalid messages to enter the consumer or handler.
 
 ```cs
 // Using minimal APIs
