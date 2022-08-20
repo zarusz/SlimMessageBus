@@ -47,6 +47,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
   - [Memory](docs/provider_memory.md)
   - [Hybrid](docs/provider_hybrid.md)
 - [Serialization Plugins](docs/serialization.md)
+- [Validation using FluentValidation](docs/plugin_fluent_validation.md)
 
 ## Packages
 
