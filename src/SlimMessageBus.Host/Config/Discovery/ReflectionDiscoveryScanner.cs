@@ -2,30 +2,38 @@
 
 public class ReflectionDiscoveryScanner
 {
-    private readonly IList<Assembly> assemblies;
+    private readonly IList<Assembly> _assemblies;
+    private readonly Func<DiscoveryProspectType, bool> _filter;
+
     private IList<DiscoveryProspectType> prospectTypes = new List<DiscoveryProspectType>();
 
-    IEnumerable<DiscoveryProspectType> ProspectTypes => prospectTypes;
+    public IEnumerable<DiscoveryProspectType> ProspectTypes => prospectTypes;
 
-    public static ReflectionDiscoveryScanner From(IEnumerable<Assembly> assemblies)
+    public static ReflectionDiscoveryScanner From(IEnumerable<Assembly> assemblies, Func<DiscoveryProspectType, bool> filter = null)
+        => new ReflectionDiscoveryScanner(assemblies, filter: filter).Scan();
+
+    public static ReflectionDiscoveryScanner From(Assembly assembly, Func<DiscoveryProspectType, bool> filter = null)
+        => new ReflectionDiscoveryScanner(filter: filter).AddAssembly(assembly).Scan();
+
+    public ReflectionDiscoveryScanner(IEnumerable<Assembly> assemblies = null, Func<DiscoveryProspectType, bool> filter = null)
     {
-        var scanner = new ReflectionDiscoveryScanner(assemblies);
-        scanner.Scan();
-
-        return scanner;
+        _assemblies = new List<Assembly>(assemblies ?? Enumerable.Empty<Assembly>());
+        _filter = filter;
     }
 
-    public ReflectionDiscoveryScanner(IEnumerable<Assembly> assemblies = null)
-        => this.assemblies = new List<Assembly>(assemblies ?? Enumerable.Empty<Assembly>());
-
-    public void AddAssembly(Assembly assembly) => assemblies.Add(assembly);
+    public ReflectionDiscoveryScanner AddAssembly(Assembly assembly)
+    {
+        _assemblies.Add(assembly);
+        return this;
+    }
 
     public ReflectionDiscoveryScanner Scan()
     {
-        prospectTypes = assemblies
+        prospectTypes = _assemblies
             .SelectMany(x => x.GetTypes())
             .Where(t => t.IsClass && !t.IsAbstract)
             .SelectMany(t => t.GetInterfaces(), (t, i) => new DiscoveryProspectType { Type = t, InterfaceType = i })
+            .Where(t => _filter == null || _filter(t))
             .ToList();
 
         return this;

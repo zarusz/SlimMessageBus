@@ -213,7 +213,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Interceptors", "Interceptor
 		Host.Interceptor.Properties.xml = Host.Interceptor.Properties.xml
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.Validation.FluentValidation", "SlimMessageBus.Host.Validation.FluentValidation\SlimMessageBus.Host.Validation.FluentValidation.csproj", "{3B4C79C0-2469-4CA0-A03B-87575F6B9CB8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.FluentValidation", "SlimMessageBus.Host.FluentValidation\SlimMessageBus.Host.FluentValidation.csproj", "{3B4C79C0-2469-4CA0-A03B-87575F6B9CB8}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sample.ValidatingWebApi", "Samples\Sample.ValidatingWebApi\Sample.ValidatingWebApi.csproj", "{7A245522-423D-4D26-A58C-6F3CBE0C3DA5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.FluentValidation.MsDependencyInjection", "SlimMessageBus.Host.FluentValidation.MsDependencyInjection\SlimMessageBus.Host.FluentValidation.MsDependencyInjection.csproj", "{B952C7C4-5E8B-450A-9A69-0D602050D4FA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -599,6 +603,22 @@ Global
 		{3B4C79C0-2469-4CA0-A03B-87575F6B9CB8}.Release|Any CPU.Build.0 = Release|Any CPU
 		{3B4C79C0-2469-4CA0-A03B-87575F6B9CB8}.Release|x86.ActiveCfg = Release|Any CPU
 		{3B4C79C0-2469-4CA0-A03B-87575F6B9CB8}.Release|x86.Build.0 = Release|Any CPU
+		{7A245522-423D-4D26-A58C-6F3CBE0C3DA5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7A245522-423D-4D26-A58C-6F3CBE0C3DA5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7A245522-423D-4D26-A58C-6F3CBE0C3DA5}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{7A245522-423D-4D26-A58C-6F3CBE0C3DA5}.Debug|x86.Build.0 = Debug|Any CPU
+		{7A245522-423D-4D26-A58C-6F3CBE0C3DA5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7A245522-423D-4D26-A58C-6F3CBE0C3DA5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7A245522-423D-4D26-A58C-6F3CBE0C3DA5}.Release|x86.ActiveCfg = Release|Any CPU
+		{7A245522-423D-4D26-A58C-6F3CBE0C3DA5}.Release|x86.Build.0 = Release|Any CPU
+		{B952C7C4-5E8B-450A-9A69-0D602050D4FA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B952C7C4-5E8B-450A-9A69-0D602050D4FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B952C7C4-5E8B-450A-9A69-0D602050D4FA}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B952C7C4-5E8B-450A-9A69-0D602050D4FA}.Debug|x86.Build.0 = Debug|Any CPU
+		{B952C7C4-5E8B-450A-9A69-0D602050D4FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B952C7C4-5E8B-450A-9A69-0D602050D4FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B952C7C4-5E8B-450A-9A69-0D602050D4FA}.Release|x86.ActiveCfg = Release|Any CPU
+		{B952C7C4-5E8B-450A-9A69-0D602050D4FA}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -658,6 +678,8 @@ Global
 		{3674417F-9856-4B11-8A03-4D0BDCBDC288} = {2C04A6C4-34E7-441D-BE6F-27797EDF305A}
 		{B7CDA0D2-98AB-42B6-A41A-9D893C1B9DCB} = {75BDDBB5-8DB8-4893-BD89-8FFC6C42244D}
 		{3B4C79C0-2469-4CA0-A03B-87575F6B9CB8} = {B7CDA0D2-98AB-42B6-A41A-9D893C1B9DCB}
+		{7A245522-423D-4D26-A58C-6F3CBE0C3DA5} = {A5B15524-93B8-4CCE-AC6D-A22984498BA0}
+		{B952C7C4-5E8B-450A-9A69-0D602050D4FA} = {B7CDA0D2-98AB-42B6-A41A-9D893C1B9DCB}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {435A0D65-610C-4B84-B1AA-2C7FBE72DB80}

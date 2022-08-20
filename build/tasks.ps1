@@ -1,3 +1,4 @@
+
 $root = [System.IO.Path]::GetFullPath("$PSScriptRoot\..")
 
 $sln_file = "$root\src\SlimMessageBus.sln"
@@ -37,7 +38,8 @@ $projects = @(
 	"SlimMessageBus.Host.Redis",
 	"SlimMessageBus.Host.Hybrid",
 	
-	"SlimMessageBus.Host.Validation.FluentValidation"
+	"SlimMessageBus.Host.FluentValidation"
+	"SlimMessageBus.Host.FluentValidation.MsDependencyInjection"
 )
 
 # msbuild.exe https://msdn.microsoft.com/pl-pl/library/ms164311(v=vs.80).aspx

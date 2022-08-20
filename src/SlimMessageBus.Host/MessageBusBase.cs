@@ -482,7 +482,7 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable
             {
                 // The IProducerInterceptor<,> requires next() to return Task<object>
                 var nextSnapshot = next;
-                var nextWithObjectResult = () => nextSnapshot().ContinueWith(x => (object)x.Result);
+                var nextWithObjectResult = () => nextSnapshot().ContinueWith(x => (object)x.GetAwaiter().GetResult());
 
                 var producerInterceptorType = RuntimeTypeCache.ProducerInterceptorType.Get(requestType);
                 foreach (var producerInterceptor in producerInterceptors.OfType<IInterceptor>().OrderBy(x => x.GetOrder()))
@@ -493,7 +493,7 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable
                 }
 
                 // Cast back to Task<TResponse>
-                next = () => nextWithObjectResult().ContinueWith(x => (TResponse)x.Result);
+                next = () => nextWithObjectResult().ContinueWith(x => (TResponse)x.GetAwaiter().GetResult());
             }
 
             return await next();
