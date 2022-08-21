@@ -708,6 +708,6 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable
     #endregion
 
     #endregion
-    
+
     public virtual Task ProvisionTopology() => Task.CompletedTask;
 }

@@ -81,7 +81,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddConsumerValidatorsFromAssembly(this IServiceCollection services, Assembly assembly, Func<Type, bool>? filterPredicate = null, ServiceLifetime lifetime = ServiceLifetime.Scoped)
     {
         var messageTypes = GetMessageTypesFromFoundValidatorImplementations(assembly, filterPredicate);
-        
+
         var consumerInterceptorOpenGenericType = typeof(IConsumerInterceptor<>);
         var implementationConsumerInterceptorOpenGenericType = typeof(ConsumerValidationInterceptor<>);
 
