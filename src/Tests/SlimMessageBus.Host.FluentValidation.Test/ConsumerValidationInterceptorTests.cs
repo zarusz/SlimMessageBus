@@ -1,24 +1,26 @@
-namespace SlimMessageBus.Host.FluentValidation.Test;
+﻿namespace SlimMessageBus.Host.FluentValidation.Test;
 
 using global::FluentValidation;
 using global::FluentValidation.Results;
 
-public class ProducerValidationInterceptorTests
+public class ConsumerValidationInterceptorTests
 {
     private readonly Message _message;
     private readonly Mock<IValidator<Message>> _validatorMock;
     private readonly CancellationToken _cancellationToken;
-    private readonly ProducerValidationInterceptor<Message> _subject;
-    private readonly Mock<Func<Task<object>>> _nextMock;
+    private readonly ConsumerValidationInterceptor<Message> _subject;
+    private readonly Mock<IConsumer<Message>> _consumerMock;
+    private readonly Mock<Func<Task>> _nextMock;
     private readonly Mock<IMessageBus> _messageBusMock;
 
-    public ProducerValidationInterceptorTests()
+    public ConsumerValidationInterceptorTests()
     {
         _message = new Message();
         _validatorMock = new Mock<IValidator<Message>>();
         _cancellationToken = new CancellationToken();
-        _subject = new ProducerValidationInterceptor<Message>(_validatorMock.Object);
-        _nextMock = new Mock<Func<Task<object>>>();
+        _subject = new ConsumerValidationInterceptor<Message>(_validatorMock.Object);
+        _consumerMock = new Mock<IConsumer<Message>>();
+        _nextMock = new Mock<Func<Task>>();
         _messageBusMock = new Mock<IMessageBus>();
     }
 
@@ -31,7 +33,7 @@ public class ProducerValidationInterceptorTests
         _validatorMock.Setup(x => x.ValidateAsync(It.IsAny<ValidationContext<Message>>(), _cancellationToken)).ThrowsAsync(new ValidationException("Bad message"));
 
         // act
-        Func<Task<object>> act = () => _subject.OnHandle(_message, _cancellationToken, _nextMock.Object, _messageBusMock.Object, "path", headers: null);
+        Func<Task> act = () => _subject.OnHandle(_message, _cancellationToken, _nextMock.Object, _messageBusMock.Object, "path", headers: null, _consumerMock.Object);
 
         // asset
         await act.Should().ThrowAsync<ValidationException>();
@@ -44,7 +46,7 @@ public class ProducerValidationInterceptorTests
         _validatorMock.Setup(x => x.ValidateAsync(It.IsAny<ValidationContext<Message>>(), _cancellationToken)).ReturnsAsync(new ValidationResult());
 
         // act
-        await _subject.OnHandle(_message, _cancellationToken, _nextMock.Object, _messageBusMock.Object, "path", headers: null);
+        await _subject.OnHandle(_message, _cancellationToken, _nextMock.Object, _messageBusMock.Object, "path", headers: null, _consumerMock.Object);
 
         // asset
         _nextMock.Verify(x => x(), Times.Once);
