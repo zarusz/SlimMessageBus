@@ -100,7 +100,7 @@ public class MessageHandler
                         }
                     }
 
-                    response = await next();
+                    response = await next().ConfigureAwait(false);
                 }
                 else
                 {

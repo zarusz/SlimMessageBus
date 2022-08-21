@@ -43,7 +43,7 @@ internal static class Program
             {
                 services.AddHostedService<ApplicationService>();
 
-                services.AddSlimMessageBus((mbb, svp) =>
+                services.AddSlimMessageBus(mbb =>
                     {
                         ConfigureMessageBus(mbb, ctx.Configuration);
                     },
@@ -62,7 +62,7 @@ internal static class Program
     internal class ApplicationService : IHostedService
     {
         private readonly IMessageBus _messageBus;
-        
+
         private readonly Random _random = new();
         private bool _canRun = true;
 
@@ -178,7 +178,7 @@ internal static class Program
                                        //.WithConsumer<AddCommandConsumer>((consumer, message, name) => consumer.OnHandle(message, name))
                                        .KafkaGroup(consumerGroup) // for Apache Kafka
                                        .EventHubGroup(consumerGroup) // for Azure Event Hub
-                                       // for Azure Service Bus
+                                                                     // for Azure Service Bus
                                        .SubscriptionName(consumerGroup)
                                        .SubscriptionSqlFilter("2=2")
                                        .CreateTopicOptions((options) =>

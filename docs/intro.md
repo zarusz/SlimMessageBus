@@ -114,7 +114,7 @@ When your service uses `Microsoft.Extensions.DependencyInjection`, the SMB can b
 
 IServiceCollection services;
 
-services.AddSlimMessageBus((mbb, svp) =>
+services.AddSlimMessageBus(mbb =>
   {
     mbb
       .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
@@ -496,7 +496,7 @@ Typically this simplifies service interactions that need to wait for a result. T
 
 ### Delivery quarantees
 
-Since the response is asynchronously awaited, upon arrival the processing context is available (references to objects, other tasks etc) and the service can resume right away. On top of that, since the interaction is asynchronous this allows to achive a reactive architecture that can scale out - the request handling service will process when available, and the requesting service releases any threads. 
+Since the response is asynchronously awaited, upon arrival the processing context is available (references to objects, other tasks etc) and the service can resume right away. On top of that, since the interaction is asynchronous this allows to achive a reactive architecture that can scale out - the request handling service will process when available, and the requesting service releases any threads.
 
 The only overhead is memory and resources kept while the sender is awaiting for the response. There is an easy way to set timeouts for request messages in case the response would not arrive in an expected window. Timeout is configured globally, or per each request message type.
 
