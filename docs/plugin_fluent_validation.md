@@ -120,4 +120,4 @@ If you are using another DI container than Microsoft.Extensions.DependencyInject
 - register the respective `ConsumerValidationInterceptor<T>` as `IConsumerInterceptor<T>` for each of the message type `T` that needs to be validated on consumer side,
 - the scope of can be anything that you need (scoped, transient, singleton)
 
-> Other DI containers will likely get an similar package be created in the future.
+> Packages for other DI containers (Autofac/Unity) will likely also be created in the future. PRs are also welcome.

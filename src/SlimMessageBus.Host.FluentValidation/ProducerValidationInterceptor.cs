@@ -12,7 +12,7 @@ public class ProducerValidationInterceptor<T> : IProducerInterceptor<T>
 
     public async Task<object> OnHandle(T message, CancellationToken cancellationToken, Func<Task<object>> next, IMessageBus bus, string path, IDictionary<string, object> headers)
     {
-        await _validator.ValidateAndThrowAsync(message).ConfigureAwait(false);
+        await _validator.ValidateAndThrowAsync(message, cancellationToken).ConfigureAwait(false);
 
         return await next().ConfigureAwait(false);
     }

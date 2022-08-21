@@ -12,7 +12,7 @@ public class ConsumerValidationInterceptor<T> : IConsumerInterceptor<T>
 
     public async Task OnHandle(T message, CancellationToken cancellationToken, Func<Task> next, IMessageBus bus, string path, IReadOnlyDictionary<string, object> headers, object consumer)
     {
-        await _validator.ValidateAndThrowAsync(message).ConfigureAwait(false);
+        await _validator.ValidateAndThrowAsync(message, cancellationToken).ConfigureAwait(false);
 
         await next().ConfigureAwait(false);
     }

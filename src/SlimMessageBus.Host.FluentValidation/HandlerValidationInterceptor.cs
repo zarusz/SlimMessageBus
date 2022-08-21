@@ -12,7 +12,7 @@ public class HandlerValidationInterceptor<T, R> : IRequestHandlerInterceptor<T, 
 
     public async Task<R> OnHandle(T message, CancellationToken cancellationToken, Func<Task<R>> next, IMessageBus bus, string path, IReadOnlyDictionary<string, object> headers, object handler)
     {
-        await _validator.ValidateAndThrowAsync(message).ConfigureAwait(false);
+        await _validator.ValidateAndThrowAsync(message, cancellationToken).ConfigureAwait(false);
 
         return await next().ConfigureAwait(false);
     }
