@@ -9,7 +9,7 @@ public static class KafkaExtensions
     public static TopicPartitionOffset AddOffset([NotNull] this TopicPartitionOffset topicPartitionOffset, int addOffset)
         => new(topicPartitionOffset.TopicPartition, topicPartitionOffset.Offset + addOffset);
 
-    public static IDictionary<string, object> ToHeaders(this ConsumeResult<Ignore, byte[]> consumeResult, IMessageSerializer headerSerializer)
+    public static IReadOnlyDictionary<string, object> ToHeaders(this ConsumeResult<Ignore, byte[]> consumeResult, IMessageSerializer headerSerializer)
     {
         if (consumeResult.Message.Headers == null)
         {

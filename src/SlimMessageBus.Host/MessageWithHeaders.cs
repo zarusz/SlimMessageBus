@@ -4,25 +4,30 @@ public struct MessageWithHeaders : IEquatable<MessageWithHeaders>
 {
     // ToDo: Change to ReadOnlyMemory<byte>
     public byte[] Payload { get; }
-    public IDictionary<string, object> Headers { get; }
+    public IReadOnlyDictionary<string, object> Headers { get; }
 
-    public MessageWithHeaders(byte[] payload)
-        : this(payload, new Dictionary<string, object>())
+    public MessageWithHeaders(byte[] payload, IReadOnlyDictionary<string, object> headers)
     {
+        Payload = payload;
+        Headers = headers;
     }
 
     public MessageWithHeaders(byte[] payload, IDictionary<string, object> headers)
     {
-        Headers = headers;
         Payload = payload;
+        Headers = headers as IReadOnlyDictionary<string, object> ?? new Dictionary<string, object>(headers);
     }
 
-    public override bool Equals(object obj)
+    public MessageWithHeaders(byte[] payload, Dictionary<string, object> headers)
     {
-        return obj is MessageWithHeaders headers &&
-               EqualityComparer<byte[]>.Default.Equals(Payload, headers.Payload) &&
-               EqualityComparer<IDictionary<string, object>>.Default.Equals(Headers, headers.Headers);
+        Payload = payload;
+        Headers = headers;
     }
+
+    public override bool Equals(object obj) =>
+        obj is MessageWithHeaders headers &&
+               EqualityComparer<byte[]>.Default.Equals(Payload, headers.Payload) &&
+               EqualityComparer<IReadOnlyDictionary<string, object>>.Default.Equals(Headers, headers.Headers);
 
     public override int GetHashCode() => HashCode.Combine(Payload, Headers);
 
@@ -32,5 +37,5 @@ public struct MessageWithHeaders : IEquatable<MessageWithHeaders>
 
     public bool Equals(MessageWithHeaders other) =>
         EqualityComparer<byte[]>.Default.Equals(Payload, other.Payload) &&
-        EqualityComparer<IDictionary<string, object>>.Default.Equals(Headers, other.Headers);
+        EqualityComparer<IReadOnlyDictionary<string, object>>.Default.Equals(Headers, other.Headers);
 }

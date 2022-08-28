@@ -17,7 +17,7 @@ public class MessageWithHeadersSerializerTests
     public void When_Deserialize_Given_WithoutHeaders_Then_SerializationWorks()
     {
         // arrange
-        var m = new MessageWithHeaders(_payload);
+        var m = new MessageWithHeaders(_payload, new Dictionary<string, object>());
 
         // act
         var payload = _serializer.Serialize(typeof(MessageWithHeaders), m);
@@ -32,7 +32,7 @@ public class MessageWithHeadersSerializerTests
     public void When_Serialize_Given_WithoutPayload_Then_SerializationWorks()
     {
         // arrange
-        var m = new MessageWithHeaders(null);
+        var m = new MessageWithHeaders(null, new Dictionary<string, object>());
 
         // act
         var payload = _serializer.Serialize(typeof(MessageWithHeaders), m);

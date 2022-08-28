@@ -83,12 +83,15 @@ public class MemoryMessageBus : MessageBusBase
         }
 
         var messagePayload = Serializer.Serialize(producerSettings.MessageType, message);
+        var messageHeadersReadOnly = requestHeaders != null
+            ? requestHeaders as IReadOnlyDictionary<string, object> ?? new Dictionary<string, object>(requestHeaders)
+            : null;
 
         // Note: The consumers will first have IConsumer<>, then IRequestHandler<>
         foreach (var consumer in consumers)
         {
             _logger.LogDebug("Executing consumer {ConsumerType} on {Message}...", consumer.ConsumerSettings.ConsumerType, message);
-            var response = await OnMessageProduced(messageType, message, messagePayload, requestHeaders, consumer, cancellationToken);
+            var response = await OnMessageProduced(messageType, message, messagePayload, messageHeadersReadOnly, consumer, cancellationToken);
             _logger.LogTrace("Executed consumer {ConsumerType}", consumer.ConsumerSettings.ConsumerType);
 
             if (expectsResponse && consumer.ConsumerSettings.ConsumerMode == ConsumerMode.RequestResponse && response is TResponseMessage typedResponse)
@@ -101,7 +104,7 @@ public class MemoryMessageBus : MessageBusBase
         return default;
     }
 
-    private async Task<object> OnMessageProduced(Type messageType, object message, byte[] messagePayload, IDictionary<string, object> messageHeaders, MessageHandler consumer, CancellationToken cancellationToken)
+    private async Task<object> OnMessageProduced(Type messageType, object message, byte[] messagePayload, IReadOnlyDictionary<string, object> messageHeaders, MessageHandler consumer, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 

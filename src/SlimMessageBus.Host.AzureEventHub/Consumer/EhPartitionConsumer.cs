@@ -94,5 +94,12 @@ public abstract class EhPartitionConsumer
     public Task TryCheckpoint()
         => Checkpoint(lastMessage);
 
-    protected static MessageWithHeaders GetMessageWithHeaders([NotNull] EventData e) => new(e.Body.ToArray(), e.Properties);
+    protected static MessageWithHeaders GetMessageWithHeaders([NotNull] EventData e)
+    {
+        // Note: Try to see if the Properties are already IReadOnlyDictionary or Dictionary prior allocating a new collection
+        var headers = e.Properties as IReadOnlyDictionary<string, object>
+            ?? new Dictionary<string, object>(e.Properties);
+
+        return new(e.Body.ToArray(), headers);
+    }
 }

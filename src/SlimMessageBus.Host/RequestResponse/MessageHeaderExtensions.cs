@@ -28,8 +28,22 @@ public static class MessageHeaderExtensions
         return v;
     }
 
+    public static bool TryGetHeader(this IReadOnlyDictionary<string, object> headers, string header, out object value) =>
+        headers.TryGetValue(header, out value);
+
     public static bool TryGetHeader(this IDictionary<string, object> headers, string header, out object value) =>
         headers.TryGetValue(header, out value);
+
+    public static bool TryGetHeader(this IReadOnlyDictionary<string, object> headers, string header, out string value)
+    {
+        if (headers.TryGetValue(header, out object objValue))
+        {
+            value = (string)objValue;
+            return true;
+        }
+        value = null;
+        return false;
+    }
 
     public static bool TryGetHeader(this IDictionary<string, object> headers, string header, out string value)
     {
@@ -42,6 +56,18 @@ public static class MessageHeaderExtensions
         return false;
     }
 
+    public static bool TryGetHeader(this IReadOnlyDictionary<string, object> headers, string header, out DateTimeOffset dt)
+    {
+        if (header != null && headers.TryGetValue(header, out var dtObj))
+        {
+            var dtLong = (long)dtObj;
+            dt = DateTimeOffset.FromFileTime(dtLong);
+            return true;
+        }
+        dt = default;
+        return false;
+    }
+
     public static bool TryGetHeader(this IDictionary<string, object> headers, string header, out DateTimeOffset dt)
     {
         if (header != null && headers.TryGetValue(header, out var dtObj))
@@ -51,6 +77,17 @@ public static class MessageHeaderExtensions
             return true;
         }
         dt = default;
+        return false;
+    }
+
+    public static bool TryGetHeader(this IReadOnlyDictionary<string, object> headers, string header, out DateTimeOffset? dt)
+    {
+        if (headers.TryGetHeader(header, out DateTimeOffset dt2))
+        {
+            dt = dt2;
+            return true;
+        }
+        dt = null;
         return false;
     }
 

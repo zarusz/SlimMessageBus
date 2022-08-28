@@ -78,7 +78,7 @@ public class KafkaPartitionConsumerForResponsesTest : IAsyncDisposable
         await _subject.OnMessage(message);
 
         // assert
-        _messageBusMock.BusMock.Verify(x => x.OnResponseArrived(message.Message.Value, message.Topic, It.Is<IDictionary<string, object>>(x => x.ContainsKey("test-header"))), Times.Once);
+        _messageBusMock.BusMock.Verify(x => x.OnResponseArrived(message.Message.Value, message.Topic, It.Is<IReadOnlyDictionary<string, object>>(x => x.ContainsKey("test-header"))), Times.Once);
     }
 
     [Fact]
@@ -89,7 +89,7 @@ public class KafkaPartitionConsumerForResponsesTest : IAsyncDisposable
         var onResponseMessageFaultMock = new Mock<Action<RequestResponseSettings, object, Exception>>();
         _messageBusMock.BusSettings.RequestResponse.OnResponseMessageFault = onResponseMessageFaultMock.Object;
         var e = new Exception();
-        _messageBusMock.BusMock.Setup(x => x.OnResponseArrived(message.Message.Value, message.Topic, It.IsAny<IDictionary<string, object>>())).Throws(e);
+        _messageBusMock.BusMock.Setup(x => x.OnResponseArrived(message.Message.Value, message.Topic, It.IsAny<IReadOnlyDictionary<string, object>>())).Throws(e);
 
         // act
         await _subject.OnMessage(message);
