@@ -18,7 +18,7 @@ public class HandlerValidationInterceptorTests
         _message = new Message();
         _validatorMock = new Mock<IValidator<Message>>();
         _cancellationToken = new CancellationToken();
-        _subject = new HandlerValidationInterceptor<Message, ResponseMessage>(_validatorMock.Object);
+        _subject = new HandlerValidationInterceptor<Message, ResponseMessage>(new[] { _validatorMock.Object }, null);
         _consumerMock = new Mock<IConsumer<Message>>();
         _nextMock = new Mock<Func<Task<ResponseMessage>>>();
         _messageBusMock = new Mock<IMessageBus>();
