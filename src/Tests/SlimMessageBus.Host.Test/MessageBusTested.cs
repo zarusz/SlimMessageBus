@@ -43,7 +43,7 @@ public class MessageBusTested : MessageBusBase
             resposeHeaders.SetHeader(ReqRespMessageHeaders.RequestId, replyTo);
 
             var responsePayload = Serializer.Serialize(resp.GetType(), resp);
-            return OnResponseArrived(responsePayload, replyTo, resposeHeaders);
+            return OnResponseArrived(responsePayload, replyTo, (IReadOnlyDictionary<string, object>)resposeHeaders);
         }
 
         return Task.CompletedTask;

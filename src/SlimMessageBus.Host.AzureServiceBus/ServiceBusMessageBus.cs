@@ -104,8 +104,8 @@ public class ServiceBusMessageBus : MessageBusBase
             return ProviderSettings.SenderFactory(path, client);
         });
 
-        static MessageWithHeaders messageProvider(ServiceBusReceivedMessage m) => new(m.Body.ToArray(), m.ApplicationProperties.ToDictionary(x => x.Key, x => x.Value));
-        static void initConsumerContext(ServiceBusReceivedMessage m, ConsumerContext ctx) => ctx.SetTransportMessage(m);
+        static MessageWithHeaders MessageProvider(ServiceBusReceivedMessage m) => new(m.Body.ToArray(), m.ApplicationProperties);
+        static void InitConsumerContext(ServiceBusReceivedMessage m, ConsumerContext ctx) => ctx.SetTransportMessage(m);
 
         logger.LogInformation("Creating consumers");
 
@@ -113,7 +113,7 @@ public class ServiceBusMessageBus : MessageBusBase
         {
             var key = consumerSettingsByPath.Key;
 
-            var consumers = consumerSettingsByPath.Select(x => new ConsumerInstanceMessageProcessor<ServiceBusReceivedMessage>(x, this, messageProvider, initConsumerContext)).ToList();
+            var consumers = consumerSettingsByPath.Select(x => new ConsumerInstanceMessageProcessor<ServiceBusReceivedMessage>(x, this, MessageProvider, InitConsumerContext)).ToList();
             AddConsumer(new TopicSubscriptionParams(key.Path, key.SubscriptionName), consumers);
         }
 
@@ -123,7 +123,7 @@ public class ServiceBusMessageBus : MessageBusBase
 
             var consumers = new[]
             {
-                new ResponseMessageProcessor<ServiceBusReceivedMessage>(Settings.RequestResponse, this, messageProvider)
+                new ResponseMessageProcessor<ServiceBusReceivedMessage>(Settings.RequestResponse, this, MessageProvider)
             };
             AddConsumer(new TopicSubscriptionParams(path, subscriptionName), consumers);
         }
@@ -232,7 +232,7 @@ public class ServiceBusMessageBus : MessageBusBase
         return base.ProduceRequest(request, headers, path, producerSettings);
     }
 
-    public override Task ProduceResponse(object request, IDictionary<string, object> requestHeaders, object response, IDictionary<string, object> responseHeaders, ConsumerSettings consumerSettings)
+    public override Task ProduceResponse(object request, IReadOnlyDictionary<string, object> requestHeaders, object response, IDictionary<string, object> responseHeaders, ConsumerSettings consumerSettings)
     {
         if (requestHeaders is null) throw new ArgumentNullException(nameof(requestHeaders));
         if (consumerSettings is null) throw new ArgumentNullException(nameof(consumerSettings));

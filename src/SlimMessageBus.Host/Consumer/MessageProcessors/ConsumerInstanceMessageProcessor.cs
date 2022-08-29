@@ -58,7 +58,7 @@ public class ConsumerInstanceMessageProcessor<TMessage> : MessageHandler, IMessa
         return responseException;
     }
 
-    protected object DeserializeMessage(TMessage msg, out IDictionary<string, object> headers, IMessageTypeConsumerInvokerSettings invoker)
+    protected object DeserializeMessage(TMessage msg, out IReadOnlyDictionary<string, object> headers, IMessageTypeConsumerInvokerSettings invoker)
     {
         var messageWithHeaders = messageProvider(msg);
 
@@ -72,7 +72,7 @@ public class ConsumerInstanceMessageProcessor<TMessage> : MessageHandler, IMessa
         return message;
     }
 
-    private async Task ProduceResponse(string requestId, object request, IDictionary<string, object> requestHeaders, object response, Exception responseException)
+    private async Task ProduceResponse(string requestId, object request, IReadOnlyDictionary<string, object> requestHeaders, object response, Exception responseException)
     {
         // send the response (or error response)
         logger.LogDebug("Serializing the response {Response} of type {MessageType} for RequestId: {RequestId}...", response, ConsumerSettings.ResponseType, requestId);

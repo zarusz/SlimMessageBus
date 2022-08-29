@@ -15,7 +15,7 @@ public class MessageQueueWorkerTest
 
         var consumerSettings = new ConsumerBuilder<SomeMessage>(new MessageBusSettings()).Topic(null).WithConsumer<IConsumer<SomeMessage>>().Instances(2).ConsumerSettings;
 
-        MessageWithHeaders MessageProvider(SomeMessage m) => new MessageWithHeaders(Array.Empty<byte>());
+        MessageWithHeaders MessageProvider(SomeMessage m) => new(Array.Empty<byte>(), new Dictionary<string, object>());
         _consumerInstancePoolMock = new Mock<ConsumerInstancePoolMessageProcessor<SomeMessage>>(consumerSettings, busMock.BusMock.Object, (Func<SomeMessage, MessageWithHeaders>)MessageProvider, null);
     }
 

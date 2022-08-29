@@ -560,7 +560,7 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable
         return ProduceToTransport(request, path, requestPayload, requestHeaders);
     }
 
-    public virtual Task ProduceResponse(object request, IDictionary<string, object> requestHeaders, object response, IDictionary<string, object> responseHeaders, ConsumerSettings consumerSettings)
+    public virtual Task ProduceResponse(object request, IReadOnlyDictionary<string, object> requestHeaders, object response, IDictionary<string, object> responseHeaders, ConsumerSettings consumerSettings)
     {
         if (requestHeaders == null) throw new ArgumentNullException(nameof(requestHeaders));
         if (responseHeaders == null) throw new ArgumentNullException(nameof(responseHeaders));
@@ -586,7 +586,7 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable
     /// <param name="responsePayload"></param>
     /// <param name="path"></param>
     /// <returns></returns>
-    public virtual Task<Exception> OnResponseArrived(byte[] responsePayload, string path, IDictionary<string, object> responseHeaders)
+    public virtual Task<Exception> OnResponseArrived(byte[] responsePayload, string path, IReadOnlyDictionary<string, object> responseHeaders)
     {
         if (!responseHeaders.TryGetHeader(ReqRespMessageHeaders.RequestId, out string requestId))
         {

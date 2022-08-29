@@ -102,5 +102,5 @@ public class ConsumerInstancePoolMessageProcessorTests
         Console.WriteLine("The execution time was {0}% away from the best possible time", percent); // smallest number is better
     }
 
-    private static MessageWithHeaders EmptyMessageWithHeadersProvider<T>(T msg) => new(Array.Empty<byte>());
+    private static MessageWithHeaders EmptyMessageWithHeadersProvider<T>(T msg) => new(Array.Empty<byte>(), new Dictionary<string, object>());
 }

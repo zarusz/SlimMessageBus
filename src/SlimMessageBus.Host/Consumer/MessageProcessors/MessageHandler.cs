@@ -31,7 +31,7 @@ public class MessageHandler
         runtimeTypeCache = messageBus.RuntimeTypeCache;
     }
 
-    public async Task<(object Response, Exception ResponseException, string RequestId)> DoHandle(object message, IDictionary<string, object> messageHeaders, object nativeMessage = null, IMessageTypeConsumerInvokerSettings consumerInvoker = null)
+    public async Task<(object Response, Exception ResponseException, string RequestId)> DoHandle(object message, IReadOnlyDictionary<string, object> messageHeaders, object nativeMessage = null, IMessageTypeConsumerInvokerSettings consumerInvoker = null)
     {
         var messageType = message.GetType();
 
@@ -128,13 +128,13 @@ public class MessageHandler
         return (response, responseException, requestId);
     }
 
-    private async Task<object> ExecuteConsumer(object nativeMessage, object message, IDictionary<string, object> messageHeaders, object consumerInstance, IMessageTypeConsumerInvokerSettings consumerInvoker)
+    private async Task<object> ExecuteConsumer(object nativeMessage, object message, IReadOnlyDictionary<string, object> messageHeaders, object consumerInstance, IMessageTypeConsumerInvokerSettings consumerInvoker)
     {
         if (consumerWithContext)
         {
             var consumerContext = new ConsumerContext
             {
-                Headers = new ReadOnlyDictionary<string, object>(messageHeaders)
+                Headers = messageHeaders
             };
 
             consumerContextInitializer?.Invoke(nativeMessage, consumerContext);

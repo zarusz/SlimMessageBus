@@ -13,8 +13,8 @@ public class ConsumerInstanceMessageProcessorTests
         _busMock = new MessageBusMock();
     }
 
-    private static MessageWithHeaders EmptyMessageWithHeadersProvider<T>(T msg) => new(Array.Empty<byte>());
-
+    private static MessageWithHeaders EmptyMessageWithHeadersProvider<T>(T msg, Dictionary<string, object> headers) => new(Array.Empty<byte>(), headers);
+    private static MessageWithHeaders EmptyMessageWithHeadersProvider<T>(T msg) => new(Array.Empty<byte>(), new Dictionary<string, object>());
 
     [Fact]
     public async Task When_RequestExpired_Then_OnMessageExpiredIsCalled()
@@ -27,10 +27,10 @@ public class ConsumerInstanceMessageProcessorTests
 
         MessageWithHeaders MessageProvider(SomeRequest request)
         {
-            var m = EmptyMessageWithHeadersProvider(request);
-            m.Headers.SetHeader(ReqRespMessageHeaders.Expires, _busMock.CurrentTime.AddSeconds(-10));
-            m.Headers.SetHeader(ReqRespMessageHeaders.RequestId, "request-id");
-            return m;
+            var headers = new Dictionary<string, object>();
+            headers.SetHeader(ReqRespMessageHeaders.Expires, _busMock.CurrentTime.AddSeconds(-10));
+            headers.SetHeader(ReqRespMessageHeaders.RequestId, "request-id");
+            return EmptyMessageWithHeadersProvider(request, headers);
         }
 
         var p = new ConsumerInstanceMessageProcessor<SomeRequest>(consumerSettings, _busMock.Bus, MessageProvider);
@@ -60,10 +60,10 @@ public class ConsumerInstanceMessageProcessorTests
 
         MessageWithHeaders MessageProvider(SomeRequest request)
         {
-            var m = EmptyMessageWithHeadersProvider(request);
-            m.Headers.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
-            m.Headers.SetHeader(ReqRespMessageHeaders.ReplyTo, replyTo);
-            return m;
+            var headers = new Dictionary<string, object>();
+            headers.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
+            headers.SetHeader(ReqRespMessageHeaders.ReplyTo, replyTo);
+            return EmptyMessageWithHeadersProvider(request, headers);
         }
 
         var p = new ConsumerInstanceMessageProcessor<SomeRequest>(consumerSettings, _busMock.Bus, MessageProvider);
@@ -84,7 +84,7 @@ public class ConsumerInstanceMessageProcessorTests
             x => x(_busMock.Bus, consumerSettings, request, ex, It.IsAny<object>()), Times.Once); // callback called once
 
         _busMock.BusMock.Verify(
-            x => x.ProduceResponse(request, It.IsAny<IDictionary<string, object>>(), It.IsAny<SomeResponse>(), It.Is<IDictionary<string, object>>(m => (string)m[ReqRespMessageHeaders.RequestId] == requestId), It.IsAny<ConsumerSettings>()));
+            x => x.ProduceResponse(request, It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<SomeResponse>(), It.Is<IDictionary<string, object>>(m => (string)m[ReqRespMessageHeaders.RequestId] == requestId), It.IsAny<ConsumerSettings>()));
 
         exception.Should().BeSameAs(ex);
     }
