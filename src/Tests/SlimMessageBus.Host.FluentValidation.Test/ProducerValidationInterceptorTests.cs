@@ -17,7 +17,7 @@ public class ProducerValidationInterceptorTests
         _message = new Message();
         _validatorMock = new Mock<IValidator<Message>>();
         _cancellationToken = new CancellationToken();
-        _subject = new ProducerValidationInterceptor<Message>(_validatorMock.Object);
+        _subject = new ProducerValidationInterceptor<Message>(new[] { _validatorMock.Object }, null);
         _nextMock = new Mock<Func<Task<object>>>();
         _messageBusMock = new Mock<IMessageBus>();
     }

@@ -2,14 +2,25 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
-using System;
 using global::FluentValidation;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Interceptor;
-using System.Linq;
 
 public static class ServiceCollectionExtensions
 {
+    private static List<Type> GetMessageTypesFromFoundValidatorImplementations(Assembly assembly, Func<Type, bool>? filterPredicate)
+    {
+        var validatorOpenGenericType = typeof(IValidator<>);
+
+        var messageTypes = ReflectionDiscoveryScanner.From(
+                assembly,
+                filter: x => x.InterfaceType.IsGenericType && x.InterfaceType.GetGenericTypeDefinition() == validatorOpenGenericType && (filterPredicate == null || filterPredicate(x.Type)))
+            .ProspectTypes
+            .Select(x => x.InterfaceType.GetGenericArguments()[0])
+            .ToList();
+        return messageTypes;
+    }
+
     /// <summary>
     /// Scans the specified assembly containing the specified type for FluentValidation's <see cref="IValidator{T}"/> implementations. For the found types T, registers a <see cref="ProducerValidationInterceptor{T}"/>, so that SlimMessageBus can trigger the validation.
     /// </summary>
@@ -38,25 +49,13 @@ public static class ServiceCollectionExtensions
 
         foreach (var messageType in messageTypes)
         {
-            services.Add(new ServiceDescriptor(serviceType: producerInterceptorOpenGenericType.MakeGenericType(messageType),
+            services.Add(new ServiceDescriptor(
+                serviceType: producerInterceptorOpenGenericType.MakeGenericType(messageType),
                 implementationType: implementationProducerInterceptorOpenGenericType.MakeGenericType(messageType),
                 lifetime: lifetime));
         }
 
         return services;
-    }
-
-    private static List<Type> GetMessageTypesFromFoundValidatorImplementations(Assembly assembly, Func<Type, bool>? filterPredicate)
-    {
-        var validatorOpenGenericType = typeof(IValidator<>);
-
-        var messageTypes = ReflectionDiscoveryScanner.From(
-                assembly,
-                filter: x => x.InterfaceType.IsGenericType && x.InterfaceType.GetGenericTypeDefinition() == validatorOpenGenericType && (filterPredicate == null || filterPredicate(x.Type)))
-            .ProspectTypes
-            .Select(x => x.InterfaceType.GetGenericArguments()[0])
-            .ToList();
-        return messageTypes;
     }
 
     /// <summary>
@@ -87,10 +86,28 @@ public static class ServiceCollectionExtensions
 
         foreach (var messageType in messageTypes)
         {
-            services.Add(new ServiceDescriptor(serviceType: consumerInterceptorOpenGenericType.MakeGenericType(messageType),
+            services.Add(new ServiceDescriptor(
+                serviceType: consumerInterceptorOpenGenericType.MakeGenericType(messageType),
                 implementationType: implementationConsumerInterceptorOpenGenericType.MakeGenericType(messageType),
                 lifetime: lifetime));
         }
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers an implemention of <see cref="IValidationErrorsHandler"/> that uses the supplied lambda. The scope is singleton.
+    /// </summary>
+    /// <param name="services"></param>
+    /// <param name="assembly"></param>
+    /// <param name="filterPredicate"></param>
+    /// <param name="lifetime"></param>
+    /// <returns></returns>
+    public static IServiceCollection AddValidationErrorsHandler(this IServiceCollection services, Func<IEnumerable<global::FluentValidation.Results.ValidationFailure>, Exception> validationErrorsHandler)
+    {
+        if (validationErrorsHandler == null) throw new ArgumentNullException(nameof(validationErrorsHandler));
+
+        services.AddSingleton<IValidationErrorsHandler>(new LambdaValidationErrorsInterceptor(validationErrorsHandler));
 
         return services;
     }

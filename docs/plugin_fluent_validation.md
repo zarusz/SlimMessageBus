@@ -5,6 +5,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 - [Introduction](#introduction)
 - [Configuration](#configuration)
   - [Configuring with MsDependencyInjection](#configuring-with-msdependencyinjection)
+    - [Custom exception](#custom-exception)
     - [Producer side validation](#producer-side-validation)
     - [Consumer side validation](#consumer-side-validation)
   - [Configuring without MsDependencyInjection](#configuring-without-msdependencyinjection)
@@ -71,6 +72,15 @@ builder.Services.AddSlimMessageBus(mbb =>
 // Register FluentValidation validators
 // Requried Package: FluentValidation.DependencyInjectionExtensions
 builder.Services.AddValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();
+```
+
+#### Custom exception
+
+By default `FluentValidation.ValidationException` exception is raised on the producer and consumer when validation fails.
+It is possible to configure custom exception (or perhaps to supress the validation errors):
+
+```cs
+builder.Services.AddValidationErrorsHandler(errors => new ApplicationException("Custom exception"));
 ```
 
 #### Producer side validation

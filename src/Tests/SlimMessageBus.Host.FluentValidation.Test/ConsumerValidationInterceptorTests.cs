@@ -18,7 +18,7 @@ public class ConsumerValidationInterceptorTests
         _message = new Message();
         _validatorMock = new Mock<IValidator<Message>>();
         _cancellationToken = new CancellationToken();
-        _subject = new ConsumerValidationInterceptor<Message>(_validatorMock.Object);
+        _subject = new ConsumerValidationInterceptor<Message>(new[] { _validatorMock.Object }, null);
         _consumerMock = new Mock<IConsumer<Message>>();
         _nextMock = new Mock<Func<Task>>();
         _messageBusMock = new Mock<IMessageBus>();

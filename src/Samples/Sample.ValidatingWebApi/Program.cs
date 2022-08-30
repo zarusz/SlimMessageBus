@@ -20,6 +20,7 @@ builder.Services.AddSlimMessageBus(mbb =>
 }, addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() });
 
 // register validators
+//builder.Services.AddValidationErrorsHandler(errors => new ApplicationException("Custom Validation Exception"));
 builder.Services.AddValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();
 builder.Services.AddProducerValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();
 //builder.Services.AddTransient<IProducerInterceptor<CreateCustomerCommand>, ProducerValidationInterceptor<CreateCustomerCommand>>();
