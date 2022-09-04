@@ -2,6 +2,7 @@
 
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization;
+using System;
 
 /// <summary>
 /// In-memory message bus <see cref="IMessageBus"/> implementation to use for in process message passing.
@@ -9,7 +10,7 @@ using SlimMessageBus.Host.Serialization;
 public class MemoryMessageBus : MessageBusBase
 {
     private readonly ILogger _logger;
-    private IDictionary<string, List<MessageHandler>> _consumersByPath;
+    private IDictionary<string, IMessageProcessor<object>> _consumersByPath;
     private readonly IMessageSerializer _serializer;
     private readonly MemoryMessageBusSettings _providerSettings;
 
@@ -55,12 +56,37 @@ public class MemoryMessageBus : MessageBusBase
             .GroupBy(x => x.Path)
             .ToDictionary(
                 x => x.Key,
-                x => x.OrderBy(consumerSettings => ConsumerModeOrder(consumerSettings))
-                      .Select(consumerSettings => new MessageHandler(consumerSettings, this))
-                      .ToList());
+                // Note: The consumers will first have IConsumer<>, then IRequestHandler<>
+                x => CreateMessageProcessor(x.OrderBy(consumerSettings => ConsumerModeOrder(consumerSettings)).ToList(), x.Key));
     }
 
-    public override IDictionary<string, object> CreateHeaders() => null; // Memory bus requires no headers
+    private IMessageProcessor<object> CreateMessageProcessor(IEnumerable<ConsumerSettings> consumerSettings, string path)
+        => new ConsumerInstanceMessageProcessor<object>(consumerSettings, this, MessageProvider, path: path,
+            sendResponses: false,
+            messageTypeProvider: _providerSettings.EnableMessageSerialization
+                ? null
+                : transportMessage => transportMessage.GetType());
+
+    private object MessageProvider(Type messageType, object transportMessage)
+    {
+        if (_providerSettings.EnableMessageSerialization)
+        {
+            // The serialization is enabled, hence we need to deserialize bytes
+            return Serializer.Deserialize(messageType, (byte[])transportMessage);
+        }
+        // The copy of the message is passed (searialization does not happen)
+        return transportMessage;
+    }
+
+    public override IDictionary<string, object> CreateHeaders()
+    {
+        if (_providerSettings.EnableMessageSerialization)
+        {
+            return base.CreateHeaders();
+        }
+        // Memory bus does not require headers
+        return null;
+    }
 
     public override Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null, CancellationToken cancellationToken = default)
         => Task.CompletedTask; // Not used
@@ -76,79 +102,61 @@ public class MemoryMessageBus : MessageBusBase
     private async Task<TResponseMessage> ProduceInternal<TResponseMessage>(object message, string path, ProducerSettings producerSettings, IDictionary<string, object> requestHeaders, bool expectsResponse, CancellationToken cancellationToken)
     {
         var messageType = message.GetType();
-        if (!_consumersByPath.TryGetValue(path, out var consumers) || consumers.Count == 0)
+        if (!_consumersByPath.TryGetValue(path, out var messageProcessor))
         {
             _logger.LogDebug("No consumers interested in message type {MessageType} on path {Path}", messageType, path);
             return default;
         }
 
-        var messagePayload = Serializer.Serialize(producerSettings.MessageType, message);
-        var messageHeadersReadOnly = requestHeaders != null
-            ? requestHeaders as IReadOnlyDictionary<string, object> ?? new Dictionary<string, object>(requestHeaders)
-            : null;
+        Exception exception;
+        object response = null;
 
-        // Note: The consumers will first have IConsumer<>, then IRequestHandler<>
-        foreach (var consumer in consumers)
+        try
         {
-            _logger.LogDebug("Executing consumer {ConsumerType} on {Message}...", consumer.ConsumerSettings.ConsumerType, message);
-            var response = await OnMessageProduced(messageType, message, messagePayload, messageHeadersReadOnly, consumer, cancellationToken);
-            _logger.LogTrace("Executed consumer {ConsumerType}", consumer.ConsumerSettings.ConsumerType);
+            var transportMessage = _providerSettings.EnableMessageSerialization
+                ? Serializer.Serialize(producerSettings.MessageType, message)
+                : message;
 
-            if (expectsResponse && consumer.ConsumerSettings.ConsumerMode == ConsumerMode.RequestResponse && response is TResponseMessage typedResponse)
+            var messageHeadersReadOnly = requestHeaders != null
+                ? requestHeaders as IReadOnlyDictionary<string, object> ?? new Dictionary<string, object>(requestHeaders)
+                : null;
+
+            (exception, var exceptionConsumerSettings, response) = await messageProcessor.ProcessMessage(transportMessage, messageHeadersReadOnly);
+            if (exception != null)
             {
-                // Return the first response from the Handler that matches
-                return typedResponse;
+                OnMessageFailed(message, exceptionConsumerSettings, exception);
             }
+        }
+        catch (Exception e)
+        {
+            exception = e;
+        }
+
+        if (exception != null)
+        {
+            throw exception;
+        }
+
+        if (response != null && response is TResponseMessage typedResponse)
+        {
+            return typedResponse;
         }
 
         return default;
     }
 
-    private async Task<object> OnMessageProduced(Type messageType, object message, byte[] messagePayload, IReadOnlyDictionary<string, object> messageHeaders, MessageHandler consumer, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        Exception responseException;
-        object response;
-        try
-        {
-            // Note: Will pass a deep copy of the message (if serialization enabled) or the original message if serialization not enabled
-            var messageForConsumer = Serializer.Deserialize(messageType, messagePayload) ?? message;
-
-            (response, responseException, _) = await consumer.DoHandle(message: messageForConsumer, messageHeaders: messageHeaders, nativeMessage: null).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            OnMessageFailed(message, consumer, e);
-            throw;
-        }
-
-        if (responseException != null)
-        {
-            OnMessageFailed(message, consumer, responseException);
-            throw responseException;
-        }
-
-        if (consumer.ConsumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
-        {
-            // will be null when serialization is not enabled
-            return response;
-        }
-        return null;
-    }
-
-    private void OnMessageFailed(object message, MessageHandler consumer, Exception e)
+    private void OnMessageFailed(object message, AbstractConsumerSettings consumerSettings, Exception e)
     {
         try
         {
-            _logger.LogDebug(e, "Error occured while executing {ConsumerType} on {Message}", consumer.ConsumerSettings.ConsumerType, message);
+            _logger.LogDebug(e, "Error occured while executing {ConsumerType} on {Message} of type {MessageType}", consumerSettings is ConsumerSettings cs ? cs.ConsumerType : null, message, message?.GetType());
             // Invoke fault handler.
-            consumer.ConsumerSettings.OnMessageFault?.Invoke(this, consumer.ConsumerSettings, message, e, null);
-            Settings.OnMessageFault?.Invoke(this, consumer.ConsumerSettings, message, e, null);
+            consumerSettings.OnMessageFault?.Invoke(this, consumerSettings, message, e, null);
+            Settings.OnMessageFault?.Invoke(this, consumerSettings, message, e, null);
         }
         catch (Exception hookEx)
         {
-            HookFailed(_logger, hookEx, nameof(consumer.ConsumerSettings.OnMessageFault));
+            HookFailed(_logger, hookEx, nameof(consumerSettings.OnMessageFault));
         }
     }
 }

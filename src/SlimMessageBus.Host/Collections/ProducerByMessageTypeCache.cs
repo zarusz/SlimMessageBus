@@ -7,15 +7,17 @@
 /// <typeparam name="TProducer">The producer type</typeparam>
 public class ProducerByMessageTypeCache<TProducer> where TProducer : class
 {
-    private readonly ILogger logger;
-    private readonly IDictionary<Type, TProducer> producerByBaseType;
-    private readonly SafeDictionaryWrapper<Type, TProducer> producerByType;
+    private readonly ILogger _logger;
+    private readonly IDictionary<Type, TProducer> _producerByBaseType;
+    private readonly IRuntimeTypeCache _runtimeTypeCache;
+    private readonly SafeDictionaryWrapper<Type, TProducer> _producerByType;
 
-    public ProducerByMessageTypeCache(ILogger logger, IDictionary<Type, TProducer> producerByBaseType)
+    public ProducerByMessageTypeCache(ILogger logger, IDictionary<Type, TProducer> producerByBaseType, IRuntimeTypeCache runtimeTypeCache)
     {
-        this.logger = logger;
-        this.producerByBaseType = producerByBaseType;
-        this.producerByType = new SafeDictionaryWrapper<Type, TProducer>();
+        _logger = logger;
+        _producerByBaseType = producerByBaseType;
+        _runtimeTypeCache = runtimeTypeCache;
+        _producerByType = new SafeDictionaryWrapper<Type, TProducer>();
     }
 
     public TProducer this[Type key] => GetProducer(key);
@@ -26,32 +28,38 @@ public class ProducerByMessageTypeCache<TProducer> where TProducer : class
     /// <param name="messageType"></param>
     /// <returns>Producer when found, else null</returns>
     public TProducer GetProducer(Type messageType)
-        => producerByType.GetOrAdd(messageType, CalculateProducer);
+        => _producerByType.GetOrAdd(messageType, CalculateProducer);
 
     private TProducer CalculateProducer(Type messageType)
     {
-        var baseType = messageType;
-        while (baseType != null && !producerByBaseType.ContainsKey(baseType))
+        var assignableProducers = _producerByBaseType.Where(x => _runtimeTypeCache.IsAssignableFrom(messageType, x.Key)).OrderBy(x => CalculateBaseClassDistance(messageType, x.Key));
+        var assignableProducer = assignableProducers.FirstOrDefault();
+        if (assignableProducer.Key != null)
         {
-            baseType = baseType.BaseType;
+            _logger.LogDebug("Matched producer for message type {ProducerMessageType} for dispatched message type {MessageType}", assignableProducer.Key, messageType);
+            return assignableProducer.Value;
         }
 
-        if (baseType != null && producerByBaseType.TryGetValue(baseType, out var producer))
-        {
-            if (baseType != messageType)
-            {
-                logger.LogDebug("Found matching base message type {BaseMessageType} producer for message type {MessageType}", baseType, messageType);
-            }
-            else
-            {
-                logger.LogDebug("Using declared producer for message type {MessageType}", messageType);
-            }
-            return producer;
-        }
-
-        logger.LogDebug("Did not find any declared producer with message type (or base message type) matching {MessageType}", messageType);
+        _logger.LogDebug("Unable to match any declared producer for dispatched message type {MessageType}", messageType);
 
         // Note: Nulls are also added to dictionary, so that we don't look them up using reflection next time (cached).
         return null;
+    }
+
+    private static int CalculateBaseClassDistance(Type type, Type baseType)
+    {
+        if (!baseType.IsClass)
+        {
+            return 100;
+        }
+
+        var distance = 0;
+        while (type != null && baseType != type)
+        {
+            distance++;
+            type = type.BaseType;
+        }
+
+        return distance;
     }
 }

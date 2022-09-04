@@ -8,8 +8,14 @@ using SlimMessageBus.Host.Config;
 /// </summary>
 public class EhPartitionConsumerForResponses : EhPartitionConsumer
 {
-    public EhPartitionConsumerForResponses(EventHubMessageBus messageBus, RequestResponseSettings requestResponseSettings, PathGroup pathGroup, string partitionId)
-        : base(messageBus, requestResponseSettings, new ResponseMessageProcessor<EventData>(requestResponseSettings, messageBus, GetMessageWithHeaders), pathGroup, partitionId)
+    private readonly RequestResponseSettings _requestResponseSettings;
+
+    public EhPartitionConsumerForResponses(EventHubMessageBus messageBus, RequestResponseSettings requestResponseSettings, GroupPathPartitionId pathGroupPartition)
+        : base(messageBus, pathGroupPartition)
     {
+        _requestResponseSettings = requestResponseSettings ?? throw new ArgumentNullException(nameof(requestResponseSettings));
+
+        MessageProcessor = new ResponseMessageProcessor<EventData>(_requestResponseSettings, MessageBus, messageProvider: eventData => eventData.EventBody.ToArray());
+        CheckpointTrigger = new CheckpointTrigger(_requestResponseSettings, MessageBus.LoggerFactory);
     }
 }

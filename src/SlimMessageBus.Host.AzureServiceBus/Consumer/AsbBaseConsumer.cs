@@ -5,31 +5,24 @@ using SlimMessageBus.Host.Config;
 
 public abstract class AsbBaseConsumer : IAsyncDisposable, IConsumerControl
 {
-    private readonly ILogger logger;
+    private readonly ILogger _logger;
     public ServiceBusMessageBus MessageBus { get; }
-    protected IList<IMessageProcessor<ServiceBusReceivedMessage>> Consumers { get; }
-    protected IDictionary<Type, ConsumerInvoker> InvokerByMessageType { get; }
-    protected ConsumerInvoker SingleInvoker { get; }
+    protected IMessageProcessor<ServiceBusReceivedMessage> MessageProcessor { get; }
     protected TopicSubscriptionParams TopicSubscription { get; }
 
-    private ServiceBusProcessor serviceBusProcessor;
-    private ServiceBusSessionProcessor serviceBusSessionProcessor;
+    private ServiceBusProcessor _serviceBusProcessor;
+    private ServiceBusSessionProcessor _serviceBusSessionProcessor;
 
-    protected AsbBaseConsumer(ServiceBusMessageBus messageBus, ServiceBusClient serviceBusClient, TopicSubscriptionParams subscriptionFactoryParams, IEnumerable<IMessageProcessor<ServiceBusReceivedMessage>> consumers, ILogger logger)
+    protected AsbBaseConsumer(ServiceBusMessageBus messageBus, ServiceBusClient serviceBusClient, TopicSubscriptionParams subscriptionFactoryParams, IMessageProcessor<ServiceBusReceivedMessage> messageProcessor, IEnumerable<AbstractConsumerSettings> consumerSettings, ILogger logger)
     {
-        this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         MessageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
-        TopicSubscription = subscriptionFactoryParams ?? throw new ArgumentNullException(nameof(consumers)); ;
-        Consumers = consumers?.ToList() ?? throw new ArgumentNullException(nameof(consumers));
-
-        if (Consumers.Count == 0)
-        {
-            throw new InvalidOperationException($"The {nameof(consumers)} needs to be non empty");
-        }
+        TopicSubscription = subscriptionFactoryParams ?? throw new ArgumentNullException(nameof(subscriptionFactoryParams));
+        MessageProcessor = messageProcessor ?? throw new ArgumentNullException(nameof(messageProcessor));
 
         T GetSingleValue<T>(Func<AbstractConsumerSettings, T> selector, string settingName)
         {
-            var set = Consumers.Select(x => selector(x.ConsumerSettings)).ToHashSet();
+            var set = consumerSettings.Select(x => selector(x)).ToHashSet();
             if (set.Count > 1)
             {
                 throw new ConfigurationMessageBusException($"All declared consumers across the same path/subscription {TopicSubscription} must have the same {settingName} settings.");
@@ -55,23 +48,6 @@ public abstract class AsbBaseConsumer : IAsyncDisposable, IConsumerControl
         var maxConcurrentSessions = GetSingleValue(x => x.GetMaxConcurrentSessions(), nameof(ConsumerSessionBuilder.MaxConcurrentSessions))
             ?? messageBus.ProviderSettings.MaxConcurrentSessions;
 
-        InvokerByMessageType = Consumers
-            .Where(x => x.ConsumerSettings is ConsumerSettings)
-            .Select(x => (Processor: x, ConsumerSettings: (ConsumerSettings)x.ConsumerSettings))
-            .Where(x => string.Equals(x.ConsumerSettings.GetSubscriptionName(required: false), TopicSubscription.SubscriptionName))
-            .SelectMany(x => x.ConsumerSettings.ConsumersByMessageType.Values.Select(invoker => new ConsumerInvoker(x.Processor, invoker)))
-            .ToDictionary(x => x.Invoker.MessageType);
-
-        var responseInvoker = Consumers
-            .Where(x => x.ConsumerSettings is RequestResponseSettings)
-            .Select(x => (Processor: x, RequestResponseSettings: (RequestResponseSettings)x.ConsumerSettings))
-            .Select(x => new ConsumerInvoker(x.Processor, null))
-            .FirstOrDefault();
-
-        SingleInvoker = InvokerByMessageType.Count == 1
-            ? InvokerByMessageType.First().Value
-            : responseInvoker;
-
         if (enableSession)
         {
             var options = messageBus.ProviderSettings.SessionProcessorOptionsFactory(subscriptionFactoryParams);
@@ -83,11 +59,11 @@ public abstract class AsbBaseConsumer : IAsyncDisposable, IConsumerControl
             if (sessionIdleTimeout != null) options.SessionIdleTimeout = sessionIdleTimeout.Value;
             if (maxConcurrentSessions != null) options.MaxConcurrentSessions = maxConcurrentSessions.Value;
 
-            serviceBusSessionProcessor = messageBus.ProviderSettings.SessionProcessorFactory(subscriptionFactoryParams, options, serviceBusClient);
-            serviceBusSessionProcessor.ProcessMessageAsync += ServiceBusSessionProcessor_ProcessMessageAsync;
-            serviceBusSessionProcessor.ProcessErrorAsync += ServiceBusSessionProcessor_ProcessErrorAsync;
-            serviceBusSessionProcessor.SessionInitializingAsync += ServiceBusSessionProcessor_SessionInitializingAsync;
-            serviceBusSessionProcessor.SessionClosingAsync += ServiceBusSessionProcessor_SessionClosingAsync;
+            _serviceBusSessionProcessor = messageBus.ProviderSettings.SessionProcessorFactory(subscriptionFactoryParams, options, serviceBusClient);
+            _serviceBusSessionProcessor.ProcessMessageAsync += ServiceBusSessionProcessor_ProcessMessageAsync;
+            _serviceBusSessionProcessor.ProcessErrorAsync += ServiceBusSessionProcessor_ProcessErrorAsync;
+            _serviceBusSessionProcessor.SessionInitializingAsync += ServiceBusSessionProcessor_SessionInitializingAsync;
+            _serviceBusSessionProcessor.SessionClosingAsync += ServiceBusSessionProcessor_SessionClosingAsync;
         }
         else
         {
@@ -99,39 +75,39 @@ public abstract class AsbBaseConsumer : IAsyncDisposable, IConsumerControl
             if (prefetchCount != null) options.PrefetchCount = prefetchCount.Value;
             if (subQueue != null) options.SubQueue = subQueue.Value;
 
-            serviceBusProcessor = messageBus.ProviderSettings.ProcessorFactory(subscriptionFactoryParams, options, serviceBusClient);
-            serviceBusProcessor.ProcessMessageAsync += ServiceBusProcessor_ProcessMessagesAsync;
-            serviceBusProcessor.ProcessErrorAsync += ServiceBusProcessor_ProcessErrorAsync;
+            _serviceBusProcessor = messageBus.ProviderSettings.ProcessorFactory(subscriptionFactoryParams, options, serviceBusClient);
+            _serviceBusProcessor.ProcessMessageAsync += ServiceBusProcessor_ProcessMessagesAsync;
+            _serviceBusProcessor.ProcessErrorAsync += ServiceBusProcessor_ProcessErrorAsync;
         }
     }
 
     public Task Start()
     {
-        logger.LogInformation("Starting consumer for Path: {Path}, SubscriptionName: {SubscriptionName}", TopicSubscription.Path, TopicSubscription.SubscriptionName);
+        _logger.LogInformation("Starting consumer for Path: {Path}, SubscriptionName: {SubscriptionName}", TopicSubscription.Path, TopicSubscription.SubscriptionName);
 
-        if (serviceBusProcessor != null)
+        if (_serviceBusProcessor != null)
         {
-            return serviceBusProcessor.StartProcessingAsync();
+            return _serviceBusProcessor.StartProcessingAsync();
         }
 
-        if (serviceBusSessionProcessor != null)
+        if (_serviceBusSessionProcessor != null)
         {
-            return serviceBusSessionProcessor.StartProcessingAsync();
+            return _serviceBusSessionProcessor.StartProcessingAsync();
         }
         return Task.CompletedTask;
     }
 
     public Task Stop()
     {
-        logger.LogInformation("Stopping consumer for Path: {Path}, SubscriptionName: {SubscriptionName}", TopicSubscription.Path, TopicSubscription.SubscriptionName);
-        if (serviceBusProcessor != null)
+        _logger.LogInformation("Stopping consumer for Path: {Path}, SubscriptionName: {SubscriptionName}", TopicSubscription.Path, TopicSubscription.SubscriptionName);
+        if (_serviceBusProcessor != null)
         {
-            return serviceBusProcessor.StopProcessingAsync();
+            return _serviceBusProcessor.StopProcessingAsync();
         }
 
-        if (serviceBusSessionProcessor != null)
+        if (_serviceBusSessionProcessor != null)
         {
-            return serviceBusSessionProcessor.StopProcessingAsync();
+            return _serviceBusSessionProcessor.StopProcessingAsync();
         }
         return Task.CompletedTask;
     }
@@ -146,36 +122,32 @@ public abstract class AsbBaseConsumer : IAsyncDisposable, IConsumerControl
 
     protected virtual async ValueTask DisposeAsyncCore()
     {
-        if (serviceBusProcessor != null)
+        if (_serviceBusProcessor != null)
         {
-            await serviceBusProcessor.CloseAsync();
-            serviceBusProcessor = null;
+            await _serviceBusProcessor.CloseAsync();
+            _serviceBusProcessor = null;
         }
 
-        if (serviceBusSessionProcessor != null)
+        if (_serviceBusSessionProcessor != null)
         {
-            await serviceBusSessionProcessor.CloseAsync();
-            serviceBusSessionProcessor = null;
+            await _serviceBusSessionProcessor.CloseAsync();
+            _serviceBusSessionProcessor = null;
         }
 
-        foreach (var messageProcessor in Consumers)
-        {
-            await messageProcessor.DisposeSilently();
-        }
-        Consumers.Clear();
+        await MessageProcessor.DisposeSilently();
     }
 
     #endregion
 
     private Task ServiceBusSessionProcessor_SessionInitializingAsync(ProcessSessionEventArgs args)
     {
-        logger.LogDebug("Session with id {SessionId} initializing", args.SessionId);
+        _logger.LogDebug("Session with id {SessionId} initializing", args.SessionId);
         return Task.CompletedTask;
     }
 
     private Task ServiceBusSessionProcessor_SessionClosingAsync(ProcessSessionEventArgs args)
     {
-        logger.LogDebug("Session with id {SessionId} closing", args.SessionId);
+        _logger.LogDebug("Session with id {SessionId} closing", args.SessionId);
         return Task.CompletedTask;
     }
 
@@ -188,77 +160,40 @@ public abstract class AsbBaseConsumer : IAsyncDisposable, IConsumerControl
     protected Task ServiceBusProcessor_ProcessMessagesAsync(ProcessMessageEventArgs args)
         => ProcessMessageAsyncInternal(args.Message, args.CompleteMessageAsync, args.AbandonMessageAsync, args.CancellationToken);
 
-    protected Type GetMessageType(ServiceBusReceivedMessage message)
-    {
-        if (message != null && message.ApplicationProperties.TryGetValue(MessageHeaders.MessageType, out var messageTypeValue) && messageTypeValue is string messageTypeName)
-        {
-            var messageType = MessageBus.Settings.MessageTypeResolver.ToType(messageTypeName);
-            return messageType;
-        }
-        return null;
-    }
 
     protected Task ServiceBusProcessor_ProcessErrorAsync(ProcessErrorEventArgs args)
         => ProcessErrorAsyncInternal(args.Exception, args.ErrorSource);
 
-    protected virtual ConsumerInvoker TryMatchConsumer(Type messageType)
-    {
-        if (messageType == null && SingleInvoker == null)
-        {
-            throw new MessageBusException($"The message arrived without {MessageHeaders.MessageType} header on path {TopicSubscription}, so it is imposible to match one of the known consumer types {string.Join(",", InvokerByMessageType.Values.Select(x => x.Invoker.ConsumerType.Name))}");
-        }
-
-        if (messageType != null && InvokerByMessageType.Count > 0)
-        {
-            // Find proper Consumer from Consumers based on the incoming message type
-            do
-            {
-                if (InvokerByMessageType.TryGetValue(messageType, out var consumerInvoker))
-                {
-                    return consumerInvoker;
-                }
-                messageType = messageType.BaseType;
-            }
-            while (messageType != typeof(object));
-        }
-
-        // fallback to the first one
-        return SingleInvoker;
-    }
-
     protected async Task ProcessMessageAsyncInternal(ServiceBusReceivedMessage message, Func<ServiceBusReceivedMessage, CancellationToken, Task> completeMessage, Func<ServiceBusReceivedMessage, IDictionary<string, object>, CancellationToken, Task> abandonMessage, CancellationToken token)
     {
-        var messageType = GetMessageType(message);
-        var consumerInvoker = TryMatchConsumer(messageType);
-
         // Process the message.
-        logger.LogDebug("Received message - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
+        _logger.LogDebug("Received message - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
 
         if (token.IsCancellationRequested)
         {
             // Note: Use the cancellationToken passed as necessary to determine if the subscriptionClient has already been closed.
             // If subscriptionClient has already been closed, you can choose to not call CompleteAsync() or AbandonAsync() etc.
             // to avoid unnecessary exceptions.
-            logger.LogDebug("Abandon message - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
+            _logger.LogDebug("Abandon message - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
             await abandonMessage(message, null, token).ConfigureAwait(false);
 
             return;
         }
 
-        var exception = await consumerInvoker.Processor.ProcessMessage(message, consumerInvoker.Invoker).ConfigureAwait(false);
+        var (exception, consumerSettings, response) = await MessageProcessor.ProcessMessage(message, message.ApplicationProperties).ConfigureAwait(false);
         if (exception != null)
         {
-            logger.LogError(exception, "Abandon message (exception occured while processing) - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
+            _logger.LogError(exception, "Abandon message (exception occured while processing) - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
 
             try
             {
                 // Execute the event hook
-                consumerInvoker.Processor.ConsumerSettings.OnMessageFault?.Invoke(MessageBus, consumerInvoker.Processor.ConsumerSettings, null, exception, message);
-                MessageBus.Settings.OnMessageFault?.Invoke(MessageBus, consumerInvoker.Processor.ConsumerSettings, null, exception, message);
+                consumerSettings?.OnMessageFault?.Invoke(MessageBus, consumerSettings, null, exception, message);
+                MessageBus.Settings.OnMessageFault?.Invoke(MessageBus, consumerSettings, null, exception, message);
             }
             catch (Exception eh)
             {
-                MessageBusBase.HookFailed(logger, eh, nameof(IConsumerEvents.OnMessageFault));
+                MessageBusBase.HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageFault));
             }
 
             var messageProperties = new Dictionary<string, object>
@@ -273,7 +208,7 @@ public abstract class AsbBaseConsumer : IAsyncDisposable, IConsumerControl
 
         // Complete the message so that it is not received again.
         // This can be done only if the subscriptionClient is created in ReceiveMode.PeekLock mode (which is the default).
-        logger.LogDebug("Complete message - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
+        _logger.LogDebug("Complete message - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
         await completeMessage(message, token).ConfigureAwait(false);
     }
 
@@ -281,14 +216,14 @@ public abstract class AsbBaseConsumer : IAsyncDisposable, IConsumerControl
     {
         try
         {
-            logger.LogError(exception, "Error while processing Path: {Path}, SubscriptionName: {SubscriptionName}, Error Message: {ErrorMessage}, Error Source: {ErrorSource}", TopicSubscription.Path, TopicSubscription.SubscriptionName, exception.Message, errorSource);
+            _logger.LogError(exception, "Error while processing Path: {Path}, SubscriptionName: {SubscriptionName}, Error Message: {ErrorMessage}, Error Source: {ErrorSource}", TopicSubscription.Path, TopicSubscription.SubscriptionName, exception.Message, errorSource);
 
             // Execute the event hook
             MessageBus.Settings.OnMessageFault?.Invoke(MessageBus, null, null, exception, null);
         }
         catch (Exception eh)
         {
-            MessageBusBase.HookFailed(logger, eh, nameof(IConsumerEvents.OnMessageFault));
+            MessageBusBase.HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageFault));
         }
         return Task.CompletedTask;
     }

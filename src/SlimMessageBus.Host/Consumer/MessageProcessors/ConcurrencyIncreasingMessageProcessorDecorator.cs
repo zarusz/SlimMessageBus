@@ -7,97 +7,100 @@ using SlimMessageBus.Host.Config;
 /// The expectation is that <see cref="IMessageProcessor{TMessage}.ProcessMessage(TMessage)"/> will be executed synchronously (in sequential order) by the caller on which we want to increase amount of concurrent message being processed.
 /// </summary>
 /// <typeparam name="TMessage"></typeparam>
-public class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : IMessageProcessor<TMessage> where TMessage : class
+public class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : IMessageProcessor<TMessage>
 {
-    private readonly ILogger logger;
-    private SemaphoreSlim concurrentSemaphore;
-    private readonly IMessageProcessor<TMessage> target;
-    private Exception lastException;
-    private TMessage lastExceptionMessage;
-    private readonly object lastExceptionLock = new();
+    private readonly ILogger _logger;
+    private SemaphoreSlim _concurrentSemaphore;
+    private readonly IMessageProcessor<TMessage> _target;
+    private Exception _lastException;
+    private TMessage _lastExceptionMessage;
+    private AbstractConsumerSettings _lastExceptionSettings;
+    private readonly object _lastExceptionLock = new();
 
-    private int pendingCount;
+    private int _pendingCount;
 
-    public int PendingCount => pendingCount;
+    public int PendingCount => _pendingCount;
 
-    public ConcurrencyIncreasingMessageProcessorDecorator(AbstractConsumerSettings consumerSettings, MessageBusBase messageBus, IMessageProcessor<TMessage> target)
+    public ConcurrencyIncreasingMessageProcessorDecorator(int concurrency, MessageBusBase messageBus, IMessageProcessor<TMessage> target)
     {
-        if (consumerSettings is null) throw new ArgumentNullException(nameof(consumerSettings));
+        if (target is null) throw new ArgumentNullException(nameof(target));
         if (messageBus is null) throw new ArgumentNullException(nameof(messageBus));
+        if (concurrency <= 1) throw new ArgumentOutOfRangeException(nameof(concurrency));
 
-        logger = messageBus.LoggerFactory.CreateLogger<ConsumerInstancePoolMessageProcessor<TMessage>>();
-        concurrentSemaphore = new SemaphoreSlim(consumerSettings.Instances);
-        this.target = target;
+        _logger = messageBus.LoggerFactory.CreateLogger<ConcurrencyIncreasingMessageProcessorDecorator<TMessage>>();
+        _concurrentSemaphore = new SemaphoreSlim(concurrency);
+        _target = target;
     }
 
-    public AbstractConsumerSettings ConsumerSettings => target.ConsumerSettings;
+    public IReadOnlyCollection<AbstractConsumerSettings> ConsumerSettings => _target.ConsumerSettings;
 
-    public async Task<Exception> ProcessMessage(TMessage message, IMessageTypeConsumerInvokerSettings consumerInvoker)
+    public async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response)> ProcessMessage(TMessage message, IReadOnlyDictionary<string, object> messageHeaders)
     {
         // Ensure only desired number of messages are being processed concurrently
-        await concurrentSemaphore.WaitAsync().ConfigureAwait(false);
+        await _concurrentSemaphore.WaitAsync().ConfigureAwait(false);
 
         // Check if there was an exception from and earlier message processing
-        var e = lastException;
+        var e = _lastException;
         if (e != null)
         {
             // report the last exception
-            lastException = null;
-            return e;
+            _lastException = null;
+            return (e, _lastExceptionSettings, null);
         }
 
-        Interlocked.Increment(ref pendingCount);
+        Interlocked.Increment(ref _pendingCount);
 
         // Fire and forget
-        _ = ProcessInBackground(message, consumerInvoker);
+        _ = ProcessInBackground(message, messageHeaders);
 
         // Not exception - we don't know yet
-        return null;
+        return (null, null, null);
     }
 
     public TMessage GetMessageWithException()
     {
-        lock (lastExceptionLock)
+        lock (_lastExceptionLock)
         {
-            var m = lastExceptionMessage;
-            lastExceptionMessage = null;
+            var m = _lastExceptionMessage;
+            _lastExceptionMessage = default;
             return m;
         }
     }
 
     public async Task WaitAll()
     {
-        while (pendingCount > 0)
+        while (_pendingCount > 0)
         {
             await Task.Delay(200).ConfigureAwait(false);
         }
     }
 
-    private async Task ProcessInBackground(TMessage message, IMessageTypeConsumerInvokerSettings consumerInvoker)
+    private async Task ProcessInBackground(TMessage message, IReadOnlyDictionary<string, object> messageHeaders)
     {
         try
         {
-            logger.LogDebug("Entering ProcessMessages for message {MessageType}", typeof(TMessage));
-            var exception = await target.ProcessMessage(message, consumerInvoker).ConfigureAwait(false);
+            _logger.LogDebug("Entering ProcessMessages for message {MessageType}", typeof(TMessage));
+            var (exception, consumerSettings, response) = await _target.ProcessMessage(message, messageHeaders).ConfigureAwait(false);
             if (exception != null)
             {
-                lock (lastExceptionLock)
+                lock (_lastExceptionLock)
                 {
                     // ensure there was no error before this one, in which case forget about this error (the whole event stream will be rewind back).
-                    if (lastException == null && lastExceptionMessage == null)
+                    if (_lastException == null && _lastExceptionMessage == null)
                     {
-                        lastException = exception;
-                        lastExceptionMessage = message;
+                        _lastException = exception;
+                        _lastExceptionMessage = message;
+                        _lastExceptionSettings = consumerSettings;
                     }
                 }
             }
         }
         finally
         {
-            logger.LogDebug("Leaving ProcessMessages for message {MessageType}", typeof(TMessage));
-            concurrentSemaphore.Release();
+            _logger.LogDebug("Leaving ProcessMessages for message {MessageType}", typeof(TMessage));
+            _concurrentSemaphore.Release();
 
-            Interlocked.Decrement(ref pendingCount);
+            Interlocked.Decrement(ref _pendingCount);
         }
     }
 
@@ -111,12 +114,12 @@ public class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : IMessage
 
     protected virtual async ValueTask DisposeAsyncCore()
     {
-        if (concurrentSemaphore != null)
+        if (_concurrentSemaphore != null)
         {
-            concurrentSemaphore.Dispose();
-            concurrentSemaphore = null;
+            _concurrentSemaphore.Dispose();
+            _concurrentSemaphore = null;
         }
-        await target.DisposeAsync();
+        await _target.DisposeAsync();
     }
 
     #endregion

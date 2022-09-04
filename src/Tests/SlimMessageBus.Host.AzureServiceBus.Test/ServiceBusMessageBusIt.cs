@@ -174,14 +174,15 @@ public class ServiceBusMessageBusIt : IDisposable
         // assert
 
         // ensure number of instances of consumers created matches
-        consumersCreated.Should().Be(producedMessages.Count * expectedMessageCopies);
-        consumedMessages.Count.Should().Be(producedMessages.Count * expectedMessageCopies);
+        var expectedConsumedCount = producedMessages.Count + producedMessages.OfType<PingDerivedMessage>().Count();
+        consumersCreated.Should().Be(expectedConsumedCount * expectedMessageCopies);
+        consumedMessages.Count.Should().Be(expectedConsumedCount * expectedMessageCopies);
 
         // ... the content should match
         foreach (var producedMessage in producedMessages)
         {
             var messageCopies = consumedMessages.Snapshot().Count(x => x.Message.Counter == producedMessage.Counter && x.Message.Value == producedMessage.Value && x.MessageId == GetMessageId(x.Message));
-            messageCopies.Should().Be(expectedMessageCopies);
+            messageCopies.Should().Be((producedMessage is PingDerivedMessage ? 2 : 1) * expectedMessageCopies);
         }
 
         additionalAssertion?.Invoke(new TestData { ProducedMessages = producedMessages, ConsumedMessages = consumedMessages.Snapshot() });

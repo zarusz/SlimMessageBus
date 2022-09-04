@@ -8,7 +8,7 @@ using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Serialization;
 
-public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable
+public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMessageScopeFactory, IMessageHeadersFactory, ICurrentTimeProvider
 {
     private readonly ILogger _logger;
     private CancellationTokenSource _cancellationTokenSource = new();
@@ -68,7 +68,7 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable
 
     protected virtual void Build()
     {
-        ProducerSettingsByMessageType = new ProducerByMessageTypeCache<ProducerSettings>(_logger, BuildProducerByBaseMessageType());
+        ProducerSettingsByMessageType = new ProducerByMessageTypeCache<ProducerSettings>(_logger, BuildProducerByBaseMessageType(), RuntimeTypeCache);
 
         BuildPendingRequestStore();
     }
@@ -671,7 +671,7 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable
 
     public virtual bool IsMessageScopeEnabled(ConsumerSettings consumerSettings) => consumerSettings.IsMessageScopeEnabled ?? Settings.IsMessageScopeEnabled ?? true;
 
-    public virtual MessageScopeWrapper GetMessageScope(ConsumerSettings consumerSettings, object message)
+    public virtual MessageScopeWrapper CreateMessageScope(ConsumerSettings consumerSettings, object message)
     {
         // ToDo: Move to MessageBusProxy to pick up the local scope
         var createMessageScope = IsMessageScopeEnabled(consumerSettings);

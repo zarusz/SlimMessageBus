@@ -8,6 +8,9 @@ public class HandlerBuilder<TRequest, TResponse> : AbstractConsumerBuilder
         if (settings == null) throw new ArgumentNullException(nameof(settings));
 
         ConsumerSettings.ResponseType = responseType ?? typeof(TResponse);
+
+        var taskOfResponseTypeResultPropertyInfo = typeof(Task<>).MakeGenericType(ConsumerSettings.ResponseType).GetProperty(nameof(Task<object>.Result));
+        ConsumerSettings.ConsumerMethodResult = ReflectionUtils.GenerateGetterFunc(taskOfResponseTypeResultPropertyInfo);
     }
 
     /// <summary>
@@ -46,6 +49,7 @@ public class HandlerBuilder<TRequest, TResponse> : AbstractConsumerBuilder
         pathConfig(b);
         return b;
     }
+
     /// <summary>
     /// Configure topic name that incoming requests (<see cref="TRequest"/>) are expected on.
     /// </summary>
@@ -65,7 +69,7 @@ public class HandlerBuilder<TRequest, TResponse> : AbstractConsumerBuilder
         ConsumerSettings.ConsumerMethod = (consumer, message, path) => ((THandler)consumer).OnHandle((TRequest)message, path);
         ConsumerSettings.ConsumerMethodResult = (task) => ((Task<TResponse>)task).Result;
 
-        ConsumerSettings.ConsumersByMessageType.Add(MessageType, ConsumerSettings);
+        ConsumerSettings.Invokers.Add(ConsumerSettings);
 
         return this;
     }
@@ -79,10 +83,50 @@ public class HandlerBuilder<TRequest, TResponse> : AbstractConsumerBuilder
         ConsumerSettings.ConsumerType = handlerType;
         SetupConsumerOnHandleMethod(ConsumerSettings);
 
-        var taskOfResponseTypeResultPropertyInfo = typeof(Task<>).MakeGenericType(ConsumerSettings.ResponseType).GetProperty(nameof(Task<object>.Result));
-        ConsumerSettings.ConsumerMethodResult = ReflectionUtils.GenerateGetterFunc(taskOfResponseTypeResultPropertyInfo);
+        ConsumerSettings.Invokers.Add(ConsumerSettings);
 
-        ConsumerSettings.ConsumersByMessageType.Add(MessageType, ConsumerSettings);
+        return this;
+    }
+
+    /// <summary>
+    /// Declares type <typeparamref name="TConsumer"/> as the consumer of the derived message <typeparamref name="TMessage"/>.
+    /// The consumer type has to implement <see cref="IConsumer{TMessage}"/> interface.
+    /// </summary>
+    /// <typeparam name="TConsumer"></typeparam>
+    /// <returns></returns>
+    public HandlerBuilder<TRequest, TResponse> WithHandler<THandler, TMessage>()
+        where THandler : class, IRequestHandler<TMessage, TResponse>
+        where TMessage : TRequest
+    {
+        AssertInvokerUnique(derivedConsumerType: typeof(THandler), derivedMessageType: typeof(TMessage));
+
+        var invoker = new MessageTypeConsumerInvokerSettings(ConsumerSettings, messageType: typeof(TMessage), consumerType: typeof(THandler))
+        {
+            ConsumerMethod = (consumer, message, path) => ((IConsumer<TMessage>)consumer).OnHandle((TMessage)message, path)
+        };
+        ConsumerSettings.Invokers.Add(invoker);
+
+        return this;
+    }
+
+    /// <summary>
+    /// Declares type the consumer of a derived message.
+    /// The consumer type has to implement <see cref="IConsumer{TMessage}"/> interface.
+    /// </summary>
+    /// <typeparam name="TConsumer"></typeparam>
+    /// <returns></returns>
+    public HandlerBuilder<TRequest, TResponse> WithHandler(Type derivedHandlerType, Type derivedRequestType)
+    {
+        AssertInvokerUnique(derivedHandlerType, derivedRequestType);
+
+        if (!MessageType.IsAssignableFrom(derivedRequestType))
+        {
+            throw new ConfigurationMessageBusException($"The (derived) message type {derivedRequestType} is not assignable to message type {MessageType}");
+        }
+
+        var invoker = new MessageTypeConsumerInvokerSettings(ConsumerSettings, messageType: derivedRequestType, consumerType: derivedHandlerType);
+        SetupConsumerOnHandleMethod(invoker);
+        ConsumerSettings.Invokers.Add(invoker);
 
         return this;
     }

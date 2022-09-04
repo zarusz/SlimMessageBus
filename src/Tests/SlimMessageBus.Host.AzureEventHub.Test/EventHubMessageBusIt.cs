@@ -109,13 +109,13 @@ public class EventHubMessageBusIt : IDisposable
         }
 
         stopwatch.Stop();
-        logger.LogInformation("Published {0} messages in {1}", messages.Count, stopwatch.Elapsed);
+        logger.LogInformation("Published {PublishedMessageCount} messages in {Duration}", messages.Count, stopwatch.Elapsed);
 
         // consume
         stopwatch.Restart();
         var messagesReceived = await ConsumeFromTopic(pingConsumer);
         stopwatch.Stop();
-        logger.LogInformation("Consumed {0} messages in {1}", messagesReceived.Count, stopwatch.Elapsed);
+        logger.LogInformation("Consumed {ConsumedMessageCount} messages in {Duration}", messagesReceived.Count, stopwatch.Elapsed);
 
         // assert
 

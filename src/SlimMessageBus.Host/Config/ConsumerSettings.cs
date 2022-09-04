@@ -1,37 +1,5 @@
 namespace SlimMessageBus.Host.Config;
 
-public interface IMessageTypeConsumerInvokerSettings
-{
-    /// <summary>
-    /// Represents the type of the message that is expected on the topic.
-    /// </summary>
-    Type MessageType { get; }
-    /// <summary>
-    /// The consumer type that will handle the messages. An implementation of <see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest,TResponse}"/>.
-    /// </summary>
-    Type ConsumerType { get; }
-    /// <summary>
-    /// The delegate to the consumer method responsible for accepting messages.
-    /// </summary>
-    Func<object, object, string, Task> ConsumerMethod { get; set; }
-}
-
-public class MessageTypeConsumerInvokerSettings : IMessageTypeConsumerInvokerSettings
-{
-    /// <summary>
-    /// Represents the type of the message that is expected on the topic.
-    /// </summary>
-    public Type MessageType { get; set; }
-    /// <summary>
-    /// The consumer type that will handle the messages. An implementation of <see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest,TResponse}"/>.
-    /// </summary>
-    public Type ConsumerType { get; set; }
-    /// <summary>
-    /// The delegate to the consumer method responsible for accepting messages.
-    /// </summary>
-    public Func<object, object, string, Task> ConsumerMethod { get; set; }
-}
-
 public class ConsumerSettings : AbstractConsumerSettings, IMessageTypeConsumerInvokerSettings
 {
     private Type messageType;
@@ -58,7 +26,7 @@ public class ConsumerSettings : AbstractConsumerSettings, IMessageTypeConsumerIn
 
     public ConsumerSettings()
     {
-        ConsumersByMessageType = new Dictionary<Type, IMessageTypeConsumerInvokerSettings>();
+        Invokers = new List<IMessageTypeConsumerInvokerSettings>();
     }
 
     /// Type of consumer that is configured (subscriber or request handler).
@@ -73,9 +41,11 @@ public class ConsumerSettings : AbstractConsumerSettings, IMessageTypeConsumerIn
     /// </summary>
     public Func<Task, object> ConsumerMethodResult { get; set; }
     /// <summary>
-    /// A dictionary of all the known Consumers that handle any derived message type of the base type.
+    /// List of all declared consumers that handle any derived message type of the declared message type.
     /// </summary>
-    public IDictionary<Type, IMessageTypeConsumerInvokerSettings> ConsumersByMessageType { get; }
+    public IList<IMessageTypeConsumerInvokerSettings> Invokers { get; }
+
+    public ConsumerSettings ParentSettings => this;
     /// <summary>
     /// The response message that will be sent as a response to the arriving message (if request/response). Null when message type is not a request.
     /// </summary>
@@ -92,4 +62,20 @@ public class ConsumerSettings : AbstractConsumerSettings, IMessageTypeConsumerIn
     /// Enables the disposal of consumer instance after the message has been consumed.
     /// </summary>
     public bool IsDisposeConsumerEnabled { get; set; }
+    /// <summary>
+    /// Settings that should apply when a message type arrives for which there is no declared consumers
+    /// </summary>
+    public UndeclaredMessageTypeSettings UndeclaredMessageType { get; set; } = new UndeclaredMessageTypeSettings();
+}
+
+public class UndeclaredMessageTypeSettings
+{
+    /// <summary>
+    /// Should the message fail when an undeclared message type arrives on the queue/topic that cannot be handled by any of the declared consumers.
+    /// </summary>
+    public bool Fail { get; set; }
+    /// <summary>
+    /// Should the message be logged when an undeclared message type arrives on the queue/topic that cannot be handled by any of the declared consumers.
+    /// </summary>
+    public bool Log { get; set; }
 }

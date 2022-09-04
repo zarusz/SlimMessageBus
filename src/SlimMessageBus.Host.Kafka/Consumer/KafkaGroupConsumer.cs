@@ -10,24 +10,23 @@ public class KafkaGroupConsumer : IDisposable, IKafkaCommitController
 {
     private readonly ILogger _logger;
 
-    public KafkaMessageBus MessageBus { get; }
-    public string Group { get; }
-    public ICollection<string> Topics { get; }
-
     private readonly SafeDictionaryWrapper<TopicPartition, IKafkaPartitionConsumer> _processors;
-    private IConsumer _consumer;
 
+    private IConsumer _consumer;
     private Task _consumerTask;
     private CancellationTokenSource _consumerCts;
 
-    public KafkaGroupConsumer(KafkaMessageBus messageBus, string group, string[] topics, Func<TopicPartition, IKafkaCommitController, IKafkaPartitionConsumer> processorFactory)
+    public KafkaMessageBus MessageBus { get; }
+    public string Group { get; }
+    public IReadOnlyCollection<string> Topics { get; }
+
+    public KafkaGroupConsumer(KafkaMessageBus messageBus, string group, IReadOnlyCollection<string> topics, Func<TopicPartition, IKafkaCommitController, IKafkaPartitionConsumer> processorFactory)
     {
         MessageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
         Group = group ?? throw new ArgumentNullException(nameof(group));
         Topics = topics ?? throw new ArgumentNullException(nameof(topics));
 
         _logger = messageBus.LoggerFactory.CreateLogger<KafkaGroupConsumer>();
-
         _logger.LogInformation("Creating for Group: {Group}, Topics: {Topics}", group, string.Join(", ", topics));
 
         _processors = new SafeDictionaryWrapper<TopicPartition, IKafkaPartitionConsumer>(tp => processorFactory(tp, this));

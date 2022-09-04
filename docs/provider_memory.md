@@ -7,6 +7,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
   - [Serialization](#serialization)
   - [Virtual Topics](#virtual-topics)
   - [Auto Declaration](#auto-declaration)
+    - [Polymorphic message support](#polymorphic-message-support)
 - [Lifecycle](#lifecycle)
   - [Blocking Publish](#blocking-publish)
   - [Error Handling](#error-handling)
@@ -17,9 +18,13 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 
 The Memory transport provider can be used for internal communication within the same process. It is the simplest transport provider and does not require any external messaging infrastructure.
 
-> Since messages are passed in memory and never persisted, they will be lost if the application process dies while consuming these messages.
+> Since messages are passed in memory and never persisted, they will be lost if the application process terminates while consuming these messages.
 
-Good use case for in memory communication is to integrate the domain layer with other application layers via domain events pattern, or for mediator pattern (when combined with [interceptors](intro.md#interceptors)).
+Good use case for in memory communication is:
+
+- to integrate the domain layer with other application layers via domain events pattern,
+- to implement mediator pattern (when combined with [interceptors](intro.md#interceptors)),
+- to run unit tests against application code that normally runs with an out of process transport provider (Kafka, Azure Service Bus, etc).
 
 ## Configuration
 
@@ -54,17 +59,8 @@ mbb
 
 ### Virtual Topics
 
-Unlike other transport providers, memory transport does not have true notion of topics (or queues). However, it is still required to use topic names. This is required, so that the bus knows on which virtual topic to deliver the message to, and from what virtual topic to consume.
-
-Here is an example for the producer side:
-
-```cs
-// declare that OrderSubmittedEvent will be produced
-mbb.Produce<OrderSubmittedEvent>(x => x.DefaultTopic(x.MessageType.Name));
-
-// alternatively
-mbb.Produce<OrderSubmittedEvent>(x => x.DefaultTopic("OrderSubmittedEvent"));
-```
+Unlike other transport providers, memory transport does not have true notion of topics (or queues). However, it is still required to use topic names. This is required, so that the bus knows on which virtual topic to deliver the message to, and from what virtual top
+erSubmittedEvent"));
 
 and the consumer side:
 
@@ -76,11 +72,14 @@ mbb.Consume<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<O
 mbb.Consume<OrderSubmittedEvent>(x => x.Topic("OrderSubmittedEvent").WithConsumer<OrderSubmittedHandler>());
 ```
 
+> The virtual topic name can be any string. It helps to connect the relevant producers and consumers together.
+
 ### Auto Declaration
 
 > Since 1.19.1
 
-For bus configuration, we can leverage `AutoDeclareFrom()` method to discover all the consumers (`IConsumer<T>`) and handlers (`IRequestHandler<T,R>`) types and auto declare the respective producers and consumers/handlers in the bus. This can be useful to auto declare all of the domain event handlers in an application layer.
+For bus configuration, we can leverage `AutoDeclareFrom()` method to discover all the consumers (`IConsumer<T>`) and handlers (`IRequestHandler<T,R>`) types and auto declare the respective producers and consumers/handlers in the bus.
+This can be useful to auto declare all of the domain event handlers in an application layer.
 
 ```cs
 mbb
@@ -106,9 +105,22 @@ mbb.Produce<EchoRequest>(x => x.DefaultTopic(x.MessageType.Name));
 mbb.Handle<EchoRequest, EchoResponse>(x => x.Topic(x.MessageType.Name).WithConsumer<EchoRequestHandler>());
 ```
 
-Using `AutoDeclareFrom` to configure the memory bus is recommended, as it provides a good developer experience.
+The vitual topic name will be derived from the message type name by default. This can be customized by passing an additional parameter to the `AutoDeclareFrom()` method.
+
+Using `AutoDeclareFrom()` to configure the memory bus is recommended, as it provides a good developer experience.
 
 > Note that it is still required to register (or auto register) the consumer/handler types in the underlying DI (see [here](intro.md#autoregistration-of-consumers-interceptors-and-configurators)).
+
+#### Polymorphic message support
+
+> Since 1.21.0
+
+The polymorphic message types (message that share a common ancestry) are supported by the `AutoDeclareFrom()`:
+
+- for every consumer / handler implementation found it analyzes the message type inheritance tree,
+- it declares a producer in the bus for the oldest ancestor of the message type hierarchy,
+- it declares a consumer in the bus for the oldest ancestor message type and within that, configures a consumer for derived message type,
+- topic names are derived from the ancestor message type.
 
 ## Lifecycle
 

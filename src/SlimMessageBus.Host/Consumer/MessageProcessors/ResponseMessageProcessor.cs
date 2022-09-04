@@ -6,51 +6,61 @@ using SlimMessageBus.Host.Config;
 /// The <see cref="IMessageProcessor{TMessage}"/> implementation that processes the responses arriving to the bus.
 /// </summary>
 /// <typeparam name="TMessage"></typeparam>
-public class ResponseMessageProcessor<TMessage> : IMessageProcessor<TMessage> where TMessage : class
+public class ResponseMessageProcessor<TMessage> : IMessageProcessor<TMessage>
 {
-    private readonly ILogger<ResponseMessageProcessor<TMessage>> logger;
-    private readonly RequestResponseSettings requestResponseSettings;
-    private readonly MessageBusBase messageBus;
-    private readonly Func<TMessage, MessageWithHeaders> messageProvider;
+    private readonly ILogger<ResponseMessageProcessor<TMessage>> _logger;
+    private readonly RequestResponseSettings _requestResponseSettings;
+    private readonly IReadOnlyCollection<AbstractConsumerSettings> _consumerSettings;
+    private readonly MessageBusBase _messageBus;
+    private readonly Func<TMessage, byte[]> _messageProvider;
 
-    public ResponseMessageProcessor(RequestResponseSettings requestResponseSettings, MessageBusBase messageBus, Func<TMessage, MessageWithHeaders> messageProvider)
+    public ResponseMessageProcessor(RequestResponseSettings requestResponseSettings, MessageBusBase messageBus, Func<TMessage, byte[]> messageProvider)
     {
         if (messageBus is null) throw new ArgumentNullException(nameof(messageBus));
 
-        this.logger = messageBus.LoggerFactory.CreateLogger<ResponseMessageProcessor<TMessage>>();
-        this.requestResponseSettings = requestResponseSettings ?? throw new ArgumentNullException(nameof(requestResponseSettings));
-        this.messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
-        this.messageProvider = messageProvider ?? throw new ArgumentNullException(nameof(messageProvider));
+        _logger = messageBus.LoggerFactory.CreateLogger<ResponseMessageProcessor<TMessage>>();
+        _requestResponseSettings = requestResponseSettings ?? throw new ArgumentNullException(nameof(requestResponseSettings));
+        _consumerSettings = new List<AbstractConsumerSettings> { _requestResponseSettings };
+        _messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
+        _messageProvider = messageProvider ?? throw new ArgumentNullException(nameof(messageProvider));
     }
 
-    public AbstractConsumerSettings ConsumerSettings => requestResponseSettings;
+    public IReadOnlyCollection<AbstractConsumerSettings> ConsumerSettings => _consumerSettings;
 
-    public Task<Exception> ProcessMessage(TMessage message, IMessageTypeConsumerInvokerSettings consumerInvoker)
+    [Obsolete]
+    public async Task<Exception> ProcessMessage(TMessage message, IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker)
+    {
+        var (exception, _, _) = await ProcessMessage(message, messageHeaders);
+        return exception;
+    }
+
+    public async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response)> ProcessMessage(TMessage message, IReadOnlyDictionary<string, object> messageHeaders)
     {
         try
         {
-            var messageWithHeaders = messageProvider(message);
-            return messageBus.OnResponseArrived(messageWithHeaders.Payload, requestResponseSettings.Path, messageWithHeaders.Headers);
+            var messagePayload = _messageProvider(message);
+            var exception = await _messageBus.OnResponseArrived(messagePayload, _requestResponseSettings.Path, messageHeaders);
+            return (exception, _requestResponseSettings, null);
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Error occured while consuming response message, {Message}", message);
+            _logger.LogError(e, "Error occured while consuming response message, {Message}", message);
 
-            if (requestResponseSettings.OnResponseMessageFault != null)
+            if (_requestResponseSettings.OnResponseMessageFault != null)
             {
                 // Call the hook
                 try
                 {
-                    requestResponseSettings.OnResponseMessageFault(requestResponseSettings, message, e);
+                    _requestResponseSettings.OnResponseMessageFault(_requestResponseSettings, message, e);
                 }
                 catch (Exception eh)
                 {
-                    MessageBusBase.HookFailed(logger, eh, nameof(IConsumerEvents.OnMessageFault));
+                    MessageBusBase.HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageFault));
                 }
             }
 
             // We can only continue and process all messages in the lease    
-            return Task.FromResult<Exception>(null);
+            return (e, _requestResponseSettings, null);
         }
     }
 

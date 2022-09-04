@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Test.Consumer;
 
-using SlimMessageBus.Host.Config;
-
 public class ConcurrencyIncreasingMessageProcessorDecoratorTest
 {
     private readonly MessageBusMock _busMock;
@@ -17,19 +15,17 @@ public class ConcurrencyIncreasingMessageProcessorDecoratorTest
     [Theory]
     [InlineData(10, 40)]
     [InlineData(2, 40)]
-    [InlineData(1, 40)]
     public async Task WhenProcessMessageGivenNMessagesAndConcurrencySetToCThenNMethodInvokationsHappenOnTargetWithCConcurrently(int concurrency, int expectedMessageCount)
     {
         // arrange
-        var consumerSettings = new ConsumerBuilder<SomeMessage>(new MessageBusSettings()).Topic(null).WithConsumer<IConsumer<SomeMessage>>().Instances(concurrency).ConsumerSettings;
-        _subject = new ConcurrencyIncreasingMessageProcessorDecorator<SomeMessage>(consumerSettings, _busMock.Bus, _messageProcessorMock.Object);
+        _subject = new ConcurrencyIncreasingMessageProcessorDecorator<SomeMessage>(concurrency, _busMock.Bus, _messageProcessorMock.Object);
 
         var currentSectionCount = 0;
         var maxSectionCount = 0;
         var maxSectionCountLock = new object();
         var messageCount = 0;
 
-        _messageProcessorMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IMessageTypeConsumerInvokerSettings>())).Returns(async () =>
+        _messageProcessorMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IReadOnlyDictionary<string, object>>())).Returns(async () =>
         {
             // Entering critical section
             Interlocked.Increment(ref currentSectionCount);
@@ -52,15 +48,16 @@ public class ConcurrencyIncreasingMessageProcessorDecoratorTest
 
             // Leaving critical section
             Interlocked.Decrement(ref currentSectionCount);
-            return null;
+            return (null, null, null);
         });
 
         // act
         var msg = new SomeMessage();
+        var msgHeaders = new Dictionary<string, object>();
         for (var i = 0; i < expectedMessageCount; i++)
         {
             // executed in sequence
-            await _subject.ProcessMessage(msg, null);
+            await _subject.ProcessMessage(msg, msgHeaders);
         }
 
         // assert

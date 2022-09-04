@@ -11,11 +11,11 @@ public class KafkaPartitionConsumerForConsumersTest : IAsyncDisposable
     private readonly TopicPartition _topicPartition;
     private readonly ILoggerFactory _loggerFactory;
 
-    private readonly Mock<IKafkaCommitController> _commitControllerMock = new Mock<IKafkaCommitController>();
+    private readonly Mock<IKafkaCommitController> _commitControllerMock = new();
 
     private readonly ConsumerBuilder<SomeMessage> _consumerBuilder;
 
-    private readonly SomeMessageConsumer _consumer = new SomeMessageConsumer();
+    private readonly SomeMessageConsumer _consumer = new();
 
     private readonly Lazy<KafkaPartitionConsumerForConsumers> _subject;
 
@@ -24,11 +24,12 @@ public class KafkaPartitionConsumerForConsumersTest : IAsyncDisposable
         _loggerFactory = NullLoggerFactory.Instance;
 
         _topicPartition = new TopicPartition("topic-a", 0);
+        var group = "group-a";
 
         _consumerBuilder = new ConsumerBuilder<SomeMessage>(new MessageBusSettings());
         _consumerBuilder.Path(_topicPartition.Topic);
         _consumerBuilder.WithConsumer<SomeMessageConsumer>();
-        _consumerBuilder.KafkaGroup("group-a");
+        _consumerBuilder.KafkaGroup(group);
 
         var massageBusMock = new MessageBusMock();
         massageBusMock.BusSettings.Consumers.Add(_consumerBuilder.ConsumerSettings);
@@ -36,10 +37,8 @@ public class KafkaPartitionConsumerForConsumersTest : IAsyncDisposable
         massageBusMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(ILoggerFactory))).Returns(_loggerFactory);
 
         var headerSerializer = new StringValueSerializer();
-        MessageWithHeaders MessageValueProvider(ConsumeResult m) => m.ToMessageWithHeaders(headerSerializer);
 
-        var consumerInstancePoolMock = new Mock<ConsumerInstanceMessageProcessor<ConsumeResult>>(_consumerBuilder.ConsumerSettings, massageBusMock.Bus, (Func<ConsumeResult, MessageWithHeaders>)MessageValueProvider, null);
-        _subject = new Lazy<KafkaPartitionConsumerForConsumers>(() => new KafkaPartitionConsumerForConsumers(_consumerBuilder.ConsumerSettings, _topicPartition, _commitControllerMock.Object, massageBusMock.Bus, headerSerializer));
+        _subject = new Lazy<KafkaPartitionConsumerForConsumers>(() => new KafkaPartitionConsumerForConsumers(new[] { _consumerBuilder.ConsumerSettings }, group, _topicPartition, _commitControllerMock.Object, massageBusMock.Bus, headerSerializer));
     }
 
 

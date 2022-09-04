@@ -12,12 +12,15 @@ using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte
 /// </summary>
 public class KafkaPartitionConsumerForConsumers : KafkaPartitionConsumer
 {
-    public KafkaPartitionConsumerForConsumers(ConsumerSettings consumerSettings, TopicPartition topicPartition, IKafkaCommitController commitController, [NotNull] MessageBusBase messageBus, [NotNull] IMessageSerializer headerSerializer)
-        : base(consumerSettings,
-               topicPartition,
-               commitController,
-               messageBus,
-               new ConsumerInstanceMessageProcessor<ConsumeResult>(consumerSettings, messageBus, m => m.ToMessageWithHeaders(headerSerializer), (m, ctx) => ctx.SetTransportMessage(m)))
+    public KafkaPartitionConsumerForConsumers(ConsumerSettings[] consumerSettings, string group, TopicPartition topicPartition, IKafkaCommitController commitController, [NotNull] MessageBusBase messageBus, [NotNull] IMessageSerializer headerSerializer)
+        : base(consumerSettings, group, topicPartition, commitController, messageBus, headerSerializer)
     {
     }
+
+    protected override IMessageProcessor<ConsumeResult<Ignore, byte[]>> CreateMessageProcessor()
+        => new ConsumerInstanceMessageProcessor<ConsumeResult>(ConsumerSettings, MessageBus, messageProvider: GetMessageFromTransportMessage, path: TopicPartition.Topic, (m, ctx) => ctx.SetTransportMessage(m));
+
+
+    private object GetMessageFromTransportMessage(Type messageType, ConsumeResult transportMessage)
+        => MessageBus.Serializer.Deserialize(messageType, transportMessage.Message.Value);
 }

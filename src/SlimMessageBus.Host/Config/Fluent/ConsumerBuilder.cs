@@ -39,13 +39,13 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
         ConsumerSettings.ConsumerType = typeof(TConsumer);
         ConsumerSettings.ConsumerMethod = (consumer, message, path) => ((IConsumer<T>)consumer).OnHandle((T)message, path);
 
-        ConsumerSettings.ConsumersByMessageType.Add(typeof(T), ConsumerSettings);
+        ConsumerSettings.Invokers.Add(ConsumerSettings);
 
         return this;
     }
 
     /// <summary>
-    /// Declares type <typeparamref name="TConsumer"/> as the consumer of messages <typeparamref name="TMessage"/>.
+    /// Declares type <typeparamref name="TConsumer"/> as the consumer of the derived message <typeparamref name="TMessage"/>.
     /// The consumer type has to implement <see cref="IConsumer{TMessage}"/> interface.
     /// </summary>
     /// <typeparam name="TConsumer"></typeparam>
@@ -54,17 +54,35 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
         where TConsumer : class, IConsumer<TMessage>
         where TMessage : T
     {
-        if (ConsumerSettings.ConsumersByMessageType.ContainsKey(typeof(TMessage)))
+        AssertInvokerUnique(derivedConsumerType: typeof(TConsumer), derivedMessageType: typeof(TMessage));
+
+        var invoker = new MessageTypeConsumerInvokerSettings(ConsumerSettings, messageType: typeof(TMessage), consumerType: typeof(TConsumer))
         {
-            throw new ConfigurationMessageBusException($"The (derived) message type {typeof(TMessage)} is already decrlared on the consumer for message type {ConsumerSettings.MessageType}");
+            ConsumerMethod = (consumer, message, path) => ((IConsumer<TMessage>)consumer).OnHandle((TMessage)message, path)
+        };
+        ConsumerSettings.Invokers.Add(invoker);
+
+        return this;
+    }
+
+    /// <summary>
+    /// Declares type the consumer of a derived message.
+    /// The consumer type has to implement <see cref="IConsumer{TMessage}"/> interface.
+    /// </summary>
+    /// <typeparam name="TConsumer"></typeparam>
+    /// <returns></returns>
+    public ConsumerBuilder<T> WithConsumer(Type derivedConsumerType, Type derivedMessageType)
+    {
+        AssertInvokerUnique(derivedConsumerType, derivedMessageType);
+
+        if (!MessageType.IsAssignableFrom(derivedMessageType))
+        {
+            throw new ConfigurationMessageBusException($"The (derived) message type {derivedMessageType} is not assignable to message type {ConsumerSettings.MessageType}");
         }
 
-        ConsumerSettings.ConsumersByMessageType.Add(typeof(TMessage), new MessageTypeConsumerInvokerSettings
-        {
-            MessageType = typeof(TMessage),
-            ConsumerType = typeof(TConsumer),
-            ConsumerMethod = (consumer, message, path) => ((IConsumer<TMessage>)consumer).OnHandle((TMessage)message, path)
-        });
+        var invoker = new MessageTypeConsumerInvokerSettings(ConsumerSettings, messageType: derivedMessageType, consumerType: derivedConsumerType);
+        SetupConsumerOnHandleMethod(invoker);
+        ConsumerSettings.Invokers.Add(invoker);
 
         return this;
     }
@@ -75,6 +93,7 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
     /// </summary>
     /// <typeparam name="TConsumer"></typeparam>
     /// <returns></returns>
+    [Obsolete]
     public ConsumerBuilder<T> WithConsumer(Assembly assembly, bool includeDerivedMessageTypes = true)
     {
         if (assembly == null) throw new ArgumentNullException(nameof(assembly));
@@ -101,7 +120,7 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
         ConsumerSettings.ConsumerType = consumers[0].ConsumerType;
         SetupConsumerOnHandleMethod(ConsumerSettings);
 
-        ConsumerSettings.ConsumersByMessageType.Add(typeof(T), ConsumerSettings);
+        ConsumerSettings.Invokers.Add(ConsumerSettings);
 
         if (includeDerivedMessageTypes)
         {
@@ -113,7 +132,7 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
                     // find any IConsumer<T> where T is a derived type of the base message type (and not the base message type)
                     return messageType != ConsumerSettings.MessageType && ConsumerSettings.MessageType.IsAssignableFrom(messageType);
                 })
-                .Select(x => new MessageTypeConsumerInvokerSettings { MessageType = x.ConsumerInterface.GetGenericArguments().Single(), ConsumerType = x.ConsumerType })
+                .Select(x => new MessageTypeConsumerInvokerSettings(ConsumerSettings, messageType: x.ConsumerInterface.GetGenericArguments().Single(), consumerType: x.ConsumerType))
                 .ToList();
 
             foreach (var derivedConsumer in derivedConsumers)
@@ -121,7 +140,7 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
                 SetupConsumerOnHandleMethod(derivedConsumer);
 
                 // ToDo: Check if this message Type is already registered
-                ConsumerSettings.ConsumersByMessageType.Add(derivedConsumer.MessageType, derivedConsumer);
+                ConsumerSettings.Invokers.Add(derivedConsumer);
             }
         }
 
@@ -143,7 +162,7 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
         ConsumerSettings.ConsumerType = typeof(TConsumer);
         ConsumerSettings.ConsumerMethod = (consumer, message, path) => consumerMethod((TConsumer)consumer, (T)message, path);
 
-        ConsumerSettings.ConsumersByMessageType.Add(typeof(T), ConsumerSettings);
+        ConsumerSettings.Invokers.Add(ConsumerSettings);
 
         return this;
     }
@@ -180,7 +199,7 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
         ConsumerSettings.ConsumerType = consumerType;
         SetupConsumerOnHandleMethod(ConsumerSettings, consumerMethodName);
 
-        ConsumerSettings.ConsumersByMessageType.Add(MessageType, ConsumerSettings);
+        ConsumerSettings.Invokers.Add(ConsumerSettings);
 
         return this;
     }
@@ -225,6 +244,17 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
     public ConsumerBuilder<T> DisposeConsumerEnabled(bool enabled)
     {
         ConsumerSettings.IsDisposeConsumerEnabled = enabled;
+        return this;
+    }
+
+    /// <summary>
+    /// Configures what should happen when an undeclared message type arrives on the topic/queue.
+    /// </summary>
+    /// <param name="action"></param>
+    /// <returns></returns>
+    public ConsumerBuilder<T> WhenUndeclaredMessageTypeArrives(Action<UndeclaredMessageTypeSettings> action)
+    {
+        action(ConsumerSettings.UndeclaredMessageType);
         return this;
     }
 

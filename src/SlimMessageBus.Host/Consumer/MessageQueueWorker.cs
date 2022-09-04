@@ -3,13 +3,11 @@ namespace SlimMessageBus.Host;
 public class MessageQueueWorker<TMessage> : IAsyncDisposable where TMessage : class
 {
     private readonly ILogger _logger;
-
-    private readonly Queue<MessageProcessingResult<TMessage>> _pendingMessages = new Queue<MessageProcessingResult<TMessage>>();
+    private readonly Queue<MessageProcessingResult<TMessage>> _pendingMessages = new();
+    private readonly ICheckpointTrigger _checkpointTrigger;
 
     public int Count => _pendingMessages.Count;
     public IMessageProcessor<TMessage> MessageProcessor { get; private set; }
-
-    private readonly ICheckpointTrigger _checkpointTrigger;
 
     public MessageQueueWorker(IMessageProcessor<TMessage> messageProcessor, ICheckpointTrigger checkpointTrigger, ILoggerFactory loggerFactory)
     {
@@ -29,7 +27,7 @@ public class MessageQueueWorker<TMessage> : IAsyncDisposable where TMessage : cl
     /// </summary>
     /// <param name="message">The message to be processed</param>
     /// <returns>True if should Commit() at this point.</returns>
-    public virtual bool Submit(TMessage message)
+    public virtual bool Submit(TMessage message, IReadOnlyDictionary<string, object> messageHeaders)
     {
         if (_pendingMessages.Count == 0)
         {
@@ -37,7 +35,7 @@ public class MessageQueueWorker<TMessage> : IAsyncDisposable where TMessage : cl
             _checkpointTrigger.Reset();
         }
 
-        var messageTask = MessageProcessor.ProcessMessage(message);
+        var messageTask = MessageProcessor.ProcessMessage(message, messageHeaders);
         _pendingMessages.Enqueue(new MessageProcessingResult<TMessage>(messageTask, message));
 
         // limit check / time check

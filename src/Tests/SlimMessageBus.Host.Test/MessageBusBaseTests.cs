@@ -277,9 +277,9 @@ public class MessageBusBaseTests : IDisposable
         // assert
         _producedMessages.Count.Should().Be(3);
 
-        _producedMessages.Should().ContainSingle(x => x.MessageType == typeof(SomeMessage) && x.Message == m1 && x.Path == someMessageTopic);
-        _producedMessages.Should().ContainSingle(x => x.MessageType == typeof(SomeDerivedMessage) && x.Message == m2 && x.Path == someMessageTopic);
-        _producedMessages.Should().ContainSingle(x => x.MessageType == typeof(SomeDerived2Message) && x.Message == m3 && x.Path == someMessageTopic);
+        _producedMessages.Should().ContainSingle(x => x.MessageType == typeof(SomeMessage) && ReferenceEquals(x.Message, m1) && x.Path == someMessageTopic);
+        _producedMessages.Should().ContainSingle(x => x.MessageType == typeof(SomeDerivedMessage) && ReferenceEquals(x.Message, m2) && x.Path == someMessageTopic);
+        _producedMessages.Should().ContainSingle(x => x.MessageType == typeof(SomeDerived2Message) && ReferenceEquals(x.Message, m3) && x.Path == someMessageTopic);
 
         messageSerializerMock.Verify(x => x.Serialize(typeof(SomeMessage), m1), Times.Once);
         messageSerializerMock.Verify(x => x.Serialize(typeof(SomeMessage), m2), Times.Once);
@@ -303,7 +303,7 @@ public class MessageBusBaseTests : IDisposable
 
         // assert
         _producedMessages.Count.Should().Be(1);
-        _producedMessages.Should().ContainSingle(x => x.MessageType == typeof(SomeDerivedMessage) && x.Message == m && x.Path == someMessageTopic);
+        _producedMessages.Should().ContainSingle(x => x.MessageType == typeof(SomeDerivedMessage) && ReferenceEquals(x.Message, m) && x.Path == someMessageTopic);
     }
 
     [Theory]
@@ -344,7 +344,7 @@ public class MessageBusBaseTests : IDisposable
 
         // assert
         _producedMessages.Count.Should().Be(1);
-        _producedMessages.Should().ContainSingle(x => x.MessageType == typeof(SomeDerived2Message) && x.Message == m && x.Path == someMessageDerived2Topic);
+        _producedMessages.Should().ContainSingle(x => x.MessageType == typeof(SomeDerived2Message) && ReferenceEquals(x.Message, m) && x.Path == someMessageDerived2Topic);
     }
 
     [Fact]

@@ -13,17 +13,16 @@ using SlimMessageBus.Host.Serialization;
 /// </summary>
 public class KafkaMessageBus : MessageBusBase
 {
-    private readonly ILogger logger;
+    private readonly ILogger _logger;
+    private IProducer _producer;
+    private readonly IList<KafkaGroupConsumer> _groupConsumers = new List<KafkaGroupConsumer>();
 
     public KafkaMessageBusSettings ProviderSettings { get; }
-
-    private IProducer producer;
-    private readonly IList<KafkaGroupConsumer> groupConsumers = new List<KafkaGroupConsumer>();
 
     public KafkaMessageBus(MessageBusSettings settings, KafkaMessageBusSettings providerSettings)
         : base(settings)
     {
-        logger = LoggerFactory.CreateLogger<KafkaMessageBus>();
+        _logger = LoggerFactory.CreateLogger<KafkaMessageBus>();
         ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
 
         OnBuildProvider();
@@ -43,47 +42,47 @@ public class KafkaMessageBus : MessageBusBase
     public void Flush()
     {
         AssertActive();
-        producer.Flush();
+        _producer.Flush();
     }
 
     public IProducer CreateProducerInternal()
     {
-        logger.LogTrace("Creating producer settings");
+        _logger.LogTrace("Creating producer settings");
         var config = new ProducerConfig()
         {
             BootstrapServers = ProviderSettings.BrokerList
         };
         ProviderSettings.ProducerConfig(config);
 
-        logger.LogDebug("Producer settings: {ProducerSettings}", config);
+        _logger.LogDebug("Producer settings: {ProducerSettings}", config);
         var producer = ProviderSettings.ProducerBuilderFactory(config).Build();
         return producer;
     }
 
     private void CreateProducer()
     {
-        logger.LogInformation("Creating producer...");
-        producer = CreateProducerInternal();
-        logger.LogInformation("Created producer {Count}", producer.Name);
+        _logger.LogInformation("Creating producer...");
+        _producer = CreateProducerInternal();
+        _logger.LogInformation("Created producer {Count}", _producer.Name);
     }
 
     private void CreateGroupConsumers()
     {
-        logger.LogInformation("Creating group consumers...");
+        _logger.LogInformation("Creating group consumers...");
 
         var responseConsumerCreated = false;
 
-        IKafkaPartitionConsumer ResponseProcessorFactory(TopicPartition tp, IKafkaCommitController cc) => new KafkaPartitionConsumerForResponses(Settings.RequestResponse, tp, cc, this, HeaderSerializer);
+        IKafkaPartitionConsumer ResponseProcessorFactory(TopicPartition tp, IKafkaCommitController cc) => new KafkaPartitionConsumerForResponses(Settings.RequestResponse, Settings.RequestResponse.GetGroup(), tp, cc, this, HeaderSerializer);
 
         foreach (var consumersByGroup in Settings.Consumers.GroupBy(x => x.GetGroup()))
         {
             var group = consumersByGroup.Key;
-            var consumerByTopic = consumersByGroup.ToDictionary(x => x.Path);
+            var consumersByTopic = consumersByGroup.GroupBy(x => x.Path).ToDictionary(x => x.Key, x => x.ToArray());
+            var topics = consumersByTopic.Keys.ToList();
 
-            IKafkaPartitionConsumer ConsumerProcessorFactory(TopicPartition tp, IKafkaCommitController cc) => new KafkaPartitionConsumerForConsumers(consumerByTopic[tp.Topic], tp, cc, this, HeaderSerializer);
+            IKafkaPartitionConsumer ConsumerProcessorFactory(TopicPartition tp, IKafkaCommitController cc) => new KafkaPartitionConsumerForConsumers(consumersByTopic[tp.Topic], group, tp, cc, this, HeaderSerializer);
 
-            var topics = consumerByTopic.Keys.ToList();
-            var processorFactory = (Func<TopicPartition, IKafkaCommitController, IKafkaPartitionConsumer>)ConsumerProcessorFactory;
+            var processorFactory = ConsumerProcessorFactory;
 
             // if responses are used and shared with the regular consumers group
             if (Settings.RequestResponse != null && group == Settings.RequestResponse.GetGroup())
@@ -98,7 +97,7 @@ public class KafkaMessageBus : MessageBusBase
                 responseConsumerCreated = true;
             }
 
-            AddGroupConsumer(group, topics.ToArray(), processorFactory);
+            AddGroupConsumer(group, topics, processorFactory);
         }
 
         if (Settings.RequestResponse != null && !responseConsumerCreated)
@@ -106,25 +105,23 @@ public class KafkaMessageBus : MessageBusBase
             AddGroupConsumer(Settings.RequestResponse.GetGroup(), new[] { Settings.RequestResponse.Path }, ResponseProcessorFactory);
         }
 
-        logger.LogInformation("Created {ConsumerGroupCount} group consumers", groupConsumers.Count);
+        _logger.LogInformation("Created {ConsumerGroupCount} group consumers", _groupConsumers.Count);
     }
 
     protected async override Task OnStart()
     {
         await base.OnStart();
 
-        logger.LogInformation("Group consumers starting...");
-        foreach (var groupConsumer in groupConsumers)
+        _logger.LogInformation("Group consumers starting...");
+        foreach (var groupConsumer in _groupConsumers)
         {
             groupConsumer.Start();
         }
-        logger.LogInformation("Group consumers started");
+        _logger.LogInformation("Group consumers started");
     }
 
-    private void AddGroupConsumer(string group, string[] topics, Func<TopicPartition, IKafkaCommitController, IKafkaPartitionConsumer> processorFactory)
-    {
-        groupConsumers.Add(new KafkaGroupConsumer(this, group, topics, processorFactory));
-    }
+    private void AddGroupConsumer(string group, IReadOnlyCollection<string> topics, Func<TopicPartition, IKafkaCommitController, IKafkaPartitionConsumer> processorFactory)
+        => _groupConsumers.Add(new KafkaGroupConsumer(this, group, topics, processorFactory));
 
     protected override void AssertSettings()
     {
@@ -154,20 +151,20 @@ public class KafkaMessageBus : MessageBusBase
 
         Flush();
 
-        if (groupConsumers.Count > 0)
+        if (_groupConsumers.Count > 0)
         {
-            foreach (var groupConsumer in groupConsumers)
+            foreach (var groupConsumer in _groupConsumers)
             {
-                groupConsumer.DisposeSilently(() => $"consumer group {groupConsumer.Group}", logger);
+                groupConsumer.DisposeSilently(() => $"consumer group {groupConsumer.Group}", _logger);
             }
 
-            groupConsumers.Clear();
+            _groupConsumers.Clear();
         }
 
-        if (producer != null)
+        if (_producer != null)
         {
-            producer.DisposeSilently("producer", logger);
-            producer = null;
+            _producer.DisposeSilently("producer", _logger);
+            _producer = null;
         }
     }
 
@@ -198,13 +195,13 @@ public class KafkaMessageBus : MessageBusBase
             ? GetMessagePartition(producerSettings, messageType, message, path)
             : NoPartition;
 
-        logger.LogTrace("Producing message {Message} of type {MessageType}, on topic {Topic}, partition {Partition}, key size {KeySize}, payload size {MessageSize}",
+        _logger.LogTrace("Producing message {Message} of type {MessageType}, on topic {Topic}, partition {Partition}, key size {KeySize}, payload size {MessageSize}",
             message, messageType?.Name, path, partition, key?.Length ?? 0, messagePayload?.Length ?? 0);
 
         // send the message to topic
         var task = partition == NoPartition
-            ? producer.ProduceAsync(path, kafkaMessage, cancellationToken: cancellationToken)
-            : producer.ProduceAsync(new TopicPartition(path, new Partition(partition)), kafkaMessage, cancellationToken: cancellationToken);
+            ? _producer.ProduceAsync(path, kafkaMessage, cancellationToken: cancellationToken)
+            : _producer.ProduceAsync(new TopicPartition(path, new Partition(partition)), kafkaMessage, cancellationToken: cancellationToken);
 
         // ToDo: Introduce support for not awaited produce
 
@@ -215,7 +212,7 @@ public class KafkaMessageBus : MessageBusBase
         }
 
         // log some debug information
-        logger.LogDebug("Message {Message} of type {MessageType} delivered to topic {Topic}, partition {Partition}, offset: {Offset}",
+        _logger.LogDebug("Message {Message} of type {MessageType} delivered to topic {Topic}, partition {Partition}, offset: {Offset}",
             message, messageType?.Name, deliveryResult.Topic, deliveryResult.Partition, deliveryResult.Offset);
     }
 
@@ -226,9 +223,9 @@ public class KafkaMessageBus : MessageBusBase
         {
             var key = keyProvider(message, topic);
 
-            if (logger.IsEnabled(LogLevel.Debug))
+            if (_logger.IsEnabled(LogLevel.Debug))
             {
-                logger.LogDebug("The message {Message} type {MessageType} calculated key is {Key} (Base64)", message, messageType.Name, Convert.ToBase64String(key));
+                _logger.LogDebug("The message {Message} type {MessageType} calculated key is {Key} (Base64)", message, messageType.Name, Convert.ToBase64String(key));
             }
 
             return key;
@@ -245,9 +242,9 @@ public class KafkaMessageBus : MessageBusBase
         {
             var partition = partitionProvider(message, topic);
 
-            if (logger.IsEnabled(LogLevel.Debug))
+            if (_logger.IsEnabled(LogLevel.Debug))
             {
-                logger.LogDebug("The Message {Message} type {MessageType} calculated partition is {Partition}", message, messageType.Name, partition);
+                _logger.LogDebug("The Message {Message} type {MessageType} calculated partition is {Partition}", message, messageType.Name, partition);
             }
 
             return partition;

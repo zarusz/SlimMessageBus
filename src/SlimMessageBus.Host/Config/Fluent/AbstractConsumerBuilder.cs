@@ -38,38 +38,46 @@ public abstract class AbstractConsumerBuilder
         return (T)this;
     }
 
-    internal static void SetupConsumerOnHandleMethod(IMessageTypeConsumerInvokerSettings consumerInvokerSettings, string methodName = null)
+    internal static void SetupConsumerOnHandleMethod(IMessageTypeConsumerInvokerSettings invoker, string methodName = null)
     {
-        if (consumerInvokerSettings == null) throw new ArgumentNullException(nameof(consumerInvokerSettings));
+        if (invoker == null) throw new ArgumentNullException(nameof(invoker));
 
         methodName ??= nameof(IConsumer<object>.OnHandle);
 
         /// See <see cref="IConsumer{TMessage}.OnHandle(TMessage, string)"/> and <see cref="IRequestHandler{TRequest, TResponse}.OnHandle(TRequest, string)"/> 
-        var methodArgumentTypes = new[] { consumerInvokerSettings.MessageType, typeof(string) };
+        var methodArgumentTypes = new[] { invoker.MessageType, typeof(string) };
         // try to see if two param method exists
-        var consumerOnHandleMethod = consumerInvokerSettings.ConsumerType.GetMethod(methodName, methodArgumentTypes);
+        var consumerOnHandleMethod = invoker.ConsumerType.GetMethod(methodName, methodArgumentTypes);
         if (consumerOnHandleMethod != null)
         {
-            var method = ReflectionUtils.GenerateAsyncMethodCallFunc2(consumerOnHandleMethod, consumerInvokerSettings.ConsumerType, consumerInvokerSettings.MessageType, typeof(string));
-            consumerInvokerSettings.ConsumerMethod = (consumer, message, path) => method(consumer, message, path);
+            var method = ReflectionUtils.GenerateAsyncMethodCallFunc2(consumerOnHandleMethod, invoker.ConsumerType, invoker.MessageType, typeof(string));
+            invoker.ConsumerMethod = (consumer, message, path) => method(consumer, message, path);
         }
         else
         {
             // try to see if one param method exists
-            methodArgumentTypes = new[] { consumerInvokerSettings.MessageType };
-            consumerOnHandleMethod = consumerInvokerSettings.ConsumerType.GetMethod(methodName, methodArgumentTypes);
+            methodArgumentTypes = new[] { invoker.MessageType };
+            consumerOnHandleMethod = invoker.ConsumerType.GetMethod(methodName, methodArgumentTypes);
             if (consumerOnHandleMethod != null)
             {
-                var method = ReflectionUtils.GenerateAsyncMethodCallFunc1(consumerOnHandleMethod, consumerInvokerSettings.ConsumerType, consumerInvokerSettings.MessageType);
-                consumerInvokerSettings.ConsumerMethod = (consumer, message, path) => method(consumer, message);
+                var method = ReflectionUtils.GenerateAsyncMethodCallFunc1(consumerOnHandleMethod, invoker.ConsumerType, invoker.MessageType);
+                invoker.ConsumerMethod = (consumer, message, path) => method(consumer, message);
             }
         }
 
         Assert.IsNotNull(consumerOnHandleMethod,
-            () => new ConfigurationMessageBusException($"Consumer type {consumerInvokerSettings.ConsumerType} validation error: the method {methodName} with parameters of type {consumerInvokerSettings.MessageType} and {typeof(string)} was not found."));
+            () => new ConfigurationMessageBusException($"Consumer type {invoker.ConsumerType} validation error: the method {methodName} with parameters of type {invoker.MessageType} and {typeof(string)} was not found."));
 
         // ensure the method returns a Task or Task<T>
         Assert.IsTrue(typeof(Task).IsAssignableFrom(consumerOnHandleMethod.ReturnType),
-            () => new ConfigurationMessageBusException($"Consumer type {consumerInvokerSettings.ConsumerType} validation error: the response type of method {methodName} must return {typeof(Task)}"));
+            () => new ConfigurationMessageBusException($"Consumer type {invoker.ConsumerType} validation error: the response type of method {methodName} must return {typeof(Task)}"));
+    }
+
+    protected void AssertInvokerUnique(Type derivedConsumerType, Type derivedMessageType)
+    {
+        if (ConsumerSettings.Invokers.Any(x => x.MessageType == derivedMessageType && x.ConsumerType == derivedConsumerType))
+        {
+            throw new ConfigurationMessageBusException($"The (derived) message type {derivedMessageType} and consumer type {derivedConsumerType} is already declared on the consumer for message type {ConsumerSettings.MessageType}");
+        }
     }
 }
