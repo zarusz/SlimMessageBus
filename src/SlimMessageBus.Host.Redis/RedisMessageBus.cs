@@ -1,26 +1,25 @@
 ﻿namespace SlimMessageBus.Host.Redis;
 
+using Microsoft.Extensions.Logging;
 using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.Config;
 using StackExchange.Redis;
 
 public class RedisMessageBus : MessageBusBase
 {
-    private readonly ILogger logger;
+    private readonly ILogger _logger;
+    private readonly KindMapping _kindMapping = new();
+    private readonly List<IRedisConsumer> _consumers = new();
 
     public RedisMessageBusSettings ProviderSettings { get; }
 
     protected IConnectionMultiplexer Connection { get; private set; }
     protected IDatabase Database { get; private set; }
 
-    private readonly KindMapping kindMapping = new KindMapping();
-
-    private readonly List<IRedisConsumer> consumers = new List<IRedisConsumer>();
-
     public RedisMessageBus(MessageBusSettings settings, RedisMessageBusSettings providerSettings)
         : base(settings)
     {
-        logger = LoggerFactory.CreateLogger<RedisMessageBus>();
+        _logger = LoggerFactory.CreateLogger<RedisMessageBus>();
         ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
 
         OnBuildProvider();
@@ -40,7 +39,7 @@ public class RedisMessageBus : MessageBusBase
     {
         base.Build();
 
-        kindMapping.Configure(Settings);
+        _kindMapping.Configure(Settings);
 
         Connection = ProviderSettings.ConnectionFactory();
         Connection.ConnectionFailed += Connection_ConnectionFailed;
@@ -58,40 +57,40 @@ public class RedisMessageBus : MessageBusBase
         catch (Exception e)
         {
             // Do nothing
-            logger.LogWarning(e, "Error occured while executing hook {0}", nameof(RedisMessageBusSettings.OnDatabaseConnected));
+            _logger.LogWarning(e, "Error occured while executing hook {0}", nameof(RedisMessageBusSettings.OnDatabaseConnected));
         }
     }
 
     private void Connection_ErrorMessage(object sender, RedisErrorEventArgs e)
     {
-        logger.LogError("Redis recieved error message: {ErrorMessage}", e.Message);
+        _logger.LogError("Redis recieved error message: {ErrorMessage}", e.Message);
     }
 
     private void Connection_ConfigurationChangedBroadcast(object sender, EndPointEventArgs e)
     {
-        logger.LogDebug("Redis configuration changed broadcast from {EndPoint}", e.EndPoint);
+        _logger.LogDebug("Redis configuration changed broadcast from {EndPoint}", e.EndPoint);
     }
 
     private void Connection_ConfigurationChanged(object sender, EndPointEventArgs e)
     {
-        logger.LogDebug("Redis configuration changed from {EndPoint}", e.EndPoint);
+        _logger.LogDebug("Redis configuration changed from {EndPoint}", e.EndPoint);
     }
 
     private void Connection_ConnectionRestored(object sender, ConnectionFailedEventArgs e)
     {
-        logger.LogInformation("Redis connection restored - failure type {FailureType}, connection type: {ConnectionType}", e.FailureType, e.ConnectionType);
+        _logger.LogInformation("Redis connection restored - failure type {FailureType}, connection type: {ConnectionType}", e.FailureType, e.ConnectionType);
     }
 
     private void Connection_ConnectionFailed(object sender, ConnectionFailedEventArgs e)
     {
-        logger.LogError(e.Exception, "Redis connection failed - failure type {FailureType}, connection type: {ConnectionType}, with message {ErrorMessage}", e.FailureType, e.ConnectionType, e.Exception?.Message ?? "(empty)");
+        _logger.LogError(e.Exception, "Redis connection failed - failure type {FailureType}, connection type: {ConnectionType}, with message {ErrorMessage}", e.FailureType, e.ConnectionType, e.Exception?.Message ?? "(empty)");
     }
 
     protected override async ValueTask DisposeAsyncCore()
     {
         await base.DisposeAsyncCore();
 
-        Connection.DisposeSilently(nameof(ConnectionMultiplexer), logger);
+        Connection.DisposeSilently(nameof(ConnectionMultiplexer), _logger);
     }
 
     #endregion
@@ -102,7 +101,7 @@ public class RedisMessageBus : MessageBusBase
 
         CreateConsumers();
 
-        foreach (var consumer in consumers)
+        foreach (var consumer in _consumers)
         {
             await consumer.Start();
         }
@@ -112,7 +111,7 @@ public class RedisMessageBus : MessageBusBase
     {
         await base.OnStop();
 
-        foreach (var consumer in consumers)
+        foreach (var consumer in _consumers)
         {
             await consumer.Stop();
         }
@@ -124,64 +123,79 @@ public class RedisMessageBus : MessageBusBase
     {
         var subscriber = Connection.GetSubscriber();
 
-        var queues = new List<(string, IMessageProcessor<byte[]>)>();
+        var queues = new List<(string, IMessageProcessor<MessageWithHeaders>)>();
 
-        MessageWithHeaders MessageProvider(byte[] m) => (MessageWithHeaders)ProviderSettings.EnvelopeSerializer.Deserialize(typeof(MessageWithHeaders), m);
+        object MessageProvider(Type messageType, MessageWithHeaders transportMessage) => Serializer.Deserialize(messageType, transportMessage.Payload);
 
-        logger.LogInformation("Creating consumers");
-        foreach (var consumerSettings in Settings.Consumers)
+        _logger.LogInformation("Creating consumers");
+        foreach (var ((path, pathKind), consumerSettings) in Settings.Consumers.GroupBy(x => (x.Path, x.PathKind)).ToDictionary(x => x.Key, x => x.ToList()))
         {
-            IMessageProcessor<byte[]> processor = new ConsumerInstanceMessageProcessor<byte[]>(consumerSettings, this, MessageProvider);
-            // When it was requested to have more than once concurrent instances working then we need to fan out the incoming Redis consumption tasks
-            if (consumerSettings.Instances > 1)
+            IMessageProcessor<MessageWithHeaders> processor = new ConsumerInstanceMessageProcessor<MessageWithHeaders>(consumerSettings, this, MessageProvider, path);
+
+            var instances = consumerSettings.Max(x => x.Instances);
+            if (instances > 1)
             {
-                processor = new ConcurrencyIncreasingMessageProcessorDecorator<byte[]>(consumerSettings, this, processor);
+                var minInstances = consumerSettings.Max(x => x.Instances);
+                if (minInstances != instances)
+                {
+                    _logger.LogWarning($"The consumers on path {{Path}} have different number of concurrent instances (see setting {nameof(ConsumerSettings.Instances)})", path);
+                }
+
+                // When it was requested to have more than once concurrent instances working then we need to fan out the incoming Redis consumption tasks
+                processor = new ConcurrencyIncreasingMessageProcessorDecorator<MessageWithHeaders>(instances, this, processor);
             }
 
-            if (consumerSettings.PathKind == PathKind.Topic)
+            _logger.LogInformation(
+                pathKind == PathKind.Topic
+                    ? "Creating consumer for redis channel {Path}"
+                    : "Creating consumer for redis list {Path}",
+                path);
+            if (pathKind == PathKind.Topic)
             {
-                logger.LogInformation("Creating consumer {ConsumerType} for topic {Topic} and message type {MessageType}", consumerSettings.ConsumerType, consumerSettings.Path, consumerSettings.MessageType);
-                AddTopicConsumer(consumerSettings, subscriber, processor);
+                AddTopicConsumer(path, subscriber, processor);
             }
             else
             {
-                logger.LogInformation("Creating consumer {ConsumerType} for queue {Queue} and message type {MessageType}", consumerSettings.ConsumerType, consumerSettings.Path, consumerSettings.MessageType);
-                queues.Add((consumerSettings.Path, processor));
+                queues.Add((path, processor));
             }
         }
 
         if (Settings.RequestResponse != null)
         {
+            _logger.LogInformation(
+                Settings.RequestResponse.PathKind == PathKind.Topic
+                    ? "Creating response consumer for redis channel {Path}"
+                    : "Creating response consumer for redis list {Path}",
+                Settings.RequestResponse.Path);
+
             if (Settings.RequestResponse.PathKind == PathKind.Topic)
             {
-                logger.LogInformation("Creating response consumer for topic {Topic}", Settings.RequestResponse.Path);
-                AddTopicConsumer(Settings.RequestResponse, subscriber, new ResponseMessageProcessor<byte[]>(Settings.RequestResponse, this, MessageProvider));
+                AddTopicConsumer(Settings.RequestResponse.Path, subscriber, new ResponseMessageProcessor<MessageWithHeaders>(Settings.RequestResponse, this, messageProvider: m => m.Payload));
             }
             else
             {
-                logger.LogInformation("Creating response consumer for queue {Queue}", Settings.RequestResponse.Path);
-                queues.Add((Settings.RequestResponse.Path, new ResponseMessageProcessor<byte[]>(Settings.RequestResponse, this, MessageProvider)));
+                queues.Add((Settings.RequestResponse.Path, new ResponseMessageProcessor<MessageWithHeaders>(Settings.RequestResponse, this, messageProvider: m => m.Payload)));
             }
         }
 
         if (queues.Count > 0)
         {
-            consumers.Add(new RedisListCheckerConsumer(LoggerFactory.CreateLogger<RedisListCheckerConsumer>(), Database, ProviderSettings.QueuePollDelay, ProviderSettings.QueuePollMaxIdle, queues));
+            _consumers.Add(new RedisListCheckerConsumer(LoggerFactory.CreateLogger<RedisListCheckerConsumer>(), Database, ProviderSettings.QueuePollDelay, ProviderSettings.QueuePollMaxIdle, queues, ProviderSettings.EnvelopeSerializer));
         }
     }
 
     protected void DestroyConsumers()
     {
-        logger.LogInformation("Destroying consumers");
+        _logger.LogInformation("Destroying consumers");
 
-        consumers.ForEach(consumer => consumer.DisposeSilently(nameof(RedisTopicConsumer), logger));
-        consumers.Clear();
+        _consumers.ForEach(consumer => consumer.DisposeSilently(nameof(RedisTopicConsumer), _logger));
+        _consumers.Clear();
     }
 
-    protected void AddTopicConsumer(AbstractConsumerSettings consumerSettings, ISubscriber subscriber, IMessageProcessor<byte[]> messageProcessor)
+    protected void AddTopicConsumer(string topic, ISubscriber subscriber, IMessageProcessor<MessageWithHeaders> messageProcessor)
     {
-        var consumer = new RedisTopicConsumer(LoggerFactory.CreateLogger<RedisTopicConsumer>(), consumerSettings, subscriber, messageProcessor);
-        consumers.Add(consumer);
+        var consumer = new RedisTopicConsumer(LoggerFactory.CreateLogger<RedisTopicConsumer>(), topic, subscriber, messageProcessor, ProviderSettings.EnvelopeSerializer);
+        _consumers.Add(consumer);
     }
 
     #region Overrides of MessageBusBase
@@ -191,7 +205,7 @@ public class RedisMessageBus : MessageBusBase
         var messageType = message.GetType();
 
         // determine the SMB topic name if its a Azure SB queue or topic
-        var kind = kindMapping.GetKind(messageType, path);
+        var kind = _kindMapping.GetKind(messageType, path);
 
         return ProduceToTransport(messageType, message, path, messagePayload, messageHeaders, cancellationToken, kind);
     }
@@ -208,20 +222,20 @@ public class RedisMessageBus : MessageBusBase
         var messageWithHeaders = new MessageWithHeaders(messagePayload, messageHeaders);
         var messageWithHeadersBytes = ProviderSettings.EnvelopeSerializer.Serialize(typeof(MessageWithHeaders), messageWithHeaders);
 
-        logger.LogDebug(
+        _logger.LogDebug(
             kind == PathKind.Topic
-                ? "Producing message {Message} of type {MessageType} to redis channel {Topic} with size {MessageSize}"
-                : "Producing message {Message} of type {MessageType} to redis key {Queue} with size {MessageSize}",
+                ? "Producing message {Message} of type {MessageType} to redis channel {Path} with size {MessageSize}"
+                : "Producing message {Message} of type {MessageType} to redis list {Path} with size {MessageSize}",
             message, messageType.Name, path, messageWithHeadersBytes.Length);
 
         var result = kind == PathKind.Topic
             ? await Database.PublishAsync(path, messageWithHeadersBytes).ConfigureAwait(false) // Use Redis Pub/Sub
             : await Database.ListRightPushAsync(path, messageWithHeadersBytes).ConfigureAwait(false); // Use Redis List Type (append on the right side/end of list)
 
-        logger.LogDebug(
+        _logger.LogDebug(
             kind == PathKind.Topic
-                ? "Produced message {Message} of type {MessageType} to redis channel {Topic} with result {RedisResult}"
-                : "Produced message {Message} of type {MessageType} to redis key {Queue} with result {RedisResult}",
+                ? "Produced message {Message} of type {MessageType} to redis channel {Path} with result {RedisResult}"
+                : "Produced message {Message} of type {MessageType} to redis list {Path} with result {RedisResult}",
             message, messageType, path, result);
     }
 }

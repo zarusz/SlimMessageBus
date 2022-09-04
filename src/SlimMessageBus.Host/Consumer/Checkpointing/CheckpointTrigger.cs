@@ -31,6 +31,14 @@ public class CheckpointTrigger : ICheckpointTrigger
     {
     }
 
+    public static bool IsConfigured(HasProviderExtensions settings)
+        => settings.GetOrDefault<int?>(CheckpointSettings.CheckpointCount, null) != null || settings.GetOrDefault<TimeSpan?>(CheckpointSettings.CheckpointDuration, null) != null;
+
+    public static (int CheckpontCount, TimeSpan CheckpointDuration) GetConfiguration(HasProviderExtensions settings)
+        => (settings.GetOrDefault(CheckpointSettings.CheckpointCount, CheckpointSettings.CheckpointCountDefault),
+            settings.GetOrDefault(CheckpointSettings.CheckpointDuration, CheckpointSettings.CheckpointDurationDefault));
+
+
     #region Implementation of ICheckpointTrigger
 
     public bool IsEnabled

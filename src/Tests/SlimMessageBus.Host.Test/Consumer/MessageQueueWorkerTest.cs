@@ -5,18 +5,13 @@ using SlimMessageBus.Host.Config;
 
 public class MessageQueueWorkerTest
 {
-    private readonly Mock<ConsumerInstancePoolMessageProcessor<SomeMessage>> _consumerInstancePoolMock;
+    private readonly Mock<IMessageProcessor<SomeMessage>> _consumerInstancePoolMock;
     private readonly Mock<ICheckpointTrigger> _checkpointTriggerMock;
 
     public MessageQueueWorkerTest()
     {
-        var busMock = new MessageBusMock();
         _checkpointTriggerMock = new Mock<ICheckpointTrigger>();
-
-        var consumerSettings = new ConsumerBuilder<SomeMessage>(new MessageBusSettings()).Topic(null).WithConsumer<IConsumer<SomeMessage>>().Instances(2).ConsumerSettings;
-
-        MessageWithHeaders MessageProvider(SomeMessage m) => new(Array.Empty<byte>(), new Dictionary<string, object>());
-        _consumerInstancePoolMock = new Mock<ConsumerInstancePoolMessageProcessor<SomeMessage>>(consumerSettings, busMock.BusMock.Object, (Func<SomeMessage, MessageWithHeaders>)MessageProvider, null);
+        _consumerInstancePoolMock = new Mock<IMessageProcessor<SomeMessage>>();
     }
 
     [Fact]
@@ -26,12 +21,12 @@ public class MessageQueueWorkerTest
         var w = new MessageQueueWorker<SomeMessage>(_consumerInstancePoolMock.Object, _checkpointTriggerMock.Object, NullLoggerFactory.Instance);
 
         var numFinishedMessages = 0;
-        _consumerInstancePoolMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IMessageTypeConsumerInvokerSettings>())).Returns(() => Task.Delay(50).ContinueWith(t => { Interlocked.Increment(ref numFinishedMessages); return (Exception)null; }, TaskScheduler.Current));
+        _consumerInstancePoolMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IReadOnlyDictionary<string, object>>())).Returns(() => Task.Delay(50).ContinueWith(t => { Interlocked.Increment(ref numFinishedMessages); return ((Exception)null, (AbstractConsumerSettings)null, (object)null); }, TaskScheduler.Current));
 
         const int numMessages = 100;
         for (var i = 0; i < numMessages; i++)
         {
-            w.Submit(new SomeMessage());
+            w.Submit(new SomeMessage(), new Dictionary<string, object>());
         }
 
         // act
@@ -58,11 +53,11 @@ public class MessageQueueWorkerTest
 
         var messages = taskQueue.Select(x => new SomeMessage()).ToArray();
 
-        _consumerInstancePoolMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IMessageTypeConsumerInvokerSettings>())).Returns(() => taskQueue.Dequeue());
+        _consumerInstancePoolMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IReadOnlyDictionary<string, object>>())).Returns(async () => { var e = await taskQueue.Dequeue(); return (e, null, null); });
 
         foreach (var t in messages)
         {
-            w.Submit(t);
+            w.Submit(t, new Dictionary<string, object>());
         }
 
         // act

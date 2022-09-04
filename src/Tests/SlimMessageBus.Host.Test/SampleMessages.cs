@@ -35,3 +35,8 @@ public record SomeDerivedMessage : SomeMessage
 public record SomeDerived2Message : SomeMessage
 {
 }
+
+public record Envelope<T>
+{
+    public T Body { get; set; }
+}

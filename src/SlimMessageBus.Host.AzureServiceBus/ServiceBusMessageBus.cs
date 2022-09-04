@@ -7,21 +7,20 @@ using SlimMessageBus.Host.Config;
 
 public class ServiceBusMessageBus : MessageBusBase
 {
-    private readonly ILogger logger;
+    private readonly ILogger _logger;
+    private readonly List<AsbBaseConsumer> _consumers = new();
 
     public ServiceBusMessageBusSettings ProviderSettings { get; }
 
-    private ServiceBusClient client;
-    private SafeDictionaryWrapper<string, ServiceBusSender> producerByPath;
+    private ServiceBusClient _client;
+    private SafeDictionaryWrapper<string, ServiceBusSender> _producerByPath;
 
-    private readonly List<AsbBaseConsumer> consumers = new();
-
-    private Task provisionTopologyTask = null;
+    private Task _provisionTopologyTask = null;
 
     public ServiceBusMessageBus(MessageBusSettings settings, ServiceBusMessageBusSettings providerSettings)
         : base(settings)
     {
-        logger = LoggerFactory.CreateLogger<ServiceBusMessageBus>();
+        _logger = LoggerFactory.CreateLogger<ServiceBusMessageBus>();
         ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
 
         OnBuildProvider();
@@ -47,24 +46,25 @@ public class ServiceBusMessageBus : MessageBusBase
             () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(SettingsExtensions.SubscriptionName)} is not set on topic {consumerSettings.Path}"));
     }
 
-    protected void AddConsumer(TopicSubscriptionParams topicSubscription, IEnumerable<IMessageProcessor<ServiceBusReceivedMessage>> consumers)
+    protected void AddConsumer(TopicSubscriptionParams topicSubscription, IMessageProcessor<ServiceBusReceivedMessage> messageProcessor, IEnumerable<AbstractConsumerSettings> consumerSettings)
     {
         if (topicSubscription is null) throw new ArgumentNullException(nameof(topicSubscription));
-        if (consumers is null) throw new ArgumentNullException(nameof(consumers));
+        if (messageProcessor is null) throw new ArgumentNullException(nameof(messageProcessor));
+        if (consumerSettings is null) throw new ArgumentNullException(nameof(consumerSettings));
 
-        logger.LogInformation("Creating consumer for Path: {Path}, SubscriptionName: {SubscriptionName}", topicSubscription.Path, topicSubscription.SubscriptionName);
+        _logger.LogInformation("Creating consumer for Path: {Path}, SubscriptionName: {SubscriptionName}", topicSubscription.Path, topicSubscription.SubscriptionName);
         AsbBaseConsumer consumer = topicSubscription.SubscriptionName != null
-            ? new AsbTopicSubscriptionConsumer(this, consumers, topicSubscription, client)
-            : new AsbQueueConsumer(this, consumers, topicSubscription, client);
+            ? new AsbTopicSubscriptionConsumer(this, messageProcessor, consumerSettings, topicSubscription, _client)
+            : new AsbQueueConsumer(this, messageProcessor, consumerSettings, topicSubscription, _client);
 
-        this.consumers.Add(consumer);
+        _consumers.Add(consumer);
     }
 
     public override async Task ProvisionTopology()
     {
         await base.ProvisionTopology();
 
-        var prevProvisionTopologyTask = provisionTopologyTask;
+        var prevProvisionTopologyTask = _provisionTopologyTask;
         if (prevProvisionTopologyTask != null)
         {
             // if previous provisioning is pending, skip it
@@ -75,16 +75,16 @@ public class ServiceBusMessageBus : MessageBusBase
         {
             var provisioningService = new ServiceBusTopologyService(LoggerFactory.CreateLogger<ServiceBusTopologyService>(), Settings, ProviderSettings);
 
-            provisionTopologyTask = provisioningService.ProvisionTopology() // provisining happens asynchronously
-                .ContinueWith(x => provisionTopologyTask = null); // mark when it completed
+            _provisionTopologyTask = provisioningService.ProvisionTopology() // provisining happens asynchronously
+                .ContinueWith(x => _provisionTopologyTask = null); // mark when it completed
 
             var beforeStartTask = BeforeStartTask;
 
             BeforeStartTask = beforeStartTask != null
-                ? beforeStartTask.ContinueWith(x => provisionTopologyTask)
-                : provisionTopologyTask;
+                ? beforeStartTask.ContinueWith(x => _provisionTopologyTask)
+                : _provisionTopologyTask;
 
-            await provisionTopologyTask.ConfigureAwait(false);
+            await _provisionTopologyTask.ConfigureAwait(false);
         }
     }
 
@@ -96,75 +96,69 @@ public class ServiceBusMessageBus : MessageBusBase
 
         _ = ProvisionTopology();
 
-        client = ProviderSettings.ClientFactory();
+        _client = ProviderSettings.ClientFactory();
 
-        producerByPath = new SafeDictionaryWrapper<string, ServiceBusSender>(path =>
+        _producerByPath = new SafeDictionaryWrapper<string, ServiceBusSender>(path =>
         {
-            logger.LogDebug("Creating sender for path {Path}", path);
-            return ProviderSettings.SenderFactory(path, client);
+            _logger.LogDebug("Creating sender for path {Path}", path);
+            return ProviderSettings.SenderFactory(path, _client);
         });
 
-        static MessageWithHeaders MessageProvider(ServiceBusReceivedMessage m) => new(m.Body.ToArray(), m.ApplicationProperties);
         static void InitConsumerContext(ServiceBusReceivedMessage m, ConsumerContext ctx) => ctx.SetTransportMessage(m);
 
-        logger.LogInformation("Creating consumers");
+        _logger.LogInformation("Creating consumers");
 
-        foreach (var consumerSettingsByPath in Settings.Consumers.GroupBy(x => (x.Path, x.PathKind, SubscriptionName: x.GetSubscriptionName(required: false))))
+        foreach (var ((path, pathKind, subscriptionName), consumerSettings) in Settings.Consumers.GroupBy(x => (x.Path, x.PathKind, SubscriptionName: x.GetSubscriptionName(required: false))).ToDictionary(x => x.Key, x => x.ToList()))
         {
-            var key = consumerSettingsByPath.Key;
-
-            var consumers = consumerSettingsByPath.Select(x => new ConsumerInstanceMessageProcessor<ServiceBusReceivedMessage>(x, this, MessageProvider, InitConsumerContext)).ToList();
-            AddConsumer(new TopicSubscriptionParams(key.Path, key.SubscriptionName), consumers);
+            var topicSubscription = new TopicSubscriptionParams(path: path, subscriptionName: subscriptionName);
+            var messageProcessor = new ConsumerInstanceMessageProcessor<ServiceBusReceivedMessage>(consumerSettings, this, messageProvider: (messageType, m) => Serializer.Deserialize(messageType, m.Body.ToArray()), path: path.ToString(), InitConsumerContext);
+            AddConsumer(topicSubscription, messageProcessor, consumerSettings);
         }
 
         if (Settings.RequestResponse != null)
         {
-            var (path, pathKind, subscriptionName) = (Settings.RequestResponse.Path, Settings.RequestResponse.PathKind, Settings.RequestResponse.GetSubscriptionName(required: false));
-
-            var consumers = new[]
-            {
-                new ResponseMessageProcessor<ServiceBusReceivedMessage>(Settings.RequestResponse, this, MessageProvider)
-            };
-            AddConsumer(new TopicSubscriptionParams(path, subscriptionName), consumers);
+            var topicSubscription = new TopicSubscriptionParams(Settings.RequestResponse.Path, Settings.RequestResponse.GetSubscriptionName(required: false));
+            var messageProcessor = new ResponseMessageProcessor<ServiceBusReceivedMessage>(Settings.RequestResponse, this, m => m.Body.ToArray());
+            AddConsumer(topicSubscription, messageProcessor, new[] { Settings.RequestResponse });
         }
     }
 
     protected override async Task OnStart()
     {
         await base.OnStart();
-        await Task.WhenAll(consumers.Select(x => x.Start()));
+        await Task.WhenAll(_consumers.Select(x => x.Start()));
     }
 
     protected override async Task OnStop()
     {
         await base.OnStop();
-        await Task.WhenAll(consumers.Select(x => x.Stop()));
+        await Task.WhenAll(_consumers.Select(x => x.Stop()));
     }
 
     protected override async ValueTask DisposeAsyncCore()
     {
         await base.DisposeAsyncCore();
 
-        if (consumers.Count > 0)
+        if (_consumers.Count > 0)
         {
-            consumers.ForEach(c => c.DisposeSilently("Consumer", logger));
-            consumers.Clear();
+            _consumers.ForEach(c => c.DisposeSilently("Consumer", _logger));
+            _consumers.Clear();
         }
 
-        if (producerByPath.Dictonary.Count > 0)
+        if (_producerByPath.Dictonary.Count > 0)
         {
-            await Task.WhenAll(producerByPath.Snapshot().Select(x =>
+            await Task.WhenAll(_producerByPath.Snapshot().Select(x =>
             {
-                logger.LogDebug("Closing sender client for path {Path}", x.EntityPath);
+                _logger.LogDebug("Closing sender client for path {Path}", x.EntityPath);
                 return x.CloseAsync();
             }));
-            producerByPath.Clear();
+            _producerByPath.Clear();
         }
 
-        if (client != null)
+        if (_client != null)
         {
-            await client.DisposeAsync().ConfigureAwait(false);
-            client = null;
+            await _client.DisposeAsync().ConfigureAwait(false);
+            _client = null;
         }
     }
 
@@ -174,7 +168,7 @@ public class ServiceBusMessageBus : MessageBusBase
 
         AssertActive();
 
-        logger.LogDebug("Producing message {Message} of type {MessageType} to path {Path} with size {MessageSize}", message, messageType?.Name, path, messagePayload?.Length ?? 0);
+        _logger.LogDebug("Producing message {Message} of type {MessageType} to path {Path} with size {MessageSize}", message, messageType?.Name, path, messagePayload?.Length ?? 0);
 
         var m = messagePayload != null ? new ServiceBusMessage(messagePayload) : new ServiceBusMessage();
 
@@ -199,15 +193,15 @@ public class ServiceBusMessageBus : MessageBusBase
             }
             catch (Exception e)
             {
-                logger.LogWarning(e, "The configured message modifier failed for message type {MessageType} and message {Message}", messageType, message);
+                _logger.LogWarning(e, "The configured message modifier failed for message type {MessageType} and message {Message}", messageType, message);
             }
         }
 
-        var senderClient = producerByPath.GetOrAdd(path);
+        var senderClient = _producerByPath.GetOrAdd(path);
 
         try
         {
-            var t = provisionTopologyTask;
+            var t = _provisionTopologyTask;
             if (t != null)
             {
                 // await until topology is provisioned for the first time
@@ -216,11 +210,11 @@ public class ServiceBusMessageBus : MessageBusBase
 
             await senderClient.SendMessageAsync(m, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-            logger.LogDebug("Delivered message {Message} of type {MessageType} to {Path}", message, messageType?.Name, path);
+            _logger.LogDebug("Delivered message {Message} of type {MessageType} to {Path}", message, messageType?.Name, path);
         }
         catch (Exception ex)
         {
-            logger.LogDebug(ex, "Producing message {Message} of type {MessageType} to path {Path} resulted in error {Error}", message, messageType?.Name, path, ex.Message);
+            _logger.LogDebug(ex, "Producing message {Message} of type {MessageType} to path {Path} resulted in error {Error}", message, messageType?.Name, path, ex.Message);
             throw new PublishMessageBusException($"Producing message {message} of type {messageType?.Name} to path {path} resulted in error: {ex.Message}", ex);
         }
     }

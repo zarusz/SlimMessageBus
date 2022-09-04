@@ -1,97 +1,91 @@
 namespace SlimMessageBus.Host.AzureEventHub;
 
-using System.Diagnostics.CodeAnalysis;
 using Azure.Messaging.EventHubs;
 using Azure.Messaging.EventHubs.Processor;
 using SlimMessageBus.Host.Collections;
-using SlimMessageBus.Host.Config;
 
 public class EhGroupConsumer : IAsyncDisposable, IConsumerControl
 {
-    private readonly ILogger logger;
-
+    private readonly ILogger _logger;
+    private readonly EventProcessorClient _processorClient;
+    private readonly SafeDictionaryWrapper<string, EhPartitionConsumer> _partitionConsumerByPartitionId;
+    private readonly GroupPath _groupPath;
     public EventHubMessageBus MessageBus { get; }
 
-    private readonly EventProcessorClient processorClient;
-    private readonly SafeDictionaryWrapper<string, EhPartitionConsumer> partitionConsumerByPartitionId;
-    private readonly PathGroup pathGroup;
-
-    public EhGroupConsumer(EventHubMessageBus messageBus, [NotNull] ConsumerSettings consumerSettings)
-        : this(messageBus, new PathGroup(consumerSettings.Path, consumerSettings.GetGroup()), (pathGroup, partitionId) => new EhPartitionConsumerForConsumers(messageBus, consumerSettings, pathGroup, partitionId))
+    public EhGroupConsumer(EventHubMessageBus messageBus, GroupPath groupPath, Func<GroupPathPartitionId, EhPartitionConsumer> partitionConsumerFactory)
     {
-    }
-
-    public EhGroupConsumer(EventHubMessageBus messageBus, [NotNull] RequestResponseSettings requestResponseSettings)
-        : this(messageBus, new PathGroup(requestResponseSettings.Path, requestResponseSettings.GetGroup()), (pathGroup, partitionId) => new EhPartitionConsumerForResponses(messageBus, requestResponseSettings, pathGroup, partitionId))
-    {
-    }
-
-    protected EhGroupConsumer(EventHubMessageBus messageBus, PathGroup pathGroup, Func<PathGroup, string, EhPartitionConsumer> partitionConsumerFactory)
-    {
-        this.pathGroup = pathGroup ?? throw new ArgumentNullException(nameof(pathGroup));
+        _groupPath = groupPath ?? throw new ArgumentNullException(nameof(groupPath));
         _ = partitionConsumerFactory ?? throw new ArgumentNullException(nameof(partitionConsumerFactory));
 
         MessageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
-        logger = messageBus.LoggerFactory.CreateLogger<EhGroupConsumer>();
+        _logger = messageBus.LoggerFactory.CreateLogger<EhGroupConsumer>();
 
-        partitionConsumerByPartitionId = new SafeDictionaryWrapper<string, EhPartitionConsumer>(partitionId =>
+        _partitionConsumerByPartitionId = new SafeDictionaryWrapper<string, EhPartitionConsumer>(partitionId =>
         {
-            logger.LogDebug("Creating PartitionConsumer for Group: {Group}, Path: {Path}, PartitionId: {PartitionId}", pathGroup.Group, pathGroup.Path, partitionId);
-            return partitionConsumerFactory(pathGroup, partitionId);
+            _logger.LogDebug("Creating PartitionConsumer for Group: {Group}, Path: {Path}, PartitionId: {PartitionId}", groupPath.Group, groupPath.Path, partitionId);
+            try
+            {
+                return partitionConsumerFactory(new GroupPathPartitionId(groupPath, partitionId));
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error creating PartitionConsumer for Group: {Group}, Path: {Path}, PartitionId: {PartitionId}", groupPath.Group, groupPath.Path, partitionId);
+                throw;
+            }
         });
 
-        logger.LogInformation("Creating EventProcessorClient for EventHub with Group: {Group}, Path: {Path}", pathGroup.Group, pathGroup.Path);
-        processorClient = MessageBus.ProviderSettings.EventHubProcessorClientFactory(new ConsumerParams(pathGroup.Path, pathGroup.Group, messageBus.BlobContainerClient));
-        processorClient.PartitionInitializingAsync += PartitionInitializingAsync;
-        processorClient.PartitionClosingAsync += PartitionClosingAsync;
-        processorClient.ProcessEventAsync += ProcessEventHandler;
-        processorClient.ProcessErrorAsync += ProcessErrorHandler;
+        _logger.LogInformation("Creating EventProcessorClient for EventHub with Group: {Group}, Path: {Path}", groupPath.Group, groupPath.Path);
+        _processorClient = MessageBus.ProviderSettings.EventHubProcessorClientFactory(new ConsumerParams(groupPath.Path, groupPath.Group, messageBus.BlobContainerClient));
+        _processorClient.PartitionInitializingAsync += PartitionInitializingAsync;
+        _processorClient.PartitionClosingAsync += PartitionClosingAsync;
+        _processorClient.ProcessEventAsync += ProcessEventHandler;
+        _processorClient.ProcessErrorAsync += ProcessErrorHandler;
     }
 
     private Task PartitionInitializingAsync(PartitionInitializingEventArgs args)
     {
         var partitionId = args.PartitionId;
-        var ep = partitionConsumerByPartitionId.GetOrAdd(partitionId);
+        var ep = _partitionConsumerByPartitionId.GetOrAdd(partitionId);
         return ep.OpenAsync();
     }
 
     private Task PartitionClosingAsync(PartitionClosingEventArgs args)
     {
         var partitionId = args.PartitionId;
-        var ep = partitionConsumerByPartitionId.GetOrAdd(partitionId);
+        var ep = _partitionConsumerByPartitionId.GetOrAdd(partitionId);
         return ep.CloseAsync(args.Reason);
     }
 
     private Task ProcessEventHandler(ProcessEventArgs args)
     {
         var partitionId = args.Partition.PartitionId;
-        var ep = partitionConsumerByPartitionId.GetOrAdd(partitionId);
+        var ep = _partitionConsumerByPartitionId.GetOrAdd(partitionId);
         return ep.ProcessEventAsync(args);
     }
 
     private Task ProcessErrorHandler(ProcessErrorEventArgs args)
     {
         var partitionId = args.PartitionId;
-        var ep = partitionConsumerByPartitionId.GetOrAdd(partitionId);
+        var ep = _partitionConsumerByPartitionId.GetOrAdd(partitionId);
         return ep.ProcessErrorAsync(args);
     }
 
     public async Task Start()
     {
-        if (!processorClient.IsRunning)
+        if (!_processorClient.IsRunning)
         {
-            logger.LogInformation("Starting consumer Group: {Group}, Path: {Path}...", pathGroup.Group, pathGroup.Path);
-            await processorClient.StartProcessingAsync();
+            _logger.LogInformation("Starting consumer Group: {Group}, Path: {Path}...", _groupPath.Group, _groupPath.Path);
+            await _processorClient.StartProcessingAsync();
         }
     }
 
     public async Task Stop()
     {
-        if (processorClient.IsRunning)
+        if (_processorClient.IsRunning)
         {
-            logger.LogInformation("Stopping consumer Group: {Group}, Path: {Path}...", pathGroup.Group, pathGroup.Path);
+            _logger.LogInformation("Stopping consumer Group: {Group}, Path: {Path}...", _groupPath.Group, _groupPath.Path);
 
-            var partitionConsumers = partitionConsumerByPartitionId.Snapshot();
+            var partitionConsumers = _partitionConsumerByPartitionId.Snapshot();
 
             if (MessageBus.ProviderSettings.EnableCheckpointOnBusStop)
             {
@@ -100,7 +94,7 @@ public class EhGroupConsumer : IAsyncDisposable, IConsumerControl
             }
 
             // stop the processing host
-            await processorClient.StopProcessingAsync();
+            await _processorClient.StopProcessingAsync();
         }
     }
 
@@ -116,7 +110,7 @@ public class EhGroupConsumer : IAsyncDisposable, IConsumerControl
     {
         await Stop();
 
-        partitionConsumerByPartitionId.Clear();
+        _partitionConsumerByPartitionId.Clear();
     }
 
     #endregion

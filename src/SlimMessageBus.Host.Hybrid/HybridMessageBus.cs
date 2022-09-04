@@ -7,14 +7,13 @@ using SlimMessageBus.Host.DependencyResolver;
 public class HybridMessageBus : IMasterMessageBus, IAsyncDisposable
 {
     private readonly ILogger _logger;
-
-    public ILoggerFactory LoggerFactory { get; }
-
-    public MessageBusSettings Settings { get; }
-    public HybridMessageBusSettings ProviderSettings { get; }
-
     private readonly ProducerByMessageTypeCache<string> _busNameByMessageType;
     private readonly IDictionary<string, MessageBusBase> _busByName;
+    private readonly RuntimeTypeCache _runtimeTypeCache;
+
+    public ILoggerFactory LoggerFactory { get; }
+    public MessageBusSettings Settings { get; }
+    public HybridMessageBusSettings ProviderSettings { get; }
 
     public HybridMessageBus(MessageBusSettings settings, HybridMessageBusSettings providerSettings, MessageBusBuilder mbb)
     {
@@ -28,8 +27,10 @@ public class HybridMessageBus : IMasterMessageBus, IAsyncDisposable
 
         _logger = LoggerFactory.CreateLogger<HybridMessageBus>();
 
+        _runtimeTypeCache = new RuntimeTypeCache();
+
         var busNameByBaseMessageType = new Dictionary<Type, string>();
-        _busNameByMessageType = new ProducerByMessageTypeCache<string>(_logger, busNameByBaseMessageType);
+        _busNameByMessageType = new ProducerByMessageTypeCache<string>(_logger, busNameByBaseMessageType, _runtimeTypeCache);
 
         _busByName = new Dictionary<string, MessageBusBase>();
         foreach (var childBus in providerSettings ?? mbb.ChildBuilders)

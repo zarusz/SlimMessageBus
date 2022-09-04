@@ -3,60 +3,51 @@ namespace SlimMessageBus.Host.AzureEventHub;
 using System.Diagnostics.CodeAnalysis;
 using Azure.Messaging.EventHubs;
 using Azure.Messaging.EventHubs.Processor;
-using SlimMessageBus.Host.Config;
 
 public abstract class EhPartitionConsumer
 {
-    private readonly ILogger logger;
+    private readonly ILogger _logger;
     protected EventHubMessageBus MessageBus { get; }
-    protected ICheckpointTrigger CheckpointTrigger { get; }
-    protected AbstractConsumerSettings ConsumerSettings { get; }
-    protected IMessageProcessor<EventData> MessageProcessor { get; }
+    protected IMessageProcessor<EventData> MessageProcessor { get; set; }
+    protected ICheckpointTrigger CheckpointTrigger { get; set; }
 
-    public PathGroup PathGroup { get; }
-    public string PartitionId { get; }
+    public GroupPathPartitionId GroupPathPartition { get; }
 
-    private ProcessEventArgs lastMessage;
-    private ProcessEventArgs lastCheckpointMessage;
+    private ProcessEventArgs _lastMessage;
+    private ProcessEventArgs _lastCheckpointMessage;
 
-    protected EhPartitionConsumer(EventHubMessageBus messageBus, AbstractConsumerSettings consumerSettings, IMessageProcessor<EventData> messageProcessor, PathGroup pathGroup, string partitionId)
+    protected EhPartitionConsumer(EventHubMessageBus messageBus, GroupPathPartitionId groupPathPartition)
     {
         MessageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
-        logger = messageBus.LoggerFactory.CreateLogger<EhPartitionConsumer>();
-        PathGroup = pathGroup ?? throw new ArgumentNullException(nameof(pathGroup));
-        PartitionId = partitionId ?? throw new ArgumentNullException(nameof(partitionId));
-
-        ConsumerSettings = consumerSettings;
-        MessageProcessor = messageProcessor;
-
-        CheckpointTrigger = new CheckpointTrigger(consumerSettings, messageBus.LoggerFactory);
+        GroupPathPartition = groupPathPartition ?? throw new ArgumentNullException(nameof(groupPathPartition));
+        _logger = messageBus.LoggerFactory.CreateLogger<EhPartitionConsumer>();
     }
 
     public Task OpenAsync()
     {
-        logger.LogDebug("Open lease - Group: {Group}, Path: {Path}, PartitionId: {PartitionId}", PathGroup.Group, PathGroup.Path, PartitionId);
+        _logger.LogDebug("Open lease - Group: {Group}, Path: {Path}, PartitionId: {PartitionId}", GroupPathPartition.Group, GroupPathPartition.Path, GroupPathPartition.PartitionId);
         CheckpointTrigger.Reset();
         return Task.CompletedTask;
     }
 
     public Task CloseAsync(ProcessingStoppedReason reason)
     {
-        logger.LogDebug("Close lease - Reason: {Reason}, Group: {Group}, Path: {Path}, PartitionId: {PartitionId}", reason, PathGroup.Group, PathGroup.Path, PartitionId);
+        _logger.LogDebug("Close lease - Reason: {Reason}, Group: {Group}, Path: {Path}, PartitionId: {PartitionId}", reason, GroupPathPartition.Group, GroupPathPartition.Path, GroupPathPartition.PartitionId);
         return Task.CompletedTask;
     }
 
     public async Task ProcessEventAsync(ProcessEventArgs args)
     {
-        logger.LogDebug("Message arrived - Group: {Group}, Path: {Path}, PartitionId: {PartitionId}, Offset: {Offset}", PathGroup.Group, PathGroup.Path, PartitionId, args.Data.Offset);
+        _logger.LogDebug("Message arrived - Group: {Group}, Path: {Path}, PartitionId: {PartitionId}, Offset: {Offset}", GroupPathPartition.Group, GroupPathPartition.Path, GroupPathPartition.PartitionId, args.Data.Offset);
 
-        lastMessage = args;
+        _lastMessage = args;
 
-        // ToDo: Pass consumerInvoker
-        var lastException = await MessageProcessor.ProcessMessage(args.Data, consumerInvoker: null).ConfigureAwait(false);
+        var headers = GetHeadersFromTransportMessage(args.Data);
+        var (lastException, _, _) = await MessageProcessor.ProcessMessage(args.Data, headers).ConfigureAwait(false);
         if (lastException != null)
         {
             // Note: The OnMessageFaulted was called at this point by the MessageProcessor.
-            logger.LogError(lastException, "Message error - Group: {Group}, Path: {Path}, PartitionId: {PartitionId}, Offset: {Offset}", PathGroup.Group, PathGroup.Path, PartitionId, args.Data.Offset);
+            _logger.LogError(lastException, "Message error - Group: {Group}, Path: {Path}, PartitionId: {PartitionId}, Offset: {Offset}", GroupPathPartition.Group, GroupPathPartition.Path, GroupPathPartition.PartitionId, args.Data.Offset);
 
             // ToDo: Retry logic in the future
         }
@@ -69,8 +60,8 @@ public abstract class EhPartitionConsumer
 
     public Task ProcessErrorAsync(ProcessErrorEventArgs args)
     {
-        // ToDo: improve error handling
-        logger.LogError(args.Exception, "Partition error - Group: {Group}, Path: {Path}, PartitionId: {PartitionId}, Operation: {Operation}", PathGroup.Group, PathGroup.Path, PartitionId, args.Operation);
+        // ToDo: add retry mechanism and dlq support
+        _logger.LogError(args.Exception, "Partition error - Group: {Group}, Path: {Path}, PartitionId: {PartitionId}, Operation: {Operation}", GroupPathPartition.Group, GroupPathPartition.Path, GroupPathPartition.PartitionId, args.Operation);
         return Task.CompletedTask;
     }
 
@@ -80,26 +71,22 @@ public abstract class EhPartitionConsumer
     /// <returns></returns>
     private async Task Checkpoint(ProcessEventArgs args)
     {
-        if (args.HasEvent && (!lastCheckpointMessage.HasEvent || lastCheckpointMessage.Data.Offset < args.Data.Offset))
+        if (args.HasEvent && (!_lastCheckpointMessage.HasEvent || _lastCheckpointMessage.Data.Offset < args.Data.Offset))
         {
-            logger.LogDebug("Checkpoint at Group: {Group}, Path: {Path}, PartitionId: {PartitionId}, Offset: {Offset}", PathGroup.Group, PathGroup.Path, PartitionId, args.Data.Offset);
+            _logger.LogDebug("Checkpoint at Group: {Group}, Path: {Path}, PartitionId: {PartitionId}, Offset: {Offset}", GroupPathPartition.Group, GroupPathPartition.Path, GroupPathPartition.PartitionId, args.Data.Offset);
             await args.UpdateCheckpointAsync();
 
             CheckpointTrigger.Reset();
 
-            lastCheckpointMessage = args;
+            _lastCheckpointMessage = args;
         }
     }
 
     public Task TryCheckpoint()
-        => Checkpoint(lastMessage);
+        => Checkpoint(_lastMessage);
 
-    protected static MessageWithHeaders GetMessageWithHeaders([NotNull] EventData e)
-    {
+    protected static IReadOnlyDictionary<string, object> GetHeadersFromTransportMessage([NotNull] EventData e)
         // Note: Try to see if the Properties are already IReadOnlyDictionary or Dictionary prior allocating a new collection
-        var headers = e.Properties as IReadOnlyDictionary<string, object>
-            ?? new Dictionary<string, object>(e.Properties);
-
-        return new(e.Body.ToArray(), headers);
-    }
+        => e.Properties as IReadOnlyDictionary<string, object> ?? new Dictionary<string, object>(e.Properties);
 }
+

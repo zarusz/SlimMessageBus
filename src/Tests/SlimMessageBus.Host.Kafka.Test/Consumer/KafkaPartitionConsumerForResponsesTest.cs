@@ -31,7 +31,7 @@ public class KafkaPartitionConsumerForResponsesTest : IAsyncDisposable
             }
         };
 
-        _subject = new KafkaPartitionConsumerForResponses(_messageBusMock.BusSettings.RequestResponse, _topicPartition, _commitControllerMock.Object, _messageBusMock.Bus, _messageBusMock.SerializerMock.Object)
+        _subject = new KafkaPartitionConsumerForResponses(requestResponseSettings, requestResponseSettings.GetGroup(), _topicPartition, _commitControllerMock.Object, _messageBusMock.Bus, _messageBusMock.SerializerMock.Object)
         {
             CheckpointTrigger = _checkpointTrigger.Object
         };

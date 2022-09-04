@@ -11,20 +11,19 @@ using SlimMessageBus.Host.Config;
 /// </summary>
 public class EventHubMessageBus : MessageBusBase
 {
-    private readonly ILogger logger;
+    private readonly ILogger _logger;
+    private BlobContainerClient _blobContainerClient;
+    private SafeDictionaryWrapper<string, EventHubProducerClient> _producerByPath;
+    private List<EhGroupConsumer> _groupConsumers;
+
+    protected internal BlobContainerClient BlobContainerClient => _blobContainerClient;
 
     public EventHubMessageBusSettings ProviderSettings { get; }
-
-    private BlobContainerClient blobContainerClient;
-    private SafeDictionaryWrapper<string, EventHubProducerClient> producerByPath;
-    private List<EhGroupConsumer> groupConsumers;
-
-    protected internal BlobContainerClient BlobContainerClient => blobContainerClient;
 
     public EventHubMessageBus(MessageBusSettings settings, EventHubMessageBusSettings eventHubSettings)
         : base(settings)
     {
-        logger = LoggerFactory.CreateLogger<EventHubMessageBus>();
+        _logger = LoggerFactory.CreateLogger<EventHubMessageBus>();
         ProviderSettings = eventHubSettings;
 
         OnBuildProvider();
@@ -53,29 +52,38 @@ public class EventHubMessageBus : MessageBusBase
         base.Build();
 
         // Initialize storage client only when there are consumers declared
-        blobContainerClient = IsAnyConsumerDeclared
+        _blobContainerClient = IsAnyConsumerDeclared
             ? ProviderSettings.BlobContanerClientFactory()
             : null;
 
-        producerByPath = new SafeDictionaryWrapper<string, EventHubProducerClient>(path =>
+        _producerByPath = new SafeDictionaryWrapper<string, EventHubProducerClient>(path =>
         {
-            logger.LogDebug("Creating EventHubClient for path {Path}", path);
-            return ProviderSettings.EventHubProducerClientFactory(path);
+            _logger.LogDebug("Creating EventHubClient for path {Path}", path);
+            try
+            {
+                return ProviderSettings.EventHubProducerClientFactory(path);
+            }
+            catch (Exception e)
+            {
+                _logger.LogDebug(e, "Error creating EventHubClient for path {Path}", path);
+                throw;
+            }
         });
 
-        groupConsumers = new List<EhGroupConsumer>();
+        _groupConsumers = new List<EhGroupConsumer>();
 
-        logger.LogInformation("Creating consumers");
-        foreach (var consumerSettings in Settings.Consumers)
+        _logger.LogInformation("Creating consumers");
+        foreach (var (groupPath, consumerSettings) in Settings.Consumers.GroupBy(x => new GroupPath(path: x.Path, group: x.GetGroup())).ToDictionary(x => x.Key, x => x.ToList()))
         {
-            logger.LogInformation("Creating consumer for Path: {Path}, Group: {Group}, MessageType: {MessageType}", consumerSettings.Path, consumerSettings.GetGroup(), consumerSettings.MessageType);
-            groupConsumers.Add(new EhGroupConsumer(this, consumerSettings));
+            _logger.LogInformation("Creating consumer for Path: {Path}, Group: {Group}", groupPath.Path, groupPath.Group);
+            _groupConsumers.Add(new EhGroupConsumer(this, groupPath, groupPathPartition => new EhPartitionConsumerForConsumers(this, consumerSettings, groupPathPartition)));
         }
 
         if (Settings.RequestResponse != null)
         {
-            logger.LogInformation("Creating response consumer for Path: {Path}, Group: {Group}", Settings.RequestResponse.Path, Settings.RequestResponse.GetGroup());
-            groupConsumers.Add(new EhGroupConsumer(this, Settings.RequestResponse));
+            var pathGroup = new GroupPath(Settings.RequestResponse.Path, Settings.RequestResponse.GetGroup());
+            _logger.LogInformation("Creating response consumer for Path: {Path}, Group: {Group}", pathGroup.Path, pathGroup.Group);
+            _groupConsumers.Add(new EhGroupConsumer(this, pathGroup, groupPathPartition => new EhPartitionConsumerForResponses(this, Settings.RequestResponse, groupPathPartition)));
         }
     }
 
@@ -83,25 +91,25 @@ public class EventHubMessageBus : MessageBusBase
     {
         await base.DisposeAsyncCore();
 
-        if (groupConsumers != null)
+        if (_groupConsumers != null)
         {
-            foreach (var groupConsumer in groupConsumers)
+            foreach (var groupConsumer in _groupConsumers)
             {
-                await groupConsumer.DisposeSilently("Consumer", logger);
+                await groupConsumer.DisposeSilently("Consumer", _logger);
             }
-            groupConsumers.Clear();
-            groupConsumers = null;
+            _groupConsumers.Clear();
+            _groupConsumers = null;
         }
 
-        if (producerByPath != null)
+        if (_producerByPath != null)
         {
-            var producers = producerByPath.ClearAndSnapshot();
+            var producers = _producerByPath.ClearAndSnapshot();
             foreach (var producer in producers)
             {
-                logger.LogDebug("Closing EventHubProducerClient for Path {Path}", producer.EventHubName);
-                await ((IAsyncDisposable)producer).DisposeSilently();
+                _logger.LogDebug("Closing EventHubProducerClient for Path {Path}", producer.EventHubName);
+                await producer.DisposeSilently();
             }
-            producerByPath = null;
+            _producerByPath = null;
         }
     }
 
@@ -109,26 +117,26 @@ public class EventHubMessageBus : MessageBusBase
     {
         await base.OnStart();
 
-        if (blobContainerClient != null)
+        if (_blobContainerClient != null)
         {
             // Create blob storage container if not exists
             try
             {
-                await blobContainerClient.CreateIfNotExistsAsync();
+                await _blobContainerClient.CreateIfNotExistsAsync();
             }
             catch (Exception e)
             {
-                logger.LogWarning(e, "Attempt to create blob container {BlobContainer} failed - the blob container is needed to store the consumer group offsets", blobContainerClient.Name);
+                _logger.LogWarning(e, "Attempt to create blob container {BlobContainer} failed - the blob container is needed to store the consumer group offsets", _blobContainerClient.Name);
             }
         }
 
-        await Task.WhenAll(groupConsumers.Select(x => x.Start()));
+        await Task.WhenAll(_groupConsumers.Select(x => x.Start()));
     }
 
     protected override async Task OnStop()
     {
         await base.OnStop();
-        await Task.WhenAll(groupConsumers.Select(x => x.Stop()));
+        await Task.WhenAll(_groupConsumers.Select(x => x.Stop()));
     }
 
     public override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
@@ -137,7 +145,7 @@ public class EventHubMessageBus : MessageBusBase
 
         var messageType = message?.GetType();
 
-        logger.LogDebug("Producing message {Message} of Type {MessageType} on Path {Path} with Size {MessageSize}", message, messageType?.Name, path, messagePayload?.Length ?? 0);
+        _logger.LogDebug("Producing message {Message} of Type {MessageType} on Path {Path} with Size {MessageSize}", message, messageType?.Name, path, messagePayload?.Length ?? 0);
 
         var ev = messagePayload != null ? new EventData(messagePayload) : new EventData();
 
@@ -153,7 +161,7 @@ public class EventHubMessageBus : MessageBusBase
             ? GetPartitionKey(messageType, message)
             : null;
 
-        var producer = producerByPath.GetOrAdd(path);
+        var producer = _producerByPath.GetOrAdd(path);
 
         // ToDo: Introduce some micro batching of events (store them between invocations and send when time span elapsed)
         using EventDataBatch eventBatch = await producer.CreateBatchAsync(new CreateBatchOptions
@@ -169,7 +177,7 @@ public class EventHubMessageBus : MessageBusBase
 
         await producer.SendAsync(eventBatch, cancellationToken).ConfigureAwait(false);
 
-        logger.LogDebug("Delivered message {Message} of Type {MessageType} on Path {Path} with PartitionKey {PartitionKey}", message, messageType?.Name, path, partitionKey);
+        _logger.LogDebug("Delivered message {Message} of Type {MessageType} on Path {Path} with PartitionKey {PartitionKey}", message, messageType?.Name, path, partitionKey);
     }
 
     #endregion
@@ -185,7 +193,7 @@ public class EventHubMessageBus : MessageBusBase
         }
         catch (Exception e)
         {
-            logger.LogWarning(e, "The configured message KeyProvider failed for message type {MessageType} and message {Message}", messageType, message);
+            _logger.LogWarning(e, "The configured message KeyProvider failed for message type {MessageType} and message {Message}", messageType, message);
         }
         return null;
     }

@@ -21,7 +21,7 @@ public class MemoryMessageBusBuilder : MessageBusBuilder
     private static string DefaultMessageTypeToTopicConverter(Type type) => type.Name;
 
     /// <summary>
-    /// In the specified assemblies, searches for any types that implement <see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/>. 
+    /// Searches for any types that implement <see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/> in the specified assemblies. 
     /// For every found type declares the produced and consumer/handler by applying the topic name that corresponds to the mesage name.
     /// </summary>
     /// <param name="assemblies"></param>
@@ -34,38 +34,113 @@ public class MemoryMessageBusBuilder : MessageBusBuilder
 
         var prospectTypes = ReflectionDiscoveryScanner.From(assemblies).Scan().GetConsumerTypes(consumerTypeFilter);
 
-        var producedMessageTypes = new HashSet<Type>();
+        var foundConsumers = prospectTypes.Where(x => x.InterfaceType.GetGenericTypeDefinition() == typeof(IConsumer<>)).ToList();
+        var foundHandlers = prospectTypes.Where(x => x.InterfaceType.GetGenericTypeDefinition() == typeof(IRequestHandler<,>)).ToList();
+
+        var knownMessageTypes = new HashSet<Type>();
 
         // register all consumers
-        foreach (var find in prospectTypes.Where(x => x.InterfaceType.GetGenericTypeDefinition() == typeof(IConsumer<>)))
+        foreach (var consumer in foundConsumers)
         {
-            producedMessageTypes.Add(find.MessageType);
-
-            // register consumer
-            var topicName = messageTypeToTopicConverter(find.MessageType);
-            Consume(find.MessageType, x => x.Topic(topicName)
-                .WithConsumer(find.ConsumerType));
+            knownMessageTypes.Add(consumer.MessageType);
         }
 
         // register all handlers
-        foreach (var find in prospectTypes.Where(x => x.InterfaceType.GetGenericTypeDefinition() == typeof(IRequestHandler<,>)))
+        foreach (var handler in foundHandlers)
         {
-            producedMessageTypes.Add(find.MessageType);
-
-            // register handler
-            var topicName = messageTypeToTopicConverter(find.MessageType);
-            Handle(find.MessageType, find.ResponseType, x => x.Topic(topicName)
-                .WithHandler(find.ConsumerType));
+            knownMessageTypes.Add(handler.MessageType);
         }
 
-        // register all the producers
-        foreach (var producedMessageType in producedMessageTypes)
+        var ancestorsByType = new Dictionary<Type, ISet<Type>>();
+        foreach (var messageType in knownMessageTypes)
         {
-            var topicName = messageTypeToTopicConverter(producedMessageType);
-            Produce(producedMessageType, x => x.DefaultTopic(topicName));
+            ancestorsByType[messageType] = GetAncestorTypes(messageType);
+        }
+
+        var rootMessageTypes = new List<Type>();
+        // register all the producers
+        foreach (var messageType in knownMessageTypes)
+        {
+            var messageTypeAncestors = ancestorsByType[messageType];
+
+            // register root message types only
+            var isRoot = messageTypeAncestors.All(ancestor => !knownMessageTypes.Contains(ancestor));
+            if (isRoot)
+            {
+                rootMessageTypes.Add(messageType);
+
+                var topicName = messageTypeToTopicConverter(messageType);
+                Produce(messageType, x => x.DefaultTopic(topicName));
+            }
+        }
+
+        // register all consumers
+        foreach (var rootMessageType in rootMessageTypes)
+        {
+            var consumers = foundConsumers.Where(x => x.MessageType == rootMessageType || ancestorsByType[x.MessageType].Contains(rootMessageType)).ToList();
+            if (consumers.Count > 0)
+            {
+                var topicName = messageTypeToTopicConverter(rootMessageType);
+
+                // register consumer
+                Consume(rootMessageType, x =>
+                {
+                    x.Topic(topicName);
+                    foreach (var consumer in consumers)
+                    {
+                        if (consumer.MessageType == rootMessageType && !x.ConsumerSettings.Invokers.Contains(x.ConsumerSettings))
+                        {
+                            x.WithConsumer(consumer.ConsumerType);
+                        }
+                        else
+                        {
+                            x.WithConsumer(derivedConsumerType: consumer.ConsumerType, derivedMessageType: consumer.MessageType);
+                        }
+                    }
+                });
+            }
+        }
+
+        // register all handlers
+        foreach (var rootMessageType in rootMessageTypes)
+        {
+            var handlers = foundHandlers.Where(x => x.MessageType == rootMessageType || ancestorsByType[x.MessageType].Contains(rootMessageType)).ToList();
+            if (handlers.Count > 0)
+            {
+                var topicName = messageTypeToTopicConverter(rootMessageType);
+
+                var responseType = handlers.First(x => x.MessageType == rootMessageType).ResponseType;
+
+                // register handler
+                Handle(rootMessageType, responseType, x =>
+                {
+                    x.Topic(topicName);
+                    foreach (var handler in handlers)
+                    {
+                        if (handler.MessageType == rootMessageType && !x.ConsumerSettings.Invokers.Contains(x.ConsumerSettings))
+                        {
+                            x.WithHandler(handler.ConsumerType);
+                        }
+                        else
+                        {
+                            x.WithHandler(derivedHandlerType: handler.ConsumerType, derivedRequestType: handler.MessageType);
+                        }
+                    }
+                });
+            }
         }
 
         return this;
+    }
+
+    private static ISet<Type> GetAncestorTypes(Type messageType)
+    {
+        var ancestors = new HashSet<Type>();
+        for (var mt = messageType; mt.BaseType != typeof(object) && mt.BaseType != null; mt = mt.BaseType)
+        {
+            ancestors.Add(mt.BaseType);
+        }
+        return ancestors;
     }
 
     public MemoryMessageBusBuilder AutoDeclareFrom(params Assembly[] assemblies)

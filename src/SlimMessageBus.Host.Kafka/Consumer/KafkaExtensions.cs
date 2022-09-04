@@ -26,9 +26,6 @@ public static class KafkaExtensions
 
         return headers;
     }
-
-    public static MessageWithHeaders ToMessageWithHeaders(this ConsumeResult<Ignore, byte[]> consumeResult, IMessageSerializer headerSerializer)
-        => new(consumeResult.Message.Value, consumeResult.ToHeaders(headerSerializer));
 }
 
 

@@ -3,7 +3,6 @@
 - [Configuration](#configuration)
 - [Pub/Sub communication](#pubsub-communication)
   - [Producer](#producer)
-    - [Polymorphic messages](#polymorphic-messages)
     - [Producer hooks](#producer-hooks)
     - [Set message headers](#set-message-headers)
   - [Consumer](#consumer)
@@ -29,8 +28,12 @@
   - [Modularization of configuration](#modularization-of-configuration)
   - [Autoregistration of consumers, interceptors and configurators](#autoregistration-of-consumers-interceptors-and-configurators)
 - [Serialization](#serialization)
-- [Message Headers](#message-headers)
+- [Multiple message types on one topic (or queue)](#multiple-message-types-on-one-topic-or-queue)
   - [Message Type Resolver](#message-type-resolver)
+  - [Polymorphic messages](#polymorphic-messages)
+    - [Polymorphic producer](#polymorphic-producer)
+    - [Polymorphic consumer](#polymorphic-consumer)
+- [Message Headers](#message-headers)
 - [Interceptors](#interceptors)
   - [Producer Lifecycle](#producer-lifecycle)
   - [Consumer Lifecycle](#consumer-lifecycle)
@@ -154,39 +157,6 @@ await bus.Publish(msg, "other-topic");
 ```
 
 > The transport plugins might introduce additional configuration options. Please check the relevant provider docs. For example, Azure Service Bus, Azure Event Hub and Kafka allow setting the partitioning key for a given message type.
-
-#### Polymorphic messages
-
-Given the following message types:
-
-```cs
-public class CustomerEvent
-{
-  public DateTime Created { get; set; }
-  public Guid CustomerId { get; set; }
-}
-
-public class CustomerCreatedEvent : CustomerEvent { }
-public class CustomerChangedEvent : CustomerEvent { }
-```
-
-If we want the bus to deliver all 3 messages types into the same topic (or queue), we can configure just the base type:
-
-```cs
-// Will apply to CustomerCreatedEvent and CustomerChangedEvent
-mbb.Produce<CustomerEvent>(x => x.DefaultTopic("customer-events"));
-```
-
-Then all of the those message types will follow the base message type producer configuration.
-In this example, all messages will be delivered to topic `customer-events`:
-
-```cs
-await bus.Publish(new CustomerEvent { });
-await bus.Publish(new CustomerCreatedEvent { });
-await bus.Publish(new CustomerChangedEvent { });
-```
-
-> Sending messages of different types into the same topic (or queue) makes sense if the underlying serializer (e.g. Newtonsoft.Json) supports polimorphic serialization. In such case a message type discriminator (e.g. `$type` property for Newtonsoft.Json) will be added by the serializer, so that the consumer end knows to what derived type to deserialize the message to.
 
 #### Producer hooks
 
@@ -414,7 +384,7 @@ If the consumer type would be a singleton, then somewhere between the setting of
 
 > Since version 1.15.0
 
-Whenever the consumer type (`IConsumer<T>` or `IRequestHandler<Req, Res>`) requires to obtain message headers for the message being processed, it needs to extend the interface `IConsumerWithContext`. 
+Whenever the consumer type (`IConsumer<T>` or `IRequestHandler<Req, Res>`) requires to obtain message headers for the message being processed, it needs to extend the interface `IConsumerWithContext`.
 
 ```cs
 public class SomeConsumer : IConsumer<SomeMessage>, IConsumerWithContext
@@ -427,7 +397,6 @@ public class SomeConsumer : IConsumer<SomeMessage>, IConsumerWithContext
   }
 }
 ```
-
 
 #### Per-message DI container scope
 
@@ -485,7 +454,7 @@ Some transports underlying clients do support concurrency natively (like Azure S
 SMB manages a critical section for each consumer type registration that ensures there are at most `n` processed messages.
 Each processing of a message resolves the `TConsumer` instance from the DI.
 
-> Please note that anything higher than 1 will cause multiple messages to be consumed concurrently in one service instance. This will typically impact message processing order (ie 2nd message might get processed sooner than the 1st message). 
+> Please note that anything higher than 1 will cause multiple messages to be consumed concurrently in one service instance. This will typically impact message processing order (ie 2nd message might get processed sooner than the 1st message).
 
 ## Request-response communication
 
@@ -511,7 +480,7 @@ The implementation requires that each micro-service instance that intends to sen
 ### Message headers for request-response
 
 In the case of request (or reponse) message, the SMB implementation needs to pass additional metadata information to make the request-response work (correlate response with a pending request, pass error message back to sender, etc).
-For majority of the transport providers SMB leverages the native message headers of the underlying transport (when the transport supports it). In the transports that do not natively support headers (e.g. Redis) each request (or response) message is wrapped by SMB into a special envelope which makes the implementation transport provider agnostic (see type `MessageWithHeaders`). 
+For majority of the transport providers SMB leverages the native message headers of the underlying transport (when the transport supports it). In the transports that do not natively support headers (e.g. Redis) each request (or response) message is wrapped by SMB into a special envelope which makes the implementation transport provider agnostic (see type `MessageWithHeaders`).
 
 When header emulation is taking place, SMB uses a wrapper envelope that is binary and should be fast. See the [`MessageWithHeadersSerializer`](https://github.com/zarusz/SlimMessageBus/blob/master/src/SlimMessageBus.Host/RequestResponse/MessageWithHeadersSerializer.cs) for low level details (or if you want to serialize the wrapper in a different way).
 
@@ -815,17 +784,63 @@ SMB uses serialization plugins to serialize (and deserialize) the messages into 
 
 See [Serialization](serialization.md) page.
 
-## Message Headers
+## Multiple message types on one topic (or queue)
 
-SMB uses headers to pass additional metadata information with the message. This includes the `MessageType` (of type `string`) or in the case of request/response messages the `RequestId` (of type `string`), `ReplyTo` (of type `string`) and `Expires` (of type `long`).
-Depending on the underlying transport chosen the headers will be supported natively by the underlying message system/broker (Azure Service Bus, Azure Event Hubs, Kafka) or emulated (Redis).
+The `MessageType` header will be set for every published (or produced) message to declare the specific .NET type that was published to the underlying transport. On the consumer side, this header will be used to understand what message type arrived and will be used to dispatched the message to the correct consumer.
 
-The emulation works by using a message wrapper envelope (`MessageWithHeader`) that during serialization puts the headers first and then the actual message content after that. Please consult individual transport providers.
+This approach allows SMB to send polymorphic message types (messages that share a common ancestry) and even send unrelated message types via the same topic/queue transport.
+
+This mechanism should work fine with serializers that support polimorphic serialization (e.g. Newtonsoft.Json) and have that feature enabled. In such case a message type discriminator (e.g. `$type` property for Newtonsoft.Json) will be added by the serializer to the message payload, so that the deserializer on the consumer end knows to what type to deserialize the message to.
+However, the `MessageType` header takes precedence in SMB in matching the correct consumer.
+
+> For better interoperability, the `MessageType` header is optional. This is to support the scenario that other publishing system does not use SMB nor is able to set the header. However, in the absence of `MessageType` header the SMB consumer side, should expect only one type per topic/queue. If there were more than one message types on the same topic (or queue) SMB would not be able to infer what type actually arrived.
+
+Example:
+
+```cs
+// unrelated messages
+
+public class CustomerEvent { }
+public class OrderEvent { }
+
+// published to the same topic
+mbb.Produce<CustomerEvent>(x => x.DefaultTopic("events"));
+mbb.Produce<OrderEvent>(x => x.DefaultTopic("events"));
+
+// and their consumers
+
+public class CustomerEventConsumer : IConsumer<CustomerEvent> 
+{
+  public Task OnHandle(CustomerEvent e, string path) { }
+}
+
+public class OrderEventConsumer : IConsumer<OrderEvent> 
+{
+  public Task OnHandle(OrderEvent e, string path) { }
+}
+
+// which consume from the same topic
+
+mbb.Consume<CustomerEvent>(x =>
+{
+  x.Topic("events");
+  x.WithConsumer<CustomerEventConsumer>();
+});
+
+mbb.Consume<OrderEvent>(x =>
+{
+  x.Topic("events");
+  x.WithConsumer<OrderEventConsumer>();
+});
+```
+
+![Multiple messages types on one topic](/docs/images/SlimMessageBus%20-%20Multiple%20message%20types%20on%20one%20topic.jpg)
 
 ### Message Type Resolver
 
 By default, the message header `MessageType` conveys the message type information using the assembly qualified name of the .NET type (see `AssemblyQualifiedNameMessageTypeResolver`).
 
+A custom resolver could be used. Some seenarios inlude a desire to send short type names (to optimize overall message size) or adjust interoperability with other messaging systems.
 The following can be used to provide a custom `IMessageTypeResolver` implementation:
 
 ```cs
@@ -834,7 +849,95 @@ IMessageTypeResolver mtr = new AssemblyQualifiedNameMessageTypeResolver();
 mbb.WithMessageTypeResolver(mtr)
 ```
 
-A custom resolver could be used in scenarios when there is a desire to send short type names (to optimize overall message size). In this scenario the assembly name and/or namespace could be skipped - the producer and consumer could infer them.
+### Polymorphic messages
+
+SMB supports working with message hierarchies.
+
+Given the following message types:
+
+```cs
+public class CustomerEvent
+{
+  public DateTime Created { get; set; }
+  public Guid CustomerId { get; set; }
+}
+
+public class CustomerCreatedEvent : CustomerEvent { }
+public class CustomerChangedEvent : CustomerEvent { }
+```
+
+#### Polymorphic producer
+
+If we want the bus to deliver all 3 messages types into the same topic (or queue), we can configure just the base type:
+
+```cs
+// Will apply to CustomerCreatedEvent and CustomerChangedEvent
+mbb.Produce<CustomerEvent>(x => x.DefaultTopic("customer-events"));
+```
+
+Then all of the those message types will follow the base message type producer configuration.
+In this example, all messages will be delivered to topic `customer-events`:
+
+```cs
+await bus.Publish(new CustomerEvent { });
+await bus.Publish(new CustomerCreatedEvent { });
+await bus.Publish(new CustomerChangedEvent { });
+```
+
+#### Polymorphic consumer
+
+Given the following consumers:
+
+```cs
+public class CustomerEventConsumer : IConsumer<CustomerEvent> 
+{
+  public Task OnHandle(CustomerEvent e, string path) { }
+}
+
+public class CustomerCreatedEventConsumer : IConsumer<CustomerCreatedEvent> 
+{
+  public Task OnHandle(CustomerCreatedEvent e, string path) { }
+}
+```
+
+If we want the bus to consume all 3 messages types from the same topic (or queue), we just need to configure the base message type consumer (and optionally specify any derived message type consumer):
+
+```cs
+mbb.Consume<CustomerEvent>(x =>
+{
+  x.Topic("customer-events");
+  x.WithConsumer<CustomerEventConsumer>();
+  // Specifies the consumer for the derived message type
+  x.WithConsumer<CustomerCreatedEventConsumer, ConsumerCreatedEvent>();
+  // When a message type arrives we do not handle, instruct SMB what to do
+  /*
+  x.WhenUndeclaredMessageTypeArrives(opts => {
+    opts.Fail = false; // raise an exception
+    opts.Log = false; // log a warn entry
+  });
+  */
+});
+```
+
+All the arriving polymorphic message types will be matched agaist the declared consumers types that could accept the arrived message type and they will be activated.
+
+In this example:
+
+- The arriving `CustomerEvent` will only activate `CustomerEventConsumer`.
+- The arriving `CustomerChangedEvent` will only activate `CustomerEventConsumer` (there is no specialized consumer declared).
+- The arriving message `CustomerCreatedEvent` will activate both the `CustomerCreatedEventConsumer` and `CustomerEventConsumer`.
+- While any other arriving message type will be discarded (unless it derives from one of the declared message types).
+
+> By default SMB will silently discard the message type that arrived for which it cannot match any registered consumer. This behaviour can be adjusted in `WhenUndeclaredMessageTypeArrives()`.
+
+## Message Headers
+
+SMB uses headers to pass additional metadata information with the message. This includes the `MessageType` (of type `string`) or in the case of request/response messages the `RequestId` (of type `string`), `ReplyTo` (of type `string`) and `Expires` (of type `long`).
+
+Depending on the underlying transport chosen the headers will be supported natively by the underlying message system/broker (Azure Service Bus, Azure Event Hubs, Kafka) or emulated (Redis).
+
+The emulation (Redis) works by using a message wrapper envelope (`MessageWithHeader`) that during serialization puts the headers first and then the actual message content after that.
+Please consult individual transport providers.
 
 ## Interceptors
 

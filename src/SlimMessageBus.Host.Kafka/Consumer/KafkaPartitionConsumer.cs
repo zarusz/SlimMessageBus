@@ -3,38 +3,49 @@
 using System.Diagnostics.CodeAnalysis;
 using Confluent.Kafka;
 using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host.Serialization;
 using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
 
 public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
 {
-    private readonly ILogger logger;
+    private readonly ILogger _logger;
+    private readonly IKafkaCommitController _commitController;
+    private readonly IMessageSerializer _headerSerializer;
+    private IMessageProcessor<ConsumeResult> _messageProcessor;
+    private TopicPartitionOffset _lastOffset;
+    private TopicPartitionOffset _lastCheckpointOffset;
 
-    private readonly MessageBusBase messageBus;
-    private readonly AbstractConsumerSettings consumerSettings;
-    private readonly IKafkaCommitController commitController;
-    private IMessageProcessor<ConsumeResult> messageProcessor;
-
+    protected MessageBusBase MessageBus { get; }
+    protected AbstractConsumerSettings[] ConsumerSettings { get; }
     public ICheckpointTrigger CheckpointTrigger { get; set; }
+    public string Group { get; }
+    public TopicPartition TopicPartition { get; }
 
-    private TopicPartitionOffset lastOffset;
-    private TopicPartitionOffset lastCheckpointOffset;
-
-    protected KafkaPartitionConsumer(AbstractConsumerSettings consumerSettings, TopicPartition topicPartition, IKafkaCommitController commitController, MessageBusBase messageBus, IMessageProcessor<ConsumeResult> messageProcessor)
+    protected KafkaPartitionConsumer(AbstractConsumerSettings[] consumerSettings, string group, TopicPartition topicPartition, IKafkaCommitController commitController, MessageBusBase messageBus, IMessageSerializer headerSerializer)
     {
-        this.messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
+        _logger = messageBus.LoggerFactory.CreateLogger<KafkaPartitionConsumer>();
+        _logger.LogInformation("Creating consumer for Group: {Group}, Topic: {Topic}, Partition: {Partition}", group, topicPartition.Topic, topicPartition.Partition);
 
-        logger = this.messageBus.LoggerFactory.CreateLogger<KafkaPartitionConsumerForConsumers>();
-        logger.LogInformation("Creating consumer for Group: {Group}, Topic: {Topic}, Partition: {Partition}", consumerSettings.GetGroup(), consumerSettings.Path, topicPartition.Partition);
-
+        MessageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
+        ConsumerSettings = consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings));
+        Group = group;
         TopicPartition = topicPartition;
 
-        this.consumerSettings = consumerSettings;
-        this.commitController = commitController;
-        this.messageProcessor = messageProcessor;
+        _headerSerializer = headerSerializer;
+        _commitController = commitController;
+        _messageProcessor = CreateMessageProcessor();
 
         // ToDo: Add support for Kafka driven automatic commit
-        this.CheckpointTrigger = new CheckpointTrigger(consumerSettings, messageBus.LoggerFactory);
+        CheckpointTrigger = CreateCheckpointTrigger();
     }
+
+    private ICheckpointTrigger CreateCheckpointTrigger()
+    {
+        var f = new CheckpointTriggerFactory(MessageBus.LoggerFactory, (configuredCheckpoints) => $"The checkpoint settings ({nameof(BuilderExtensions.CheckpointAfter)} and {nameof(BuilderExtensions.CheckpointEvery)}) across all the consumers that use the same Topic {TopicPartition.Topic} and Group {Group} must be the same (found settings are: {string.Join(", ", configuredCheckpoints)})");
+        return f.Create(ConsumerSettings);
+    }
+
+    protected abstract IMessageProcessor<ConsumeResult<Ignore, byte[]>> CreateMessageProcessor();
 
     #region IAsyncDisposable
 
@@ -46,10 +57,10 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
 
     protected virtual async ValueTask DisposeAsyncCore()
     {
-        if (messageProcessor != null)
+        if (_messageProcessor != null)
         {
-            await messageProcessor.DisposeAsync();
-            messageProcessor = null;
+            await _messageProcessor.DisposeAsync();
+            _messageProcessor = null;
         }
     }
 
@@ -57,12 +68,10 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
 
     #region Implementation of IKafkaTopicPartitionProcessor
 
-    public TopicPartition TopicPartition { get; }
-
     public void OnPartitionAssigned([NotNull] TopicPartition partition)
     {
-        lastCheckpointOffset = null;
-        lastOffset = null;
+        _lastCheckpointOffset = null;
+        _lastOffset = null;
 
         CheckpointTrigger?.Reset();
     }
@@ -71,10 +80,10 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
     {
         try
         {
-            lastOffset = message.TopicPartitionOffset;
+            _lastOffset = message.TopicPartitionOffset;
 
-            // ToDo: Pass consumerInvoker
-            var lastException = await messageProcessor.ProcessMessage(message, consumerInvoker: null).ConfigureAwait(false);
+            var messageHeaders = message.ToHeaders(_headerSerializer);
+            var (lastException, consumerSettings, response) = await _messageProcessor.ProcessMessage(message, messageHeaders).ConfigureAwait(false);
             if (lastException != null)
             {
                 // ToDo: Retry logic
@@ -88,7 +97,7 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Group [{Group}]: Error occured while consuming a message at Topic: {Topic}, Partition: {Partition}, Offset: {Offset}", consumerSettings.GetGroup(), message.Topic, message.Partition, message.Offset);
+            _logger.LogError(e, "Group [{Group}]: Error occured while consuming a message at Topic: {Topic}, Partition: {Partition}, Offset: {Offset}", Group, message.Topic, message.Partition, message.Offset);
             throw;
         }
     }
@@ -115,7 +124,7 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
     {
         if (CheckpointTrigger != null)
         {
-            Commit(lastOffset);
+            Commit(_lastOffset);
         }
     }
 
@@ -123,12 +132,12 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
 
     public void Commit(TopicPartitionOffset offset)
     {
-        if (offset != null && (lastCheckpointOffset == null || offset.Offset > lastCheckpointOffset.Offset))
+        if (offset != null && (_lastCheckpointOffset == null || offset.Offset > _lastCheckpointOffset.Offset))
         {
-            logger.LogDebug("Group [{Group}]: Commit at Offset: {Offset}, Partition: {Partition}, Topic: {Topic}", consumerSettings.GetGroup(), offset.Offset, offset.Partition, offset.Topic);
+            _logger.LogDebug("Group [{Group}]: Commit at Offset: {Offset}, Partition: {Partition}, Topic: {Topic}", Group, offset.Offset, offset.Partition, offset.Topic);
 
-            lastCheckpointOffset = offset;
-            commitController.Commit(offset);
+            _lastCheckpointOffset = offset;
+            _commitController.Commit(offset);
 
             CheckpointTrigger?.Reset();
         }

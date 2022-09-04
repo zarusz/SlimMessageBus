@@ -2,7 +2,7 @@
 
 using Azure.Storage.Blobs;
 
-public class ConsumerParams : PathGroup
+public class ConsumerParams : GroupPath
 {
     public BlobContainerClient CheckpointClient { get; set; }
 

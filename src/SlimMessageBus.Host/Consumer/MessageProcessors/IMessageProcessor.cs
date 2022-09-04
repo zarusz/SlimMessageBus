@@ -2,15 +2,14 @@ namespace SlimMessageBus.Host;
 
 using SlimMessageBus.Host.Config;
 
-public interface IMessageProcessor<TMessage> : IAsyncDisposable where TMessage : class
+public interface IMessageProcessor<TMessage> : IAsyncDisposable
 {
-    AbstractConsumerSettings ConsumerSettings { get; }
+    IReadOnlyCollection<AbstractConsumerSettings> ConsumerSettings { get; }
 
     /// <summary>
     /// Processes the arrived message
     /// </summary>
-    /// <param name="message"></param>
-    /// <param name="consumerInvoker"></param>
+    /// <param name="transportMessage"></param>
     /// <returns>Null, if message processing was sucessful, otherwise the Exception</returns>
-    Task<Exception> ProcessMessage(TMessage message, IMessageTypeConsumerInvokerSettings consumerInvoker = null);
+    Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response)> ProcessMessage(TMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders);
 }

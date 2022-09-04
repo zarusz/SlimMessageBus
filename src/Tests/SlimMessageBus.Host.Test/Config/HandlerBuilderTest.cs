@@ -27,9 +27,9 @@ public class HandlerBuilderTest
         subject.ConsumerSettings.IsRequestMessage.Should().BeTrue();
         subject.ConsumerSettings.ResponseType.Should().Be(typeof(SomeResponse));
 
-        subject.ConsumerSettings.ConsumersByMessageType.Count.Should().Be(1);
+        subject.ConsumerSettings.Invokers.Count.Should().Be(1);
 
-        var consumerInvokerSettings = subject.ConsumerSettings.ConsumersByMessageType[typeof(SomeRequest)];
+        var consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(SomeRequest));
         consumerInvokerSettings.MessageType.Should().Be(typeof(SomeRequest));
         consumerInvokerSettings.ConsumerType.Should().Be(typeof(SomeRequestMessageHandler));
         Func<Task> call = () => consumerInvokerSettings.ConsumerMethod(new SomeRequestMessageHandler(), new SomeRequest(), path);
