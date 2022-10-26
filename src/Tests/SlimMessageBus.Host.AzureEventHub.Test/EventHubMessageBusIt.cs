@@ -229,7 +229,7 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
 
     #region Implementation of IConsumer<in PingMessage>
 
-    public Task OnHandle(PingMessage message, string path)
+    public Task OnHandle(PingMessage message)
     {
         lock (this)
         {
@@ -238,7 +238,7 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
 
         var msg = Context.GetTransportMessage();
 
-        logger.LogInformation("Got message {0:000} on topic {1} offset {2} partition key {3}.", message.Counter, path, msg.Offset, msg.PartitionKey);
+        logger.LogInformation("Got message {0:000} on topic {1} offset {2} partition key {3}.", message.Counter, Context.Path, msg.Offset, msg.PartitionKey);
         return Task.CompletedTask;
     }
 
@@ -270,7 +270,7 @@ public class EchoResponse
 
 public class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
 {
-    public Task<EchoResponse> OnHandle(EchoRequest request, string path)
+    public Task<EchoResponse> OnHandle(EchoRequest request)
     {
         return Task.FromResult(new EchoResponse { Message = request.Message });
     }

@@ -3,7 +3,6 @@
 using global::FluentValidation;
 using SlimMessageBus;
 using SlimMessageBus.Host.Interceptor;
-using System.Threading;
 
 public class ProducerValidationInterceptor<T> : AbstractValidationInterceptor<T>, IProducerInterceptor<T>
 {
@@ -12,9 +11,9 @@ public class ProducerValidationInterceptor<T> : AbstractValidationInterceptor<T>
     {
     }
 
-    public async Task<object> OnHandle(T message, CancellationToken cancellationToken, Func<Task<object>> next, IMessageBus bus, string path, IDictionary<string, object> headers)
+    public async Task<object> OnHandle(T message, Func<Task<object>> next, IProducerContext context)
     {
-        await OnValidate(message, cancellationToken).ConfigureAwait(false);
+        await OnValidate(message, context.CancellationToken).ConfigureAwait(false);
         return await next().ConfigureAwait(false);
     }
 }

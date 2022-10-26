@@ -2,13 +2,12 @@
 
 using Sample.ValidatingWebApi.Commands;
 using SlimMessageBus;
-using System.Threading.Tasks;
 
 public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerCommand, CommandResultWithId>
 {
-    public async Task<CommandResultWithId> OnHandle(CreateCustomerCommand command, string path)
+    public Task<CommandResultWithId> OnHandle(CreateCustomerCommand command)
     {
-        return new CommandResultWithId(Guid.NewGuid());
+        return Task.FromResult(new CommandResultWithId(Guid.NewGuid()));
     }
 }
 

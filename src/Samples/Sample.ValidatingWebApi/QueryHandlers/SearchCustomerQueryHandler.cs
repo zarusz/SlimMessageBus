@@ -7,15 +7,12 @@ using System.Threading.Tasks;
 
 public class SearchCustomerQueryHandler : IRequestHandler<SearchCustomerQuery, SearchCustomerResult>
 {
-    public async Task<SearchCustomerResult> OnHandle(SearchCustomerQuery request, string path)
+    public Task<SearchCustomerResult> OnHandle(SearchCustomerQuery request) => Task.FromResult(new SearchCustomerResult
     {
-        return new SearchCustomerResult
-        {
-            Items = new[]
+        Items = new[]
             {
                 new CustomerModel(Guid.NewGuid(), "John", "Whick", "john@whick.com", null)
             }
-        };
-    }
+    });
 }
 

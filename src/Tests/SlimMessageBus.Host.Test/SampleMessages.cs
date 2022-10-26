@@ -18,13 +18,13 @@ public record SomeResponse
 
 public class SomeMessageConsumer : IConsumer<SomeMessage>
 {
-    public Task OnHandle(SomeMessage message, string name)
+    public Task OnHandle(SomeMessage message)
         => throw new NotImplementedException();
 }
 
 public class SomeRequestMessageHandler : IRequestHandler<SomeRequest, SomeResponse>
 {
-    public Task<SomeResponse> OnHandle(SomeRequest request, string name)
+    public Task<SomeResponse> OnHandle(SomeRequest request)
         => throw new NotImplementedException(nameof(SomeRequest));
 }
 

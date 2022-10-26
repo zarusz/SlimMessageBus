@@ -1,6 +1,8 @@
 namespace SlimMessageBus.Host.Integration.Test;
 
+using System.Collections.Generic;
 using System.Reflection;
+using System.Threading;
 using Autofac;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -322,7 +324,7 @@ public class HybridTests : IDisposable
             this.store = store;
         }
 
-        public async Task OnHandle(ExternalMessage message, string path)
+        public async Task OnHandle(ExternalMessage message)
         {
             store.Add(new(unitOfWork.CorrelationId, nameof(ExternalMessageConsumer)));
 
@@ -350,7 +352,7 @@ public class HybridTests : IDisposable
             this.store = store;
         }
 
-        public Task OnHandle(InternalMessage message, string path)
+        public Task OnHandle(InternalMessage message)
         {
             store.Add(new(unitOfWork.CorrelationId, nameof(InternalMessageConsumer)));
 
@@ -375,7 +377,7 @@ public class HybridTests : IDisposable
             this.store = store;
         }
 
-        public Task<object> OnHandle(InternalMessage message, CancellationToken cancellationToken, Func<Task<object>> next, IMessageBus bus, string path, IDictionary<string, object> headers)
+        public Task<object> OnHandle(InternalMessage message, Func<Task<object>> next, IProducerContext context)
         {
             store.Add(new(unitOfWork.CorrelationId, nameof(InternalMessageProducerInterceptor)));
 
@@ -394,7 +396,7 @@ public class HybridTests : IDisposable
             this.store = store;
         }
 
-        public Task OnHandle(InternalMessage message, CancellationToken cancellationToken, Func<Task> next, IMessageBus bus, string path, IDictionary<string, object> headers)
+        public Task OnHandle(InternalMessage message, Func<Task> next, IProducerContext context)
         {
             store.Add(new(unitOfWork.CorrelationId, nameof(InternalMessagePublishInterceptor)));
 
@@ -413,7 +415,7 @@ public class HybridTests : IDisposable
             this.store = store;
         }
 
-        public Task<object> OnHandle(ExternalMessage message, CancellationToken cancellationToken, Func<Task<object>> next, IMessageBus bus, string path, IDictionary<string, object> headers)
+        public Task<object> OnHandle(ExternalMessage message, Func<Task<object>> next, IProducerContext context)
         {
             store.Add(new(unitOfWork.CorrelationId, nameof(ExternalMessageProducerInterceptor)));
 
@@ -432,7 +434,7 @@ public class HybridTests : IDisposable
             this.store = store;
         }
 
-        public Task OnHandle(ExternalMessage message, CancellationToken cancellationToken, Func<Task> next, IMessageBus bus, string path, IDictionary<string, object> headers)
+        public Task OnHandle(ExternalMessage message, Func<Task> next, IProducerContext context)
         {
             store.Add(new(unitOfWork.CorrelationId, nameof(ExternalMessagePublishInterceptor)));
 
@@ -451,7 +453,7 @@ public class HybridTests : IDisposable
             this.store = store;
         }
 
-        public Task OnHandle(InternalMessage message, CancellationToken cancellationToken, Func<Task> next, IMessageBus bus, string path, IReadOnlyDictionary<string, object> headers, object consumer)
+        public Task OnHandle(InternalMessage message, Func<Task> next, IConsumerContext context)
         {
             store.Add(new(unitOfWork.CorrelationId, nameof(InternalMessageConsumerInterceptor)));
 
@@ -470,7 +472,7 @@ public class HybridTests : IDisposable
             this.store = store;
         }
 
-        public Task OnHandle(ExternalMessage message, CancellationToken cancellationToken, Func<Task> next, IMessageBus bus, string path, IReadOnlyDictionary<string, object> headers, object consumer)
+        public Task OnHandle(ExternalMessage message, Func<Task> next, IConsumerContext context)
         {
             store.Add(new(unitOfWork.CorrelationId, nameof(ExternalMessageConsumerInterceptor)));
 

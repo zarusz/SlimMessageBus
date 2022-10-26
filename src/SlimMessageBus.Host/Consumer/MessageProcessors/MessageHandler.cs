@@ -11,11 +11,13 @@ public class MessageHandler
     protected RuntimeTypeCache RuntimeTypeCache { get; }
     private readonly ICurrentTimeProvider _currentTimeProvider;
     private readonly Action<object, ConsumerContext> _consumerContextInitializer;
+
     protected IMessageTypeResolver MessageTypeResolver { get; }
     protected IMessageHeadersFactory MessageHeadersFactory { get; }
     public MessageBusBase MessageBus { get; }
+    public string Path { get; }
 
-    public MessageHandler(MessageBusBase messageBus, IMessageScopeFactory messageScopeFactory, IMessageTypeResolver messageTypeResolver, IMessageHeadersFactory messageHeadersFactory, RuntimeTypeCache runtimeTypeCache, ICurrentTimeProvider currentTimeProvider, Action<object, ConsumerContext> consumerContextInitializer = null)
+    public MessageHandler(MessageBusBase messageBus, IMessageScopeFactory messageScopeFactory, IMessageTypeResolver messageTypeResolver, IMessageHeadersFactory messageHeadersFactory, RuntimeTypeCache runtimeTypeCache, ICurrentTimeProvider currentTimeProvider, string path, Action<object, ConsumerContext> consumerContextInitializer = null)
     {
         if (messageBus is null) throw new ArgumentNullException(nameof(messageBus));
 
@@ -28,9 +30,10 @@ public class MessageHandler
         MessageTypeResolver = messageTypeResolver;
         MessageHeadersFactory = messageHeadersFactory;
         MessageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
+        Path = path ?? throw new ArgumentNullException(nameof(path));
     }
 
-    public async Task<(object Response, Exception ResponseException, string RequestId)> DoHandle(object message, IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, object nativeMessage = null)
+    public async Task<(object Response, Exception ResponseException, string RequestId)> DoHandle(object message, IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, CancellationToken cancellationToken, object nativeMessage = null)
     {
         var messageType = message.GetType();
 
@@ -64,20 +67,27 @@ public class MessageHandler
 
             OnMessageArrived(message, nativeMessage, consumerInvoker);
 
-            // ToDo: Introduce CTs
-            var ct = new CancellationToken();
-
             var consumerType = consumerInvoker.ConsumerType;
             var consumerInstance = messageScope.Resolve(consumerType)
                 ?? throw new ConfigurationMessageBusException($"Could not resolve consumer/handler type {consumerType} from the DI container. Please check that the configured type {consumerType} is registered within the DI container.");
 
             try
             {
+                var consumerContext = new ConsumerContext
+                {
+                    Path = Path,
+                    Headers = messageHeaders,
+                    CancellationToken = cancellationToken,
+                    Bus = MessageBus,
+                    Consumer = consumerInstance
+                };
+                _consumerContextInitializer?.Invoke(nativeMessage, consumerContext);
+
                 var consumerInterceptors = RuntimeTypeCache.ConsumerInterceptorType.ResolveAll(messageScope, messageType);
                 var handlerInterceptors = hasResponse ? RuntimeTypeCache.HandlerInterceptorType.ResolveAll(messageScope, messageType, responseType) : null;
                 if (consumerInterceptors != null || handlerInterceptors != null)
                 {
-                    var next = () => ExecuteConsumer(nativeMessage, message, messageHeaders, consumerInstance, consumerInvoker);
+                    var next = () => ExecuteConsumer(message, consumerContext, consumerInstance, consumerInvoker);
 
                     // call with interceptors
                     if (consumerInterceptors != null)
@@ -85,7 +95,7 @@ public class MessageHandler
                         var consumerInterceptorType = RuntimeTypeCache.ConsumerInterceptorType.Get(messageType);
                         foreach (var consumerInterceptor in consumerInterceptors.OfType<IInterceptor>().OrderBy(x => x.GetOrder()))
                         {
-                            var interceptorParams = new object[] { message, ct, next, MessageBus, consumerInvoker.ParentSettings.Path, messageHeaders, consumerInstance };
+                            var interceptorParams = new object[] { message, next, consumerContext };
                             next = () => (Task<object>)consumerInterceptorType.Method.Invoke(consumerInterceptor, interceptorParams);
                         }
                     }
@@ -95,7 +105,7 @@ public class MessageHandler
                         var handlerInterceptorType = RuntimeTypeCache.HandlerInterceptorType.Get(messageType, responseType);
                         foreach (var handlerInterceptor in handlerInterceptors.OfType<IInterceptor>().OrderBy(x => x.GetOrder()))
                         {
-                            var interceptorParams = new object[] { message, ct, next, MessageBus, consumerInvoker.ParentSettings.Path, messageHeaders, consumerInstance };
+                            var interceptorParams = new object[] { message, next, consumerContext };
                             next = () => (Task<object>)handlerInterceptorType.Method.Invoke(handlerInterceptor, interceptorParams);
                         }
                     }
@@ -105,7 +115,7 @@ public class MessageHandler
                 else
                 {
                     // call without interceptors
-                    response = await ExecuteConsumer(nativeMessage, message, messageHeaders, consumerInstance, consumerInvoker).ConfigureAwait(false);
+                    response = await ExecuteConsumer(message, consumerContext, consumerInstance, consumerInvoker).ConfigureAwait(false);
                 }
             }
             catch (Exception e)
@@ -128,23 +138,16 @@ public class MessageHandler
         return (response, responseException, requestId);
     }
 
-    private async Task<object> ExecuteConsumer(object nativeMessage, object message, IReadOnlyDictionary<string, object> messageHeaders, object consumerInstance, IMessageTypeConsumerInvokerSettings consumerInvoker)
+    private async Task<object> ExecuteConsumer(object message, IConsumerContext consumerContext, object consumerInstance, IMessageTypeConsumerInvokerSettings consumerInvoker)
     {
-        if (MessageBus.RuntimeTypeCache.IsAssignableFrom(consumerInvoker.ConsumerType, typeof(IConsumerWithContext)))
+        if (MessageBus.RuntimeTypeCache.IsAssignableFrom(consumerInstance.GetType(), typeof(IConsumerWithContext)))
         {
-            var consumerContext = new ConsumerContext
-            {
-                Headers = messageHeaders
-            };
-
-            _consumerContextInitializer?.Invoke(nativeMessage, consumerContext);
-
             var consumerWithContext = (IConsumerWithContext)consumerInstance;
             consumerWithContext.Context = consumerContext;
         }
 
         // the consumer just subscribes to the message
-        var task = consumerInvoker.ConsumerMethod(consumerInstance, message, consumerInvoker.ParentSettings.Path);
+        var task = consumerInvoker.ConsumerMethod(consumerInstance, message);
         await task.ConfigureAwait(false);
 
         if (consumerInvoker.ParentSettings.ConsumerMode == ConsumerMode.RequestResponse)

@@ -10,7 +10,7 @@ public class ProducerValidationInterceptorTests
     private readonly CancellationToken _cancellationToken;
     private readonly ProducerValidationInterceptor<Message> _subject;
     private readonly Mock<Func<Task<object>>> _nextMock;
-    private readonly Mock<IMessageBus> _messageBusMock;
+    private readonly Mock<IProducerContext> _producerContextMock;
 
     public ProducerValidationInterceptorTests()
     {
@@ -19,7 +19,7 @@ public class ProducerValidationInterceptorTests
         _cancellationToken = new CancellationToken();
         _subject = new ProducerValidationInterceptor<Message>(new[] { _validatorMock.Object }, null);
         _nextMock = new Mock<Func<Task<object>>>();
-        _messageBusMock = new Mock<IMessageBus>();
+        _producerContextMock = new();
     }
 
     public record Message;
@@ -31,7 +31,7 @@ public class ProducerValidationInterceptorTests
         _validatorMock.Setup(x => x.ValidateAsync(It.IsAny<ValidationContext<Message>>(), _cancellationToken)).ThrowsAsync(new ValidationException("Bad message"));
 
         // act
-        Func<Task<object>> act = () => _subject.OnHandle(_message, _cancellationToken, _nextMock.Object, _messageBusMock.Object, "path", headers: null);
+        Func<Task<object>> act = () => _subject.OnHandle(_message, _nextMock.Object, _producerContextMock.Object);
 
         // asset
         await act.Should().ThrowAsync<ValidationException>();
@@ -44,7 +44,7 @@ public class ProducerValidationInterceptorTests
         _validatorMock.Setup(x => x.ValidateAsync(It.IsAny<ValidationContext<Message>>(), _cancellationToken)).ReturnsAsync(new ValidationResult());
 
         // act
-        await _subject.OnHandle(_message, _cancellationToken, _nextMock.Object, _messageBusMock.Object, "path", headers: null);
+        await _subject.OnHandle(_message, _nextMock.Object, _producerContextMock.Object);
 
         // asset
         _nextMock.Verify(x => x(), Times.Once);

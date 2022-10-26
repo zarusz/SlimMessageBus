@@ -4,15 +4,11 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard1.3</TargetFramework>
-    <Version>1.6.0</Version>
-    <Description>A lightweight message bus interface for .NET. The goal of this library is to introduce a slim facade for messaging brokers. Use one of the transport providers for in-process (in-memory), Apache Kafka or Azure Service Bus messaging.</Description>
+    <Version>1.7.0</Version>
+    <Description>A lightweight message bus interface for .NET. The goal of this library is to introduce a slim facade for messaging brokers. Use one of the transport providers for popular messaging systems or in-process (in-memory) messaging.</Description>
     <NeutralLanguage />
-    <PackageTags>MessageBus facade EventBus broker events messages message bus DomainEvents domain DDD messaging EDA</PackageTags>
+    <PackageTags>MessageBus facade EventBus broker events messages message bus DomainEvents domain DDD messaging EDA mediator</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <NoWarn />
   </PropertyGroup>
 
   <ItemGroup>

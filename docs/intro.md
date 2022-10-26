@@ -8,8 +8,7 @@
   - [Consumer](#consumer)
     - [Start or Stop message consumption](#start-or-stop-message-consumption)
     - [Consumer hooks](#consumer-hooks)
-    - [Consumer context](#consumer-context)
-      - [Get message headers in the consumer or handler](#get-message-headers-in-the-consumer-or-handler)
+    - [Consumer context (additional message information)](#consumer-context-additional-message-information)
     - [Per-message DI container scope](#per-message-di-container-scope)
     - [Hybrid bus and message scope reuse](#hybrid-bus-and-message-scope-reuse)
     - [Concurrently processed messages](#concurrently-processed-messages)
@@ -234,7 +233,7 @@ mbb.Consume<SomeMessage>(x => x
   .WithConsumer<SomeConsumer>() // (1)
   // if you do not want to implement the IConsumer<T> interface
   // .WithConsumer<AddCommandConsumer>(nameof(AddCommandConsumer.MyHandleMethod)) // (2) uses reflection
-  // .WithConsumer<AddCommandConsumer>((consumer, message, path) => consumer.MyHandleMethod(message, path)) // (3) uses a delegate
+  // .WithConsumer<AddCommandConsumer>((consumer, message) => consumer.MyHandleMethod(message)) // (3) uses a delegate
   .Instances(1)
   //.KafkaGroup("some-consumer-group")) // Kafka provider specific extensions
 ```
@@ -244,14 +243,12 @@ When the consumer implements the `IConsumer<SomeMessage>` interface:
 ```cs
 public class SomeConsumer : IConsumer<SomeMessage>
 {
-  public async Task OnHandle(SomeMessage msg, string path)
+  public async Task OnHandle(SomeMessage msg)
   {
     // handle the msg
   }
 }
 ```
-
-The second parameter (`path`) is the topic (or queue) name that the message arrived on.
 
 The `SomeConsumer` needs to be registered in your DI container. The SMB runtime will ask the chosen DI to provide the desired number of consumer instances. Any collaborators of the consumer will be resolved according to your DI configuration.
 
@@ -260,15 +257,10 @@ Alternatively, if you do not want to implement the `IConsumer<SomeMessage>`, the
 ```cs
 public class SomeConsumer
 {
-  public async Task MyHandleMethod(SomeMessage msg, string path)
+  public async Task MyHandleMethod(SomeMessage msg)
   {
     // handle the msg
   }
-
-  // This is also possible:
-  // private async Task MyHandleMethod(SomeMessage msg)
-  // {
-  // }
 }
 ```
 
@@ -350,22 +342,29 @@ The hook can be applied for the specified consumer, or for all consumers in the 
 
 > The user specified `Action<>` methods need to be thread-safe as they will be executed concurrently as messages are being processed.
 
-#### Consumer context
+#### Consumer context (additional message information)
 
 > Changed in version 1.15.0
 
-The consumer can access the `IConsumerContext` object which enable the chosen transport provider to pass additional message information specific to the chosen transport.
-Examples of such information are the Azure Service Bus UserProperties, or Kafka Topic-Partition offset.
+The consumer can access the [`IConsumerContext`](../src/SlimMessageBus/IConsumerContext.cs) object which:
 
-To use it the consumer has to implement the `IConsumerWithContext` interface:
+- allows to access additional message information - topic (or queue) name the message arrived on, headers, cancellation token,
+- enable the transport provider to pass additional message information specific to the chosen transport.
+
+Examples of such transport specific information are the Azure Service Bus UserProperties, or Kafka Topic-Partition offset.
+
+To use it the consumer has to implement the [`IConsumerWithContext`](../src/SlimMessageBus/IConsumerWithContext.cs) interface:
 
 ```cs
 public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
 {
    public IConsumerContext Context { get; set; }
 
-   public Task OnHandle(PingMessage message, string path)
+   public Task OnHandle(PingMessage message)
    {
+      var topic = Context.Path; // the topic or queue name
+      var headers = Context.Headers; // message headers
+      var cancellationToken = Context.CancellationToken;
       // Kafka transport specific extension (requires SlimMessageBus.Host.Kafka package):
       var transportMessage = Context.GetTransportMessage();
       var partition = transportMessage.TopicPartition.Partition;
@@ -373,30 +372,12 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
 }
 ```
 
-SMB will set the `Context` property prior calling `OnHandle`.
+SMB will set the `Context` property before executing `OnHandle`.
 
 Please consult the individual transport provider documentation to see what is available.
 
-> It is important that the consumer type is registered as either transient (prototype), scope based (per message), for the `Context` property to work properly.
+> It is important that the consumer type is registered as either transient (prototype) or scoped (per message) for the `Context` property to work properly.
 If the consumer type would be a singleton, then somewhere between the setting of `Headers` and running the `OnHandle` there would be a race condition.
-
-##### Get message headers in the consumer or handler
-
-> Since version 1.15.0
-
-Whenever the consumer type (`IConsumer<T>` or `IRequestHandler<Req, Res>`) requires to obtain message headers for the message being processed, it needs to extend the interface `IConsumerWithContext`.
-
-```cs
-public class SomeConsumer : IConsumer<SomeMessage>, IConsumerWithContext
-{
-  ppublic IConsumerContext Context { get; set; }
-
-  public async Task OnHandle(SomeMessage msg, string path)
-  {
-    // the msgessage headers are in the Context.Headers property
-  }
-}
-```
 
 #### Per-message DI container scope
 
@@ -559,7 +540,7 @@ The request handling micro-service needs to have a handler that implements `IReq
 ```cs
 public class SomeRequestHandler : IRequestHandler<SomeRequest, SomeResponse>
 {
-  public async Task<SomeResponse> OnHandle(SomeRequest request, string path)
+  public async Task<SomeResponse> OnHandle(SomeRequest request)
   {
     // handle the request  
     return new SomeResponse();
@@ -583,7 +564,7 @@ mbb.Handle<SomeRequest, SomeResponse>(x => x
 
 ## Static accessor
 
-The static `MessageBus.Current` was introduced to obtain the `IMessageBus` from the current context. The bus will typically be a singleton `IMessageBus`. However, the consumer instances will be obtained from the current DI scope (tied with the current web request or message scope when in a message handling scope).
+The static [`MessageBus.Current`](../src/SlimMessageBus/MessageBus.cs) was introduced to obtain the [`IMessageBus`](../src/SlimMessageBus/IMessageBus.cs) from the current context. The bus will typically be a singleton `IMessageBus`. However, the consumer instances will be obtained from the current DI scope (tied with the current web request or message scope when in a message handling scope).
 
 This allows to easily look up the `IMessageBus` instance in the domain model layer methods when doing Domain-Driven Design and specifically to implement domain events. This pattern allows externalizing infrastructure concerns (domain layer sends domain events when anything changes on the domain that would require communication to other layers or external systems).
 
@@ -811,12 +792,12 @@ mbb.Produce<OrderEvent>(x => x.DefaultTopic("events"));
 
 public class CustomerEventConsumer : IConsumer<CustomerEvent> 
 {
-  public Task OnHandle(CustomerEvent e, string path) { }
+  public Task OnHandle(CustomerEvent e) { }
 }
 
 public class OrderEventConsumer : IConsumer<OrderEvent> 
 {
-  public Task OnHandle(OrderEvent e, string path) { }
+  public Task OnHandle(OrderEvent e) { }
 }
 
 // which consume from the same topic
@@ -891,12 +872,12 @@ Given the following consumers:
 ```cs
 public class CustomerEventConsumer : IConsumer<CustomerEvent> 
 {
-  public Task OnHandle(CustomerEvent e, string path) { }
+  public Task OnHandle(CustomerEvent e) { }
 }
 
 public class CustomerCreatedEventConsumer : IConsumer<CustomerCreatedEvent> 
 {
-  public Task OnHandle(CustomerCreatedEvent e, string path) { }
+  public Task OnHandle(CustomerCreatedEvent e) { }
 }
 ```
 
@@ -955,27 +936,33 @@ When a message is produced (via the `bus.Publish(message)` or `bus.Send(request)
 
 ```cs
 // Will intercept bus.Publish() and bus.Send()
-public interface IProducerInterceptor<in TMessage>
+public interface IProducerInterceptor<in TMessage> : IInterceptor
 {
-   Task<object> OnHandle(TMessage message, CancellationToken cancellationToken, Func<Task<object>> next, IMessageBus bus, string path, IDictionary<string, object> headers);
+   Task<object> OnHandle(TMessage message, Func<Task<object>> next, IProducerContext context);
 }
 
 // Will intercept bus.Publish()
-public interface IPublishInterceptor<in TMessage>
+public interface IPublishInterceptor<in TMessage> : IInterceptor
 {
-   Task OnHandle(TMessage message, CancellationToken cancellationToken, Func<Task> next, IMessageBus bus, string path, IDictionary<string, object> headers);
+   Task OnHandle(TMessage message, Func<Task> next, IProducerContext context);
 }
 
 // Will intercept bus.Send()
-public interface ISendInterceptor<in TRequest, TResponse>
+public interface ISendInterceptor<in TRequest, TResponse> : IInterceptor
 {
-   Task<TResponse> OnHandle(TRequest request, CancellationToken cancellationToken, Func<Task<TResponse>> next, IMessageBus bus, string path, IDictionary<string, object> headers);
+   Task<TResponse> OnHandle(TRequest request, Func<Task<TResponse>> next, IProducerContext context);
 }
 ```
 
-> Remember to register your interceptor types in the DI (either using auto-discovery [`addInterceptorsFromAssembly`](#MsDependencyInjection) or manually).
+Remember to register your interceptor types in the DI (either using auto-discovery [`addInterceptorsFromAssembly`](#MsDependencyInjection) or manually).
 
 > SMB has an optimization that will remember the types of messages for which the DI resolved interceptor. That allows us to avoid having to perform lookups with the DI and other internal processing.
+
+See source:
+
+- [IProducerInterceptor](../src/SlimMessageBus.Host.Interceptor/Producers/IProducerInterceptor.cs)
+- [IPublishInterceptor](../src/SlimMessageBus.Host.Interceptor/Producers/IPublishInterceptor.cs)
+- [ISendInterceptor](../src/SlimMessageBus.Host.Interceptor/Producers/ISendInterceptor.cs)
 
 ### Consumer Lifecycle
 
@@ -983,17 +970,23 @@ On the consumer side, before the recieved message is delivered to the consumer (
 
 ```cs
 // Intercepts consumers of type IConsumer<TMessage> and IRequestHandler<TMessage, TResponse>
-public interface IConsumerInterceptor<in TMessage>
+public interface IConsumerInterceptor<in TMessage> : IInterceptor
 {
-   Task OnHandle(TMessage message, CancellationToken cancellationToken, Func<Task> next, IMessageBus bus, string path, IReadOnlyDictionary<string, object> headers, object consumer);
+   Task OnHandle(TMessage message, Func<Task> next, IConsumerContext context);
 }
 
 // Intercepts consumers of type IRequestHandler<TMessage, TResponse>
 public interface IRequestHandlerInterceptor<in TRequest, TResponse> : IInterceptor
 {
-   Task<TResponse> OnHandle(TRequest request, CancellationToken cancellationToken, Func<Task<TResponse>> next, IMessageBus bus, string path, IReadOnlyDictionary<string, object> headers, object handler);
+   Task<TResponse> OnHandle(TRequest request, Func<Task<TResponse>> next, IConsumerContext context);
 }
 ```
+
+See source:
+
+- [IConsumerInterceptor](../src/SlimMessageBus.Host.Interceptor/Consumers/IConsumerInterceptor.cs)
+- [IRequestHandlerInterceptor](../src/SlimMessageBus.Host.Interceptor/Consumers/IRequestHandlerInterceptor.cs)
+
 
 > Remember to register your interceptor types in the DI (either using auto-discovery [`addInterceptorsFromAssembly`](#MsDependencyInjection) or manually).
 
@@ -1010,14 +1003,14 @@ public class PublishInterceptorFirst: IPublishInterceptor<SomeMessage>, IInterce
 {    
    public int Order => 1;
 
-   public Task OnHandle(SomeMessage message, CancellationToken cancellationToken, Func<Task> next, IMessageBus bus, string path, IDictionary<string, object> headers) { }
+   public Task OnHandle(SomeMessage message, Func<Task> next, IProducerContext context) { }
 }
 
 public class PublishInterceptorSecond: IPublishInterceptor<SomeMessage>, IInterceptorWithOrder
 {    
    public int Order => 2;
 
-   public Task OnHandle(SomeMessage message, CancellationToken cancellationToken, Func<Task> next, IMessageBus bus, string path, IDictionary<string, object> headers) { }
+   public Task OnHandle(SomeMessage message, Func<Task> next, IProducerContext context) { }
 }
 ```
 

@@ -57,28 +57,26 @@ public class GenericInterfaceTypeCacheTests
     {
         // arrange
         var message = new SomeMessage();
-        var ct = new CancellationToken();
         Func<Task> next = () => Task.CompletedTask;
-        var bus = new Mock<IMessageBus>();
-        var path = "path";
         var headers = new Dictionary<string, object>();
         var consumer = new object();
+        var consumerContext = new ConsumerContext();
 
-        consumerInterceptorMock.Setup(x => x.OnHandle(message, ct, next, bus.Object, path, headers, consumer)).Returns(Task.CompletedTask);
+        consumerInterceptorMock.Setup(x => x.OnHandle(message, next, consumerContext)).Returns(Task.CompletedTask);
 
         var subject = new GenericInterfaceTypeCache(typeof(IConsumerInterceptor<>), nameof(IConsumerInterceptor<object>.OnHandle));
 
         // act
         var interceptorType = subject.Get(typeof(SomeMessage));
 
-        var task = (Task)interceptorType.Method.Invoke(consumerInterceptorMock.Object, new object[] { message, ct, next, bus.Object, path, headers, consumer });
+        var task = (Task)interceptorType.Method.Invoke(consumerInterceptorMock.Object, new object[] { message, next, consumerContext });
         await task;
 
         // assert
         interceptorType.GenericType.Should().Be(typeof(IConsumerInterceptor<SomeMessage>));
         interceptorType.MessageType.Should().Be(typeof(SomeMessage));
 
-        consumerInterceptorMock.Verify(x => x.OnHandle(message, ct, next, bus.Object, path, headers, consumer), Times.Once);
+        consumerInterceptorMock.Verify(x => x.OnHandle(message, next, consumerContext), Times.Once);
         consumerInterceptorMock.VerifyNoOtherCalls();
     }
 }

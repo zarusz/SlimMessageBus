@@ -86,7 +86,7 @@ public class ConsumerBuilderTest
 
         subject.ConsumerSettings.ConsumerMode.Should().Be(ConsumerMode.Consumer);
         subject.ConsumerSettings.ConsumerType.Should().Be(typeof(BaseMessageConsumer));
-        Func<Task> call = () => subject.ConsumerSettings.ConsumerMethod(new BaseMessageConsumer(), new BaseMessage(), topic);
+        Func<Task> call = () => subject.ConsumerSettings.ConsumerMethod(new BaseMessageConsumer(), new BaseMessage());
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(BaseMessage));
 
         subject.ConsumerSettings.Invokers.Count.Should().Be(4);
@@ -95,28 +95,28 @@ public class ConsumerBuilderTest
         consumerInvokerSettings.MessageType.Should().Be(typeof(BaseMessage));
         consumerInvokerSettings.ConsumerType.Should().Be(typeof(BaseMessageConsumer));
         consumerInvokerSettings.ParentSettings.Should().BeSameAs(subject.ConsumerSettings);
-        call = () => consumerInvokerSettings.ConsumerMethod(new BaseMessageConsumer(), new BaseMessage(), topic);
+        call = () => consumerInvokerSettings.ConsumerMethod(new BaseMessageConsumer(), new BaseMessage());
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(BaseMessage));
 
         consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(DerivedAMessage));
         consumerInvokerSettings.MessageType.Should().Be(typeof(DerivedAMessage));
         consumerInvokerSettings.ConsumerType.Should().Be(typeof(DerivedAMessageConsumer));
         consumerInvokerSettings.ParentSettings.Should().BeSameAs(subject.ConsumerSettings);
-        call = () => consumerInvokerSettings.ConsumerMethod(new DerivedAMessageConsumer(), new DerivedAMessage(), topic);
+        call = () => consumerInvokerSettings.ConsumerMethod(new DerivedAMessageConsumer(), new DerivedAMessage());
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(DerivedAMessage));
 
         consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(DerivedBMessage));
         consumerInvokerSettings.MessageType.Should().Be(typeof(DerivedBMessage));
         consumerInvokerSettings.ConsumerType.Should().Be(typeof(DerivedBMessageConsumer));
         consumerInvokerSettings.ParentSettings.Should().BeSameAs(subject.ConsumerSettings);
-        call = () => consumerInvokerSettings.ConsumerMethod(new DerivedBMessageConsumer(), new DerivedBMessage(), topic);
+        call = () => consumerInvokerSettings.ConsumerMethod(new DerivedBMessageConsumer(), new DerivedBMessage());
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(DerivedBMessage));
 
         consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(Derived2AMessage));
         consumerInvokerSettings.MessageType.Should().Be(typeof(Derived2AMessage));
         consumerInvokerSettings.ConsumerType.Should().Be(typeof(Derived2AMessageConsumer));
         consumerInvokerSettings.ParentSettings.Should().BeSameAs(subject.ConsumerSettings);
-        call = () => consumerInvokerSettings.ConsumerMethod(new Derived2AMessageConsumer(), new Derived2AMessage(), topic);
+        call = () => consumerInvokerSettings.ConsumerMethod(new Derived2AMessageConsumer(), new Derived2AMessage());
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(Derived2AMessage));
     }
 
@@ -139,7 +139,7 @@ public class ConsumerBuilderTest
 
         subject.ConsumerSettings.ConsumerMode.Should().Be(ConsumerMode.Consumer);
         subject.ConsumerSettings.ConsumerType.Should().Be(typeof(BaseRequestConsumer));
-        Func<Task> call = () => subject.ConsumerSettings.ConsumerMethod(new BaseRequestConsumer(), new BaseRequest(), topic);
+        Func<Task> call = () => subject.ConsumerSettings.ConsumerMethod(new BaseRequestConsumer(), new BaseRequest());
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(BaseRequest));
 
         subject.ConsumerSettings.Invokers.Count.Should().Be(2);
@@ -148,14 +148,14 @@ public class ConsumerBuilderTest
         consumerInvokerSettings.MessageType.Should().Be(typeof(BaseRequest));
         consumerInvokerSettings.ConsumerType.Should().Be(typeof(BaseRequestConsumer));
         consumerInvokerSettings.ParentSettings.Should().BeSameAs(subject.ConsumerSettings);
-        call = () => consumerInvokerSettings.ConsumerMethod(new BaseRequestConsumer(), new BaseRequest(), topic);
+        call = () => consumerInvokerSettings.ConsumerMethod(new BaseRequestConsumer(), new BaseRequest());
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(BaseRequest));
 
         consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(DerivedRequest));
         consumerInvokerSettings.MessageType.Should().Be(typeof(DerivedRequest));
         consumerInvokerSettings.ConsumerType.Should().Be(typeof(DerivedRequestConsumer));
         consumerInvokerSettings.ParentSettings.Should().BeSameAs(subject.ConsumerSettings);
-        call = () => consumerInvokerSettings.ConsumerMethod(new DerivedRequestConsumer(), new DerivedRequest(), topic);
+        call = () => consumerInvokerSettings.ConsumerMethod(new DerivedRequestConsumer(), new DerivedRequest());
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(DerivedRequest));
     }
 
@@ -177,22 +177,22 @@ public class ConsumerBuilderTest
 
     public class BaseMessageConsumer : IConsumer<BaseMessage>
     {
-        public Task OnHandle(BaseMessage message, string path) => throw new NotImplementedException(nameof(BaseMessage));
+        public Task OnHandle(BaseMessage message) => throw new NotImplementedException(nameof(BaseMessage));
     }
 
     public class DerivedAMessageConsumer : IConsumer<DerivedAMessage>
     {
-        public Task OnHandle(DerivedAMessage message, string path) => throw new NotImplementedException(nameof(DerivedAMessage));
+        public Task OnHandle(DerivedAMessage message) => throw new NotImplementedException(nameof(DerivedAMessage));
     }
 
     public class DerivedBMessageConsumer : IConsumer<DerivedBMessage>
     {
-        public Task OnHandle(DerivedBMessage message, string path) => throw new NotImplementedException(nameof(DerivedBMessage));
+        public Task OnHandle(DerivedBMessage message) => throw new NotImplementedException(nameof(DerivedBMessage));
     }
 
     public class Derived2AMessageConsumer : IConsumer<Derived2AMessage>
     {
-        public Task OnHandle(Derived2AMessage message, string path) => throw new NotImplementedException(nameof(Derived2AMessage));
+        public Task OnHandle(Derived2AMessage message) => throw new NotImplementedException(nameof(Derived2AMessage));
     }
 
     public class BaseResponse
@@ -209,11 +209,11 @@ public class ConsumerBuilderTest
 
     public class BaseRequestConsumer : IConsumer<BaseRequest>
     {
-        public Task OnHandle(BaseRequest message, string path) => throw new NotImplementedException(nameof(BaseRequest));
+        public Task OnHandle(BaseRequest message) => throw new NotImplementedException(nameof(BaseRequest));
     }
 
     public class DerivedRequestConsumer : IConsumer<DerivedRequest>
     {
-        public Task OnHandle(DerivedRequest message, string path) => throw new NotImplementedException(nameof(DerivedRequest));
+        public Task OnHandle(DerivedRequest message) => throw new NotImplementedException(nameof(DerivedRequest));
     }
 }

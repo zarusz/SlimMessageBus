@@ -31,7 +31,7 @@ public class ImageController : Controller
         {
             try
             {
-                var thumbGenResponse = await bus.Send(new GenerateThumbnailRequest(fileId, mode, w, h), cancellationToken).ConfigureAwait(false);
+                var thumbGenResponse = await bus.Send(new GenerateThumbnailRequest(fileId, mode, w, h), cancellationToken: cancellationToken).ConfigureAwait(false);
                 thumbFileContent = await fileStore.GetFile(thumbGenResponse.FileId).ConfigureAwait(false);
             }
             catch (RequestHandlerFaultedMessageBusException)

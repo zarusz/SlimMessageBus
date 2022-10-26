@@ -334,6 +334,14 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMes
         var publishInterceptors = RuntimeTypeCache.PublishInterceptorType.ResolveAll(resolver, messageType);
         if (producerInterceptors != null || publishInterceptors != null)
         {
+            var context = new ProducerContext
+            {
+                Path = path,
+                CancellationToken = cancellationToken,
+                Headers = headers,
+                Bus = this
+            };
+
             var next = () => PublishInternal(message, path, messageHeaders, cancellationToken, producerSettings);
 
             // Note: In this particular order - we want the publish interceptor to be wrapped by produce interceptor
@@ -344,7 +352,7 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMes
                 foreach (var publishInterceptor in publishInterceptors.OfType<IInterceptor>().OrderBy(x => x.GetOrder()))
                 {
                     // The params follow IPublishInterceptor<>.OnHandle parameters
-                    var interceptorParams = new object[] { message, cancellationToken, next, this, path, headers };
+                    var interceptorParams = new object[] { message, next, context };
                     next = () => (Task)publishInterceptorType.Method.Invoke(publishInterceptor, interceptorParams);
                 }
             }
@@ -359,7 +367,7 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMes
                 foreach (var producerInterceptor in producerInterceptors.OfType<IInterceptor>().OrderBy(x => x.GetOrder()))
                 {
                     // The params follow IPublishInterceptor<>.OnHandle parameters
-                    var interceptorParams = new object[] { message, cancellationToken, nextWithResult, this, path, headers };
+                    var interceptorParams = new object[] { message, nextWithResult, context };
                     nextWithResult = () => (Task<object>)producerInterceptorType.Method.Invoke(producerInterceptor, interceptorParams);
                 }
 
@@ -463,6 +471,14 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMes
         var sendInterceptors = RuntimeTypeCache.SendInterceptorType.ResolveAll(resolver, requestType, responseType);
         if (producerInterceptors != null || sendInterceptors != null)
         {
+            var context = new ProducerContext
+            {
+                Path = path,
+                CancellationToken = cancellationToken,
+                Headers = headers,
+                Bus = this
+            };
+
             var next = () => SendInternal<TResponse>(request, path, requestType, responseType, producerSettings, created, expires, requestId, requestHeaders, cancellationToken);
 
             // Note: In this particular order - we want the send interceptor to be wrapped by produce interceptor
@@ -473,7 +489,7 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMes
                 foreach (var sendInterceptor in sendInterceptors.OfType<IInterceptor>().OrderBy(x => x.GetOrder()))
                 {
                     // The params follow IPublishInterceptor<>.OnHandle parameters
-                    var interceptorParams = new object[] { request, cancellationToken, next, this, path, headers };
+                    var interceptorParams = new object[] { request, next, context };
                     next = () => (Task<TResponse>)sendInterceptorType.Method.Invoke(sendInterceptor, interceptorParams);
                 }
             }
@@ -488,7 +504,7 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMes
                 foreach (var producerInterceptor in producerInterceptors.OfType<IInterceptor>().OrderBy(x => x.GetOrder()))
                 {
                     // The params follow IPublishInterceptor<>.OnHandle parameters
-                    var interceptorParams = new object[] { request, cancellationToken, nextWithObjectResult, this, path, headers };
+                    var interceptorParams = new object[] { request, nextWithObjectResult, context };
                     nextWithObjectResult = () => (Task<object>)producerInterceptorType.Method.Invoke(producerInterceptor, interceptorParams);
                 }
 
@@ -689,21 +705,11 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMes
 
     #region Implementation of IRequestResponseBus
 
-    public Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, CancellationToken cancellationToken)
-        => SendInternal<TResponseMessage>(request, timeout: null, path: null, headers: null, cancellationToken);
-
-    public Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, CancellationToken cancellationToken)
-        => SendInternal<TResponseMessage>(request, timeout: null, path: null, headers: null, cancellationToken);
-
-    public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
-        => SendInternal<TResponseMessage>(request, null, path, headers, cancellationToken);
-
-    public Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
-        => SendInternal<TResponseMessage>(request, null, path, headers, cancellationToken);
-
-    public Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
+    public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, TimeSpan? timeout = null)
         => SendInternal<TResponseMessage>(request, timeout, path, headers, cancellationToken);
 
+    public Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, TimeSpan? timeout = null)
+        => SendInternal<TResponseMessage>(request, timeout, path, headers, cancellationToken);
 
     #endregion
 

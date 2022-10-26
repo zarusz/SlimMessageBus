@@ -224,7 +224,7 @@ public class MainProgram
 
 public class AddCommandConsumer : IConsumer<AddCommand>
 {
-    public async Task OnHandle(AddCommand message, string name)
+    public async Task OnHandle(AddCommand message)
     {
         Console.WriteLine("Consumer: Adding {0} and {1} gives {2}", message.Left, message.Right, message.Left + message.Right);
         await Task.Delay(50); // Simulate some work
@@ -233,7 +233,7 @@ public class AddCommandConsumer : IConsumer<AddCommand>
 
 public class SubtractCommandConsumer : IConsumer<SubtractCommand>
 {
-    public async Task OnHandle(SubtractCommand message, string name)
+    public async Task OnHandle(SubtractCommand message)
     {
         Console.WriteLine("Consumer: Subracting {0} and {1} gives {2}", message.Left, message.Right, message.Left - message.Right);
         await Task.Delay(50); // Simulate some work
@@ -242,7 +242,7 @@ public class SubtractCommandConsumer : IConsumer<SubtractCommand>
 
 public class MultiplyRequestHandler : IRequestHandler<MultiplyRequest, MultiplyResponse>
 {
-    public async Task<MultiplyResponse> OnHandle(MultiplyRequest request, string name)
+    public async Task<MultiplyResponse> OnHandle(MultiplyRequest request)
     {
         await Task.Delay(50); // Simulate some work
         return new MultiplyResponse { Result = request.Left * request.Right, OperationId = request.OperationId };

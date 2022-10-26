@@ -1,6 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Kafka;
 
 using System.Diagnostics.CodeAnalysis;
+using System.Threading;
 using Confluent.Kafka;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization;
@@ -14,6 +15,7 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
     private IMessageProcessor<ConsumeResult> _messageProcessor;
     private TopicPartitionOffset _lastOffset;
     private TopicPartitionOffset _lastCheckpointOffset;
+    private CancellationTokenSource _cancellationTokenSource;
 
     protected MessageBusBase MessageBus { get; }
     protected AbstractConsumerSettings[] ConsumerSettings { get; }
@@ -57,11 +59,16 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
 
     protected virtual async ValueTask DisposeAsyncCore()
     {
+        _cancellationTokenSource?.Cancel();
+
         if (_messageProcessor != null)
         {
             await _messageProcessor.DisposeAsync();
             _messageProcessor = null;
         }
+
+        _cancellationTokenSource?.Dispose();
+        _cancellationTokenSource = null;
     }
 
     #endregion
@@ -74,6 +81,13 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
         _lastOffset = null;
 
         CheckpointTrigger?.Reset();
+
+        // Generate a new token source if it wasnt created or the existing one was cancelled
+        if (_cancellationTokenSource == null || _cancellationTokenSource.IsCancellationRequested)
+        {
+            _cancellationTokenSource?.Dispose();
+            _cancellationTokenSource = new CancellationTokenSource();
+        }
     }
 
     public async Task OnMessage([NotNull] ConsumeResult message)
@@ -83,7 +97,7 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
             _lastOffset = message.TopicPartitionOffset;
 
             var messageHeaders = message.ToHeaders(_headerSerializer);
-            var (lastException, consumerSettings, response) = await _messageProcessor.ProcessMessage(message, messageHeaders).ConfigureAwait(false);
+            var (lastException, consumerSettings, response) = await _messageProcessor.ProcessMessage(message, messageHeaders, _cancellationTokenSource.Token).ConfigureAwait(false);
             if (lastException != null)
             {
                 // ToDo: Retry logic
@@ -117,6 +131,7 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
     {
         if (CheckpointTrigger != null)
         {
+            _cancellationTokenSource?.Cancel();
         }
     }
 
@@ -125,6 +140,7 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
         if (CheckpointTrigger != null)
         {
             Commit(_lastOffset);
+            _cancellationTokenSource?.Cancel();
         }
     }
 

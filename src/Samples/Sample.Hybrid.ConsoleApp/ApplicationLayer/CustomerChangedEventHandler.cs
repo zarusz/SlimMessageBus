@@ -10,7 +10,7 @@ public class CustomerChangedEventHandler : IConsumer<CustomerEmailChangedEvent>
 
     public CustomerChangedEventHandler(IMessageBus bus) => this.bus = bus;
 
-    public async Task OnHandle(CustomerEmailChangedEvent message, string name)
+    public async Task OnHandle(CustomerEmailChangedEvent message)
     {
         // Send confirmation email
 

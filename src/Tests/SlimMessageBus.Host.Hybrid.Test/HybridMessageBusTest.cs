@@ -48,7 +48,7 @@ public class HybridMessageBusTest
             {
                 _bus2Mock = new Mock<MessageBusBase>(new[] { mbs });
                 _bus2Mock.SetupGet(x => x.Settings).Returns(mbs);
-                _bus2Mock.Setup(x => x.Send(It.IsAny<SomeRequest>(), It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), default)).Returns(Task.FromResult(new SomeResponse()));
+                _bus2Mock.Setup(x => x.Send(It.IsAny<SomeRequest>(), It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), default, It.IsAny<TimeSpan?>())).Returns(Task.FromResult(new SomeResponse()));
 
                 return _bus2Mock.Object;
             });
@@ -100,8 +100,8 @@ public class HybridMessageBusTest
         await _subject.Value.Send(someDerivedRequest);
 
         // assert
-        _bus2Mock.Verify(x => x.Send(someRequest, null, null, default), Times.Once);
-        _bus2Mock.Verify(x => x.Send(someDerivedRequest, null, null, default), Times.Once);
+        _bus2Mock.Verify(x => x.Send(someRequest, null, null, default, null), Times.Once);
+        _bus2Mock.Verify(x => x.Send(someDerivedRequest, null, null, default, null), Times.Once);
     }
 
     [Fact]

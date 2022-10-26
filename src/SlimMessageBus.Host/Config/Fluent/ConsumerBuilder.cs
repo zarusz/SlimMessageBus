@@ -37,7 +37,7 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
     {
         ConsumerSettings.ConsumerMode = ConsumerMode.Consumer;
         ConsumerSettings.ConsumerType = typeof(TConsumer);
-        ConsumerSettings.ConsumerMethod = (consumer, message, path) => ((IConsumer<T>)consumer).OnHandle((T)message, path);
+        ConsumerSettings.ConsumerMethod = (consumer, message) => ((IConsumer<T>)consumer).OnHandle((T)message);
 
         ConsumerSettings.Invokers.Add(ConsumerSettings);
 
@@ -58,7 +58,7 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
 
         var invoker = new MessageTypeConsumerInvokerSettings(ConsumerSettings, messageType: typeof(TMessage), consumerType: typeof(TConsumer))
         {
-            ConsumerMethod = (consumer, message, path) => ((IConsumer<TMessage>)consumer).OnHandle((TMessage)message, path)
+            ConsumerMethod = (consumer, message) => ((IConsumer<TMessage>)consumer).OnHandle((TMessage)message)
         };
         ConsumerSettings.Invokers.Add(invoker);
 
@@ -88,79 +88,19 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
     }
 
     /// <summary>
-    /// Finds (using reflection) types that implement IConsumer<T> in the specified assembly.
-    /// The consumer type has to implement <see cref="IConsumer{TMessage}"/> interface.
-    /// </summary>
-    /// <typeparam name="TConsumer"></typeparam>
-    /// <returns></returns>
-    [Obsolete]
-    public ConsumerBuilder<T> WithConsumer(Assembly assembly, bool includeDerivedMessageTypes = true)
-    {
-        if (assembly == null) throw new ArgumentNullException(nameof(assembly));
-
-        var allConsumers = assembly.GetTypes()
-            .Where(x => x.IsClass && !x.IsAbstract && x.IsVisible)
-            .SelectMany(x => x.GetInterfaces().Select(i => (ConsumerType: x, ConsumerInterface: i))
-            .Where(x => x.ConsumerInterface.IsGenericType && x.ConsumerInterface.GetGenericTypeDefinition() == typeof(IConsumer<>)))
-            .ToList();
-
-        var consumers = allConsumers.Where(x => x.ConsumerInterface.GetGenericArguments().Single() == ConsumerSettings.MessageType).ToList();
-
-        if (consumers.Count == 0)
-        {
-            throw new ConfigurationMessageBusException($"No consumer type could be found for MessageType {ConsumerSettings.MessageType} in the assembly {assembly}");
-        }
-
-        if (consumers.Count > 1)
-        {
-            throw new ConfigurationMessageBusException($"Multiple consumer types found for MessageType {ConsumerSettings.MessageType} in the assembly {assembly}. We can only have one consumer for a given message type.");
-        }
-
-        ConsumerSettings.ConsumerMode = ConsumerMode.Consumer;
-        ConsumerSettings.ConsumerType = consumers[0].ConsumerType;
-        SetupConsumerOnHandleMethod(ConsumerSettings);
-
-        ConsumerSettings.Invokers.Add(ConsumerSettings);
-
-        if (includeDerivedMessageTypes)
-        {
-            var derivedConsumers = allConsumers
-                .Where(x =>
-                {
-                    // extract the T type from IConsumer<T>
-                    var messageType = x.ConsumerInterface.GetGenericArguments().Single();
-                    // find any IConsumer<T> where T is a derived type of the base message type (and not the base message type)
-                    return messageType != ConsumerSettings.MessageType && ConsumerSettings.MessageType.IsAssignableFrom(messageType);
-                })
-                .Select(x => new MessageTypeConsumerInvokerSettings(ConsumerSettings, messageType: x.ConsumerInterface.GetGenericArguments().Single(), consumerType: x.ConsumerType))
-                .ToList();
-
-            foreach (var derivedConsumer in derivedConsumers)
-            {
-                SetupConsumerOnHandleMethod(derivedConsumer);
-
-                // ToDo: Check if this message Type is already registered
-                ConsumerSettings.Invokers.Add(derivedConsumer);
-            }
-        }
-
-        return this;
-    }
-
-    /// <summary>
     /// Declares type <typeparamref name="TConsumer"/> as the consumer of messages <typeparamref name="TMessage"/>.
     /// </summary>
     /// <typeparam name="TConsumer"></typeparam>
     /// <param name="method">Specifies how to delegate messages to the consumer type.</param>
     /// <returns></returns>
-    public ConsumerBuilder<T> WithConsumer<TConsumer>(Func<TConsumer, T, string, Task> consumerMethod)
+    public ConsumerBuilder<T> WithConsumer<TConsumer>(Func<TConsumer, T, Task> consumerMethod)
         where TConsumer : class
     {
         if (consumerMethod == null) throw new ArgumentNullException(nameof(consumerMethod));
 
         ConsumerSettings.ConsumerMode = ConsumerMode.Consumer;
         ConsumerSettings.ConsumerType = typeof(TConsumer);
-        ConsumerSettings.ConsumerMethod = (consumer, message, path) => consumerMethod((TConsumer)consumer, (T)message, path);
+        ConsumerSettings.ConsumerMethod = (consumer, message) => consumerMethod((TConsumer)consumer, (T)message);
 
         ConsumerSettings.Invokers.Add(ConsumerSettings);
 

@@ -44,7 +44,7 @@ public class CreateCustomerCommandValidator : AbstractValidator<CreateCustomerCo
 // The handler of the command
 public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerCommand, CommandResultWithId>
 {
-    public async Task<CommandResultWithId> OnHandle(CreateCustomerCommand command, string path)
+    public async Task<CommandResultWithId> OnHandle(CreateCustomerCommand command)
     {
         // ...
     }

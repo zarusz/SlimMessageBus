@@ -1,5 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Test;
 
+using Moq;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Interceptor;
@@ -38,10 +39,10 @@ public class ConsumerInstanceMessageProcessorTests
         _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<byte[]>())).Returns(request);
 
         // act
-        await p.ProcessMessage(transportMessage, headers);
+        await p.ProcessMessage(transportMessage, headers, default);
 
         // assert
-        _busMock.HandlerMock.Verify(x => x.OnHandle(It.IsAny<SomeRequest>(), It.IsAny<string>()), Times.Never); // the handler should not be called
+        _busMock.HandlerMock.Verify(x => x.OnHandle(It.IsAny<SomeRequest>()), Times.Never); // the handler should not be called
         _busMock.HandlerMock.VerifyNoOtherCalls();
 
         onMessageExpiredMock.Verify(x => x(_busMock.Bus, consumerSettings, request, It.IsAny<object>()), Times.Once); // callback called once
@@ -73,13 +74,13 @@ public class ConsumerInstanceMessageProcessorTests
         _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<byte[]>())).Returns(request);
 
         var ex = new Exception("Something went bad");
-        _busMock.HandlerMock.Setup(x => x.OnHandle(request, consumerSettings.Path)).Returns(Task.FromException<SomeResponse>(ex));
+        _busMock.HandlerMock.Setup(x => x.OnHandle(request)).Returns(Task.FromException<SomeResponse>(ex));
 
         // act
-        var (exception, exceptionConsumerSettings, response) = await p.ProcessMessage(transportMessage, headers);
+        var (exception, exceptionConsumerSettings, response) = await p.ProcessMessage(transportMessage, headers, default);
 
         // assert
-        _busMock.HandlerMock.Verify(x => x.OnHandle(request, consumerSettings.Path), Times.Once); // handler called once
+        _busMock.HandlerMock.Verify(x => x.OnHandle(request), Times.Once); // handler called once
         _busMock.HandlerMock.VerifyNoOtherCalls();
 
         onMessageFaultMock.Verify(x => x(_busMock.Bus, consumerSettings, request, ex, It.IsAny<object>()), Times.Once); // callback called once
@@ -108,15 +109,15 @@ public class ConsumerInstanceMessageProcessorTests
         _messageProviderMock.Setup(x => x(message.GetType(), It.IsAny<byte[]>())).Returns(message);
 
         var ex = new Exception("Something went bad");
-        _busMock.ConsumerMock.Setup(x => x.OnHandle(message, consumerSettings.Path)).ThrowsAsync(ex);
+        _busMock.ConsumerMock.Setup(x => x.OnHandle(message)).ThrowsAsync(ex);
 
         var p = new ConsumerInstanceMessageProcessor<byte[]>(new[] { consumerSettings }, _busMock.Bus, _messageProviderMock.Object, topic);
 
         // act
-        var (exception, exceptionConsumerSettings, response) = await p.ProcessMessage(transportMessage, messageHeaders);
+        var (exception, exceptionConsumerSettings, response) = await p.ProcessMessage(transportMessage, messageHeaders, default);
 
         // assert
-        _busMock.ConsumerMock.Verify(x => x.OnHandle(message, consumerSettings.Path), Times.Once); // handler called once
+        _busMock.ConsumerMock.Verify(x => x.OnHandle(message), Times.Once); // handler called once
         _busMock.ConsumerMock.VerifyNoOtherCalls();
 
         onMessageFaultMock.Verify(x => x(_busMock.Bus, consumerSettings, message, ex, It.IsAny<object>()), Times.Once); // callback called once           
@@ -143,15 +144,15 @@ public class ConsumerInstanceMessageProcessorTests
         var transportMessage = Array.Empty<byte>();
 
         _messageProviderMock.Setup(x => x(message.GetType(), It.IsAny<byte[]>())).Returns(message);
-        _busMock.ConsumerMock.Setup(x => x.OnHandle(message, consumerSettings.Path)).Returns(Task.CompletedTask);
+        _busMock.ConsumerMock.Setup(x => x.OnHandle(message)).Returns(Task.CompletedTask);
 
         var p = new ConsumerInstanceMessageProcessor<byte[]>(new[] { consumerSettings }, _busMock.Bus, _messageProviderMock.Object, topic);
 
         // act
-        await p.ProcessMessage(transportMessage, new Dictionary<string, object>());
+        await p.ProcessMessage(transportMessage, new Dictionary<string, object>(), default);
 
         // assert
-        _busMock.ConsumerMock.Verify(x => x.OnHandle(message, consumerSettings.Path), Times.Once); // handler called once
+        _busMock.ConsumerMock.Verify(x => x.OnHandle(message), Times.Once); // handler called once
         _busMock.ConsumerMock.VerifyNoOtherCalls();
 
         onMessageArrivedMock.Verify(x => x(_busMock.Bus, consumerSettings, message, topic, It.IsAny<object>()), Times.Exactly(2)); // callback called once for consumer and bus level
@@ -167,27 +168,74 @@ public class ConsumerInstanceMessageProcessorTests
 
         var messageConsumerInterceptor = new Mock<IConsumerInterceptor<SomeMessage>>();
         messageConsumerInterceptor
-            .Setup(x => x.OnHandle(message, It.IsAny<CancellationToken>(), It.IsAny<Func<Task>>(), _busMock.Bus, topic, It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<object>()))
-            .Callback((SomeMessage message, CancellationToken token, Func<Task> next, IMessageBus bus, string path, IReadOnlyDictionary<string, object> headers, object consumer) => next());
+            .Setup(x => x.OnHandle(message, It.IsAny<Func<Task>>(), It.IsAny<IConsumerContext>()))
+            .Callback((SomeMessage message, Func<Task> next, IConsumerContext context) => next());
 
         _busMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(IEnumerable<IConsumerInterceptor<SomeMessage>>))).Returns(new[] { messageConsumerInterceptor.Object });
 
         var consumerSettings = new ConsumerBuilder<SomeMessage>(_busMock.Bus.Settings).Topic(topic).WithConsumer<IConsumer<SomeMessage>>().ConsumerSettings;
 
         _messageProviderMock.Setup(x => x(message.GetType(), It.IsAny<byte[]>())).Returns(message);
-        _busMock.ConsumerMock.Setup(x => x.OnHandle(message, consumerSettings.Path)).Returns(Task.CompletedTask);
+        _busMock.ConsumerMock.Setup(x => x.OnHandle(message)).Returns(Task.CompletedTask);
 
         var p = new ConsumerInstanceMessageProcessor<byte[]>(new[] { consumerSettings }, _busMock.Bus, _messageProviderMock.Object, topic);
 
         // act
-        await p.ProcessMessage(Array.Empty<byte>(), new Dictionary<string, object>());
+        await p.ProcessMessage(Array.Empty<byte>(), new Dictionary<string, object>(), default);
 
         // assert
-        _busMock.ConsumerMock.Verify(x => x.OnHandle(message, consumerSettings.Path), Times.Once); // handler called once
+        _busMock.ConsumerMock.Verify(x => x.OnHandle(message), Times.Once); // handler called once
         _busMock.ConsumerMock.VerifyNoOtherCalls();
 
-        messageConsumerInterceptor.Verify(x => x.OnHandle(message, It.IsAny<CancellationToken>(), It.IsAny<Func<Task>>(), _busMock.Bus, topic, It.IsAny<IReadOnlyDictionary<string, object>>(), _busMock.ConsumerMock.Object), Times.Once);
+        messageConsumerInterceptor.Verify(x => x.OnHandle(message, It.IsAny<Func<Task>>(), It.IsAny<IConsumerContext>()), Times.Once);
         messageConsumerInterceptor.VerifyNoOtherCalls();
+    }
+
+    public class SomeMessageConsumerWithContext : IConsumer<SomeMessage>, IConsumerWithContext
+    {
+        public virtual IConsumerContext Context { get; set; }
+
+        public virtual Task OnHandle(SomeMessage message) => Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task When_MessageArrives_Given_ConsumerWithContext_Then_ConsumerContextIsSet()
+    {
+        // arrange
+        var message = new SomeMessage();
+        var messageBytes = Array.Empty<byte>();
+        var topic = "topic1";
+        var headers = new Dictionary<string, object>();
+        IConsumerContext context = null;
+        CancellationToken cancellationToken = default;
+
+        var consumerMock = new Mock<SomeMessageConsumerWithContext>();
+        consumerMock.Setup(x => x.OnHandle(message)).Returns(Task.CompletedTask);
+        consumerMock.SetupSet(x => x.Context = It.IsAny<IConsumerContext>())
+            .Callback<IConsumerContext>(p => context = p)
+            .Verifiable();
+
+        _busMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageConsumerWithContext))).Returns(consumerMock.Object);
+
+        var consumerSettings = new ConsumerBuilder<SomeMessage>(_busMock.Bus.Settings).Topic(topic).WithConsumer<SomeMessageConsumerWithContext>().ConsumerSettings;
+
+        _messageProviderMock.Setup(x => x(message.GetType(), messageBytes)).Returns(message);
+
+        var p = new ConsumerInstanceMessageProcessor<byte[]>(new[] { consumerSettings }, _busMock.Bus, _messageProviderMock.Object, topic);
+
+        // act
+        await p.ProcessMessage(messageBytes, headers, cancellationToken);
+
+        // assert
+        consumerMock.Verify(x => x.OnHandle(message), Times.Once); // handler called once
+        consumerMock.VerifySet(x => x.Context = It.IsAny<IConsumerContext>());
+        consumerMock.VerifyNoOtherCalls();
+
+        context.Should().NotBeNull();
+        context.Path.Should().Be(topic);
+        context.CancellationToken.Should().Be(cancellationToken);
+        context.Headers.Should().BeSameAs(headers);
+        context.Consumer.Should().BeSameAs(consumerMock.Object);
     }
 
     [Fact]
@@ -202,7 +250,7 @@ public class ConsumerInstanceMessageProcessorTests
         var message = new SomeMessage();
 
         _messageProviderMock.Setup(x => x(message.GetType(), It.IsAny<byte[]>())).Returns(message);
-        _busMock.ConsumerMock.Setup(x => x.OnHandle(message, topic)).Returns(Task.CompletedTask);
+        _busMock.ConsumerMock.Setup(x => x.OnHandle(message)).Returns(Task.CompletedTask);
 
         var p = new ConsumerInstanceMessageProcessor<byte[]>(new[] { consumerSettings }, _busMock.Bus, _messageProviderMock.Object, topic);
 
@@ -214,10 +262,10 @@ public class ConsumerInstanceMessageProcessorTests
         };
 
         // act
-        await p.ProcessMessage(Array.Empty<byte>(), new Dictionary<string, object>());
+        await p.ProcessMessage(Array.Empty<byte>(), new Dictionary<string, object>(), default);
 
         // assert
-        _busMock.ConsumerMock.Verify(x => x.OnHandle(message, consumerSettings.Path), Times.Once); // handler called once
+        _busMock.ConsumerMock.Verify(x => x.OnHandle(message), Times.Once); // handler called once
         _busMock.DependencyResolverMock.Verify(x => x.CreateScope(), Times.Once);
         _busMock.ChildDependencyResolverMocks.Count.Should().Be(0); // it has been disposed
         childScopeMock.Should().NotBeNull();
@@ -285,13 +333,13 @@ public class ConsumerInstanceMessageProcessorTests
         _busMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(IConsumer<SomeDerivedMessage>))).Returns(someDerivedMessageConsumerMock.Object);
         _busMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(IRequestHandler<SomeRequest, SomeResponse>))).Returns(someRequestMessageHandlerMock.Object);
 
-        someMessageConsumerMock.Setup(x => x.OnHandle(It.IsAny<SomeMessage>(), topic)).Returns(Task.CompletedTask);
-        someMessageInterfaceConsumerMock.Setup(x => x.OnHandle(It.IsAny<ISomeMessageMarkerInterface>(), topic)).Returns(Task.CompletedTask);
-        someDerivedMessageConsumerMock.Setup(x => x.OnHandle(It.IsAny<SomeDerivedMessage>(), topic)).Returns(Task.CompletedTask);
-        someRequestMessageHandlerMock.Setup(x => x.OnHandle(It.IsAny<SomeRequest>(), topic)).Returns(Task.FromResult(new SomeResponse()));
+        someMessageConsumerMock.Setup(x => x.OnHandle(It.IsAny<SomeMessage>())).Returns(Task.CompletedTask);
+        someMessageInterfaceConsumerMock.Setup(x => x.OnHandle(It.IsAny<ISomeMessageMarkerInterface>())).Returns(Task.CompletedTask);
+        someDerivedMessageConsumerMock.Setup(x => x.OnHandle(It.IsAny<SomeDerivedMessage>())).Returns(Task.CompletedTask);
+        someRequestMessageHandlerMock.Setup(x => x.OnHandle(It.IsAny<SomeRequest>())).Returns(Task.FromResult(new SomeResponse()));
 
         // act
-        var (exception, consumerSettings, response) = await p.ProcessMessage(transportMessage, mesageHeaders);
+        var (exception, consumerSettings, response) = await p.ProcessMessage(transportMessage, mesageHeaders, default);
 
         // assert
         consumerSettings.Should().BeNull();
@@ -313,25 +361,25 @@ public class ConsumerInstanceMessageProcessorTests
 
         if (message is SomeMessage someMessage)
         {
-            someMessageConsumerMock.Verify(x => x.OnHandle(someMessage, topic), Times.Once);
+            someMessageConsumerMock.Verify(x => x.OnHandle(someMessage), Times.Once);
         }
         someMessageConsumerMock.VerifyNoOtherCalls();
 
         if (message is ISomeMessageMarkerInterface someMessageInterface)
         {
-            someMessageInterfaceConsumerMock.Verify(x => x.OnHandle(someMessageInterface, topic), Times.Once);
+            someMessageInterfaceConsumerMock.Verify(x => x.OnHandle(someMessageInterface), Times.Once);
         }
         someMessageInterfaceConsumerMock.VerifyNoOtherCalls();
 
         if (message is SomeDerivedMessage someDerivedMessage)
         {
-            someDerivedMessageConsumerMock.Verify(x => x.OnHandle(someDerivedMessage, topic), Times.Once);
+            someDerivedMessageConsumerMock.Verify(x => x.OnHandle(someDerivedMessage), Times.Once);
         }
         someDerivedMessageConsumerMock.VerifyNoOtherCalls();
 
         if (message is SomeRequest someRequest)
         {
-            someRequestMessageHandlerMock.Verify(x => x.OnHandle(someRequest, topic), Times.Once);
+            someRequestMessageHandlerMock.Verify(x => x.OnHandle(someRequest), Times.Once);
         }
         someRequestMessageHandlerMock.VerifyNoOtherCalls();
     }

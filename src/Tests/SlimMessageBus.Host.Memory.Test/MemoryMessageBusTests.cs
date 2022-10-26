@@ -101,18 +101,18 @@ public class MemoryMessageBusTests
         // assert
         if (enableMessageSerialization)
         {
-            aConsumerMock.Verify(x => x.OnHandle(It.Is<SomeMessageA>(a => a.Equals(m)), topicA), Times.Once);
+            aConsumerMock.Verify(x => x.OnHandle(It.Is<SomeMessageA>(a => a.Equals(m))), Times.Once);
         }
         else
         {
-            aConsumerMock.Verify(x => x.OnHandle(m, topicA), Times.Once);
+            aConsumerMock.Verify(x => x.OnHandle(m), Times.Once);
         }
         aConsumerMock.VerifyNoOtherCalls();
 
-        aConsumer2Mock.Verify(x => x.OnHandle(It.IsAny<SomeMessageA>(), topicA2), Times.Never);
+        aConsumer2Mock.Verify(x => x.OnHandle(It.IsAny<SomeMessageA>()), Times.Never);
         aConsumer2Mock.VerifyNoOtherCalls();
 
-        bConsumerMock.Verify(x => x.OnHandle(It.IsAny<SomeMessageB>(), topicB), Times.Never);
+        bConsumerMock.Verify(x => x.OnHandle(It.IsAny<SomeMessageB>()), Times.Never);
         bConsumerMock.VerifyNoOtherCalls();
     }
 
@@ -153,7 +153,7 @@ public class MemoryMessageBusTests
         scope.Verify(x => x.Dispose(), Times.Once);
         scope.VerifyNoOtherCalls();
 
-        consumerMock.Verify(x => x.OnHandle(m, topic), Times.Once);
+        consumerMock.Verify(x => x.OnHandle(m), Times.Once);
         consumerMock.Verify(x => x.Dispose(), Times.Never);
         consumerMock.VerifyNoOtherCalls();
     }
@@ -188,7 +188,7 @@ public class MemoryMessageBusTests
         _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IConsumerInterceptor<SomeMessageA>>)), Times.Once);
         _dependencyResolverMock.VerifyNoOtherCalls();
 
-        consumerMock.Verify(x => x.OnHandle(m, topic), Times.Once);
+        consumerMock.Verify(x => x.OnHandle(m), Times.Once);
         consumerMock.Verify(x => x.Dispose(), Times.Once);
         consumerMock.VerifyNoOtherCalls();
     }
@@ -239,7 +239,7 @@ public class MemoryMessageBusTests
         currentScopeDependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IConsumerInterceptor<SomeMessageA>>)), Times.Once);
         currentScopeDependencyResolverMock.VerifyNoOtherCalls();
 
-        consumerMock.Verify(x => x.OnHandle(m, topic), Times.Once);
+        consumerMock.Verify(x => x.OnHandle(m), Times.Once);
         consumerMock.Verify(x => x.Dispose(), Times.Once);
         consumerMock.VerifyNoOtherCalls();
     }
@@ -276,10 +276,10 @@ public class MemoryMessageBusTests
         _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IConsumerInterceptor<SomeMessageA>>)), Times.Once);
         _dependencyResolverMock.VerifyNoOtherCalls();
 
-        consumer1Mock.Verify(x => x.OnHandle(m, topic), Times.Once);
+        consumer1Mock.Verify(x => x.OnHandle(m), Times.Once);
         consumer1Mock.VerifyNoOtherCalls();
 
-        consumer2Mock.Verify(x => x.OnHandle(m, topic), Times.Once);
+        consumer2Mock.Verify(x => x.OnHandle(m), Times.Once);
         consumer2Mock.VerifyNoOtherCalls();
     }
 
@@ -293,10 +293,10 @@ public class MemoryMessageBusTests
         var sequenceOfConsumption = new MockSequence();
 
         var consumer1Mock = new Mock<SomeRequestConsumer>(MockBehavior.Strict);
-        consumer1Mock.InSequence(sequenceOfConsumption).Setup(x => x.OnHandle(m, topic)).CallBase();
+        consumer1Mock.InSequence(sequenceOfConsumption).Setup(x => x.OnHandle(m)).CallBase();
 
         var consumer2Mock = new Mock<SomeRequestHandler>(MockBehavior.Strict);
-        consumer2Mock.InSequence(sequenceOfConsumption).Setup(x => x.OnHandle(m, topic)).CallBase();
+        consumer2Mock.InSequence(sequenceOfConsumption).Setup(x => x.OnHandle(m)).CallBase();
 
         _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeRequestConsumer))).Returns(() => consumer1Mock.Object);
         _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeRequestHandler))).Returns(() => consumer2Mock.Object);
@@ -323,10 +323,10 @@ public class MemoryMessageBusTests
         _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IRequestHandlerInterceptor<SomeRequest, SomeResponse>>)), Times.Once);
         _dependencyResolverMock.VerifyNoOtherCalls();
 
-        consumer2Mock.Verify(x => x.OnHandle(m, topic), Times.Once);
+        consumer2Mock.Verify(x => x.OnHandle(m), Times.Once);
         consumer2Mock.VerifyNoOtherCalls();
 
-        consumer1Mock.Verify(x => x.OnHandle(m, topic), Times.Once);
+        consumer1Mock.Verify(x => x.OnHandle(m), Times.Once);
         consumer1Mock.VerifyNoOtherCalls();
     }
 
@@ -338,7 +338,7 @@ public class MemoryMessageBusTests
         var m = new SomeRequest(Guid.NewGuid());
 
         var consumerMock = new Mock<SomeRequestConsumer>();
-        consumerMock.Setup(x => x.OnHandle(m, topic)).ThrowsAsync(new ApplicationException("Bad Request"));
+        consumerMock.Setup(x => x.OnHandle(m)).ThrowsAsync(new ApplicationException("Bad Request"));
 
         _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeRequestConsumer))).Returns(() => consumerMock.Object);
 
@@ -360,7 +360,7 @@ public class MemoryMessageBusTests
         var m = new SomeRequest(Guid.NewGuid());
 
         var consumerMock = new Mock<SomeRequestHandler>();
-        consumerMock.Setup(x => x.OnHandle(m, topic)).ThrowsAsync(new ApplicationException("Bad Request"));
+        consumerMock.Setup(x => x.OnHandle(m)).ThrowsAsync(new ApplicationException("Bad Request"));
 
         _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeRequestHandler))).Returns(() => consumerMock.Object);
 
@@ -386,17 +386,17 @@ public class SomeMessageAConsumer : IConsumer<SomeMessageA>, IDisposable
         // Needed to check disposing
     }
 
-    public virtual Task OnHandle(SomeMessageA messageA, string name) => Task.CompletedTask;
+    public virtual Task OnHandle(SomeMessageA messageA) => Task.CompletedTask;
 }
 
 public class SomeMessageAConsumer2 : IConsumer<SomeMessageA>
 {
-    public virtual Task OnHandle(SomeMessageA messageA, string name) => Task.CompletedTask;
+    public virtual Task OnHandle(SomeMessageA messageA) => Task.CompletedTask;
 }
 
 public class SomeMessageBConsumer : IConsumer<SomeMessageB>
 {
-    public virtual Task OnHandle(SomeMessageB message, string name) => Task.CompletedTask;
+    public virtual Task OnHandle(SomeMessageB message) => Task.CompletedTask;
 }
 
 public record SomeRequest(Guid Id) : IRequestMessage<SomeResponse>;
@@ -405,10 +405,10 @@ public record SomeResponse(Guid Id);
 
 public class SomeRequestHandler : IRequestHandler<SomeRequest, SomeResponse>
 {
-    public virtual Task<SomeResponse> OnHandle(SomeRequest request, string path) => Task.FromResult(new SomeResponse(request.Id));
+    public virtual Task<SomeResponse> OnHandle(SomeRequest request) => Task.FromResult(new SomeResponse(request.Id));
 }
 
 public class SomeRequestConsumer : IConsumer<SomeRequest>
 {
-    public virtual Task OnHandle(SomeRequest message, string path) => Task.CompletedTask;
+    public virtual Task OnHandle(SomeRequest message) => Task.CompletedTask;
 }

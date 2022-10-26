@@ -32,7 +32,7 @@ public class HandlerBuilderTest
         var consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(SomeRequest));
         consumerInvokerSettings.MessageType.Should().Be(typeof(SomeRequest));
         consumerInvokerSettings.ConsumerType.Should().Be(typeof(SomeRequestMessageHandler));
-        Func<Task> call = () => consumerInvokerSettings.ConsumerMethod(new SomeRequestMessageHandler(), new SomeRequest(), path);
+        Func<Task> call = () => consumerInvokerSettings.ConsumerMethod(new SomeRequestMessageHandler(), new SomeRequest());
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(SomeRequest));
 
     }

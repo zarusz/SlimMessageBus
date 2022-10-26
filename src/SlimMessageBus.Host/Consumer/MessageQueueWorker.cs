@@ -27,7 +27,7 @@ public class MessageQueueWorker<TMessage> : IAsyncDisposable where TMessage : cl
     /// </summary>
     /// <param name="message">The message to be processed</param>
     /// <returns>True if should Commit() at this point.</returns>
-    public virtual bool Submit(TMessage message, IReadOnlyDictionary<string, object> messageHeaders)
+    public virtual bool Submit(TMessage message, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
     {
         if (_pendingMessages.Count == 0)
         {
@@ -35,7 +35,7 @@ public class MessageQueueWorker<TMessage> : IAsyncDisposable where TMessage : cl
             _checkpointTrigger.Reset();
         }
 
-        var messageTask = MessageProcessor.ProcessMessage(message, messageHeaders);
+        var messageTask = MessageProcessor.ProcessMessage(message, messageHeaders, cancellationToken);
         _pendingMessages.Enqueue(new MessageProcessingResult<TMessage>(messageTask, message));
 
         // limit check / time check

@@ -11,9 +11,9 @@ public class ConsumerValidationInterceptor<T> : AbstractValidationInterceptor<T>
     {
     }
 
-    public async Task OnHandle(T message, CancellationToken cancellationToken, Func<Task> next, IMessageBus bus, string path, IReadOnlyDictionary<string, object> headers, object consumer)
+    public async Task OnHandle(T message, Func<Task> next, IConsumerContext context)
     {
-        await OnValidate(message, cancellationToken).ConfigureAwait(false);
+        await OnValidate(message, context.CancellationToken).ConfigureAwait(false);
         await next().ConfigureAwait(false);
     }
 }

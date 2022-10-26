@@ -9,12 +9,12 @@ public class MessageBusProxy : IMessageBus
     /// The target of this proxy (the singleton master bus).
     /// </summary>
     public IMessageBusProducer Target { get; }
-    private readonly IDependencyResolver dependencyResolver;
+    public IDependencyResolver DependencyResolver { get; }
 
     public MessageBusProxy(IMessageBusProducer target, IDependencyResolver dependencyResolver)
     {
-        this.Target = target;
-        this.dependencyResolver = dependencyResolver;
+        Target = target;
+        DependencyResolver = dependencyResolver;
     }
 
     #region Implementation of IMessageBus
@@ -27,27 +27,17 @@ public class MessageBusProxy : IMessageBus
     #region Implementation of IPublishBus
 
     public Task Publish<TMessage>(TMessage message, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
-        => Target.Publish(message, path: path, headers: headers, cancellationToken: cancellationToken, currentDependencyResolver: dependencyResolver);
+        => Target.Publish(message, path: path, headers: headers, cancellationToken: cancellationToken, currentDependencyResolver: DependencyResolver);
 
     #endregion
 
     #region Implementation of IRequestResponseBus
 
+    public Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, TimeSpan? timeout = null)
+        => Target.SendInternal<TResponseMessage>(request, timeout: timeout, path: path, headers: headers, cancellationToken, currentDependencyResolver: DependencyResolver);
 
-    public Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, CancellationToken cancellationToken)
-        => Target.SendInternal<TResponseMessage>(request, timeout: null, path: null, headers: null, cancellationToken, currentDependencyResolver: dependencyResolver);
-
-    public Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, CancellationToken cancellationToken)
-        => Target.SendInternal<TResponseMessage>(request, timeout: null, path: null, headers: null, cancellationToken, currentDependencyResolver: dependencyResolver);
-
-    public Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
-        => Target.SendInternal<TResponseMessage>(request, timeout: null, path: path, headers: headers, cancellationToken, currentDependencyResolver: dependencyResolver);
-
-    public Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
-        => Target.SendInternal<TResponseMessage>(request, timeout: null, path: path, headers: headers, cancellationToken, currentDependencyResolver: dependencyResolver);
-
-    public Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
-        => Target.SendInternal<TResponseMessage>(request, timeout: timeout, path: path, headers: headers, cancellationToken, currentDependencyResolver: dependencyResolver);
+    public Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, TimeSpan? timeout = null)
+        => Target.SendInternal<TResponseMessage>(request, timeout: timeout, path: path, headers: headers, cancellationToken, currentDependencyResolver: DependencyResolver);
 
     #endregion
 

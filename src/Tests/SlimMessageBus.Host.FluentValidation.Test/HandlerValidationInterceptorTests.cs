@@ -9,19 +9,17 @@ public class HandlerValidationInterceptorTests
     private readonly Mock<IValidator<Message>> _validatorMock;
     private readonly CancellationToken _cancellationToken;
     private readonly HandlerValidationInterceptor<Message, ResponseMessage> _subject;
-    private readonly Mock<IConsumer<Message>> _consumerMock;
+    private readonly Mock<IConsumerContext> _consumerContextMock;
     private readonly Mock<Func<Task<ResponseMessage>>> _nextMock;
-    private readonly Mock<IMessageBus> _messageBusMock;
 
     public HandlerValidationInterceptorTests()
     {
-        _message = new Message();
-        _validatorMock = new Mock<IValidator<Message>>();
-        _cancellationToken = new CancellationToken();
-        _subject = new HandlerValidationInterceptor<Message, ResponseMessage>(new[] { _validatorMock.Object }, null);
-        _consumerMock = new Mock<IConsumer<Message>>();
-        _nextMock = new Mock<Func<Task<ResponseMessage>>>();
-        _messageBusMock = new Mock<IMessageBus>();
+        _message = new();
+        _validatorMock = new();
+        _cancellationToken = new();
+        _subject = new(new[] { _validatorMock.Object }, null);
+        _consumerContextMock = new();
+        _nextMock = new();
     }
 
     public record Message : IRequestMessage<ResponseMessage>;
@@ -34,7 +32,7 @@ public class HandlerValidationInterceptorTests
         _validatorMock.Setup(x => x.ValidateAsync(It.IsAny<ValidationContext<Message>>(), _cancellationToken)).ThrowsAsync(new ValidationException("Bad message"));
 
         // act
-        Func<Task> act = () => _subject.OnHandle(_message, _cancellationToken, _nextMock.Object, _messageBusMock.Object, "path", headers: null, _consumerMock.Object);
+        Func<Task> act = () => _subject.OnHandle(_message, _nextMock.Object, _consumerContextMock.Object);
 
         // asset
         await act.Should().ThrowAsync<ValidationException>();
@@ -47,7 +45,7 @@ public class HandlerValidationInterceptorTests
         _validatorMock.Setup(x => x.ValidateAsync(It.IsAny<ValidationContext<Message>>(), _cancellationToken)).ReturnsAsync(new ValidationResult());
 
         // act
-        await _subject.OnHandle(_message, _cancellationToken, _nextMock.Object, _messageBusMock.Object, "path", headers: null, _consumerMock.Object);
+        await _subject.OnHandle(_message, _nextMock.Object, _consumerContextMock.Object);
 
         // asset
         _nextMock.Verify(x => x(), Times.Once);
