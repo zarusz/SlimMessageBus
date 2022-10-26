@@ -11,12 +11,9 @@ public class OrderSubmittedHandler : IConsumer<OrderSubmittedEvent>
 {
     private readonly ILogger _logger;
 
-    public OrderSubmittedHandler(ILogger<OrderSubmittedHandler> logger)
-    {
-        _logger = logger;
-    }
+    public OrderSubmittedHandler(ILogger<OrderSubmittedHandler> logger) => _logger = logger;
 
-    public Task OnHandle(OrderSubmittedEvent e, string name)
+    public Task OnHandle(OrderSubmittedEvent e)
     {
         _logger.LogInformation("Customer {0} {1} just placed an order for:", e.Order.Customer.Firstname, e.Order.Customer.Lastname);
         foreach (var orderLine in e.Order.Lines)

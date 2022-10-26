@@ -44,29 +44,18 @@ public abstract class AbstractConsumerBuilder
 
         methodName ??= nameof(IConsumer<object>.OnHandle);
 
-        /// See <see cref="IConsumer{TMessage}.OnHandle(TMessage, string)"/> and <see cref="IRequestHandler{TRequest, TResponse}.OnHandle(TRequest, string)"/> 
-        var methodArgumentTypes = new[] { invoker.MessageType, typeof(string) };
-        // try to see if two param method exists
+        /// See <see cref="IConsumer{TMessage}.OnHandle(TMessage)"/> and <see cref="IRequestHandler{TRequest, TResponse}.OnHandle(TRequest)"/> 
+
+        var methodArgumentTypes = new[] { invoker.MessageType };
         var consumerOnHandleMethod = invoker.ConsumerType.GetMethod(methodName, methodArgumentTypes);
         if (consumerOnHandleMethod != null)
         {
-            var method = ReflectionUtils.GenerateAsyncMethodCallFunc2(consumerOnHandleMethod, invoker.ConsumerType, invoker.MessageType, typeof(string));
-            invoker.ConsumerMethod = (consumer, message, path) => method(consumer, message, path);
-        }
-        else
-        {
-            // try to see if one param method exists
-            methodArgumentTypes = new[] { invoker.MessageType };
-            consumerOnHandleMethod = invoker.ConsumerType.GetMethod(methodName, methodArgumentTypes);
-            if (consumerOnHandleMethod != null)
-            {
-                var method = ReflectionUtils.GenerateAsyncMethodCallFunc1(consumerOnHandleMethod, invoker.ConsumerType, invoker.MessageType);
-                invoker.ConsumerMethod = (consumer, message, path) => method(consumer, message);
-            }
+            var method = ReflectionUtils.GenerateAsyncMethodCallFunc1(consumerOnHandleMethod, invoker.ConsumerType, invoker.MessageType);
+            invoker.ConsumerMethod = (consumer, message) => method(consumer, message);
         }
 
         Assert.IsNotNull(consumerOnHandleMethod,
-            () => new ConfigurationMessageBusException($"Consumer type {invoker.ConsumerType} validation error: the method {methodName} with parameters of type {invoker.MessageType} and {typeof(string)} was not found."));
+            () => new ConfigurationMessageBusException($"Consumer type {invoker.ConsumerType} validation error: the method {methodName} with parameters of type {invoker.MessageType} was not found."));
 
         // ensure the method returns a Task or Task<T>
         Assert.IsTrue(typeof(Task).IsAssignableFrom(consumerOnHandleMethod.ReturnType),

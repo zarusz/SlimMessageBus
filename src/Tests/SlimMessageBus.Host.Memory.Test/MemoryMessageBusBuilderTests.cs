@@ -184,20 +184,20 @@ public record OrderShipped : OrderEvent;
 
 public class CustomerEventConsumer : IConsumer<CustomerEvent>
 {
-    public Task OnHandle(CustomerEvent message, string path) => throw new NotImplementedException();
+    public Task OnHandle(CustomerEvent message) => throw new NotImplementedException();
 }
 
 public class CustomerCreatedCustomer : IConsumer<CustomerCreated>
 {
-    public Task OnHandle(CustomerCreated message, string path) => throw new NotImplementedException();
+    public Task OnHandle(CustomerCreated message) => throw new NotImplementedException();
 }
 
 public class CustomerDeletedCustomer : IConsumer<CustomerDeleted>
 {
-    public Task OnHandle(CustomerDeleted message, string path) => throw new NotImplementedException();
+    public Task OnHandle(CustomerDeleted message) => throw new NotImplementedException();
 }
 
 public class OrderShippedConsumer : IConsumer<OrderShipped>
 {
-    public Task OnHandle(OrderShipped message, string path) => throw new NotImplementedException();
+    public Task OnHandle(OrderShipped message) => throw new NotImplementedException();
 }

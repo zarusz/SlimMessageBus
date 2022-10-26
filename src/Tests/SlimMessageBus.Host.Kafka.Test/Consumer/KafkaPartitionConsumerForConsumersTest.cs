@@ -58,6 +58,7 @@ public class KafkaPartitionConsumerForConsumersTest : IAsyncDisposable
     {
         // arrange
         var message = GetSomeMessage();
+        _subject.Value.OnPartitionAssigned(message.TopicPartition);
         await _subject.Value.OnMessage(message);
 
         // act
@@ -72,6 +73,7 @@ public class KafkaPartitionConsumerForConsumersTest : IAsyncDisposable
     {
         // arrange
         var message = GetSomeMessage();
+        _subject.Value.OnPartitionAssigned(message.TopicPartition);
         await _subject.Value.OnMessage(message);
 
         // act
@@ -91,6 +93,8 @@ public class KafkaPartitionConsumerForConsumersTest : IAsyncDisposable
         var message1 = GetSomeMessage(offsetAdd: 0);
         var message2 = GetSomeMessage(offsetAdd: 1);
         var message3 = GetSomeMessage(offsetAdd: 2);
+
+        _subject.Value.OnPartitionAssigned(message1.TopicPartition);
 
         // act
         await _subject.Value.OnMessage(message1);
@@ -116,13 +120,9 @@ public class KafkaPartitionConsumerForConsumersTest : IAsyncDisposable
 
 public class SomeMessage
 {
-
 }
 
 public class SomeMessageConsumer : IConsumer<SomeMessage>
 {
-    public Task OnHandle(SomeMessage message, string name)
-    {
-        return Task.CompletedTask;
-    }
+    public Task OnHandle(SomeMessage message) => Task.CompletedTask;
 }

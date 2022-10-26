@@ -28,13 +28,13 @@ public class ResponseMessageProcessor<TMessage> : IMessageProcessor<TMessage>
     public IReadOnlyCollection<AbstractConsumerSettings> ConsumerSettings => _consumerSettings;
 
     [Obsolete]
-    public async Task<Exception> ProcessMessage(TMessage message, IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker)
+    public async Task<Exception> ProcessMessage(TMessage message, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken, IMessageTypeConsumerInvokerSettings consumerInvoker)
     {
-        var (exception, _, _) = await ProcessMessage(message, messageHeaders);
+        var (exception, _, _) = await ProcessMessage(message, messageHeaders, cancellationToken);
         return exception;
     }
 
-    public async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response)> ProcessMessage(TMessage message, IReadOnlyDictionary<string, object> messageHeaders)
+    public async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response)> ProcessMessage(TMessage message, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
     {
         try
         {

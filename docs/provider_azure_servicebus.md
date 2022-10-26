@@ -143,7 +143,7 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
 {
    public IConsumerContext Context { get; set; }
 
-   public Task OnHandle(PingMessage message, string path)
+   public Task OnHandle(PingMessage message)
    {
       // Azure SB transport specific extension:
       var transportMessage = Context.GetTransportMessage(); // Of type Azure.Messaging.ServiceBus.ServiceBusReceivedMessage

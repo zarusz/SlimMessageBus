@@ -94,7 +94,7 @@ For example, assuming this is the discovered type:
 ```cs
 public class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
 {
-   public Task<EchoResponse> OnHandle(EchoRequest request, string path) { /* ... */ }
+   public Task<EchoResponse> OnHandle(EchoRequest request) { /* ... */ }
 }
 ```
 

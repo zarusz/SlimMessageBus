@@ -21,7 +21,7 @@ public class GenerateThumbnailRequestHandler : IRequestHandler<GenerateThumbnail
 
     #region Implementation of IRequestHandler<in GenerateThumbnailRequest,GenerateThumbnailResponse>
 
-    public async Task<GenerateThumbnailResponse> OnHandle(GenerateThumbnailRequest request, string path)
+    public async Task<GenerateThumbnailResponse> OnHandle(GenerateThumbnailRequest request)
     {
         var image = await LoadImage(request.FileId).ConfigureAwait(false);
         if (image == null)

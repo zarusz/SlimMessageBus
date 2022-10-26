@@ -1,29 +1,25 @@
 ﻿namespace SlimMessageBus;
 
-public interface IConsumerContext
+public interface IProducerContext
 {
     /// <summary>
-    /// The path (topic or queue) the message arrived on.
+    /// The path (topic or queue) the will be deliverd to.
     /// </summary>
     string Path { get; }
     /// <summary>
-    /// Arriving message headers.
+    /// Message headers.
     /// </summary>
-    IReadOnlyDictionary<string, object> Headers { get; }
+    IDictionary<string, object> Headers { get; }
     /// <summary>
     /// The cancellation token.
     /// </summary>
     CancellationToken CancellationToken { get; }
     /// <summary>
-    /// The bus on which the consumer was executed.
+    /// The bus on which the producer was executed.
     /// </summary>
     IMessageBus Bus { get; }
     /// <summary>
     /// Additional transport provider specific features or user custom data.
     /// </summary>
     IDictionary<string, object> Properties { get; }
-    /// <summary>
-    /// The consumer instance that will handle the message.
-    /// </summary>
-    object Consumer { get; }
 }

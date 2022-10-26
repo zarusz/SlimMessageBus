@@ -11,7 +11,6 @@ public interface IRequestHandler<in TRequest, TResponse>
     /// Handles the incoming request message.
     /// </summary>
     /// <param name="request">The request message</param>
-    /// <param name="path">Name of the topic (or queue) on which the request message arrived on</param>
     /// <returns></returns>
-    Task<TResponse> OnHandle(TRequest request, string path);
+    Task<TResponse> OnHandle(TRequest request);
 }

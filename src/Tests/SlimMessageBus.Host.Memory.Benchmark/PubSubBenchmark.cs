@@ -72,7 +72,7 @@ public class SomeEventConsumer : IConsumer<SomeEvent>
 
     public SomeEventConsumer(TestResult testResult) => this.testResult = testResult;
 
-    public Task OnHandle(SomeEvent message, string path)
+    public Task OnHandle(SomeEvent message)
     {
         testResult.OnArrived();
         return Task.CompletedTask;

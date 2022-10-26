@@ -13,7 +13,7 @@ public class MessageTypeConsumerInvokerSettings : IMessageTypeConsumerInvokerSet
     /// <summary>
     /// The delegate to the consumer method responsible for accepting messages.
     /// </summary>
-    public Func<object, object, string, Task> ConsumerMethod { get; set; }
+    public Func<object, object, Task> ConsumerMethod { get; set; }
 
     public ConsumerSettings ParentSettings { get; }
 

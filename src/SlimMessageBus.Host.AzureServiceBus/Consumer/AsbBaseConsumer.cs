@@ -180,7 +180,7 @@ public abstract class AsbBaseConsumer : IAsyncDisposable, IConsumerControl
             return;
         }
 
-        var (exception, consumerSettings, response) = await MessageProcessor.ProcessMessage(message, message.ApplicationProperties).ConfigureAwait(false);
+        var (exception, consumerSettings, response) = await MessageProcessor.ProcessMessage(message, message.ApplicationProperties, token).ConfigureAwait(false);
         if (exception != null)
         {
             _logger.LogError(exception, "Abandon message (exception occured while processing) - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);

@@ -11,5 +11,5 @@ public interface IMessageProcessor<TMessage> : IAsyncDisposable
     /// </summary>
     /// <param name="transportMessage"></param>
     /// <returns>Null, if message processing was sucessful, otherwise the Exception</returns>
-    Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response)> ProcessMessage(TMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders);
+    Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response)> ProcessMessage(TMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken);
 }

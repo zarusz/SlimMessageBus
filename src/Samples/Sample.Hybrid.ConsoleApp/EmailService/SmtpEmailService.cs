@@ -5,7 +5,7 @@ using SlimMessageBus;
 
 public class SmtpEmailService : IConsumer<SendEmailCommand>
 {
-    public Task OnHandle(SendEmailCommand message, string path)
+    public Task OnHandle(SendEmailCommand message)
     {
         // Sending email via SMTP...
         Console.WriteLine("--------------------------------------------");

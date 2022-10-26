@@ -15,7 +15,7 @@ public class ConcurrencyIncreasingMessageProcessorDecoratorTest
     [Theory]
     [InlineData(10, 40)]
     [InlineData(2, 40)]
-    public async Task WhenProcessMessageGivenNMessagesAndConcurrencySetToCThenNMethodInvokationsHappenOnTargetWithCConcurrently(int concurrency, int expectedMessageCount)
+    public async Task When_ProcessMessage_Given_NMessagesAndConcurrencySetToC_Then_NMethodInvokationsHappenOnTargetWithCConcurrently(int concurrency, int expectedMessageCount)
     {
         // arrange
         _subject = new ConcurrencyIncreasingMessageProcessorDecorator<SomeMessage>(concurrency, _busMock.Bus, _messageProcessorMock.Object);
@@ -25,7 +25,7 @@ public class ConcurrencyIncreasingMessageProcessorDecoratorTest
         var maxSectionCountLock = new object();
         var messageCount = 0;
 
-        _messageProcessorMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IReadOnlyDictionary<string, object>>())).Returns(async () =>
+        _messageProcessorMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<CancellationToken>())).Returns(async () =>
         {
             // Entering critical section
             Interlocked.Increment(ref currentSectionCount);
@@ -57,7 +57,7 @@ public class ConcurrencyIncreasingMessageProcessorDecoratorTest
         for (var i = 0; i < expectedMessageCount; i++)
         {
             // executed in sequence
-            await _subject.ProcessMessage(msg, msgHeaders);
+            await _subject.ProcessMessage(msg, msgHeaders, default);
         }
 
         // assert

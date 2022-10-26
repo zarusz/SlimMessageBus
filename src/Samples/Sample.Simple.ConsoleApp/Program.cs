@@ -334,7 +334,7 @@ public class AddCommandConsumer : IConsumer<AddCommand>, IConsumerWithContext
 {
     public IConsumerContext Context { get; set; }
 
-    public async Task OnHandle(AddCommand message, string name)
+    public async Task OnHandle(AddCommand message)
     {
         Console.WriteLine("Consumer: Adding {0} and {1} gives {2}", message.Left, message.Right, message.Left + message.Right);
         // Context.Headers -> has the headers
@@ -355,7 +355,7 @@ public class MultiplyResponse
 
 public class MultiplyRequestHandler : IRequestHandler<MultiplyRequest, MultiplyResponse>
 {
-    public async Task<MultiplyResponse> OnHandle(MultiplyRequest request, string name)
+    public async Task<MultiplyResponse> OnHandle(MultiplyRequest request)
     {
         await Task.Delay(50); // Simulate some work
         return new MultiplyResponse { Result = request.Left * request.Right };

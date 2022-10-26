@@ -17,6 +17,6 @@ public static class KafkaConsumerContextExtensions
     {
         if (context is null) throw new ArgumentNullException(nameof(context));
 
-        context.SetProperty(MessageKey, message);
+        context.Properties[MessageKey] = message;
     }
 }

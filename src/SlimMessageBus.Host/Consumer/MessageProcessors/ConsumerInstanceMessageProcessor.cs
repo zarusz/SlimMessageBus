@@ -11,7 +11,6 @@ public class ConsumerInstanceMessageProcessor<TTransportMessage> : MessageHandle
     private readonly ILogger _logger;
     private readonly Func<Type, TTransportMessage, object> _messageProvider;
     private readonly Func<TTransportMessage, Type> _messageTypeProvider;
-    private readonly string _path;
     private readonly bool _sendResponses;
     private readonly bool _shouldFailWhenUnrecognizedMessageType;
     private readonly bool _shouldLogWhenUnrecognizedMessageType;
@@ -37,12 +36,12 @@ public class ConsumerInstanceMessageProcessor<TTransportMessage> : MessageHandle
         messageHeadersFactory: messageBus,
         runtimeTypeCache: messageBus.RuntimeTypeCache,
         currentTimeProvider: messageBus,
+        path: path,
         consumerContextInitializer == null ? null : (msg, ctx) => consumerContextInitializer((TTransportMessage)msg, ctx))
     {
         _logger = messageBus.LoggerFactory.CreateLogger<ConsumerInstanceMessageProcessor<TTransportMessage>>();
         _messageProvider = messageProvider ?? throw new ArgumentNullException(nameof(messageProvider));
         _messageTypeProvider = messageTypeProvider;
-        _path = path;
         _sendResponses = sendResponses;
         _consumerSettings = (consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings))).ToList();
 
@@ -65,7 +64,7 @@ public class ConsumerInstanceMessageProcessor<TTransportMessage> : MessageHandle
 
     #endregion
 
-    public virtual async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response)> ProcessMessage(TTransportMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders)
+    public virtual async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response)> ProcessMessage(TTransportMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
     {
         IMessageTypeConsumerInvokerSettings lastConsumerInvoker = null;
         Exception lastException = null;
@@ -89,7 +88,13 @@ public class ConsumerInstanceMessageProcessor<TTransportMessage> : MessageHandle
                     {
                         lastConsumerInvoker = consumerInvoker;
 
-                        (lastResponse, lastException, var requestId) = await DoHandle(message, messageHeaders, consumerInvoker, transportMessage).ConfigureAwait(false);
+                        // Skip the loop if it was cancelled
+                        if (cancellationToken.IsCancellationRequested)
+                        {
+                            break;
+                        }
+
+                        (lastResponse, lastException, var requestId) = await DoHandle(message, messageHeaders, consumerInvoker, cancellationToken, transportMessage).ConfigureAwait(false);
 
                         if (consumerInvoker.ParentSettings.ConsumerMode == ConsumerMode.RequestResponse && _sendResponses)
                         {
@@ -144,7 +149,7 @@ public class ConsumerInstanceMessageProcessor<TTransportMessage> : MessageHandle
 
             if (_shouldFailWhenUnrecognizedMessageType)
             {
-                throw new MessageBusException($"The message arrived with {MessageHeaders.MessageType} header on path {_path}, but the type value {messageTypeName} is not a known type");
+                throw new MessageBusException($"The message arrived with {MessageHeaders.MessageType} header on path {Path}, but the type value {messageTypeName} is not a known type");
             }
             return null;
         }
@@ -159,7 +164,7 @@ public class ConsumerInstanceMessageProcessor<TTransportMessage> : MessageHandle
 
         if (_shouldFailWhenUnrecognizedMessageType)
         {
-            throw new MessageBusException($"The message arrived without {MessageHeaders.MessageType} header on path {_path}, so it is imposible to match one of the known consumer types {string.Join(",", _invokers.Select(x => x.ConsumerType.Name))}");
+            throw new MessageBusException($"The message arrived without {MessageHeaders.MessageType} header on path {Path}, so it is imposible to match one of the known consumer types {string.Join(",", _invokers.Select(x => x.ConsumerType.Name))}");
         }
 
         return null;
@@ -188,12 +193,12 @@ public class ConsumerInstanceMessageProcessor<TTransportMessage> : MessageHandle
             {
                 if (_shouldLogWhenUnrecognizedMessageType)
                 {
-                    _logger.LogInformation("The message on path {Path} declared {HeaderName} header of type {MessageType}, but none of the the known consumer types {ConsumerTypes} was able to handle that", _path, MessageHeaders.MessageType, messageType, string.Join(",", _invokers.Select(x => x.ConsumerType.Name)));
+                    _logger.LogInformation("The message on path {Path} declared {HeaderName} header of type {MessageType}, but none of the the known consumer types {ConsumerTypes} was able to handle that", Path, MessageHeaders.MessageType, messageType, string.Join(",", _invokers.Select(x => x.ConsumerType.Name)));
                 }
 
                 if (_shouldFailWhenUnrecognizedMessageType)
                 {
-                    throw new MessageBusException($"The message on path {_path} declared {MessageHeaders.MessageType} header of type {messageType}, but none of the the known consumer types {string.Join(",", _invokers.Select(x => x.ConsumerType.Name))} was able to handle that");
+                    throw new MessageBusException($"The message on path {Path} declared {MessageHeaders.MessageType} header of type {messageType}, but none of the the known consumer types {string.Join(",", _invokers.Select(x => x.ConsumerType.Name))} was able to handle that");
                 }
             }
         }

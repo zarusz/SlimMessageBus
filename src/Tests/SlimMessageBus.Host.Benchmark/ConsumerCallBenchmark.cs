@@ -53,6 +53,6 @@ public class CallConsumerBenchmark
 
     public class SomeMessageConsumer : IConsumer<SomeMessage>
     {
-        public Task OnHandle(SomeMessage message, string path) => Task.CompletedTask;
+        public Task OnHandle(SomeMessage message) => Task.CompletedTask;
     }
 }

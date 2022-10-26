@@ -34,7 +34,7 @@ public class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : IMessage
 
     public IReadOnlyCollection<AbstractConsumerSettings> ConsumerSettings => _target.ConsumerSettings;
 
-    public async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response)> ProcessMessage(TMessage message, IReadOnlyDictionary<string, object> messageHeaders)
+    public async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response)> ProcessMessage(TMessage message, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
     {
         // Ensure only desired number of messages are being processed concurrently
         await _concurrentSemaphore.WaitAsync().ConfigureAwait(false);
@@ -51,7 +51,7 @@ public class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : IMessage
         Interlocked.Increment(ref _pendingCount);
 
         // Fire and forget
-        _ = ProcessInBackground(message, messageHeaders);
+        _ = ProcessInBackground(message, messageHeaders, cancellationToken);
 
         // Not exception - we don't know yet
         return (null, null, null);
@@ -75,12 +75,12 @@ public class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : IMessage
         }
     }
 
-    private async Task ProcessInBackground(TMessage message, IReadOnlyDictionary<string, object> messageHeaders)
+    private async Task ProcessInBackground(TMessage message, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
     {
         try
         {
             _logger.LogDebug("Entering ProcessMessages for message {MessageType}", typeof(TMessage));
-            var (exception, consumerSettings, response) = await _target.ProcessMessage(message, messageHeaders).ConfigureAwait(false);
+            var (exception, consumerSettings, response) = await _target.ProcessMessage(message, messageHeaders, cancellationToken).ConfigureAwait(false);
             if (exception != null)
             {
                 lock (_lastExceptionLock)

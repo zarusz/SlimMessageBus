@@ -290,7 +290,7 @@ public class KafkaMessageBusIt : IDisposable
 
         #region Implementation of IConsumer<in PingMessage>
 
-        public Task OnHandle(PingMessage message, string name)
+        public Task OnHandle(PingMessage message)
         {
             var transportMessage = Context.GetTransportMessage();
             var partition = transportMessage.TopicPartition.Partition;
@@ -300,7 +300,7 @@ public class KafkaMessageBusIt : IDisposable
                 Messages.Add((message, partition));
             }
 
-            _logger.LogInformation("Got message {0:000} on topic {1}.", message.Counter, name);
+            _logger.LogInformation("Got message {0:000} on topic {1}.", message.Counter, Context.Path);
             return Task.CompletedTask;
         }
 
@@ -332,7 +332,7 @@ public class KafkaMessageBusIt : IDisposable
 
     private class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
     {
-        public Task<EchoResponse> OnHandle(EchoRequest request, string name)
+        public Task<EchoResponse> OnHandle(EchoRequest request)
         {
             return Task.FromResult(new EchoResponse { Message = request.Message });
         }

@@ -23,21 +23,20 @@ public class ReflectionUtilsTests
     {
         // arrange
         var message = new SomeMessage();
-        var path = "some-path";
 
         var instanceType = typeof(IConsumer<SomeMessage>);
-        var consumerOnHandleMethodInfo = instanceType.GetMethod(nameof(IConsumer<SomeMessage>.OnHandle), new[] { typeof(SomeMessage), typeof(string) });
+        var consumerOnHandleMethodInfo = instanceType.GetMethod(nameof(IConsumer<SomeMessage>.OnHandle), new[] { typeof(SomeMessage) });
 
         var consumerMock = new Mock<IConsumer<SomeMessage>>();
-        consumerMock.Setup(x => x.OnHandle(message, path)).Returns(Task.CompletedTask);
+        consumerMock.Setup(x => x.OnHandle(message)).Returns(Task.CompletedTask);
 
         // act
-        var callAsyncMethodFunc = ReflectionUtils.GenerateAsyncMethodCallFunc2(consumerOnHandleMethodInfo, instanceType, typeof(SomeMessage), typeof(string));
+        var callAsyncMethodFunc = ReflectionUtils.GenerateAsyncMethodCallFunc1(consumerOnHandleMethodInfo, instanceType, typeof(SomeMessage));
 
-        await callAsyncMethodFunc(consumerMock.Object, message, path);
+        await callAsyncMethodFunc(consumerMock.Object, message);
 
         // assert
-        consumerMock.Verify(x => x.OnHandle(message, path), Times.Once);
+        consumerMock.Verify(x => x.OnHandle(message), Times.Once);
         consumerMock.VerifyNoOtherCalls();
     }
 }

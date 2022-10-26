@@ -74,7 +74,7 @@ public class SomeRequestHandler : IRequestHandler<SomeRequest, SomeResponse>
 
     public SomeRequestHandler(TestResult testResult) => this.testResult = testResult;
 
-    public Task<SomeResponse> OnHandle(SomeRequest request, string path)
+    public Task<SomeResponse> OnHandle(SomeRequest request)
     {
         testResult.OnArrived();
         return Task.FromResult(new SomeResponse(DateTimeOffset.Now, request.Id));

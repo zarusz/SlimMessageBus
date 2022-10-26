@@ -121,7 +121,7 @@ public class MemoryMessageBus : MessageBusBase
                 ? requestHeaders as IReadOnlyDictionary<string, object> ?? new Dictionary<string, object>(requestHeaders)
                 : null;
 
-            (exception, var exceptionConsumerSettings, response) = await messageProcessor.ProcessMessage(transportMessage, messageHeadersReadOnly);
+            (exception, var exceptionConsumerSettings, response) = await messageProcessor.ProcessMessage(transportMessage, messageHeadersReadOnly, cancellationToken);
             if (exception != null)
             {
                 OnMessageFailed(message, exceptionConsumerSettings, exception);

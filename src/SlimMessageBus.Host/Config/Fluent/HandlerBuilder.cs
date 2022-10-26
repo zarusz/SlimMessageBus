@@ -66,7 +66,7 @@ public class HandlerBuilder<TRequest, TResponse> : AbstractConsumerBuilder
 
         ConsumerSettings.ConsumerMode = ConsumerMode.RequestResponse;
         ConsumerSettings.ConsumerType = typeof(THandler);
-        ConsumerSettings.ConsumerMethod = (consumer, message, path) => ((THandler)consumer).OnHandle((TRequest)message, path);
+        ConsumerSettings.ConsumerMethod = (consumer, message) => ((THandler)consumer).OnHandle((TRequest)message);
         ConsumerSettings.ConsumerMethodResult = (task) => ((Task<TResponse>)task).Result;
 
         ConsumerSettings.Invokers.Add(ConsumerSettings);
@@ -102,7 +102,7 @@ public class HandlerBuilder<TRequest, TResponse> : AbstractConsumerBuilder
 
         var invoker = new MessageTypeConsumerInvokerSettings(ConsumerSettings, messageType: typeof(TMessage), consumerType: typeof(THandler))
         {
-            ConsumerMethod = (consumer, message, path) => ((IConsumer<TMessage>)consumer).OnHandle((TMessage)message, path)
+            ConsumerMethod = (consumer, message) => ((IConsumer<TMessage>)consumer).OnHandle((TMessage)message)
         };
         ConsumerSettings.Invokers.Add(invoker);
 

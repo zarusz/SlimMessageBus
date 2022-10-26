@@ -11,10 +11,7 @@ public static class MessageBus
 
     public static bool IsProviderSet() => _provider != ProviderDefault;
 
-    public static void SetProvider(Func<IMessageBus> provider)
-    {
-        _provider = provider ?? throw new ArgumentNullException(nameof(provider));
-    }
+    public static void SetProvider(Func<IMessageBus> provider) => _provider = provider ?? throw new ArgumentNullException(nameof(provider));
 
     /// <summary>
     /// Retrieves the <see cref="IMessageBus"/> for the current execution context.        

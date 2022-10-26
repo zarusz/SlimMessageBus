@@ -87,7 +87,7 @@ Some service (or domain layer) sends a message:
 ```cs
 IMessageBus bus; // injected
 
-await bus.Publish(new SomeMessage())
+await bus.Publish(new SomeMessage());
 ```
 
 Another service (or application layer) handles the message:
@@ -95,7 +95,7 @@ Another service (or application layer) handles the message:
 ```cs
 public class SomeMessageConsumer : IConsumer<SomeMessage>
 {
-   public async Task OnHandle(SomeMessage message, string path) // path = topic or queue name
+   public async Task OnHandle(SomeMessage message)
    {
        // handle the message
    }
@@ -117,7 +117,7 @@ The receiving side handles the request and replies back:
 ```cs
 public class MessageRequestHandler : IRequestHandler<MessageRequest, MessageResponse>
 {
-   public async Task<MessageResponse> OnHandle(MessageRequest request, string path)
+   public async Task<MessageResponse> OnHandle(MessageRequest request)
    {
       // handle the request message and return response
    }
@@ -195,7 +195,7 @@ The event handler implements the `IConsumer<T>` interface:
 // domain event handler
 public class OrderSubmittedHandler : IConsumer<OrderSubmittedEvent>
 {
-   public Task OnHandle(OrderSubmittedEvent e, string path)
+   public Task OnHandle(OrderSubmittedEvent e)
    {
       Console.WriteLine("Customer {0} {1} just placed an order for:", e.Order.Customer.Firstname, e.Order.Customer.Lastname);
       foreach (var orderLine in e.Order.Lines)
@@ -267,7 +267,7 @@ services.AddSlimMessageBus(mbb =>
          .WithProviderMemory()
          .AutoDeclareFrom(Assembly.GetExecutingAssembly()); // Find types that implement IConsumer<T> and IRequestHandler<T, R> and declare producers and consumers for them
    },
-   addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() } // Auto discover consumers and register into DI
+   addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() } // Auto discover consumers and register inside DI container
 );
 ```
 
@@ -285,132 +285,7 @@ See the complete [sample](/src/Samples#sampledomainevents) for ASP.NET Core wher
 
 ### Use Case: Request-response over Kafka topics
 
-Use case:
-
-- Some front-end web app needs to display downsized image (thumbnails) of large images to speed up the page load.
-- The thumbnails are requested in the WebApi and are generated on demand (and cached to disk) by the Worker (unless they exist already).
-- WebApi and Worker exchange messages via Apache Kafka
-- Worker can be scaled out (more instances, more Kafka partitions)
-
-The front-end web app makes a call to resize an image `DSC0862.jpg` to `120x80` resolution, by using this URL:
-
-`https://localhost:56788/api/image/DSC3781.jpg/r/?w=120&h=80&mode=1`
-
-This gets handled by the WebApi method of the `ImageController`
-
-```cs
-private readonly IRequestResponseBus _bus;
-// ...
-[Route("{fileId}")]
-public async Task<HttpResponseMessage> GetImageThumbnail(string fileId, ThumbnailMode mode, int w, int h)
-{
-   var thumbFileContent = // ... try to load content for the desired thumbnail w/h/mode/fileId
-   if (thumbFileContent == null)
-   {
-      // Task will await until response comes back (or timeout happens). The HTTP request will be queued and IIS processing thread released.
-      var thumbGenResponse = await _bus.Send(new GenerateThumbnailRequest(fileId, mode, w, h));
-      thumbFileContent = await _fileStore.GetFile(thumbGenResponse.FileId);
-   }
-   return ServeStream(thumbFileContent);
-}
-```
-
-The `GenerateThumbnailRequest` request is handled by a handler in one of the pool of Worker console apps.
-
-```cs
-public class GenerateThumbnailRequestHandler : IRequestHandler<GenerateThumbnailRequest, GenerateThumbnailResponse>
-{
-   public Task<GenerateThumbnailResponse> OnHandle(GenerateThumbnailRequest request, string path)
-   {
-      // some processing
-      return new GenerateThumbnailResponse { FileId = thumbnailFileId };
-   }
-}
-```
-
-The response gets replied to the originating WebApi instance and the `Task<GenerateThumbnailResponse>` resolves causing the queued HTTP request to serve the resized image thumbnail.
-
-```cs
-var thumbGenResponse = await _bus.Send(new GenerateThumbnailRequest(fileId, mode, w, h));
-```
-
-The message bus configuration for the WebApi:
-
-```cs
-services.AddSlimMessageBus((mbb, svp) =>
-{
-   // unique id across instances of this application (e.g. 1, 2, 3)
-   var instanceId = Configuration["InstanceId"];
-   var kafkaBrokers = Configuration["Kafka:Brokers"];
-
-   var instanceGroup = $"webapi-{instanceId}";
-   var instanceReplyTo = $"webapi-{instanceId}-response";
-
-   mbb
-      .Produce<GenerateThumbnailRequest>(x =>
-      {
-         // Default response timeout for this request type
-         //x.DefaultTimeout(TimeSpan.FromSeconds(10));
-         x.DefaultTopic("thumbnail-generation");
-      })
-      .ExpectRequestResponses(x =>
-      {
-         x.ReplyToTopic(instanceReplyTo);
-         x.KafkaGroup(instanceGroup);
-         // Default global response timeout
-         x.DefaultTimeout(TimeSpan.FromSeconds(30));
-      })
-      .WithSerializer(new JsonMessageSerializer())
-      .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
-   });
-}
-
-services.AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
-```
-
-The message bus configuration for the Worker:
-
-```cs
-// This sample uses Autofac
-var builder = new ContainerBuilder();
-
-builder.RegisterModule(new SlimMessageBusModule
-{
-   ConfigureBus = (mbb, ctx) =>
-   {
-      // unique id across instances of this application (e.g. 1, 2, 3)
-      var instanceId = configuration["InstanceId"];
-      var kafkaBrokers = configuration["Kafka:Brokers"];
-
-      var instanceGroup = $"worker-{instanceId}";
-      var sharedGroup = "workers";
-
-      mbb
-         .Handle<GenerateThumbnailRequest, GenerateThumbnailResponse>(s =>
-         {
-            s.Topic("thumbnail-generation", t =>
-            {
-               t.WithHandler<GenerateThumbnailRequestHandler>()
-                  .KafkaGroup(sharedGroup)
-                  .Instances(3);
-            });
-         })
-         .WithSerializer(new JsonMessageSerializer())
-         .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
-         {
-            ConsumerConfig = (config) =>
-            {
-               config.StatisticsIntervalMs = 60000;
-               config.AutoOffsetReset = Confluent.Kafka.AutoOffsetReset.Latest;
-            }
-         });
-   }
-});
-```
-
-Because topics are partitioned in Kafka, requests originating from WebApi instances will be distributed across all Worker instances. However, to fine tune this, message key providers should be configured (see Kafka provider wiki and samples).
-
-Check out the complete [sample](/src/Samples#sampleimages) for image resizing.
+See [sample](/src/Samples/README.md#sampleimages).
 
 ## Features
 

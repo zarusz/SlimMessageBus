@@ -9,8 +9,8 @@ public class KafkaPartitionConsumerForResponsesTest : IAsyncDisposable
 {
     private readonly MessageBusMock _messageBusMock;
     private readonly TopicPartition _topicPartition;
-    private readonly Mock<IKafkaCommitController> _commitControllerMock = new Mock<IKafkaCommitController>();
-    private readonly Mock<ICheckpointTrigger> _checkpointTrigger = new Mock<ICheckpointTrigger>();
+    private readonly Mock<IKafkaCommitController> _commitControllerMock = new();
+    private readonly Mock<ICheckpointTrigger> _checkpointTrigger = new();
     private KafkaPartitionConsumerForResponses _subject;
 
     public KafkaPartitionConsumerForResponsesTest()
@@ -73,6 +73,7 @@ public class KafkaPartitionConsumerForResponsesTest : IAsyncDisposable
     {
         // arrange
         var message = GetSomeMessage();
+        _subject.OnPartitionAssigned(message.TopicPartition);
 
         // act
         await _subject.OnMessage(message);
@@ -91,6 +92,8 @@ public class KafkaPartitionConsumerForResponsesTest : IAsyncDisposable
         var e = new Exception();
         _messageBusMock.BusMock.Setup(x => x.OnResponseArrived(message.Message.Value, message.Topic, It.IsAny<IReadOnlyDictionary<string, object>>())).Throws(e);
 
+        _subject.OnPartitionAssigned(message.TopicPartition);
+
         // act
         await _subject.OnMessage(message);
 
@@ -106,6 +109,8 @@ public class KafkaPartitionConsumerForResponsesTest : IAsyncDisposable
         _checkpointTrigger.Setup(x => x.Increment()).Returns(true);
         var message = GetSomeMessage();
 
+        _subject.OnPartitionAssigned(message.TopicPartition);
+
         // act
         await _subject.OnMessage(message);
 
@@ -119,6 +124,8 @@ public class KafkaPartitionConsumerForResponsesTest : IAsyncDisposable
         // arrange
         _checkpointTrigger.Setup(x => x.Increment()).Returns(false);
         var message = GetSomeMessage();
+
+        _subject.OnPartitionAssigned(message.TopicPartition);
 
         // act
         await _subject.OnMessage(message);

@@ -372,13 +372,13 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
 
     #region Implementation of IConsumer<in PingMessage>
 
-    public Task OnHandle(PingMessage message, string path)
+    public Task OnHandle(PingMessage message)
     {
         var sbMessage = Context.GetTransportMessage();
 
         _messages.Add(new(message, sbMessage.MessageId, sbMessage.SessionId));
 
-        _logger.LogInformation("Got message {Counter:000} on path {Path}.", message.Counter, path);
+        _logger.LogInformation("Got message {Counter:000} on path {Path}.", message.Counter, Context.Path);
         return Task.CompletedTask;
     }
 
@@ -400,13 +400,13 @@ public class PingDerivedConsumer : IConsumer<PingDerivedMessage>, IConsumerWithC
 
     #region Implementation of IConsumer<in PingMessage>
 
-    public Task OnHandle(PingDerivedMessage message, string path)
+    public Task OnHandle(PingDerivedMessage message)
     {
         var sbMessage = Context.GetTransportMessage();
 
         _messages.Add(new(message, sbMessage.MessageId, sbMessage.SessionId));
 
-        _logger.LogInformation("Got message {Counter:000} on path {Path}.", message.Counter, path);
+        _logger.LogInformation("Got message {Counter:000} on path {Path}.", message.Counter, Context.Path);
         return Task.CompletedTask;
     }
 
@@ -423,7 +423,7 @@ public record EchoResponse(string Message);
 
 public class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
 {
-    public Task<EchoResponse> OnHandle(EchoRequest request, string path)
+    public Task<EchoResponse> OnHandle(EchoRequest request)
     {
         return Task.FromResult(new EchoResponse(request.Message));
     }

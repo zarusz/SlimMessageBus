@@ -129,34 +129,16 @@ public class HybridMessageBus : IMasterMessageBus, IAsyncDisposable
 
     #region Implementation of IRequestResponseBus
 
-    public Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, CancellationToken cancellationToken)
-    {
-        var bus = Route(request, null);
-        return bus.Send(request, cancellationToken);
-    }
-
-    public Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, CancellationToken cancellationToken)
-    {
-        var bus = Route(request, null);
-        return bus.Send<TResponseMessage, TRequestMessage>(request, cancellationToken);
-    }
-
-    public Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
+    public Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, TimeSpan? timeout = null)
     {
         var bus = Route(request, path);
-        return bus.Send(request, path, headers, cancellationToken);
+        return bus.Send(request, path, headers, cancellationToken, timeout);
     }
 
-    public Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
+    public Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, TimeSpan? timeout = null)
     {
         var bus = Route(request, path);
-        return bus.Send<TResponseMessage, TRequestMessage>(request, path, headers, cancellationToken);
-    }
-
-    public Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, TimeSpan timeout, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
-    {
-        var bus = Route(request, path);
-        return bus.Send(request, timeout, path, headers, cancellationToken);
+        return bus.Send<TResponseMessage, TRequestMessage>(request, path, headers, cancellationToken, timeout);
     }
 
     #endregion

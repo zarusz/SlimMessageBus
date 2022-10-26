@@ -210,52 +210,42 @@ public class MemoryMessageBusIt : IDisposable
         return consumer.Messages;
     }
 
-    internal class PingMessage
+    internal record PingMessage
     {
-        public int Counter { get; set; }
-        public Guid Value { get; set; }
-
-        #region Overrides of Object
-
-        public override string ToString() => $"PingMessage(Counter={Counter}, Value={Value})";
-
-        #endregion
+        public int Counter { get; init; }
+        public Guid Value { get; init; }
     }
 
     internal class PingConsumer : IConsumer<PingMessage>
     {
         public IList<PingMessage> Messages { get; } = new List<PingMessage>();
 
-        public Task OnHandle(PingMessage message, string name)
+        public Task OnHandle(PingMessage message)
         {
             lock (this)
             {
                 Messages.Add(message);
             }
 
-            Console.WriteLine("Got message {0} on topic {1}.", message.Counter, name);
+            Console.WriteLine("Got message {0}.", message.Counter);
             return Task.CompletedTask;
         }
     }
 
-    internal class EchoRequest : IRequestMessage<EchoResponse>
+    internal record EchoRequest : IRequestMessage<EchoResponse>
     {
-        public int Index { get; set; }
-        public string Message { get; set; }
-
-        public override string ToString() => $"EchoRequest(Index={Index}, Message={Message})";
+        public int Index { get; init; }
+        public string Message { get; init; }
     }
 
-    internal class EchoResponse
+    internal record EchoResponse
     {
-        public string Message { get; set; }
-
-        public override string ToString() => $"EchoResponse(Message={Message})";
+        public string Message { get; init; }
     }
 
     internal class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
     {
-        public Task<EchoResponse> OnHandle(EchoRequest request, string name)
+        public Task<EchoResponse> OnHandle(EchoRequest request)
         {
             return Task.FromResult(new EchoResponse { Message = request.Message });
         }
