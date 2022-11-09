@@ -161,7 +161,7 @@ public class EventHubMessageBus : MessageBusBase
             ? GetPartitionKey(messageType, message)
             : null;
 
-        var producer = _producerByPath.GetOrAdd(path);
+        var producer = _producerByPath[path];
 
         // ToDo: Introduce some micro batching of events (store them between invocations and send when time span elapsed)
         using EventDataBatch eventBatch = await producer.CreateBatchAsync(new CreateBatchOptions
@@ -172,7 +172,7 @@ public class EventHubMessageBus : MessageBusBase
 
         if (!eventBatch.TryAdd(ev))
         {
-            throw new PublishMessageBusException($"Could not add message {message} of Type {messageType?.Name} on Path {path} to the send batch");
+            throw new ProducerMessageBusException($"Could not add message {message} of Type {messageType?.Name} on Path {path} to the send batch");
         }
 
         await producer.SendAsync(eventBatch, cancellationToken).ConfigureAwait(false);

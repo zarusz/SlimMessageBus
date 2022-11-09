@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus;
 
-public class PublishMessageBusException : MessageBusException
+public class PublishMessageBusException : ProducerMessageBusException
 {
     public PublishMessageBusException()
     {

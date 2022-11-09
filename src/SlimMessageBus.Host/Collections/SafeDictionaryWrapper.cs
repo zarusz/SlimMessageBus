@@ -3,20 +3,20 @@
 using System.Collections.ObjectModel;
 
 /// <summary>
-/// Dictionary wrapper that exposes a <see cref="ReadOnlyDictionary{TKey,TValue}"/> snapshot for read, while for mutation exposes thread-safe methods.
-/// Internally a dictionary is maintained and any change is synchronized. When read access is performed after a change happened a new <see cref="ReadOnlyDictionary{TKey,TValue}"/> snapshot is created.
+/// Dictionary wrapper that exposes a <see cref="IReadOnlyDictionary{TKey,TValue}"/> snapshot for read, while for mutation exposes thread-safe methods.
+/// Internally a dictionary is maintained and any change is synchronized. When read access is performed after a change happened a new <see cref="IReadOnlyDictionary{TKey,TValue}"/> snapshot is created.
 /// </summary>
 /// <typeparam name="TKey"></typeparam>
 /// <typeparam name="TValue"></typeparam>
-public class SafeDictionaryWrapper<TKey, TValue>
+public class SafeDictionaryWrapper<TKey, TValue> : IReadOnlyCache<TKey, TValue>
 {
-    private IDictionary<TKey, TValue> _mutableDict;
-    private IDictionary<TKey, TValue> _readonlyDict;
+    private readonly IDictionary<TKey, TValue> _mutableDict;
+    private ReadOnlyDictionary<TKey, TValue> _readonlyDict;
 
     /// <summary>
     /// Provides read only snapshot of the mutable internal dictionary
     /// </summary>
-    public IDictionary<TKey, TValue> Dictonary
+    public IReadOnlyDictionary<TKey, TValue> Dictionary
     {
         get
         {
@@ -72,15 +72,21 @@ public class SafeDictionaryWrapper<TKey, TValue>
         return value;
     }
 
+    public TValue GetOrAdd(TKey key)
+    {
+        if (_valueFactory == null)
+        {
+            throw new InvalidOperationException("No value factory provided");
+        }
+        return GetOrAdd(key, _valueFactory);
+    }
+
     public void Set(TKey key, TValue value)
     {
         lock (this)
         {
             // allocate a new dictonary to avoid mutation while reading in another thread
-            _mutableDict = new Dictionary<TKey, TValue>(_mutableDict)
-            {
-                [key] = value
-            };
+            _mutableDict[key] = value;
             OnChanged();
         }
     }
@@ -89,21 +95,9 @@ public class SafeDictionaryWrapper<TKey, TValue>
     {
         lock (this)
         {
-            // allocate a new dictonary to avoid mutation while reading in another thread
-            var dict = new Dictionary<TKey, TValue>(_mutableDict);
-            action(dict);
-            _mutableDict = dict;
+            action(_mutableDict);
             OnChanged();
         }
-    }
-
-    public TValue GetOrAdd(TKey key)
-    {
-        if (_valueFactory == null)
-        {
-            throw new InvalidOperationException("No value factory provided");
-        }
-        return GetOrAdd(key, _valueFactory);
     }
 
     public void Clear(Action<TValue> action = null)
@@ -123,20 +117,14 @@ public class SafeDictionaryWrapper<TKey, TValue>
     {
         lock (this)
         {
-            var snapshot = Dictonary.Values.ToList();
+            var snapshot = Dictionary.Values.ToList();
             _mutableDict.Clear();
             OnChanged();
             return snapshot;
         }
     }
 
-    public IReadOnlyCollection<TValue> Snapshot()
-    {
-        lock (this)
-        {
-            return Dictonary.Values.ToList();
-        }
-    }
+    public IReadOnlyCollection<TValue> Snapshot() => Dictionary.Values.ToList();
 
     public void ForEach(Action<TKey, TValue> action)
     {
@@ -164,4 +152,6 @@ public class SafeDictionaryWrapper<TKey, TValue>
     {
         _readonlyDict = null;
     }
+
+    public TValue this[TKey key] => GetOrAdd(key);
 }

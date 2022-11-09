@@ -9,7 +9,7 @@ public class ConsumerValidationInterceptorTests
     private readonly Mock<IValidator<Message>> _validatorMock;
     private readonly CancellationToken _cancellationToken;
     private readonly ConsumerValidationInterceptor<Message> _subject;
-    private readonly Mock<Func<Task>> _nextMock;
+    private readonly Mock<Func<Task<object>>> _nextMock;
     private readonly Mock<IConsumerContext> _consumerContextMock;
 
     public ConsumerValidationInterceptorTests()
@@ -18,7 +18,7 @@ public class ConsumerValidationInterceptorTests
         _validatorMock = new Mock<IValidator<Message>>();
         _cancellationToken = new CancellationToken();
         _subject = new ConsumerValidationInterceptor<Message>(new[] { _validatorMock.Object }, null);
-        _nextMock = new Mock<Func<Task>>();
+        _nextMock = new Mock<Func<Task<object>>>();
         _consumerContextMock = new();
     }
 

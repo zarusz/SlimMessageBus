@@ -1,6 +1,7 @@
 namespace SlimMessageBus.Host;
 
 using System.Globalization;
+using System.Threading;
 using Microsoft.Extensions.Logging.Abstractions;
 using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.Config;
@@ -12,6 +13,7 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMes
 {
     private readonly ILogger _logger;
     private CancellationTokenSource _cancellationTokenSource = new();
+
     public RuntimeTypeCache RuntimeTypeCache { get; }
 
     public ILoggerFactory LoggerFactory { get; }
@@ -181,9 +183,6 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMes
         {
             Assert.IsNotNull(consumerSettings.ResponseType,
                 () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.ResponseType)} is not set"));
-
-            Assert.IsNotNull(consumerSettings.ConsumerMethodResult,
-                () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.ConsumerMethodResult)} is not set"));
         }
     }
 
@@ -220,7 +219,7 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMes
     {
         if (Settings.RequestResponse == null)
         {
-            throw new PublishMessageBusException("An attempt to send request when request/response communication was not configured for the message bus. Ensure you configure the bus properly before the application starts.");
+            throw new SendMessageBusException("An attempt to send request when request/response communication was not configured for the message bus. Ensure you configure the bus properly before the application starts.");
         }
     }
 
@@ -291,10 +290,10 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMes
 
     protected ProducerSettings GetProducerSettings(Type messageType)
     {
-        var producerSettings = ProducerSettingsByMessageType.GetProducer(messageType);
+        var producerSettings = ProducerSettingsByMessageType[messageType];
         if (producerSettings == null && !ReferenceEquals(producerSettings, MarkerProducerSettingsForResponses))
         {
-            throw new PublishMessageBusException($"Message of type {messageType} was not registered as a supported produce message. Please check your MessageBus configuration and include this type or one of its base types.");
+            throw new ProducerMessageBusException($"Message of type {messageType} was not registered as a supported produce message. Please check your MessageBus configuration and include this type or one of its base types.");
         }
         return producerSettings;
     }
@@ -304,18 +303,32 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMes
         if (producerSettings == null) throw new ArgumentNullException(nameof(producerSettings));
 
         var path = producerSettings.DefaultPath
-            ?? throw new PublishMessageBusException($"An attempt to produce message of type {messageType} without specifying path, but there was no default path configured. Double check your configuration.");
+            ?? throw new ProducerMessageBusException($"An attempt to produce message of type {messageType} without specifying path, but there was no default path configured. Double check your configuration.");
 
         _logger.LogDebug("Applying default path {Path} for message type {MessageType}", path, messageType);
         return path;
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="message"></param>
+    /// <param name="path"></param>
+    /// <param name="messagePayload"></param>
+    /// <param name="messageHeaders"></param>
+    /// <param name="cancellationToken"></param>
     public abstract Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null, CancellationToken cancellationToken = default);
 
-    public virtual async Task Publish(object message, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, IDependencyResolver currentDependencyResolver = null)
+    public virtual Task Publish(object message, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, IDependencyResolver currentDependencyResolver = null)
     {
         if (message == null) throw new ArgumentNullException(nameof(message));
         AssertActive();
+
+        // check if the cancellation was already requested
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return Task.FromCanceled(cancellationToken);
+        }
 
         var messageType = message.GetType();
         var producerSettings = GetProducerSettings(messageType);
@@ -334,7 +347,7 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMes
         var publishInterceptors = RuntimeTypeCache.PublishInterceptorType.ResolveAll(resolver, messageType);
         if (producerInterceptors != null || publishInterceptors != null)
         {
-            var context = new ProducerContext
+            var context = new PublishContext
             {
                 Path = path,
                 CancellationToken = cancellationToken,
@@ -342,46 +355,14 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMes
                 Bus = this
             };
 
-            var next = () => PublishInternal(message, path, messageHeaders, cancellationToken, producerSettings);
-
-            // Note: In this particular order - we want the publish interceptor to be wrapped by produce interceptor
-
-            if (publishInterceptors != null)
-            {
-                var publishInterceptorType = RuntimeTypeCache.PublishInterceptorType.Get(messageType);
-                foreach (var publishInterceptor in publishInterceptors.OfType<IInterceptor>().OrderBy(x => x.GetOrder()))
-                {
-                    // The params follow IPublishInterceptor<>.OnHandle parameters
-                    var interceptorParams = new object[] { message, next, context };
-                    next = () => (Task)publishInterceptorType.Method.Invoke(publishInterceptor, interceptorParams);
-                }
-            }
-
-            if (producerInterceptors != null)
-            {
-                // IProducerInterceptor<,> requires next() to return Task<object> 
-                var nextSnapshot = next;
-                var nextWithResult = () => nextSnapshot().ContinueWith<object>(x => null);
-
-                var producerInterceptorType = RuntimeTypeCache.ProducerInterceptorType.Get(messageType);
-                foreach (var producerInterceptor in producerInterceptors.OfType<IInterceptor>().OrderBy(x => x.GetOrder()))
-                {
-                    // The params follow IPublishInterceptor<>.OnHandle parameters
-                    var interceptorParams = new object[] { message, nextWithResult, context };
-                    nextWithResult = () => (Task<object>)producerInterceptorType.Method.Invoke(producerInterceptor, interceptorParams);
-                }
-
-                next = nextWithResult;
-            }
-
-            await next();
-            return;
+            var pipeline = new PublishInterceptorPipeline(this, message, producerSettings, context, producerInterceptors: producerInterceptors, publishInterceptors: publishInterceptors);
+            return pipeline.Next();
         }
 
-        await PublishInternal(message, path, messageHeaders, cancellationToken, producerSettings);
+        return PublishInternal(message, path, messageHeaders, cancellationToken, producerSettings);
     }
 
-    protected virtual Task PublishInternal(object message, string path, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken, ProducerSettings producerSettings)
+    protected internal virtual Task PublishInternal(object message, string path, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken, ProducerSettings producerSettings)
     {
         OnProducedHook(message, path, producerSettings);
 
@@ -432,14 +413,17 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMes
         return timeout;
     }
 
-    public virtual async Task<TResponse> SendInternal<TResponse>(object request, TimeSpan? timeout, string path, IDictionary<string, object> headers, CancellationToken cancellationToken, IDependencyResolver currentDependencyResolver = null)
+    public virtual Task<TResponse> SendInternal<TResponse>(object request, TimeSpan? timeout, string path, IDictionary<string, object> headers, CancellationToken cancellationToken, IDependencyResolver currentDependencyResolver = null)
     {
         if (request == null) throw new ArgumentNullException(nameof(request));
         AssertActive();
         AssertRequestResponseConfigured();
 
         // check if the cancellation was already requested
-        cancellationToken.ThrowIfCancellationRequested();
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return Task.FromCanceled<TResponse>(cancellationToken);
+        }
 
         var requestType = request.GetType();
         var responseType = typeof(TResponse);
@@ -456,69 +440,42 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMes
         // generate the request guid
         var requestId = GenerateRequestId();
 
-        // ToDo: Make this optional
         var requestHeaders = CreateHeaders();
         if (requestHeaders != null)
         {
             AddMessageHeaders(requestHeaders, headers, request, producerSettings);
-            requestHeaders.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
+            if (requestId != null)
+            {
+                requestHeaders.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
+            }
             requestHeaders.SetHeader(ReqRespMessageHeaders.Expires, expires);
         }
 
         var resolver = currentDependencyResolver ?? Settings.DependencyResolver;
 
         var producerInterceptors = RuntimeTypeCache.ProducerInterceptorType.ResolveAll(resolver, requestType);
-        var sendInterceptors = RuntimeTypeCache.SendInterceptorType.ResolveAll(resolver, requestType, responseType);
+        var sendInterceptors = RuntimeTypeCache.SendInterceptorType.ResolveAll(resolver, (requestType, responseType));
         if (producerInterceptors != null || sendInterceptors != null)
         {
-            var context = new ProducerContext
+            var context = new SendContext
             {
                 Path = path,
                 CancellationToken = cancellationToken,
-                Headers = headers,
-                Bus = this
+                Headers = requestHeaders,
+                Bus = this,
+                Created = created,
+                Expires = expires,
+                RequestId = requestId,
             };
 
-            var next = () => SendInternal<TResponse>(request, path, requestType, responseType, producerSettings, created, expires, requestId, requestHeaders, cancellationToken);
-
-            // Note: In this particular order - we want the send interceptor to be wrapped by produce interceptor
-
-            if (sendInterceptors != null)
-            {
-                var sendInterceptorType = RuntimeTypeCache.SendInterceptorType.Get(requestType, responseType);
-                foreach (var sendInterceptor in sendInterceptors.OfType<IInterceptor>().OrderBy(x => x.GetOrder()))
-                {
-                    // The params follow IPublishInterceptor<>.OnHandle parameters
-                    var interceptorParams = new object[] { request, next, context };
-                    next = () => (Task<TResponse>)sendInterceptorType.Method.Invoke(sendInterceptor, interceptorParams);
-                }
-            }
-
-            if (producerInterceptors != null)
-            {
-                // The IProducerInterceptor<,> requires next() to return Task<object>
-                var nextSnapshot = next;
-                var nextWithObjectResult = () => nextSnapshot().ContinueWith(x => (object)x.GetAwaiter().GetResult());
-
-                var producerInterceptorType = RuntimeTypeCache.ProducerInterceptorType.Get(requestType);
-                foreach (var producerInterceptor in producerInterceptors.OfType<IInterceptor>().OrderBy(x => x.GetOrder()))
-                {
-                    // The params follow IPublishInterceptor<>.OnHandle parameters
-                    var interceptorParams = new object[] { request, nextWithObjectResult, context };
-                    nextWithObjectResult = () => (Task<object>)producerInterceptorType.Method.Invoke(producerInterceptor, interceptorParams);
-                }
-
-                // Cast back to Task<TResponse>
-                next = () => nextWithObjectResult().ContinueWith(x => (TResponse)x.GetAwaiter().GetResult());
-            }
-
-            return await next();
+            var pipeline = new SendInterceptorPipeline<TResponse>(this, request, producerSettings, context, producerInterceptors: producerInterceptors, sendInterceptors: sendInterceptors);
+            return pipeline.Next();
         }
 
-        return await SendInternal<TResponse>(request, path, requestType, responseType, producerSettings, created, expires, requestId, requestHeaders, cancellationToken);
+        return SendInternal<TResponse>(request, path, requestType, responseType, producerSettings, created, expires, requestId, requestHeaders, cancellationToken);
     }
 
-    protected virtual async Task<TResponseMessage> SendInternal<TResponseMessage>(object request, string path, Type requestType, Type responseType, ProducerSettings producerSettings, DateTimeOffset created, DateTimeOffset expires, string requestId, IDictionary<string, object> requestHeaders, CancellationToken cancellationToken)
+    protected internal virtual async Task<TResponseMessage> SendInternal<TResponseMessage>(object request, string path, Type requestType, Type responseType, ProducerSettings producerSettings, DateTimeOffset created, DateTimeOffset expires, string requestId, IDictionary<string, object> requestHeaders, CancellationToken cancellationToken)
     {
         // record the request state
         var requestState = new PendingRequestState(requestId, request, requestType, responseType, created, expires, cancellationToken);

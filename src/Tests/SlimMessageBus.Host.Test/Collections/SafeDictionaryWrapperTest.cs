@@ -19,11 +19,11 @@ public class SafeDictionaryWrapperTest
         var v2 = w.GetOrAdd(k, valueFactoryMock.Object);
 
         // assert
-        w.Dictonary.Count.Should().Be(1);
+        w.Dictionary.Count.Should().Be(1);
 
         v1.Should().BeEquivalentTo(v);
         v2.Should().BeEquivalentTo(v);
-        w.Dictonary[k].Should().BeEquivalentTo(v);
+        w.Dictionary[k].Should().BeEquivalentTo(v);
 
         valueFactoryMock.Verify(x => x(k), Times.Once);
     }
@@ -39,23 +39,7 @@ public class SafeDictionaryWrapperTest
         w.Clear();
 
         // assert
-        w.Dictonary.Count.Should().Be(0);
-    }
-
-    [Fact]
-    public void CannotMutateDictionary()
-    {
-        var w = new SafeDictionaryWrapper<string, string>();
-        w.GetOrAdd("a", x => "a");
-        w.GetOrAdd("b", x => "b");
-
-        // act
-        Action clearAction = () => w.Dictonary.Clear();
-        Action addAction = () => w.Dictonary.Add("c", "c");
-
-        // assert
-        clearAction.Should().Throw<NotSupportedException>();
-        addAction.Should().Throw<NotSupportedException>();
+        w.Dictionary.Count.Should().Be(0);
     }
 
     [Fact]
@@ -93,6 +77,6 @@ public class SafeDictionaryWrapperTest
         Task.WaitAll(task1, task2, task3);
 
         // assert
-        w.Dictonary.Count.Should().Be(3 * count);
+        w.Dictionary.Count.Should().Be(3 * count);
     }
 }

@@ -15,5 +15,7 @@ public interface IPublishBus
     /// <param name="cancellationToken">The CancellationToken.</param>
     /// <returns></returns>
     /// <exception cref="PublishMessageBusException">When sending of the message failed</exception>
+    /// <exception cref="ProducerMessageBusException">When sending of the message failed</exception>
+    /// <exception cref="OperationCanceledException">When the publish was cancelled (via CancellationToken)</exception>
     Task Publish<TMessage>(TMessage message, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default);
 }

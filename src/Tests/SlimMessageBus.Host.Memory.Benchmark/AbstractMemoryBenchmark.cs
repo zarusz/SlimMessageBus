@@ -1,4 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Memory.Benchmark;
+
 using Microsoft.Extensions.DependencyInjection;
 using SlimMessageBus.Host.MsDependencyInjection;
 using System.Reflection;

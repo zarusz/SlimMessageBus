@@ -1,6 +1,6 @@
 namespace SlimMessageBus;
 
-public class RequestHandlerFaultedMessageBusException : MessageBusException
+public class RequestHandlerFaultedMessageBusException : ConsumerMessageBusException
 {
     public RequestHandlerFaultedMessageBusException()
     {

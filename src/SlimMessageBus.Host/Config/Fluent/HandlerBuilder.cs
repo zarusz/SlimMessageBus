@@ -8,9 +8,6 @@ public class HandlerBuilder<TRequest, TResponse> : AbstractConsumerBuilder
         if (settings == null) throw new ArgumentNullException(nameof(settings));
 
         ConsumerSettings.ResponseType = responseType ?? typeof(TResponse);
-
-        var taskOfResponseTypeResultPropertyInfo = typeof(Task<>).MakeGenericType(ConsumerSettings.ResponseType).GetProperty(nameof(Task<object>.Result));
-        ConsumerSettings.ConsumerMethodResult = ReflectionUtils.GenerateGetterFunc(taskOfResponseTypeResultPropertyInfo);
     }
 
     /// <summary>
@@ -67,7 +64,6 @@ public class HandlerBuilder<TRequest, TResponse> : AbstractConsumerBuilder
         ConsumerSettings.ConsumerMode = ConsumerMode.RequestResponse;
         ConsumerSettings.ConsumerType = typeof(THandler);
         ConsumerSettings.ConsumerMethod = (consumer, message) => ((THandler)consumer).OnHandle((TRequest)message);
-        ConsumerSettings.ConsumerMethodResult = (task) => ((Task<TResponse>)task).Result;
 
         ConsumerSettings.Invokers.Add(ConsumerSettings);
 

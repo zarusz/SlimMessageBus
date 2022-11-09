@@ -46,12 +46,10 @@ public abstract class AbstractConsumerBuilder
 
         /// See <see cref="IConsumer{TMessage}.OnHandle(TMessage)"/> and <see cref="IRequestHandler{TRequest, TResponse}.OnHandle(TRequest)"/> 
 
-        var methodArgumentTypes = new[] { invoker.MessageType };
-        var consumerOnHandleMethod = invoker.ConsumerType.GetMethod(methodName, methodArgumentTypes);
+        var consumerOnHandleMethod = invoker.ConsumerType.GetMethod(methodName, new[] { invoker.MessageType });
         if (consumerOnHandleMethod != null)
         {
-            var method = ReflectionUtils.GenerateAsyncMethodCallFunc1(consumerOnHandleMethod, invoker.ConsumerType, invoker.MessageType);
-            invoker.ConsumerMethod = (consumer, message) => method(consumer, message);
+            invoker.ConsumerMethod = ReflectionUtils.GenerateMethodCallToFunc<Func<object, object, Task>>(consumerOnHandleMethod, invoker.ConsumerType, typeof(Task), invoker.MessageType);
         }
 
         Assert.IsNotNull(consumerOnHandleMethod,

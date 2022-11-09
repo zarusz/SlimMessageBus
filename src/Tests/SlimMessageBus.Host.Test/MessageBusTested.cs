@@ -22,7 +22,7 @@ public class MessageBusTested : MessageBusBase
 
     #region Overrides of MessageBusBase
 
-    public override Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken = default)
+    public override async Task<object> ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken = default)
     {
         var messageType = message.GetType();
         OnProduced(messageType, path, message);
@@ -34,19 +34,20 @@ public class MessageBusTested : MessageBusBase
             var resp = OnReply(messageType, path, req);
             if (resp == null)
             {
-                return Task.CompletedTask;
+                return null;
             }
 
-            messageHeaders.TryGetHeader(ReqRespMessageHeaders.RequestId, out string replyTo);
+            messageHeaders.TryGetHeader(ReqRespMessageHeaders.ReplyTo, out string replyTo);
+            messageHeaders.TryGetHeader(ReqRespMessageHeaders.RequestId, out string requestId);
 
             var resposeHeaders = CreateHeaders();
-            resposeHeaders.SetHeader(ReqRespMessageHeaders.RequestId, replyTo);
+            resposeHeaders.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
 
             var responsePayload = Serializer.Serialize(resp.GetType(), resp);
-            return OnResponseArrived(responsePayload, replyTo, (IReadOnlyDictionary<string, object>)resposeHeaders);
+            await OnResponseArrived(responsePayload, replyTo, (IReadOnlyDictionary<string, object>)resposeHeaders);
         }
 
-        return Task.CompletedTask;
+        return null;
     }
 
     public override DateTimeOffset CurrentTime => CurrentTimeProvider();

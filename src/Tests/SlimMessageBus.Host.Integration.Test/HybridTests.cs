@@ -453,7 +453,7 @@ public class HybridTests : IDisposable
             this.store = store;
         }
 
-        public Task OnHandle(InternalMessage message, Func<Task> next, IConsumerContext context)
+        public Task<object> OnHandle(InternalMessage message, Func<Task<object>> next, IConsumerContext context)
         {
             store.Add(new(unitOfWork.CorrelationId, nameof(InternalMessageConsumerInterceptor)));
 
@@ -472,7 +472,7 @@ public class HybridTests : IDisposable
             this.store = store;
         }
 
-        public Task OnHandle(ExternalMessage message, Func<Task> next, IConsumerContext context)
+        public Task<object> OnHandle(ExternalMessage message, Func<Task<object>> next, IConsumerContext context)
         {
             store.Add(new(unitOfWork.CorrelationId, nameof(ExternalMessageConsumerInterceptor)));
 

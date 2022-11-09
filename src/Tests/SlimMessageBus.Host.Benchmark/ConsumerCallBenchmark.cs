@@ -18,7 +18,7 @@ public class CallConsumerBenchmark
     {
         get
         {
-            var onHandleMethodInfo = typeof(SomeMessageConsumer).GetMethod(nameof(SomeMessageConsumer.OnHandle), new[] { typeof(SomeMessage), typeof(string) });
+            var onHandleMethodInfo = typeof(SomeMessageConsumer).GetMethod(nameof(SomeMessageConsumer.OnHandle), new[] { typeof(SomeMessage) });
 
             var message = new SomeMessage();
             var consumer = new SomeMessageConsumer();
@@ -28,12 +28,12 @@ public class CallConsumerBenchmark
                 new Scenario("Reflection",
                     message,
                     consumer,
-                    (target, message, topic) => (Task)onHandleMethodInfo.Invoke(target, new[]{ message, topic })),
+                    (target, message) => (Task)onHandleMethodInfo.Invoke(target, new[]{ message })),
 
                 new Scenario("CompiledExpression",
                     message,
                     consumer,
-                    ReflectionUtils.GenerateAsyncMethodCallFunc2(onHandleMethodInfo, typeof(SomeMessageConsumer), typeof(SomeMessage), typeof(string)))
+                    ReflectionUtils.GenerateMethodCallToFunc<Func<object, object, Task>>(onHandleMethodInfo, typeof(SomeMessageConsumer), typeof(Task), typeof(SomeMessage)))
             };
         }
     }
@@ -41,10 +41,10 @@ public class CallConsumerBenchmark
     [Benchmark]
     public void CallConsumerOnHandle()
     {
-        _ = scenario.OnHandle(scenario.Consumer, scenario.Message, "some-topic");
+        _ = scenario.OnHandle(scenario.Consumer, scenario.Message);
     }
 
-    public record Scenario(string Name, SomeMessage Message, SomeMessageConsumer Consumer, Func<object, object, object, Task> OnHandle)
+    public record Scenario(string Name, SomeMessage Message, SomeMessageConsumer Consumer, Func<object, object, Task> OnHandle)
     {
         public override string ToString() => Name;
     }

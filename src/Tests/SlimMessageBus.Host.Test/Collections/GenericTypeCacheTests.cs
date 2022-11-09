@@ -4,24 +4,26 @@ using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Interceptor;
 
-public class GenericInterfaceTypeCacheTests
+public class GenericTypeCacheTests
 {
     private readonly Mock<IConsumerInterceptor<SomeMessage>> consumerInterceptorMock;
     private readonly Mock<IDependencyResolver> scopeMock;
+    private readonly GenericTypeCache<Func<object, object, object, object, Task>> subject;
 
-    public GenericInterfaceTypeCacheTests()
+    public GenericTypeCacheTests()
     {
         consumerInterceptorMock = new Mock<IConsumerInterceptor<SomeMessage>>();
 
         scopeMock = new Mock<IDependencyResolver>();
         scopeMock.Setup(x => x.Resolve(typeof(IEnumerable<IConsumerInterceptor<SomeMessage>>))).Returns(() => new[] { consumerInterceptorMock.Object });
+
+        subject = new GenericTypeCache<Func<object, object, object, object, Task>>(typeof(IConsumerInterceptor<>), nameof(IConsumerInterceptor<object>.OnHandle), mt => typeof(Task), mt => new[] { typeof(Func<Task<object>>), typeof(IConsumerContext) });
     }
 
     [Fact]
     public void When_ResolveAll_Given_OneRegistrationExists_Then_ReturnsThatRegistration()
     {
         // arrange
-        var subject = new GenericInterfaceTypeCache(typeof(IConsumerInterceptor<>), nameof(IConsumerInterceptor<object>.OnHandle));
 
         // act
         var interceptors = subject.ResolveAll(scopeMock.Object, typeof(SomeMessage));
@@ -38,8 +40,6 @@ public class GenericInterfaceTypeCacheTests
     public void When_ResolveAll_Given_NoRegistrations_Then_ReturnsNull()
     {
         // arrange
-        var subject = new GenericInterfaceTypeCache(typeof(IConsumerInterceptor<>), nameof(IConsumerInterceptor<object>.OnHandle));
-
         scopeMock.Setup(x => x.Resolve(typeof(IEnumerable<IConsumerInterceptor<SomeMessage>>))).Returns(() => Enumerable.Empty<object>());
 
         // act
@@ -57,25 +57,20 @@ public class GenericInterfaceTypeCacheTests
     {
         // arrange
         var message = new SomeMessage();
-        Func<Task> next = () => Task.CompletedTask;
+        Func<Task<object>> next = () => Task.FromResult<object>(null);
         var headers = new Dictionary<string, object>();
         var consumer = new object();
         var consumerContext = new ConsumerContext();
 
-        consumerInterceptorMock.Setup(x => x.OnHandle(message, next, consumerContext)).Returns(Task.CompletedTask);
-
-        var subject = new GenericInterfaceTypeCache(typeof(IConsumerInterceptor<>), nameof(IConsumerInterceptor<object>.OnHandle));
+        consumerInterceptorMock.Setup(x => x.OnHandle(message, next, consumerContext)).Returns(Task.FromResult<object>(null));
 
         // act
-        var interceptorType = subject.Get(typeof(SomeMessage));
+        var interceptorTypeFunc = subject[typeof(SomeMessage)];
 
-        var task = (Task)interceptorType.Method.Invoke(consumerInterceptorMock.Object, new object[] { message, next, consumerContext });
+        var task = interceptorTypeFunc(consumerInterceptorMock.Object, message, next, consumerContext);
         await task;
 
         // assert
-        interceptorType.GenericType.Should().Be(typeof(IConsumerInterceptor<SomeMessage>));
-        interceptorType.MessageType.Should().Be(typeof(SomeMessage));
-
         consumerInterceptorMock.Verify(x => x.OnHandle(message, next, consumerContext), Times.Once);
         consumerInterceptorMock.VerifyNoOtherCalls();
     }

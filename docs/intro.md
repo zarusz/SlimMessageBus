@@ -972,7 +972,7 @@ On the consumer side, before the recieved message is delivered to the consumer (
 // Intercepts consumers of type IConsumer<TMessage> and IRequestHandler<TMessage, TResponse>
 public interface IConsumerInterceptor<in TMessage> : IInterceptor
 {
-   Task OnHandle(TMessage message, Func<Task> next, IConsumerContext context);
+   Task<object> OnHandle(TMessage message, Func<Task<object>> next, IConsumerContext context);
 }
 
 // Intercepts consumers of type IRequestHandler<TMessage, TResponse>
@@ -986,7 +986,6 @@ See source:
 
 - [IConsumerInterceptor](../src/SlimMessageBus.Host.Interceptor/Consumers/IConsumerInterceptor.cs)
 - [IRequestHandlerInterceptor](../src/SlimMessageBus.Host.Interceptor/Consumers/IRequestHandlerInterceptor.cs)
-
 
 > Remember to register your interceptor types in the DI (either using auto-discovery [`addInterceptorsFromAssembly`](#MsDependencyInjection) or manually).
 

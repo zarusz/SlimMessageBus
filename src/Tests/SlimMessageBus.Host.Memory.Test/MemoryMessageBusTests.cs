@@ -120,7 +120,10 @@ public class MemoryMessageBusTests
     public async Task When_Publish_Given_PerMessageScopeEnabled_Then_TheScopeIsCreatedAndConsumerObtainedFromScope()
     {
         // arrange
+        var m = new SomeMessageA(Guid.NewGuid());
+
         var consumerMock = new Mock<SomeMessageAConsumer>();
+        consumerMock.Setup(x => x.OnHandle(m)).Returns(() => Task.CompletedTask);
 
         var scope = new Mock<IChildDependencyResolver>();
         scope.Setup(x => x.Resolve(typeof(SomeMessageAConsumer))).Returns(() => consumerMock.Object);
@@ -135,8 +138,6 @@ public class MemoryMessageBusTests
         _builder.PerMessageScopeEnabled(true);
 
         _providerSettings.EnableMessageSerialization = false;
-
-        var m = new SomeMessageA(Guid.NewGuid());
 
         // act
         await _subject.Value.Publish(m);

@@ -148,39 +148,40 @@ Unlike stated for the [Introduction](intro.md) the memory bus has per-message sc
 
 The project [`SlimMessageBus.Host.Memory.Benchmark`](/src/Tests/SlimMessageBus.Host.Memory.Benchmark/) runs basic scenarios for pub/sub and request/response on the memory bus. The benchmark should provide some reference about the speed / performance of the Memory Bus.
 
-- The test includes a simple messages being produced.
+- The test includes a 1M of simple messages being produced.
 - The consumers do not do any logic - we want to test how fast can the messages flow through the bus.
 - The benchmark application uses a real life setup including dependency injection container.
-- No interceptors are being used.
+- There is a viaration of the test that captures the overhead for the interceptor pipeline.
 
 Pub/Sub scenario results:
 
-| Method | messageCount |           Mean |        Error |       StdDev |       Gen 0 |     Gen 1 |     Gen 2 |  Allocated |
-| ------ | -----------: | -------------: | -----------: | -----------: | ----------: | --------: | --------: | ---------: |
-| PubSub |          100 |       114.7 us |      1.75 us |      1.36 us |     13.3057 |         - |         - |      55 KB |
-| PubSub |         1000 |     1,181.5 us |      4.57 us |      3.81 us |    130.8594 |         - |         - |     540 KB |
-| PubSub |        10000 |    11,891.2 us |    116.28 us |    108.77 us |   1296.8750 |   62.5000 |   31.2500 |   5,491 KB |
-| PubSub |       100000 |   117,676.6 us |  1,641.94 us |  1,455.54 us |  12800.0000 |  600.0000 |  600.0000 |  54,394 KB |
-| PubSub |      1000000 | 1,204,072.3 us | 17,743.36 us | 18,221.12 us | 128000.0000 | 3000.0000 | 3000.0000 | 539,825 KB |
+| Type                                   | Method                        | messageCount |    Mean |    Error |   StdDev |        Gen0 |      Gen1 |      Gen2 | Allocated |
+| -------------------------------------- | ----------------------------- | ------------ | ------: | -------: | -------: | ----------: | --------: | --------: | --------: |
+| PubSubBenchmark                        | PubSub                        | 1000000      | 1.201 s | 0.0582 s | 0.0816 s | 118000.0000 | 3000.0000 | 3000.0000 | 489.03 MB |
+| PubSubWithConsumerInterceptorBenchmark | PubSubWithConsumerInterceptor | 1000000      | 1.541 s | 0.0247 s | 0.0219 s | 191000.0000 | 3000.0000 | 3000.0000 | 778.95 MB |
+| PubSubWithProducerInterceptorBenchmark | PubSubWithProducerInterceptor | 1000000      | 1.479 s | 0.0094 s | 0.0078 s | 200000.0000 | 3000.0000 | 3000.0000 | 817.09 MB |
+| PubSubWithPublishInterceptorBenchmark  | PubSubWithPublishInterceptor  | 1000000      | 1.511 s | 0.0178 s | 0.0219 s | 200000.0000 | 3000.0000 | 3000.0000 | 817.09 MB |
 
-> Pub/Sub rate is 830515 messages/s on the tested machine.
+> Pub/Sub rate is 832639 messages/s on the tested machine (without interceptors).
 
 Request/Response scenario results:
 
-| Method          | messageCount |           Mean |        Error |       StdDev |       Gen 0 |      Gen 1 |     Gen 2 |    Allocated |
-| --------------- | -----------: | -------------: | -----------: | -----------: | ----------: | ---------: | --------: | -----------: |
-| RequestResponse |          100 |       215.6 us |      2.78 us |      2.46 us |     28.0762 |     0.2441 |         - |       115 KB |
-| RequestResponse |         1000 |     2,119.3 us |     30.73 us |     25.66 us |    277.3438 |    35.1563 |         - |     1,141 KB |
-| RequestResponse |        10000 |    24,601.0 us |    221.66 us |    185.10 us |   2000.0000 |   968.7500 |  468.7500 |    11,507 KB |
-| RequestResponse |       100000 |   278,643.3 us |  5,465.46 us |  8,509.06 us |  19000.0000 |  6000.0000 | 2000.0000 |   114,559 KB |
-| RequestResponse |      1000000 | 2,753,348.9 us | 25,449.35 us | 23,805.34 us | 186000.0000 | 51000.0000 | 6000.0000 | 1,141,392 KB |
+| Type                                          | Method                               | messageCount |    Mean |    Error |   StdDev |        Gen0 |       Gen1 |      Gen2 |  Allocated |
+| --------------------------------------------- | ------------------------------------ | ------------ | ------: | -------: | -------: | ----------: | ---------: | --------: | ---------: |
+| ReqRespBenchmark                              | RequestResponse                      | 1000000      | 2.424 s | 0.0351 s | 0.0274 s | 134000.0000 | 39000.0000 | 6000.0000 |  801.83 MB |
+| ReqRespWithConsumerInterceptorBenchmark       | ReqRespWithConsumerInterceptor       | 1000000      | 3.056 s | 0.0608 s | 0.0769 s | 205000.0000 | 55000.0000 | 6000.0000 | 1229.08 MB |
+| ReqRespWithProducerInterceptorBenchmark       | ReqRespWithProducerInterceptor       | 1000000      | 2.957 s | 0.0517 s | 0.0458 s | 229000.0000 | 60000.0000 | 6000.0000 | 1374.04 MB |
+| ReqRespWithRequestHandlerInterceptorBenchmark | ReqRespWithRequestHandlerInterceptor | 1000000      | 3.422 s | 0.0644 s | 0.0742 s | 217000.0000 | 58000.0000 | 6000.0000 | 1297.74 MB |
+| ReqRespWithSendInterceptorBenchmark           | ReqRespWithSendInterceptor           | 1000000      | 2.934 s | 0.0285 s | 0.0223 s | 219000.0000 | 59000.0000 | 7000.0000 | 1305.38 MB |
 
-> Request/Response rate is 363194 messages/s on the tested machine.
+> Request/Response rate is 412541 messages/s on the tested machine (without interceptors).
 
 The test results are for the following environment:
 
 ```text
-BenchmarkDotNet=v0.13.1, OS=Windows 10.0.22000
+BenchmarkDotNet=v0.13.2, OS=Windows 11 (10.0.22621.819)
 Intel Core i7-8550U CPU 1.80GHz (Kaby Lake R), 1 CPU, 8 logical and 4 physical cores
-.NET SDK=6.0.302
+.NET SDK=6.0.402
+  [Host]     : .NET 6.0.11 (6.0.1122.52304), X64 RyuJIT AVX2
+  Job-XKUBHP : .NET 6.0.11 (6.0.1122.52304), X64 RyuJIT AVX2
 ```
