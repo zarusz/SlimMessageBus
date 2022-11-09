@@ -145,14 +145,14 @@ public class ServiceBusMessageBus : MessageBusBase
             _consumers.Clear();
         }
 
-        if (_producerByPath.Dictonary.Count > 0)
+        var producers = _producerByPath.ClearAndSnapshot();
+        if (producers.Count > 0)
         {
-            await Task.WhenAll(_producerByPath.Snapshot().Select(x =>
+            await Task.WhenAll(producers.Select(x =>
             {
                 _logger.LogDebug("Closing sender client for path {Path}", x.EntityPath);
                 return x.CloseAsync();
             }));
-            _producerByPath.Clear();
         }
 
         if (_client != null)
@@ -215,7 +215,7 @@ public class ServiceBusMessageBus : MessageBusBase
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "Producing message {Message} of type {MessageType} to path {Path} resulted in error {Error}", message, messageType?.Name, path, ex.Message);
-            throw new PublishMessageBusException($"Producing message {message} of type {messageType?.Name} to path {path} resulted in error: {ex.Message}", ex);
+            throw new ProducerMessageBusException($"Producing message {message} of type {messageType?.Name} to path {path} resulted in error: {ex.Message}", ex);
         }
     }
 

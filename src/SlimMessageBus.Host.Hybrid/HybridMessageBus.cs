@@ -119,7 +119,7 @@ public class HybridMessageBus : IMasterMessageBus, IAsyncDisposable
     {
         var messageType = message.GetType();
 
-        var busName = _busNameByMessageType.GetProducer(messageType)
+        var busName = _busNameByMessageType[messageType]
             ?? throw new ConfigurationMessageBusException($"Could not find any bus that produces the message type: {messageType} and path: {path}");
 
         _logger.LogDebug("Resolved bus {BusName} for message type: {MessageType} and path {Path}", busName, messageType, path);

@@ -208,7 +208,7 @@ public class KafkaMessageBus : MessageBusBase
         var deliveryResult = await task.ConfigureAwait(false);
         if (deliveryResult.Status == PersistenceStatus.NotPersisted)
         {
-            throw new PublishMessageBusException($"Error while publish message {message} of type {messageType.Name} to topic {path}. Kafka persistence status: {deliveryResult.Status}");
+            throw new ProducerMessageBusException($"Error while publish message {message} of type {messageType.Name} to topic {path}. Kafka persistence status: {deliveryResult.Status}");
         }
 
         // log some debug information

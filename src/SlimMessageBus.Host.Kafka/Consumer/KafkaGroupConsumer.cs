@@ -189,7 +189,7 @@ public class KafkaGroupConsumer : IDisposable, IKafkaCommitController
         {
             _logger.LogDebug("Group [{Group}]: Assigned partition, Topic: {Topic}, Partition: {Partition}", Group, partition.Topic, partition.Partition);
 
-            var processor = _processors.GetOrAdd(partition);
+            var processor = _processors[partition];
             processor.OnPartitionAssigned(partition);
         }
     }
@@ -200,7 +200,7 @@ public class KafkaGroupConsumer : IDisposable, IKafkaCommitController
         {
             _logger.LogDebug("Group [{Group}]: Revoked Topic: {Topic}, Partition: {Partition}, Offset: {Offset}", Group, partition.Topic, partition.Partition, partition.Offset);
 
-            var processor = _processors.Dictonary[partition.TopicPartition];
+            var processor = _processors[partition.TopicPartition];
             processor.OnPartitionRevoked();
         }
     }
@@ -209,7 +209,7 @@ public class KafkaGroupConsumer : IDisposable, IKafkaCommitController
     {
         _logger.LogDebug("Group [{Group}]: Reached end of partition, Topic: {Topic}, Partition: {Partition}, Offset: {Offset}", Group, offset.Topic, offset.Partition, offset.Offset);
 
-        var processor = _processors.Dictonary[offset.TopicPartition];
+        var processor = _processors[offset.TopicPartition];
         processor.OnPartitionEndReached(offset);
     }
 
@@ -217,7 +217,7 @@ public class KafkaGroupConsumer : IDisposable, IKafkaCommitController
     {
         _logger.LogDebug("Group [{Group}]: Received message with Topic: {Topic}, Partition: {Partition}, Offset: {Offset}, payload size: {MessageSize}", Group, message.Topic, message.Partition, message.Offset, message.Message.Value?.Length ?? 0);
 
-        var processor = _processors.Dictonary[message.TopicPartition];
+        var processor = _processors[message.TopicPartition];
         await processor.OnMessage(message).ConfigureAwait(false);
     }
 

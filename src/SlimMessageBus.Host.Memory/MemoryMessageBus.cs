@@ -2,7 +2,6 @@
 
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization;
-using System;
 
 /// <summary>
 /// In-memory message bus <see cref="IMessageBus"/> implementation to use for in process message passing.
@@ -43,6 +42,19 @@ public class MemoryMessageBus : MessageBusBase
         // Do not built it. Memory bus does not need it.
     }
 
+    public override IDictionary<string, object> CreateHeaders()
+    {
+        if (_providerSettings.EnableMessageSerialization)
+        {
+            return base.CreateHeaders();
+        }
+        // Memory bus does not require headers
+        return null;
+    }
+
+    // Memory bus does not require requestId
+    protected override string GenerateRequestId() => null;
+
     public override bool IsMessageScopeEnabled(ConsumerSettings consumerSettings)
         => (consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings))).IsMessageScopeEnabled ?? Settings.IsMessageScopeEnabled ?? false; // by default Memory Bus has scoped message disabled
 
@@ -78,16 +90,6 @@ public class MemoryMessageBus : MessageBusBase
         return transportMessage;
     }
 
-    public override IDictionary<string, object> CreateHeaders()
-    {
-        if (_providerSettings.EnableMessageSerialization)
-        {
-            return base.CreateHeaders();
-        }
-        // Memory bus does not require headers
-        return null;
-    }
-
     public override Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null, CancellationToken cancellationToken = default)
         => Task.CompletedTask; // Not used
 
@@ -108,41 +110,27 @@ public class MemoryMessageBus : MessageBusBase
             return default;
         }
 
-        Exception exception;
-        object response = null;
+        var transportMessage = _providerSettings.EnableMessageSerialization
+            ? Serializer.Serialize(producerSettings.MessageType, message)
+            : message;
 
-        try
+        var messageHeadersReadOnly = requestHeaders != null
+            ? requestHeaders as IReadOnlyDictionary<string, object> ?? new Dictionary<string, object>(requestHeaders)
+            : null;
+
+        var (exception, exceptionConsumerSettings, response) = await messageProcessor.ProcessMessage(transportMessage, messageHeadersReadOnly, cancellationToken);
+        if (exception != null)
         {
-            var transportMessage = _providerSettings.EnableMessageSerialization
-                ? Serializer.Serialize(producerSettings.MessageType, message)
-                : message;
-
-            var messageHeadersReadOnly = requestHeaders != null
-                ? requestHeaders as IReadOnlyDictionary<string, object> ?? new Dictionary<string, object>(requestHeaders)
-                : null;
-
-            (exception, var exceptionConsumerSettings, response) = await messageProcessor.ProcessMessage(transportMessage, messageHeadersReadOnly, cancellationToken);
-            if (exception != null)
-            {
-                OnMessageFailed(message, exceptionConsumerSettings, exception);
-            }
-        }
-        catch (Exception e)
-        {
-            exception = e;
+            OnMessageFailed(message, exceptionConsumerSettings, exception);
         }
 
         if (exception != null)
         {
+            // We want to pass the same exception to the sender as it happened in the handler/consumer
             throw exception;
         }
 
-        if (response != null && response is TResponseMessage typedResponse)
-        {
-            return typedResponse;
-        }
-
-        return default;
+        return (TResponseMessage)response;
     }
 
     private void OnMessageFailed(object message, AbstractConsumerSettings consumerSettings, Exception e)

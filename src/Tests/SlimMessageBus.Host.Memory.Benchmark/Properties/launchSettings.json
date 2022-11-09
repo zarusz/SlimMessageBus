@@ -4,8 +4,9 @@
       "commandName": "WSL2",
       "distributionName": ""
     },
-    "Profile 1": {
+    "Project": {
       "commandName": "Project",
+      "commandLineArgs": "-f *PubSub* --join --maxIterationCount 30 --maxWarmupCount 10",
       "hotReloadEnabled": false
     }
   }

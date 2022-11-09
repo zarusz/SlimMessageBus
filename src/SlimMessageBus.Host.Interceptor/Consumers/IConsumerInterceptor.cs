@@ -9,5 +9,5 @@ public interface IConsumerInterceptor<in TMessage> : IInterceptor
     /// <param name="next">Next step to execute (the message production or another interceptor)</param>
     /// <param name="context">The consumer context</param>
     /// <returns></returns>
-    Task OnHandle(TMessage message, Func<Task> next, IConsumerContext context);
+    Task<object> OnHandle(TMessage message, Func<Task<object>> next, IConsumerContext context);
 }

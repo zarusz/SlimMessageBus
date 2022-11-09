@@ -222,8 +222,8 @@ public class MessageBusBaseTests : IDisposable
         var r1 = new RequestA();
         var r2 = new RequestA();
 
-        var cts1 = new CancellationTokenSource();
-        var cts2 = new CancellationTokenSource();
+        using var cts1 = new CancellationTokenSource();
+        using var cts2 = new CancellationTokenSource();
 
         cts2.Cancel();
         var r1Task = Bus.Send(r1, cancellationToken: cts1.Token);
@@ -238,9 +238,6 @@ public class MessageBusBaseTests : IDisposable
 
         r2Task.IsCanceled.Should().BeTrue("Request 2 was canceled");
         r2Task.IsFaulted.Should().BeFalse("Request 2 was canceled");
-
-        cts1.Dispose();
-        cts2.Dispose();
     }
 
     private static async Task WaitForTasks(int millis, params Task[] tasks)
@@ -398,7 +395,7 @@ public class MessageBusBaseTests : IDisposable
         Action action = () => Bus.Public_GetProducerSettings(typeof(SomeRequest));
 
         // assert
-        action.Should().Throw<PublishMessageBusException>();
+        action.Should().Throw<ProducerMessageBusException>();
     }
 
     [Fact]
@@ -509,12 +506,8 @@ public class MessageBusBaseTests : IDisposable
 
         var producerInterceptorMock = new Mock<IProducerInterceptor<SomeDerivedMessage>>();
         producerInterceptorMock.Setup(x => x.OnHandle(m, It.IsAny<Func<Task<object>>>(), It.IsAny<IProducerContext>()))
-            .Returns(async (SomeDerivedMessage m, Func<Task<object>> next, IProducerContext context)
-                =>
-                {
-                    if (producerInterceptorCallsNext == true) return await next();
-                    return null;
-                });
+            .Returns((SomeDerivedMessage m, Func<Task<object>> next, IProducerContext context)
+                => producerInterceptorCallsNext == true ? next() : Task.FromResult<object>(null));
 
         var publishInterceptorMock = new Mock<IPublishInterceptor<SomeDerivedMessage>>();
         publishInterceptorMock.Setup(x => x.OnHandle(m, It.IsAny<Func<Task>>(), It.IsAny<IProducerContext>()))
@@ -598,16 +591,14 @@ public class MessageBusBaseTests : IDisposable
         };
 
         var producerInterceptorMock = new Mock<IProducerInterceptor<RequestA>>();
-        producerInterceptorMock.Setup(x => x.OnHandle(request, It.IsAny<Func<Task<object>>>(), It.IsAny<IProducerContext>()))
-        .Returns((RequestA m, Func<Task<object>> next, IProducerContext context)
-                =>
-                {
-                    if (producerInterceptorCallsNext == true) return next();
-                    return Task.FromResult<object>(null);
-                });
+        producerInterceptorMock
+            .Setup(x => x.OnHandle(request, It.IsAny<Func<Task<object>>>(), It.IsAny<IProducerContext>()))
+            .Returns((RequestA m, Func<Task<object>> next, IProducerContext context)
+                => producerInterceptorCallsNext == true ? next() : Task.FromResult<object>(null));
 
         var sendInterceptorMock = new Mock<ISendInterceptor<RequestA, ResponseA>>();
-        sendInterceptorMock.Setup(x => x.OnHandle(request, It.IsAny<Func<Task<ResponseA>>>(), It.IsAny<IProducerContext>()))
+        sendInterceptorMock
+            .Setup(x => x.OnHandle(request, It.IsAny<Func<Task<ResponseA>>>(), It.IsAny<IProducerContext>()))
             .Returns((RequestA m, Func<Task<ResponseA>> next, IProducerContext context)
                 => sendInterceptorCallsNext == true ? next() : Task.FromResult<ResponseA>(null));
 

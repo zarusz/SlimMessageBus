@@ -4,6 +4,17 @@ using System.Linq.Expressions;
 
 public static class ReflectionUtils
 {
+    public static Func<object, object> GenerateGetterExpr(PropertyInfo property)
+    {
+        var objInstanceExpr = Expression.Parameter(typeof(object), "instance");
+        var typedInstanceExpr = Expression.TypeAs(objInstanceExpr, property.DeclaringType);
+
+        var propertyExpr = Expression.Property(typedInstanceExpr, property);
+        var propertyObjExpr = Expression.Convert(propertyExpr, typeof(object));
+
+        return Expression.Lambda<Func<object, object>>(propertyObjExpr, objInstanceExpr).Compile();
+    }
+
     public static Func<object, object> GenerateGetterFunc(PropertyInfo property)
     {
         var objInstanceExpr = Expression.Parameter(typeof(object), "instance");
@@ -15,34 +26,77 @@ public static class ReflectionUtils
         return Expression.Lambda<Func<object, object>>(propertyObjExpr, objInstanceExpr).Compile();
     }
 
-    public static Func<object, object, object, Task> GenerateAsyncMethodCallFunc2(MethodInfo method, Type instanceType, Type argument1Type, Type argument2Type)
+    public static T GenerateMethodCallToFunc<T>(MethodInfo method, Type instanceType, Type returnType, params Type[] argumentTypes)
     {
         var objInstanceExpr = Expression.Parameter(typeof(object), "instance");
-        var typedInstanceExpr = Expression.TypeAs(objInstanceExpr, instanceType);
+        var typedInstanceExpr = Expression.Convert(objInstanceExpr, instanceType);
 
-        var objArgument1 = Expression.Parameter(typeof(object), "arg1");
-        var typedArgument1Expr = Expression.TypeAs(objArgument1, argument1Type);
+        var objArguments = argumentTypes.Select((x, i) => Expression.Parameter(typeof(object), $"arg{i + 1}")).ToArray();
+        var typedArguments = argumentTypes.Select((x, i) => Expression.Convert(objArguments[i], x)).ToArray();
 
-        var objArgument2 = Expression.Parameter(typeof(object), "arg2");
-        var typedArgument2Expr = Expression.TypeAs(objArgument2, argument2Type);
+        var methodResultExpr = Expression.Call(typedInstanceExpr, method, typedArguments);
+        var typedMethodResultExpr = Expression.Convert(methodResultExpr, returnType);
 
-        var methodResultExpr = Expression.Call(typedInstanceExpr, method, typedArgument1Expr, typedArgument2Expr);
-        var methodResultAsTaskExpr = Expression.Convert(methodResultExpr, typeof(Task));
-
-        return Expression.Lambda<Func<object, object, object, Task>>(methodResultAsTaskExpr, objInstanceExpr, objArgument1, objArgument2).Compile();
+        return Expression.Lambda<T>(typedMethodResultExpr, new[] { objInstanceExpr }.Concat(objArguments)).Compile();
     }
 
-    public static Func<object, object, Task> GenerateAsyncMethodCallFunc1(MethodInfo method, Type instanceType, Type argument1Type)
+    public static T GenerateGenericMethodCallToFunc<T>(MethodInfo genericMethod, Type[] genericTypeArguments, Type instanceType, Type returnType, params Type[] argumentTypes)
     {
-        var objInstanceExpr = Expression.Parameter(typeof(object), "instance");
-        var typedInstanceExpr = Expression.TypeAs(objInstanceExpr, instanceType);
+        var method = genericMethod.MakeGenericMethod(genericTypeArguments);
+        return GenerateMethodCallToFunc<T>(method, instanceType, returnType, argumentTypes);
+    }
 
-        var objArgument1 = Expression.Parameter(typeof(object), "arg1");
-        var typedArgument1Expr = Expression.TypeAs(objArgument1, argument1Type);
+    private static readonly Type taskOfObject = typeof(Task<object>);
+    private static readonly PropertyInfo taskOfObjectResultProperty = taskOfObject.GetProperty(nameof(Task<object>.Result));
+    // Expression: TaskContinuationOptions.ExecuteSynchronously
+    private static readonly ConstantExpression continuationOptionsParam = Expression.Constant(TaskContinuationOptions.ExecuteSynchronously);
 
-        var methodResultExpr = Expression.Call(typedInstanceExpr, method, typedArgument1Expr);
-        var methodResultAsTaskExpr = Expression.Convert(methodResultExpr, typeof(Task));
+    public static Func<Task<object>, Task> TaskOfObjectContinueWithTaskOfTypeFunc(Type targetType)
+    {
+        var taskOfType = typeof(Task<>).MakeGenericType(targetType);
 
-        return Expression.Lambda<Func<object, object, Task>>(methodResultAsTaskExpr, objInstanceExpr, objArgument1).Compile();
+        var taskOfObjectParam = Expression.Parameter(taskOfObject, "instance");
+        var taskOfObjectContinueWithMethodGeneric = taskOfObject.GetMethods().Where(x => x.Name == nameof(Task<object>.ContinueWith) && x.IsGenericMethodDefinition && x.GetParameters().Length == 2 && x.GetParameters()[1].ParameterType == typeof(TaskContinuationOptions)).First();
+        var taskOfObjectContinueWithMethod = taskOfObjectContinueWithMethodGeneric.MakeGenericMethod(targetType);
+
+        // Expression: x => (TargetType)x.Result
+        var xParam = Expression.Parameter(taskOfObject, "x");
+        var convertLambdaExpr = Expression.Lambda(Expression.Convert(Expression.Property(xParam, taskOfObjectResultProperty), targetType), xParam);
+
+        // Expression: taskOfObject.ContinueWith(x => (TargetType)x.Result, TaskContinuationOptions.ExecuteSynchronously)
+        var methodResultExpr = Expression.Call(taskOfObjectParam, taskOfObjectContinueWithMethod, convertLambdaExpr, continuationOptionsParam);
+        var typedMethodResultExpr = Expression.Convert(methodResultExpr, taskOfType);
+
+        return Expression.Lambda<Func<Task<object>, Task>>(typedMethodResultExpr, taskOfObjectParam).Compile();
+    }
+
+    internal static Func<Task, Task<object>> TaskOfTypeContinueWithTaskOfObjectFunc(Type targetType)
+    {
+        var taskOfType = typeof(Task<>).MakeGenericType(targetType);
+        var taskOfTypeResultProperty = taskOfType.GetProperty(nameof(Task<object>.Result));
+
+        var taskOfTypeContinueWithMethodGeneric = taskOfType.GetMethods().Where(x => x.Name == nameof(Task<object>.ContinueWith) && x.IsGenericMethodDefinition && x.GetParameters().Length == 2 && x.GetParameters()[1].ParameterType == typeof(TaskContinuationOptions)).First();
+        var taskOfTypeContinueWithMethod = taskOfTypeContinueWithMethodGeneric.MakeGenericMethod(typeof(object));
+
+        // Expression: x => (TargetType)x.Result
+        var xParam = Expression.Parameter(taskOfType, "x");
+        var convertLambdaExpr = Expression.Lambda(Expression.Convert(Expression.Property(xParam, taskOfTypeResultProperty), typeof(object)), xParam);
+
+        // Expression: taskOfObject.ContinueWith(x => (TargetType)x.Result, TaskContinuationOptions.ExecuteSynchronously)
+        var taskParam = Expression.Parameter(typeof(Task), "task");
+        var methodResultExpr = Expression.Call(Expression.Convert(taskParam, taskOfType), taskOfTypeContinueWithMethod, convertLambdaExpr, continuationOptionsParam);
+        var typedMethodResultExpr = Expression.Convert(methodResultExpr, taskOfObject);
+
+        return Expression.Lambda<Func<Task, Task<object>>>(typedMethodResultExpr, taskParam).Compile();
+    }
+
+    internal static Func<Task, object> TaskOfTypeResult(Type targetType)
+    {
+        var taskOfType = typeof(Task<>).MakeGenericType(targetType);
+        var taskOfTypeResultProperty = taskOfType.GetProperty(nameof(Task<object>.Result));
+
+        var taskParam = Expression.Parameter(typeof(Task), "task");
+
+        return Expression.Lambda<Func<Task, object>>(Expression.Convert(Expression.Property(Expression.Convert(taskParam, taskOfType), taskOfTypeResultProperty), typeof(object)), taskParam).Compile();
     }
 }

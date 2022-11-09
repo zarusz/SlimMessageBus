@@ -5,30 +5,28 @@
 /// The message type hierarchy is discovered at runtime and cached for faster access.
 /// </summary>
 /// <typeparam name="TProducer">The producer type</typeparam>
-public class ProducerByMessageTypeCache<TProducer> where TProducer : class
+public class ProducerByMessageTypeCache<TProducer> : IReadOnlyCache<Type, TProducer>
+    where TProducer : class
 {
     private readonly ILogger _logger;
     private readonly IDictionary<Type, TProducer> _producerByBaseType;
     private readonly IRuntimeTypeCache _runtimeTypeCache;
-    private readonly SafeDictionaryWrapper<Type, TProducer> _producerByType;
+    private readonly IReadOnlyCache<Type, TProducer> _producerByType;
 
     public ProducerByMessageTypeCache(ILogger logger, IDictionary<Type, TProducer> producerByBaseType, IRuntimeTypeCache runtimeTypeCache)
     {
         _logger = logger;
         _producerByBaseType = producerByBaseType;
         _runtimeTypeCache = runtimeTypeCache;
-        _producerByType = new SafeDictionaryWrapper<Type, TProducer>();
+        _producerByType = new SafeDictionaryWrapper<Type, TProducer>(CalculateProducer);
     }
-
-    public TProducer this[Type key] => GetProducer(key);
 
     /// <summary>
     /// Find the nearest base type (or exact type) that has the producer declared (from the dictionary).
     /// </summary>
     /// <param name="messageType"></param>
     /// <returns>Producer when found, else null</returns>
-    public TProducer GetProducer(Type messageType)
-        => _producerByType.GetOrAdd(messageType, CalculateProducer);
+    public TProducer this[Type messageType] => _producerByType[messageType];
 
     private TProducer CalculateProducer(Type messageType)
     {

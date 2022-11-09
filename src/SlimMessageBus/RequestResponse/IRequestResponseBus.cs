@@ -3,9 +3,6 @@
 /// <summary>
 /// Bus to work with request-response messages.
 /// </summary>
-/// <exception cref="PublishMessageBusException">When sending of the message failed</exception>
-/// <exception cref="RequestHandlerFaultedMessageBusException">When the request handler fails during processing of this request message</exception>
-/// <exception cref="OperationCanceledException">When the request timeout or the request was cancelled (via CancellationToken)</exception>
 public interface IRequestResponseBus
 {
     /// <summary>
@@ -18,6 +15,9 @@ public interface IRequestResponseBus
     /// <param name="cancellationToken">Cancellation token to notify if the client no longer is interested in the response.</param>
     /// <param name="timeout">The timespan after which the Send request will be cancelled if no response arrives.</param>
     /// <returns>Task that represents the pending request.</returns>
+    /// <exception cref="SendMessageBusException">When sending of the message failed</exception>
+    /// <exception cref="ProducerMessageBusException">When sending of the message failed</exception>
+    /// <exception cref="OperationCanceledException">When the request timeout or the request was cancelled (via CancellationToken)</exception>
     Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, TimeSpan? timeout = null);
 
     /// <summary>
@@ -30,5 +30,8 @@ public interface IRequestResponseBus
     /// <param name="cancellationToken">Cancellation token to notify if the client no longer is interested in the response.</param>
     /// <param name="timeout">The timespan after which the Send request will be cancelled if no response arrives.</param>
     /// <returns>Task that represents the pending request.</returns>
+    /// <exception cref="SendMessageBusException">When sending of the message failed</exception>
+    /// <exception cref="ProducerMessageBusException">When sending of the message failed</exception>
+    /// <exception cref="OperationCanceledException">When the request timeout or the request was cancelled (via CancellationToken)</exception>
     Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, TimeSpan? timeout = null);
 }

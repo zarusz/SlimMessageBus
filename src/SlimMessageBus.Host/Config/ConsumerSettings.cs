@@ -37,10 +37,6 @@ public class ConsumerSettings : AbstractConsumerSettings, IMessageTypeConsumerIn
     /// <inheritdoc/>
     public Func<object, object, Task> ConsumerMethod { get; set; }
     /// <summary>
-    /// The delegate to the consumer method responsible for accepting messages.
-    /// </summary>
-    public Func<Task, object> ConsumerMethodResult { get; set; }
-    /// <summary>
     /// List of all declared consumers that handle any derived message type of the declared message type.
     /// </summary>
     public IList<IMessageTypeConsumerInvokerSettings> Invokers { get; }

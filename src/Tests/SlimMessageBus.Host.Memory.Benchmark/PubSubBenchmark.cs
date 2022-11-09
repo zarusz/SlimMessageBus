@@ -1,7 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Memory.Benchmark;
 
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Order;
 using Microsoft.Extensions.DependencyInjection;
 using SlimMessageBus.Host.Interceptor;
 
@@ -33,20 +32,14 @@ public abstract class PubSubBaseBenchmark : AbstractMemoryBenchmark
     }
 }
 
-[Orderer(SummaryOrderPolicy.FastestToSlowest)]
 [MemoryDiagnoser]
 public class PubSubBenchmark : PubSubBaseBenchmark
 {
     [Benchmark]
-    [Arguments(100)]
-    [Arguments(1000)]
-    [Arguments(10000)]
-    [Arguments(100000)]
     [Arguments(1000000)]
     public Task PubSub(int messageCount) => RunTest(messageCount);
 }
 
-[Orderer(SummaryOrderPolicy.FastestToSlowest)]
 [MemoryDiagnoser]
 public class PubSubWithProducerInterceptorBenchmark : PubSubBaseBenchmark
 {
@@ -58,15 +51,25 @@ public class PubSubWithProducerInterceptorBenchmark : PubSubBaseBenchmark
     }
 
     [Benchmark]
-    [Arguments(100)]
-    [Arguments(1000)]
-    [Arguments(10000)]
-    [Arguments(100000)]
     [Arguments(1000000)]
     public Task PubSubWithProducerInterceptor(int messageCount) => RunTest(messageCount);
 }
 
-[Orderer(SummaryOrderPolicy.FastestToSlowest)]
+[MemoryDiagnoser]
+public class PubSubWithPublishInterceptorBenchmark : PubSubBaseBenchmark
+{
+    protected override void Setup(ServiceCollection services)
+    {
+        base.Setup(services);
+
+        services.AddTransient<IPublishInterceptor<SomeEvent>, SomeEventPublishInterceptor>();
+    }
+
+    [Benchmark]
+    [Arguments(1000000)]
+    public Task PubSubWithPublishInterceptor(int messageCount) => RunTest(messageCount);
+}
+
 [MemoryDiagnoser]
 public class PubSubWithConsumerInterceptorBenchmark : PubSubBaseBenchmark
 {
@@ -78,10 +81,6 @@ public class PubSubWithConsumerInterceptorBenchmark : PubSubBaseBenchmark
     }
 
     [Benchmark]
-    [Arguments(100)]
-    [Arguments(1000)]
-    [Arguments(10000)]
-    [Arguments(100000)]
     [Arguments(1000000)]
     public Task PubSubWithConsumerInterceptor(int messageCount) => RunTest(messageCount);
 }
@@ -106,9 +105,18 @@ public record SomeEventProducerInterceptor : IProducerInterceptor<SomeEvent>
     }
 }
 
+public record SomeEventPublishInterceptor : IPublishInterceptor<SomeEvent>
+{
+    public Task OnHandle(SomeEvent message, Func<Task> next, IProducerContext context)
+    {
+        // We return immediately as we want to calculate the interceptor pipeline overhead
+        return next();
+    }
+}
+
 public record SomeEventConsumerInterceptor : IConsumerInterceptor<SomeEvent>
 {
-    public Task OnHandle(SomeEvent message, Func<Task> next, IConsumerContext context)
+    public Task<object> OnHandle(SomeEvent message, Func<Task<object>> next, IConsumerContext context)
     {
         // We return immediately as we want to calculate the interceptor pipeline overhead
         return next();
