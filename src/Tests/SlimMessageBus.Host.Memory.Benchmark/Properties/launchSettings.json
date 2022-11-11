@@ -3,6 +3,10 @@
     "WSL": {
       "commandName": "WSL2",
       "distributionName": ""
+    },
+    "Profile 1": {
+      "commandName": "Project",
+      "hotReloadEnabled": false
     }
   }
 }
