@@ -3,55 +3,24 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
 using Microsoft.Extensions.DependencyInjection;
-using SlimMessageBus.Host.MsDependencyInjection;
-using System.Reflection;
+using SlimMessageBus.Host.Interceptor;
 
-[Orderer(SummaryOrderPolicy.FastestToSlowest)]
-[MemoryDiagnoser]
-public class PubSubBenchmark : IDisposable
+public abstract class PubSubBaseBenchmark : AbstractMemoryBenchmark
 {
-    private ServiceProvider svp;
-    private TestResult testResult;
-    private IMessageBus bus;
+    private readonly TestResult testResult;
 
-    public PubSubBenchmark()
+    public PubSubBaseBenchmark()
     {
-        var services = new ServiceCollection();
-
-        services.AddSlimMessageBus((mbb, _) =>
-        {
-            mbb
-                .WithProviderMemory()
-                .AutoDeclareFrom(Assembly.GetExecutingAssembly());
-            //.Produce<SomeEvent>(x => x.DefaultPath(x.MessageType.Name))
-            //.Consume<SomeEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<SomeEventConsumer>());
-        });
-
-        services.AddSingleton<TestResult>();
-        services.AddTransient<SomeEventConsumer>();
-
-        svp = services.BuildServiceProvider();
-
-        bus = svp.GetRequiredService<IMessageBus>();
         testResult = svp.GetRequiredService<TestResult>();
     }
 
-    public void Dispose()
+    protected override void Setup(ServiceCollection services)
     {
-        if (svp != null)
-        {
-            svp.Dispose();
-            svp = null;
-        }
+        services.AddSingleton<TestResult>();
+        services.AddTransient<SomeEventConsumer>();
     }
 
-    [Benchmark]
-    [Arguments(100)]
-    [Arguments(1000)]
-    [Arguments(10000)]
-    [Arguments(100000)]
-    [Arguments(1000000)]
-    public async Task PubSub(int messageCount)
+    protected async Task RunTest(int messageCount)
     {
         var publishTasks = Enumerable.Range(0, messageCount).Select(x => bus.Publish(new SomeEvent(DateTimeOffset.Now, x)));
 
@@ -64,17 +33,84 @@ public class PubSubBenchmark : IDisposable
     }
 }
 
+[Orderer(SummaryOrderPolicy.FastestToSlowest)]
+[MemoryDiagnoser]
+public class PubSubBenchmark : PubSubBaseBenchmark
+{
+    [Benchmark]
+    [Arguments(100)]
+    [Arguments(1000)]
+    [Arguments(10000)]
+    [Arguments(100000)]
+    [Arguments(1000000)]
+    public Task PubSub(int messageCount) => RunTest(messageCount);
+}
+
+[Orderer(SummaryOrderPolicy.FastestToSlowest)]
+[MemoryDiagnoser]
+public class PubSubWithProducerInterceptorBenchmark : PubSubBaseBenchmark
+{
+    protected override void Setup(ServiceCollection services)
+    {
+        base.Setup(services);
+
+        services.AddTransient<IProducerInterceptor<SomeEvent>, SomeEventProducerInterceptor>();
+    }
+
+    [Benchmark]
+    [Arguments(100)]
+    [Arguments(1000)]
+    [Arguments(10000)]
+    [Arguments(100000)]
+    [Arguments(1000000)]
+    public Task PubSubWithProducerInterceptor(int messageCount) => RunTest(messageCount);
+}
+
+[Orderer(SummaryOrderPolicy.FastestToSlowest)]
+[MemoryDiagnoser]
+public class PubSubWithConsumerInterceptorBenchmark : PubSubBaseBenchmark
+{
+    protected override void Setup(ServiceCollection services)
+    {
+        base.Setup(services);
+
+        services.AddTransient<IConsumerInterceptor<SomeEvent>, SomeEventConsumerInterceptor>();
+    }
+
+    [Benchmark]
+    [Arguments(100)]
+    [Arguments(1000)]
+    [Arguments(10000)]
+    [Arguments(100000)]
+    [Arguments(1000000)]
+    public Task PubSubWithConsumerInterceptor(int messageCount) => RunTest(messageCount);
+}
+
 public record SomeEvent(DateTimeOffset Timestamp, long Id);
 
-public class SomeEventConsumer : IConsumer<SomeEvent>
+public record SomeEventConsumer(TestResult TestResult) : IConsumer<SomeEvent>
 {
-    private readonly TestResult testResult;
-
-    public SomeEventConsumer(TestResult testResult) => this.testResult = testResult;
-
     public Task OnHandle(SomeEvent message)
     {
-        testResult.OnArrived();
+        TestResult.OnArrived();
         return Task.CompletedTask;
+    }
+}
+
+public record SomeEventProducerInterceptor : IProducerInterceptor<SomeEvent>
+{
+    public Task<object> OnHandle(SomeEvent message, Func<Task<object>> next, IProducerContext context)
+    {
+        // We return immediately as we want to calculate the interceptor pipeline overhead
+        return next();
+    }
+}
+
+public record SomeEventConsumerInterceptor : IConsumerInterceptor<SomeEvent>
+{
+    public Task OnHandle(SomeEvent message, Func<Task> next, IConsumerContext context)
+    {
+        // We return immediately as we want to calculate the interceptor pipeline overhead
+        return next();
     }
 }
