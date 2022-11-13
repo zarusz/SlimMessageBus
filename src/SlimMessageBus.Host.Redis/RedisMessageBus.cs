@@ -90,7 +90,7 @@ public class RedisMessageBus : MessageBusBase
     {
         await base.DisposeAsyncCore();
 
-        Connection.DisposeSilently(nameof(ConnectionMultiplexer), _logger);
+        await ((IAsyncDisposable)Connection).DisposeSilently(nameof(ConnectionMultiplexer), _logger);
     }
 
     #endregion
