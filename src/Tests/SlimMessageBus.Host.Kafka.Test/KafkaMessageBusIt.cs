@@ -36,7 +36,7 @@ public class KafkaMessageBusIt : IDisposable
         c.SaslUsername = username;
         c.SaslPassword = password;
         c.SaslMechanism = SaslMechanism.ScramSha256;
-        c.SslCaLocation = "cloudkarafka_2020-12.ca";
+        c.SslCaLocation = "cloudkarafka_2022-10.ca";
     }
 
     private string TopicPrefix { get; }
