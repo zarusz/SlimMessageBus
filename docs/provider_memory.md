@@ -155,24 +155,24 @@ The project [`SlimMessageBus.Host.Memory.Benchmark`](/src/Tests/SlimMessageBus.H
 
 Pub/Sub scenario results:
 
-| Type                                   | Method                        | messageCount |    Mean |    Error |   StdDev |        Gen0 |      Gen1 |      Gen2 | Allocated |
-| -------------------------------------- | ----------------------------- | ------------ | ------: | -------: | -------: | ----------: | --------: | --------: | --------: |
-| PubSubBenchmark                        | PubSub                        | 1000000      | 1.201 s | 0.0582 s | 0.0816 s | 118000.0000 | 3000.0000 | 3000.0000 | 489.03 MB |
-| PubSubWithConsumerInterceptorBenchmark | PubSubWithConsumerInterceptor | 1000000      | 1.541 s | 0.0247 s | 0.0219 s | 191000.0000 | 3000.0000 | 3000.0000 | 778.95 MB |
-| PubSubWithProducerInterceptorBenchmark | PubSubWithProducerInterceptor | 1000000      | 1.479 s | 0.0094 s | 0.0078 s | 200000.0000 | 3000.0000 | 3000.0000 | 817.09 MB |
-| PubSubWithPublishInterceptorBenchmark  | PubSubWithPublishInterceptor  | 1000000      | 1.511 s | 0.0178 s | 0.0219 s | 200000.0000 | 3000.0000 | 3000.0000 | 817.09 MB |
+| Method                        | messageCount |    Mean |    Error |   StdDev |        Gen0 |      Gen1 |      Gen2 | Allocated |
+| ----------------------------- | ------------ | ------: | -------: | -------: | ----------: | --------: | --------: | --------: |
+| PubSub                        | 1000000      | 1.201 s | 0.0582 s | 0.0816 s | 118000.0000 | 3000.0000 | 3000.0000 | 489.03 MB |
+| PubSubWithConsumerInterceptor | 1000000      | 1.541 s | 0.0247 s | 0.0219 s | 191000.0000 | 3000.0000 | 3000.0000 | 778.95 MB |
+| PubSubWithProducerInterceptor | 1000000      | 1.479 s | 0.0094 s | 0.0078 s | 200000.0000 | 3000.0000 | 3000.0000 | 817.09 MB |
+| PubSubWithPublishInterceptor  | 1000000      | 1.511 s | 0.0178 s | 0.0219 s | 200000.0000 | 3000.0000 | 3000.0000 | 817.09 MB |
 
 > Pub/Sub rate is 832639 messages/s on the tested machine (without interceptors).
 
 Request/Response scenario results:
 
-| Type                                          | Method                               | messageCount |    Mean |    Error |   StdDev |        Gen0 |       Gen1 |      Gen2 |  Allocated |
-| --------------------------------------------- | ------------------------------------ | ------------ | ------: | -------: | -------: | ----------: | ---------: | --------: | ---------: |
-| ReqRespBenchmark                              | RequestResponse                      | 1000000      | 2.424 s | 0.0351 s | 0.0274 s | 134000.0000 | 39000.0000 | 6000.0000 |  801.83 MB |
-| ReqRespWithConsumerInterceptorBenchmark       | ReqRespWithConsumerInterceptor       | 1000000      | 3.056 s | 0.0608 s | 0.0769 s | 205000.0000 | 55000.0000 | 6000.0000 | 1229.08 MB |
-| ReqRespWithProducerInterceptorBenchmark       | ReqRespWithProducerInterceptor       | 1000000      | 2.957 s | 0.0517 s | 0.0458 s | 229000.0000 | 60000.0000 | 6000.0000 | 1374.04 MB |
-| ReqRespWithRequestHandlerInterceptorBenchmark | ReqRespWithRequestHandlerInterceptor | 1000000      | 3.422 s | 0.0644 s | 0.0742 s | 217000.0000 | 58000.0000 | 6000.0000 | 1297.74 MB |
-| ReqRespWithSendInterceptorBenchmark           | ReqRespWithSendInterceptor           | 1000000      | 2.934 s | 0.0285 s | 0.0223 s | 219000.0000 | 59000.0000 | 7000.0000 | 1305.38 MB |
+| Method                               | messageCount |    Mean |    Error |   StdDev |        Gen0 |       Gen1 |      Gen2 |  Allocated |
+| ------------------------------------ | ------------ | ------: | -------: | -------: | ----------: | ---------: | --------: | ---------: |
+| RequestResponse                      | 1000000      | 2.424 s | 0.0351 s | 0.0274 s | 134000.0000 | 39000.0000 | 6000.0000 |  801.83 MB |
+| ReqRespWithConsumerInterceptor       | 1000000      | 3.056 s | 0.0608 s | 0.0769 s | 205000.0000 | 55000.0000 | 6000.0000 | 1229.08 MB |
+| ReqRespWithProducerInterceptor       | 1000000      | 2.957 s | 0.0517 s | 0.0458 s | 229000.0000 | 60000.0000 | 6000.0000 | 1374.04 MB |
+| ReqRespWithRequestHandlerInterceptor | 1000000      | 3.422 s | 0.0644 s | 0.0742 s | 217000.0000 | 58000.0000 | 6000.0000 | 1297.74 MB |
+| ReqRespWithSendInterceptor           | 1000000      | 2.934 s | 0.0285 s | 0.0223 s | 219000.0000 | 59000.0000 | 7000.0000 | 1305.38 MB |
 
 > Request/Response rate is 412541 messages/s on the tested machine (without interceptors).
 
@@ -185,3 +185,5 @@ Intel Core i7-8550U CPU 1.80GHz (Kaby Lake R), 1 CPU, 8 logical and 4 physical c
   [Host]     : .NET 6.0.11 (6.0.1122.52304), X64 RyuJIT AVX2
   Job-XKUBHP : .NET 6.0.11 (6.0.1122.52304), X64 RyuJIT AVX2
 ```
+
+See the benchmark source [here](../src/Tests/SlimMessageBus.Host.Memory.Benchmark).
