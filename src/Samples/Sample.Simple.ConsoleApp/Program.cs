@@ -294,7 +294,7 @@ internal static class Program
                             c.SaslUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
                             c.SaslPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
                             c.SaslMechanism = SaslMechanism.ScramSha256;
-                            c.SslCaLocation = "cloudkarafka_2020-12.ca";
+                            c.SslCaLocation = "cloudkarafka_2022-10.ca";
                         }
 
                         builder.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)

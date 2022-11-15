@@ -3,7 +3,6 @@
 using Sample.ValidatingWebApi.Commands;
 using Sample.ValidatingWebApi.Queries;
 using SlimMessageBus;
-using System.Threading.Tasks;
 
 public class SearchCustomerQueryHandler : IRequestHandler<SearchCustomerQuery, SearchCustomerResult>
 {
