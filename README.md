@@ -4,8 +4,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 
 [![Gitter](https://badges.gitter.im/SlimMessageBus/community.svg)](https://gitter.im/SlimMessageBus/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 [![GitHub license](https://img.shields.io/github/license/zarusz/SlimMessageBus)](https://github.com/zarusz/SlimMessageBus/blob/master/LICENSE)
-[![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s/branch/master?svg=true&passingText=master%20OK&pendingText=master%20pending&failingText=master%20failL)](https://ci.appveyor.com/project/zarusz/slimmessagebus/branch/master)
-[![Build status](https://ci.appveyor.com/api/projects/status/6ppr19du717spq3s?svg=true&passingText=feature%20OK&pendingText=feature%20pending&failingText=feature%20fail)](https://ci.appveyor.com/project/zarusz/slimmessagebus)
+[![Build](https://github.com/zarusz/SlimMessageBus/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/zarusz/SlimMessageBus/actions/workflows/build.yml)
 
 - [Key elements of SlimMessageBus](#key-elements-of-slimmessagebus)
 - [Docs](#docs)
