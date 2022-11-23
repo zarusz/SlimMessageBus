@@ -65,7 +65,11 @@ public class RedisTopicConsumer : IRedisConsumer
         {
             exception = e;
         }
-        _logger.LogError(exception, "Error occured while processing the redis pub/sub topic {Topic}", _topic);
+        if (exception != null)
+        {
+            // In the future offer better error handling support - retries + option to put failed messages on a DLQ.
+            _logger.LogError(exception, "Error occured while processing the redis channel {Topic}", _topic);
+        }
     }
 
     #region IAsyncDisposable

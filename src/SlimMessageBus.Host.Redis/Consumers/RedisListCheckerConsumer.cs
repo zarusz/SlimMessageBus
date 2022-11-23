@@ -49,7 +49,7 @@ public class RedisListCheckerConsumer : IRedisConsumer
             _cancellationTokenSource?.Cancel();
             _cancellationTokenSource = new CancellationTokenSource();
         }
-        _task = await Task.Factory.StartNew(() => Run(), _cancellationTokenSource.Token, TaskCreationOptions.LongRunning, TaskScheduler.Current).ConfigureAwait(false);
+        _task = await Task.Factory.StartNew(Run, _cancellationTokenSource.Token, TaskCreationOptions.LongRunning, TaskScheduler.Current).ConfigureAwait(false);
     }
 
     public async Task Stop()
