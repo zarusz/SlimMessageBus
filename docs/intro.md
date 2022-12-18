@@ -37,6 +37,7 @@
   - [Producer Lifecycle](#producer-lifecycle)
   - [Consumer Lifecycle](#consumer-lifecycle)
   - [Order of Execution](#order-of-execution)
+  - [Generic interceptors](#generic-interceptors)
 - [Logging](#logging)
 - [Provider specific functionality](#provider-specific-functionality)
 
@@ -998,20 +999,63 @@ The interceptors are invoked in order from generic to more specific (`IProducerI
 In case of multiple interceptors that match a particular message type, and when their order of execution has to overriden the interceptor type could implement the `IInterceptorWithOrder` interface to influence the order of execution in the chain:
 
 ```cs
-public class PublishInterceptorFirst: IPublishInterceptor<SomeMessage>, IInterceptorWithOrder
+public class PublishInterceptorFirst : IPublishInterceptor<SomeMessage>, IInterceptorWithOrder
 {    
    public int Order => 1;
 
    public Task OnHandle(SomeMessage message, Func<Task> next, IProducerContext context) { }
 }
 
-public class PublishInterceptorSecond: IPublishInterceptor<SomeMessage>, IInterceptorWithOrder
+public class PublishInterceptorSecond : IPublishInterceptor<SomeMessage>, IInterceptorWithOrder
 {    
    public int Order => 2;
 
    public Task OnHandle(SomeMessage message, Func<Task> next, IProducerContext context) { }
 }
 ```
+
+### Generic interceptors
+
+There might be a need to intercept messages of different types within one interceptor type. This might include:
+
+- having a general message authorization checking mechanism (e.g.  checks some auth headers)
+- having a general message logging infrastructure
+- having a general message audit infrastructure
+
+In such cases, we could rely on the DI to provide generic interceptor implementations. In the case of MsDependencyInjection, we could register a message logging interceptor:
+
+```cs
+services.AddTransient(typeof(IConsumerInterceptor<>), typeof(LoggingConsumerInterceptor<>));
+```
+
+Which could log every arriving message:
+
+```cs
+public class LoggingConsumerInterceptor<TMessage> : IConsumerInterceptor<TMessage>
+{
+   private readonly ILogger<LoggingConsumerInterceptor<TMessage>> _logger;
+
+   public async Task<object> OnHandle(TMessage message, Func<Task<object>> next, IConsumerContext context) 
+   {
+      _logger.LogInformation("Message of type {MessageType} arrived...", message.GetType());
+      var stopwatch = Stopwatch.StartNew();
+      var result = await next();
+      _logger.LogInformation("Message of type {MessageType} processing took {MessageProcessingTime}", message.GetType(), stopwatch.Elapsed);
+      return result;
+   }
+}
+```
+
+We could even add generic type restrictions to apply the interceptor against a specific class of messages:
+
+```cs
+public class LoggingConsumerInterceptor<TMessage> : IConsumerInterceptor<TMessage> where TMessage : SomeIntegrationMessage
+{
+  // ...
+}
+```
+
+> This feature is provided by the chosen Dependency Injection container (e.g. MsDependencyInjection) - it is not a feature of SMB. Please consult the chosen DI library documentation.
 
 ## Logging
 
