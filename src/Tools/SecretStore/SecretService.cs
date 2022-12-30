@@ -4,13 +4,10 @@ using System.Text.RegularExpressions;
 
 public class SecretService
 {
-    private readonly Regex _placeholder = new Regex(@"\{\{(\w+)\}\}");
+    private readonly Regex _placeholder = new(@"\{\{(\w+)\}\}");
     private readonly ISecretStore _secretStore;
 
-    public SecretService(ISecretStore secretStore)
-    {
-        _secretStore = secretStore;
-    }
+    public SecretService(ISecretStore secretStore) => _secretStore = secretStore;
 
     public string PopulateSecrets(string value)
     {

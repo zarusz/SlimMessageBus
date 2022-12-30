@@ -2,15 +2,17 @@
 
 public class XunitLoggerFactory : ILoggerFactory
 {
-    private readonly ITestOutputHelper output;
+    private readonly ITestOutputHelper _output;
+    
+    public ITestOutputHelper Output => _output;
 
-    public XunitLoggerFactory(ITestOutputHelper output) => this.output = output;
+    public XunitLoggerFactory(ITestOutputHelper output) => _output = output;
 
     public void AddProvider(ILoggerProvider provider)
     {
     }
 
-    public ILogger CreateLogger(string categoryName) => new XunitLogger(output, categoryName);
+    public ILogger CreateLogger(string categoryName) => new XunitLogger(_output, categoryName);
 
     public void Dispose()
     {

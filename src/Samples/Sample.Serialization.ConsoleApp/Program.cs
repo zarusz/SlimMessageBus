@@ -3,9 +3,13 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+
 using Sample.Serialization.MessagesAvro;
+
 using SecretStore;
+
 using SlimMessageBus;
+using SlimMessageBus.Host;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Memory;
@@ -38,7 +42,7 @@ class Program
         // Local file with secrets
         Secrets.Load(@"..\..\..\..\..\secrets.txt");
 
-        using var bus = CreateBus(configuration);
+        using var bus = (MessageBusBase)CreateBus(configuration);
         var program = new MainProgram(bus);
 
         await program.Run();
@@ -88,7 +92,6 @@ class Program
 
             .Produce<MultiplyRequest>(x => x.DefaultTopic("MultiplyRequest"))
             .Handle<MultiplyRequest, MultiplyResponse>(x => x.Topic("MultiplyRequest").WithHandler<MultiplyRequestHandler>())
-
 
             .ExpectRequestResponses(x => x.ReplyToTopic("ConsoleApp"))
 

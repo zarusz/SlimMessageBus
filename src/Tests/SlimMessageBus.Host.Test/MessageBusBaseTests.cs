@@ -540,6 +540,7 @@ public class MessageBusBaseTests : IDisposable
         _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IProducerInterceptor<SomeMessage>>)), Times.Never);
         _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IPublishInterceptor<SomeDerivedMessage>>)), Times.Once);
         _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IPublishInterceptor<SomeMessage>>)), Times.Never);
+        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IMessageBusLifecycleInterceptor>)), Times.Between(0, 2, Moq.Range.Inclusive));
         _dependencyResolverMock.Verify(x => x.Resolve(typeof(ILoggerFactory)), Times.Once);
         _dependencyResolverMock.VerifyNoOtherCalls();
 
@@ -636,6 +637,7 @@ public class MessageBusBaseTests : IDisposable
 
         _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IProducerInterceptor<RequestA>>)), Times.Once);
         _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<ISendInterceptor<RequestA, ResponseA>>)), Times.Once);
+        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IMessageBusLifecycleInterceptor>)), Times.Between(0, 2, Moq.Range.Inclusive));
         _dependencyResolverMock.Verify(x => x.Resolve(typeof(ILoggerFactory)), Times.Once);
         _dependencyResolverMock.VerifyNoOtherCalls();
 

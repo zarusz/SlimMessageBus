@@ -38,8 +38,12 @@ $projects = @(
 	"SlimMessageBus.Host.Redis",
 	"SlimMessageBus.Host.Hybrid",
 	
-	"SlimMessageBus.Host.FluentValidation"
-	"SlimMessageBus.Host.FluentValidation.MsDependencyInjection"
+	"SlimMessageBus.Host.FluentValidation",
+	"SlimMessageBus.Host.FluentValidation.MsDependencyInjection",
+
+	"SlimMessageBus.Host.Outbox",
+	"SlimMessageBus.Host.Outbox.Sql",
+	"SlimMessageBus.Host.Outbox.DbContext"
 )
 
 # msbuild.exe https://msdn.microsoft.com/pl-pl/library/ms164311(v=vs.80).aspx

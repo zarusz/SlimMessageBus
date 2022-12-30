@@ -46,7 +46,7 @@ public class MessageBusMock
 
             OnChildDependencyResolverCreated?.Invoke(mock);
 
-            mock.Setup(x => x.Dispose()).Callback(() =>
+            mock.Setup(x => x.DisposeAsync()).Callback(() =>
             {
                 ChildDependencyResolverMocks.Remove(mock);
             });

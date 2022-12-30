@@ -1,57 +1,47 @@
 namespace SlimMessageBus.Host.Redis.Test;
 
 using System.Diagnostics;
+
 using Microsoft.Extensions.Configuration;
-using SlimMessageBus.Host.Config;
+using Microsoft.Extensions.DependencyInjection;
+
 using SlimMessageBus.Host.DependencyResolver;
+using SlimMessageBus.Host.MsDependencyInjection;
 using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.Test.Common;
 
 [Trait("Category", "Integration")]
-public class RedisMessageBusIt : IDisposable
+public class RedisMessageBusIt : BaseIntegrationTest<RedisMessageBusIt>
 {
     private const int NumberOfMessages = 77;
 
-    private readonly ILoggerFactory _loggerFactory;
-    private readonly ILogger _logger;
-
-    private MessageBusBuilder MessageBusBuilder { get; }
-    private Lazy<RedisMessageBus> MessageBus { get; }
-
-    public RedisMessageBusIt(ITestOutputHelper testOutputHelper)
+    public RedisMessageBusIt(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
     {
-        _loggerFactory = new XunitLoggerFactory(testOutputHelper);
-        _logger = _loggerFactory.CreateLogger<RedisMessageBusIt>();
+    }
 
-        var configuration = new ConfigurationBuilder()
-            .AddJsonFile("appsettings.json")
-            .Build();
+    protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
+    {
+        services.AddSlimMessageBus(mbb =>
+        {
+            var connectionString = Secrets.Service.PopulateSecrets(configuration["Redis:ConnectionString"]);
 
-        Secrets.Load(@"..\..\..\..\..\secrets.txt");
-
-        var connectionString = Secrets.Service.PopulateSecrets(configuration["Redis:ConnectionString"]);
-
-        MessageBusBuilder = MessageBusBuilder.Create()
-            .WithLoggerFacory(_loggerFactory)
-            .WithSerializer(new JsonMessageSerializer())
-            .WithProviderRedis(new RedisMessageBusSettings(connectionString)
-            {
-                OnDatabaseConnected = (database) =>
+            mbb
+                .WithSerializer(new JsonMessageSerializer())
+                .WithProviderRedis(new RedisMessageBusSettings(connectionString)
                 {
-                    // Upon connect clear the redis list with the specified keys
-                    database.KeyDelete("test-echo-queue");
-                    database.KeyDelete("test-echo-queue-resp");
-                }
-            });
+                    OnDatabaseConnected = (database) =>
+                    {
+                        // Upon connect clear the redis list with the specified keys
+                        database.KeyDelete("test-echo-queue");
+                        database.KeyDelete("test-echo-queue-resp");
+                    }
+                });
 
-        MessageBus = new Lazy<RedisMessageBus>(() => (RedisMessageBus)MessageBusBuilder.Build());
+            ApplyBusConfiguration(mbb);
+        });
     }
 
-    public void Dispose()
-    {
-        MessageBus.Value.Dispose();
-        GC.SuppressFinalize(this);
-    }
+    public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
 
     [Fact]
     public async Task BasicPubSubOnTopic()
@@ -60,18 +50,21 @@ public class RedisMessageBusIt : IDisposable
         var consumers = 2;
         var topic = "test-ping";
 
-        MessageBusBuilder
-            .Produce<PingMessage>(x =>
-            {
-                x.DefaultTopic(topic);
-            })
-            .Do(builder => Enumerable.Range(0, consumers).ToList().ForEach(i =>
-            {
-                builder.Consume<PingMessage>(x => x
-                    .Topic(topic)
-                    .WithConsumer<PingConsumer>()
-                    .Instances(concurrency));
-            }));
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+                .Produce<PingMessage>(x =>
+                {
+                    x.DefaultTopic(topic);
+                })
+                .Do(builder => Enumerable.Range(0, consumers).ToList().ForEach(i =>
+                {
+                    builder.Consume<PingMessage>(x => x
+                        .Topic(topic)
+                        .WithConsumer<PingConsumer>()
+                        .Instances(concurrency));
+                }));
+        });
 
         await BasicPubSub(consumers).ConfigureAwait(false);
     }
@@ -83,18 +76,21 @@ public class RedisMessageBusIt : IDisposable
         var consumers = 2;
         var queue = "test-ping-queue";
 
-        MessageBusBuilder
-            .Produce<PingMessage>(x =>
-            {
-                x.DefaultQueue(queue);
-            })
-            .Do(builder => Enumerable.Range(0, consumers).ToList().ForEach(i =>
-            {
-                builder.Consume<PingMessage>(x => x
-                    .Queue(queue)
-                    .WithConsumer<PingConsumer>()
-                    .Instances(concurrency));
-            }));
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+                .Produce<PingMessage>(x =>
+                {
+                    x.DefaultQueue(queue);
+                })
+                .Do(builder => Enumerable.Range(0, consumers).ToList().ForEach(i =>
+                {
+                    builder.Consume<PingMessage>(x => x
+                        .Queue(queue)
+                        .WithConsumer<PingConsumer>()
+                        .Instances(concurrency));
+                }));
+        });
 
         await BasicPubSub(consumers).ConfigureAwait(false);
     }
@@ -102,22 +98,26 @@ public class RedisMessageBusIt : IDisposable
     private async Task BasicPubSub(int expectedMessageCopies)
     {
         // arrange
-        var pingConsumer = new PingConsumer(_loggerFactory.CreateLogger<PingConsumer>());
+        var pingConsumer = new PingConsumer(LoggerFactory.CreateLogger<PingConsumer>());
 
-        MessageBusBuilder
-            .WithDependencyResolver(new LookupDependencyResolver(f =>
-            {
-                if (f == typeof(PingConsumer)) return pingConsumer;
-                if (f == typeof(ILoggerFactory)) return null;
-                // for interceptors
-                if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
-                throw new InvalidOperationException();
-            }));
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+                .WithDependencyResolver(new LookupDependencyResolver(f =>
+                {
+                    if (f == typeof(PingConsumer)) return pingConsumer;
+                    if (f == typeof(ILoggerFactory)) return null;
+                    // for interceptors
+                    if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
+                    if (f == typeof(ILoggerFactory)) return LoggerFactory;
+                    throw new InvalidOperationException();
+                }));
+        });
 
-        var messageBus = MessageBus.Value;
+        var messageBus = MessageBus;
 
         // ensure the consumers are warm
-        while (!messageBus.IsStarted) await Task.Delay(200);
+        //while (!messageBus.IsStarted) await Task.Delay(200);
 
         // act
 
@@ -138,14 +138,14 @@ public class RedisMessageBusIt : IDisposable
         await Task.WhenAll(messageTasks).ConfigureAwait(false);
 
         stopwatch.Stop();
-        _logger.LogInformation("Published {0} messages in {1}", producedMessages.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Published {0} messages in {1}", producedMessages.Count, stopwatch.Elapsed);
 
         // consume
         stopwatch.Restart();
         var consumersReceivedMessages = await ConsumeAll(pingConsumer, expectedMessageCopies * producedMessages.Count);
         stopwatch.Stop();
 
-        _logger.LogInformation("Consumed {0} messages in {1}", consumersReceivedMessages.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Consumed {0} messages in {1}", consumersReceivedMessages.Count, stopwatch.Elapsed);
 
         // assert
 
@@ -165,20 +165,23 @@ public class RedisMessageBusIt : IDisposable
     {
         var topic = "test-echo";
 
-        MessageBusBuilder
-            .Produce<EchoRequest>(x =>
-            {
-                x.DefaultTopic(topic);
-                x.DefaultTimeout(TimeSpan.FromSeconds(30));
-            })
-            .Handle<EchoRequest, EchoResponse>(x => x.Topic(topic)
-                .WithHandler<EchoRequestHandler>()
-                .Instances(2))
-            .ExpectRequestResponses(x =>
-            {
-                x.ReplyToTopic("test-echo-resp");
-                x.DefaultTimeout(TimeSpan.FromSeconds(30));
-            });
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+                .Produce<EchoRequest>(x =>
+                {
+                    x.DefaultTopic(topic);
+                    x.DefaultTimeout(TimeSpan.FromSeconds(30));
+                })
+                .Handle<EchoRequest, EchoResponse>(x => x.Topic(topic)
+                    .WithHandler<EchoRequestHandler>()
+                    .Instances(2))
+                .ExpectRequestResponses(x =>
+                {
+                    x.ReplyToTopic("test-echo-resp");
+                    x.DefaultTimeout(TimeSpan.FromSeconds(30));
+                });
+        });
 
         await BasicReqResp().ConfigureAwait(false);
     }
@@ -188,20 +191,23 @@ public class RedisMessageBusIt : IDisposable
     {
         var queue = "test-echo-queue";
 
-        MessageBusBuilder
-            .Produce<EchoRequest>(x =>
-            {
-                x.DefaultQueue(queue);
-                x.DefaultTimeout(TimeSpan.FromSeconds(30));
-            })
-            .Handle<EchoRequest, EchoResponse>(x => x.Queue(queue)
-                .WithHandler<EchoRequestHandler>()
-                .Instances(2))
-            .ExpectRequestResponses(x =>
-            {
-                x.ReplyToQueue("test-echo-queue-resp");
-                x.DefaultTimeout(TimeSpan.FromSeconds(30));
-            });
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+                .Produce<EchoRequest>(x =>
+                {
+                    x.DefaultQueue(queue);
+                    x.DefaultTimeout(TimeSpan.FromSeconds(30));
+                })
+                .Handle<EchoRequest, EchoResponse>(x => x.Queue(queue)
+                    .WithHandler<EchoRequestHandler>()
+                    .Instances(2))
+                .ExpectRequestResponses(x =>
+                {
+                    x.ReplyToQueue("test-echo-queue-resp");
+                    x.DefaultTimeout(TimeSpan.FromSeconds(30));
+                });
+        });
 
         await BasicReqResp().ConfigureAwait(false);
     }
@@ -211,19 +217,23 @@ public class RedisMessageBusIt : IDisposable
         // arrange
         var consumer = new EchoRequestHandler();
 
-        MessageBusBuilder
-            .WithDependencyResolver(new LookupDependencyResolver(f =>
-            {
-                if (f == typeof(EchoRequestHandler)) return consumer;
-                // for interceptors
-                if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
-                throw new InvalidOperationException();
-            }));
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+                .WithDependencyResolver(new LookupDependencyResolver(f =>
+                {
+                    if (f == typeof(EchoRequestHandler)) return consumer;
+                    // for interceptors
+                    if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
+                    if (f == typeof(ILoggerFactory)) return LoggerFactory;
+                    throw new InvalidOperationException();
+                }));
+        });
 
-        var messageBus = MessageBus.Value;
+        var messageBus = MessageBus;
 
         // ensure the consumers are warm
-        while (!messageBus.IsStarted) await Task.Delay(200);
+        //while (!messageBus.IsStarted) await Task.Delay(200);
 
         // act
 
@@ -247,7 +257,7 @@ public class RedisMessageBusIt : IDisposable
         await Task.WhenAll(responseTasks).ConfigureAwait(false);
 
         stopwatch.Stop();
-        _logger.LogInformation("Published and received {0} messages in {1}", responses.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Published and received {0} messages in {1}", responses.Count, stopwatch.Elapsed);
 
         // assert
 

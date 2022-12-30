@@ -40,6 +40,7 @@ jobs:
         kafka_username: ${{ secrets.kafka_username }}
         kafka_password: ${{ secrets.kafka_password }}
         redis_password: ${{ secrets.redis_password }}
+        azure_sql_password: ${{ secrets.azure_sql_password }}
     - name: Upload test results
       uses: actions/upload-artifact@v3
       with:

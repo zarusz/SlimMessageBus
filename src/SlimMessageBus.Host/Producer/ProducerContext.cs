@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host;
 
+using SlimMessageBus.Host.Config;
+
 public class ProducerContext : IProducerContext
 {
     private IDictionary<string, object> _properties;
@@ -11,6 +13,8 @@ public class ProducerContext : IProducerContext
     public CancellationToken CancellationToken { get; set; }
 
     public IMessageBus Bus { get; set; }
+
+    public ProducerSettings ProducerSettings { get; set; }
 
     public IDictionary<string, object> Properties
     {

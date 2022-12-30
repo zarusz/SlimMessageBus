@@ -27,5 +27,11 @@ public class LookupDependencyResolver : IDependencyResolver
         {
             // Do Nothing
         }
+
+        public ValueTask DisposeAsync()
+        {
+            // Do Nothing
+            return new ValueTask();
+        }
     }
 }

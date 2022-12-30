@@ -1,6 +1,7 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus;
 
 using Azure.Messaging.ServiceBus;
+
 using SlimMessageBus.Host.AzureServiceBus.Consumer;
 using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.Config;
@@ -34,7 +35,6 @@ public class ServiceBusMessageBus : MessageBusBase
         // This will validae if one path is mapped to both a topic and a queue
         kindMapping.Configure(Settings);
     }
-
 
     protected override void AssertConsumerSettings(ConsumerSettings consumerSettings)
     {

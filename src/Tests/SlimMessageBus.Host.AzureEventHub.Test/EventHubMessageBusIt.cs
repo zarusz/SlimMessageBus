@@ -1,71 +1,56 @@
 namespace SlimMessageBus.Host.AzureEventHub.Test;
 
 using System.Diagnostics;
+
 using Microsoft.Extensions.Configuration;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.Serialization.Json;
+using Microsoft.Extensions.DependencyInjection;
+
 using SlimMessageBus.Host.DependencyResolver;
+using SlimMessageBus.Host.MsDependencyInjection;
+using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.Test.Common;
 
 [Trait("Category", "Integration")]
-public class EventHubMessageBusIt : IDisposable
+public class EventHubMessageBusIt : BaseIntegrationTest<EventHubMessageBusIt>
 {
     private const int NumberOfMessages = 77;
 
-    private readonly ILoggerFactory loggerFactory;
-    private readonly ILogger logger;
-
-    private EventHubMessageBusSettings Settings { get; }
-    private MessageBusBuilder MessageBusBuilder { get; }
-    private Lazy<EventHubMessageBus> MessageBus { get; }
-
-    public EventHubMessageBusIt(ITestOutputHelper testOutputHelper)
+    public EventHubMessageBusIt(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
     {
-        loggerFactory = new XunitLoggerFactory(testOutputHelper);
-        logger = loggerFactory.CreateLogger<EventHubMessageBusIt>();
+    }
 
-        var configuration = new ConfigurationBuilder()
-            .AddJsonFile("appsettings.json")
-            .Build();
-
-        Secrets.Load(@"..\..\..\..\..\secrets.txt");
-
-        // connection details to the Azure Event Hub
-        var connectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub"]);
-        var storageConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:Storage"]);
-        var storageContainerName = configuration["Azure:ContainerName"];
-
-        Settings = new EventHubMessageBusSettings(connectionString, storageConnectionString, storageContainerName)
+    protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
+    {
+        services.AddSlimMessageBus((mbb, svp) =>
         {
-            EventHubProducerClientOptionsFactory = (path) => new Azure.Messaging.EventHubs.Producer.EventHubProducerClientOptions
-            {
-                Identifier = $"MyService_{Guid.NewGuid()}"
-            },
-            EventHubProcessorClientOptionsFactory = (consumerParams) => new Azure.Messaging.EventHubs.EventProcessorClientOptions
-            {
-                // Allow the test to be repeatable - force partition lease rebalancing to happen faster
-                LoadBalancingUpdateInterval = TimeSpan.FromSeconds(2),
-                PartitionOwnershipExpirationInterval = TimeSpan.FromSeconds(5),
-            }
-        };
+            // connection details to the Azure Event Hub
+            var connectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub"]);
+            var storageConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:Storage"]);
+            var storageContainerName = configuration["Azure:ContainerName"];
 
-        MessageBusBuilder = MessageBusBuilder.Create()
-            .WithLoggerFacory(loggerFactory)
-            .WithSerializer(new JsonMessageSerializer())
-            .WithProviderEventHub(Settings);
+            var settings = new EventHubMessageBusSettings(connectionString, storageConnectionString, storageContainerName)
+            {
+                EventHubProducerClientOptionsFactory = (path) => new Azure.Messaging.EventHubs.Producer.EventHubProducerClientOptions
+                {
+                    Identifier = $"MyService_{Guid.NewGuid()}"
+                },
+                EventHubProcessorClientOptionsFactory = (consumerParams) => new Azure.Messaging.EventHubs.EventProcessorClientOptions
+                {
+                    // Allow the test to be repeatable - force partition lease rebalancing to happen faster
+                    LoadBalancingUpdateInterval = TimeSpan.FromSeconds(2),
+                    PartitionOwnershipExpirationInterval = TimeSpan.FromSeconds(5),
+                }
+            };
 
-        MessageBus = new Lazy<EventHubMessageBus>(() => (EventHubMessageBus)MessageBusBuilder.Build());
+            mbb
+                .WithSerializer(new JsonMessageSerializer())
+                .WithProviderEventHub(settings);
+
+            ApplyBusConfiguration(mbb);
+        });
     }
 
-    public void Dispose()
-    {
-        var stopwatch = Stopwatch.StartNew();
-        MessageBus.Value.Dispose();
-        stopwatch.Stop();
-        logger.LogInformation("Disposed bus in {0}", stopwatch.Elapsed);
-
-        GC.SuppressFinalize(this);
-    }
+    public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
 
     [Fact]
     public async Task BasicPubSub()
@@ -73,9 +58,11 @@ public class EventHubMessageBusIt : IDisposable
         // arrange
         var hubName = "test-ping";
 
-        var pingConsumer = new PingConsumer(loggerFactory.CreateLogger<PingConsumer>());
+        var pingConsumer = new PingConsumer(LoggerFactory.CreateLogger<PingConsumer>());
 
-        MessageBusBuilder
+        AddBusConfiguration(mbb =>
+        {
+            mbb
             .Produce<PingMessage>(x => x.DefaultPath(hubName).KeyProvider(m => (m.Counter % 2) == 0 ? "even" : "odd"))
             .Consume<PingMessage>(x => x.Path(hubName)
                                         .Group("subscriber") // ensure consumer group exists on the event hub
@@ -88,10 +75,12 @@ public class EventHubMessageBusIt : IDisposable
                 if (f == typeof(PingConsumer)) return pingConsumer;
                 // for interceptors
                 if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
+                if (f == typeof(ILoggerFactory)) return LoggerFactory;
                 throw new InvalidOperationException();
             }));
+        });
 
-        var messageBus = MessageBus.Value;
+        var messageBus = MessageBus;
 
         // act
 
@@ -109,13 +98,13 @@ public class EventHubMessageBusIt : IDisposable
         }
 
         stopwatch.Stop();
-        logger.LogInformation("Published {PublishedMessageCount} messages in {Duration}", messages.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Published {PublishedMessageCount} messages in {Duration}", messages.Count, stopwatch.Elapsed);
 
         // consume
         stopwatch.Restart();
         var messagesReceived = await ConsumeFromTopic(pingConsumer);
         stopwatch.Stop();
-        logger.LogInformation("Consumed {ConsumedMessageCount} messages in {Duration}", messagesReceived.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Consumed {ConsumedMessageCount} messages in {Duration}", messagesReceived.Count, stopwatch.Elapsed);
 
         // assert
 
@@ -132,30 +121,34 @@ public class EventHubMessageBusIt : IDisposable
         var topic = "test-echo";
         var echoRequestHandler = new EchoRequestHandler();
 
-        MessageBusBuilder
-            .Produce<EchoRequest>(x =>
-            {
-                x.DefaultTopic(topic);
-            })
-            .Handle<EchoRequest, EchoResponse>(x => x.Path(topic)
-                                                     .Group("handler") // ensure consumer group exists on the event hub
-                                                     .WithHandler<EchoRequestHandler>()
-                                                     .Instances(2))
-            .ExpectRequestResponses(x =>
-            {
-                x.ReplyToTopic("test-echo-resp");
-                x.Group("response-reader"); // ensure consumer group exists on the event hub
-                x.DefaultTimeout(TimeSpan.FromSeconds(30));
-            })
-            .WithDependencyResolver(new LookupDependencyResolver(f =>
-            {
-                if (f == typeof(EchoRequestHandler)) return echoRequestHandler;
-                // for interceptors
-                if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
-                throw new InvalidOperationException();
-            }));
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+                .Produce<EchoRequest>(x =>
+                {
+                    x.DefaultTopic(topic);
+                })
+                .Handle<EchoRequest, EchoResponse>(x => x.Path(topic)
+                                                         .Group("handler") // ensure consumer group exists on the event hub
+                                                         .WithHandler<EchoRequestHandler>()
+                                                         .Instances(2))
+                .ExpectRequestResponses(x =>
+                {
+                    x.ReplyToTopic("test-echo-resp");
+                    x.Group("response-reader"); // ensure consumer group exists on the event hub
+                    x.DefaultTimeout(TimeSpan.FromSeconds(30));
+                })
+                .WithDependencyResolver(new LookupDependencyResolver(f =>
+                {
+                    if (f == typeof(EchoRequestHandler)) return echoRequestHandler;
+                    // for interceptors
+                    if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
+                    if (f == typeof(ILoggerFactory)) return LoggerFactory;
+                    throw new InvalidOperationException();
+                }));
+        });
 
-        var messageBus = MessageBus.Value;
+        var messageBus = MessageBus;
 
         // act
 

@@ -54,7 +54,7 @@ public class MessageHandler : IMessageHandler
             messageHeaders.TryGetHeader(ReqRespMessageHeaders.RequestId, out requestId);
         }
 
-        using (var messageScope = _messageScopeFactory.CreateMessageScope(consumerInvoker.ParentSettings, message))
+        await using (var messageScope = _messageScopeFactory.CreateMessageScope(consumerInvoker.ParentSettings, message))
         {
             if (messageHeaders != null && messageHeaders.TryGetHeader(ReqRespMessageHeaders.Expires, out DateTimeOffset? expires) && expires != null)
             {
@@ -84,7 +84,8 @@ public class MessageHandler : IMessageHandler
                     Headers = messageHeaders,
                     CancellationToken = cancellationToken,
                     Bus = MessageBus,
-                    Consumer = consumerInstance
+                    Consumer = consumerInstance,
+                    ConsumerInvoker = consumerInvoker
                 };
                 _consumerContextInitializer?.Invoke(nativeMessage, context);
 

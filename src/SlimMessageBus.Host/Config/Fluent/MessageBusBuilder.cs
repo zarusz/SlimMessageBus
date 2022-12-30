@@ -237,6 +237,13 @@ public class MessageBusBuilder
 
     public MessageBusBuilder AddChildBus(string busName, Action<MessageBusBuilder> builderAction)
     {
+        if (busName is null) throw new ArgumentNullException(nameof(busName));
+        if (builderAction is null) throw new ArgumentNullException(nameof(builderAction));
+
+        if (ChildBuilders.ContainsKey(busName))
+        {
+            throw new ConfigurationMessageBusException($"The child bus with name {busName} has been already declared");
+        }
         ChildBuilders.Add(busName, builderAction);
         return this;
     }
@@ -245,7 +252,7 @@ public class MessageBusBuilder
     {
         if (BusFactory is null)
         {
-            throw new ConfigurationMessageBusException("The bus provider was not configured. Check your MessageBus configuration.");
+            throw new ConfigurationMessageBusException("The bus provider was not configured. Check the MessageBus configuration.");
         }
 
         foreach (var configurator in Configurators)
