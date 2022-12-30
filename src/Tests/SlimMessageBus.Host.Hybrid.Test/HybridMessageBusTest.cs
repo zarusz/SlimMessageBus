@@ -5,12 +5,13 @@ using System.Text;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Serialization;
+using System.Runtime;
 
 public class HybridMessageBusTest
 {
     private readonly Lazy<HybridMessageBus> _subject;
+    private readonly MessageBusBuilder _messageBusBuilder;
     private readonly MessageBusSettings _settings = new();
-    private readonly HybridMessageBusSettings _providerSettings = new();
     private readonly Mock<IDependencyResolver> _dependencyResolverMock = new();
     private readonly Mock<IMessageSerializer> _messageSerializerMock = new();
 
@@ -19,8 +20,10 @@ public class HybridMessageBusTest
 
     public HybridMessageBusTest()
     {
-        _settings.DependencyResolver = _dependencyResolverMock.Object;
-        _settings.Serializer = _messageSerializerMock.Object;
+        _messageBusBuilder = MessageBusBuilder.Create();
+
+        _messageBusBuilder.Settings.DependencyResolver = _dependencyResolverMock.Object;
+        _messageBusBuilder.Settings.Serializer = _messageSerializerMock.Object;
 
         _messageSerializerMock
             .Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<object>()))
@@ -29,30 +32,77 @@ public class HybridMessageBusTest
             .Setup(x => x.Deserialize(It.IsAny<Type>(), It.IsAny<byte[]>()))
             .Returns((Type type, byte[] payload) => JsonConvert.DeserializeObject(Encoding.UTF8.GetString(payload), type));
 
-        _subject = new Lazy<HybridMessageBus>(() => new HybridMessageBus(_settings, _providerSettings, MessageBusBuilder.Create()));
-
-        _providerSettings["bus1"] = (mbb) =>
+        _messageBusBuilder.AddChildBus("bus1", (mbb) =>
         {
-            mbb.Produce<SomeMessage>(x => x.DefaultTopic("topic1")).WithProvider(mbs =>
+            mbb.Produce<SomeMessage>(x => x.DefaultTopic("topic1"));
+            mbb.Produce<AnotherMessage>(x => x.DefaultTopic("topic2"));
+            mbb.WithProvider(mbs =>
             {
                 _bus1Mock = new Mock<MessageBusBase>(new[] { mbs });
                 _bus1Mock.SetupGet(x => x.Settings).Returns(mbs);
+
                 _bus1Mock.Setup(x => x.Publish(It.IsAny<SomeMessage>(), It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+                _bus1Mock.Setup(x => x.Publish(It.IsAny<AnotherMessage>(), It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
                 return _bus1Mock.Object;
             });
-        };
-        _providerSettings["bus2"] = (mbb) =>
+        });
+        _messageBusBuilder.AddChildBus("bus2", (mbb) =>
         {
-            mbb.Produce<SomeRequest>(x => x.DefaultTopic("topic2")).WithProvider(mbs =>
+            mbb.Produce<SomeMessage>(x => x.DefaultTopic("topic3"));
+            mbb.Produce<SomeRequest>(x => x.DefaultTopic("topic4"));
+            mbb.WithProvider(mbs =>
             {
                 _bus2Mock = new Mock<MessageBusBase>(new[] { mbs });
                 _bus2Mock.SetupGet(x => x.Settings).Returns(mbs);
+
+                _bus2Mock.Setup(x => x.Publish(It.IsAny<SomeMessage>(), It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
                 _bus2Mock.Setup(x => x.Send(It.IsAny<SomeRequest>(), It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), default, It.IsAny<TimeSpan?>())).Returns(Task.FromResult(new SomeResponse()));
 
                 return _bus2Mock.Object;
             });
-        };
+        });
+
+        _subject = new Lazy<HybridMessageBus>(() => new HybridMessageBus(_messageBusBuilder.Settings, new HybridMessageBusSettings(), _messageBusBuilder));
+    }
+
+    [Fact]
+    public async Task Given_DeclaredMessageTypeWithTwoBuses_When_Publish_Then_RoutesToBothBuses()
+    {
+        // arrange
+        var someMessage = new SomeMessage();
+
+        // act
+        await _subject.Value.Publish(someMessage);
+
+        // assert
+
+        _bus1Mock.VerifyGet(x => x.Settings, Times.Once);
+        _bus1Mock.Verify(x => x.Publish(someMessage, null, null, It.IsAny<CancellationToken>()));
+        _bus1Mock.VerifyNoOtherCalls();
+
+        _bus2Mock.VerifyGet(x => x.Settings, Times.Once);
+        _bus2Mock.Verify(x => x.Publish(someMessage, null, null, It.IsAny<CancellationToken>()));
+        _bus2Mock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task Given_DeclaredMessageTypeWithOneBus_When_Publish_Then_RoutesToOnebus()
+    {
+        // arrange
+        var anotherMessage = new AnotherMessage();
+
+        // act
+        await _subject.Value.Publish(anotherMessage);
+
+        // assert
+
+        _bus1Mock.VerifyGet(x => x.Settings, Times.Once);
+        _bus1Mock.Verify(x => x.Publish(anotherMessage, null, null, It.IsAny<CancellationToken>()));
+        _bus1Mock.VerifyNoOtherCalls();
+
+        _bus2Mock.VerifyGet(x => x.Settings, Times.Once);
+        _bus2Mock.VerifyNoOtherCalls();
     }
 
     [Fact]
@@ -116,6 +166,29 @@ public class HybridMessageBusTest
         await notDeclaredTypePublish.Should().ThrowAsync<ConfigurationMessageBusException>();
     }
 
+    [Fact]
+    public void Given_RequestMessageTypeDeclaredOnMoreThanOneBus_When_Constructor_Then_ThrowsException()
+    {
+        // arrange
+        _messageBusBuilder.AddChildBus("bus3", (mbb) =>
+        {
+            mbb.Produce<SomeRequest>(x => x.DefaultTopic("topic5"));
+            mbb.WithProvider(mbs =>
+            {
+                var bus3Mock = new Mock<MessageBusBase>(new[] { mbs });
+                bus3Mock.SetupGet(x => x.Settings).Returns(mbs);
+                return bus3Mock.Object;
+            });
+        });
+
+        // act
+        Action notDeclaredTypePublish = () => _ = _subject.Value;
+
+        // assert
+        notDeclaredTypePublish.Should().Throw<ConfigurationMessageBusException>();
+    }
+
+
     internal interface ISomeMessageMarkerInterface
     {
     }
@@ -129,6 +202,10 @@ public class HybridMessageBusTest
     }
 
     internal class SomeDerivedOfDerivedMessage : SomeDerivedMessage
+    {
+    }
+
+    internal class AnotherMessage
     {
     }
 

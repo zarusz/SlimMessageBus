@@ -22,9 +22,9 @@ public class MessageBusBuilderTests
 
         // assert
         copy.Settings.Should().BeSameAs(prototype.Settings);
+        copy.Settings.Name.Should().BeSameAs(prototype.Settings.Name);
         copy.Configurators.Should().BeSameAs(prototype.Configurators);
         copy.ChildBuilders.Should().BeSameAs(prototype.ChildBuilders);
-        copy.BusName.Should().BeSameAs(prototype.BusName);
         copy.BusFactory.Should().BeSameAs(prototype.BusFactory);
     }
 }

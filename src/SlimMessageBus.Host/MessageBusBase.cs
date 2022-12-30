@@ -1,12 +1,12 @@
 namespace SlimMessageBus.Host;
 
 using System.Globalization;
-using System.Threading;
+
 using Microsoft.Extensions.Logging.Abstractions;
+
 using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Serialization;
 
 public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMessageScopeFactory, IMessageHeadersFactory, ICurrentTimeProvider

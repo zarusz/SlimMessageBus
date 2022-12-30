@@ -10,8 +10,8 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 
 ## What is the Hybrid provider?
 
-The Hybrid bus enables a composition of other available transport providers into one bus that your entire application / service uses.
-This allows different layers of your service to work with just one `IMessageBus` interface, and relaying on the Hybrid bus to route your message to the respective transport provider based on configuration.
+The Hybrid bus enables a composition of many transport providers into one bus.
+This allows different layers of the application to work with just one `IMessageBus` interface, and to rely on the hybrid bus implementation to route messages to the respective transport provider based on configuration.
 
 Package: [SlimMessageBus.Host.Hybrid](https://www.nuget.org/packages/SlimMessageBus.Host.Hybrid/)
 
@@ -19,7 +19,7 @@ Package: [SlimMessageBus.Host.Hybrid](https://www.nuget.org/packages/SlimMessage
 
 ## Use cases
 
-A typical example would be when your service has a domain layer which uses domain events passed in memory (SlimMessageBus.Host.Memory transport), but any other layer (application or adapter) need to communicate with the outside world using something like Azure Service Bus or Apache Kafka transports.
+A typical example would be when an micro-service has a domain layer which uses domain events passed in memory (SlimMessageBus.Host.Memory transport), but any other layer (application or adapter) need to communicate with the outside world using something like Azure Service Bus or Apache Kafka transports.
 
 ![](provider_hybrid_2.png)
 
@@ -63,11 +63,18 @@ In the example above, we define the hybrid bus to create two kinds of transports
 - The message type `CustomerEmailChangedEvent` published will be routed to the memory bus for delivery.
 - Conversely, the `SendEmailCommand` will be routed to the Azure Service Bus transport.
 
-> Currently, routing is determined based on the message type. Because of that, you cannot have the same message type handled by different bus transports.
+> Routing is determined based on the message type.
 
 The `IMessageBus` injected into any layer of your application will be the hybrid bus, therefore production of a message will be routed to the respective bus implementation (memory or Azure SB in our example).
 
 It is important to understand, that handlers (`IHandler<>`) or consumers (`IConsumer<>`) registered will be managed by the respective child bus that they are configured on.
+
+There can be more than one child bus that can consume the given message type. In this case hybrid bus will route the message to all of the child bus.
+By default any matching child bus will be executed in sequence. There is also an option to execute this in pararell (see the `PublishExecutionMode` setting on `HybridMessageBusSettings`).
+
+> A given request message type can only be handled by one child bus, however, non-request messages can by consumed by multiple child buses.
+
+The request messages need exactly one handler to calculate the response, therefore if we had more than one handler for a given request it would be ambigous which response to return.
 
 ### Shared configuration
 
