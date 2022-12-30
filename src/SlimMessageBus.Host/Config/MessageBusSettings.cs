@@ -2,6 +2,10 @@ namespace SlimMessageBus.Host.Config;
 
 public class MessageBusSettings : IBusEvents
 {
+    /// <summary>
+    /// The bus name.
+    /// </summary>
+    public string Name { get; set; }
     public ILoggerFactory LoggerFactory { get; set; }
     public IList<ProducerSettings> Producers { get; }
     public IList<ConsumerSettings> Consumers { get; }
@@ -61,6 +65,11 @@ public class MessageBusSettings : IBusEvents
     public virtual void MergeFrom(MessageBusSettings settings)
     {
         if (settings is null) throw new ArgumentNullException(nameof(settings));
+
+        if (Name == null && settings.Name != null)
+        {
+            Name = settings.Name;
+        }
 
         if (LoggerFactory == null && settings.LoggerFactory != null)
         {

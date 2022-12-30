@@ -219,7 +219,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sample.ValidatingWebApi", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.FluentValidation.MsDependencyInjection", "SlimMessageBus.Host.FluentValidation.MsDependencyInjection\SlimMessageBus.Host.FluentValidation.MsDependencyInjection.csproj", "{B952C7C4-5E8B-450A-9A69-0D602050D4FA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.FluentValidation.Test", "Tests\SlimMessageBus.Host.FluentValidation.Test\SlimMessageBus.Host.FluentValidation.Test.csproj", "{A85D6FD8-3767-48D1-82E7-6285B169C381}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.FluentValidation.Test", "Tests\SlimMessageBus.Host.FluentValidation.Test\SlimMessageBus.Host.FluentValidation.Test.csproj", "{A85D6FD8-3767-48D1-82E7-6285B169C381}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -664,7 +664,6 @@ Global
 		{42916EB7-5D46-40C0-8CA8-0521F130964D} = {A5B15524-93B8-4CCE-AC6D-A22984498BA0}
 		{93157E11-D59A-45CE-8EFF-220048A75276} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
 		{6AF37CE1-4074-467B-91E2-7FA5CF6D6CB4} = {D7DCD96A-C3B8-4D22-8216-0E8ADD30C03F}
-		{A6C28448-3839-490C-BE30-580C1A45E225} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
 		{88D66F27-B71C-44B6-8F73-C412FA20F065} = {2C04A6C4-34E7-441D-BE6F-27797EDF305A}
 		{7D5E4522-8D44-471B-AB01-70FC65948B36} = {A5B15524-93B8-4CCE-AC6D-A22984498BA0}
 		{81D3FE99-67E6-40AC-A893-AAC4002A30B1} = {A5B15524-93B8-4CCE-AC6D-A22984498BA0}

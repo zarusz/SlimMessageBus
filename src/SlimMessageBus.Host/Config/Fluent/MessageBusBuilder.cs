@@ -5,7 +5,7 @@ public class MessageBusBuilder
     /// <summary>
     /// The current settings that are being built.
     /// </summary>
-    public MessageBusSettings Settings { get; } = new MessageBusSettings();
+    public MessageBusSettings Settings { get; } = new();
 
     /// <summary>
     /// Represents global configurators that are part for this builder.
@@ -13,11 +13,6 @@ public class MessageBusBuilder
     public IEnumerable<IMessageBusConfigurator> Configurators { get; set; } = Enumerable.Empty<IMessageBusConfigurator>();
 
     public IDictionary<string, Action<MessageBusBuilder>> ChildBuilders { get; } = new Dictionary<string, Action<MessageBusBuilder>>();
-
-    /// <summary>
-    /// The bus name (if not provided then null).
-    /// </summary>
-    public string BusName { get; set; }
 
     /// <summary>
     /// The bus factory method.
@@ -33,7 +28,6 @@ public class MessageBusBuilder
         Settings = other.Settings;
         Configurators = other.Configurators;
         ChildBuilders = other.ChildBuilders;
-        BusName = other.BusName;
         BusFactory = other.BusFactory;
     }
 
@@ -256,7 +250,7 @@ public class MessageBusBuilder
 
         foreach (var configurator in Configurators)
         {
-            configurator.Configure(this, BusName);
+            configurator.Configure(this, Settings.Name);
         }
 
         return BusFactory(Settings);
