@@ -5,9 +5,9 @@
 /// </summary>
 public class MsDependencyInjectionChildDependencyResolver : IChildDependencyResolver
 {
-    private readonly ILoggerFactory loggerFactory;
-    private readonly ILogger<MsDependencyInjectionChildDependencyResolver> logger;
-    private readonly IServiceScope serviceScope;
+    private readonly ILoggerFactory _loggerFactory;
+    private readonly ILogger<MsDependencyInjectionChildDependencyResolver> _logger;
+    private readonly IServiceScope _serviceScope;
     private bool disposedValue;
 
     public IDependencyResolver Parent { get; }
@@ -15,22 +15,22 @@ public class MsDependencyInjectionChildDependencyResolver : IChildDependencyReso
     public MsDependencyInjectionChildDependencyResolver(IDependencyResolver parent, IServiceProvider serviceProvider, ILoggerFactory loggerFactory)
     {
         Parent = parent;
-        this.loggerFactory = loggerFactory;
-        logger = loggerFactory.CreateLogger<MsDependencyInjectionChildDependencyResolver>();
-        serviceScope = serviceProvider.CreateScope();
+        _loggerFactory = loggerFactory;
+        _logger = loggerFactory.CreateLogger<MsDependencyInjectionChildDependencyResolver>();
+        _serviceScope = serviceProvider.CreateScope();
     }
 
     /// <inheritdoc/>
     public IChildDependencyResolver CreateScope()
     {
-        logger.LogDebug("Creating child scope");
-        return new MsDependencyInjectionChildDependencyResolver(this, serviceScope.ServiceProvider, loggerFactory);
+        _logger.LogDebug("Creating child scope");
+        return new MsDependencyInjectionChildDependencyResolver(this, _serviceScope.ServiceProvider, _loggerFactory);
     }
     /// <inheritdoc/>
     public virtual object Resolve(Type type)
     {
-        logger.LogDebug("Resolving type {0}", type);
-        return serviceScope.ServiceProvider.GetService(type);
+        _logger.LogDebug("Resolving type {0}", type);
+        return _serviceScope.ServiceProvider.GetService(type);
     }
 
     #region Dispose
@@ -41,8 +41,8 @@ public class MsDependencyInjectionChildDependencyResolver : IChildDependencyReso
         {
             if (disposing)
             {
-                logger.LogDebug("Disposing scope");
-                serviceScope.Dispose();
+                _logger.LogDebug("Disposing scope");
+                _serviceScope.Dispose();
             }
 
             disposedValue = true;
@@ -52,8 +52,24 @@ public class MsDependencyInjectionChildDependencyResolver : IChildDependencyReso
     public void Dispose()
     {
         // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-        Dispose(disposing: true);
+        Dispose(true);
         GC.SuppressFinalize(this);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        // Perform async cleanup.
+        await DisposeAsyncCore().ConfigureAwait(false);
+        Dispose(false);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual async ValueTask DisposeAsyncCore()
+    {
+        if (_serviceScope is IAsyncDisposable asyncDisposable)
+        {
+            await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+        }
     }
 
     #endregion

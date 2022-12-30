@@ -1,15 +1,13 @@
 ﻿namespace SlimMessageBus.Host.Hybrid;
 
-using System.IO;
-
 using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.DependencyResolver;
 
-public class HybridMessageBus : IMasterMessageBus, IAsyncDisposable
+public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDisposable, IAsyncDisposable
 {
     private readonly ILogger _logger;
-    private readonly IList<MessageBusBase> _buses;
+    private readonly IDictionary<string, MessageBusBase> _busByName;
     private readonly ProducerByMessageTypeCache<MessageBusBase[]> _busesByMessageType;
     private readonly RuntimeTypeCache _runtimeTypeCache;
 
@@ -31,14 +29,14 @@ public class HybridMessageBus : IMasterMessageBus, IAsyncDisposable
 
         _runtimeTypeCache = new RuntimeTypeCache();
 
-        _buses = new List<MessageBusBase>();
+        _busByName = new Dictionary<string, MessageBusBase>();
         foreach (var childBus in mbb.ChildBuilders)
         {
             var bus = BuildBus(childBus.Value, childBus.Key, mbb);
-            _buses.Add(bus);
+            _busByName.Add(bus.Settings.Name, bus);
         }
 
-        var busesByMessageType = _buses
+        var busesByMessageType = _busByName.Values
             .SelectMany(bus => bus.Settings.Producers.Select(p => (p.MessageType, Bus: bus)))
             .GroupBy(x => x.MessageType)
             .ToDictionary(x => x.Key, x => x.Select(y => y.Bus).ToArray());
@@ -72,10 +70,10 @@ public class HybridMessageBus : IMasterMessageBus, IAsyncDisposable
     }
 
     public Task Start() =>
-        Task.WhenAll(_buses.Select(x => x.Start()));
+        Task.WhenAll(_busByName.Values.Select(x => x.Start()));
 
     public Task Stop() =>
-        Task.WhenAll(_buses.Select(x => x.Stop()));
+        Task.WhenAll(_busByName.Values.Select(x => x.Stop()));
 
     #region Implementation of IDisposable and IAsyncDisposable
 
@@ -106,11 +104,11 @@ public class HybridMessageBus : IMasterMessageBus, IAsyncDisposable
     /// <returns></returns>
     protected virtual async ValueTask DisposeAsyncCore()
     {
-        foreach (var bus in _buses)
+        foreach (var bus in _busByName.Values)
         {
             await ((IAsyncDisposable)bus).DisposeSilently(() => $"Error disposing bus: {bus.Settings.Name}", _logger);
         }
-        _buses.Clear();
+        _busByName.Clear();
     }
 
     #endregion
@@ -201,5 +199,20 @@ public class HybridMessageBus : IMasterMessageBus, IAsyncDisposable
 
     public Task ProvisionTopology() =>
         // Trigger provisioning to all child buses
-        Task.WhenAll(_buses.Select(x => x.ProvisionTopology()));
+        Task.WhenAll(_busByName.Values.Select(x => x.ProvisionTopology()));
+
+    #region ICompositeMessageBus
+
+    public IMessageBus GetChildBus(string name)
+    {
+        if (_busByName.TryGetValue(name, out var bus))
+        {
+            return bus;
+        }
+        return null;
+    }
+
+    public IEnumerable<IMessageBus> GetChildBuses() => _busByName.Values;
+
+    #endregion
 }

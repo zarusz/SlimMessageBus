@@ -3,54 +3,39 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
+
 using Azure.Messaging.ServiceBus;
-using SlimMessageBus.Host.Test.Common;
-using SlimMessageBus.Host.Config;
+
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+
 using SlimMessageBus.Host.DependencyResolver;
+using SlimMessageBus.Host.MsDependencyInjection;
 using SlimMessageBus.Host.Serialization.Json;
+using SlimMessageBus.Host.Test.Common;
 
 [Trait("Category", "Integration")]
-public class ServiceBusMessageBusIt : IDisposable
+public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt>
 {
     private const int NumberOfMessages = 77;
 
-    private readonly ILoggerFactory _loggerFactory;
-    private readonly ILogger _logger;
-
-    private ServiceBusMessageBusSettings Settings { get; }
-    private MessageBusBuilder MessageBusBuilder { get; }
-    private Lazy<ServiceBusMessageBus> MessageBus { get; }
-
-    public ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper)
+    public ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
     {
-        _loggerFactory = new XunitLoggerFactory(testOutputHelper);
-        _logger = _loggerFactory.CreateLogger<ServiceBusMessageBusIt>();
-
-        var configuration = new ConfigurationBuilder()
-            .AddJsonFile("appsettings.json")
-            .Build();
-
-        Secrets.Load(@"..\..\..\..\..\secrets.txt");
-
-        var connectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
-
-        Settings = new ServiceBusMessageBusSettings(connectionString);
-
-        MessageBusBuilder = MessageBusBuilder.Create()
-            .WithLoggerFacory(_loggerFactory)
-            .WithSerializer(new JsonMessageSerializer())
-            .WithProviderServiceBus(Settings);
-
-        MessageBus = new Lazy<ServiceBusMessageBus>(() => (ServiceBusMessageBus)MessageBusBuilder.Build());
     }
 
-    public void Dispose()
+    protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
-        MessageBus.Value.Dispose();
-        GC.SuppressFinalize(this);
+        services.AddSlimMessageBus((mbb, svp) =>
+        {
+            var connectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
+            mbb.WithSerializer(new JsonMessageSerializer());
+            mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString));
+            ApplyBusConfiguration(mbb);
+        });
     }
+
+    public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
 
     private static void MessageModifier(PingMessage message, ServiceBusMessage sbMessage)
     {
@@ -75,17 +60,19 @@ public class ServiceBusMessageBusIt : IDisposable
         var subscribers = 2;
         var topic = "test-ping";
 
-        MessageBusBuilder
-            .Produce<PingMessage>(x => x.DefaultTopic(topic).WithModifier(MessageModifier))
-            .Do(builder => Enumerable.Range(0, subscribers).ToList().ForEach(i =>
-            {
-                builder.Consume<PingMessage>(x => x
-                    .Topic(topic)
-                    .SubscriptionName($"subscriber-{i}") // ensure subscription exists on the ServiceBus topic
-                    .WithConsumer<PingConsumer>()
-                    .WithConsumer<PingDerivedConsumer, PingDerivedMessage>()
-                    .Instances(concurrency));
-            }));
+        AddBusConfiguration(mbb =>
+        {
+            mbb.Produce<PingMessage>(x => x.DefaultTopic(topic).WithModifier(MessageModifier))
+                .Do(builder => Enumerable.Range(0, subscribers).ToList().ForEach(i =>
+                {
+                    builder.Consume<PingMessage>(x => x
+                        .Topic(topic)
+                        .SubscriptionName($"subscriber-{i}") // ensure subscription exists on the ServiceBus topic
+                        .WithConsumer<PingConsumer>()
+                        .WithConsumer<PingDerivedConsumer, PingDerivedMessage>()
+                        .Instances(concurrency));
+                }));
+        });
 
         await BasicPubSub(concurrency, subscribers, subscribers).ConfigureAwait(false);
     }
@@ -96,14 +83,15 @@ public class ServiceBusMessageBusIt : IDisposable
         var concurrency = 2;
         var queue = "test-ping-queue";
 
-        MessageBusBuilder
-            .Produce<PingMessage>(x => x.DefaultQueue(queue).WithModifier(MessageModifier))
+        AddBusConfiguration(mbb =>
+        {
+            mbb.Produce<PingMessage>(x => x.DefaultQueue(queue).WithModifier(MessageModifier))
             .Consume<PingMessage>(x => x
                     .Queue(queue)
                     .WithConsumer<PingConsumer>()
                     .WithConsumer<PingDerivedConsumer, PingDerivedMessage>()
                     .Instances(concurrency));
-
+        });
         await BasicPubSub(concurrency, 1, 1).ConfigureAwait(false);
     }
 
@@ -123,27 +111,30 @@ public class ServiceBusMessageBusIt : IDisposable
 
         var consumedMessages = new TestEventCollector<TestEvent>();
 
-        MessageBusBuilder
-            .WithDependencyResolver(new LookupDependencyResolver(f =>
+        AddBusConfiguration(mbb =>
+        {
+            mbb.WithDependencyResolver(new LookupDependencyResolver(f =>
             {
                 if (f == typeof(PingConsumer))
                 {
-                    var pingConsumer = new PingConsumer(_loggerFactory.CreateLogger<PingConsumer>(), consumedMessages);
+                    var pingConsumer = new PingConsumer(LoggerFactory.CreateLogger<PingConsumer>(), consumedMessages);
                     Interlocked.Increment(ref consumersCreated);
                     return pingConsumer;
                 }
                 if (f == typeof(PingDerivedConsumer))
                 {
-                    var pingConsumer = new PingDerivedConsumer(_loggerFactory.CreateLogger<PingDerivedConsumer>(), consumedMessages);
+                    var pingConsumer = new PingDerivedConsumer(LoggerFactory.CreateLogger<PingDerivedConsumer>(), consumedMessages);
                     Interlocked.Increment(ref consumersCreated);
                     return pingConsumer;
                 }
                 // for interceptors
                 if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
+                if (f == typeof(ILoggerFactory)) return LoggerFactory;
                 throw new InvalidOperationException();
             }));
+        });
 
-        var messageBus = MessageBus.Value;
+        var messageBus = MessageBus;
 
         // act
 
@@ -162,7 +153,7 @@ public class ServiceBusMessageBusIt : IDisposable
         }
 
         stopwatch.Stop();
-        _logger.LogInformation("Published {0} messages in {1}", producedMessages.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Published {0} messages in {1}", producedMessages.Count, stopwatch.Elapsed);
 
         // consume
         stopwatch.Restart();
@@ -193,8 +184,9 @@ public class ServiceBusMessageBusIt : IDisposable
     {
         var topic = "test-echo";
 
-        MessageBusBuilder
-            .Produce<EchoRequest>(x =>
+        AddBusConfiguration(mbb =>
+        {
+            mbb.Produce<EchoRequest>(x =>
             {
                 x.DefaultTopic(topic);
                 // this is optional
@@ -216,6 +208,7 @@ public class ServiceBusMessageBusIt : IDisposable
                 x.SubscriptionName("response-consumer");
                 x.DefaultTimeout(TimeSpan.FromSeconds(60));
             });
+        });
 
         await BasicReqResp().ConfigureAwait(false);
     }
@@ -225,8 +218,9 @@ public class ServiceBusMessageBusIt : IDisposable
     {
         var queue = "test-echo-queue";
 
-        MessageBusBuilder
-            .Produce<EchoRequest>(x =>
+        AddBusConfiguration(mbb =>
+        {
+            mbb.Produce<EchoRequest>(x =>
             {
                 x.DefaultQueue(queue);
             })
@@ -238,7 +232,7 @@ public class ServiceBusMessageBusIt : IDisposable
                 x.ReplyToQueue("test-echo-queue-resp");
                 x.DefaultTimeout(TimeSpan.FromSeconds(60));
             });
-
+        });
         await BasicReqResp().ConfigureAwait(false);
     }
 
@@ -247,8 +241,9 @@ public class ServiceBusMessageBusIt : IDisposable
         // arrange
         var consumersCreated = new ConcurrentBag<EchoRequestHandler>();
 
-        MessageBusBuilder
-            .WithDependencyResolver(new LookupDependencyResolver(f =>
+        AddBusConfiguration(mbb =>
+        {
+            mbb.WithDependencyResolver(new LookupDependencyResolver(f =>
             {
                 if (f == typeof(EchoRequestHandler))
                 {
@@ -258,10 +253,11 @@ public class ServiceBusMessageBusIt : IDisposable
                 }
                 // for interceptors
                 if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
+                if (f == typeof(ILoggerFactory)) return LoggerFactory;
                 throw new InvalidOperationException();
             }));
-
-        var messageBus = MessageBus.Value;
+        });
+        var messageBus = MessageBus;
 
         // act
 
@@ -285,7 +281,7 @@ public class ServiceBusMessageBusIt : IDisposable
         await Task.WhenAll(responseTasks).ConfigureAwait(false);
 
         stopwatch.Stop();
-        _logger.LogInformation("Published and received {0} messages in {1}", responses.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Published and received {0} messages in {1}", responses.Count, stopwatch.Elapsed);
 
         // assert
 
@@ -300,15 +296,16 @@ public class ServiceBusMessageBusIt : IDisposable
         var concurrency = 1;
         var queue = "test-session-queue";
 
-        MessageBusBuilder
-            .Produce<PingMessage>(x => x.DefaultQueue(queue).WithModifier(MessageModifierWithSession))
+        AddBusConfiguration(mbb =>
+        {
+            mbb.Produce<PingMessage>(x => x.DefaultQueue(queue).WithModifier(MessageModifierWithSession))
             .Consume<PingMessage>(x => x
                     .Queue(queue)
                     .WithConsumer<PingConsumer>()
                     .WithConsumer<PingDerivedConsumer, PingDerivedMessage>()
                     .Instances(concurrency)
                     .EnableSession(x => x.MaxConcurrentSessions(10).SessionIdleTimeout(TimeSpan.FromSeconds(5))));
-
+        });
         await BasicPubSub(concurrency, 1, 1, CheckMessagesWithinSameSessionAreInOrder).ConfigureAwait(false);
     }
 
@@ -330,8 +327,9 @@ public class ServiceBusMessageBusIt : IDisposable
         var concurrency = 1;
         var queue = "test-session-topic";
 
-        MessageBusBuilder
-            .Produce<PingMessage>(x => x.DefaultTopic(queue).WithModifier(MessageModifierWithSession))
+        AddBusConfiguration(mbb =>
+        {
+            mbb.Produce<PingMessage>(x => x.DefaultTopic(queue).WithModifier(MessageModifierWithSession))
             .Consume<PingMessage>(x => x
                     .Topic(queue)
                     .WithConsumer<PingConsumer>()
@@ -339,6 +337,7 @@ public class ServiceBusMessageBusIt : IDisposable
                     .Instances(concurrency)
                     .SubscriptionName($"subscriber") // ensure subscription exists on the ServiceBus topic
                     .EnableSession(x => x.MaxConcurrentSessions(10).SessionIdleTimeout(TimeSpan.FromSeconds(5))));
+        });
 
         await BasicPubSub(concurrency, 1, 1, CheckMessagesWithinSameSessionAreInOrder).ConfigureAwait(false);
     }

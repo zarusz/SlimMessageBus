@@ -1,6 +1,6 @@
 namespace SlimMessageBus.Host.Config;
 
-public class MessageBusSettings : IBusEvents
+public class MessageBusSettings : HasProviderExtensions, IBusEvents
 {
     /// <summary>
     /// The bus name.

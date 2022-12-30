@@ -77,11 +77,11 @@ public class HybridMessageBusTest
 
         // assert
 
-        _bus1Mock.VerifyGet(x => x.Settings, Times.Once);
+        _bus1Mock.VerifyGet(x => x.Settings);
         _bus1Mock.Verify(x => x.Publish(someMessage, null, null, It.IsAny<CancellationToken>()));
         _bus1Mock.VerifyNoOtherCalls();
 
-        _bus2Mock.VerifyGet(x => x.Settings, Times.Once);
+        _bus2Mock.VerifyGet(x => x.Settings);
         _bus2Mock.Verify(x => x.Publish(someMessage, null, null, It.IsAny<CancellationToken>()));
         _bus2Mock.VerifyNoOtherCalls();
     }
@@ -97,11 +97,11 @@ public class HybridMessageBusTest
 
         // assert
 
-        _bus1Mock.VerifyGet(x => x.Settings, Times.Once);
+        _bus1Mock.VerifyGet(x => x.Settings);
         _bus1Mock.Verify(x => x.Publish(anotherMessage, null, null, It.IsAny<CancellationToken>()));
         _bus1Mock.VerifyNoOtherCalls();
 
-        _bus2Mock.VerifyGet(x => x.Settings, Times.Once);
+        _bus2Mock.VerifyGet(x => x.Settings);
         _bus2Mock.VerifyNoOtherCalls();
     }
 
@@ -134,7 +134,7 @@ public class HybridMessageBusTest
         _bus1Mock.Verify(x => x.Publish(someDerivedOfDerivedMessage, null, null, It.IsAny<CancellationToken>()));
         _bus1Mock.Verify(x => x.Publish<SomeMessage>(someDerivedOfDerivedMessage, null, null, It.IsAny<CancellationToken>()));
         _bus1Mock.Verify(x => x.Publish<ISomeMessageMarkerInterface>(someDerivedOfDerivedMessage, null, null, It.IsAny<CancellationToken>()));
-        _bus1Mock.VerifyGet(x => x.Settings, Times.Once);
+        _bus1Mock.VerifyGet(x => x.Settings);
         _bus1Mock.VerifyNoOtherCalls();
     }
 

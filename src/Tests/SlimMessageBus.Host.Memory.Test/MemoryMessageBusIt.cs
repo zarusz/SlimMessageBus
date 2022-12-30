@@ -1,72 +1,63 @@
 ﻿namespace SlimMessageBus.Host.Memory.Test;
 
 using System.Diagnostics;
+
 using Microsoft.Extensions.Configuration;
-using SlimMessageBus.Host.Config;
+using Microsoft.Extensions.DependencyInjection;
+
 using SlimMessageBus.Host.DependencyResolver;
+using SlimMessageBus.Host.MsDependencyInjection;
 using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.Test.Common;
 
 [Trait("Category", "Integration")]
-public class MemoryMessageBusIt : IDisposable
+public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
 {
-    private readonly ILoggerFactory _loggerFactory;
-    private readonly ILogger _logger;
-
     private const int NumberOfMessages = 77;
 
-    private MessageBusBuilder MessageBusBuilder { get; }
-    private Lazy<MemoryMessageBus> MessageBus { get; }
+    private MemoryMessageBusSettings _settings = new();
 
-    private MemoryMessageBusSettings MessageBusSettings { get; }
-
-    public MemoryMessageBusIt(ITestOutputHelper testOutputHelper)
+    public MemoryMessageBusIt(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
     {
-        _loggerFactory = new XunitLoggerFactory(testOutputHelper);
-        _logger = _loggerFactory.CreateLogger<MemoryMessageBusIt>();
-
-        var configuration = new ConfigurationBuilder()
-            .AddJsonFile("appsettings.json")
-            .Build();
-
-        Secrets.Load(@"..\..\..\..\..\secrets.txt");
-
-        MessageBusSettings = new MemoryMessageBusSettings();
-
-        MessageBusBuilder = MessageBusBuilder.Create()
-            .WithLoggerFacory(_loggerFactory)
-            .WithSerializer(new JsonMessageSerializer())
-            .WithProviderMemory(MessageBusSettings);
-
-        MessageBus = new Lazy<MemoryMessageBus>(() => (MemoryMessageBus)MessageBusBuilder.Build());
     }
 
-    public void Dispose()
+    protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
-        MessageBus.Value.Dispose();
-        GC.SuppressFinalize(this);
+        services.AddSlimMessageBus(mbb =>
+        {
+            mbb
+                .WithSerializer(new JsonMessageSerializer())
+                .WithProviderMemory(_settings);
+
+            ApplyBusConfiguration(mbb);
+        });
     }
+
+    public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
 
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public async Task BasicPubSubOnTopic(bool enableSerialization)
     {
-        MessageBusSettings.EnableMessageSerialization = enableSerialization;
+        _settings.EnableMessageSerialization = enableSerialization;
 
         var concurrency = 2;
         var subscribers = 2;
         var topic = "test-ping";
 
-        MessageBusBuilder
-            .Produce<PingMessage>(x => x.DefaultTopic(topic))
-            .Do(builder => Enumerable.Range(0, subscribers).ToList().ForEach(i =>
-            {
-                builder.Consume<PingMessage>(x => x
-                    .Topic(topic)
-                    .WithConsumer<PingConsumer>()
-                    .Instances(concurrency));
-            }));
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+                .Produce<PingMessage>(x => x.DefaultTopic(topic))
+                .Do(builder => Enumerable.Range(0, subscribers).ToList().ForEach(i =>
+                {
+                    builder.Consume<PingMessage>(x => x
+                        .Topic(topic)
+                        .WithConsumer<PingConsumer>()
+                        .Instances(concurrency));
+                }));
+        });
 
         await BasicPubSub(concurrency, subscribers).ConfigureAwait(false);
     }
@@ -76,16 +67,20 @@ public class MemoryMessageBusIt : IDisposable
         // arrange
         var pingConsumer = new PingConsumer();
 
-        MessageBusBuilder
-            .WithDependencyResolver(new LookupDependencyResolver(t =>
-            {
-                if (t == typeof(PingConsumer)) return pingConsumer;
-                // for interceptors
-                if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
-                throw new InvalidOperationException();
-            }));
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+                .WithDependencyResolver(new LookupDependencyResolver(t =>
+                {
+                    if (t == typeof(PingConsumer)) return pingConsumer;
+                    // for interceptors
+                    if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
+                    if (t == typeof(ILoggerFactory)) return LoggerFactory;
+                    throw new InvalidOperationException();
+                }));
+        });
 
-        var messageBus = MessageBus.Value;
+        var messageBus = MessageBus;
 
         // act
 
@@ -102,14 +97,14 @@ public class MemoryMessageBusIt : IDisposable
         await Task.WhenAll(messageTasks).ConfigureAwait(false);
 
         stopwatch.Stop();
-        _logger.LogInformation("Published {0} messages in {1}", producedMessages.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Published {0} messages in {1}", producedMessages.Count, stopwatch.Elapsed);
 
         // consume
         stopwatch.Restart();
         var consumersReceivedMessages = await ConsumeAll(pingConsumer, subscribers * producedMessages.Count);
         stopwatch.Stop();
 
-        _logger.LogInformation("Consumed {0} messages in {1}", consumersReceivedMessages.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Consumed {0} messages in {1}", consumersReceivedMessages.Count, stopwatch.Elapsed);
 
         // assert
 
@@ -129,15 +124,18 @@ public class MemoryMessageBusIt : IDisposable
     [InlineData(false)]
     public async Task BasicReqRespOnTopic(bool enableSerialization)
     {
-        MessageBusSettings.EnableMessageSerialization = enableSerialization;
+        _settings.EnableMessageSerialization = enableSerialization;
 
         var topic = "test-echo";
 
-        MessageBusBuilder
-            .Produce<EchoRequest>(x => x.DefaultTopic(topic))
-            .Handle<EchoRequest, EchoResponse>(x => x.Topic(topic)
-                .WithHandler<EchoRequestHandler>()
-                .Instances(2));
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+                .Produce<EchoRequest>(x => x.DefaultTopic(topic))
+                .Handle<EchoRequest, EchoResponse>(x => x.Topic(topic)
+                    .WithHandler<EchoRequestHandler>()
+                    .Instances(2));
+        });
 
         await BasicReqResp().ConfigureAwait(false);
     }
@@ -147,16 +145,20 @@ public class MemoryMessageBusIt : IDisposable
         // arrange
         var consumer = new EchoRequestHandler();
 
-        MessageBusBuilder
-            .WithDependencyResolver(new LookupDependencyResolver(f =>
-            {
-                if (f == typeof(EchoRequestHandler)) return consumer;
-                // for interceptors
-                if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
-                throw new InvalidOperationException();
-            }));
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+                .WithDependencyResolver(new LookupDependencyResolver(f =>
+                {
+                    if (f == typeof(EchoRequestHandler)) return consumer;
+                    // for interceptors
+                    if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
+                    if (f == typeof(ILoggerFactory)) return LoggerFactory;
+                    throw new InvalidOperationException();
+                }));
+        });
 
-        var messageBus = MessageBus.Value;
+        var messageBus = MessageBus;
 
         // act
 
@@ -180,7 +182,7 @@ public class MemoryMessageBusIt : IDisposable
         await Task.WhenAll(responseTasks).ConfigureAwait(false);
 
         stopwatch.Stop();
-        _logger.LogInformation("Published and received {0} messages in {1}", responses.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Published and received {0} messages in {1}", responses.Count, stopwatch.Elapsed);
 
         // assert
 

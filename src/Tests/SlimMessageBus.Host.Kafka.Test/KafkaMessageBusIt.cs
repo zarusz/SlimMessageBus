@@ -1,12 +1,16 @@
 namespace SlimMessageBus.Host.Kafka.Test;
 
-using System.Diagnostics;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.Serialization.Json;
-using Microsoft.Extensions.Configuration;
-using SlimMessageBus.Host.DependencyResolver;
 using System.Collections.Concurrent;
+using System.Diagnostics;
+
 using Confluent.Kafka;
+
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+using SlimMessageBus.Host.DependencyResolver;
+using SlimMessageBus.Host.MsDependencyInjection;
+using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.Test.Common;
 
 /// <summary>
@@ -19,15 +23,10 @@ using SlimMessageBus.Host.Test.Common;
 /// </remarks>
 /// </summary>
 [Trait("Category", "Integration")]
-public class KafkaMessageBusIt : IDisposable
+public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
 {
     private const int NumberOfMessages = 77;
-    private readonly ILoggerFactory _loggerFactory;
-    private readonly ILogger _logger;
-
-    private KafkaMessageBusSettings KafkaSettings { get; }
-    private MessageBusBuilder MessageBusBuilder { get; }
-    private Lazy<KafkaMessageBus> MessageBus { get; }
+    private string TopicPrefix { get; set; }
 
     private static void AddSsl(string username, string password, ClientConfig c)
     {
@@ -39,19 +38,12 @@ public class KafkaMessageBusIt : IDisposable
         c.SslCaLocation = "cloudkarafka_2022-10.ca";
     }
 
-    private string TopicPrefix { get; }
-
-    public KafkaMessageBusIt(ITestOutputHelper testOutputHelper)
+    public KafkaMessageBusIt(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
     {
-        _loggerFactory = new XunitLoggerFactory(testOutputHelper);
-        _logger = _loggerFactory.CreateLogger<KafkaMessageBusIt>();
+    }
 
-        var configuration = new ConfigurationBuilder()
-            .AddJsonFile("appsettings.json")
-            .Build();
-
-        Secrets.Load(@"..\..\..\..\..\secrets.txt");
-
+    protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
+    {
         var kafkaBrokers = configuration["Kafka:Brokers"];
         var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
         var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
@@ -59,48 +51,38 @@ public class KafkaMessageBusIt : IDisposable
         // Topics on cloudkarafka.com are prefixed with username
         TopicPrefix = $"{kafkaUsername}-";
 
-        KafkaSettings = new KafkaMessageBusSettings(kafkaBrokers)
+        services.AddSlimMessageBus((mbb) =>
         {
-            ProducerConfig = (config) =>
+            var kafkaSettings = new KafkaMessageBusSettings(kafkaBrokers)
             {
-                AddSsl(kafkaUsername, kafkaPassword, config);
+                ProducerConfig = (config) =>
+                {
+                    AddSsl(kafkaUsername, kafkaPassword, config);
 
-                config.LingerMs = 5; // 5ms
-                config.SocketNagleDisable = true;
-            },
-            ConsumerConfig = (config) =>
-            {
-                AddSsl(kafkaUsername, kafkaPassword, config);
+                    config.LingerMs = 5; // 5ms
+                    config.SocketNagleDisable = true;
+                },
+                ConsumerConfig = (config) =>
+                {
+                    AddSsl(kafkaUsername, kafkaPassword, config);
 
-                config.FetchErrorBackoffMs = 1;
-                config.SocketNagleDisable = true;
+                    config.FetchErrorBackoffMs = 1;
+                    config.SocketNagleDisable = true;
 
-                config.StatisticsIntervalMs = 500000;
-                config.AutoOffsetReset = AutoOffsetReset.Earliest;
-            }
-        };
+                    config.StatisticsIntervalMs = 500000;
+                    config.AutoOffsetReset = AutoOffsetReset.Earliest;
+                }
+            };
 
-        MessageBusBuilder = MessageBusBuilder.Create()
-            .WithLoggerFacory(_loggerFactory)
-            .WithSerializer(new JsonMessageSerializer())
-            .WithProviderKafka(KafkaSettings);
+            mbb
+                .WithSerializer(new JsonMessageSerializer())
+                .WithProviderKafka(kafkaSettings);
 
-        MessageBus = new Lazy<KafkaMessageBus>(() => (KafkaMessageBus)MessageBusBuilder.Build());
+            ApplyBusConfiguration(mbb);
+        });
     }
 
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            MessageBus.Value.Dispose();
-        }
-    }
+    public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
 
     [Fact]
     public async Task BasicPubSub()
@@ -110,34 +92,38 @@ public class KafkaMessageBusIt : IDisposable
         // ensure the topic has 2 partitions
         var topic = $"{TopicPrefix}test-ping";
 
-        var pingConsumer = new PingConsumer(_loggerFactory.CreateLogger<PingConsumer>());
+        var pingConsumer = new PingConsumer(LoggerFactory.CreateLogger<PingConsumer>());
 
-        MessageBusBuilder
-            .Produce<PingMessage>(x =>
-            {
-                x.DefaultTopic(topic);
-                // Partition #0 for even counters
-                // Partition #1 for odd counters
-                x.PartitionProvider((m, t) => m.Counter % 2);
-            })
-            .Consume<PingMessage>(x =>
-            {
-                x.Topic(topic)
-                    .WithConsumer<PingConsumer>()
-                    .KafkaGroup("subscriber")
-                    .Instances(2)
-                    .CheckpointEvery(1000)
-                    .CheckpointAfter(TimeSpan.FromSeconds(600));
-            })
-            .WithDependencyResolver(new LookupDependencyResolver(f =>
-            {
-                if (f == typeof(PingConsumer)) return pingConsumer;
-                // for interceptors
-                if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
-                throw new InvalidOperationException();
-            }));
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+                .Produce<PingMessage>(x =>
+                {
+                    x.DefaultTopic(topic);
+                    // Partition #0 for even counters
+                    // Partition #1 for odd counters
+                    x.PartitionProvider((m, t) => m.Counter % 2);
+                })
+                .Consume<PingMessage>(x =>
+                {
+                    x.Topic(topic)
+                        .WithConsumer<PingConsumer>()
+                        .KafkaGroup("subscriber")
+                        .Instances(2)
+                        .CheckpointEvery(1000)
+                        .CheckpointAfter(TimeSpan.FromSeconds(600));
+                })
+                .WithDependencyResolver(new LookupDependencyResolver(f =>
+                {
+                    if (f == typeof(PingConsumer)) return pingConsumer;
+                    // for interceptors
+                    if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
+                    if (f == typeof(ILoggerFactory)) return LoggerFactory;
+                    throw new InvalidOperationException();
+                }));
+        });
 
-        var messageBus = MessageBus.Value;
+        var messageBus = MessageBus;
 
         // act
 
@@ -152,7 +138,7 @@ public class KafkaMessageBusIt : IDisposable
         await Task.WhenAll(messages.Select(m => messageBus.Publish(m)));
 
         stopwatch.Stop();
-        _logger.LogInformation("Published {0} messages in {1}", messages.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Published {0} messages in {1}", messages.Count, stopwatch.Elapsed);
 
         // consume
         stopwatch.Restart();
@@ -161,7 +147,7 @@ public class KafkaMessageBusIt : IDisposable
         var messagesReceived = pingConsumer.Messages;
 
         stopwatch.Stop();
-        _logger.LogInformation("Consumed {0} messages in {1}", messagesReceived.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Consumed {0} messages in {1}", messagesReceived.Count, stopwatch.Elapsed);
 
         // assert
 
@@ -190,38 +176,42 @@ public class KafkaMessageBusIt : IDisposable
         var topic = $"{TopicPrefix}test-echo";
         var echoRequestHandler = new EchoRequestHandler();
 
-        MessageBusBuilder
-            .Produce<EchoRequest>(x =>
-            {
-                x.DefaultTopic(topic);
-                // Partition #0 for even indices
-                // Partition #1 for odd indices
-                x.PartitionProvider((m, t) => m.Index % 2);
-            })
-            .Handle<EchoRequest, EchoResponse>(x => x.Topic(topic)
-                                                     .WithHandler<EchoRequestHandler>()
-                                                     .KafkaGroup("handler")
-                                                     .Instances(2)
-                                                     .CheckpointEvery(1000)
-                                                     .CheckpointAfter(TimeSpan.FromSeconds(60)))
-            .ExpectRequestResponses(x =>
-            {
-                x.ReplyToTopic($"{TopicPrefix}test-echo-resp");
-                x.KafkaGroup("response-reader");
-                // for subsequent test runs allow enough time for kafka to reassign the partitions
-                x.DefaultTimeout(TimeSpan.FromSeconds(60));
-                x.CheckpointEvery(100);
-                x.CheckpointAfter(TimeSpan.FromSeconds(10));
-            })
-            .WithDependencyResolver(new LookupDependencyResolver(f =>
-            {
-                if (f == typeof(EchoRequestHandler)) return echoRequestHandler;
-                // for interceptors
-                if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
-                throw new InvalidOperationException();
-            }));
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+                .Produce<EchoRequest>(x =>
+                {
+                    x.DefaultTopic(topic);
+                    // Partition #0 for even indices
+                    // Partition #1 for odd indices
+                    x.PartitionProvider((m, t) => m.Index % 2);
+                })
+                .Handle<EchoRequest, EchoResponse>(x => x.Topic(topic)
+                                                         .WithHandler<EchoRequestHandler>()
+                                                         .KafkaGroup("handler")
+                                                         .Instances(2)
+                                                         .CheckpointEvery(1000)
+                                                         .CheckpointAfter(TimeSpan.FromSeconds(60)))
+                .ExpectRequestResponses(x =>
+                {
+                    x.ReplyToTopic($"{TopicPrefix}test-echo-resp");
+                    x.KafkaGroup("response-reader");
+                    // for subsequent test runs allow enough time for kafka to reassign the partitions
+                    x.DefaultTimeout(TimeSpan.FromSeconds(60));
+                    x.CheckpointEvery(100);
+                    x.CheckpointAfter(TimeSpan.FromSeconds(10));
+                })
+                .WithDependencyResolver(new LookupDependencyResolver(f =>
+                {
+                    if (f == typeof(EchoRequestHandler)) return echoRequestHandler;
+                    // for interceptors
+                    if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
+                    if (f == typeof(ILoggerFactory)) return LoggerFactory;
+                    throw new InvalidOperationException();
+                }));
+        });
 
-        var kafkaMessageBus = MessageBus.Value;
+        var kafkaMessageBus = MessageBus;
 
         // act
 

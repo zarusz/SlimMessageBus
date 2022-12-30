@@ -1,5 +1,5 @@
 ﻿namespace SlimMessageBus;
 
-public interface IMessageBus : IDisposable, IRequestResponseBus, IPublishBus
+public interface IMessageBus : IRequestResponseBus, IPublishBus
 {
 }

@@ -3,8 +3,8 @@
   <Import Project="../Common.Properties.xml" />
 
   <PropertyGroup>
-    <TargetFramework>netstandard1.3</TargetFramework>
-    <Version>1.4.1</Version>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <Version>1.5.0-rc1</Version>
     <Description>Core dependency resolver interfaces of SlimMessageBus</Description>
     <PackageTags>SlimMessageBus</PackageTags>
     <PackageIcon>icon.png</PackageIcon>

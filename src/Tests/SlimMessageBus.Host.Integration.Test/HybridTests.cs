@@ -1,11 +1,12 @@
 namespace SlimMessageBus.Host.Integration.Test;
 
-using System.Collections.Generic;
 using System.Reflection;
-using System.Threading;
+
 using Autofac;
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+
 using SlimMessageBus;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
@@ -16,6 +17,7 @@ using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Memory;
 using SlimMessageBus.Host.MsDependencyInjection;
 using SlimMessageBus.Host.Test.Common;
+
 using Unity;
 using Unity.Microsoft.Logging;
 

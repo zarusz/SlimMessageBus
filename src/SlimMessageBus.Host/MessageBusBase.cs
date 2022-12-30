@@ -7,12 +7,18 @@ using Microsoft.Extensions.Logging.Abstractions;
 using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.DependencyResolver;
+using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Serialization;
 
-public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMessageScopeFactory, IMessageHeadersFactory, ICurrentTimeProvider
+public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMessageBus, IMessageScopeFactory, IMessageHeadersFactory, ICurrentTimeProvider
 {
     private readonly ILogger _logger;
     private CancellationTokenSource _cancellationTokenSource = new();
+
+    /// <summary>
+    /// Special market reference that signifies a dummy producer settings for response types.
+    /// </summary>
+    private static readonly ProducerSettings MarkerProducerSettingsForResponses = new();
 
     public RuntimeTypeCache RuntimeTypeCache { get; }
 
@@ -58,15 +64,20 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMes
 
         if (Settings.AutoStartConsumers)
         {
-            // Fire and forget - start
-            _ = Start();
+            // Fire and forget start
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Start();
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e, "Could not auto start consumers");
+                }
+            });
         }
     }
-
-    /// <summary>
-    /// Special market reference that signifies a dummy producer settings for response types.
-    /// </summary>
-    private static readonly ProducerSettings MarkerProducerSettingsForResponses = new();
 
     protected virtual void Build()
     {
@@ -116,11 +127,30 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMes
         {
             await BeforeStartTask;
 
-            _logger.LogInformation("Starting consumers...");
+            _logger.LogInformation("Starting consumers for {BusName} bus...", Settings.Name);
+            await OnBusLifecycle(MessageBusLifecycleEventType.Starting);
             await OnStart();
-            _logger.LogInformation("Started consumers");
+            await OnBusLifecycle(MessageBusLifecycleEventType.Started);
+            _logger.LogInformation("Started consumers for {BusName} bus", Settings.Name);
 
             IsStarted = true;
+        }
+    }
+
+    private async Task OnBusLifecycle(MessageBusLifecycleEventType eventType)
+    {
+        if (IsDisposing)
+        {
+            return;
+        }
+
+        var lifecycleInterceptors = (IEnumerable<object>)Settings.DependencyResolver?.Resolve(typeof(IEnumerable<IMessageBusLifecycleInterceptor>));
+        if (lifecycleInterceptors != null)
+        {
+            foreach (var i in lifecycleInterceptors.Cast<IMessageBusLifecycleInterceptor>())
+            {
+                await i.OnBusLifecycle(eventType, this);
+            }
         }
     }
 
@@ -128,9 +158,11 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMes
     {
         if (IsStarted)
         {
-            _logger.LogInformation("Stopping consumers...");
+            _logger.LogInformation("Stopping consumers for {BusName} bus...", Settings.Name);
+            await OnBusLifecycle(MessageBusLifecycleEventType.Stopping);
             await OnStop();
-            _logger.LogInformation("Stopped consumers");
+            await OnBusLifecycle(MessageBusLifecycleEventType.Stopped);
+            _logger.LogInformation("Stopped consumers for {BusName} bus", Settings.Name);
 
             IsStarted = false;
         }
@@ -352,7 +384,8 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMes
                 Path = path,
                 CancellationToken = cancellationToken,
                 Headers = headers,
-                Bus = this
+                Bus = this,
+                ProducerSettings = producerSettings
             };
 
             var pipeline = new PublishInterceptorPipeline(this, message, producerSettings, context, producerInterceptors: producerInterceptors, publishInterceptors: publishInterceptors);
@@ -463,6 +496,7 @@ public abstract class MessageBusBase : IMasterMessageBus, IAsyncDisposable, IMes
                 CancellationToken = cancellationToken,
                 Headers = requestHeaders,
                 Bus = this,
+                ProducerSettings = producerSettings,
                 Created = created,
                 Expires = expires,
                 RequestId = requestId,

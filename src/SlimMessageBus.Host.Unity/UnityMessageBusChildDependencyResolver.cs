@@ -38,6 +38,22 @@ public class UnityMessageBusChildDependencyResolver : UnityMessageBusDependencyR
         GC.SuppressFinalize(this);
     }
 
+    public async ValueTask DisposeAsync()
+    {
+        // Perform async cleanup.
+        await DisposeAsyncCore().ConfigureAwait(false);
+        Dispose(false);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual async ValueTask DisposeAsyncCore()
+    {        
+        if (Container is IAsyncDisposable asyncDisposable)
+        {
+            await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+        }
+    }
+
     #endregion
 }
 

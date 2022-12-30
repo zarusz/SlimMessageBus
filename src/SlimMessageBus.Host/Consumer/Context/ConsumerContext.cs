@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host;
 
+using SlimMessageBus.Host.Config;
+
 public class ConsumerContext : IConsumerContext
 {
     private IDictionary<string, object> _properties;
@@ -25,4 +27,6 @@ public class ConsumerContext : IConsumerContext
     }
 
     public object Consumer { get; set; }
+
+    public IMessageTypeConsumerInvokerSettings ConsumerInvoker { get; set; }
 }

@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host;
 
-public class MessageScopeWrapper : IDependencyResolver, IDisposable
+public sealed class MessageScopeWrapper : IDependencyResolver, IDisposable, IAsyncDisposable
 {
     private readonly ILogger _logger;
     private readonly IDependencyResolver _messageScope;
@@ -36,12 +36,31 @@ public class MessageScopeWrapper : IDependencyResolver, IDisposable
 
     public void Dispose()
     {
-        if (_shouldDispose && _messageScope is IDisposable disposable)
+        if (_shouldDispose)
         {
             // Clear current scope only if one was started as part of this consumption
             MessageScope.Current = null;
 
-            disposable.Dispose();
+            if (_messageScope is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
         }
+        GC.SuppressFinalize(this);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_shouldDispose)
+        {
+            // Clear current scope only if one was started as part of this consumption
+            MessageScope.Current = null;
+
+            if (_messageScope is IAsyncDisposable asyncDisposable)
+            {
+                await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+        GC.SuppressFinalize(this);
     }
 }
