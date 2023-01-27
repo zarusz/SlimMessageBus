@@ -229,7 +229,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Outbox.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Outbox.DbContext", "SlimMessageBus.Host.Outbox.DbContext\SlimMessageBus.Host.Outbox.DbContext.csproj", "{EC14A729-8DF5-448D-944F-32C0BA7A4B6E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.Outbox.DbContext.Test", "Tests\SlimMessageBus.Host.Outbox.DbContext.Test\SlimMessageBus.Host.Outbox.DbContext.Test.csproj", "{2DD467F8-F06F-4B7C-A46F-1EC5BAE325A5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Outbox.DbContext.Test", "Tests\SlimMessageBus.Host.Outbox.DbContext.Test\SlimMessageBus.Host.Outbox.DbContext.Test.csproj", "{2DD467F8-F06F-4B7C-A46F-1EC5BAE325A5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.Serialization.SystemTextJson.Test", "Tests\SlimMessageBus.Host.Serialization.SystemTextJson.Test\SlimMessageBus.Host.Serialization.SystemTextJson.Test.csproj", "{0155628A-7B0A-4461-B3BE-4CEBE4CD77F1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.Serialization.Json.Test", "Tests\SlimMessageBus.Host.Serialization.Json.Test\SlimMessageBus.Host.Serialization.Json.Test.csproj", "{5DB87C7E-059F-412B-99DE-65DB5392FD73}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -679,6 +683,22 @@ Global
 		{2DD467F8-F06F-4B7C-A46F-1EC5BAE325A5}.Release|Any CPU.Build.0 = Release|Any CPU
 		{2DD467F8-F06F-4B7C-A46F-1EC5BAE325A5}.Release|x86.ActiveCfg = Release|Any CPU
 		{2DD467F8-F06F-4B7C-A46F-1EC5BAE325A5}.Release|x86.Build.0 = Release|Any CPU
+		{0155628A-7B0A-4461-B3BE-4CEBE4CD77F1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0155628A-7B0A-4461-B3BE-4CEBE4CD77F1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0155628A-7B0A-4461-B3BE-4CEBE4CD77F1}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{0155628A-7B0A-4461-B3BE-4CEBE4CD77F1}.Debug|x86.Build.0 = Debug|Any CPU
+		{0155628A-7B0A-4461-B3BE-4CEBE4CD77F1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0155628A-7B0A-4461-B3BE-4CEBE4CD77F1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0155628A-7B0A-4461-B3BE-4CEBE4CD77F1}.Release|x86.ActiveCfg = Release|Any CPU
+		{0155628A-7B0A-4461-B3BE-4CEBE4CD77F1}.Release|x86.Build.0 = Release|Any CPU
+		{5DB87C7E-059F-412B-99DE-65DB5392FD73}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5DB87C7E-059F-412B-99DE-65DB5392FD73}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5DB87C7E-059F-412B-99DE-65DB5392FD73}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5DB87C7E-059F-412B-99DE-65DB5392FD73}.Debug|x86.Build.0 = Debug|Any CPU
+		{5DB87C7E-059F-412B-99DE-65DB5392FD73}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5DB87C7E-059F-412B-99DE-65DB5392FD73}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5DB87C7E-059F-412B-99DE-65DB5392FD73}.Release|x86.ActiveCfg = Release|Any CPU
+		{5DB87C7E-059F-412B-99DE-65DB5392FD73}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -745,6 +765,8 @@ Global
 		{F4A692F5-0FAE-46DE-A267-DAC2B71BF026} = {B7CDA0D2-98AB-42B6-A41A-9D893C1B9DCB}
 		{EC14A729-8DF5-448D-944F-32C0BA7A4B6E} = {B7CDA0D2-98AB-42B6-A41A-9D893C1B9DCB}
 		{2DD467F8-F06F-4B7C-A46F-1EC5BAE325A5} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
+		{0155628A-7B0A-4461-B3BE-4CEBE4CD77F1} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
+		{5DB87C7E-059F-412B-99DE-65DB5392FD73} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {435A0D65-610C-4B84-B1AA-2C7FBE72DB80}

@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Test.Common;
 
+using System.Diagnostics;
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -80,4 +82,13 @@ public abstract class BaseIntegrationTest<T> : IDisposable
     }
 
     protected void ApplyBusConfiguration(MessageBusBuilder mbb) => messageBusBuilderAction?.Invoke(mbb);
+
+    protected async Task EnsureConsumersStarted()
+    {
+        var timeout = Stopwatch.StartNew();
+        var consumerControl = ServiceProvider.GetRequiredService<IConsumerControl>();
+
+        // ensure the consumers are warm
+        while (!consumerControl.IsStarted && timeout.ElapsedMilliseconds < 3000) await Task.Delay(200);
+    }
 }

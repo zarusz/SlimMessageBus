@@ -70,7 +70,7 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
                     config.SocketNagleDisable = true;
 
                     config.StatisticsIntervalMs = 500000;
-                    config.AutoOffsetReset = AutoOffsetReset.Earliest;
+                    config.AutoOffsetReset = AutoOffsetReset.Latest;
                 }
             };
 

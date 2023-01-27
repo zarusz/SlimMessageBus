@@ -28,6 +28,8 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<ISqlOutboxRepository>(svp => svp.GetRequiredService<TOutboxRepository>());
         services.TryAddScoped<IOutboxRepository>(svp => svp.GetRequiredService<TOutboxRepository>());
 
+        services.AddSingleton<SqlOutboxTemplate>();
+
         return services;
     }
 

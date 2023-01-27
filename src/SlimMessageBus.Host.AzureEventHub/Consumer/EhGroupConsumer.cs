@@ -10,8 +10,10 @@ public class EhGroupConsumer : IAsyncDisposable, IConsumerControl
     private readonly EventProcessorClient _processorClient;
     private readonly SafeDictionaryWrapper<string, EhPartitionConsumer> _partitionConsumerByPartitionId;
     private readonly GroupPath _groupPath;
-    public EventHubMessageBus MessageBus { get; }
 
+    public EventHubMessageBus MessageBus { get; }
+    public bool IsStarted { get; private set; }
+    
     public EhGroupConsumer(EventHubMessageBus messageBus, GroupPath groupPath, Func<GroupPathPartitionId, EhPartitionConsumer> partitionConsumerFactory)
     {
         _groupPath = groupPath ?? throw new ArgumentNullException(nameof(groupPath));
@@ -76,6 +78,7 @@ public class EhGroupConsumer : IAsyncDisposable, IConsumerControl
         {
             _logger.LogInformation("Starting consumer Group: {Group}, Path: {Path}...", _groupPath.Group, _groupPath.Path);
             await _processorClient.StartProcessingAsync();
+            IsStarted = true;
         }
     }
 
@@ -95,6 +98,8 @@ public class EhGroupConsumer : IAsyncDisposable, IConsumerControl
 
             // stop the processing host
             await _processorClient.StopProcessingAsync();
+
+            IsStarted = false;
         }
     }
 

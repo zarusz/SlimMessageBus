@@ -15,6 +15,7 @@ public class RedisListCheckerConsumer : IRedisConsumer
     private CancellationTokenSource _cancellationTokenSource;
     private Task _task;
 
+    public bool IsStarted { get; private set; }
     protected class QueueProcessors
     {
         public string Name { get; }
@@ -39,7 +40,7 @@ public class RedisListCheckerConsumer : IRedisConsumer
 
     public async Task Start()
     {
-        if (_task != null)
+        if (IsStarted)
         {
             return;
         }
@@ -50,11 +51,13 @@ public class RedisListCheckerConsumer : IRedisConsumer
             _cancellationTokenSource = new CancellationTokenSource();
         }
         _task = await Task.Factory.StartNew(Run, _cancellationTokenSource.Token, TaskCreationOptions.LongRunning, TaskScheduler.Current).ConfigureAwait(false);
+
+        IsStarted = true;
     }
 
     public async Task Stop()
     {
-        if (_task == null)
+        if (!IsStarted)
         {
             return;
         }
@@ -63,6 +66,8 @@ public class RedisListCheckerConsumer : IRedisConsumer
 
         await _task.ConfigureAwait(false);
         _task = null;
+
+        IsStarted = false;
     }
 
     protected async Task Run()
