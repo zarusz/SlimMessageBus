@@ -15,6 +15,8 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
     public MessageBusSettings Settings { get; }
     public HybridMessageBusSettings ProviderSettings { get; }
 
+    public bool IsStarted => _busByName.Values.All(x => x.IsStarted);
+
     public HybridMessageBus(MessageBusSettings settings, HybridMessageBusSettings providerSettings, MessageBusBuilder mbb)
     {
         Settings = settings ?? throw new ArgumentNullException(nameof(settings));

@@ -1,6 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Sql;
 
 using System.Data;
+using System.Reflection;
 using System.Text.Json;
 
 using Microsoft.Data.SqlClient;
@@ -9,18 +10,22 @@ using Microsoft.Extensions.Logging;
 public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
 {
     private readonly ILogger<SqlOutboxRepository> _logger;
-    private readonly string _tableNameQualified;
+    private readonly SqlOutboxTemplate _sqlTemplate;
+    private readonly JsonSerializerOptions _jsonOptions;
     private SqlTransaction _transaction;
 
     protected SqlOutboxSettings Settings { get; }
     protected SqlConnection Connection { get; }
 
-    public SqlOutboxRepository(ILogger<SqlOutboxRepository> logger, SqlOutboxSettings settings, SqlConnection connection)
+    public SqlOutboxRepository(ILogger<SqlOutboxRepository> logger, SqlOutboxSettings settings, SqlOutboxTemplate sqlOutboxTemplate, SqlConnection connection)
     {
         _logger = logger;
+        _sqlTemplate = sqlOutboxTemplate;
         Settings = settings;
         Connection = connection;
-        _tableNameQualified = $"[{Settings.DatabaseSchemaName}].[{Settings.DatabaseTableName}]";
+
+        _jsonOptions = new();
+        _jsonOptions.Converters.Add(new ObjectToInferredTypesConverter());
     }
 
     private async Task EnsureConnection()
@@ -99,11 +104,22 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
                 await BeginTransaction();
                 try
                 {
-                    _logger.LogDebug("Ensuring table {TableName} is created", _tableNameQualified);
+                    _logger.LogDebug("Ensuring table {TableName} is created", _sqlTemplate.MigrationsTableNameQualified);
                     await ExecuteNonQuery(token, Settings.SchemaCreationRetry,
-                        @$"IF OBJECT_ID('{_tableNameQualified}') IS NULL 
+                        @$"IF OBJECT_ID('{_sqlTemplate.MigrationsTableNameQualified}') IS NULL 
                         BEGIN 
-                            CREATE TABLE {_tableNameQualified} (
+                            CREATE TABLE {_sqlTemplate.MigrationsTableNameQualified} (
+                                MigrationId nvarchar(150) NOT NULL,
+                                ProductVersion nvarchar(32) NOT NULL,
+                                CONSTRAINT [PK_{Settings.DatabaseMigrationsTableName}] PRIMARY KEY CLUSTERED ([MigrationId] ASC)
+                            )
+                        END");
+
+                    _logger.LogDebug("Ensuring table {TableName} is created", _sqlTemplate.TableNameQualified);
+                    await ExecuteNonQuery(token, Settings.SchemaCreationRetry,
+                        @$"IF OBJECT_ID('{_sqlTemplate.TableNameQualified}') IS NULL 
+                        BEGIN 
+                            CREATE TABLE {_sqlTemplate.TableNameQualified} (
                                 Id uniqueidentifier NOT NULL,
                                 Timestamp datetime2(7) NOT NULL,
                                 BusName nvarchar(64) NOT NULL,
@@ -136,6 +152,11 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
                         "LockInstanceId",
                     });
 
+                    await TryApplyMigration(token, "20230120000000_SMB_Init", null);
+
+                    await TryApplyMigration(token, "20230128225000_SMB_BusNameOptional",
+                        @$"ALTER TABLE {_sqlTemplate.TableNameQualified} ALTER COLUMN BusName nvarchar(64) NULL");
+
                     await CommitTransaction();
                     return true;
                 }
@@ -157,15 +178,38 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
 
     private async Task CreateIndex(CancellationToken token, string indexName, IEnumerable<string> columns)
     {
-        _logger.LogDebug("Ensuring index {IndexName} on table {TableName} is created", indexName, _tableNameQualified);
+        _logger.LogDebug("Ensuring index {IndexName} on table {TableName} is created", indexName, _sqlTemplate.TableNameQualified);
         await ExecuteNonQuery(token, Settings.SchemaCreationRetry,
-            @$"IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = '{indexName}' AND object_id = OBJECT_ID('{_tableNameQualified}'))
+            @$"IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = '{indexName}' AND object_id = OBJECT_ID('{_sqlTemplate.TableNameQualified}'))
             BEGIN 
-                CREATE NONCLUSTERED INDEX [{indexName}] ON {_tableNameQualified}
+                CREATE NONCLUSTERED INDEX [{indexName}] ON {_sqlTemplate.TableNameQualified}
                 (
                     {string.Join(',', columns.Select(c => $"{c} ASC"))}
                 )
             END");
+    }
+
+    private async Task<bool> TryApplyMigration(CancellationToken token, string migrationId, string migrationSql)
+    {
+        var versionId = Assembly.GetExecutingAssembly().GetName().Version.ToString();
+
+        _logger.LogTrace("Ensuring migration {MigrationId} is applied", migrationId);
+        var affected = await ExecuteNonQuery(token, Settings.SchemaCreationRetry,
+            @$"IF NOT EXISTS (SELECT * FROM {_sqlTemplate.MigrationsTableNameQualified} WHERE MigrationId = '{migrationId}')
+            BEGIN 
+                INSERT INTO {_sqlTemplate.MigrationsTableNameQualified} (MigrationId, ProductVersion) VALUES ('{migrationId}', '{versionId}')
+            END");
+
+        if (affected > 0)
+        {
+            if (migrationSql != null)
+            {
+                _logger.LogDebug("Executing migration {MigrationId}...", migrationId);
+                await ExecuteNonQuery(token, Settings.SchemaCreationRetry, migrationSql);
+            }
+            return true;
+        }
+        return false;
     }
 
     private Task<int> ExecuteNonQuery(CancellationToken token, SqlRetrySettings retrySettings, string sql, Action<SqlCommand> setParameters = null) =>
@@ -183,37 +227,32 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
 
         // ToDo: Create command template
 
-        await ExecuteNonQuery(token, Settings.OperationRetry,
-            @$"INSERT INTO {_tableNameQualified}
-                ([Id], [Timestamp], [BusName], [MessageType], [MessagePayload], [Headers], [Path], [InstanceId], [LockInstanceId], [LockExpiresOn], [DeliveryAttempt], [DeliveryComplete])
-            VALUES
-                (@Id, @Timestamp, @BusName, @MessageType, @MessagePayload, @Headers, @Path, @InstanceId, @LockInstanceId, @LockExpiresOn, @DeliveryAttempt, @DeliveryComplete)",
-            cmd =>
-            {
-                cmd.Parameters.Add("@Id", SqlDbType.UniqueIdentifier).Value = message.Id;
-                cmd.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = message.Timestamp;
-                cmd.Parameters.Add("@BusName", SqlDbType.NVarChar).Value = message.BusName;
-                cmd.Parameters.Add("@MessageType", SqlDbType.NVarChar).Value = message.MessageType.AssemblyQualifiedName;
-                cmd.Parameters.Add("@MessagePayload", SqlDbType.VarBinary).Value = message.MessagePayload;
-                cmd.Parameters.Add("@Headers", SqlDbType.NVarChar).Value = message.Headers != null ? JsonSerializer.Serialize(message.Headers) : DBNull.Value;
-                cmd.Parameters.Add("@Path", SqlDbType.NVarChar).Value = message.Path;
-                cmd.Parameters.Add("@InstanceId", SqlDbType.NVarChar).Value = message.InstanceId;
-                cmd.Parameters.Add("@LockInstanceId", SqlDbType.NVarChar).Value = message.LockInstanceId;
-                cmd.Parameters.Add("@LockExpiresOn", SqlDbType.DateTime2).Value = message.LockExpiresOn;
-                cmd.Parameters.Add("@DeliveryAttempt", SqlDbType.Int).Value = message.DeliveryAttempt;
-                cmd.Parameters.Add("@DeliveryComplete", SqlDbType.Bit).Value = message.DeliveryComplete;
-            });
+        await ExecuteNonQuery(token, Settings.OperationRetry, _sqlTemplate.SqlOutboxMessageInsert, cmd =>
+        {
+            cmd.Parameters.Add("@Id", SqlDbType.UniqueIdentifier).Value = message.Id;
+            cmd.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = message.Timestamp;
+            cmd.Parameters.Add("@BusName", SqlDbType.NVarChar).Value = message.BusName;
+            cmd.Parameters.Add("@MessageType", SqlDbType.NVarChar).Value = Settings.MessageTypeResolver.ToName(message.MessageType);
+            cmd.Parameters.Add("@MessagePayload", SqlDbType.VarBinary).Value = message.MessagePayload;
+            cmd.Parameters.Add("@Headers", SqlDbType.NVarChar).Value = message.Headers != null ? JsonSerializer.Serialize(message.Headers, _jsonOptions) : DBNull.Value;
+            cmd.Parameters.Add("@Path", SqlDbType.NVarChar).Value = message.Path;
+            cmd.Parameters.Add("@InstanceId", SqlDbType.NVarChar).Value = message.InstanceId;
+            cmd.Parameters.Add("@LockInstanceId", SqlDbType.NVarChar).Value = message.LockInstanceId;
+            cmd.Parameters.Add("@LockExpiresOn", SqlDbType.DateTime2).Value = message.LockExpiresOn;
+            cmd.Parameters.Add("@DeliveryAttempt", SqlDbType.Int).Value = message.DeliveryAttempt;
+            cmd.Parameters.Add("@DeliveryComplete", SqlDbType.Bit).Value = message.DeliveryComplete;
+        });
     }
 
-    public async Task<IReadOnlyList<OutboxMessage>> FindNextToSend(int top, string instanceId, CancellationToken token)
+    public async Task<IReadOnlyList<OutboxMessage>> FindNextToSend(string instanceId, CancellationToken token)
     {
         await EnsureConnection();
 
         using var cmd = CreateCommand();
-        cmd.CommandText = @$"SELECT TOP {top} * FROM {_tableNameQualified} WHERE DeliveryComplete = 0 AND LockInstanceId = @InstanceId ORDER BY Timestamp ASC";
+        cmd.CommandText = _sqlTemplate.SqlOutboxMessageFindNextSelect;
         cmd.Parameters.Add("@InstanceId", SqlDbType.NVarChar).Value = instanceId;
 
-        using var reader = await cmd.ExecuteReaderAsync();
+        using var reader = await cmd.ExecuteReaderAsync(token);
 
         var idOrdinal = reader.GetOrdinal("Id");
         var timestampOrdinal = reader.GetOrdinal("Timestamp");
@@ -240,9 +279,9 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
                 Id = id,
                 Timestamp = reader.GetDateTime(timestampOrdinal),
                 BusName = reader.GetString(busNameOrdinal),
-                MessageType = Type.GetType(messageType) ?? throw new MessageBusException($"Outbox message with Id {id} - the MessageType {messageType} is not recognized. The type might have been renamed or moved namespaces."),
+                MessageType = Settings.MessageTypeResolver.ToType(messageType) ?? throw new MessageBusException($"Outbox message with Id {id} - the MessageType {messageType} is not recognized. The type might have been renamed or moved namespaces."),
                 MessagePayload = reader.GetSqlBinary(payloadOrdinal).Value,
-                Headers = headers == null ? null : JsonSerializer.Deserialize<IDictionary<string, object>>(headers),
+                Headers = headers == null ? null : JsonSerializer.Deserialize<IDictionary<string, object>>(headers, _jsonOptions),
                 Path = reader.IsDBNull(pathOrdinal) ? null : reader.GetString(pathOrdinal),
                 InstanceId = reader.GetString(instanceIdOrdinal),
                 LockInstanceId = reader.IsDBNull(lockInstanceIdOrdinal) ? null : reader.GetString(lockInstanceIdOrdinal),
@@ -266,7 +305,7 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
         await EnsureConnection();
 
         var affected = await ExecuteNonQuery(token, Settings.OperationRetry,
-            @$"UPDATE {_tableNameQualified} SET [DeliveryComplete] = 1 WHERE [Id] IN ({string.Join(",", ids.Select(id => string.Concat("'", id, "'")))})");
+            @$"UPDATE {_sqlTemplate.TableNameQualified} SET [DeliveryComplete] = 1 WHERE [Id] IN ({string.Join(",", ids.Select(id => string.Concat("'", id, "'")))})");
 
         if (affected != ids.Count)
         {
@@ -279,13 +318,11 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
         await EnsureConnection();
 
         // Extend the lease if still the owner of it, or claim the lease if another instace had possesion, but it expired (or message never was locked)
-        var affected = await ExecuteNonQuery(token, Settings.OperationRetry,
-            @$"UPDATE {_tableNameQualified} SET LockInstanceId = @InstanceId, LockExpiresOn = @ExpiresOn WHERE DeliveryComplete = 0 AND LockExpiresOn < GetUtcDate() OR LockInstanceId = @InstanceId",
-            cmd =>
-            {
-                cmd.Parameters.Add("@InstanceId", SqlDbType.NVarChar).Value = instanceId;
-                cmd.Parameters.Add("@ExpiresOn", SqlDbType.DateTime2).Value = expiresOn;
-            });
+        var affected = await ExecuteNonQuery(token, Settings.OperationRetry, _sqlTemplate.SqlOutboxMessageTryLockUpdate, cmd =>
+        {
+            cmd.Parameters.Add("@InstanceId", SqlDbType.NVarChar).Value = instanceId;
+            cmd.Parameters.Add("@ExpiresOn", SqlDbType.DateTime2).Value = expiresOn;
+        });
 
         return affected;
     }
@@ -309,12 +346,10 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
     {
         await EnsureConnection();
 
-        var affected = await ExecuteNonQuery(token, Settings.OperationRetry,
-            @$"DELETE FROM {_tableNameQualified} WHERE [DeliveryComplete] = 1 AND [Timestamp] < @Timestamp",
-            cmd =>
-            {
-                cmd.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = timestampBefore;
-            });
+        var affected = await ExecuteNonQuery(token, Settings.OperationRetry, _sqlTemplate.SqlOutboxMessageDeleteSent, cmd =>
+        {
+            cmd.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = timestampBefore;
+        });
 
         _logger.Log(affected > 0 ? LogLevel.Information : LogLevel.Debug, "Removed {MessageCount} sent messages from outbox table", affected);
     }

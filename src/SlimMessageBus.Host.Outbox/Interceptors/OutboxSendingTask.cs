@@ -156,7 +156,7 @@ public class OutboxSendingTask : IMessageBusLifecycleInterceptor, IAsyncDisposab
 
         for (var hasMore = true; hasMore && !ct.IsCancellationRequested;)
         {
-            var outboxMessages = await outboxRepository.FindNextToSend(_outboxSettings.PollBatchSize, _instanceIdProvider.GetInstanceId(), ct);
+            var outboxMessages = await outboxRepository.FindNextToSend(_instanceIdProvider.GetInstanceId(), ct);
             if (outboxMessages.Count == 0)
             {
                 break;

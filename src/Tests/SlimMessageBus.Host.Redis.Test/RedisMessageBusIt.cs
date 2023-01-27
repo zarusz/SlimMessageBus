@@ -232,8 +232,7 @@ public class RedisMessageBusIt : BaseIntegrationTest<RedisMessageBusIt>
 
         var messageBus = MessageBus;
 
-        // ensure the consumers are warm
-        //while (!messageBus.IsStarted) await Task.Delay(200);
+        await EnsureConsumersStarted();
 
         // act
 
@@ -251,6 +250,7 @@ public class RedisMessageBusIt : BaseIntegrationTest<RedisMessageBusIt>
             var resp = await messageBus.Send<EchoResponse, EchoRequest>(req).ConfigureAwait(false);
             lock (responses)
             {
+                Logger.LogDebug("Recieved response for index {0:000}", req.Index);
                 responses.Add((req, resp));
             }
         });

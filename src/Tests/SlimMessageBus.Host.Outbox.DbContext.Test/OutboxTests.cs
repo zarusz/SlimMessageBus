@@ -2,6 +2,8 @@
 
 using System.Reflection;
 
+using Confluent.Kafka;
+
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +14,7 @@ using SecretStore;
 
 using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.Hybrid;
+using SlimMessageBus.Host.Kafka;
 using SlimMessageBus.Host.Memory;
 using SlimMessageBus.Host.MsDependencyInjection;
 using SlimMessageBus.Host.Outbox.DbContext.Test.DataAccess;
@@ -25,6 +28,7 @@ using Xunit.Abstractions;
 public class OutboxTests : BaseIntegrationTest<OutboxTests>
 {
     private TransactionType _testParamTransactionType;
+    private BusType _testParamBusType;
 
     public OutboxTests(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
     {
@@ -34,6 +38,12 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
     {
         SqlTransaction,
         TrnasactionScope
+    }
+
+    public enum BusType
+    {
+        AzureSB,
+        Kafka,
     }
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
@@ -59,13 +69,50 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
                         mbb.UseTransactionScope(); // Consumers/Handlers will be wrapped in a TransactionScope
                     }
                 })
-                .AddChildBus("AzureSB", mbb =>
+                .AddChildBus("ExternalBus", mbb =>
                 {
-                    var serviceBusConnectionString = Secrets.Service.PopulateSecrets(cfg["Azure:ServiceBus"]);
-                    var topic = "tests.outbox/customer-events";
-                    mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString))
-                       .Produce<CustomerCreatedEvent>(x => x.DefaultTopic(topic))
-                       .Consume<CustomerCreatedEvent>(x => x.Topic(topic).SubscriptionName(nameof(OutboxTests)).WithConsumer<CustomerCreatedEventConsumer>())
+                    var topic = "";
+                    if (_testParamBusType == BusType.Kafka)
+                    {
+                        var kafkaBrokers = configuration["Kafka:Brokers"];
+                        var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
+                        var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
+
+                        mbb.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+                        {
+                            ProducerConfig = (config) =>
+                            {
+                                AddKafkaSsl(kafkaUsername, kafkaPassword, config);
+
+                                config.LingerMs = 5; // 5ms
+                                config.SocketNagleDisable = true;
+                            },
+                            ConsumerConfig = (config) =>
+                            {
+                                AddKafkaSsl(kafkaUsername, kafkaPassword, config);
+
+                                config.FetchErrorBackoffMs = 1;
+                                config.SocketNagleDisable = true;
+
+                                config.StatisticsIntervalMs = 500000;
+                                config.AutoOffsetReset = AutoOffsetReset.Latest;
+                            }
+                        });
+
+                        topic = $"{kafkaUsername}-test-ping";
+                    }
+                    if (_testParamBusType == BusType.AzureSB)
+                    {
+                        mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(Secrets.Service.PopulateSecrets(cfg["Azure:ServiceBus"])));
+                        topic = "tests.outbox/customer-events";
+                    }
+
+                    mbb.Produce<CustomerCreatedEvent>(x => x.DefaultTopic(topic))
+                       .Consume<CustomerCreatedEvent>(x => x
+                            .Topic(topic)
+                            .WithConsumer<CustomerCreatedEventConsumer>()
+                            .SubscriptionName(nameof(OutboxTests)) // for AzureSB
+                            .KafkaGroup("subscriber")) // for Kafka
                        .UseOutbox(); // All outgoing messages from this bus will go out via an outbox
                 });
         }, addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() });
@@ -95,12 +142,14 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
     public const string InvalidLastname = "Exception";
 
     [Theory]
-    [InlineData(new object[] { TransactionType.SqlTransaction })]
-    [InlineData(new object[] { TransactionType.TrnasactionScope })]
-    public async Task Given_CommandHandlerInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoDataSaved_And_NoEventRaised(TransactionType transactionType)
+    [InlineData(new object[] { TransactionType.SqlTransaction, BusType.AzureSB })]
+    [InlineData(new object[] { TransactionType.TrnasactionScope, BusType.AzureSB })]
+    [InlineData(new object[] { TransactionType.SqlTransaction, BusType.Kafka })]
+    public async Task Given_CommandHandlerInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoDataSaved_And_NoEventRaised(TransactionType transactionType, BusType busType)
     {
         // arrange
         _testParamTransactionType = transactionType;
+        _testParamBusType = busType;
 
         await PerformDbOperation(async context =>
         {
@@ -117,6 +166,8 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
         var commands = Enumerable.Range(0, 100).Select(x => new CreateCustomerCommand($"John {x:000}", surnames[x % surnames.Length]));
         var validCommands = commands.Where(x => !string.Equals(x.Lastname, InvalidLastname, StringComparison.InvariantCulture)).ToList();
         var store = ServiceProvider!.GetRequiredService<TestEventCollector<CustomerCreatedEvent>>();
+
+        await EnsureConsumersStarted();
 
         // act
         foreach (var cmd in commands)
@@ -151,6 +202,16 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
         customerCountWithInvalidLastname.Should().Be(0);
         customerCountWithValidLastname.Should().Be(validCommands.Count);
     }
+
+    private static void AddKafkaSsl(string username, string password, ClientConfig c)
+    {
+        // cloudkarafka.com uses SSL with SASL authentication
+        c.SecurityProtocol = SecurityProtocol.SaslSsl;
+        c.SaslUsername = username;
+        c.SaslPassword = password;
+        c.SaslMechanism = SaslMechanism.ScramSha256;
+        c.SslCaLocation = "cloudkarafka_2022-10.ca";
+    }
 }
 
 public record CreateCustomerCommand(string Firstname, string Lastname) : IRequestMessage<Guid>;
@@ -166,7 +227,7 @@ public record CreateCustomerCommandHandler(IMessageBus Bus, CustomerContext Cust
         await CustomerContext.SaveChangesAsync();
 
         // Announce to anyone outside of this micro-service that a customer has been created (this will go out via an transactional outbox)
-        await Bus.Publish(new CustomerCreatedEvent(customer.Id, customer.Firstname, customer.Lastname));
+        await Bus.Publish(new CustomerCreatedEvent(customer.Id, customer.Firstname, customer.Lastname), headers: new Dictionary<string, object> { ["CustomerId"] = customer.Id });
 
         // Simulate some variable processing time
         await Task.Delay(Random.Shared.Next(10, 500));
@@ -183,11 +244,20 @@ public record CreateCustomerCommandHandler(IMessageBus Bus, CustomerContext Cust
 
 public record CustomerCreatedEvent(Guid Id, string Firstname, string Lastname);
 
-public record CustomerCreatedEventConsumer(TestEventCollector<CustomerCreatedEvent> Store) : IConsumer<CustomerCreatedEvent>
+public record CustomerCreatedEventConsumer(TestEventCollector<CustomerCreatedEvent> Store) : IConsumer<CustomerCreatedEvent>, IConsumerWithContext
 {
+    public IConsumerContext? Context { get; set; }
+
     public Task OnHandle(CustomerCreatedEvent message)
     {
-        Store.Add(message);
+        if (Context != null && Context.Headers.TryGetValue("CustomerId", out var customerId))
+        {
+            if (customerId != null && message.Id == Guid.Parse(customerId.ToString()))
+            {
+                Store.Add(message);
+            }
+
+        }
         return Task.CompletedTask;
     }
 }

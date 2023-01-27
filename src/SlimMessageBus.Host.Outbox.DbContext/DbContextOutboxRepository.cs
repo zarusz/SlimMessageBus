@@ -11,8 +11,8 @@ public class DbContextOutboxRepository<TDbContext> : SqlOutboxRepository where T
 {
     public TDbContext DbContext { get; }
 
-    public DbContextOutboxRepository(ILogger<SqlOutboxRepository> logger, SqlOutboxSettings settings, TDbContext dbContext)
-        : base(logger, settings, (SqlConnection)dbContext.Database.GetDbConnection())
+    public DbContextOutboxRepository(ILogger<SqlOutboxRepository> logger, SqlOutboxSettings settings, SqlOutboxTemplate sqlOutboxTemplate, TDbContext dbContext)
+        : base(logger, settings, sqlOutboxTemplate, (SqlConnection)dbContext.Database.GetDbConnection())
     {
         DbContext = dbContext;
     }

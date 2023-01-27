@@ -42,21 +42,39 @@ This will apply the `Newtonsoft.Json` default serialization settings and will us
 In order to customize how messages are formatted use the alternative constructor:
 
 ```cs
+var jsonSerializer = new JsonMessageSerializer();
+
+// OR
+
 var jsonSerializerSettings = new Newtonsoft.Json.JsonSerializerSettings
    {
       TypeNameHandling = Newtonsoft.Json.TypeNameHandling.Objects
    };
 
-var jsonSerializer = new JsonMessageSerializer(jsonSerializerSettings, Encoding.UTF8)
+var jsonSerializer = new JsonMessageSerializer(jsonSerializerSettings, Encoding.UTF8);
 ```
 
 ## Json (System.Text.Json)
 
-Nuget package: [SlimMessageBus.Host.Serialization.NativeJson](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.NativeJson)
+Nuget package: [SlimMessageBus.Host.Serialization.SystemTextJson](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.SystemTextJson)
 
 The Json plugin brings in JSON serialization using the [System.Text.Json](https://www.nuget.org/packages/System.Text.Json) library.
 
-To use it install the nuget package `SlimMessageBus.Host.Serialization.NativeJson` and then configure the bus similar to Json above.
+To use it install the nuget package `SlimMessageBus.Host.Serialization.SystemTextJson` and then configure the bus similar to Json above.
+
+```cs
+var jsonSerializer = new JsonMessageSerializer();
+```
+
+One can customize or override the `JsonSerializerOptions`:
+
+```cs
+// Configure JSON options
+//jsonSerializer.Options = new JsonSerializerOptions();
+//jsonSerializer.Options.Converters.Add(...)
+```
+
+By default the plugin adds a custom converter (see [`ObjectToInferredTypesConverter`](../src/SlimMessageBus.Host.Serialization.SystemTextJson/ObjectToInferredTypesConverter.cs)) that infers primitive types whenever the type to deseriaize is object (unknown). This helps with header value serialization for transport providers that transmit the headers as binary (Kafka). See the source code for better explanation.
 
 ## Avro
 

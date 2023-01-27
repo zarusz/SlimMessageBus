@@ -40,6 +40,10 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     protected Task BeforeStartTask { get; set; } = Task.CompletedTask;
 
+    public bool IsStarted { get; private set; }
+
+    public virtual string Name => Settings.Name ?? "Main";
+
     protected MessageBusBase(MessageBusSettings settings)
     {
         Settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -119,19 +123,17 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         return producerByBaseMessageType;
     }
 
-    public bool IsStarted { get; private set; }
-
     public async Task Start()
     {
         if (!IsStarted)
         {
             await BeforeStartTask;
 
-            _logger.LogInformation("Starting consumers for {BusName} bus...", Settings.Name);
+            _logger.LogInformation("Starting consumers for {BusName} bus...", Name);
             await OnBusLifecycle(MessageBusLifecycleEventType.Starting);
             await OnStart();
             await OnBusLifecycle(MessageBusLifecycleEventType.Started);
-            _logger.LogInformation("Started consumers for {BusName} bus", Settings.Name);
+            _logger.LogInformation("Started consumers for {BusName} bus", Name);
 
             IsStarted = true;
         }
@@ -158,11 +160,11 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     {
         if (IsStarted)
         {
-            _logger.LogInformation("Stopping consumers for {BusName} bus...", Settings.Name);
+            _logger.LogInformation("Stopping consumers for {BusName} bus...", Name);
             await OnBusLifecycle(MessageBusLifecycleEventType.Stopping);
             await OnStop();
             await OnBusLifecycle(MessageBusLifecycleEventType.Stopped);
-            _logger.LogInformation("Stopped consumers for {BusName} bus", Settings.Name);
+            _logger.LogInformation("Stopped consumers for {BusName} bus", Name);
 
             IsStarted = false;
         }
@@ -383,7 +385,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
             {
                 Path = path,
                 CancellationToken = cancellationToken,
-                Headers = headers,
+                Headers = messageHeaders,
                 Bus = this,
                 ProducerSettings = producerSettings
             };

@@ -1,17 +1,20 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus.Consumer;
 
 using Azure.Messaging.ServiceBus;
+
 using SlimMessageBus.Host.Config;
 
 public abstract class AsbBaseConsumer : IAsyncDisposable, IConsumerControl
 {
     private readonly ILogger _logger;
+    private ServiceBusProcessor _serviceBusProcessor;
+    private ServiceBusSessionProcessor _serviceBusSessionProcessor;
+
     public ServiceBusMessageBus MessageBus { get; }
     protected IMessageProcessor<ServiceBusReceivedMessage> MessageProcessor { get; }
     protected TopicSubscriptionParams TopicSubscription { get; }
 
-    private ServiceBusProcessor _serviceBusProcessor;
-    private ServiceBusSessionProcessor _serviceBusSessionProcessor;
+    public bool IsStarted { get; private set; }
 
     protected AsbBaseConsumer(ServiceBusMessageBus messageBus, ServiceBusClient serviceBusClient, TopicSubscriptionParams subscriptionFactoryParams, IMessageProcessor<ServiceBusReceivedMessage> messageProcessor, IEnumerable<AbstractConsumerSettings> consumerSettings, ILogger logger)
     {
@@ -81,35 +84,47 @@ public abstract class AsbBaseConsumer : IAsyncDisposable, IConsumerControl
         }
     }
 
-    public Task Start()
+    public async Task Start()
     {
+        if (IsStarted)
+        {
+            return;
+        }
+
         _logger.LogInformation("Starting consumer for Path: {Path}, SubscriptionName: {SubscriptionName}", TopicSubscription.Path, TopicSubscription.SubscriptionName);
 
         if (_serviceBusProcessor != null)
         {
-            return _serviceBusProcessor.StartProcessingAsync();
+            await _serviceBusProcessor.StartProcessingAsync();
         }
 
         if (_serviceBusSessionProcessor != null)
         {
-            return _serviceBusSessionProcessor.StartProcessingAsync();
+            await _serviceBusSessionProcessor.StartProcessingAsync();
         }
-        return Task.CompletedTask;
+
+        IsStarted = true;
     }
 
-    public Task Stop()
+    public async Task Stop()
     {
+        if (!IsStarted)
+        {
+            return;
+        }
+
         _logger.LogInformation("Stopping consumer for Path: {Path}, SubscriptionName: {SubscriptionName}", TopicSubscription.Path, TopicSubscription.SubscriptionName);
         if (_serviceBusProcessor != null)
         {
-            return _serviceBusProcessor.StopProcessingAsync();
+            await _serviceBusProcessor.StopProcessingAsync();
         }
 
         if (_serviceBusSessionProcessor != null)
         {
-            return _serviceBusSessionProcessor.StopProcessingAsync();
+            await _serviceBusSessionProcessor.StopProcessingAsync();
         }
-        return Task.CompletedTask;
+
+        IsStarted = false;
     }
 
     #region IAsyncDisposable

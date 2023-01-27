@@ -1,7 +1,9 @@
 ﻿namespace SlimMessageBus.Host.Redis;
 
 using Microsoft.Extensions.Logging;
+
 using SlimMessageBus.Host.Serialization;
+
 using StackExchange.Redis;
 
 public class RedisTopicConsumer : IRedisConsumer
@@ -14,6 +16,8 @@ public class RedisTopicConsumer : IRedisConsumer
     private ChannelMessageQueue _channelMessageQueue;
     private CancellationTokenSource _cancellationTokenSource;
 
+    public bool IsStarted { get; private set; }
+
     public RedisTopicConsumer(ILogger<RedisTopicConsumer> logger, string topic, ISubscriber subscriber, IMessageProcessor<MessageWithHeaders> messageProcessor, IMessageSerializer envelopeSerializer)
     {
         _logger = logger;
@@ -25,32 +29,40 @@ public class RedisTopicConsumer : IRedisConsumer
 
     public async Task Start()
     {
-        if (_channelMessageQueue == null)
+        if (IsStarted)
         {
-            _logger.LogInformation("Subscribing to redis channel {Topic}", _topic);
-
-            if (_cancellationTokenSource == null || _cancellationTokenSource.IsCancellationRequested)
-            {
-                _cancellationTokenSource?.Cancel();
-                _cancellationTokenSource = new CancellationTokenSource();
-            }
-
-            _channelMessageQueue = await _subscriber.SubscribeAsync(_topic);
-            _channelMessageQueue.OnMessage(OnMessage);
+            return;
         }
+
+        _logger.LogInformation("Subscribing to redis channel {Topic}", _topic);
+
+        if (_cancellationTokenSource == null || _cancellationTokenSource.IsCancellationRequested)
+        {
+            _cancellationTokenSource?.Cancel();
+            _cancellationTokenSource = new CancellationTokenSource();
+        }
+
+        _channelMessageQueue = await _subscriber.SubscribeAsync(_topic);
+        _channelMessageQueue.OnMessage(OnMessage);
+
+        IsStarted = true;
     }
 
     public async Task Stop()
     {
-        if (_channelMessageQueue != null)
+        if (!IsStarted)
         {
-            _logger.LogInformation("Unsubscribing from redis channel {Topic}", _topic);
-
-            _cancellationTokenSource.Cancel();
-
-            await _channelMessageQueue.UnsubscribeAsync();
-            _channelMessageQueue = null;
+            return;
         }
+
+        _logger.LogInformation("Unsubscribing from redis channel {Topic}", _topic);
+
+        _cancellationTokenSource.Cancel();
+
+        await _channelMessageQueue.UnsubscribeAsync();
+        _channelMessageQueue = null;
+
+        IsStarted = false;
     }
 
     private async Task OnMessage(ChannelMessage m)

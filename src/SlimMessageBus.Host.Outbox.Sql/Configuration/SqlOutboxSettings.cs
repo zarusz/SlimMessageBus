@@ -6,6 +6,7 @@ public class SqlOutboxSettings : OutboxSettings
 {
     public string DatabaseSchemaName { get; set; } = "dbo";
     public string DatabaseTableName { get; set; } = "Outbox";
+    public string DatabaseMigrationsTableName { get; set; } = "__EFMigrationsHistory";
     public SqlDialect Dialect { get; set; } = SqlDialect.SqlServer;
     /// <summary>
     /// Desired <see cref="TransactionIsolationLevel"/> of the transaction scope created by the consumers (when <see cref="BuilderExtensions.UseTransactionScope(Config.MessageBusBuilder, bool)"/> is enabled).

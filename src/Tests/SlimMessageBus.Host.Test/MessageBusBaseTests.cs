@@ -658,5 +658,12 @@ public class MessageBusBaseTests : IDisposable
         sendInterceptorMock.VerifyNoOtherCalls();
     }
 
-    // ToDo: Add Send tests for interceptors
+
+    public void When_GetChildBus_Then_ReturnsSelf_Given_NameIsNull()
+    {
+        var compositeMessageBus = Bus is ICompositeMessageBus;
+
+    }
+
+
 }
