@@ -4,7 +4,7 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
-    <Version>1.5.0-rc1</Version>
+    <Version>1.5.0</Version>
     <Description>Core dependency resolver interfaces of SlimMessageBus</Description>
     <PackageTags>SlimMessageBus</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
