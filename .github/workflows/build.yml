@@ -48,3 +48,14 @@ jobs:
         path: ./src/TestResults
       # Use always() to always run this step to publish test results when there are test failures
       if: ${{ always() }}
+    - name: Copy NuGet packages
+      shell: bash
+      run: |
+        mkdir ./dist
+        find -name "*.nupkg" -exec cp {} ./dist \;
+        find ./dist
+    - name: Archive NuGet packages
+      uses: actions/upload-artifact@v3
+      with:
+        name: nuget-packages
+        path: './dist'

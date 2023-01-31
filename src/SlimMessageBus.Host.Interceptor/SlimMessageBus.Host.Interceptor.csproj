@@ -4,10 +4,11 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard1.3</TargetFramework>
-    <Version>1.2.0-rc1</Version>
+    <Version>1.2.0</Version>
     <Description>Core interceptor interfaces of SlimMessageBus</Description>
     <PackageTags>SlimMessageBus</PackageTags>
-    <PackageIcon>icon.png</PackageIcon>    
+    <PackageIcon>icon.png</PackageIcon>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>

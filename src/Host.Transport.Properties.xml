@@ -4,6 +4,7 @@
 	<Import Project="Common.Properties.xml" />
 
 	<PropertyGroup>
-		<Version>1.23.0-rc2</Version>
-	</PropertyGroup>
+		<Version>1.23.0</Version>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
 </Project>
