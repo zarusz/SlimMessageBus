@@ -11,8 +11,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 - [Packages](#packages)
 - [Samples](#samples)
   - [Basic usage](#basic-usage)
-  - [Configuration with MsDependencyInjection](#configuration-with-msdependencyinjection)
-  - [Configuration with Autofac or Unity](#configuration-with-autofac-or-unity)
+  - [Configuration](#configuration)
   - [Use Case: Domain Events (in-process pub/sub messaging)](#use-case-domain-events-in-process-pubsub-messaging)
   - [Use Case: Request-response over Kafka topics](#use-case-request-response-over-kafka-topics)
 - [Features](#features)
@@ -52,32 +51,28 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 
 ## Packages
 
-| Name                                 | Description                                                                                                         | NuGet                                                                                                                                                                                                                                                                                                                                                               |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SlimMessageBus`                     | The core API for SlimMessageBus                                                                                     | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.svg)](https://www.nuget.org/packages/SlimMessageBus)                                                                                                                                                                                                                                                        |
-| **Transport providers**              |                                                                                                                     |                                                                                                                                                                                                                                                                                                                                                                     |
-| `.Host.Kafka`                        | Transport provider for Apache Kafka                                                                                 | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Kafka.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)                                                                                                                                                                                                                                  |
-| `.Host.AzureServiceBus`              | Transport provider for Azure Service Bus                                                                            | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AzureServiceBus.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AzureServiceBus)                                                                                                                                                                                                              |
-| `.Host.AzureEventHub`                | Transport provider for Azure Event Hubs                                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AzureEventHub.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)                                                                                                                                                                                                                  |
-| `.Host.Redis`                        | Transport provider for Redis                                                                                        | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Redis.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Redis)                                                                                                                                                                                                                                  |
-| `.Host.Memory`                       | Transport provider implementation for in-process (in memory) message passing (no messaging infrastructure required) | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Memory.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Memory)                                                                                                                                                                                                                                |
-| `.Host.Hybrid`                       | Bus implementation that composes the bus out of other transport providers and performs message routing              | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Hybrid.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Hybrid)                                                                                                                                                                                                                                |
-| **Serialization**                    |                                                                                                                     |                                                                                                                                                                                                                                                                                                                                                                     |
-| `.Host.Serialization.Json`           | Serialization plugin for JSON (Newtonsoft.Json library)                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Serialization.Json.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json)                                                                                                                                                                                                        |
-| `.Host.Serialization.SystemTextJson` | Serialization plugin for JSON (System.Text.Json library)                                                            | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Serialization.SystemTextJson.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.SystemTextJson)                                                                                                                                                                                    |
-| `.Host.Serialization.Avro`           | Serialization plugin for Avro (Apache.Avro library)                                                                 | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Serialization.Avro.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Avro)                                                                                                                                                                                                        |
-| `.Host.Serialization.Hybrid`         | Plugin that delegates serialization to other serializers based on message type                                      | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Serialization.Hybrid.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Hybrid)                                                                                                                                                                                                    |
-| `.Host.Serialization.GoogleProtobuf` | Serialization plugin for Google Protobuf                                                                            | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Serialization.GoogleProtobuf.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.GoogleProtobuf)                                                                                                                                                                                    |
-| **IoC Container**                    |                                                                                                                     |                                                                                                                                                                                                                                                                                                                                                                     |
-| `.Host.MsDependencyInjection`        | DI adapter for Microsoft.Extensions.DependencyInjection                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.MsDependencyInjection.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.MsDependencyInjection)                                                                                                                                                                                                  |
-| `.Host.AspNetCore`                   | Integration for ASP.NET Core (DI adapter, config helpers)                                                           | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AspNetCore.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore)                                                                                                                                                                                                                        |
-| `.Host.Autofac`                      | DI adapter for Autofac container                                                                                    | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Autofac.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Autofac)                                                                                                                                                                                                                              |
-| `.Host.Unity`                        | DI adapter for Unity container                                                                                      | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Unity.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Unity)                                                                                                                                                                                                                                  |
-| **Plugins**                          |                                                                                                                     |                                                                                                                                                                                                                                                                                                                                                                     |
-| `.Host.Interceptor`                  | Core interface for interceptors                                                                                     | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Interceptor.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Interceptor)                                                                                                                                                                                                                      |
-| `.Host.FluentValidation`             | Validation for messages based on [FluentValidation](https://www.nuget.org/packages/FluentValidation)                | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.FluentValidation.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.FluentValidation) <br/> [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.FluentValidation.MsDependencyInjection.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.FluentValidation.MsDependencyInjection) |
-| `.Host.Outbox.Sql`                   | Transactional Outbox using SQL                                                                                      | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Outbox.Sql.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql)                                                                                                                                                                                                                        |
-| `.Host.Outbox.DbContext`             | Transactional Outbox using EF DbContext                                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Outbox.DbContext.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.DbContext)                                                                                                                                                                                                            |
+| Name                                 | Description                                                                                                         | NuGet                                                                                                                                                                            |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SlimMessageBus`                     | The core API for SlimMessageBus                                                                                     | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.svg)](https://www.nuget.org/packages/SlimMessageBus)                                                                     |
+| **Transport providers**              |                                                                                                                     |                                                                                                                                                                                  |
+| `.Host.Kafka`                        | Transport provider for Apache Kafka                                                                                 | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Kafka.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)                                               |
+| `.Host.AzureServiceBus`              | Transport provider for Azure Service Bus                                                                            | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AzureServiceBus.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AzureServiceBus)                           |
+| `.Host.AzureEventHub`                | Transport provider for Azure Event Hubs                                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AzureEventHub.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)                               |
+| `.Host.Redis`                        | Transport provider for Redis                                                                                        | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Redis.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Redis)                                               |
+| `.Host.Memory`                       | Transport provider implementation for in-process (in memory) message passing (no messaging infrastructure required) | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Memory.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Memory)                                             |
+| `.Host.Hybrid`                       | Bus implementation that composes the bus out of other transport providers and performs message routing              | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Hybrid.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Hybrid)                                             |
+| **Serialization**                    |                                                                                                                     |                                                                                                                                                                                  |
+| `.Host.Serialization.Json`           | Serialization plugin for JSON (Newtonsoft.Json library)                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Serialization.Json.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json)                     |
+| `.Host.Serialization.SystemTextJson` | Serialization plugin for JSON (System.Text.Json library)                                                            | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Serialization.SystemTextJson.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.SystemTextJson) |
+| `.Host.Serialization.Avro`           | Serialization plugin for Avro (Apache.Avro library)                                                                 | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Serialization.Avro.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Avro)                     |
+| `.Host.Serialization.Hybrid`         | Plugin that delegates serialization to other serializers based on message type                                      | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Serialization.Hybrid.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Hybrid)                 |
+| `.Host.Serialization.GoogleProtobuf` | Serialization plugin for Google Protobuf                                                                            | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Serialization.GoogleProtobuf.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.GoogleProtobuf) |
+| **Plugins**                          |                                                                                                                     |                                                                                                                                                                                  |
+| `.Host.AspNetCore`                   | Integration for ASP.NET Core (DI adapter, config helpers)                                                           | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AspNetCore.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore)                                     |
+| `.Host.Interceptor`                  | Core interface for interceptors                                                                                     | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Interceptor.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Interceptor)                                   |
+| `.Host.FluentValidation`             | Validation for messages based on [FluentValidation](https://www.nuget.org/packages/FluentValidation)                | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.FluentValidation.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.FluentValidation)                         |
+| `.Host.Outbox.Sql`                   | Transactional Outbox using SQL                                                                                      | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Outbox.Sql.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql)                                     |
+| `.Host.Outbox.DbContext`             | Transactional Outbox using EF DbContext                                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Outbox.DbContext.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.DbContext)                         |
 
 Typically your application components (business logic, domain) only need to depend on `SlimMessageBus` which is the facade, and ultimately your application hosting layer (ASP.NET, Windows Service, Console App) will reference and configure the other packages (`SlimMessageBus.Host.*`) which are the providers and plugins.
 
@@ -107,10 +102,11 @@ public class SomeMessageConsumer : IConsumer<SomeMessage>
 
 > Note: It is also possible to avoid having to implement the interface `IConsumer<T>` (see [here](docs/intro.md#consumer)).
 
-The bus also supports request-response implemented via queues (or topics - depending on what the chosen transport provider supports). The sender side sends a request message:
+The bus also supports request-response implemented via queues (or topics - depending on what the chosen transport provider supports).
+The sender side sends a request message:
 
 ```cs
-var messageResponse = await bus.Send(new MessageRequest());
+var response = await bus.Send(new SomeRequest());
 ```
 
 > Note: It is possible to configure the bus to timeout a request when the response does not arrive within the allotted time (see [here](docs/intro.md#produce-request-message)).
@@ -118,20 +114,20 @@ var messageResponse = await bus.Send(new MessageRequest());
 The receiving side handles the request and replies back:
 
 ```cs
-public class MessageRequestHandler : IRequestHandler<MessageRequest, MessageResponse>
+public class SomeRequestHandler : IRequestHandler<SomeRequest, SomeResponse>
 {
-   public async Task<MessageResponse> OnHandle(MessageRequest request)
+   public async Task<SomeResponse> OnHandle(SomeRequest request)
    {
       // handle the request message and return response
    }
 }
 ```
 
-The bus will ask the chosen DI to provide the consumer instances (`SomeMessageConsumer`, `MessageRequestHandler`).
+The bus will ask the DI container to provide the consumer instances (`SomeMessageConsumer`, `SomeRequestHandler`).
 
-### Configuration with MsDependencyInjection
+### Configuration
 
-When `Microsoft.Extensions.DependencyInjection` is used, then SMB can be configured (requires either [`MsDependencyInjection`](https://www.nuget.org/packages/SlimMessageBus.Host.MsDependencyInjection) or [`AspNetCore`](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore) plugins):
+The `Microsoft.Extensions.DependencyInjection` is used to compose the bus:
 
 ```cs
 IServiceCollection services;
@@ -176,10 +172,6 @@ services.AddMessageBusConsumersFromAssembly(Assembly.GetExecutingAssembly());
 services.AddMessageBusInterceptorsFromAssembly(Assembly.GetExecutingAssembly());
 services.AddMessageBusConfiguratorsFromAssembly(Assembly.GetExecutingAssembly());
 ```
-
-### Configuration with Autofac or Unity
-
-See the [Dependency Resolver](docs/intro.md#dependency-resolver) for more information.
 
 ### Use Case: Domain Events (in-process pub/sub messaging)
 
@@ -256,9 +248,9 @@ order.Add("id_grenade", 4);
 await order.Submit(); // events fired here
 ```
 
-Notice the static `MessageBus.Current` property might actually be configured to resolve a scoped `IMessageBus` instance (web request-scoped or pick up message scope from an external bus).
+Notice the static `MessageBus.Current` property is configured to resolve a scoped `IMessageBus` instance (web request-scoped or pick-up message scope from a currently processed message).
 
-The `SlimMessageBus` configuration for in-memory provider looks like this:
+The `SlimMessageBus` configuration for the in-memory provider looks like this:
 
 ```cs
 IServiceCollection services; // for MsDependencyInjection or AspNetCore
@@ -277,11 +269,8 @@ services.AddSlimMessageBus(mbb =>
 In `Startup.cs` for the ASP.NET project, set up the `MessageBus.Current` helper (if you want to use it):
 
 ```cs
-public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
-{
-   // Set the MessageBus provider, so that IMessageBus are resolved from the current request scope
-   MessageBus.SetProvider(MessageBusCurrentProviderBuilder.Create().From(app).Build());
-}
+services.AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
+services.AddMessageBusAspNet();
 ```
 
 See the complete [sample](/src/Samples#sampledomainevents) for ASP.NET Core where the handler and bus are web-request scoped.
@@ -296,10 +285,10 @@ See [sample](/src/Samples/README.md#sampleimages).
   - Publish-subscribe
   - Request-response
   - Queues
-  - Hybrid of the above (e.g. Kafka with multiple topic consumers in one group)
+  - A hybrid of the above (e.g. Kafka with multiple topic consumers in one group)
 - Modern async/await syntax and TPL
 - Fluent configuration
-- Because SlimMessageBus is a facade, you have the ability to swap broker implementations
+- Because SlimMessageBus is a facade, you can swap broker implementations
   - Using NuGet pull another broker provider
   - Reconfigure SlimMessageBus and retest your app
   - Try out the messaging middleware that works best for your app (Kafka vs. Redis) without having to rewrite your app.
@@ -309,11 +298,11 @@ See [sample](/src/Samples/README.md#sampleimages).
 - The core of `SlimMessageBus` is "slim"
   - Simple, common and friendly API to work with messaging systems
   - No external dependencies.
-  - The core interface can be used in domain model (e.g. Domain Events)
+  - The core interface can be used in the domain model (e.g. Domain Events)
 - Plugin architecture:
-  - DI integration (Microsoft.Extensions.DependencyInjection, Autofac, CommonServiceLocator, Unity)
   - Message serialization (JSON, XML)
   - Use your favorite messaging broker as a provider by simply pulling a NuGet package
+  - Add transactional outbox pattern or message validation
 - No threads created (pure TPL)
 - Async/Await support
 - Fluent configuration

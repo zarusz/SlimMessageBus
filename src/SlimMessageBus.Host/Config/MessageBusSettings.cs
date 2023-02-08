@@ -11,7 +11,7 @@ public class MessageBusSettings : HasProviderExtensions, IBusEvents
     public IList<ConsumerSettings> Consumers { get; }
     public RequestResponseSettings RequestResponse { get; set; }
     public IMessageSerializer Serializer { get; set; }
-    public IDependencyResolver DependencyResolver { get; set; }
+    public IServiceProvider ServiceProvider { get; set; }
     public IMessageTypeResolver MessageTypeResolver { get; set; }
 
     #region Implementation of IConsumerEvents
@@ -107,9 +107,9 @@ public class MessageBusSettings : HasProviderExtensions, IBusEvents
             Serializer = settings.Serializer;
         }
 
-        if (DependencyResolver == null && settings.DependencyResolver != null)
+        if (ServiceProvider == null && settings.ServiceProvider != null)
         {
-            DependencyResolver = settings.DependencyResolver;
+            ServiceProvider = settings.ServiceProvider;
         }
 
         if (MessageTypeResolver == null && settings.MessageTypeResolver != null)

@@ -1,11 +1,14 @@
-using Sample.ValidatingWebApi.Commands;
-using SlimMessageBus;
-using SlimMessageBus.Host.AspNetCore;
-using SlimMessageBus.Host.Memory;
-using SlimMessageBus.Host.FluentValidation;
 using System.Reflection;
+
 using FluentValidation;
+
+using Sample.ValidatingWebApi.Commands;
 using Sample.ValidatingWebApi.Queries;
+
+using SlimMessageBus;
+using SlimMessageBus.Host;
+using SlimMessageBus.Host.FluentValidation;
+using SlimMessageBus.Host.Memory;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +30,8 @@ builder.Services.AddProducerValidatorsFromAssemblyContaining<CreateCustomerComma
 //builder.Services.AddTransient(typeof(IProducerInterceptor<>), typeof(ProducerValidationInterceptor<>));
 
 builder.Services.AddHttpContextAccessor();
+
+builder.Services.AddMessageBusAspNet();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

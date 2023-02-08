@@ -1,11 +1,13 @@
 ﻿namespace SlimMessageBus.Host.Collections;
 
+using Microsoft.Extensions.DependencyInjection;
+
 using SlimMessageBus.Host.Interceptor;
 
 public interface IGenericTypeCache<TFunc> : IReadOnlyCache<Type, TFunc>
     where TFunc : Delegate
 {
-    IEnumerable<object> ResolveAll(IDependencyResolver scope, Type messageType);
+    IEnumerable<object> ResolveAll(IServiceProvider scope, Type messageType);
 
     public class GenericInterfaceType
     {
@@ -75,14 +77,14 @@ public class GenericTypeCache<TFunc> : IGenericTypeCache<TFunc>
     /// <param name="scope"></param>
     /// <param name="messageType"></param>
     /// <returns></returns>
-    public IEnumerable<object> ResolveAll(IDependencyResolver scope, Type messageType)
+    public IEnumerable<object> ResolveAll(IServiceProvider scope, Type messageType)
     {
         var git = _messageTypeToGenericInterfaceType[messageType];
 
         var cacheExists = _messageTypeToResolveCache.TryGet(messageType, out var lookupCache);
         if (!cacheExists || !lookupCache.IsEmpty)
         {
-            var interceptors = (IEnumerable<object>)scope.Resolve(git.EnumerableOfGenericType);
+            var interceptors = (IEnumerable<object>)scope.GetService(git.EnumerableOfGenericType);
 
             if (!cacheExists)
             {

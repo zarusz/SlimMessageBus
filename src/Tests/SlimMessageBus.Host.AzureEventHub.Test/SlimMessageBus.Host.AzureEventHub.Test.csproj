@@ -15,7 +15,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\SlimMessageBus.Host.AzureEventHub\SlimMessageBus.Host.AzureEventHub.csproj" />
-    <ProjectReference Include="..\..\SlimMessageBus.Host.MsDependencyInjection\SlimMessageBus.Host.MsDependencyInjection.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Json\SlimMessageBus.Host.Serialization.Json.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus\SlimMessageBus.csproj" />

@@ -1,12 +1,15 @@
 namespace SlimMessageBus.Host.Kafka;
 
 using System.Diagnostics.CodeAnalysis;
+
 using Confluent.Kafka;
+
 using SlimMessageBus.Host.Collections;
+
 using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
 using IConsumer = Confluent.Kafka.IConsumer<Confluent.Kafka.Ignore, byte[]>;
 
-public class KafkaGroupConsumer : IDisposable, IKafkaCommitController
+public class KafkaGroupConsumer : IAsyncDisposable, IKafkaCommitController
 {
     private readonly ILogger _logger;
 
@@ -34,32 +37,29 @@ public class KafkaGroupConsumer : IDisposable, IKafkaCommitController
         _consumer = CreateConsumer(group);
     }
 
-    #region Implementation of IDisposable
+    #region Implementation of IAsyncDisposable
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (disposing)
+        if (_consumerTask != null)
         {
-            if (_consumerTask != null)
-            {
-                Stop();
-            }
-
-            _processors.Clear(x => x.DisposeSilently("processor", _logger));
-
-            // dispose the consumer
-            if (_consumer != null)
-            {
-                _consumer.DisposeSilently("consumer", _logger);
-                _consumer = null;
-            }
+            await Stop().ConfigureAwait(false);
         }
+
+        // dispose processors
+        foreach (var p in _processors.ClearAndSnapshot())
+        {
+            await p.DisposeSilently("processor", _logger);
+        }
+
+        // dispose the consumer
+        if (_consumer != null)
+        {
+            _consumer.DisposeSilently("consumer", _logger);
+            _consumer = null;
+        }
+
+        GC.SuppressFinalize(this);
     }
 
     #endregion
@@ -161,7 +161,7 @@ public class KafkaGroupConsumer : IDisposable, IKafkaCommitController
         }
     }
 
-    public void Stop()
+    public async Task Stop()
     {
         if (_consumerTask == null)
         {
@@ -171,7 +171,7 @@ public class KafkaGroupConsumer : IDisposable, IKafkaCommitController
         _consumerCts.Cancel();
         try
         {
-            _consumerTask.Wait();
+            await _consumerTask.ConfigureAwait(false);
         }
         finally
         {

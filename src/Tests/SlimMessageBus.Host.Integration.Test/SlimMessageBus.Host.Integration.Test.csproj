@@ -5,8 +5,6 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="7.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.4.0" />
-    <PackageReference Include="Unity.Container" Version="5.11.11" />
-    <PackageReference Include="Unity.Microsoft.Logging" Version="5.11.1" />
     <PackageReference Include="xunit" Version="2.4.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.4.5">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -19,14 +17,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\SlimMessageBus.Host.Autofac\SlimMessageBus.Host.Autofac.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.AzureServiceBus\SlimMessageBus.Host.AzureServiceBus.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Hybrid\SlimMessageBus.Host.Hybrid.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Memory\SlimMessageBus.Host.Memory.csproj" />
-    <ProjectReference Include="..\..\SlimMessageBus.Host.MsDependencyInjection\SlimMessageBus.Host.MsDependencyInjection.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Json\SlimMessageBus.Host.Serialization.Json.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.SystemTextJson\SlimMessageBus.Host.Serialization.SystemTextJson.csproj" />
-    <ProjectReference Include="..\..\SlimMessageBus.Host.Unity\SlimMessageBus.Host.Unity.csproj" />
     <ProjectReference Include="..\..\Tools\SecretStore\SecretStore.csproj" />
     <ProjectReference Include="..\SlimMessageBus.Host.Test.Common\SlimMessageBus.Host.Test.Common.csproj" />
   </ItemGroup>

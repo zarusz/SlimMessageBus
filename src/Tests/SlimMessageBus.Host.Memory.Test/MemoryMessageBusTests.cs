@@ -1,11 +1,16 @@
 namespace SlimMessageBus.Host.Memory.Test;
 
 using System.Text;
+
+using Microsoft.Extensions.DependencyInjection;
+
 using Newtonsoft.Json;
+
 using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.DependencyResolver;
+using SlimMessageBus.Host.Consumer;
 using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Serialization;
+using SlimMessageBus.Host.Test.Common;
 
 public class MemoryMessageBusTests
 {
@@ -13,13 +18,13 @@ public class MemoryMessageBusTests
     private readonly MessageBusSettings _settings;
     private readonly MessageBusBuilder _builder;
     private readonly MemoryMessageBusSettings _providerSettings = new();
-    private readonly Mock<IDependencyResolver> _dependencyResolverMock = new();
+    private readonly ServiceProviderMock _serviceProviderMock = new();
     private readonly Mock<IMessageSerializer> _messageSerializerMock = new();
 
     public MemoryMessageBusTests()
     {
         _builder = MessageBusBuilder.Create()
-            .WithDependencyResolver(_dependencyResolverMock.Object)
+            .WithDependencyResolver(_serviceProviderMock.ProviderMock.Object)
             .WithSerializer(_messageSerializerMock.Object)
             .ExpectRequestResponses(x =>
             {
@@ -29,10 +34,9 @@ public class MemoryMessageBusTests
 
         _settings = _builder.Settings;
 
-        _dependencyResolverMock.Setup(x => x.Resolve(It.IsAny<Type>())).Returns((Type t) =>
+        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(It.Is<Type>(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)))).Returns((Type t) =>
         {
-            if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
-            return null;
+            return Enumerable.Empty<object>();
         });
 
         _messageSerializerMock
@@ -87,9 +91,9 @@ public class MemoryMessageBusTests
         var aConsumerMock = new Mock<SomeMessageAConsumer>();
         var aConsumer2Mock = new Mock<SomeMessageAConsumer2>();
         var bConsumerMock = new Mock<SomeMessageBConsumer>();
-        _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageAConsumer))).Returns(aConsumerMock.Object);
-        _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageAConsumer2))).Returns(aConsumer2Mock.Object);
-        _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageBConsumer))).Returns(bConsumerMock.Object);
+        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeMessageAConsumer))).Returns(aConsumerMock.Object);
+        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeMessageAConsumer2))).Returns(aConsumer2Mock.Object);
+        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeMessageBConsumer))).Returns(bConsumerMock.Object);
 
         _providerSettings.EnableMessageSerialization = enableMessageSerialization;
 
@@ -125,11 +129,16 @@ public class MemoryMessageBusTests
         var consumerMock = new Mock<SomeMessageAConsumer>();
         consumerMock.Setup(x => x.OnHandle(m)).Returns(() => Task.CompletedTask);
 
-        var scope = new Mock<IChildDependencyResolver>();
-        scope.Setup(x => x.Resolve(typeof(SomeMessageAConsumer))).Returns(() => consumerMock.Object);
-        scope.Setup(x => x.Dispose()).Callback(() => { });
+        Mock<IServiceProvider> scopeProviderMock = null;
+        Mock<IServiceScope> scopeMock = null;
 
-        _dependencyResolverMock.Setup(x => x.CreateScope()).Returns(() => scope.Object);
+        _serviceProviderMock.OnScopeCreated = (scopeProviderMockCreated, scopeMockCreated) =>
+        {
+            scopeProviderMockCreated.Setup(x => x.GetService(typeof(SomeMessageAConsumer))).Returns(() => consumerMock.Object);
+
+            scopeProviderMock = scopeProviderMockCreated;
+            scopeMock = scopeMockCreated;
+        };
 
         const string topic = "topic-a";
 
@@ -143,21 +152,30 @@ public class MemoryMessageBusTests
         await _subject.Value.Publish(m);
 
         // assert
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(ILoggerFactory)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.CreateScope(), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IProducerInterceptor<SomeMessageA>>)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IPublishInterceptor<SomeMessageA>>)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IMessageBusLifecycleInterceptor>)), Times.Between(0, 2, Moq.Range.Inclusive));
-        _dependencyResolverMock.VerifyNoOtherCalls();
+        _serviceProviderMock.ScopeFactoryMock.Verify(x => x.CreateScope(), Times.Once);
+        _serviceProviderMock.ScopeFactoryMock.VerifyNoOtherCalls();
 
-        scope.Verify(x => x.Resolve(typeof(SomeMessageAConsumer)), Times.Once);
-        scope.Verify(x => x.Resolve(typeof(IEnumerable<IConsumerInterceptor<SomeMessageA>>)), Times.Once);
-        scope.Verify(x => x.DisposeAsync(), Times.Once);
-        scope.VerifyNoOtherCalls();
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(ILoggerFactory)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IServiceScopeFactory)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IProducerInterceptor<SomeMessageA>>)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IPublishInterceptor<SomeMessageA>>)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IMessageBusLifecycleInterceptor>)), Times.Between(0, 2, Moq.Range.Inclusive));
+        _serviceProviderMock.ProviderMock.VerifyNoOtherCalls();
+
+        scopeProviderMock.Should().NotBeNull();
+        scopeMock.Should().NotBeNull();
+
+        scopeMock.VerifyGet(x => x.ServiceProvider, Times.Once);
+        scopeMock.Verify(x => x.Dispose(), Times.Once);
+        scopeMock.VerifyNoOtherCalls();
+
+        scopeProviderMock.Verify(x => x.GetService(typeof(SomeMessageAConsumer)), Times.Once);
+        scopeProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IConsumerInterceptor<SomeMessageA>>)), Times.Once);       
 
         consumerMock.Verify(x => x.OnHandle(m), Times.Once);
         consumerMock.Verify(x => x.Dispose(), Times.Never);
         consumerMock.VerifyNoOtherCalls();
+        
     }
 
     [Fact]
@@ -166,7 +184,7 @@ public class MemoryMessageBusTests
         // arrange
         var consumerMock = new Mock<SomeMessageAConsumer>();
 
-        _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageAConsumer))).Returns(() => consumerMock.Object);
+        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeMessageAConsumer))).Returns(() => consumerMock.Object);
 
         const string topic = "topic-a";
 
@@ -182,14 +200,14 @@ public class MemoryMessageBusTests
         await _subject.Value.Publish(m);
 
         // assert
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(ILoggerFactory)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.CreateScope(), Times.Never);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(SomeMessageAConsumer)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IProducerInterceptor<SomeMessageA>>)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IPublishInterceptor<SomeMessageA>>)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IConsumerInterceptor<SomeMessageA>>)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IMessageBusLifecycleInterceptor>)), Times.Between(0, 2, Moq.Range.Inclusive));
-        _dependencyResolverMock.VerifyNoOtherCalls();
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(ILoggerFactory)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IServiceScopeFactory)), Times.Never);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(SomeMessageAConsumer)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IProducerInterceptor<SomeMessageA>>)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IPublishInterceptor<SomeMessageA>>)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IConsumerInterceptor<SomeMessageA>>)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IMessageBusLifecycleInterceptor>)), Times.Between(0, 2, Moq.Range.Inclusive));
+        _serviceProviderMock.ProviderMock.VerifyNoOtherCalls();
 
         consumerMock.Verify(x => x.OnHandle(m), Times.Once);
         consumerMock.Verify(x => x.Dispose(), Times.Once);
@@ -204,10 +222,10 @@ public class MemoryMessageBusTests
         // arrange
         var consumerMock = new Mock<SomeMessageAConsumer>();
 
-        _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageAConsumer))).Returns(() => consumerMock.Object);
+        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeMessageAConsumer))).Returns(() => consumerMock.Object);
 
-        var currentScopeDependencyResolverMock = new Mock<IDependencyResolver>();
-        currentScopeDependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageAConsumer))).Returns(() => consumerMock.Object);
+        var currentScopeDependencyResolverMock = new Mock<IServiceProvider>();
+        currentScopeDependencyResolverMock.Setup(x => x.GetService(typeof(SomeMessageAConsumer))).Returns(() => consumerMock.Object);
 
         const string topic = "topic-a";
 
@@ -230,17 +248,17 @@ public class MemoryMessageBusTests
         // current scope is not changed
         MessageScope.Current.Should().BeSameAs(currentScopeDependencyResolverMock.Object);
 
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(ILoggerFactory)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.CreateScope(), Times.Never);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(SomeMessageAConsumer)), Times.Never);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IProducerInterceptor<SomeMessageA>>)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IPublishInterceptor<SomeMessageA>>)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IMessageBusLifecycleInterceptor>)), Times.Between(0, 2, Moq.Range.Inclusive));
-        _dependencyResolverMock.VerifyNoOtherCalls();
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(ILoggerFactory)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IServiceScopeFactory)), Times.Never);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(SomeMessageAConsumer)), Times.Never);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IProducerInterceptor<SomeMessageA>>)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IPublishInterceptor<SomeMessageA>>)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IMessageBusLifecycleInterceptor>)), Times.Between(0, 2, Moq.Range.Inclusive));
+        _serviceProviderMock.ProviderMock.VerifyNoOtherCalls();
 
-        currentScopeDependencyResolverMock.Verify(x => x.CreateScope(), Times.Never);
-        currentScopeDependencyResolverMock.Verify(x => x.Resolve(typeof(SomeMessageAConsumer)), Times.Once);
-        currentScopeDependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IConsumerInterceptor<SomeMessageA>>)), Times.Once);
+        currentScopeDependencyResolverMock.Verify(x => x.GetService(typeof(IServiceScopeFactory)), Times.Never);
+        currentScopeDependencyResolverMock.Verify(x => x.GetService(typeof(SomeMessageAConsumer)), Times.Once);
+        currentScopeDependencyResolverMock.Verify(x => x.GetService(typeof(IEnumerable<IConsumerInterceptor<SomeMessageA>>)), Times.Once);
         currentScopeDependencyResolverMock.VerifyNoOtherCalls();
 
         consumerMock.Verify(x => x.OnHandle(m), Times.Once);
@@ -254,8 +272,8 @@ public class MemoryMessageBusTests
         var consumer1Mock = new Mock<SomeMessageAConsumer>();
         var consumer2Mock = new Mock<SomeMessageAConsumer2>();
 
-        _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageAConsumer))).Returns(() => consumer1Mock.Object);
-        _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageAConsumer2))).Returns(() => consumer2Mock.Object);
+        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeMessageAConsumer))).Returns(() => consumer1Mock.Object);
+        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeMessageAConsumer2))).Returns(() => consumer2Mock.Object);
 
         const string topic = "topic-a";
 
@@ -271,15 +289,15 @@ public class MemoryMessageBusTests
         // assert
 
         // current scope is not changed
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(ILoggerFactory)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.CreateScope(), Times.Never);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(SomeMessageAConsumer)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(SomeMessageAConsumer2)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IProducerInterceptor<SomeMessageA>>)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IPublishInterceptor<SomeMessageA>>)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IConsumerInterceptor<SomeMessageA>>)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IMessageBusLifecycleInterceptor>)), Times.Between(0, 2, Moq.Range.Inclusive));
-        _dependencyResolverMock.VerifyNoOtherCalls();
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(ILoggerFactory)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IServiceScopeFactory)), Times.Never);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(SomeMessageAConsumer)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(SomeMessageAConsumer2)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IProducerInterceptor<SomeMessageA>>)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IPublishInterceptor<SomeMessageA>>)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IConsumerInterceptor<SomeMessageA>>)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IMessageBusLifecycleInterceptor>)), Times.Between(0, 2, Moq.Range.Inclusive));
+        _serviceProviderMock.ProviderMock.VerifyNoOtherCalls();
 
         consumer1Mock.Verify(x => x.OnHandle(m), Times.Once);
         consumer1Mock.VerifyNoOtherCalls();
@@ -303,8 +321,8 @@ public class MemoryMessageBusTests
         var consumer2Mock = new Mock<SomeRequestHandler>(MockBehavior.Strict);
         consumer2Mock.InSequence(sequenceOfConsumption).Setup(x => x.OnHandle(m)).CallBase();
 
-        _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeRequestConsumer))).Returns(() => consumer1Mock.Object);
-        _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeRequestHandler))).Returns(() => consumer2Mock.Object);
+        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeRequestConsumer))).Returns(() => consumer1Mock.Object);
+        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeRequestHandler))).Returns(() => consumer2Mock.Object);
 
         _builder.Produce<SomeRequest>(x => x.DefaultTopic(topic));
         _builder.Consume<SomeRequest>(x => x.Topic(topic).WithConsumer<SomeRequestConsumer>());
@@ -318,16 +336,16 @@ public class MemoryMessageBusTests
         response.Id.Should().Be(m.Id);
 
         // current scope is not changed
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(ILoggerFactory)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.CreateScope(), Times.Never);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(SomeRequestConsumer)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(SomeRequestHandler)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IProducerInterceptor<SomeRequest>>)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<ISendInterceptor<SomeRequest, SomeResponse>>)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IConsumerInterceptor<SomeRequest>>)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IRequestHandlerInterceptor<SomeRequest, SomeResponse>>)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IMessageBusLifecycleInterceptor>)), Times.Between(0, 2, Moq.Range.Inclusive));
-        _dependencyResolverMock.VerifyNoOtherCalls();
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(ILoggerFactory)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IServiceScopeFactory)), Times.Never);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(SomeRequestConsumer)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(SomeRequestHandler)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IProducerInterceptor<SomeRequest>>)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<ISendInterceptor<SomeRequest, SomeResponse>>)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IConsumerInterceptor<SomeRequest>>)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IRequestHandlerInterceptor<SomeRequest, SomeResponse>>)), Times.Once);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IMessageBusLifecycleInterceptor>)), Times.Between(0, 2, Moq.Range.Inclusive));
+        _serviceProviderMock.ProviderMock.VerifyNoOtherCalls();
 
         consumer2Mock.Verify(x => x.OnHandle(m), Times.Once);
         consumer2Mock.VerifyNoOtherCalls();
@@ -346,7 +364,7 @@ public class MemoryMessageBusTests
         var consumerMock = new Mock<SomeRequestConsumer>();
         consumerMock.Setup(x => x.OnHandle(m)).ThrowsAsync(new ApplicationException("Bad Request"));
 
-        _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeRequestConsumer))).Returns(() => consumerMock.Object);
+        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeRequestConsumer))).Returns(() => consumerMock.Object);
 
         _builder.Produce<SomeRequest>(x => x.DefaultTopic(topic));
         _builder.Consume<SomeRequest>(x => x.Topic(topic).WithConsumer<SomeRequestConsumer>());
@@ -368,7 +386,7 @@ public class MemoryMessageBusTests
         var consumerMock = new Mock<SomeRequestHandler>();
         consumerMock.Setup(x => x.OnHandle(m)).ThrowsAsync(new ApplicationException("Bad Request"));
 
-        _dependencyResolverMock.Setup(x => x.Resolve(typeof(SomeRequestHandler))).Returns(() => consumerMock.Object);
+        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeRequestHandler))).Returns(() => consumerMock.Object);
 
         _builder.Produce<SomeRequest>(x => x.DefaultTopic(topic));
         _builder.Handle<SomeRequest, SomeResponse>(x => x.Topic(topic).WithHandler<SomeRequestHandler>());

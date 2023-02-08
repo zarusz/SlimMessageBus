@@ -1,21 +1,20 @@
 ﻿namespace SlimMessageBus.Host.Test.Collections;
 
 using SlimMessageBus.Host.Collections;
-using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Interceptor;
 
 public class GenericTypeCacheTests
 {
     private readonly Mock<IConsumerInterceptor<SomeMessage>> consumerInterceptorMock;
-    private readonly Mock<IDependencyResolver> scopeMock;
+    private readonly Mock<IServiceProvider> scopeMock;
     private readonly GenericTypeCache<Func<object, object, object, object, Task>> subject;
 
     public GenericTypeCacheTests()
     {
         consumerInterceptorMock = new Mock<IConsumerInterceptor<SomeMessage>>();
 
-        scopeMock = new Mock<IDependencyResolver>();
-        scopeMock.Setup(x => x.Resolve(typeof(IEnumerable<IConsumerInterceptor<SomeMessage>>))).Returns(() => new[] { consumerInterceptorMock.Object });
+        scopeMock = new Mock<IServiceProvider>();
+        scopeMock.Setup(x => x.GetService(typeof(IEnumerable<IConsumerInterceptor<SomeMessage>>))).Returns(() => new[] { consumerInterceptorMock.Object });
 
         subject = new GenericTypeCache<Func<object, object, object, object, Task>>(typeof(IConsumerInterceptor<>), nameof(IConsumerInterceptor<object>.OnHandle), mt => typeof(Task), mt => new[] { typeof(Func<Task<object>>), typeof(IConsumerContext) });
     }
@@ -29,7 +28,7 @@ public class GenericTypeCacheTests
         var interceptors = subject.ResolveAll(scopeMock.Object, typeof(SomeMessage));
 
         // assert
-        scopeMock.Verify(x => x.Resolve(typeof(IEnumerable<IConsumerInterceptor<SomeMessage>>)), Times.Once);
+        scopeMock.Verify(x => x.GetService(typeof(IEnumerable<IConsumerInterceptor<SomeMessage>>)), Times.Once);
         scopeMock.VerifyNoOtherCalls();
 
         interceptors.Should().HaveCount(1);
@@ -40,13 +39,13 @@ public class GenericTypeCacheTests
     public void When_ResolveAll_Given_NoRegistrations_Then_ReturnsNull()
     {
         // arrange
-        scopeMock.Setup(x => x.Resolve(typeof(IEnumerable<IConsumerInterceptor<SomeMessage>>))).Returns(() => Enumerable.Empty<object>());
+        scopeMock.Setup(x => x.GetService(typeof(IEnumerable<IConsumerInterceptor<SomeMessage>>))).Returns(() => Enumerable.Empty<object>());
 
         // act
         var interceptors = subject.ResolveAll(scopeMock.Object, typeof(SomeMessage));
 
         // assert
-        scopeMock.Verify(x => x.Resolve(typeof(IEnumerable<IConsumerInterceptor<SomeMessage>>)), Times.Once);
+        scopeMock.Verify(x => x.GetService(typeof(IEnumerable<IConsumerInterceptor<SomeMessage>>)), Times.Once);
         scopeMock.VerifyNoOtherCalls();
 
         interceptors.Should().BeNull();

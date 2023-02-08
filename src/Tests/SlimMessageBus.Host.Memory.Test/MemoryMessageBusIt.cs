@@ -1,14 +1,14 @@
 ﻿namespace SlimMessageBus.Host.Memory.Test;
 
+using System.Collections.Concurrent;
 using System.Diagnostics;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.MsDependencyInjection;
+using SlimMessageBus.Host;
 using SlimMessageBus.Host.Serialization.Json;
-using SlimMessageBus.Host.Test.Common;
+using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
 [Trait("Category", "Integration")]
 public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
@@ -30,7 +30,9 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
                 .WithProviderMemory(_settings);
 
             ApplyBusConfiguration(mbb);
-        });
+        }, addConsumersFromAssembly: new[] { typeof(PingConsumer).Assembly });
+
+        services.AddSingleton<TestEventCollector<PingMessage>>();
     }
 
     public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
@@ -52,7 +54,8 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
                 .Produce<PingMessage>(x => x.DefaultTopic(topic))
                 .Do(builder => Enumerable.Range(0, subscribers).ToList().ForEach(i =>
                 {
-                    builder.Consume<PingMessage>(x => x
+                    builder
+                        .Consume<PingMessage>(x => x
                         .Topic(topic)
                         .WithConsumer<PingConsumer>()
                         .Instances(concurrency));
@@ -65,22 +68,8 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
     private async Task BasicPubSub(int concurrency, int subscribers)
     {
         // arrange
-        var pingConsumer = new PingConsumer();
-
-        AddBusConfiguration(mbb =>
-        {
-            mbb
-                .WithDependencyResolver(new LookupDependencyResolver(t =>
-                {
-                    if (t == typeof(PingConsumer)) return pingConsumer;
-                    // for interceptors
-                    if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
-                    if (t == typeof(ILoggerFactory)) return LoggerFactory;
-                    throw new InvalidOperationException();
-                }));
-        });
-
         var messageBus = MessageBus;
+        var consumedMessages = ServiceProvider.GetRequiredService<TestEventCollector<PingMessage>>();
 
         // act
 
@@ -101,20 +90,20 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
 
         // consume
         stopwatch.Restart();
-        var consumersReceivedMessages = await ConsumeAll(pingConsumer, subscribers * producedMessages.Count);
+        await consumedMessages.WaitUntilArriving(expectedCount: subscribers * producedMessages.Count);
         stopwatch.Stop();
 
-        Logger.LogInformation("Consumed {0} messages in {1}", consumersReceivedMessages.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Consumed {0} messages in {1}", consumedMessages.Count, stopwatch.Elapsed);
 
         // assert
 
         // ensure all messages arrived 
         // ... the count should match
-        consumersReceivedMessages.Count.Should().Be(subscribers * producedMessages.Count);
+        consumedMessages.Count.Should().Be(subscribers * producedMessages.Count);
         // ... the content should match
         foreach (var producedMessage in producedMessages)
         {
-            var messageCopies = consumersReceivedMessages.Count(x => x.Counter == producedMessage.Counter && x.Value == producedMessage.Value);
+            var messageCopies = consumedMessages.Snapshot().Count(x => x.Counter == producedMessage.Counter && x.Value == producedMessage.Value);
             messageCopies.Should().Be(subscribers);
         }
     }
@@ -143,21 +132,6 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
     private async Task BasicReqResp()
     {
         // arrange
-        var consumer = new EchoRequestHandler();
-
-        AddBusConfiguration(mbb =>
-        {
-            mbb
-                .WithDependencyResolver(new LookupDependencyResolver(f =>
-                {
-                    if (f == typeof(EchoRequestHandler)) return consumer;
-                    // for interceptors
-                    if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
-                    if (f == typeof(ILoggerFactory)) return LoggerFactory;
-                    throw new InvalidOperationException();
-                }));
-        });
-
         var messageBus = MessageBus;
 
         // act
@@ -170,14 +144,11 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
             .Select(i => new EchoRequest { Index = i, Message = $"Echo {i}" })
             .ToList();
 
-        var responses = new List<Tuple<EchoRequest, EchoResponse>>();
+        var responses = new ConcurrentBag<Tuple<EchoRequest, EchoResponse>>();
         var responseTasks = requests.Select(async req =>
         {
             var resp = await messageBus.Send(req).ConfigureAwait(false);
-            lock (responses)
-            {
                 responses.Add(Tuple.Create(req, resp));
-            }
         });
         await Task.WhenAll(responseTasks).ConfigureAwait(false);
 
@@ -191,43 +162,17 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
         responses.All(x => x.Item1.Message == x.Item2.Message).Should().BeTrue();
     }
 
-    private static async Task<IList<PingMessage>> ConsumeAll(PingConsumer consumer, int expectedCount)
-    {
-        var lastMessageCount = 0;
-        var lastMessageStopwatch = Stopwatch.StartNew();
-
-        const int newMessagesAwaitingTimeout = 5;
-
-        while (lastMessageStopwatch.Elapsed.TotalSeconds < newMessagesAwaitingTimeout && expectedCount != consumer.Messages.Count)
-        {
-            await Task.Delay(100).ConfigureAwait(false);
-
-            if (consumer.Messages.Count != lastMessageCount)
-            {
-                lastMessageCount = consumer.Messages.Count;
-                lastMessageStopwatch.Restart();
-            }
-        }
-        lastMessageStopwatch.Stop();
-        return consumer.Messages;
-    }
-
     internal record PingMessage
     {
         public int Counter { get; init; }
         public Guid Value { get; init; }
     }
 
-    internal class PingConsumer : IConsumer<PingMessage>
+    internal record PingConsumer(TestEventCollector<PingMessage> Messages) : IConsumer<PingMessage>
     {
-        public IList<PingMessage> Messages { get; } = new List<PingMessage>();
-
         public Task OnHandle(PingMessage message)
         {
-            lock (this)
-            {
-                Messages.Add(message);
-            }
+            Messages.Add(message);
 
             Console.WriteLine("Got message {0}.", message.Counter);
             return Task.CompletedTask;

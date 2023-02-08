@@ -1,4 +1,4 @@
-﻿namespace SlimMessageBus.Host.Test.Common;
+﻿namespace SlimMessageBus.Host.Test.Common.IntegrationTest;
 
 using System.Diagnostics;
 
@@ -41,6 +41,9 @@ public abstract class BaseIntegrationTest<T> : IDisposable
 
         services.AddSingleton(LoggerFactory);
         services.Add(ServiceDescriptor.Singleton(typeof(ILogger<>), typeof(XunitLogger<>)));
+        services.Add(ServiceDescriptor.Singleton(typeof(ILogger), typeof(XunitLogger)));
+
+        services.AddSingleton<TestMetric>();        
 
         SetupServices(services, Configuration);
 

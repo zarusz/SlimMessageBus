@@ -13,9 +13,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\SlimMessageBus.Host.AspNetCore\SlimMessageBus.Host.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\SlimMessageBus.Host.FluentValidation\SlimMessageBus.Host.FluentValidation.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Memory\SlimMessageBus.Host.Memory.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Json\SlimMessageBus.Host.Serialization.Json.csproj" />
-    <ProjectReference Include="..\..\SlimMessageBus.Host.FluentValidation.MsDependencyInjection\SlimMessageBus.Host.FluentValidation.MsDependencyInjection.csproj" />
   </ItemGroup>
 
 </Project>

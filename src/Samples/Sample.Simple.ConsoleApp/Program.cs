@@ -1,23 +1,26 @@
 ﻿namespace Sample.Simple.ConsoleApp;
 
 using System.Globalization;
+using System.Reflection;
 using System.Text;
+
+using Confluent.Kafka;
+
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
 using SecretStore;
+
 using SlimMessageBus;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.Serialization.Json;
+using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureEventHub;
 using SlimMessageBus.Host.AzureServiceBus;
+using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Kafka;
-using SlimMessageBus.Host.Redis;
 using SlimMessageBus.Host.Memory;
-using Confluent.Kafka;
-using Microsoft.Extensions.DependencyInjection;
-using SlimMessageBus.Host;
-using System.Reflection;
-using SlimMessageBus.Host.MsDependencyInjection;
-using Microsoft.Extensions.Hosting;
+using SlimMessageBus.Host.Redis;
+using SlimMessageBus.Host.Serialization.Json;
 
 enum Provider
 {

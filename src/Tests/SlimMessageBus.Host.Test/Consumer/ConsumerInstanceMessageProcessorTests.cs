@@ -1,8 +1,8 @@
 ﻿namespace SlimMessageBus.Host.Test;
 
-using Moq;
+using Microsoft.Extensions.DependencyInjection;
+
 using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Interceptor;
 
 public class ConsumerInstanceMessageProcessorTests
@@ -172,7 +172,7 @@ public class ConsumerInstanceMessageProcessorTests
             .Returns((SomeMessage message, Func<Task<object>> next, IConsumerContext context) => next());
 
         _busMock.DependencyResolverMock
-            .Setup(x => x.Resolve(typeof(IEnumerable<IConsumerInterceptor<SomeMessage>>)))
+            .Setup(x => x.GetService(typeof(IEnumerable<IConsumerInterceptor<SomeMessage>>)))
             .Returns(new[] { messageConsumerInterceptor.Object });
 
         var consumerSettings = new ConsumerBuilder<SomeMessage>(_busMock.Bus.Settings).Topic(topic).WithConsumer<IConsumer<SomeMessage>>().ConsumerSettings;
@@ -216,11 +216,11 @@ public class ConsumerInstanceMessageProcessorTests
             .Returns((SomeRequest message, Func<Task<SomeResponse>> next, IConsumerContext context) => next?.Invoke());
 
         _busMock.DependencyResolverMock
-            .Setup(x => x.Resolve(typeof(IRequestHandler<SomeRequest, SomeResponse>)))
+            .Setup(x => x.GetService(typeof(IRequestHandler<SomeRequest, SomeResponse>)))
             .Returns(handlerMock.Object);
 
         _busMock.DependencyResolverMock
-            .Setup(x => x.Resolve(typeof(IEnumerable<IRequestHandlerInterceptor<SomeRequest, SomeResponse>>)))
+            .Setup(x => x.GetService(typeof(IEnumerable<IRequestHandlerInterceptor<SomeRequest, SomeResponse>>)))
             .Returns(new[] { requestHandlerInterceptor.Object });
 
         var consumerSettings = new HandlerBuilder<SomeRequest, SomeResponse>(_busMock.Bus.Settings).Topic(topic).WithHandler<IRequestHandler<SomeRequest, SomeResponse>>().ConsumerSettings;
@@ -267,7 +267,7 @@ public class ConsumerInstanceMessageProcessorTests
             .Callback<IConsumerContext>(p => context = p)
             .Verifiable();
 
-        _busMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageConsumerWithContext))).Returns(consumerMock.Object);
+        _busMock.DependencyResolverMock.Setup(x => x.GetService(typeof(SomeMessageConsumerWithContext))).Returns(consumerMock.Object);
 
         var consumerSettings = new ConsumerBuilder<SomeMessage>(_busMock.Bus.Settings).Topic(topic).WithConsumer<SomeMessageConsumerWithContext>().ConsumerSettings;
 
@@ -306,9 +306,9 @@ public class ConsumerInstanceMessageProcessorTests
 
         var p = new ConsumerInstanceMessageProcessor<byte[]>(new[] { consumerSettings }, _busMock.Bus, _messageProviderMock.Object, topic);
 
-        Mock<IChildDependencyResolver> childScopeMock = null;
+        Mock<IServiceProvider> childScopeMock = null;
 
-        _busMock.OnChildDependencyResolverCreated = mock =>
+        _busMock.OnChildDependencyResolverCreated = (_, mock) =>
         {
             childScopeMock = mock;
         };
@@ -318,10 +318,10 @@ public class ConsumerInstanceMessageProcessorTests
 
         // assert
         _busMock.ConsumerMock.Verify(x => x.OnHandle(message), Times.Once); // handler called once
-        _busMock.DependencyResolverMock.Verify(x => x.CreateScope(), Times.Once);
+        _busMock.DependencyResolverMock.Verify(x => x.GetService(typeof(IServiceScopeFactory)), Times.Once);
         _busMock.ChildDependencyResolverMocks.Count.Should().Be(0); // it has been disposed
         childScopeMock.Should().NotBeNull();
-        childScopeMock.Verify(x => x.Resolve(typeof(IConsumer<SomeMessage>)), Times.Once);
+        childScopeMock.Verify(x => x.GetService(typeof(IConsumer<SomeMessage>)), Times.Once);
     }
 
     public static IEnumerable<object[]> Data => new List<object[]>
@@ -380,10 +380,10 @@ public class ConsumerInstanceMessageProcessorTests
         var someDerivedMessageConsumerMock = new Mock<IConsumer<SomeDerivedMessage>>();
         var someRequestMessageHandlerMock = new Mock<IRequestHandler<SomeRequest, SomeResponse>>();
 
-        _busMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(IConsumer<SomeMessage>))).Returns(someMessageConsumerMock.Object);
-        _busMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(IConsumer<ISomeMessageMarkerInterface>))).Returns(someMessageInterfaceConsumerMock.Object);
-        _busMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(IConsumer<SomeDerivedMessage>))).Returns(someDerivedMessageConsumerMock.Object);
-        _busMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(IRequestHandler<SomeRequest, SomeResponse>))).Returns(someRequestMessageHandlerMock.Object);
+        _busMock.DependencyResolverMock.Setup(x => x.GetService(typeof(IConsumer<SomeMessage>))).Returns(someMessageConsumerMock.Object);
+        _busMock.DependencyResolverMock.Setup(x => x.GetService(typeof(IConsumer<ISomeMessageMarkerInterface>))).Returns(someMessageInterfaceConsumerMock.Object);
+        _busMock.DependencyResolverMock.Setup(x => x.GetService(typeof(IConsumer<SomeDerivedMessage>))).Returns(someDerivedMessageConsumerMock.Object);
+        _busMock.DependencyResolverMock.Setup(x => x.GetService(typeof(IRequestHandler<SomeRequest, SomeResponse>))).Returns(someRequestMessageHandlerMock.Object);
 
         someMessageConsumerMock.Setup(x => x.OnHandle(It.IsAny<SomeMessage>())).Returns(Task.CompletedTask);
         someMessageInterfaceConsumerMock.Setup(x => x.OnHandle(It.IsAny<ISomeMessageMarkerInterface>())).Returns(Task.CompletedTask);

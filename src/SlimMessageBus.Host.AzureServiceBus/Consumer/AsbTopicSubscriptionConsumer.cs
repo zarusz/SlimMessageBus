@@ -1,6 +1,7 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus.Consumer;
 
 using Azure.Messaging.ServiceBus;
+
 using SlimMessageBus.Host.Config;
 
 public class AsbTopicSubscriptionConsumer : AsbBaseConsumer

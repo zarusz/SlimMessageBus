@@ -1,12 +1,12 @@
 ﻿namespace SlimMessageBus.Host.Kafka.Test;
 
 using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Serialization;
+using SlimMessageBus.Host.Test.Common;
 
 public class MessageBusMock
 {
-    public Mock<IDependencyResolver> DependencyResolverMock { get; }
+    public ServiceProviderMock ServiceProviderMock { get; }
     public Mock<IMessageSerializer> SerializerMock { get; }
     public MessageBusSettings BusSettings { get; }
 
@@ -16,13 +16,13 @@ public class MessageBusMock
 
     public MessageBusMock()
     {
-        DependencyResolverMock = new Mock<IDependencyResolver>();
+        ServiceProviderMock = new ServiceProviderMock();
 
         SerializerMock = new Mock<IMessageSerializer>();
 
         BusSettings = new MessageBusSettings
         {
-            DependencyResolver = DependencyResolverMock.Object,
+            ServiceProvider = ServiceProviderMock.ProviderMock.Object,
             Serializer = SerializerMock.Object
         };
 

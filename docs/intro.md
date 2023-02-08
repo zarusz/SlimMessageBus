@@ -20,10 +20,8 @@
   - [Consume the request message (the request handler)](#consume-the-request-message-the-request-handler)
 - [Static accessor](#static-accessor)
 - [Dependency resolver](#dependency-resolver)
-  - [MsDependencyInjection](#msdependencyinjection)
+  - [Dependency auto-registration](#dependency-auto-registration)
     - [ASP.Net Core](#aspnet-core)
-  - [Autofac](#autofac)
-  - [Unity](#unity)
   - [Modularization of configuration](#modularization-of-configuration)
   - [Autoregistration of consumers, interceptors and configurators](#autoregistration-of-consumers-interceptors-and-configurators)
 - [Serialization](#serialization)
@@ -43,97 +41,84 @@
 
 ## Configuration
 
-The configuration starts with `MessageBusBuilder`, which allows configuring a couple of elements:
+SlimMessageBus integrates with [`Microsoft.Extensions.DependencyInjection` (MSDI)](https://www.nuget.org/packages/Microsoft.Extensions.DependencyInjection.Abstractions) and thus can be configured in a streamlined way using [`.AddSlimMessageBus()`](../src/SlimMessageBus.Host/DependencyResolver/ServiceCollectionExtensions.cs) extension method:
+
+```cs
+// IServiceCollection services;
+
+services.AddSlimMessageBus((mbb, svp) =>
+{
+  // Bus configuration happens here (...)
+});
+```
+
+- The `svp` (of type `IServiceProvider`) can be used to obtain additional dependencies from DI.
+- The `mbb` (of type `MessageBusBuilder`) can be used to configure the message bus.
+
+The configuration is done using the [`MessageBusBuilder`](../src/SlimMessageBus.Host/Config/Fluent/MessageBusBuilder.cs), which allows configuring couple of elements:
 
 - The bus transport provider (Apache Kafka, Azure Service Bus, Memory).
 - The serialization provider.
-- The dependency injection provider.
 - Declaration of messages produced and consumed along with topic/queue names.
 - Request-response configuration (if enabled).
 - Additional provider-specific settings (message partition key, message id, etc).
 
-Here is a sample:
+Here is a sample configuration:
 
 ```cs
-IServiceProvider serviceProvider;
-
-var mbb = MessageBusBuilder.Create()
-  
+services.AddSlimMessageBus((mbb, svp) =>
+{
    // Use JSON for message serialization
-  .WithSerializer(new JsonMessageSerializer())
+  mbb.WithSerializer(new JsonMessageSerializer());
   
-  // Use DI from ASP.NET Core
-  .WithDependencyResolver(new AspNetCoreMessageBusDependencyResolver(serviceProvider))
-  //.WithDependencyResolver(new MsDependencyInjectionDependencyResolver(serviceProvider))
-  
-  // Use the Kafka Provider
-  .WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
+  // Use the Kafka transport provider
+  mbb.WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
 
   // Pub/Sub example:
-  .Produce<AddCommand>(x => x.DefaultTopic("add-command")) // By default AddCommand messages will go to 'add-command' topic (or hub name when Azure Service Hub provider)
-  .Consume<AddCommand>(x => x
+  mbb.Produce<AddCommand>(x => x.DefaultTopic("add-command")); // By default AddCommand messages will go to 'add-command' topic (or hub name when Azure Service Hub provider)
+  mbb.Consume<AddCommand>(x => x
     .Topic("add-command")
     .WithConsumer<AddCommandConsumer>()
     //.KafkaGroup(consumerGroup) // Kafka provider specific (Kafka consumer group name)
-  )
+  );
 
   // Req/Resp example:
-  .Produce<MultiplyRequest>(x => x.DefaultTopic("multiply-request")) // By default AddCommand messages will go to 'multiply-request' topic (or hub name when Azure Service Hub provider)
-  .Handle<MultiplyRequest, MultiplyResponse>(x => x
+  mbb.Produce<MultiplyRequest>(x => x.DefaultTopic("multiply-request")); // By default AddCommand messages will go to 'multiply-request' topic (or hub name when Azure Service Hub provider)
+  mbb.Handle<MultiplyRequest, MultiplyResponse>(x => x
     .Topic("multiply-request") // Topic to expect the request messages
     .WithHandler<MultiplyRequestHandler>()
     //.KafkaGroup(consumerGroup) // Kafka provider specific (Kafka consumer group name)
-  )
+  );
   // Configure response message queue (on topic) when using req/resp
-  .ExpectRequestResponses(x =>
+  mbb.ExpectRequestResponses(x =>
   {
     x.ReplyToTopic(topicForResponses); // All responses from req/resp will return on this topic (the EventHub name)
     x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
     //x.KafkaGroup(responseGroup); // Kafka provider specific (Kafka consumer group)
-  })
+  });
   
-  .Do(builder =>
+  mbb.Do(builder =>
   {
     // do additional configuration logic wrapped in an block for convenience
   });
+});
 ```
 
-The builder is the blueprint for creating message bus instances `IMessageBus`:
+The builder (`mbb`) is the blueprint for creating message bus instances `IMessageBus`.
 
-```cs
-// Build the bus from the builder. 
-// Message consumers will start consuming messages from the configured topics/queues of the chosen provider.
-IMessageBus bus = mbb.Build();
-```
+See [Dependency auto-registration](#dependency-auto-registration) for how to scan the consumer types and register them automatically within the DI.
 
-In most scenarios having a singleton `IMessageBus` for your entire application will be sufficient. The provider implementations are thread-safe.
+The `.AddSlimMessageBus()` registers a [`IHostedService`](https://learn.microsoft.com/en-us/dotnet/api/microsoft.extensions.hosting.ihostedservice) for the [.NET Generic Host](https://learn.microsoft.com/en-us/dotnet/core/extensions/generic-host) which starts the bus consumers on application host start.
 
-> The `IMessageBus` is disposable (implements `IDisposable` and `IAsyncDisposable`).
+Having done the SMB setup, one can then inject [`IMessageBus`](../src/SlimMessageBus/IMessageBus.cs) to publish or send messages.
 
-When your service uses `Microsoft.Extensions.DependencyInjection`, the SMB can be configured in a more compact way (requires `SlimMessageBus.Host.MsDependencyInjection` or `SlimMessageBus.Host.AspNetCore` package):
-
-```cs
-// Startup.cs:
-
-IServiceCollection services;
-
-services.AddSlimMessageBus(mbb =>
-  {
-    mbb
-      .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
-      // ...
-      .WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
-  });
-```
-
-The `.WithDependencyResolver(...)` is already called on the `MessageBusBuilder`.
-The `svp` (of type `IServiceProvider`) can be used to obtain additional dependencies from DI.
+> The `IMessageBus` implementations are thread-safe.
 
 ## Pub/Sub communication
 
 ### Producer
 
-The app service that produces a given message needs to declare that on the `MessageBusBuilder` using `Produce<TMessage>()` method:
+Use `.Produce<TMessage>()` method on the builder to declare that the bus will produce a message:
 
 ```cs
 mbb.Produce<SomeMessage>(x =>
@@ -141,10 +126,10 @@ mbb.Produce<SomeMessage>(x =>
   // this is optional
   x.DefaultTopic("some-topic");
   //x.WithModifier(...) other provider specific extensions
-})
+});
 ```
 
-Then your app can publish a message:
+Having the declaration, the application can publish a message:
 
 ```cs
 var msg = new SomeMessage("ping");
@@ -565,37 +550,17 @@ mbb.Handle<SomeRequest, SomeResponse>(x => x
 
 ## Static accessor
 
-The static [`MessageBus.Current`](../src/SlimMessageBus/MessageBus.cs) was introduced to obtain the [`IMessageBus`](../src/SlimMessageBus/IMessageBus.cs) from the current context. The bus will typically be a singleton `IMessageBus`. However, the consumer instances will be obtained from the current DI scope (tied with the current web request or message scope when in a message handling scope).
+The static [`MessageBus.Current`](../src/SlimMessageBus/MessageBus.cs) was introduced to obtain the [`IMessageBus`](../src/SlimMessageBus/IMessageBus.cs) from the current context. The master bus managing all the consumers will be a singleton `IMessageBus`. However, the consumer instances will be obtained from the current DI scope (tied with the current web request or message scope when in a message handling scope).
 
 This allows to easily look up the `IMessageBus` instance in the domain model layer methods when doing Domain-Driven Design and specifically to implement domain events. This pattern allows externalizing infrastructure concerns (domain layer sends domain events when anything changes on the domain that would require communication to other layers or external systems).
 
-For ASP.NET Core application, in the `Startup.cs` configure the accessor like this:
+> The `MessageBus.Current` is configured during `.AddSlimMessageBus()`.
 
-```cs
-public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
-{
-  // ...
-
-  // Set the MessageBus provider to resolve the IMessageBus from the current request scope (or root if not inside a request scope)  
-  MessageBus.SetProvider(MessageBusCurrentProviderBuilder.Create().From(app).Build()); // Requires SlimMessageBus.Host.AspNetCore package
-}
-```
-
-For a console app, simply pass the root `IServiceProvider` like this:
-
-```cs
-IServiceProvider svp;
-
-// Resolve the IMessageBus from the root container
-MessageBus.SetProvider(MessageBusCurrentProviderBuilder.Create().From(svp).Build());
-```
-
-See [`DomainEvents`](../src/Samples/Sample.DomainEvents.WebApi/Startup.cs#L79) sample how to configure it per-request scope and how to use it for domain events.
+See [`DomainEvents`](../src/Samples/Sample.DomainEvents.WebApi/Startup.cs#L79) sample it works per-request scope and how to use it for domain events.
 
 ## Dependency resolver
 
-SMB uses a dependency resolver to obtain instances of the declared consumers (class instances that implement `IConsumer<>` or `IHandler<>`).
-There are a few plugins available that allow you integrating SMB with your favorite DI library.
+SMB uses the [`Microsoft.Extensions.DependencyInjection`](https://www.nuget.org/packages/Microsoft.Extensions.DependencyInjection) container to obtain and manage instances of the declared consumers (class instances that implement `IConsumer<>` or `IHandler<>`) or interceptors.
 
 The consumer/handler is typically resolved from DI container when the message arrives and needs to be handled.
 SMB does not maintain a reference to that object instance after consuming the message - this gives user the ability to decide if the consumer/handler should be a singleton, transient, or scoped (to the message being processed or ongoing web-request) and when it should be disposed of.
@@ -605,25 +570,21 @@ By default, SMB creates a child DI scope for every arriving message (`.IsMessage
 SMB disposes of that child DI scope. With that, the DI will dispose of the consumer instance and its injected collaborators.
 
 Now, in some special situations, you might want SMB to dispose of the consumer instance
-after the message has been processed - you can enable that with `.DisposeConsumerEnabled(true)`. 
+after the message has been processed - you can enable that with `.DisposeConsumerEnabled(true)`.
 This setting will make SMB dispose of the consumer instance if only it implements the `IDisposable` interface.
 
 > It is recommended to leave the default per-message scope creation, and register the consumer types/handlers as either transient or scoped.
 
-### MsDependencyInjection
+### Dependency auto-registration
 
-The [`MsDependencyInjection`](https://www.nuget.org/packages/SlimMessageBus.Host.MsDependencyInjection) plugin (or [`AspNetCore`](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore)) introduces several conveniences to configure the bus.
-The `.AddSlimMessageBus()` extension configures the message bus and registers the SMB types with the container. For example:
+In order to avoid manual registration of consumers, interceptors, and other core component there is a way to automatically scan the assembly, so that SMB can register all the found components in the MSDI.
+
+Here is an example:
 
 ```cs
-IServiceCollection services;
-
 services.AddSlimMessageBus((mbb, svp) =>
   {
-    mbb
-      .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
-      // ...
-      .WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
+    // Bus configuration happens here.
   }, 
   // Option 1 (optional)
   addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() }, // auto discover consumers and register into DI (see next section)
@@ -637,84 +598,14 @@ services.AddMessageBusInterceptorsFromAssembly(Assembly.GetExecutingAssembly());
 services.AddMessageBusConfiguratorsFromAssembly(Assembly.GetExecutingAssembly());
 ```
 
-The `svp` (of type `IServiceProvider`) parameter can be used to obtain additional dependencies from DI.
-
-> The `.WithDependencyResolver(...)` is already called on the `MessageBusBuilder`.
-
 #### ASP.Net Core
 
-For ASP.NET services, it is recommended to use the [`AspNetCore`](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore) plugin. To properly support request scopes it has a dependency on the `IHttpContextAccessor` which [needs to be registered](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/http-context?view=aspnetcore-6.0#use-httpcontext-from-custom-components) during application setup:
+For ASP.NET services, it is recommended to use the [`AspNetCore`](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore) plugin. To properly support request scopes for [MessageBus.Current](#static-accessor) static accessor, it has a dependency on the `IHttpContextAccessor` which [needs to be registered](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/http-context?view=aspnetcore-6.0#use-httpcontext-from-custom-components) during application setup:
 
 ```cs
-// This will register the `IHttpContextAccessor`
-services.AddHttpContextAccessor();
+services.AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin (the IHttpContextAccessor is used)
+services.AddMessageBusAspNet();
 ```
-
-### Autofac
-
-The [`Autofac`](https://www.nuget.org/packages/SlimMessageBus.Host.Autofac) plugin introduces the `SlimMessageBusModule` [autofac module](https://autofac.readthedocs.io/en/latest/configuration/modules.html) that configures message bus and registers SMB types within the DI container. For example:
-
-```cs
-ContainerBuilder builder;
-
-builder.RegisterModule(new SlimMessageBusModule
-{
-   ConfigureBus = (mbb, ctx) =>
-   {
-      mbb
-         .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
-         .Consume<SomeMessage>(x => x
-            .Topic("some-topic")
-            .WithConsumer<SomeMessageConsumer>()
-            //.KafkaGroup("some-kafka-consumer-group") //  Kafka provider specific
-            //.SubscriptionName("some-azure-sb-topic-subscription") // Azure ServiceBus provider specific
-         )
-         // ...
-         .WithSerializer(new JsonMessageSerializer())
-         .WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
-         // Use Azure Service Bus transport provider
-         //.WithProviderServiceBus(...)
-         // Use Azure Azure Event Hub transport provider
-         //.WithProviderEventHub(...)
-         // Use Redis transport provider
-         //.WithProviderRedis(...)
-         // Use in-memory transport provider
-         //.WithProviderMemory(...)         
-   },
-   AddConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() }, // auto discover consumers and register into DI (see next section)
-   AddInterceptorsFromAssembly: new[] { Assembly.GetExecutingAssembly() }, // auto discover interceptors and register into DI (see next section)
-   AddConfiguratorsFromAssembly: new[] { Assembly.GetExecutingAssembly() } // auto discover modular configuration and register into DI (see next section)
-});
-```
-
-The `ctx` (of type `IComponentContext`) parameter can be used to obtain additional dependencies from DI.
-
-> The `.WithDependencyResolver(...)` is already called on the `MessageBusBuilder`.
-
-### Unity
-
-The [`Unity`](https://www.nuget.org/packages/SlimMessageBus.Host.Unity) plugin introduces the `.AddSlimMessageBus()` extension method. It enables to configure the message bus and register relevant types for the SMB. For example:
-
-```cs
-IUnityContainer container;
-
-container.AddSlimMessageBus((mbb, container) =>
-  {
-    mbb
-      .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
-      // ...
-      .WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
-  }, 
-  // Optional:
-  addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() }, // auto discover consumers and register into DI (see next section)
-  addInterceptorsFromAssembly: new[] { Assembly.GetExecutingAssembly() }, // auto discover interceptors and register into DI (see next section)
-  addConfiguratorsFromAssembly: new[] { Assembly.GetExecutingAssembly() } // auto discover modular configuration and register into DI (see next section)
-);
-```
-
-The `container` (of type `IUnityContainer`) parameter can be used to obtain additional dependencies from DI.
-
-> The `.WithDependencyResolver(...)` is already called on the `MessageBusBuilder`.
 
 ### Modularization of configuration
 
@@ -741,14 +632,12 @@ Implementations of `IMessageBusConfigurator` registered in the DI will be resolv
 The `busName` parameter is mostly relevant if you are using the Hybrid bus transport.
 The `mbb` parameter represents the builder for the bus.
 
-When using `MsDependencyInjection` for DI, we can use `AddMessageBusConfiguratorsFromAssembly` extension method (in Startup.cs) to search for any implementations of `IMessageBusConfigurator` and register them as transient with the container:
+The extension method `services.AddMessageBusConfiguratorsFromAssembly(...)` can be used to search for any implementations of `IMessageBusConfigurator` and to register them as transient with the container:
 
 ```cs
 var accountingModuleAssembly = Assembly.GetExecutingAssembly();
 services.AddMessageBusConfiguratorsFromAssembly(accountingModuleAssembly);
 ```
-
-The other DI plugns (Unity, Autofac) provide similar means for discovery of configuration types.
 
 ### Autoregistration of consumers, interceptors and configurators
 

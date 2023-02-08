@@ -77,7 +77,7 @@ public class EhGroupConsumer : IAsyncDisposable, IConsumerControl
         if (!_processorClient.IsRunning)
         {
             _logger.LogInformation("Starting consumer Group: {Group}, Path: {Path}...", _groupPath.Group, _groupPath.Path);
-            await _processorClient.StartProcessingAsync();
+            await _processorClient.StartProcessingAsync().ConfigureAwait(false);
             IsStarted = true;
         }
     }
@@ -88,16 +88,16 @@ public class EhGroupConsumer : IAsyncDisposable, IConsumerControl
         {
             _logger.LogInformation("Stopping consumer Group: {Group}, Path: {Path}...", _groupPath.Group, _groupPath.Path);
 
-            var partitionConsumers = _partitionConsumerByPartitionId.Snapshot();
+            // stop the processing host
+            await _processorClient.StopProcessingAsync().ConfigureAwait(false);
+            
+            var partitionConsumers = _partitionConsumerByPartitionId.ClearAndSnapshot();
 
             if (MessageBus.ProviderSettings.EnableCheckpointOnBusStop)
             {
                 // checkpoint anything we've processed thus far
                 await Task.WhenAll(partitionConsumers.Select(pc => pc.TryCheckpoint()));
             }
-
-            // stop the processing host
-            await _processorClient.StopProcessingAsync();
 
             IsStarted = false;
         }
@@ -113,9 +113,7 @@ public class EhGroupConsumer : IAsyncDisposable, IConsumerControl
 
     protected virtual async ValueTask DisposeAsyncCore()
     {
-        await Stop();
-
-        _partitionConsumerByPartitionId.Clear();
+        await Stop().ConfigureAwait(false);
     }
 
     #endregion

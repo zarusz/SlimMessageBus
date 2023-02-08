@@ -2,9 +2,12 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
+
 using Confluent.Kafka;
+
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization;
+
 using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
 
 public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
@@ -63,7 +66,7 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
 
         if (_messageProcessor != null)
         {
-            await _messageProcessor.DisposeAsync();
+            await _messageProcessor.DisposeSilently("messageProcessor", _logger);
             _messageProcessor = null;
         }
 
@@ -92,6 +95,11 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
 
     public async Task OnMessage([NotNull] ConsumeResult message)
     {
+        if (_cancellationTokenSource.IsCancellationRequested)
+        {
+            return;
+        }
+        
         try
         {
             _lastOffset = message.TopicPartitionOffset;

@@ -25,7 +25,6 @@
     <ProjectReference Include="..\..\SlimMessageBus.Host.Hybrid\SlimMessageBus.Host.Hybrid.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Kafka\SlimMessageBus.Host.Kafka.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Memory\SlimMessageBus.Host.Memory.csproj" />
-    <ProjectReference Include="..\..\SlimMessageBus.Host.MsDependencyInjection\SlimMessageBus.Host.MsDependencyInjection.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Outbox.DbContext\SlimMessageBus.Host.Outbox.DbContext.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.SystemTextJson\SlimMessageBus.Host.Serialization.SystemTextJson.csproj" />
     <ProjectReference Include="..\SlimMessageBus.Host.Test.Common\SlimMessageBus.Host.Test.Common.csproj" />

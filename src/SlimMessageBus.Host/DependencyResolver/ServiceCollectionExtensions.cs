@@ -1,9 +1,12 @@
-﻿namespace SlimMessageBus.Host.MsDependencyInjection;
+﻿namespace SlimMessageBus.Host;
+
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using SlimMessageBus;
-using SlimMessageBus.Host;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Interceptor;
+
 using System.Reflection;
 
 public static class ServiceCollectionExtensions
@@ -13,7 +16,6 @@ public static class ServiceCollectionExtensions
     /// </summary>
     /// <param name="services"></param>
     /// <param name="configure"></param>
-    /// <param name="configureDependencyResolver">Confgure the DI plugin on the <see cref="MessageBusBuilder"/>. Default is true.</param>
     /// <param name="addConsumersFromAssembly">Specifies the list of assemblies to be searched for <see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/> implementationss. The found types are added to the DI as Transient service.</param>
     /// <param name="addConfiguratorsFromAssembly">Specifies the list of assemblies to be searched for <see cref="IMessageBusConfigurator"/>. The found types are added to the DI as Transient service.</param>
     /// <param name="addInterceptorsFromAssembly">Specifies the list of assemblies to be searched for interceptors (<see cref="IPublishInterceptor{TMessage}"/>, <see cref="ISendInterceptor{TRequest, TResponse}"/>, <see cref="IConsumerInterceptor{TMessage}"/>, <see cref="IRequestHandler{TRequest, TResponse}"/>). The found types are added to the DI as Transient service.</param>
@@ -21,13 +23,11 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddSlimMessageBus(
         this IServiceCollection services,
         Action<MessageBusBuilder> configure,
-        bool configureDependencyResolver = true,
         Assembly[] addConsumersFromAssembly = null,
         Assembly[] addConfiguratorsFromAssembly = null,
         Assembly[] addInterceptorsFromAssembly = null)
         => services.AddSlimMessageBus(
             configure: (mbb, svp) => configure(mbb),
-            configureDependencyResolver: configureDependencyResolver,
             addConsumersFromAssembly: addConsumersFromAssembly,
             addConfiguratorsFromAssembly: addConfiguratorsFromAssembly,
             addInterceptorsFromAssembly: addInterceptorsFromAssembly);
@@ -37,7 +37,6 @@ public static class ServiceCollectionExtensions
     /// </summary>
     /// <param name="services"></param>
     /// <param name="configure"></param>
-    /// <param name="configureDependencyResolver">Confgure the DI plugin on the <see cref="MessageBusBuilder"/>. Default is true.</param>
     /// <param name="addConsumersFromAssembly">Specifies the list of assemblies to be searched for <see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/> implementationss. The found types are added to the DI as Transient service.</param>
     /// <param name="addConfiguratorsFromAssembly">Specifies the list of assemblies to be searched for <see cref="IMessageBusConfigurator"/>. The found types are added to the DI as Transient service.</param>
     /// <param name="addInterceptorsFromAssembly">Specifies the list of assemblies to be searched for interceptors (<see cref="IPublishInterceptor{TMessage}"/>, <see cref="ISendInterceptor{TRequest, TResponse}"/>, <see cref="IConsumerInterceptor{TMessage}"/>, <see cref="IRequestHandler{TRequest, TResponse}"/>). The found types are added to the DI as Transient service.</param>
@@ -45,7 +44,6 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddSlimMessageBus(
         this IServiceCollection services,
         Action<MessageBusBuilder, IServiceProvider> configure,
-        bool configureDependencyResolver = true,
         Assembly[] addConsumersFromAssembly = null,
         Assembly[] addConfiguratorsFromAssembly = null,
         Assembly[] addInterceptorsFromAssembly = null)
@@ -69,28 +67,31 @@ public static class ServiceCollectionExtensions
         services.AddSingleton((svp) =>
         {
             var mbb = MessageBusBuilder.Create();
-            mbb.WithDependencyResolver(svp.GetRequiredService<IDependencyResolver>());
+            mbb.WithDependencyResolver(svp);
             mbb.Configurators = svp.GetServices<IMessageBusConfigurator>();
 
             configure(mbb, svp);
 
+            // Set the MessageBus.Current
+            var currentBusProvider = svp.GetRequiredService<ICurrentMessageBusProvider>();
+            MessageBus.SetProvider(currentBusProvider.GetCurrent);
+
             return (IMasterMessageBus)mbb.Build();
         });
-
-        if (configureDependencyResolver)
-        {
-            services.AddTransient<IDependencyResolver>(svp => new MsDependencyInjectionDependencyResolver(svp));
-        }
 
         services.AddTransient<IConsumerControl>(svp => svp.GetRequiredService<IMasterMessageBus>());
         services.AddTransient<ITopologyControl>(svp => svp.GetRequiredService<IMasterMessageBus>());
 
         // Register transient message bus - this is a lightweight proxy that just introduces the current DI scope
-        services.AddTransient(svp => new MessageBusProxy(svp.GetRequiredService<IMasterMessageBus>(), svp.GetRequiredService<IDependencyResolver>()));
+        services.AddTransient(svp => new MessageBusProxy(svp.GetRequiredService<IMasterMessageBus>(), svp));
 
         services.AddTransient<IMessageBus>(svp => svp.GetRequiredService<MessageBusProxy>());
         services.AddTransient<IPublishBus>(svp => svp.GetRequiredService<MessageBusProxy>());
         services.AddTransient<IRequestResponseBus>(svp => svp.GetRequiredService<MessageBusProxy>());
+
+        services.TryAddSingleton<ICurrentMessageBusProvider, CurrentMessageBusProvider>();
+
+        services.AddHostedService<MessageBusHostedService>();
 
         return services;
     }

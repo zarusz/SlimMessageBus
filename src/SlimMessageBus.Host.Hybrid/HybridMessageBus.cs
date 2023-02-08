@@ -2,7 +2,6 @@
 
 using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.DependencyResolver;
 
 public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDisposable, IAsyncDisposable
 {
@@ -24,7 +23,7 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
 
         // Use the configured logger factory, if not provided try to resolve from DI, if also not available supress logging using the NullLoggerFactory
         LoggerFactory = settings.LoggerFactory
-            ?? (ILoggerFactory)settings.DependencyResolver?.Resolve(typeof(ILoggerFactory))
+            ?? (ILoggerFactory)settings.ServiceProvider?.GetService(typeof(ILoggerFactory))
             ?? NullLoggerFactory.Instance;
 
         _logger = LoggerFactory.CreateLogger<HybridMessageBus>();
@@ -145,10 +144,10 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
     }
     #endregion
 
-    public Task<TResponseMessage> SendInternal<TResponseMessage>(object request, TimeSpan? timeout, string path, IDictionary<string, object> headers, CancellationToken cancellationToken, IDependencyResolver currentDependencyResolver = null)
+    public Task<TResponseMessage> SendInternal<TResponseMessage>(object request, TimeSpan? timeout, string path, IDictionary<string, object> headers, CancellationToken cancellationToken, IServiceProvider currentServiceProvider = null)
     {
         var buses = Route(request, path);
-        return buses[0].SendInternal<TResponseMessage>(request, timeout, path, headers, cancellationToken, currentDependencyResolver);
+        return buses[0].SendInternal<TResponseMessage>(request, timeout, path, headers, cancellationToken, currentServiceProvider);
     }
 
     #region Implementation of IPublishBus
@@ -175,25 +174,25 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
         }
     }
 
-    public async Task Publish(object message, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, IDependencyResolver currentDependencyResolver = null)
+    public async Task Publish(object message, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, IServiceProvider currentServiceProvider = null)
     {
         var buses = Route(message, path);
 
         if (buses.Length == 1)
         {
-            await buses[0].Publish(message, path, headers, cancellationToken, currentDependencyResolver);
+            await buses[0].Publish(message, path, headers, cancellationToken, currentServiceProvider);
             return;
         }
 
         if (ProviderSettings.PublishExecutionMode == PublishExecutionMode.Parallel)
         {
-            await Task.WhenAll(buses.Select(bus => bus.Publish(message, path, headers, cancellationToken, currentDependencyResolver)));
+            await Task.WhenAll(buses.Select(bus => bus.Publish(message, path, headers, cancellationToken, currentServiceProvider)));
             return;
         }
 
         for (var i = 0; i < buses.Length; i++)
         {
-            await buses[i].Publish(message, path, headers, cancellationToken, currentDependencyResolver);
+            await buses[i].Publish(message, path, headers, cancellationToken, currentServiceProvider);
         }
     }
 

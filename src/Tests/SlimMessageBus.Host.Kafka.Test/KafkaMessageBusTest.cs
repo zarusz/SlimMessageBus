@@ -1,9 +1,10 @@
 ﻿namespace SlimMessageBus.Host.Kafka.Test;
 
 using Confluent.Kafka;
+
 using Microsoft.Extensions.Logging.Abstractions;
+
 using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Serialization;
 
 public class KafkaMessageBusTest : IDisposable
@@ -23,7 +24,7 @@ public class KafkaMessageBusTest : IDisposable
         MbSettings = new MessageBusSettings
         {
             Serializer = new Mock<IMessageSerializer>().Object,
-            DependencyResolver = new Mock<IDependencyResolver>().Object,
+            ServiceProvider = new Mock<IServiceProvider>().Object,
             LoggerFactory = NullLoggerFactory.Instance
         };
         KafkaMbSettings = new KafkaMessageBusSettings("host")

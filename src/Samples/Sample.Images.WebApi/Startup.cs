@@ -6,12 +6,13 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+
 using Sample.Images.FileStore;
 using Sample.Images.FileStore.Disk;
 using Sample.Images.Messages;
-using SlimMessageBus;
+
+using SlimMessageBus.Host;
 using SlimMessageBus.Host.Kafka;
-using SlimMessageBus.Host.MsDependencyInjection;
 using SlimMessageBus.Host.Serialization.Json;
 
 public class Startup
@@ -42,8 +43,6 @@ public class Startup
 
     private void ConfigureMessageBus(IServiceCollection services)
     {
-        services.AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
-
         services.AddSlimMessageBus((mbb, svp) =>
         {
             // unique id across instances of this application (e.g. 1, 2, 3)
@@ -70,6 +69,9 @@ public class Startup
                 .WithSerializer(new JsonMessageSerializer())
                 .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
         });
+
+        services.AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
+        services.AddMessageBusAspNet();
     }
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -98,9 +100,5 @@ public class Startup
         {
             endpoints.MapDefaultControllerRoute();
         });
-
-        // Force the singleton SMB instance to be created on app start rather than when requested.
-        // We want message to be consumed when right away when WebApi starts (more info https://stackoverflow.com/a/39006021/1906057)
-        var messageBus = app.ApplicationServices.GetRequiredService<IMessageBus>();
     }
 }

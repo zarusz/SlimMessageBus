@@ -2,10 +2,12 @@ namespace SlimMessageBus.Host.Redis.Test;
 
 using System.Collections;
 using System.Text;
+
 using Newtonsoft.Json;
+
 using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Serialization;
+
 using StackExchange.Redis;
 
 public class RedisMessageBusTest
@@ -13,7 +15,7 @@ public class RedisMessageBusTest
     private readonly Lazy<RedisMessageBus> _subject;
     private readonly MessageBusSettings _settings = new();
     private readonly RedisMessageBusSettings _providerSettings;
-    private readonly Mock<IDependencyResolver> _dependencyResolverMock = new();
+    private readonly Mock<IServiceProvider> _serviceProviderMock = new();
     private readonly Mock<IMessageSerializer> _messageSerializerMock = new();
 
     private readonly Mock<IConnectionMultiplexer> _connectionMultiplexerMock;
@@ -22,13 +24,13 @@ public class RedisMessageBusTest
 
     public RedisMessageBusTest()
     {
-        _dependencyResolverMock.Setup(x => x.Resolve(It.IsAny<Type>())).Returns((Type t) =>
+        _serviceProviderMock.Setup(x => x.GetService(It.IsAny<Type>())).Returns((Type t) =>
         {
             if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
             return null;
         });
 
-        _settings.DependencyResolver = _dependencyResolverMock.Object;
+        _settings.ServiceProvider = _serviceProviderMock.Object;
         _settings.Serializer = _messageSerializerMock.Object;
 
         _messageSerializerMock

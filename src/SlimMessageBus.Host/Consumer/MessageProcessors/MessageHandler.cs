@@ -73,7 +73,7 @@ public class MessageHandler : IMessageHandler
             OnMessageArrived(message, nativeMessage, consumerInvoker);
 
             var consumerType = consumerInvoker.ConsumerType;
-            var consumerInstance = messageScope.Resolve(consumerType)
+            var consumerInstance = messageScope.ServiceProvider.GetService(consumerType)
                 ?? throw new ConfigurationMessageBusException($"Could not resolve consumer/handler type {consumerType} from the DI container. Please check that the configured type {consumerType} is registered within the DI container.");
 
             try
@@ -89,8 +89,8 @@ public class MessageHandler : IMessageHandler
                 };
                 _consumerContextInitializer?.Invoke(nativeMessage, context);
 
-                var consumerInterceptors = RuntimeTypeCache.ConsumerInterceptorType.ResolveAll(messageScope, messageType);
-                var handlerInterceptors = hasResponse ? RuntimeTypeCache.HandlerInterceptorType.ResolveAll(messageScope, (messageType, responseType)) : null;
+                var consumerInterceptors = RuntimeTypeCache.ConsumerInterceptorType.ResolveAll(messageScope.ServiceProvider, messageType);
+                var handlerInterceptors = hasResponse ? RuntimeTypeCache.HandlerInterceptorType.ResolveAll(messageScope.ServiceProvider, (messageType, responseType)) : null;
                 if (consumerInterceptors != null || handlerInterceptors != null)
                 {
                     var pipeline = new ConsumerInterceptorPipeline(RuntimeTypeCache, this, message, responseType, context, consumerInvoker, consumerInterceptors: consumerInterceptors, handlerInterceptors: handlerInterceptors);

@@ -10,10 +10,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.MsDependencyInjection;
+using SlimMessageBus.Host;
 using SlimMessageBus.Host.Serialization.Json;
-using SlimMessageBus.Host.Test.Common;
+using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
 [Trait("Category", "Integration")]
 public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt>
@@ -32,7 +31,9 @@ public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt
             mbb.WithSerializer(new JsonMessageSerializer());
             mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString));
             ApplyBusConfiguration(mbb);
-        });
+        }, addConsumersFromAssembly: new[] { typeof(PingConsumer).Assembly });
+
+        services.AddSingleton<TestEventCollector<TestEvent>>();
     }
 
     public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
@@ -85,7 +86,8 @@ public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt
 
         AddBusConfiguration(mbb =>
         {
-            mbb.Produce<PingMessage>(x => x.DefaultQueue(queue).WithModifier(MessageModifier))
+            mbb
+            .Produce<PingMessage>(x => x.DefaultQueue(queue).WithModifier(MessageModifier))
             .Consume<PingMessage>(x => x
                     .Queue(queue)
                     .WithConsumer<PingConsumer>()
@@ -100,39 +102,14 @@ public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt
     public class TestData
     {
         public List<PingMessage> ProducedMessages { get; set; }
-        public IList<TestEvent> ConsumedMessages { get; set; }
+        public IReadOnlyCollection<TestEvent> ConsumedMessages { get; set; }
     }
 
     private async Task BasicPubSub(int concurrency, int subscribers, int expectedMessageCopies, Action<TestData> additionalAssertion = null)
     {
         // arrange
-        var consumersCreated = 0;
-        //var consumedMessages = new List<(PingMessage Message, string MessageId, string SessionId)>();
-
-        var consumedMessages = new TestEventCollector<TestEvent>();
-
-        AddBusConfiguration(mbb =>
-        {
-            mbb.WithDependencyResolver(new LookupDependencyResolver(f =>
-            {
-                if (f == typeof(PingConsumer))
-                {
-                    var pingConsumer = new PingConsumer(LoggerFactory.CreateLogger<PingConsumer>(), consumedMessages);
-                    Interlocked.Increment(ref consumersCreated);
-                    return pingConsumer;
-                }
-                if (f == typeof(PingDerivedConsumer))
-                {
-                    var pingConsumer = new PingDerivedConsumer(LoggerFactory.CreateLogger<PingDerivedConsumer>(), consumedMessages);
-                    Interlocked.Increment(ref consumersCreated);
-                    return pingConsumer;
-                }
-                // for interceptors
-                if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
-                if (f == typeof(ILoggerFactory)) return LoggerFactory;
-                throw new InvalidOperationException();
-            }));
-        });
+        var testMetric = ServiceProvider.GetRequiredService<TestMetric>();
+        var consumedMessages = ServiceProvider.GetRequiredService<TestEventCollector<TestEvent>>();
 
         var messageBus = MessageBus;
 
@@ -166,7 +143,7 @@ public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt
 
         // ensure number of instances of consumers created matches
         var expectedConsumedCount = producedMessages.Count + producedMessages.OfType<PingDerivedMessage>().Count();
-        consumersCreated.Should().Be(expectedConsumedCount * expectedMessageCopies);
+        testMetric.CreatedConsumerCount.Should().Be(expectedConsumedCount * expectedMessageCopies);
         consumedMessages.Count.Should().Be(expectedConsumedCount * expectedMessageCopies);
 
         // ... the content should match
@@ -239,24 +216,6 @@ public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt
     private async Task BasicReqResp()
     {
         // arrange
-        var consumersCreated = new ConcurrentBag<EchoRequestHandler>();
-
-        AddBusConfiguration(mbb =>
-        {
-            mbb.WithDependencyResolver(new LookupDependencyResolver(f =>
-            {
-                if (f == typeof(EchoRequestHandler))
-                {
-                    var consumer = new EchoRequestHandler();
-                    consumersCreated.Add(consumer);
-                    return consumer;
-                }
-                // for interceptors
-                if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
-                if (f == typeof(ILoggerFactory)) return LoggerFactory;
-                throw new InvalidOperationException();
-            }));
-        });
         var messageBus = MessageBus;
 
         // act
@@ -269,14 +228,11 @@ public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt
             .Select(i => new EchoRequest { Index = i, Message = $"Echo {i}" })
             .ToList();
 
-        var responses = new List<Tuple<EchoRequest, EchoResponse>>();
+        var responses = new ConcurrentBag<Tuple<EchoRequest, EchoResponse>>();
         var responseTasks = requests.Select(async req =>
         {
             var resp = await messageBus.Send(req).ConfigureAwait(false);
-            lock (responses)
-            {
-                responses.Add(Tuple.Create(req, resp));
-            }
+            responses.Add(Tuple.Create(req, resp));
         });
         await Task.WhenAll(responseTasks).ConfigureAwait(false);
 
@@ -361,10 +317,11 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
     private readonly ILogger _logger;
     private readonly TestEventCollector<TestEvent> _messages;
 
-    public PingConsumer(ILogger logger, TestEventCollector<TestEvent> messages)
+    public PingConsumer(ILogger logger, TestEventCollector<TestEvent> messages, TestMetric testMetric)
     {
         _logger = logger;
         _messages = messages;
+        testMetric.OnCreatedConsumer();
     }
 
     public IConsumerContext Context { get; set; }
@@ -389,10 +346,11 @@ public class PingDerivedConsumer : IConsumer<PingDerivedMessage>, IConsumerWithC
     private readonly ILogger _logger;
     private readonly TestEventCollector<TestEvent> _messages;
 
-    public PingDerivedConsumer(ILogger logger, TestEventCollector<TestEvent> messages)
+    public PingDerivedConsumer(ILogger logger, TestEventCollector<TestEvent> messages, TestMetric testMetric)
     {
         _logger = logger;
         _messages = messages;
+        testMetric.OnCreatedConsumer();
     }
 
     public IConsumerContext Context { get; set; }
@@ -422,6 +380,11 @@ public record EchoResponse(string Message);
 
 public class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
 {
+    public EchoRequestHandler(TestMetric testMetric)
+    {
+        testMetric.OnCreatedConsumer();
+    }
+
     public Task<EchoResponse> OnHandle(EchoRequest request)
     {
         return Task.FromResult(new EchoResponse(request.Message));

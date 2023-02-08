@@ -1,15 +1,16 @@
 namespace SlimMessageBus.Host.Test;
 
+using Microsoft.Extensions.DependencyInjection;
+
 using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Serialization;
 
 public class MessageBusMock
 {
-    public Mock<IDependencyResolver> DependencyResolverMock { get; }
-    public IList<Mock<IChildDependencyResolver>> ChildDependencyResolverMocks { get; }
-    public Action<Mock<IChildDependencyResolver>> OnChildDependencyResolverCreated { get; set; }
+    public Mock<IServiceProvider> DependencyResolverMock { get; }
+    public IList<Mock<IServiceScope>> ChildDependencyResolverMocks { get; }
+    public Action<Mock<IServiceScope>, Mock<IServiceProvider>> OnChildDependencyResolverCreated { get; set; }
     public Mock<IMessageSerializer> SerializerMock { get; }
     public Mock<IConsumer<SomeMessage>> ConsumerMock { get; }
     public Mock<IRequestHandler<SomeRequest, SomeResponse>> HandlerMock { get; }
@@ -24,29 +25,34 @@ public class MessageBusMock
         ConsumerMock = new Mock<IConsumer<SomeMessage>>();
         HandlerMock = new Mock<IRequestHandler<SomeRequest, SomeResponse>>();
 
-        ChildDependencyResolverMocks = new List<Mock<IChildDependencyResolver>>();
+        ChildDependencyResolverMocks = new List<Mock<IServiceScope>>();
 
-        void SetupDependencyResolver<T>(Mock<T> mock) where T : class, IDependencyResolver
+        void SetupDependencyResolver<T>(Mock<T> mock) where T : class, IServiceProvider
         {
-            mock.Setup(x => x.Resolve(typeof(IConsumer<SomeMessage>))).Returns(ConsumerMock.Object);
-            mock.Setup(x => x.Resolve(typeof(IRequestHandler<SomeRequest, SomeResponse>))).Returns(HandlerMock.Object);
+            mock.Setup(x => x.GetService(typeof(IConsumer<SomeMessage>))).Returns(ConsumerMock.Object);
+            mock.Setup(x => x.GetService(typeof(IRequestHandler<SomeRequest, SomeResponse>))).Returns(HandlerMock.Object);
 
-            mock.Setup(x => x.Resolve(It.Is<Type>(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>) && t.GetGenericArguments().Length == 1 && t.GetGenericArguments()[0].IsGenericType && InterceptorTypes.Contains(t.GetGenericArguments()[0].GetGenericTypeDefinition()))))
+            mock.Setup(x => x.GetService(It.Is<Type>(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>) && t.GetGenericArguments().Length == 1 && t.GetGenericArguments()[0].IsGenericType && InterceptorTypes.Contains(t.GetGenericArguments()[0].GetGenericTypeDefinition()))))
                 .Returns(Enumerable.Empty<object>());
         }
 
-        DependencyResolverMock = new Mock<IDependencyResolver>();
+        DependencyResolverMock = new Mock<IServiceProvider>();
         SetupDependencyResolver(DependencyResolverMock);
-        DependencyResolverMock.Setup(x => x.CreateScope()).Returns(() =>
+
+        var serviceScopeFactoryMock = new Mock<IServiceScopeFactory>();
+        serviceScopeFactoryMock.Setup(x => x.CreateScope()).Returns(() =>
         {
-            var mock = new Mock<IChildDependencyResolver>();
-            SetupDependencyResolver(mock);
+            var svpMock = new Mock<IServiceProvider>();
+            SetupDependencyResolver(svpMock);
+
+            var mock = new Mock<IServiceScope>();
+            mock.SetupGet(x => x.ServiceProvider).Returns(svpMock.Object);
 
             ChildDependencyResolverMocks.Add(mock);
 
-            OnChildDependencyResolverCreated?.Invoke(mock);
+            OnChildDependencyResolverCreated?.Invoke(mock, svpMock);
 
-            mock.Setup(x => x.DisposeAsync()).Callback(() =>
+            mock.Setup(x => x.Dispose()).Callback(() =>
             {
                 ChildDependencyResolverMocks.Remove(mock);
             });
@@ -54,11 +60,13 @@ public class MessageBusMock
             return mock.Object;
         });
 
+        DependencyResolverMock.Setup(x => x.GetService(typeof(IServiceScopeFactory))).Returns(serviceScopeFactoryMock.Object);
+
         SerializerMock = new Mock<IMessageSerializer>();
 
         var mbSettings = new MessageBusSettings
         {
-            DependencyResolver = DependencyResolverMock.Object,
+            ServiceProvider = DependencyResolverMock.Object,
             Serializer = SerializerMock.Object
         };
 

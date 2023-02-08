@@ -99,9 +99,7 @@ public static class ServiceCollectionExtensions
     /// Registers an implemention of <see cref="IValidationErrorsHandler"/> that uses the supplied lambda. The scope is singleton.
     /// </summary>
     /// <param name="services"></param>
-    /// <param name="assembly"></param>
-    /// <param name="filterPredicate"></param>
-    /// <param name="lifetime"></param>
+    /// <param name="validationErrorsHandler"
     /// <returns></returns>
     public static IServiceCollection AddValidationErrorsHandler(this IServiceCollection services, Func<IEnumerable<global::FluentValidation.Results.ValidationFailure>, Exception> validationErrorsHandler)
     {

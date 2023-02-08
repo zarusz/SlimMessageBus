@@ -1,33 +1,61 @@
 ﻿namespace Sample.Images.Worker;
 
-using Autofac;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using SlimMessageBus;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
+using Sample.Images.FileStore;
+using Sample.Images.FileStore.Disk;
+using Sample.Images.Messages;
+
+using Sample.Images.Worker.Handlers;
+
+using SlimMessageBus.Host;
+using SlimMessageBus.Host.Kafka;
+using SlimMessageBus.Host.Serialization.Json;
 
 public class Program
 {
-    public static void Main()
+    public static async Task Main(string[] args)
     {
-        var configuration = new ConfigurationBuilder()
-            .AddJsonFile("appsettings.json")
-            .Build();
+        await Host.CreateDefaultBuilder(args)
+            .ConfigureServices((ctx, services) =>
+            {
+                var imagesPath = Path.Combine(Directory.GetCurrentDirectory(), @"..\..\..\..\Content");
+                services.AddSingleton<IFileStore>(x => new DiskFileStore(imagesPath));
+                services.AddSingleton<IThumbnailFileIdStrategy, SimpleThumbnailFileIdStrategy>();
 
-        var loggerFactory = LoggerFactory.Create(cfg => cfg.AddConfiguration(configuration.GetSection("Logging")).AddConsole());
-        var logger = loggerFactory.CreateLogger<Program>();
+                // SlimMessageBus
+                services.AddSlimMessageBus((mbb, svp) =>
+                {
+                    // unique id across instances of this application (e.g. 1, 2, 3)
+                    var instanceId = ctx.Configuration["InstanceId"];
+                    var kafkaBrokers = ctx.Configuration["Kafka:Brokers"];
 
-        logger.LogInformation("Starting worker...");
-        using (var container = ContainerSetup.Create(configuration, loggerFactory))
-        {
-            // eager load the singleton, so that is starts consuming messages
-            var messageBus = container.Resolve<IMessageBus>();
-            logger.LogInformation("Worker ready");
+                    var instanceGroup = $"worker-{instanceId}";
+                    var sharedGroup = "workers";
 
-            Console.WriteLine("Press enter to stop the application...");
-            Console.ReadLine();
-
-            logger.LogInformation("Stopping worker...");
-        }
-        logger.LogInformation("Worker stopped");
+                    mbb
+                        .Handle<GenerateThumbnailRequest, GenerateThumbnailResponse>(s =>
+                        {
+                            s.Topic("thumbnail-generation", t =>
+                            {
+                                t.WithHandler<GenerateThumbnailRequestHandler>()
+                                    .KafkaGroup(sharedGroup)
+                                    .Instances(3);
+                            });
+                        })
+                        .WithSerializer(new JsonMessageSerializer())
+                        .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+                        {
+                            ConsumerConfig = (config) =>
+                            {
+                                config.StatisticsIntervalMs = 60000;
+                                config.AutoOffsetReset = Confluent.Kafka.AutoOffsetReset.Latest;
+                            }
+                        });
+                }, addConsumersFromAssembly: new[] { typeof(GenerateThumbnailRequestHandler).Assembly });
+            })
+            .Build()
+            .RunAsync();
     }
 }

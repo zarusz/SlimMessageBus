@@ -1,13 +1,9 @@
 ﻿namespace SlimMessageBus.Host.Test;
 
 using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Serialization;
 using SlimMessageBus.Host.Serialization.Json;
-using System;
-using System.IO;
-using System.Reflection.PortableExecutable;
 
 public class RequestA : IRequestMessage<ResponseA>
 {
@@ -33,7 +29,7 @@ public class MessageBusBaseTests : IDisposable
 
     private const int TimeoutFor5 = 5;
     private const int TimeoutDefault10 = 10;
-    private readonly Mock<IDependencyResolver> _dependencyResolverMock;
+    private readonly Mock<IServiceProvider> _serviceProviderMock;
 
     public IList<ProducedMessage> _producedMessages;
 
@@ -46,8 +42,8 @@ public class MessageBusBaseTests : IDisposable
 
         _producedMessages = new List<ProducedMessage>();
 
-        _dependencyResolverMock = new Mock<IDependencyResolver>();
-        _dependencyResolverMock.Setup(x => x.Resolve(It.IsAny<Type>())).Returns((Type t) =>
+        _serviceProviderMock = new Mock<IServiceProvider>();
+        _serviceProviderMock.Setup(x => x.GetService(It.IsAny<Type>())).Returns((Type t) =>
         {
             if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
             return null;
@@ -68,7 +64,7 @@ public class MessageBusBaseTests : IDisposable
                 x.ReplyToTopic("app01-responses");
                 x.DefaultTimeout(TimeSpan.FromSeconds(TimeoutDefault10));
             })
-            .WithDependencyResolver(_dependencyResolverMock.Object)
+            .WithDependencyResolver(_serviceProviderMock.Object)
             .WithSerializer(new JsonMessageSerializer())
             .WithProvider(s =>
             {
@@ -257,7 +253,7 @@ public class MessageBusBaseTests : IDisposable
     {
         // arrange
         var messageSerializerMock = new Mock<IMessageSerializer>();
-        messageSerializerMock.Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<object>())).Returns(new byte[0]);
+        messageSerializerMock.Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<object>())).Returns(Array.Empty<byte>());
 
         var someMessageTopic = "some-messages";
 
@@ -516,15 +512,15 @@ public class MessageBusBaseTests : IDisposable
 
         if (producerInterceptorCallsNext != null)
         {
-            _dependencyResolverMock
-                .Setup(x => x.Resolve(typeof(IEnumerable<IProducerInterceptor<SomeDerivedMessage>>)))
+            _serviceProviderMock
+                .Setup(x => x.GetService(typeof(IEnumerable<IProducerInterceptor<SomeDerivedMessage>>)))
                 .Returns(new[] { producerInterceptorMock.Object });
         }
 
         if (publishInterceptorCallsNext != null)
         {
-            _dependencyResolverMock
-                .Setup(x => x.Resolve(typeof(IEnumerable<IPublishInterceptor<SomeDerivedMessage>>)))
+            _serviceProviderMock
+                .Setup(x => x.GetService(typeof(IEnumerable<IPublishInterceptor<SomeDerivedMessage>>)))
                 .Returns(new[] { publishInterceptorMock.Object });
         }
 
@@ -536,13 +532,13 @@ public class MessageBusBaseTests : IDisposable
         // message delivered
         _producedMessages.Count.Should().Be(producedMessages);
 
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IProducerInterceptor<SomeDerivedMessage>>)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IProducerInterceptor<SomeMessage>>)), Times.Never);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IPublishInterceptor<SomeDerivedMessage>>)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IPublishInterceptor<SomeMessage>>)), Times.Never);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IMessageBusLifecycleInterceptor>)), Times.Between(0, 2, Moq.Range.Inclusive));
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(ILoggerFactory)), Times.Once);
-        _dependencyResolverMock.VerifyNoOtherCalls();
+        _serviceProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IProducerInterceptor<SomeDerivedMessage>>)), Times.Once);
+        _serviceProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IProducerInterceptor<SomeMessage>>)), Times.Never);
+        _serviceProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IPublishInterceptor<SomeDerivedMessage>>)), Times.Once);
+        _serviceProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IPublishInterceptor<SomeMessage>>)), Times.Never);
+        _serviceProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IMessageBusLifecycleInterceptor>)), Times.Between(0, 2, Moq.Range.Inclusive));
+        _serviceProviderMock.Verify(x => x.GetService(typeof(ILoggerFactory)), Times.Once);
+        _serviceProviderMock.VerifyNoOtherCalls();
 
         if (producerInterceptorCallsNext != null)
         {
@@ -605,15 +601,15 @@ public class MessageBusBaseTests : IDisposable
 
         if (producerInterceptorCallsNext != null)
         {
-            _dependencyResolverMock
-                .Setup(x => x.Resolve(typeof(IEnumerable<IProducerInterceptor<RequestA>>)))
+            _serviceProviderMock
+                .Setup(x => x.GetService(typeof(IEnumerable<IProducerInterceptor<RequestA>>)))
                 .Returns(new[] { producerInterceptorMock.Object });
         }
 
         if (sendInterceptorCallsNext != null)
         {
-            _dependencyResolverMock
-                .Setup(x => x.Resolve(typeof(IEnumerable<ISendInterceptor<RequestA, ResponseA>>)))
+            _serviceProviderMock
+                .Setup(x => x.GetService(typeof(IEnumerable<ISendInterceptor<RequestA, ResponseA>>)))
                 .Returns(new[] { sendInterceptorMock.Object });
         }
 
@@ -635,11 +631,11 @@ public class MessageBusBaseTests : IDisposable
             response.Should().BeNull();
         }
 
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IProducerInterceptor<RequestA>>)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<ISendInterceptor<RequestA, ResponseA>>)), Times.Once);
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(IEnumerable<IMessageBusLifecycleInterceptor>)), Times.Between(0, 2, Moq.Range.Inclusive));
-        _dependencyResolverMock.Verify(x => x.Resolve(typeof(ILoggerFactory)), Times.Once);
-        _dependencyResolverMock.VerifyNoOtherCalls();
+        _serviceProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IProducerInterceptor<RequestA>>)), Times.Once);
+        _serviceProviderMock.Verify(x => x.GetService(typeof(IEnumerable<ISendInterceptor<RequestA, ResponseA>>)), Times.Once);
+        _serviceProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IMessageBusLifecycleInterceptor>)), Times.Between(0, 2, Moq.Range.Inclusive));
+        _serviceProviderMock.Verify(x => x.GetService(typeof(ILoggerFactory)), Times.Once);
+        _serviceProviderMock.VerifyNoOtherCalls();
 
         if (producerInterceptorCallsNext != null)
         {
@@ -657,13 +653,4 @@ public class MessageBusBaseTests : IDisposable
         }
         sendInterceptorMock.VerifyNoOtherCalls();
     }
-
-
-    public void When_GetChildBus_Then_ReturnsSelf_Given_NameIsNull()
-    {
-        var compositeMessageBus = Bus is ICompositeMessageBus;
-
-    }
-
-
 }
