@@ -155,9 +155,8 @@ public class KafkaMessageBus : MessageBusBase
         {
             foreach (var groupConsumer in _groupConsumers)
             {
-                groupConsumer.DisposeSilently(() => $"consumer group {groupConsumer.Group}", _logger);
+                await groupConsumer.DisposeSilently(() => $"consumer group {groupConsumer.Group}", _logger);
             }
-
             _groupConsumers.Clear();
         }
 

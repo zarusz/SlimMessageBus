@@ -1,14 +1,14 @@
 namespace SlimMessageBus.Host.Redis.Test;
 
+using System.Collections.Concurrent;
 using System.Diagnostics;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.MsDependencyInjection;
+using SlimMessageBus.Host;
 using SlimMessageBus.Host.Serialization.Json;
-using SlimMessageBus.Host.Test.Common;
+using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
 [Trait("Category", "Integration")]
 public class RedisMessageBusIt : BaseIntegrationTest<RedisMessageBusIt>
@@ -38,7 +38,9 @@ public class RedisMessageBusIt : BaseIntegrationTest<RedisMessageBusIt>
                 });
 
             ApplyBusConfiguration(mbb);
-        });
+        }, addConsumersFromAssembly: new[] { typeof(PingConsumer).Assembly });
+
+        services.AddSingleton<TestEventCollector<PingMessage>>();
     }
 
     public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
@@ -98,23 +100,8 @@ public class RedisMessageBusIt : BaseIntegrationTest<RedisMessageBusIt>
     private async Task BasicPubSub(int expectedMessageCopies)
     {
         // arrange
-        var pingConsumer = new PingConsumer(LoggerFactory.CreateLogger<PingConsumer>());
-
-        AddBusConfiguration(mbb =>
-        {
-            mbb
-                .WithDependencyResolver(new LookupDependencyResolver(f =>
-                {
-                    if (f == typeof(PingConsumer)) return pingConsumer;
-                    if (f == typeof(ILoggerFactory)) return null;
-                    // for interceptors
-                    if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
-                    if (f == typeof(ILoggerFactory)) return LoggerFactory;
-                    throw new InvalidOperationException();
-                }));
-        });
-
         var messageBus = MessageBus;
+        var consumedMessages = ServiceProvider.GetRequiredService<TestEventCollector<PingMessage>>();
 
         // ensure the consumers are warm
         //while (!messageBus.IsStarted) await Task.Delay(200);
@@ -122,15 +109,15 @@ public class RedisMessageBusIt : BaseIntegrationTest<RedisMessageBusIt>
         // act
 
         // consume all messages that might be on the queue/subscription
-        await ConsumeAll(pingConsumer, null, 2);
-        pingConsumer.Messages.Clear();
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 4);
+        consumedMessages.Clear();
 
         // publish
         var stopwatch = Stopwatch.StartNew();
 
         var producedMessages = Enumerable
             .Range(0, NumberOfMessages)
-            .Select(i => new PingMessage { Counter = i, Value = Guid.NewGuid() })
+            .Select(i => new PingMessage(i, Guid.NewGuid()))
             .ToList();
 
         var messageTasks = producedMessages.Select(m => messageBus.Publish(m));
@@ -142,20 +129,20 @@ public class RedisMessageBusIt : BaseIntegrationTest<RedisMessageBusIt>
 
         // consume
         stopwatch.Restart();
-        var consumersReceivedMessages = await ConsumeAll(pingConsumer, expectedMessageCopies * producedMessages.Count);
+        await consumedMessages.WaitUntilArriving(expectedCount: expectedMessageCopies * producedMessages.Count);
         stopwatch.Stop();
 
-        Logger.LogInformation("Consumed {0} messages in {1}", consumersReceivedMessages.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Consumed {0} messages in {1}", consumedMessages, stopwatch.Elapsed);
 
         // assert
 
         // ensure all messages arrived 
         // ... the count should match
-        consumersReceivedMessages.Count.Should().Be(producedMessages.Count * expectedMessageCopies);
+        consumedMessages.Count.Should().Be(producedMessages.Count * expectedMessageCopies);
         // ... the content should match
         foreach (var producedMessage in producedMessages)
         {
-            var messageCopies = consumersReceivedMessages.Count(x => x.Counter == producedMessage.Counter && x.Value == producedMessage.Value);
+            var messageCopies = consumedMessages.Snapshot().Count(x => x.Counter == producedMessage.Counter && x.Value == producedMessage.Value);
             messageCopies.Should().Be(expectedMessageCopies);
         }
     }
@@ -217,19 +204,6 @@ public class RedisMessageBusIt : BaseIntegrationTest<RedisMessageBusIt>
         // arrange
         var consumer = new EchoRequestHandler();
 
-        AddBusConfiguration(mbb =>
-        {
-            mbb
-                .WithDependencyResolver(new LookupDependencyResolver(f =>
-                {
-                    if (f == typeof(EchoRequestHandler)) return consumer;
-                    // for interceptors
-                    if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
-                    if (f == typeof(ILoggerFactory)) return LoggerFactory;
-                    throw new InvalidOperationException();
-                }));
-        });
-
         var messageBus = MessageBus;
 
         await EnsureConsumersStarted();
@@ -241,18 +215,15 @@ public class RedisMessageBusIt : BaseIntegrationTest<RedisMessageBusIt>
 
         var requests = Enumerable
             .Range(0, NumberOfMessages)
-            .Select(i => new EchoRequest { Index = i, Message = $"Echo {i}" })
+            .Select(i => new EchoRequest(i, $"Echo {i}"))
             .ToList();
 
-        var responses = new List<(EchoRequest Request, EchoResponse Response)>();
+        var responses = new ConcurrentBag<(EchoRequest Request, EchoResponse Response)>();
         var responseTasks = requests.Select(async req =>
         {
             var resp = await messageBus.Send<EchoResponse, EchoRequest>(req).ConfigureAwait(false);
-            lock (responses)
-            {
-                Logger.LogDebug("Recieved response for index {0:000}", req.Index);
-                responses.Add((req, resp));
-            }
+            Logger.LogDebug("Recieved response for index {0:000}", req.Index);
+            responses.Add((req, resp));
         });
         await Task.WhenAll(responseTasks).ConfigureAwait(false);
 
@@ -266,57 +237,26 @@ public class RedisMessageBusIt : BaseIntegrationTest<RedisMessageBusIt>
         responses.All(x => x.Request.Message == x.Response.Message).Should().BeTrue();
     }
 
-    private static async Task<IList<PingMessage>> ConsumeAll(PingConsumer consumer, int? expectedCount, int newMessagesAwaitingTimeout = 5)
-    {
-        var lastMessageCount = 0;
-        var lastMessageStopwatch = Stopwatch.StartNew();
-
-        while (lastMessageStopwatch.Elapsed.TotalSeconds < newMessagesAwaitingTimeout && (expectedCount == null || expectedCount.Value != consumer.Messages.Count))
-        {
-            await Task.Delay(100).ConfigureAwait(false);
-
-            if (consumer.Messages.Count != lastMessageCount)
-            {
-                lastMessageCount = consumer.Messages.Count;
-                lastMessageStopwatch.Restart();
-            }
-        }
-        lastMessageStopwatch.Stop();
-        return consumer.Messages;
-    }
-
-    private class PingMessage
-    {
-        public int Counter { get; set; }
-        public Guid Value { get; set; }
-
-        #region Overrides of Object
-
-        public override string ToString() => $"PingMessage(Counter={Counter}, Value={Value})";
-
-        #endregion
-    }
+    private record PingMessage(int Counter, Guid Value);
 
     private class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
     {
         private readonly ILogger _logger;
+        private readonly TestEventCollector<PingMessage> _messages;
 
-        public PingConsumer(ILogger logger)
+        public PingConsumer(ILogger logger, TestEventCollector<PingMessage> messages)
         {
             _logger = logger;
+            _messages = messages;
         }
 
         public IConsumerContext Context { get; set; }
-        public IList<PingMessage> Messages { get; } = new List<PingMessage>();
 
         #region Implementation of IConsumer<in PingMessage>
 
         public Task OnHandle(PingMessage message)
         {
-            lock (this)
-            {
-                Messages.Add(message);
-            }
+            _messages.Add(message);
 
             _logger.LogInformation("Got message {0} on topic {1}.", message.Counter, Context.Path);
             return Task.CompletedTask;
@@ -325,17 +265,7 @@ public class RedisMessageBusIt : BaseIntegrationTest<RedisMessageBusIt>
         #endregion
     }
 
-    private class EchoRequest /*: IRequestMessage<EchoResponse>*/
-    {
-        public int Index { get; set; }
-        public string Message { get; set; }
-
-        #region Overrides of Object
-
-        public override string ToString() => $"EchoRequest(Index={Index}, Message={Message})";
-
-        #endregion
-    }
+    private record EchoRequest(int Index, string Message);
 
     private class EchoResponse
     {

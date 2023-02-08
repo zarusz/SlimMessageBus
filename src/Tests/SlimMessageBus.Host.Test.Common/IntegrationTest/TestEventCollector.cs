@@ -1,4 +1,4 @@
-﻿namespace SlimMessageBus.Host.Test.Common;
+﻿namespace SlimMessageBus.Host.Test.Common.IntegrationTest;
 
 public class TestEventCollector<T>
 {
@@ -16,7 +16,7 @@ public class TestEventCollector<T>
         }
     }
 
-    public IList<T> Snapshot()
+    public List<T> Snapshot()
     {
         lock (list)
         {

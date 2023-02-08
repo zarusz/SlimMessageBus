@@ -155,9 +155,9 @@ public class MessageBusBuilder
         return this;
     }
 
-    public MessageBusBuilder WithDependencyResolver(IDependencyResolver dependencyResolver)
+    public MessageBusBuilder WithDependencyResolver(IServiceProvider serviceProvider)
     {
-        Settings.DependencyResolver = dependencyResolver ?? throw new ArgumentNullException(nameof(dependencyResolver));
+        Settings.ServiceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         return this;
     }
 

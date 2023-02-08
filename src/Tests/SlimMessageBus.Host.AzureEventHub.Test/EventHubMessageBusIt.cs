@@ -1,14 +1,14 @@
 namespace SlimMessageBus.Host.AzureEventHub.Test;
 
+using System.Collections.Concurrent;
 using System.Diagnostics;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.MsDependencyInjection;
+using SlimMessageBus.Host;
 using SlimMessageBus.Host.Serialization.Json;
-using SlimMessageBus.Host.Test.Common;
+using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
 [Trait("Category", "Integration")]
 public class EventHubMessageBusIt : BaseIntegrationTest<EventHubMessageBusIt>
@@ -47,7 +47,9 @@ public class EventHubMessageBusIt : BaseIntegrationTest<EventHubMessageBusIt>
                 .WithProviderEventHub(settings);
 
             ApplyBusConfiguration(mbb);
-        });
+        }, addConsumersFromAssembly: new[] { typeof(PingConsumer).Assembly });
+
+        services.AddSingleton<ConcurrentBag<PingMessage>>();
     }
 
     public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
@@ -57,8 +59,7 @@ public class EventHubMessageBusIt : BaseIntegrationTest<EventHubMessageBusIt>
     {
         // arrange
         var hubName = "test-ping";
-
-        var pingConsumer = new PingConsumer(LoggerFactory.CreateLogger<PingConsumer>());
+        var consumedMessages = ServiceProvider.GetRequiredService<ConcurrentBag<PingMessage>>();
 
         AddBusConfiguration(mbb =>
         {
@@ -69,15 +70,7 @@ public class EventHubMessageBusIt : BaseIntegrationTest<EventHubMessageBusIt>
                                         .WithConsumer<PingConsumer>()
                                         .CheckpointAfter(TimeSpan.FromSeconds(10))
                                         .CheckpointEvery(50)
-                                        .Instances(2))
-            .WithDependencyResolver(new LookupDependencyResolver(f =>
-            {
-                if (f == typeof(PingConsumer)) return pingConsumer;
-                // for interceptors
-                if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
-                if (f == typeof(ILoggerFactory)) return LoggerFactory;
-                throw new InvalidOperationException();
-            }));
+                                        .Instances(2));
         });
 
         var messageBus = MessageBus;
@@ -102,14 +95,14 @@ public class EventHubMessageBusIt : BaseIntegrationTest<EventHubMessageBusIt>
 
         // consume
         stopwatch.Restart();
-        var messagesReceived = await ConsumeFromTopic(pingConsumer);
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 5);
         stopwatch.Stop();
-        Logger.LogInformation("Consumed {ConsumedMessageCount} messages in {Duration}", messagesReceived.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Consumed {ConsumedMessageCount} messages in {Duration}", consumedMessages.Count, stopwatch.Elapsed);
 
         // assert
 
         // all messages got back
-        messagesReceived.Count.Should().Be(messages.Count);
+        consumedMessages.Count.Should().Be(messages.Count);
     }
 
     [Fact]
@@ -137,15 +130,7 @@ public class EventHubMessageBusIt : BaseIntegrationTest<EventHubMessageBusIt>
                     x.ReplyToTopic("test-echo-resp");
                     x.Group("response-reader"); // ensure consumer group exists on the event hub
                     x.DefaultTimeout(TimeSpan.FromSeconds(30));
-                })
-                .WithDependencyResolver(new LookupDependencyResolver(f =>
-                {
-                    if (f == typeof(EchoRequestHandler)) return echoRequestHandler;
-                    // for interceptors
-                    if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
-                    if (f == typeof(ILoggerFactory)) return LoggerFactory;
-                    throw new InvalidOperationException();
-                }));
+                });
         });
 
         var messageBus = MessageBus;
@@ -176,27 +161,6 @@ public class EventHubMessageBusIt : BaseIntegrationTest<EventHubMessageBusIt>
         responses.Count.Should().Be(NumberOfMessages);
         responses.All(x => x.Item1.Message == x.Item2.Message).Should().BeTrue();
     }
-
-    private static async Task<IList<PingMessage>> ConsumeFromTopic(PingConsumer pingConsumer)
-    {
-        var lastMessageCount = 0;
-        var lastMessageStopwatch = Stopwatch.StartNew();
-
-        const int newMessagesAwaitingTimeout = 5;
-
-        while (lastMessageStopwatch.Elapsed.TotalSeconds < newMessagesAwaitingTimeout)
-        {
-            await Task.Delay(100);
-
-            if (pingConsumer.Messages.Count != lastMessageCount)
-            {
-                lastMessageCount = pingConsumer.Messages.Count;
-                lastMessageStopwatch.Restart();
-            }
-        }
-        lastMessageStopwatch.Stop();
-        return pingConsumer.Messages;
-    }
 }
 
 public class PingMessage
@@ -213,25 +177,26 @@ public class PingMessage
 
 public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
 {
-    private readonly ILogger logger;
+    private readonly ILogger _logger;
+    private readonly ConcurrentBag<PingMessage> _messages;
 
-    public PingConsumer(ILogger logger) => this.logger = logger;
+    public PingConsumer(ILogger logger, ConcurrentBag<PingMessage> messages)
+    {
+        _logger = logger;
+        _messages = messages;
+    }
 
     public IConsumerContext Context { get; set; }
-    public IList<PingMessage> Messages { get; } = new List<PingMessage>();
 
     #region Implementation of IConsumer<in PingMessage>
 
     public Task OnHandle(PingMessage message)
     {
-        lock (this)
-        {
-            Messages.Add(message);
-        }
+        _messages.Add(message);
 
         var msg = Context.GetTransportMessage();
 
-        logger.LogInformation("Got message {0:000} on topic {1} offset {2} partition key {3}.", message.Counter, Context.Path, msg.Offset, msg.PartitionKey);
+        _logger.LogInformation("Got message {0:000} on topic {1} offset {2} partition key {3}.", message.Counter, Context.Path, msg.Offset, msg.PartitionKey);
         return Task.CompletedTask;
     }
 

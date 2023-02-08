@@ -9,12 +9,12 @@ public class MessageBusProxy : IMessageBus, ICompositeMessageBus
     /// The target of this proxy (the singleton master bus).
     /// </summary>
     public IMessageBusProducer Target { get; }
-    public IDependencyResolver DependencyResolver { get; }
+    public IServiceProvider ServiceProvider { get; }
 
-    public MessageBusProxy(IMessageBusProducer target, IDependencyResolver dependencyResolver)
+    public MessageBusProxy(IMessageBusProducer target, IServiceProvider serviceProvider)
     {
         Target = target;
-        DependencyResolver = dependencyResolver;
+        ServiceProvider = serviceProvider;
     }
 
     #region Implementation of IMessageBus
@@ -22,17 +22,17 @@ public class MessageBusProxy : IMessageBus, ICompositeMessageBus
     #region Implementation of IPublishBus
 
     public Task Publish<TMessage>(TMessage message, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
-        => Target.Publish(message, path: path, headers: headers, cancellationToken: cancellationToken, currentDependencyResolver: DependencyResolver);
+        => Target.Publish(message, path: path, headers: headers, cancellationToken: cancellationToken, currentServiceProvider: ServiceProvider);
 
     #endregion
 
     #region Implementation of IRequestResponseBus
 
     public Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, TimeSpan? timeout = null)
-        => Target.SendInternal<TResponseMessage>(request, timeout: timeout, path: path, headers: headers, cancellationToken, currentDependencyResolver: DependencyResolver);
+        => Target.SendInternal<TResponseMessage>(request, timeout: timeout, path: path, headers: headers, cancellationToken, currentServiceProvider: ServiceProvider);
 
     public Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, TimeSpan? timeout = null)
-        => Target.SendInternal<TResponseMessage>(request, timeout: timeout, path: path, headers: headers, cancellationToken, currentDependencyResolver: DependencyResolver);
+        => Target.SendInternal<TResponseMessage>(request, timeout: timeout, path: path, headers: headers, cancellationToken, currentServiceProvider: ServiceProvider);
 
     #endregion
 

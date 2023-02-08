@@ -6,11 +6,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+
 using Sample.DomainEvents.Application;
-using SlimMessageBus;
-using SlimMessageBus.Host.DependencyResolver;
+
+using SlimMessageBus.Host;
 using SlimMessageBus.Host.Memory;
-using SlimMessageBus.Host.AspNetCore;
 
 public class Startup
 {
@@ -59,22 +59,21 @@ public class Startup
         {
             endpoints.MapDefaultControllerRoute();
         });
-
-        // Set the MessageBus provider, so that IMessageBus are resolved from the current request scope
-        MessageBus.SetProvider(MessageBusCurrentProviderBuilder.Create().From(app).Build());
     }
 
     public void ConfigureMessageBus(IServiceCollection services)
     {
-        services.AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
-
         // Make the MessageBus per request scope
         services.AddSlimMessageBus((mbb, svp) =>
-        {
-            mbb
-                .WithProviderMemory()
-                .AutoDeclareFrom(typeof(OrderSubmittedHandler).Assembly);
-        },
-        addConsumersFromAssembly: new[] { typeof(OrderSubmittedHandler).Assembly });
+            {
+                mbb
+                    .WithProviderMemory()
+                    .AutoDeclareFrom(typeof(OrderSubmittedHandler).Assembly);
+            },
+            addConsumersFromAssembly: new[] { typeof(OrderSubmittedHandler).Assembly }
+        );
+
+        services.AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
+        services.AddMessageBusAspNet();
     }
 }

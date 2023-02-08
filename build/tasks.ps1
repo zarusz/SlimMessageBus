@@ -24,12 +24,7 @@ $projects = @(
 	"SlimMessageBus.Host.Serialization.Avro", 
 	"SlimMessageBus.Host.Serialization.GoogleProtobuf", 
 
-	"SlimMessageBus.Host.DependencyResolver", 
-
 	"SlimMessageBus.Host.AspNetCore",
-	"SlimMessageBus.Host.MsDependencyInjection",
-	"SlimMessageBus.Host.Autofac",
-	"SlimMessageBus.Host.Unity",
 
 	"SlimMessageBus.Host.Kafka",
 	"SlimMessageBus.Host.AzureEventHub",
@@ -39,7 +34,6 @@ $projects = @(
 	"SlimMessageBus.Host.Hybrid",
 	
 	"SlimMessageBus.Host.FluentValidation",
-	"SlimMessageBus.Host.FluentValidation.MsDependencyInjection",
 
 	"SlimMessageBus.Host.Outbox",
 	"SlimMessageBus.Host.Outbox.Sql",

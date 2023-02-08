@@ -1,12 +1,13 @@
 ﻿namespace SlimMessageBus.Host.FluentValidation;
 
 using global::FluentValidation;
+
 using SlimMessageBus;
 using SlimMessageBus.Host.Interceptor;
 
 public class ProducerValidationInterceptor<T> : AbstractValidationInterceptor<T>, IProducerInterceptor<T>
 {
-    public ProducerValidationInterceptor(IEnumerable<IValidator<T>> validators, IValidationErrorsHandler errorsHandler = null)
+    public ProducerValidationInterceptor(IEnumerable<IValidator<T>> validators, IValidationErrorsHandler? errorsHandler = null)
         : base(validators, errorsHandler)
     {
     }

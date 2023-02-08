@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Test.Common;
 
-using System.Diagnostics.CodeAnalysis;
-
 public class XunitLogger : ILogger, IDisposable
 {
     private readonly ITestOutputHelper output;
@@ -11,6 +9,10 @@ public class XunitLogger : ILogger, IDisposable
     {
         this.output = output;
         this.categoryName = categoryName;
+    }
+
+    public XunitLogger(ILoggerFactory loggerFactory) : this(((XunitLoggerFactory)loggerFactory).Output, string.Empty)
+    {
     }
 
     public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception, string> formatter)

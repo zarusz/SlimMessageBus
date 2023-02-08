@@ -8,10 +8,10 @@ using Confluent.Kafka;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-using SlimMessageBus.Host.DependencyResolver;
-using SlimMessageBus.Host.MsDependencyInjection;
+using SlimMessageBus.Host;
 using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.Test.Common;
+using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
 /// <summary>
 /// Performs basic integration test to verify that pub/sub and request-response communication works while concurrent producers pump data.
@@ -79,7 +79,9 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
                 .WithProviderKafka(kafkaSettings);
 
             ApplyBusConfiguration(mbb);
-        });
+        }, addConsumersFromAssembly: new[] { typeof(PingConsumer).Assembly });
+
+        services.AddSingleton<TestEventCollector<ConsumedMessage>>();
     }
 
     public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
@@ -91,8 +93,7 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
 
         // ensure the topic has 2 partitions
         var topic = $"{TopicPrefix}test-ping";
-
-        var pingConsumer = new PingConsumer(LoggerFactory.CreateLogger<PingConsumer>());
+        var consumedMessages = ServiceProvider.GetRequiredService<TestEventCollector<ConsumedMessage>>();
 
         AddBusConfiguration(mbb =>
         {
@@ -112,15 +113,7 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
                         .Instances(2)
                         .CheckpointEvery(1000)
                         .CheckpointAfter(TimeSpan.FromSeconds(600));
-                })
-                .WithDependencyResolver(new LookupDependencyResolver(f =>
-                {
-                    if (f == typeof(PingConsumer)) return pingConsumer;
-                    // for interceptors
-                    if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
-                    if (f == typeof(ILoggerFactory)) return LoggerFactory;
-                    throw new InvalidOperationException();
-                }));
+                });
         });
 
         var messageBus = MessageBus;
@@ -143,27 +136,26 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
         // consume
         stopwatch.Restart();
 
-        await WaitWhileMessagesAreFlowing(() => pingConsumer.Messages.Count);
-        var messagesReceived = pingConsumer.Messages;
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 5);
 
         stopwatch.Stop();
-        Logger.LogInformation("Consumed {0} messages in {1}", messagesReceived.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Consumed {0} messages in {1}", consumedMessages.Count, stopwatch.Elapsed);
 
         // assert
 
         // all messages got back
-        messagesReceived.Count.Should().Be(messages.Count);
+        consumedMessages.Count.Should().Be(messages.Count);
 
         // Partition #0 => Messages with even counter
-        messagesReceived
-            .Where(x => x.Item2 == 0)
-            .All(x => x.Item1.Counter % 2 == 0)
+        consumedMessages.Snapshot()
+            .Where(x => x.Partition == 0)
+            .All(x => x.Message.Counter % 2 == 0)
             .Should().BeTrue();
 
         // Partition #1 => Messages with odd counter
-        messagesReceived
-            .Where(x => x.Item2 == 1)
-            .All(x => x.Item1.Counter % 2 == 1)
+        consumedMessages.Snapshot()
+            .Where(x => x.Partition == 1)
+            .All(x => x.Message.Counter % 2 == 1)
             .Should().BeTrue();
     }
 
@@ -174,7 +166,6 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
 
         // ensure the topic has 2 partitions
         var topic = $"{TopicPrefix}test-echo";
-        var echoRequestHandler = new EchoRequestHandler();
 
         AddBusConfiguration(mbb =>
         {
@@ -200,15 +191,7 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
                     x.DefaultTimeout(TimeSpan.FromSeconds(60));
                     x.CheckpointEvery(100);
                     x.CheckpointAfter(TimeSpan.FromSeconds(10));
-                })
-                .WithDependencyResolver(new LookupDependencyResolver(f =>
-                {
-                    if (f == typeof(EchoRequestHandler)) return echoRequestHandler;
-                    // for interceptors
-                    if (f.IsGenericType && f.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
-                    if (f == typeof(ILoggerFactory)) return LoggerFactory;
-                    throw new InvalidOperationException();
-                }));
+                });
         });
 
         var kafkaMessageBus = MessageBus;
@@ -227,33 +210,13 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
             responses.Add((req, resp));
         }));
 
-        await WaitWhileMessagesAreFlowing(() => responses.Count);
+        await responses.WaitUntilArriving(newMessagesTimeout: 5);
 
         // assert
 
         // all messages got back
         responses.Count.Should().Be(NumberOfMessages);
         responses.All(x => x.Item1.Message == x.Item2.Message).Should().BeTrue();
-    }
-
-    private static async Task WaitWhileMessagesAreFlowing(Func<int> counterFunc)
-    {
-        var lastMessageCount = 0;
-        var lastMessageStopwatch = Stopwatch.StartNew();
-
-        const int newMessagesAwaitingTimeout = 10;
-
-        while (lastMessageStopwatch.Elapsed.TotalSeconds < newMessagesAwaitingTimeout)
-        {
-            await Task.Delay(200);
-
-            if (counterFunc() != lastMessageCount)
-            {
-                lastMessageCount = counterFunc();
-                lastMessageStopwatch.Restart();
-            }
-        }
-        lastMessageStopwatch.Stop();
     }
 
     private class PingMessage
@@ -268,15 +231,20 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
         #endregion
     }
 
+    record struct ConsumedMessage(PingMessage Message, int Partition);
+
     private class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
     {
         private readonly ILogger _logger;
+        private readonly TestEventCollector<ConsumedMessage> _messages;
 
-        public PingConsumer(ILogger logger) => _logger = logger;
+        public PingConsumer(ILogger logger, TestEventCollector<ConsumedMessage> messages)
+        {
+            _logger = logger;
+            _messages = messages;
+        }
 
         public IConsumerContext Context { get; set; }
-
-        public List<(PingMessage Message, int Partition)> Messages { get; } = new List<(PingMessage, int)>();
 
         #region Implementation of IConsumer<in PingMessage>
 
@@ -285,10 +253,7 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
             var transportMessage = Context.GetTransportMessage();
             var partition = transportMessage.TopicPartition.Partition;
 
-            lock (Messages)
-            {
-                Messages.Add((message, partition));
-            }
+            _messages.Add(new ConsumedMessage(message, partition));
 
             _logger.LogInformation("Got message {0:000} on topic {1}.", message.Counter, Context.Path);
             return Task.CompletedTask;

@@ -1,25 +1,12 @@
 ﻿namespace Sample.Hybrid.ConsoleApp;
 
+using Microsoft.Extensions.Hosting;
+
 using Sample.Hybrid.ConsoleApp.Domain;
-using SlimMessageBus;
 
-public class MainApplication
+public class MainApplication : IHostedService
 {
-    private readonly IMessageBus bus;
     private bool canRun = true;
-
-    // Inject to ensure that bus is started (the singletons are lazy created by default by MS dependency injector)
-    public MainApplication(IMessageBus bus) => this.bus = bus;
-
-    public void Run()
-    {
-        var task = Task.Run(CustomerDoesSomeStuff);
-
-        Console.WriteLine("Application started. Press any key to terminate.");
-        Console.ReadLine();
-
-        canRun = false;
-    }
 
     public async Task CustomerDoesSomeStuff()
     {
@@ -30,5 +17,21 @@ public class MainApplication
 
             await Task.Delay(2000);
         }
+    }
+
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        var task = Task.Run(CustomerDoesSomeStuff);
+
+        Console.WriteLine("Application started. Press any key to terminate.");
+
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken)
+    {
+        canRun = false;
+
+        return Task.CompletedTask;
     }
 }

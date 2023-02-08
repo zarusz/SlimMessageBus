@@ -1,10 +1,10 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus.Consumer;
 
 using Azure.Messaging.ServiceBus;
+
 using Microsoft.Extensions.Logging;
+
 using SlimMessageBus.Host.Config;
-using System;
-using System.Collections.Generic;
 
 public class AsbQueueConsumer : AsbBaseConsumer
 {

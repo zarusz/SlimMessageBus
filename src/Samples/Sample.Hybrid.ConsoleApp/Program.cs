@@ -1,44 +1,58 @@
 ﻿namespace Sample.Hybrid.ConsoleApp;
 
-using System.IO;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Hosting;
+
+using Sample.Hybrid.ConsoleApp.Application;
+using Sample.Hybrid.ConsoleApp.EmailService;
+using Sample.Hybrid.ConsoleApp.EmailService.Contract;
+
 using SecretStore;
-using SlimMessageBus;
+
+using SlimMessageBus.Host;
+using SlimMessageBus.Host.AzureServiceBus;
+using SlimMessageBus.Host.Hybrid;
+using SlimMessageBus.Host.Memory;
+using SlimMessageBus.Host.Serialization.Json;
 
 class Program
 {
-    static void Main(string[] args)
-    {
-        Console.WriteLine("Initializing...");
+    public static Task Main(string[] args) =>
+        Host.CreateDefaultBuilder(args)
+         .ConfigureServices((ctx, services) =>
+         {
+             services.AddHostedService<MainApplication>();
 
-        var builder = new ConfigurationBuilder()
-            .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-            .AddEnvironmentVariables();
+             Secrets.Load(@"..\..\..\..\..\secrets.txt");
 
-        var configuration = builder.Build();
-
-        var loggerFactory = LoggerFactory.Create(cfg => cfg.AddConfiguration(configuration.GetSection("Logging")).AddConsole());
-
-        // Local file with secrets
-        Secrets.Load(@"..\..\..\..\..\secrets.txt");
-
-        // Create a service collection and configure dependencies
-        var serviceCollection = new ServiceCollection();
-
-        var startup = new Startup(configuration);
-        startup.ConfigureServices(serviceCollection);
-
-        // Build the our IServiceProvider
-        var serviceProvider = serviceCollection.BuildServiceProvider();
-
-        using var scope = serviceProvider.CreateScope();
-
-        MessageBus.SetProvider(() => scope.ServiceProvider.GetRequiredService<IMessageBus>());
-
-        // Run the application
-        scope.ServiceProvider.GetRequiredService<MainApplication>().Run();
-    }
+             services.AddSlimMessageBus((mbb, svp) =>
+             {
+                 // In summary:
+                 // - The CustomerChangedEvent messages will be going through the SMB Memory provider.
+                 // - The SendEmailCommand messages will be going through the SMB Azure Service Bus provider.
+                 // - Each of the bus providers will serialize messages using JSON and use the same DI to resolve consumers/handlers.
+                 mbb
+                     // Bus 1
+                     .AddChildBus("Memory", (mbbChild) =>
+                     {
+                         mbbChild
+                             .WithProviderMemory()
+                             .AutoDeclareFrom(typeof(CustomerChangedEventHandler).Assembly, consumerTypeFilter: consumerType => consumerType.Namespace.Contains("Application"));
+                     })
+                     // Bus 2
+                     .AddChildBus("AzureSB", (mbbChild) =>
+                     {
+                         var serviceBusConnectionString = Secrets.Service.PopulateSecrets(ctx.Configuration["Azure:ServiceBus"]);
+                         mbbChild
+                             .WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString))
+                             .Produce<SendEmailCommand>(x => x.DefaultQueue("test-ping-queue"))
+                             .Consume<SendEmailCommand>(x => x.Queue("test-ping-queue").WithConsumer<SmtpEmailService>());
+                     })
+                     .WithSerializer(new JsonMessageSerializer()) // serialization setup will be shared between bus 1 and 2
+                     .WithProviderHybrid();
+             },
+             addConsumersFromAssembly: new[] { typeof(CustomerChangedEventHandler).Assembly });
+         })
+         .Build()
+         .RunAsync();
 }

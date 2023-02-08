@@ -3,16 +3,14 @@ namespace SlimMessageBus.Host.Hybrid.Test;
 using Newtonsoft.Json;
 using System.Text;
 using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Serialization;
-using System.Runtime;
 
 public class HybridMessageBusTest
 {
     private readonly Lazy<HybridMessageBus> _subject;
     private readonly MessageBusBuilder _messageBusBuilder;
     private readonly MessageBusSettings _settings = new();
-    private readonly Mock<IDependencyResolver> _dependencyResolverMock = new();
+    private readonly Mock<IServiceProvider> _serviceProviderMock = new();
     private readonly Mock<IMessageSerializer> _messageSerializerMock = new();
 
     private Mock<MessageBusBase> _bus1Mock;
@@ -22,7 +20,7 @@ public class HybridMessageBusTest
     {
         _messageBusBuilder = MessageBusBuilder.Create();
 
-        _messageBusBuilder.Settings.DependencyResolver = _dependencyResolverMock.Object;
+        _messageBusBuilder.Settings.ServiceProvider = _serviceProviderMock.Object;
         _messageBusBuilder.Settings.Serializer = _messageSerializerMock.Object;
 
         _messageSerializerMock

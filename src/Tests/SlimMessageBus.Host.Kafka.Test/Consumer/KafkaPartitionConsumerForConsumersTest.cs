@@ -33,8 +33,8 @@ public class KafkaPartitionConsumerForConsumersTest : IAsyncDisposable
 
         var massageBusMock = new MessageBusMock();
         massageBusMock.BusSettings.Consumers.Add(_consumerBuilder.ConsumerSettings);
-        massageBusMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(SomeMessageConsumer))).Returns(_consumer);
-        massageBusMock.DependencyResolverMock.Setup(x => x.Resolve(typeof(ILoggerFactory))).Returns(_loggerFactory);
+        massageBusMock.ServiceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeMessageConsumer))).Returns(_consumer);
+        massageBusMock.ServiceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(ILoggerFactory))).Returns(_loggerFactory);
 
         var headerSerializer = new StringValueSerializer();
 

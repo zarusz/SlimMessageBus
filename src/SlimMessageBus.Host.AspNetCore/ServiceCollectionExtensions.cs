@@ -1,66 +1,16 @@
-﻿namespace SlimMessageBus.Host.AspNetCore;
-
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.Interceptor;
-using System.Reflection;
+﻿namespace SlimMessageBus.Host;
 
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers SlimMessageBus (<see cref="IMessageBus">) singleton instance and configures the ASP.NET Ms Dependency Injection for DI plugin.
+    /// Adds ASP.Net Core integrations for SlimMessageBus.
     /// </summary>
     /// <param name="services"></param>
-    /// <param name="configure"></param>
-    /// <param name="configureDependencyResolver">Confgure the DI plugin on the <see cref="MessageBusBuilder"/>. Default is true.</param>
-    /// <param name="addConsumersFromAssembly">Specifies the list of assemblies to be searched for <see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/> implementationss. The found types are added to the DI as Transient service.</param>
-    /// <param name="addConfiguratorsFromAssembly">Specifies the list of assemblies to be searched for <see cref="IMessageBusConfigurator"/>. The found types are added to the DI as Transient service.</param>
-    /// <param name="addInterceptorsFromAssembly">Specifies the list of assemblies to be searched for interceptors (<see cref="IPublishInterceptor{TMessage}"/>, <see cref="ISendInterceptor{TRequest, TResponse}"/>, <see cref="IConsumerInterceptor{TMessage}"/>, <see cref="IRequestHandler{TRequest, TResponse}"/>). The found types are added to the DI as Transient service.</param>
     /// <returns></returns>
-    public static IServiceCollection AddSlimMessageBus(
-        this IServiceCollection services,
-        Action<MessageBusBuilder, IServiceProvider> configure,
-        bool configureDependencyResolver = true,
-        Assembly[] addConsumersFromAssembly = null,
-        Assembly[] addConfiguratorsFromAssembly = null,
-        Assembly[] addInterceptorsFromAssembly = null)
+    public static IServiceCollection AddMessageBusAspNet(this IServiceCollection services)
     {
-        if (configureDependencyResolver)
-        {
-            // Provide an ASP.NET optimized IDependencyResolver
-            services.AddTransient<IDependencyResolver, AspNetCoreMessageBusDependencyResolver>();
-        }
-
-        MsDependencyInjection.ServiceCollectionExtensions.AddSlimMessageBus(services,
-            configure: configure,
-            configureDependencyResolver: false,
-            addConsumersFromAssembly: addConsumersFromAssembly,
-            addConfiguratorsFromAssembly: addConfiguratorsFromAssembly,
-            addInterceptorsFromAssembly: addInterceptorsFromAssembly);
-
+        services.RemoveAll<ICurrentMessageBusProvider>();
+        services.AddSingleton<ICurrentMessageBusProvider, HttpContextAccessorCurrentMessageBusProvider>();
         return services;
     }
-
-    /// <summary>
-    /// Registers SlimMessageBus (<see cref="IMessageBus">) singleton instance and configures the ASP.NET Ms Dependency Injection for DI plugin.
-    /// </summary>
-    /// <param name="services"></param>
-    /// <param name="configure"></param>
-    /// <param name="configureDependencyResolver">Confgure the DI plugin on the <see cref="MessageBusBuilder"/>. Default is true.</param>
-    /// <param name="addConsumersFromAssembly">Specifies the list of assemblies to be searched for <see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/> implementationss. The found types are added to the DI as Transient service.</param>
-    /// <param name="addConfiguratorsFromAssembly">Specifies the list of assemblies to be searched for <see cref="IMessageBusConfigurator"/>. The found types are added to the DI as Transient service.</param>
-    /// <param name="addInterceptorsFromAssembly">Specifies the list of assemblies to be searched for interceptors (<see cref="IPublishInterceptor{TMessage}"/>, <see cref="ISendInterceptor{TRequest, TResponse}"/>, <see cref="IConsumerInterceptor{TMessage}"/>, <see cref="IRequestHandler{TRequest, TResponse}"/>). The found types are added to the DI as Transient service.</param>
-    /// <returns></returns>
-    public static IServiceCollection AddSlimMessageBus(
-        this IServiceCollection services,
-        Action<MessageBusBuilder> configure,
-        bool configureDependencyResolver = true,
-        Assembly[] addConsumersFromAssembly = null,
-        Assembly[] addConfiguratorsFromAssembly = null,
-        Assembly[] addInterceptorsFromAssembly = null)
-        => services.AddSlimMessageBus(
-            configure: (mbb, svp) => configure(mbb),
-            configureDependencyResolver: configureDependencyResolver,
-            addConsumersFromAssembly: addConsumersFromAssembly,
-            addConfiguratorsFromAssembly: addConfiguratorsFromAssembly,
-            addInterceptorsFromAssembly: addInterceptorsFromAssembly);
 }

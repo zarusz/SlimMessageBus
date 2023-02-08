@@ -1,7 +1,9 @@
 ﻿namespace SlimMessageBus.Host.Memory.Benchmark;
 
 using Microsoft.Extensions.DependencyInjection;
-using SlimMessageBus.Host.MsDependencyInjection;
+
+using SlimMessageBus.Host;
+
 using System.Reflection;
 
 public abstract class AbstractMemoryBenchmark : IDisposable

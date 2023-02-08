@@ -1,6 +1,7 @@
 namespace SlimMessageBus.Host.AzureEventHub;
 
 using System.Diagnostics.CodeAnalysis;
+
 using Azure.Messaging.EventHubs;
 using Azure.Messaging.EventHubs.Processor;
 

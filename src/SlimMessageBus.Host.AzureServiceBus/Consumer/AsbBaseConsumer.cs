@@ -95,12 +95,12 @@ public abstract class AsbBaseConsumer : IAsyncDisposable, IConsumerControl
 
         if (_serviceBusProcessor != null)
         {
-            await _serviceBusProcessor.StartProcessingAsync();
+            await _serviceBusProcessor.StartProcessingAsync().ConfigureAwait(false);
         }
 
         if (_serviceBusSessionProcessor != null)
         {
-            await _serviceBusSessionProcessor.StartProcessingAsync();
+            await _serviceBusSessionProcessor.StartProcessingAsync().ConfigureAwait(false);
         }
 
         IsStarted = true;
@@ -116,12 +116,12 @@ public abstract class AsbBaseConsumer : IAsyncDisposable, IConsumerControl
         _logger.LogInformation("Stopping consumer for Path: {Path}, SubscriptionName: {SubscriptionName}", TopicSubscription.Path, TopicSubscription.SubscriptionName);
         if (_serviceBusProcessor != null)
         {
-            await _serviceBusProcessor.StopProcessingAsync();
+            await _serviceBusProcessor.StopProcessingAsync().ConfigureAwait(false);
         }
 
         if (_serviceBusSessionProcessor != null)
         {
-            await _serviceBusSessionProcessor.StopProcessingAsync();
+            await _serviceBusSessionProcessor.StopProcessingAsync().ConfigureAwait(false);
         }
 
         IsStarted = false;
@@ -139,17 +139,17 @@ public abstract class AsbBaseConsumer : IAsyncDisposable, IConsumerControl
     {
         if (_serviceBusProcessor != null)
         {
-            await _serviceBusProcessor.CloseAsync();
+            await _serviceBusProcessor.CloseAsync().ConfigureAwait(false);
             _serviceBusProcessor = null;
         }
 
         if (_serviceBusSessionProcessor != null)
         {
-            await _serviceBusSessionProcessor.CloseAsync();
+            await _serviceBusSessionProcessor.CloseAsync().ConfigureAwait(false);
             _serviceBusSessionProcessor = null;
         }
 
-        await MessageProcessor.DisposeSilently();
+        await MessageProcessor.DisposeSilently().ConfigureAwait(false);
     }
 
     #endregion
@@ -174,7 +174,6 @@ public abstract class AsbBaseConsumer : IAsyncDisposable, IConsumerControl
 
     protected Task ServiceBusProcessor_ProcessMessagesAsync(ProcessMessageEventArgs args)
         => ProcessMessageAsyncInternal(args.Message, args.CompleteMessageAsync, args.AbandonMessageAsync, args.CancellationToken);
-
 
     protected Task ServiceBusProcessor_ProcessErrorAsync(ProcessErrorEventArgs args)
         => ProcessErrorAsyncInternal(args.Exception, args.ErrorSource);

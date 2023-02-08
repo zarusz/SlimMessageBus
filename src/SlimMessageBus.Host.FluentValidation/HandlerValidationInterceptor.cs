@@ -1,12 +1,13 @@
 ﻿namespace SlimMessageBus.Host.FluentValidation;
 
 using global::FluentValidation;
+
 using SlimMessageBus;
 using SlimMessageBus.Host.Interceptor;
 
 public class HandlerValidationInterceptor<T, R> : AbstractValidationInterceptor<T>, IRequestHandlerInterceptor<T, R>
 {
-    public HandlerValidationInterceptor(IEnumerable<IValidator<T>> validators, IValidationErrorsHandler errorsHandler = null)
+    public HandlerValidationInterceptor(IEnumerable<IValidator<T>> validators, IValidationErrorsHandler? errorsHandler = null)
         : base(validators, errorsHandler)
     {
     }

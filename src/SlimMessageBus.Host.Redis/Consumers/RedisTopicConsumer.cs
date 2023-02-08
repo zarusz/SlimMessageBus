@@ -67,6 +67,11 @@ public class RedisTopicConsumer : IRedisConsumer
 
     private async Task OnMessage(ChannelMessage m)
     {
+        if (_cancellationTokenSource.Token.IsCancellationRequested)
+        {
+            return;
+        }
+
         Exception exception;
         try
         {
@@ -94,7 +99,7 @@ public class RedisTopicConsumer : IRedisConsumer
 
     protected virtual async ValueTask DisposeAsyncCore()
     {
-        await Stop();
+        await Stop().ConfigureAwait(false);
 
         if (_messageProcessor != null)
         {

@@ -1,19 +1,22 @@
 using System.Reflection;
 
-using SlimMessageBus.Host.AspNetCore;
-using SlimMessageBus.Host.Memory;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+using Sample.OutboxWebApi.Application;
+using Sample.OutboxWebApi.DataAccess;
+
+using SecretStore;
+
+using SlimMessageBus;
+using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.Hybrid;
+using SlimMessageBus.Host.Memory;
 using SlimMessageBus.Host.Outbox;
-using SlimMessageBus.Host.Serialization.Json;
-using SlimMessageBus;
-using SecretStore;
-using Microsoft.AspNetCore.Mvc;
-using Sample.OutboxWebApi.DataAccess;
-using Microsoft.EntityFrameworkCore;
-using Sample.OutboxWebApi.Application;
 using SlimMessageBus.Host.Outbox.DbContext;
 using SlimMessageBus.Host.Outbox.Sql;
+using SlimMessageBus.Host.Serialization.Json;
 
 // Local file with secrets
 Secrets.Load(@"..\..\secrets.txt");
@@ -26,6 +29,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddMessageBusAspNet();
 
 builder.Services.AddSlimMessageBus((mbb, svp) =>
 {

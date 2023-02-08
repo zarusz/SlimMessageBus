@@ -1,16 +1,16 @@
 ﻿namespace SlimMessageBus.Host.Outbox;
 
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 using SlimMessageBus;
-using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Interceptor;
 
 public class OutboxSendingTask : IMessageBusLifecycleInterceptor, IAsyncDisposable
 {
     private readonly ILogger<OutboxSendingTask> _logger;
     private readonly OutboxSettings _outboxSettings;
-    private readonly IDependencyResolver _dependencyResolver;
+    private readonly IServiceProvider _serviceProvider;
     private readonly IInstanceIdProvider _instanceIdProvider;
 
     private CancellationTokenSource _loopCts;
@@ -19,11 +19,11 @@ public class OutboxSendingTask : IMessageBusLifecycleInterceptor, IAsyncDisposab
 
     private DateTime? _cleanupNextRun;
 
-    public OutboxSendingTask(ILoggerFactory loggerFactory, OutboxSettings outboxSettings, IDependencyResolver dependencyResolver, IInstanceIdProvider instanceIdProvider)
+    public OutboxSendingTask(ILoggerFactory loggerFactory, OutboxSettings outboxSettings, IServiceProvider serviceProvider, IInstanceIdProvider instanceIdProvider)
     {
         _logger = loggerFactory.CreateLogger<OutboxSendingTask>();
         _outboxSettings = outboxSettings;
-        _dependencyResolver = dependencyResolver;
+        _serviceProvider = serviceProvider;
         _instanceIdProvider = instanceIdProvider;
     }
 
@@ -103,9 +103,9 @@ public class OutboxSendingTask : IMessageBusLifecycleInterceptor, IAsyncDisposab
     {
         try
         {
-            await using var scope = _dependencyResolver.CreateScope();
+            using var scope = _serviceProvider.CreateScope();
 
-            var outboxRepository = (IOutboxRepository)scope.Resolve(typeof(IOutboxRepository));
+            var outboxRepository = scope.ServiceProvider.GetRequiredService<IOutboxRepository>();
 
             await outboxRepository.Initialize(_loopCts.Token);
 
@@ -121,7 +121,7 @@ public class OutboxSendingTask : IMessageBusLifecycleInterceptor, IAsyncDisposab
                     // Check if some messages where locked
                     if (lockedCount > 0)
                     {
-                        idleRun = await SendMessages(scope, outboxRepository, processedIds, ct).ConfigureAwait(false);
+                        idleRun = await SendMessages(scope.ServiceProvider, outboxRepository, processedIds, ct).ConfigureAwait(false);
                     }
                 }
                 catch (Exception e)
@@ -147,9 +147,9 @@ public class OutboxSendingTask : IMessageBusLifecycleInterceptor, IAsyncDisposab
         }
     }
 
-    private async Task<bool> SendMessages(IDependencyResolver scope, IOutboxRepository outboxRepository, List<Guid> processedIds, CancellationToken ct)
+    private async Task<bool> SendMessages(IServiceProvider scope, IOutboxRepository outboxRepository, List<Guid> processedIds, CancellationToken ct)
     {
-        var messageBus = (IMessageBus)scope.Resolve(typeof(IMessageBus));
+        var messageBus = scope.GetRequiredService<IMessageBus>();
         var compositeMessageBus = messageBus as ICompositeMessageBus;
 
         var idleRun = true;
@@ -185,7 +185,7 @@ public class OutboxSendingTask : IMessageBusLifecycleInterceptor, IAsyncDisposab
                     var headers = outboxMessage.Headers ?? new Dictionary<string, object>();
                     headers.Add(OutboxForwardingPublishInterceptor<object>.SkipOutboxHeader, string.Empty);
 
-                    await bus.Publish(message, path: outboxMessage.Path, headers: headers, cancellationToken: ct, currentDependencyResolver: scope);
+                    await bus.Publish(message, path: outboxMessage.Path, headers: headers, cancellationToken: ct, currentServiceProvider: scope);
 
                     processedIds.Add(outboxMessage.Id);
                 }

@@ -125,34 +125,38 @@ public class ServiceBusMessageBus : MessageBusBase
 
     protected override async Task OnStart()
     {
-        await base.OnStart();
-        await Task.WhenAll(_consumers.Select(x => x.Start()));
+        await base.OnStart().ConfigureAwait(false);
+        await Task.WhenAll(_consumers.Select(x => x.Start())).ConfigureAwait(false);
     }
 
     protected override async Task OnStop()
     {
-        await base.OnStop();
-        await Task.WhenAll(_consumers.Select(x => x.Stop()));
+        await base.OnStop().ConfigureAwait(false);
+        await Task.WhenAll(_consumers.Select(x => x.Stop())).ConfigureAwait(false);
     }
 
     protected override async ValueTask DisposeAsyncCore()
     {
-        await base.DisposeAsyncCore();
+        await base.DisposeAsyncCore().ConfigureAwait(false);
 
         if (_consumers.Count > 0)
         {
-            _consumers.ForEach(c => c.DisposeSilently("Consumer", _logger));
+            foreach (var consumer in _consumers)
+            {
+                await consumer.DisposeSilently("Consumer", _logger).ConfigureAwait(false);
+            }
             _consumers.Clear();
         }
 
         var producers = _producerByPath.ClearAndSnapshot();
         if (producers.Count > 0)
         {
-            await Task.WhenAll(producers.Select(x =>
+            var producerCloseTasks = producers.Select(x =>
             {
                 _logger.LogDebug("Closing sender client for path {Path}", x.EntityPath);
                 return x.CloseAsync();
-            }));
+            });
+            await Task.WhenAll(producerCloseTasks).ConfigureAwait(false);
         }
 
         if (_client != null)

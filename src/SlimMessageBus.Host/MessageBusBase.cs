@@ -2,11 +2,12 @@ namespace SlimMessageBus.Host;
 
 using System.Globalization;
 
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.DependencyResolver;
+using SlimMessageBus.Host.Consumer;
 using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Serialization;
 
@@ -35,12 +36,23 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     public CancellationToken CancellationToken => _cancellationTokenSource.Token;
 
+    #region Disposing
+
     protected bool IsDisposing { get; private set; }
     protected bool IsDisposed { get; private set; }
+
+    #endregion
+
+    #region Start & Stop
 
     protected Task BeforeStartTask { get; set; } = Task.CompletedTask;
 
     public bool IsStarted { get; private set; }
+
+    protected bool IsStarting { get; private set; }
+    protected bool IsStopping { get; private set; }
+
+    #endregion
 
     public virtual string Name => Settings.Name ?? "Main";
 
@@ -50,7 +62,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
         // Use the configured logger factory, if not provided try to resolve from DI, if also not available supress logging using the NullLoggerFactory
         LoggerFactory = settings.LoggerFactory
-            ?? (ILoggerFactory)settings.DependencyResolver?.Resolve(typeof(ILoggerFactory))
+            ?? (ILoggerFactory)settings.ServiceProvider?.GetService(typeof(ILoggerFactory))
             ?? NullLoggerFactory.Instance;
 
         _logger = LoggerFactory.CreateLogger<MessageBusBase>();
@@ -125,17 +137,25 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     public async Task Start()
     {
-        if (!IsStarted)
+        if (!IsStarted && !IsStarting)
         {
-            await BeforeStartTask;
+            IsStarting = true;
+            try
+            {
+                await BeforeStartTask;
 
-            _logger.LogInformation("Starting consumers for {BusName} bus...", Name);
-            await OnBusLifecycle(MessageBusLifecycleEventType.Starting);
-            await OnStart();
-            await OnBusLifecycle(MessageBusLifecycleEventType.Started);
-            _logger.LogInformation("Started consumers for {BusName} bus", Name);
+                _logger.LogInformation("Starting consumers for {BusName} bus...", Name);
+                await OnBusLifecycle(MessageBusLifecycleEventType.Starting);
+                await OnStart();
+                await OnBusLifecycle(MessageBusLifecycleEventType.Started);
+                _logger.LogInformation("Started consumers for {BusName} bus", Name);
 
-            IsStarted = true;
+                IsStarted = true;
+            }
+            finally
+            {
+                IsStarting = false;
+            }
         }
     }
 
@@ -146,7 +166,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
             return;
         }
 
-        var lifecycleInterceptors = (IEnumerable<object>)Settings.DependencyResolver?.Resolve(typeof(IEnumerable<IMessageBusLifecycleInterceptor>));
+        var lifecycleInterceptors = (IEnumerable<object>)Settings.ServiceProvider?.GetService<IEnumerable<IMessageBusLifecycleInterceptor>>();
         if (lifecycleInterceptors != null)
         {
             foreach (var i in lifecycleInterceptors.Cast<IMessageBusLifecycleInterceptor>())
@@ -158,15 +178,23 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     public async Task Stop()
     {
-        if (IsStarted)
+        if (IsStarted && !IsStopping)
         {
-            _logger.LogInformation("Stopping consumers for {BusName} bus...", Name);
-            await OnBusLifecycle(MessageBusLifecycleEventType.Stopping);
-            await OnStop();
-            await OnBusLifecycle(MessageBusLifecycleEventType.Stopped);
-            _logger.LogInformation("Stopped consumers for {BusName} bus", Name);
+            IsStopping = true;
+            try
+            {
+                _logger.LogInformation("Stopping consumers for {BusName} bus...", Name);
+                await OnBusLifecycle(MessageBusLifecycleEventType.Stopping);
+                await OnStop();
+                await OnBusLifecycle(MessageBusLifecycleEventType.Stopped);
+                _logger.LogInformation("Stopped consumers for {BusName} bus", Name);
 
-            IsStarted = false;
+                IsStarted = false;
+            }
+            finally
+            {
+                IsStopping = false;
+            }
         }
     }
 
@@ -228,8 +256,8 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     protected virtual void AssertDepencendyResolverSettings()
     {
-        Assert.IsNotNull(Settings.DependencyResolver,
-            () => new ConfigurationMessageBusException($"The {nameof(MessageBusSettings)}.{nameof(MessageBusSettings.DependencyResolver)} is not set"));
+        Assert.IsNotNull(Settings.ServiceProvider,
+            () => new ConfigurationMessageBusException($"The {nameof(MessageBusSettings)}.{nameof(MessageBusSettings.ServiceProvider)} is not set"));
     }
 
     protected virtual void AssertRequestResponseSettings()
@@ -290,8 +318,8 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
             }
             finally
             {
-                IsDisposing = false;
                 IsDisposed = true;
+                IsDisposing = false;
             }
         }
     }
@@ -302,7 +330,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     /// <returns></returns>
     protected virtual async ValueTask DisposeAsyncCore()
     {
-        await Stop();
+        await Stop().ConfigureAwait(false);
 
         if (_cancellationTokenSource != null)
         {
@@ -353,7 +381,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     /// <param name="cancellationToken"></param>
     public abstract Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null, CancellationToken cancellationToken = default);
 
-    public virtual Task Publish(object message, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, IDependencyResolver currentDependencyResolver = null)
+    public virtual Task Publish(object message, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, IServiceProvider currentServiceProvider = null)
     {
         if (message == null) throw new ArgumentNullException(nameof(message));
         AssertActive();
@@ -375,7 +403,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
             AddMessageHeaders(messageHeaders, headers, message, producerSettings);
         }
 
-        var resolver = currentDependencyResolver ?? Settings.DependencyResolver;
+        var resolver = currentServiceProvider ?? Settings.ServiceProvider;
 
         var producerInterceptors = RuntimeTypeCache.ProducerInterceptorType.ResolveAll(resolver, messageType);
         var publishInterceptors = RuntimeTypeCache.PublishInterceptorType.ResolveAll(resolver, messageType);
@@ -448,7 +476,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         return timeout;
     }
 
-    public virtual Task<TResponse> SendInternal<TResponse>(object request, TimeSpan? timeout, string path, IDictionary<string, object> headers, CancellationToken cancellationToken, IDependencyResolver currentDependencyResolver = null)
+    public virtual Task<TResponse> SendInternal<TResponse>(object request, TimeSpan? timeout, string path, IDictionary<string, object> headers, CancellationToken cancellationToken, IServiceProvider currentServiceProvider = null)
     {
         if (request == null) throw new ArgumentNullException(nameof(request));
         AssertActive();
@@ -486,7 +514,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
             requestHeaders.SetHeader(ReqRespMessageHeaders.Expires, expires);
         }
 
-        var resolver = currentDependencyResolver ?? Settings.DependencyResolver;
+        var resolver = currentServiceProvider ?? Settings.ServiceProvider;
 
         var producerInterceptors = RuntimeTypeCache.ProducerInterceptorType.ResolveAll(resolver, requestType);
         var sendInterceptors = RuntimeTypeCache.SendInterceptorType.ResolveAll(resolver, (requestType, responseType));
@@ -684,7 +712,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     {
         // ToDo: Move to MessageBusProxy to pick up the local scope
         var createMessageScope = IsMessageScopeEnabled(consumerSettings);
-        return new MessageScopeWrapper(_logger, Settings.DependencyResolver, createMessageScope, message);
+        return new MessageScopeWrapper(_logger, Settings.ServiceProvider, createMessageScope, message);
     }
 
     #region Implementation of IMessageBus
@@ -692,7 +720,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     #region Implementation of IPublishBus
 
     public virtual Task Publish<TMessage>(TMessage message, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
-        => Publish(message, path, headers, cancellationToken, currentDependencyResolver: null);
+        => Publish(message, path, headers, cancellationToken, currentServiceProvider: null);
 
     #endregion
 

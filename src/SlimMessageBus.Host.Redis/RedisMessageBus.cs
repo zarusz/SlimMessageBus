@@ -1,8 +1,12 @@
 ﻿namespace SlimMessageBus.Host.Redis;
 
+using System.Runtime.ExceptionServices;
+
 using Microsoft.Extensions.Logging;
+
 using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.Config;
+
 using StackExchange.Redis;
 
 public class RedisMessageBus : MessageBusBase
@@ -57,7 +61,7 @@ public class RedisMessageBus : MessageBusBase
         catch (Exception e)
         {
             // Do nothing
-            _logger.LogWarning(e, "Error occured while executing hook {0}", nameof(RedisMessageBusSettings.OnDatabaseConnected));
+            _logger.LogWarning(e, "Error occured while executing hook {HookName}", nameof(RedisMessageBusSettings.OnDatabaseConnected));
         }
     }
 
@@ -89,7 +93,7 @@ public class RedisMessageBus : MessageBusBase
     protected override async ValueTask DisposeAsyncCore()
     {
         await base.DisposeAsyncCore();
-
+        
         await ((IAsyncDisposable)Connection).DisposeSilently(nameof(ConnectionMultiplexer), _logger);
     }
 
@@ -97,26 +101,26 @@ public class RedisMessageBus : MessageBusBase
 
     protected override async Task OnStart()
     {
-        await base.OnStart();
+        await base.OnStart().ConfigureAwait(false);
 
         CreateConsumers();
 
         foreach (var consumer in _consumers)
         {
-            await consumer.Start();
+            await consumer.Start().ConfigureAwait(false);
         }
     }
 
     protected override async Task OnStop()
     {
-        await base.OnStop();
+        await base.OnStop().ConfigureAwait(false);
 
         foreach (var consumer in _consumers)
         {
-            await consumer.Stop();
+            await consumer.Stop().ConfigureAwait(false);
         }
 
-        DestroyConsumers();
+        await DestroyConsumers().ConfigureAwait(false);
     }
 
     protected void CreateConsumers()
@@ -184,11 +188,14 @@ public class RedisMessageBus : MessageBusBase
         }
     }
 
-    protected void DestroyConsumers()
+    protected async Task DestroyConsumers()
     {
         _logger.LogInformation("Destroying consumers");
 
-        _consumers.ForEach(consumer => consumer.DisposeSilently(nameof(RedisTopicConsumer), _logger));
+        foreach(var consumer in _consumers)
+        {
+            await consumer.DisposeSilently(nameof(RedisTopicConsumer), _logger).ConfigureAwait(false);
+        }
         _consumers.Clear();
     }
 

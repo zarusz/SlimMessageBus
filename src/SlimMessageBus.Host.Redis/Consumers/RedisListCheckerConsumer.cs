@@ -1,7 +1,9 @@
 ﻿namespace SlimMessageBus.Host.Redis;
 
 using System.Diagnostics;
+
 using SlimMessageBus.Host.Serialization;
+
 using StackExchange.Redis;
 
 public class RedisListCheckerConsumer : IRedisConsumer
@@ -133,12 +135,12 @@ public class RedisListCheckerConsumer : IRedisConsumer
 
     protected virtual async ValueTask DisposeAsyncCore()
     {
-        await Stop();
+        await Stop().ConfigureAwait(false);
 
         var processors = _queues.SelectMany(x => x.Processors).ToList();
         foreach (var processor in processors)
         {
-            await processor.DisposeSilently();
+            await processor.DisposeSilently().ConfigureAwait(false);
         }
         _queues.Clear();
 

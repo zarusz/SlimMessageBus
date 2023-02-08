@@ -1,5 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Outbox.DbContext.Test;
 
+using System.Collections.Concurrent;
 using System.Reflection;
 
 using Confluent.Kafka;
@@ -12,15 +13,15 @@ using Microsoft.Extensions.DependencyInjection;
 
 using SecretStore;
 
+using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.Hybrid;
 using SlimMessageBus.Host.Kafka;
 using SlimMessageBus.Host.Memory;
-using SlimMessageBus.Host.MsDependencyInjection;
 using SlimMessageBus.Host.Outbox.DbContext.Test.DataAccess;
 using SlimMessageBus.Host.Outbox.Sql;
 using SlimMessageBus.Host.Serialization.SystemTextJson;
-using SlimMessageBus.Host.Test.Common;
+using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
 using Xunit.Abstractions;
 
@@ -246,7 +247,7 @@ public record CustomerCreatedEvent(Guid Id, string Firstname, string Lastname);
 
 public record CustomerCreatedEventConsumer(TestEventCollector<CustomerCreatedEvent> Store) : IConsumer<CustomerCreatedEvent>, IConsumerWithContext
 {
-    public IConsumerContext? Context { get; set; }
+    public IConsumerContext Context { get; set; }
 
     public Task OnHandle(CustomerCreatedEvent message)
     {

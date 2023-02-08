@@ -3,7 +3,7 @@
 public interface IGenericTypeCache2<TFunc> : IReadOnlyCache<(Type RequestType, Type ResponseType), TFunc>
     where TFunc : Delegate
 {
-    IEnumerable<object> ResolveAll(IDependencyResolver scope, (Type RequestType, Type ResponseType) p);
+    IEnumerable<object> ResolveAll(IServiceProvider scope, (Type RequestType, Type ResponseType) p);
 
     public class GenericInterfaceType
     {
@@ -69,14 +69,14 @@ public class GenericTypeCache2<TFunc> : IGenericTypeCache2<TFunc>
     /// <param name="scope"></param>
     /// <param name="messageType"></param>
     /// <returns></returns>
-    public IEnumerable<object> ResolveAll(IDependencyResolver scope, (Type RequestType, Type ResponseType) p)
+    public IEnumerable<object> ResolveAll(IServiceProvider scope, (Type RequestType, Type ResponseType) p)
     {
         var git = _messageTypeToGenericInterfaceType[p];
 
         var cacheExists = _messageTypeToResolveCache.TryGet(p, out var lookupCache);
         if (!cacheExists || !lookupCache.IsEmpty)
         {
-            var interceptors = (IEnumerable<object>)scope.Resolve(git.EnumerableOfGenericType);
+            var interceptors = (IEnumerable<object>)scope.GetService(git.EnumerableOfGenericType);
 
             if (!cacheExists)
             {

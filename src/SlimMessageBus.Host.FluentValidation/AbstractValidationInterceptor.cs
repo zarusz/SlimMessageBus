@@ -1,14 +1,13 @@
 ﻿namespace SlimMessageBus.Host.FluentValidation;
 
 using global::FluentValidation;
-using System.Threading;
 
 public abstract class AbstractValidationInterceptor<T>
 {
     private readonly IEnumerable<IValidator<T>> _validators;
-    private readonly IValidationErrorsHandler _errorsHandler;
+    private readonly IValidationErrorsHandler? _errorsHandler;
 
-    protected AbstractValidationInterceptor(IEnumerable<IValidator<T>> validators, IValidationErrorsHandler errorsHandler = null)
+    protected AbstractValidationInterceptor(IEnumerable<IValidator<T>> validators, IValidationErrorsHandler? errorsHandler = null)
     {
         _validators = validators;
         _errorsHandler = errorsHandler;

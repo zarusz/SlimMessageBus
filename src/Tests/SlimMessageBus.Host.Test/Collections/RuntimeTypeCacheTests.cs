@@ -1,7 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Test.Collections;
 
 using SlimMessageBus.Host.Collections;
-using SlimMessageBus.Host.DependencyResolver;
 using SlimMessageBus.Host.Interceptor;
 
 public class RuntimeTypeCacheTests
@@ -31,9 +30,9 @@ public class RuntimeTypeCacheTests
 
         var requestHandlerInterceptorMock = new Mock<IRequestHandlerInterceptor<SomeRequest, SomeResponse>>();
 
-        var scopeMock = new Mock<IDependencyResolver>();
+        var scopeMock = new Mock<IServiceProvider>();
         scopeMock
-            .Setup(x => x.Resolve(typeof(IEnumerable<IRequestHandlerInterceptor<SomeRequest, SomeResponse>>)))
+            .Setup(x => x.GetService(typeof(IEnumerable<IRequestHandlerInterceptor<SomeRequest, SomeResponse>>)))
             .Returns(() => new[] { requestHandlerInterceptorMock.Object });
 
         var subject = new RuntimeTypeCache();
