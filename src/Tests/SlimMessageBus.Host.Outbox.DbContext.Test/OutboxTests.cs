@@ -1,6 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Outbox.DbContext.Test;
 
-using System.Collections.Concurrent;
 using System.Reflection;
 
 using Confluent.Kafka;
