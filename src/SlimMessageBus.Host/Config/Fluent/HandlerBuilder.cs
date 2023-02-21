@@ -7,6 +7,7 @@ public class HandlerBuilder<TRequest, TResponse> : AbstractConsumerBuilder
     {
         if (settings == null) throw new ArgumentNullException(nameof(settings));
 
+        ConsumerSettings.ConsumerMode = ConsumerMode.RequestResponse;
         ConsumerSettings.ResponseType = responseType ?? typeof(TResponse);
     }
 
@@ -24,7 +25,7 @@ public class HandlerBuilder<TRequest, TResponse> : AbstractConsumerBuilder
     /// <returns></returns>
     public HandlerBuilder<TRequest, TResponse> Path(string path)
     {
-        var consumerSettingsExist = Settings.Consumers.Any(x => x.Path == path && x.ConsumerMode == ConsumerMode.RequestResponse);
+        var consumerSettingsExist = Settings.Consumers.Any(x => x.Path == path && x.ConsumerMode == ConsumerMode.RequestResponse && x != ConsumerSettings);
         Assert.IsFalse(consumerSettingsExist,
             () => new ConfigurationMessageBusException($"Attempted to configure request handler for topic/queue '{path}' when one was already configured. You can only have one request handler for a given topic/queue, otherwise which response would you send back?"));
 
@@ -61,7 +62,6 @@ public class HandlerBuilder<TRequest, TResponse> : AbstractConsumerBuilder
         Assert.IsNotNull(ConsumerSettings.ResponseType,
             () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(ConsumerSettings.ResponseType)} is not set"));
 
-        ConsumerSettings.ConsumerMode = ConsumerMode.RequestResponse;
         ConsumerSettings.ConsumerType = typeof(THandler);
         ConsumerSettings.ConsumerMethod = (consumer, message) => ((THandler)consumer).OnHandle((TRequest)message);
 
@@ -75,7 +75,6 @@ public class HandlerBuilder<TRequest, TResponse> : AbstractConsumerBuilder
         Assert.IsNotNull(ConsumerSettings.ResponseType,
             () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(ConsumerSettings.ResponseType)} is not set"));
 
-        ConsumerSettings.ConsumerMode = ConsumerMode.RequestResponse;
         ConsumerSettings.ConsumerType = handlerType;
         SetupConsumerOnHandleMethod(ConsumerSettings);
 

@@ -24,11 +24,6 @@ public class ConsumerSettings : AbstractConsumerSettings, IMessageTypeConsumerIn
             .SingleOrDefault();
     }
 
-    public ConsumerSettings()
-    {
-        Invokers = new List<IMessageTypeConsumerInvokerSettings>();
-    }
-
     /// Type of consumer that is configured (subscriber or request handler).
     /// </summary>
     public ConsumerMode ConsumerMode { get; set; }
@@ -39,7 +34,7 @@ public class ConsumerSettings : AbstractConsumerSettings, IMessageTypeConsumerIn
     /// <summary>
     /// List of all declared consumers that handle any derived message type of the declared message type.
     /// </summary>
-    public IList<IMessageTypeConsumerInvokerSettings> Invokers { get; }
+    public ISet<IMessageTypeConsumerInvokerSettings> Invokers { get; } = new HashSet<IMessageTypeConsumerInvokerSettings>();
 
     public ConsumerSettings ParentSettings => this;
     /// <summary>

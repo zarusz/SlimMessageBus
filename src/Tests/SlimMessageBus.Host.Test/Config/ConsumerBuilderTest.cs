@@ -12,7 +12,7 @@ public class ConsumerBuilderTest
     }
 
     [Fact]
-    public void Given_MessageType_When_Configured_Then_MessageType_ProperlySet()
+    public void Given_MessageType_When_Configured_Then_MessageType_ProperlySet_And_ConsumerTypeNull()
     {
         // arrange
 
@@ -20,6 +20,8 @@ public class ConsumerBuilderTest
         var subject = new ConsumerBuilder<SomeMessage>(messageBusSettings);
 
         // assert
+        subject.ConsumerSettings.ConsumerMode.Should().Be(ConsumerMode.Consumer);
+        subject.ConsumerSettings.ConsumerType.Should().BeNull();
         subject.ConsumerSettings.MessageType.Should().Be(typeof(SomeMessage));
     }
 

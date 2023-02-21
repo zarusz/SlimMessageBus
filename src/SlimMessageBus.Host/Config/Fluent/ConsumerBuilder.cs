@@ -5,6 +5,7 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
     public ConsumerBuilder(MessageBusSettings settings, Type messageType = null)
         : base(settings, messageType ?? typeof(T))
     {
+        ConsumerSettings.ConsumerMode = ConsumerMode.Consumer;
     }
 
     public ConsumerBuilder<T> Path(string path)
@@ -35,7 +36,6 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
     public ConsumerBuilder<T> WithConsumer<TConsumer>()
         where TConsumer : class, IConsumer<T>
     {
-        ConsumerSettings.ConsumerMode = ConsumerMode.Consumer;
         ConsumerSettings.ConsumerType = typeof(TConsumer);
         ConsumerSettings.ConsumerMethod = (consumer, message) => ((IConsumer<T>)consumer).OnHandle((T)message);
 
@@ -98,7 +98,6 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
     {
         if (consumerMethod == null) throw new ArgumentNullException(nameof(consumerMethod));
 
-        ConsumerSettings.ConsumerMode = ConsumerMode.Consumer;
         ConsumerSettings.ConsumerType = typeof(TConsumer);
         ConsumerSettings.ConsumerMethod = (consumer, message) => consumerMethod((TConsumer)consumer, (T)message);
 
@@ -135,7 +134,6 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
 
         consumerMethodName ??= nameof(IConsumer<object>.OnHandle);
 
-        ConsumerSettings.ConsumerMode = ConsumerMode.Consumer;
         ConsumerSettings.ConsumerType = consumerType;
         SetupConsumerOnHandleMethod(ConsumerSettings, consumerMethodName);
 

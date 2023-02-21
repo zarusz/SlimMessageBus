@@ -98,7 +98,7 @@ public static class ServiceCollectionExtensions
 
     /// <summary>
     /// Scans the specified assemblies (using reflection) for types that implement either <see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/>. 
-    /// The found types are registered in the DI as Transient service.
+    /// The found types are registered in the DI as Transient service (both the consumer type and its interface are registered).
     /// </summary>
     /// <param name="services"></param>
     /// <param name="filterPredicate">Filtering predicate that allows to further narrow down the </param>
@@ -107,9 +107,16 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddMessageBusConsumersFromAssembly(this IServiceCollection services, Func<Type, bool> filterPredicate, params Assembly[] assemblies)
     {
         var foundTypes = ReflectionDiscoveryScanner.From(assemblies).GetConsumerTypes(filterPredicate);
-        foreach (var foundType in foundTypes)
+        foreach (var (foundType, interfaceTypes) in foundTypes.GroupBy(x => x.ConsumerType, x => x.InterfaceType).ToDictionary(x => x.Key, x => x))
         {
-            services.AddTransient(foundType.ConsumerType);
+            // Register the consumer/handler type
+            services.TryAddTransient(foundType);
+
+            foreach (var interfaceType in interfaceTypes)
+            {
+                // Register the interface of the consumer / handler
+                services.TryAddTransient(interfaceType, foundType);
+            }
         }
 
         return services;

@@ -45,14 +45,14 @@ public class MessageBusBuilder
     /// Configures (declares) the production (publishing for pub/sub or request sending in request/response) of a message 
     /// </summary>
     /// <typeparam name="T">Type of the message</typeparam>
-    /// <param name="producerBuilder"></param>
+    /// <param name="builder"></param>
     /// <returns></returns>
-    public MessageBusBuilder Produce<T>(Action<ProducerBuilder<T>> producerBuilder)
+    public MessageBusBuilder Produce<T>(Action<ProducerBuilder<T>> builder)
     {
-        if (producerBuilder == null) throw new ArgumentNullException(nameof(producerBuilder));
+        if (builder == null) throw new ArgumentNullException(nameof(builder));
 
         var item = new ProducerSettings();
-        producerBuilder(new ProducerBuilder<T>(item));
+        builder(new ProducerBuilder<T>(item));
         Settings.Producers.Add(item);
         return this;
     }
@@ -61,14 +61,14 @@ public class MessageBusBuilder
     /// Configures (declares) the production (publishing for pub/sub or request sending in request/response) of a message 
     /// </summary>
     /// <param name="messageType">Type of the message</param>
-    /// <param name="producerBuilder"></param>
+    /// <param name="builder"></param>
     /// <returns></returns>
-    public MessageBusBuilder Produce(Type messageType, Action<ProducerBuilder<object>> producerBuilder)
+    public MessageBusBuilder Produce(Type messageType, Action<ProducerBuilder<object>> builder)
     {
-        if (producerBuilder == null) throw new ArgumentNullException(nameof(producerBuilder));
+        if (builder == null) throw new ArgumentNullException(nameof(builder));
 
         var item = new ProducerSettings();
-        producerBuilder(new ProducerBuilder<object>(item, messageType));
+        builder(new ProducerBuilder<object>(item, messageType));
         Settings.Producers.Add(item);
         return this;
     }
@@ -77,13 +77,20 @@ public class MessageBusBuilder
     /// Configures (declares) the consumer of given message types in pub/sub or queue communication.
     /// </summary>
     /// <typeparam name="TMessage">Type of message</typeparam>
-    /// <param name="consumerBuilder"></param>
+    /// <param name="builder"></param>
     /// <returns></returns>
-    public MessageBusBuilder Consume<TMessage>(Action<ConsumerBuilder<TMessage>> consumerBuilder)
+    public MessageBusBuilder Consume<TMessage>(Action<ConsumerBuilder<TMessage>> builder)
     {
-        if (consumerBuilder == null) throw new ArgumentNullException(nameof(consumerBuilder));
+        if (builder == null) throw new ArgumentNullException(nameof(builder));
 
-        consumerBuilder(new ConsumerBuilder<TMessage>(Settings));
+        var b = new ConsumerBuilder<TMessage>(Settings);
+        builder(b);
+
+        if (b.ConsumerSettings.ConsumerType is null)
+        {
+            // Apply default consumer type of not set
+            b.WithConsumer<IConsumer<TMessage>>();
+        }
         return this;
     }
 
@@ -91,13 +98,13 @@ public class MessageBusBuilder
     /// Configures (declares) the consumer of given message types in pub/sub or queue communication.
     /// </summary>
     /// <param name="messageType">Type of message</param>
-    /// <param name="consumerBuilder"></param>
+    /// <param name="builder"></param>
     /// <returns></returns>
-    public MessageBusBuilder Consume(Type messageType, Action<ConsumerBuilder<object>> consumerBuilder)
+    public MessageBusBuilder Consume(Type messageType, Action<ConsumerBuilder<object>> builder)
     {
-        if (consumerBuilder == null) throw new ArgumentNullException(nameof(consumerBuilder));
+        if (builder == null) throw new ArgumentNullException(nameof(builder));
 
-        consumerBuilder(new ConsumerBuilder<object>(Settings, messageType));
+        builder(new ConsumerBuilder<object>(Settings, messageType));
         return this;
     }
 
@@ -106,13 +113,21 @@ public class MessageBusBuilder
     /// </summary>
     /// <typeparam name="TRequest"></typeparam>
     /// <typeparam name="TResponse"></typeparam>
-    /// <param name="handlerBuilder"></param>
+    /// <param name="builder"></param>
     /// <returns></returns>
-    public MessageBusBuilder Handle<TRequest, TResponse>(Action<HandlerBuilder<TRequest, TResponse>> handlerBuilder)
+    public MessageBusBuilder Handle<TRequest, TResponse>(Action<HandlerBuilder<TRequest, TResponse>> builder)
     {
-        if (handlerBuilder == null) throw new ArgumentNullException(nameof(handlerBuilder));
+        if (builder == null) throw new ArgumentNullException(nameof(builder));
 
-        handlerBuilder(new HandlerBuilder<TRequest, TResponse>(Settings));
+        var b = new HandlerBuilder<TRequest, TResponse>(Settings);
+        builder(b);
+
+        if (b.ConsumerSettings.ConsumerType is null)
+        {
+            // Apply default handler type of not set
+            b.WithHandler<IRequestHandler<TRequest, TResponse>>();
+        }
+
         return this;
     }
 
@@ -121,15 +136,15 @@ public class MessageBusBuilder
     /// </summary>
     /// <typeparam name="TRequest"></typeparam>
     /// <typeparam name="TResponse"></typeparam>
-    /// <param name="handlerBuilder"></param>
+    /// <param name="builder"></param>
     /// <returns></returns>
-    public MessageBusBuilder Handle(Type requestType, Type responseType, Action<HandlerBuilder<object, object>> handlerBuilder)
+    public MessageBusBuilder Handle(Type requestType, Type responseType, Action<HandlerBuilder<object, object>> builder)
     {
         if (requestType == null) throw new ArgumentNullException(nameof(requestType));
         if (responseType == null) throw new ArgumentNullException(nameof(responseType));
-        if (handlerBuilder == null) throw new ArgumentNullException(nameof(handlerBuilder));
+        if (builder == null) throw new ArgumentNullException(nameof(builder));
 
-        handlerBuilder(new HandlerBuilder<object, object>(Settings, requestType, responseType));
+        builder(new HandlerBuilder<object, object>(Settings, requestType, responseType));
         return this;
     }
 

@@ -236,7 +236,9 @@ public class SomeConsumer : IConsumer<SomeMessage>
 }
 ```
 
-The `SomeConsumer` needs to be registered in your DI container. The SMB runtime will ask the chosen DI to provide the desired number of consumer instances. Any collaborators of the consumer will be resolved according to your DI configuration.
+The `SomeConsumer` needs to be registered in the DI container. The SMB runtime will ask the DI to provide the consumer instance.
+
+> When `.WithConsumer<TConsumer>()` is not declared, then a default consumer of type `IConsumer<TMessage>` will be assumed (since v2.0.0).
 
 Alternatively, if you do not want to implement the `IConsumer<SomeMessage>`, then you can provide the method name (2) or a delegate that calls the consumer method (3):
 
@@ -546,7 +548,9 @@ mbb.Handle<SomeRequest, SomeResponse>(x => x
   )
 ```
 
-> The same micro-service can both send the request and also be the handler of those requests.
+The same micro-service can both send the request and also be the handler of those requests.
+
+> When `.WithHandler<THandler>()` is not declared, then a default handler of type `IRequestHandler<TRequest, TResponse>` will be assumed (since v2.0.0).
 
 ## Static accessor
 
@@ -596,6 +600,22 @@ services.AddSlimMessageBus((mbb, svp) =>
 services.AddMessageBusConsumersFromAssembly(Assembly.GetExecutingAssembly());
 services.AddMessageBusInterceptorsFromAssembly(Assembly.GetExecutingAssembly());
 services.AddMessageBusConfiguratorsFromAssembly(Assembly.GetExecutingAssembly());
+```
+
+Consider the following example:
+
+```cs
+// Given a consumer that is found:
+public class SomeMessageConsumer : IConsumer<SomeMessage>
+{
+}
+
+// When auto-registration is used:
+services.AddMessageBusConsumersFromAssembly(Assembly.GetExecutingAssembly());
+
+// Then it will cause the following MSDI setup:
+services.TryAddTransient<SomeMessageConsumer>();
+services.TryAddTransient<IConsumer<SomeMessage>, SomeMessageConsumer>();
 ```
 
 #### ASP.Net Core
