@@ -100,7 +100,7 @@ public class ReqRespWithRequestHandlerInterceptorBenchmark : ReqRespBaseBenchmar
     public Task ReqRespWithRequestHandlerInterceptor(int messageCount) => RunTest(messageCount);
 }
 
-public record SomeRequest(DateTimeOffset Timestamp, long Id) : IRequestMessage<SomeResponse>;
+public record SomeRequest(DateTimeOffset Timestamp, long Id) : IRequest<SomeResponse>;
 
 public record SomeResponse(DateTimeOffset Timestamp, long Id);
 

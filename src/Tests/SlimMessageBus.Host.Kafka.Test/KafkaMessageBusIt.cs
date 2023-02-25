@@ -10,7 +10,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.Serialization.Json;
-using SlimMessageBus.Host.Test.Common;
 using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
 /// <summary>
@@ -92,11 +91,11 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
         // arrange
 
         // ensure the topic has 2 partitions
-        var topic = $"{TopicPrefix}test-ping";
         var consumedMessages = ServiceProvider.GetRequiredService<TestEventCollector<ConsumedMessage>>();
 
         AddBusConfiguration(mbb =>
         {
+            var topic = $"{TopicPrefix}test-ping";
             mbb
                 .Produce<PingMessage>(x =>
                 {
@@ -165,10 +164,10 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
         // arrange
 
         // ensure the topic has 2 partitions
-        var topic = $"{TopicPrefix}test-echo";
 
         AddBusConfiguration(mbb =>
         {
+            var topic = $"{TopicPrefix}test-echo";
             mbb
                 .Produce<EchoRequest>(x =>
                 {
@@ -262,7 +261,7 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
         #endregion
     }
 
-    private class EchoRequest /*: IRequestMessage<EchoResponse>*/
+    private class EchoRequest /*: IRequest<EchoResponse>*/
     {
         public int Index { get; set; }
         public string Message { get; set; }

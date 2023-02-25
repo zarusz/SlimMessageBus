@@ -27,7 +27,7 @@ public class MemoryMessageBusBuilderTests
         var producers = subject.Settings.Producers;
         var consumers = subject.Settings.Consumers;
 
-        producers.Count.Should().Be(5);
+        producers.Count.Should().Be(6);
 
         producers.Should().Contain(x =>
             x.MessageType == typeof(SomeMessageA)
@@ -49,7 +49,11 @@ public class MemoryMessageBusBuilderTests
             x.MessageType == typeof(SomeRequest)
             && x.DefaultPath == nameof(SomeRequest));
 
-        consumers.Count.Should().Be(6);
+        producers.Should().Contain(x =>
+            x.MessageType == typeof(SomeRequestWithoutResponse)
+            && x.DefaultPath == nameof(SomeRequestWithoutResponse));
+
+        consumers.Count.Should().Be(7);
 
         consumers.Should().Contain(x =>
             x.MessageType == typeof(SomeMessageA)
@@ -89,6 +93,13 @@ public class MemoryMessageBusBuilderTests
             && x.Invokers.Count == 1
             && x.ConsumerType == typeof(SomeRequestHandler)
             && x.ResponseType == typeof(SomeResponse));
+
+        consumers.Should().Contain(x =>
+            x.MessageType == typeof(SomeRequestWithoutResponse)
+            && x.Path == nameof(SomeRequestWithoutResponse)
+            && x.Invokers.Count == 1
+            && x.ConsumerType == typeof(SomeRequestWithoutResponseHandler)
+            && x.ResponseType == null);
     }
 
     [Fact]

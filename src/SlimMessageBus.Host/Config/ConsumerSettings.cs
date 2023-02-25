@@ -17,11 +17,9 @@ public class ConsumerSettings : AbstractConsumerSettings, IMessageTypeConsumerIn
 
     private void CalculateResponseType()
     {
-        ResponseType = messageType
-            .GetInterfaces()
-            .Where(x => x.GetTypeInfo().IsGenericType && x.GetTypeInfo().GetGenericTypeDefinition() == typeof(IRequestMessage<>))
-            .Select(x => x.GetGenericArguments()[0])
-            .SingleOrDefault();
+        // Try to get T from IRequest<T>
+        ResponseType = messageType.GetInterfaces()
+            .SingleOrDefault(i => i.GetTypeInfo().IsGenericType && i.GetTypeInfo().GetGenericTypeDefinition() == typeof(IRequest<>))?.GetGenericArguments()[0];
     }
 
     /// Type of consumer that is configured (subscriber or request handler).
@@ -41,10 +39,6 @@ public class ConsumerSettings : AbstractConsumerSettings, IMessageTypeConsumerIn
     /// The response message that will be sent as a response to the arriving message (if request/response). Null when message type is not a request.
     /// </summary>
     public Type ResponseType { get; set; }
-    /// <summary>
-    /// Determines if the consumer setting is for request/response.
-    /// </summary>
-    public bool IsRequestMessage => ResponseType != null;
     /// <summary>
     /// Determines if a child scope is created for the message consuption. The consumer instance is then derived from that scope.
     /// </summary>

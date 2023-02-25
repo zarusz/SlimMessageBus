@@ -31,9 +31,8 @@ public class OutboxSendingTask : IMessageBusLifecycleInterceptor, IAsyncDisposab
     {
         if (_outboxSettings.MessageCleanup?.Enabled == true)
         {
-            var trigger = _cleanupNextRun != null && DateTime.UtcNow > _cleanupNextRun.Value;
-
-            if (_cleanupNextRun is null || trigger)
+            var trigger = _cleanupNextRun is null || DateTime.UtcNow > _cleanupNextRun.Value;
+            if (trigger)
             {
                 _cleanupNextRun = DateTime.UtcNow.Add(_outboxSettings.MessageCleanup.Interval);
             }
@@ -103,41 +102,54 @@ public class OutboxSendingTask : IMessageBusLifecycleInterceptor, IAsyncDisposab
     {
         try
         {
-            using var scope = _serviceProvider.CreateScope();
-
-            var outboxRepository = scope.ServiceProvider.GetRequiredService<IOutboxRepository>();
-
-            await outboxRepository.Initialize(_loopCts.Token);
-
-            var processedIds = new List<Guid>(_outboxSettings.PollBatchSize);
-
-            for (var ct = _loopCts.Token; !ct.IsCancellationRequested;)
+            var scope = _serviceProvider.CreateScope();
+            try
             {
-                var idleRun = true;
-                try
+                var outboxRepository = scope.ServiceProvider.GetRequiredService<IOutboxRepository>();
+
+                await outboxRepository.Initialize(_loopCts.Token);
+
+                var processedIds = new List<Guid>(_outboxSettings.PollBatchSize);
+
+                for (var ct = _loopCts.Token; !ct.IsCancellationRequested;)
                 {
-                    var lockExpiresOn = DateTime.UtcNow.Add(_outboxSettings.LockExpiration);
-                    var lockedCount = await outboxRepository.TryToLock(_instanceIdProvider.GetInstanceId(), lockExpiresOn, ct).ConfigureAwait(false);
-                    // Check if some messages where locked
-                    if (lockedCount > 0)
+                    var idleRun = true;
+                    try
                     {
-                        idleRun = await SendMessages(scope.ServiceProvider, outboxRepository, processedIds, ct).ConfigureAwait(false);
+                        var lockExpiresOn = DateTime.UtcNow.Add(_outboxSettings.LockExpiration);
+                        var lockedCount = await outboxRepository.TryToLock(_instanceIdProvider.GetInstanceId(), lockExpiresOn, ct).ConfigureAwait(false);
+                        // Check if some messages where locked
+                        if (lockedCount > 0)
+                        {
+                            idleRun = await SendMessages(scope.ServiceProvider, outboxRepository, processedIds, ct).ConfigureAwait(false);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogError(e, "Error while processing outbox messages");
+                    }
+
+                    if (idleRun)
+                    {
+                        if (ShouldRunCleanup())
+                        {
+                            _logger.LogTrace("Running cleanup of sent messages");
+                            await outboxRepository.DeleteSent(DateTime.UtcNow.Add(-_outboxSettings.MessageCleanup.Age), ct).ConfigureAwait(false);
+                        }
+
+                        await Task.Delay(_outboxSettings.PollIdleSleep).ConfigureAwait(false);
                     }
                 }
-                catch (Exception e)
+            }
+            finally
+            {
+                if (scope is IAsyncDisposable asyncDisposable)
                 {
-                    _logger.LogError(e, "Error while processing outbox messages");
+                    await asyncDisposable.DisposeAsync().ConfigureAwait(false);
                 }
-
-                if (idleRun)
+                else
                 {
-                    if (ShouldRunCleanup())
-                    {
-                        _logger.LogTrace("Running cleanup of sent messages");
-                        await outboxRepository.DeleteSent(DateTime.UtcNow.Add(-_outboxSettings.MessageCleanup.Age), ct).ConfigureAwait(false);
-                    }
-
-                    await Task.Delay(_outboxSettings.PollIdleSleep).ConfigureAwait(false);
+                    scope.Dispose();
                 }
             }
         }

@@ -6,4 +6,4 @@
 
 using System.Diagnostics.CodeAnalysis;
 
-[assembly: SuppressMessage("Design", "CA1040:Avoid empty interfaces", Justification = "This is a marker interface", Scope = "type", Target = "~T:SlimMessageBus.IRequestMessage`1")]
+[assembly: SuppressMessage("Design", "CA1040:Avoid empty interfaces", Justification = "This is a marker interface", Scope = "type", Target = "~T:SlimMessageBus.IRequest`1")]

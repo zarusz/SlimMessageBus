@@ -132,6 +132,28 @@ public class MessageBusBuilder
     }
 
     /// <summary>
+    /// Configures (declares) the handler of a given request message type which nas no response message type.
+    /// </summary>
+    /// <typeparam name="TRequest"></typeparam>
+    /// <param name="builder"></param>
+    /// <returns></returns>
+    public MessageBusBuilder Handle<TRequest>(Action<HandlerBuilder<TRequest>> builder)
+    {
+        if (builder == null) throw new ArgumentNullException(nameof(builder));
+
+        var b = new HandlerBuilder<TRequest>(Settings);
+        builder(b);
+
+        if (b.ConsumerSettings.ConsumerType is null)
+        {
+            // Apply default handler type of not set
+            b.WithHandler<IRequestHandler<TRequest>>();
+        }
+
+        return this;
+    }
+
+    /// <summary>
     /// Configures (declares) the handler of a given request message type in request-response communication.
     /// </summary>
     /// <typeparam name="TRequest"></typeparam>
@@ -145,6 +167,22 @@ public class MessageBusBuilder
         if (builder == null) throw new ArgumentNullException(nameof(builder));
 
         builder(new HandlerBuilder<object, object>(Settings, requestType, responseType));
+        return this;
+    }
+
+    /// <summary>
+    /// Configures (declares) the handler of a given request message type (for which there is no response type) in request-response communication.
+    /// </summary>
+    /// <typeparam name="TRequest"></typeparam>
+    /// <typeparam name="TResponse"></typeparam>
+    /// <param name="builder"></param>
+    /// <returns></returns>
+    public MessageBusBuilder Handle(Type requestType, Action<HandlerBuilder<object>> builder)
+    {
+        if (requestType == null) throw new ArgumentNullException(nameof(requestType));
+        if (builder == null) throw new ArgumentNullException(nameof(builder));
+
+        builder(new HandlerBuilder<object>(Settings, requestType));
         return this;
     }
 

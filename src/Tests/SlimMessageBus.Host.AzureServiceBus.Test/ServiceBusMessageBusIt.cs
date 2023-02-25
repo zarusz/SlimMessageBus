@@ -370,7 +370,7 @@ public class PingDerivedConsumer : IConsumer<PingDerivedMessage>, IConsumerWithC
     #endregion
 }
 
-public record EchoRequest : IRequestMessage<EchoResponse>
+public record EchoRequest : IRequest<EchoResponse>
 {
     public int Index { get; set; }
     public string Message { get; set; }

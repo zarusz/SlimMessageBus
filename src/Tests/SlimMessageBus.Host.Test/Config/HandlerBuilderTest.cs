@@ -12,7 +12,7 @@ public class HandlerBuilderTest
     }
 
     [Fact]
-    public void Given_RequestAndResposeType_When_Configured_Then_MessageType_And_ResponseType_And_DefaultHandlerTypeSet_ProperlySet()
+    public void When_Created_Given_RequestAndResposeType_Then_MessageType_And_ResponseType_And_DefaultHandlerTypeSet_ProperlySet()
     {
         // arrange
 
@@ -27,14 +27,14 @@ public class HandlerBuilderTest
     }
 
     [Fact]
-    public void Given_Path_Set_When_Configured_Then_Path_ProperlySet()
+    public void When_PathSet_Given_Path_Then_Path_ProperlySet()
     {
         // arrange
         var path = "topic";
-
+        var subject = new HandlerBuilder<SomeRequest, SomeResponse>(messageBusSettings);
+        
         // act
-        var subject = new HandlerBuilder<SomeRequest, SomeResponse>(messageBusSettings)
-            .Path(path);
+        subject.Path(path);
 
         // assert
         subject.ConsumerSettings.Path.Should().Be(path);
@@ -42,7 +42,7 @@ public class HandlerBuilderTest
     }
 
     [Fact]
-    public void BuildsProperSettings()
+    public void When_Configured_Given_RequestResponse_Then_ProperSettings()
     {
         // arrange
         var path = "topic";
@@ -57,9 +57,10 @@ public class HandlerBuilderTest
         subject.ConsumerSettings.MessageType.Should().Be(typeof(SomeRequest));
         subject.ConsumerSettings.Path.Should().Be(path);
         subject.ConsumerSettings.Instances.Should().Be(3);
+
         subject.ConsumerSettings.ConsumerType.Should().Be(typeof(SomeRequestMessageHandler));
         subject.ConsumerSettings.ConsumerMode.Should().Be(ConsumerMode.RequestResponse);
-        subject.ConsumerSettings.IsRequestMessage.Should().BeTrue();
+
         subject.ConsumerSettings.ResponseType.Should().Be(typeof(SomeResponse));
 
         subject.ConsumerSettings.Invokers.Count.Should().Be(1);
@@ -69,5 +70,36 @@ public class HandlerBuilderTest
         consumerInvokerSettings.ConsumerType.Should().Be(typeof(SomeRequestMessageHandler));
         Func<Task> call = () => consumerInvokerSettings.ConsumerMethod(new SomeRequestMessageHandler(), new SomeRequest());
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(SomeRequest));
+    }
+
+    [Fact]
+    public void When_Configured_Given_RequestWithoutResponse_Then_ProperSettings()
+    {
+        // arrange
+        var path = "topic";
+
+        // act
+        var subject = new HandlerBuilder<SomeRequestWithoutResponse>(messageBusSettings)
+            .Topic(path)
+            .Instances(3)
+            .WithHandler<SomeRequestWithoutResponseHandler>();
+
+        // assert
+        subject.ConsumerSettings.MessageType.Should().Be(typeof(SomeRequestWithoutResponse));
+        subject.ConsumerSettings.Path.Should().Be(path);
+        subject.ConsumerSettings.Instances.Should().Be(3);
+
+        subject.ConsumerSettings.ConsumerType.Should().Be(typeof(SomeRequestWithoutResponseHandler));
+        subject.ConsumerSettings.ConsumerMode.Should().Be(ConsumerMode.RequestResponse);
+
+        subject.ConsumerSettings.ResponseType.Should().BeNull();
+
+        subject.ConsumerSettings.Invokers.Count.Should().Be(1);
+
+        var consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(SomeRequestWithoutResponse));
+        consumerInvokerSettings.MessageType.Should().Be(typeof(SomeRequestWithoutResponse));
+        consumerInvokerSettings.ConsumerType.Should().Be(typeof(SomeRequestWithoutResponseHandler));
+        Func<Task> call = () => consumerInvokerSettings.ConsumerMethod(new SomeRequestWithoutResponseHandler(), new SomeRequestWithoutResponse());
+        call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(SomeRequestWithoutResponse));
     }
 }

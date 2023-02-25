@@ -14,3 +14,17 @@ public interface IRequestHandler<in TRequest, TResponse>
     /// <returns></returns>
     Task<TResponse> OnHandle(TRequest request);
 }
+
+/// <summary>
+/// Handler for request messages in the request-response communication where response is void.
+/// </summary>
+/// <typeparam name="TRequest">The request message type</typeparam>
+public interface IRequestHandler<in TRequest>
+{
+    /// <summary>
+    /// Handles the incoming request message.
+    /// </summary>
+    /// <param name="request">The request message</param>
+    /// <returns></returns>
+    Task OnHandle(TRequest request);
+}

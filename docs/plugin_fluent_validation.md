@@ -21,7 +21,7 @@ Consider the following command, with the validator (using FluentValidation) and 
 
 ```cs
 // The command
-public record CreateCustomerCommand : IRequestMessage<CommandResultWithId>
+public record CreateCustomerCommand : IRequest<CommandResultWithId>
 {
     public string? FirstName { get; set; }
     public string? LastName { get; set; }

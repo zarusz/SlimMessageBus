@@ -203,7 +203,7 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
     #endregion
 }
 
-public class EchoRequest : IRequestMessage<EchoResponse>
+public class EchoRequest : IRequest<EchoResponse>
 {
     public int Index { get; set; }
     public string Message { get; set; }

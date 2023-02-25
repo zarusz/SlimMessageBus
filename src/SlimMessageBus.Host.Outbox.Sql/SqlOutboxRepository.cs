@@ -21,11 +21,11 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
     {
         _logger = logger;
         _sqlTemplate = sqlOutboxTemplate;
-        Settings = settings;
-        Connection = connection;
-
         _jsonOptions = new();
         _jsonOptions.Converters.Add(new ObjectToInferredTypesConverter());
+
+        Settings = settings;
+        Connection = connection;
     }
 
     private async Task EnsureConnection()

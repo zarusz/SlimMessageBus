@@ -36,18 +36,21 @@ public abstract class BaseIntegrationTest<T> : IDisposable
 
         Secrets.Load(@"..\..\..\..\..\secrets.txt");
 
-        var services = new ServiceCollection();
-        services.AddSingleton<IConfiguration>(Configuration);
+        _serviceProvider = new Lazy<ServiceProvider>(() =>
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<IConfiguration>(Configuration);
 
-        services.AddSingleton(LoggerFactory);
-        services.Add(ServiceDescriptor.Singleton(typeof(ILogger<>), typeof(XunitLogger<>)));
-        services.Add(ServiceDescriptor.Singleton(typeof(ILogger), typeof(XunitLogger)));
+            services.AddSingleton(LoggerFactory);
+            services.Add(ServiceDescriptor.Singleton(typeof(ILogger<>), typeof(XunitLogger<>)));
+            services.Add(ServiceDescriptor.Singleton(typeof(ILogger), typeof(XunitLogger)));
 
-        services.AddSingleton<TestMetric>();        
+            services.AddSingleton<TestMetric>();
 
-        SetupServices(services, Configuration);
+            SetupServices(services, Configuration);
 
-        _serviceProvider = new Lazy<ServiceProvider>(services.BuildServiceProvider);
+            return services.BuildServiceProvider();
+        });
     }
 
     protected virtual void Dispose(bool disposing)
@@ -56,9 +59,10 @@ public abstract class BaseIntegrationTest<T> : IDisposable
         {
             if (disposing)
             {
-                if (_serviceProvider != null)
+                if (_serviceProvider.IsValueCreated)
                 {
                     _serviceProvider.Value.DisposeAsync().GetAwaiter().GetResult();
+                    _serviceProvider.Value.Dispose();
                 }
             }
 

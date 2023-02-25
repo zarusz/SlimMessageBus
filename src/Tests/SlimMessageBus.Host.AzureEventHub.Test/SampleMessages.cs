@@ -4,7 +4,7 @@ public record SomeMessage
 {
 }
 
-public record SomeRequest : IRequestMessage<SomeResponse>
+public record SomeRequest : IRequest<SomeResponse>
 {
 }
 

@@ -345,7 +345,7 @@ public class AddCommandConsumer : IConsumer<AddCommand>, IConsumerWithContext
     }
 }
 
-public class MultiplyRequest : IRequestMessage<MultiplyResponse>
+public class MultiplyRequest : IRequest<MultiplyResponse>
 {
     public int Left { get; set; }
     public int Right { get; set; }

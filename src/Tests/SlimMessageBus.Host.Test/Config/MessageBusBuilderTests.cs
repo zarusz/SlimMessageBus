@@ -43,6 +43,22 @@ public class MessageBusBuilderTests
     }
 
     [Fact]
+    public void When_Handle_Given_NoDeclaredHandlerType_And_RequestWithoutResponse_Then_DefaultHandlerTypeSet()
+    {
+        // arrange
+        var subject = MessageBusBuilder.Create();
+
+        // act
+        subject.Handle<SomeRequestWithoutResponse>(x => { });
+
+        // assert
+        subject.Settings.Consumers.Count.Should().Be(1);
+        subject.Settings.Consumers[0].MessageType.Should().Be(typeof(SomeRequestWithoutResponse));
+        subject.Settings.Consumers[0].ResponseType.Should().BeNull();
+        subject.Settings.Consumers[0].ConsumerType.Should().Be(typeof(IRequestHandler<SomeRequestWithoutResponse>));
+    }
+
+    [Fact]
     public void Given_OtherBuilder_When_CopyConstructorUsed_Then_AllStateIsCopied()
     {
         // arrange

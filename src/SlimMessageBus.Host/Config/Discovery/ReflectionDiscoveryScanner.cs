@@ -63,7 +63,8 @@ public class ReflectionDiscoveryScanner
     private static readonly Type[] GenericTypesConsumers = new[]
     {
         typeof(IConsumer<>),
-        typeof(IRequestHandler<,>)
+        typeof(IRequestHandler<,>),
+        typeof(IRequestHandler<>)
     };
 
     public IReadOnlyCollection<Type> GetMessageBusConfiguratorTypes()

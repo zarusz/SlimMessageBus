@@ -2,7 +2,7 @@
 
 using SlimMessageBus;
 
-public record CreateCustomerCommand : IRequestMessage<CommandResultWithId>
+public record CreateCustomerCommand : IRequest<CommandResultWithId>
 {
     public string? FirstName { get; set; }
     public string? LastName { get; set; }
