@@ -1,7 +1,8 @@
 ﻿namespace SlimMessageBus.Host.Memory;
 
-using SlimMessageBus.Host.Config;
 using System.Reflection;
+
+using SlimMessageBus.Host.Config;
 
 /// <summary>
 /// Message Bus Builder specific to the Memory transport.
@@ -35,20 +36,14 @@ public class MemoryMessageBusBuilder : MessageBusBuilder
         var prospectTypes = ReflectionDiscoveryScanner.From(assemblies).Scan().GetConsumerTypes(consumerTypeFilter);
 
         var foundConsumers = prospectTypes.Where(x => x.InterfaceType.GetGenericTypeDefinition() == typeof(IConsumer<>)).ToList();
-        var foundHandlers = prospectTypes.Where(x => x.InterfaceType.GetGenericTypeDefinition() == typeof(IRequestHandler<,>)).ToList();
+        var foundHandlers = prospectTypes.Where(x => x.InterfaceType.GetGenericTypeDefinition() == typeof(IRequestHandler<,>) || x.InterfaceType.GetGenericTypeDefinition() == typeof(IRequestHandler<>)).ToList();
 
         var knownMessageTypes = new HashSet<Type>();
 
-        // register all consumers
-        foreach (var consumer in foundConsumers)
+        // register all consumers, handlers
+        foreach (var consumer in foundConsumers.Concat(foundHandlers))
         {
             knownMessageTypes.Add(consumer.MessageType);
-        }
-
-        // register all handlers
-        foreach (var handler in foundHandlers)
-        {
-            knownMessageTypes.Add(handler.MessageType);
         }
 
         var ancestorsByType = new Dictionary<Type, ISet<Type>>();
@@ -111,22 +106,44 @@ public class MemoryMessageBusBuilder : MessageBusBuilder
 
                 var responseType = handlers.First(x => x.MessageType == rootMessageType).ResponseType;
 
-                // register handler
-                Handle(rootMessageType, responseType, x =>
+                if (responseType == null)
                 {
-                    x.Topic(topicName);
-                    foreach (var handler in handlers)
+                    // register handler without a response
+                    Handle(rootMessageType, x =>
                     {
-                        if (handler.MessageType == rootMessageType && !x.ConsumerSettings.Invokers.Contains(x.ConsumerSettings))
+                        x.Topic(topicName);
+                        foreach (var handler in handlers)
                         {
-                            x.WithHandler(handler.ConsumerType);
+                            if (handler.MessageType == rootMessageType && !x.ConsumerSettings.Invokers.Contains(x.ConsumerSettings))
+                            {
+                                x.WithHandler(handler.ConsumerType);
+                            }
+                            else
+                            {
+                                x.WithHandler(derivedHandlerType: handler.ConsumerType, derivedRequestType: handler.MessageType);
+                            }
                         }
-                        else
+                    });
+                }
+                else
+                {
+                    // register handler
+                    Handle(rootMessageType, responseType, x =>
+                    {
+                        x.Topic(topicName);
+                        foreach (var handler in handlers)
                         {
-                            x.WithHandler(derivedHandlerType: handler.ConsumerType, derivedRequestType: handler.MessageType);
+                            if (handler.MessageType == rootMessageType && !x.ConsumerSettings.Invokers.Contains(x.ConsumerSettings))
+                            {
+                                x.WithHandler(handler.ConsumerType);
+                            }
+                            else
+                            {
+                                x.WithHandler(derivedHandlerType: handler.ConsumerType, derivedRequestType: handler.MessageType);
+                            }
                         }
-                    }
-                });
+                    });
+                }
             }
         }
 

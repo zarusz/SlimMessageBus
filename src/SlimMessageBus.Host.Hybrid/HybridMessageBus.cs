@@ -43,7 +43,7 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
             .ToDictionary(x => x.Key, x => x.Select(y => y.Bus).ToArray());
 
         var requestTypesWithMoreThanOneBus = busesByMessageType
-            .Where(x => x.Value.Length > 1 && x.Key.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequestMessage<>)))
+            .Where(x => x.Value.Length > 1 && x.Key.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequest<>)))
             .Select(x => x.Key)
             .ToList();
 
@@ -131,17 +131,24 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
 
     #region Implementation of IRequestResponseBus
 
-    public Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, TimeSpan? timeout = null)
+    public Task<TResponse> Send<TResponse>(IRequest<TResponse> request, string path = null, IDictionary<string, object> headers = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
         var buses = Route(request, path);
-        return buses[0].Send(request, path, headers, cancellationToken, timeout);
+        return buses[0].Send(request, path, headers, timeout, cancellationToken);
     }
 
-    public Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, TimeSpan? timeout = null)
+    public Task Send(IRequest request, string path = null, IDictionary<string, object> headers = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
         var buses = Route(request, path);
-        return buses[0].Send<TResponseMessage, TRequestMessage>(request, path, headers, cancellationToken, timeout);
+        return buses[0].Send(request, path, headers, timeout, cancellationToken);
     }
+
+    public Task<TResponse> Send<TResponse, TRequest>(TRequest request, string path = null, IDictionary<string, object> headers = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
+        var buses = Route(request, path);
+        return buses[0].Send<TResponse, TRequest>(request, path, headers, timeout, cancellationToken);
+    }
+
     #endregion
 
     public Task<TResponseMessage> SendInternal<TResponseMessage>(object request, TimeSpan? timeout, string path, IDictionary<string, object> headers, CancellationToken cancellationToken, IServiceProvider currentServiceProvider = null)

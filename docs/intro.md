@@ -18,10 +18,11 @@
   - [Message headers for request-response](#message-headers-for-request-response)
   - [Produce request message](#produce-request-message)
   - [Consume the request message (the request handler)](#consume-the-request-message-the-request-handler)
+  - [Request without response](#request-without-response)
 - [Static accessor](#static-accessor)
 - [Dependency resolver](#dependency-resolver)
   - [Dependency auto-registration](#dependency-auto-registration)
-    - [ASP.Net Core](#aspnet-core)
+  - [ASP.Net Core](#aspnet-core)
   - [Modularization of configuration](#modularization-of-configuration)
   - [Autoregistration of consumers, interceptors and configurators](#autoregistration-of-consumers-interceptors-and-configurators)
 - [Serialization](#serialization)
@@ -467,11 +468,11 @@ The response contains headers:
 
 ### Produce request message
 
-The request messages can use the optional marker interface `IRequestMessage<TResponse>`:
+The request messages can use the optional marker interface [`IRequest<TResponse>`](../src/SlimMessageBus/RequestResponse/IRequest.cs):
 
 ```cs
 // Option 1:
-public class SomeRequest : IRequestMessage<SomeResponse> // Implementing the marker interface is optional
+public class SomeRequest : IRequest<SomeResponse> // Implementing the marker interface is optional
 {
 }
 
@@ -497,7 +498,7 @@ The micro-service that will be sending the request messages needs to enable requ
 })
 ```
 
-The request sending side declares the request message using `Produce<TMessage>()` method:
+The request sending side declares the request message using `.Produce<TMessage>()` method:
 
 ```cs
 mbb.Produce<SomeRequest>(x =>
@@ -519,7 +520,7 @@ var res = await bus.Send(req); // Option 1 - with marker interface
 // var res = await bus.Send<SomeResponse, SomeRequest>(req); // Option 2 - without marker interface
 ```
 
-> The marker interface `IRequestMessage<TResponse>` helps to avoid having to specify the request and response types in the `IMessageBus.Send()` method. There is no other difference.
+> The marker interface `IRequest<TResponse>` helps to avoid having to specify the request and response types in the `IMessageBus.Send()` method. There is no other difference.
 
 ### Consume the request message (the request handler)
 
@@ -552,6 +553,45 @@ The same micro-service can both send the request and also be the handler of thos
 
 > When `.WithHandler<THandler>()` is not declared, then a default handler of type `IRequestHandler<TRequest, TResponse>` will be assumed (since v2.0.0).
 
+### Request without response
+
+Since version 2.0.0 there is support for requests that do not have a response type associated with it.
+The request processing will be awaited during `.Send()`, however no response will be returned. If an exception were to happen on the handler side the exception will be thrown by the `.Send()`.
+
+Consider the following example:
+
+```cs
+// The request has to use the IRequest interface
+public class SomeRequest : IRequest
+{
+}
+
+// The handler has to use IRequestHandler<T> interface
+public class SomeRequestHandler : IRequestHandler<SomeRequest>
+{
+  public async Task OnHandle(SomeRequest request)
+  {
+    // no response returned
+  }
+}
+
+// The request is declared on the bus builder (for the producer side)
+mbb.Produce<SomeRequest>(x =>
+{
+  x.DefaultTopic("topic");
+})
+
+// The request handler is declared on the bus builder (for the consumer side)
+mbb.Handle<SomeRequest>(x => x
+    .Topic("topic") // Topic to expect the requests on
+    .WithHandler<SomeRequestHandler>()
+    .KafkaGroup("some-consumer-group") // kafka provider specific
+);
+
+// Usage example for the producer side
+await bus.Send(new SampleRequest());
+```
+
 ## Static accessor
 
 The static [`MessageBus.Current`](../src/SlimMessageBus/MessageBus.cs) was introduced to obtain the [`IMessageBus`](../src/SlimMessageBus/IMessageBus.cs) from the current context. The master bus managing all the consumers will be a singleton `IMessageBus`. However, the consumer instances will be obtained from the current DI scope (tied with the current web request or message scope when in a message handling scope).
@@ -564,7 +604,7 @@ See [`DomainEvents`](../src/Samples/Sample.DomainEvents.WebApi/Startup.cs#L79) s
 
 ## Dependency resolver
 
-SMB uses the [`Microsoft.Extensions.DependencyInjection`](https://www.nuget.org/packages/Microsoft.Extensions.DependencyInjection) container to obtain and manage instances of the declared consumers (class instances that implement `IConsumer<>` or `IHandler<>`) or interceptors.
+SMB uses the [`Microsoft.Extensions.DependencyInjection`](https://www.nuget.org/packages/Microsoft.Extensions.DependencyInjection) container to obtain and manage instances of the declared consumers (class instances that implement `IConsumer<>` or `IRequestHandler<>`) or interceptors.
 
 The consumer/handler is typically resolved from DI container when the message arrives and needs to be handled.
 SMB does not maintain a reference to that object instance after consuming the message - this gives user the ability to decide if the consumer/handler should be a singleton, transient, or scoped (to the message being processed or ongoing web-request) and when it should be disposed of.
@@ -618,7 +658,7 @@ services.TryAddTransient<SomeMessageConsumer>();
 services.TryAddTransient<IConsumer<SomeMessage>, SomeMessageConsumer>();
 ```
 
-#### ASP.Net Core
+### ASP.Net Core
 
 For ASP.NET services, it is recommended to use the [`AspNetCore`](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore) plugin. To properly support request scopes for [MessageBus.Current](#static-accessor) static accessor, it has a dependency on the `IHttpContextAccessor` which [needs to be registered](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/http-context?view=aspnetcore-6.0#use-httpcontext-from-custom-components) during application setup:
 
@@ -898,6 +938,27 @@ See source:
 - [IRequestHandlerInterceptor](../src/SlimMessageBus.Host.Interceptor/Consumers/IRequestHandlerInterceptor.cs)
 
 > Remember to register your interceptor types in the DI (either using auto-discovery [`addInterceptorsFromAssembly`](#MsDependencyInjection) or manually).
+
+To intercept [handlers with requests without a response](#request-without-response) use type `IRequestHandlerInterceptor<TRequest, Void>` by setting the response type to [`Void`](../src/SlimMessageBus.Host/RequestResponse/Void.cs). Consider the following example:
+
+```cs
+public class SomeRequestInterceptor : IRequestHandlerInterceptor<SomeRequest, Void>
+{
+   public async Task<Void> OnHandle(TRequest request, Func<Task<Void>> next, IConsumerContext context)
+   {
+      // ... pre-handling logic
+      
+      // Handle the actual request
+      await next();
+
+      // ... post-handling logic
+
+      // The return value is not used
+      return null;
+   }
+}
+
+```
 
 ### Order of Execution
 

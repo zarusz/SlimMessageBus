@@ -5,7 +5,7 @@
 /// </summary>
 public static class MessageBus
 {
-    private static readonly Func<IMessageBus> ProviderDefault = () => throw new MessageBusException("The provider was not set");
+    private static readonly Func<IMessageBus> ProviderDefault = () => throw new MessageBusException($"The provider for {nameof(MessageBus)}.{nameof(Current)} was not set");
 
     private static Func<IMessageBus> _provider = ProviderDefault;
 

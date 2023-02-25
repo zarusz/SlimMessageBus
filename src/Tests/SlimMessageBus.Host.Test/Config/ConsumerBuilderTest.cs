@@ -83,7 +83,6 @@ public class ConsumerBuilderTest
             .WithConsumer<Derived2AMessageConsumer, Derived2AMessage>();
 
         // assert
-        subject.ConsumerSettings.IsRequestMessage.Should().BeFalse();
         subject.ConsumerSettings.ResponseType.Should().BeNull();
 
         subject.ConsumerSettings.ConsumerMode.Should().Be(ConsumerMode.Consumer);
@@ -136,7 +135,6 @@ public class ConsumerBuilderTest
 
         // assert
 
-        subject.ConsumerSettings.IsRequestMessage.Should().BeTrue();
         subject.ConsumerSettings.ResponseType.Should().Be(typeof(BaseResponse));
 
         subject.ConsumerSettings.ConsumerMode.Should().Be(ConsumerMode.Consumer);
@@ -201,7 +199,7 @@ public class ConsumerBuilderTest
     {
     }
 
-    public class BaseRequest : IRequestMessage<BaseResponse>
+    public class BaseRequest : IRequest<BaseResponse>
     {
     }
 

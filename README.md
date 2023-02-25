@@ -25,13 +25,13 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 
 - Consumers:
   - `IConsumer<in TMessage>` - subscriber in pub/sub (or queue consumer)
-  - `IRequestHandler<in TRequest, TResponse>` - request handler in request-response
+  - `IRequestHandler<in TRequest, TResponse>` & `IRequestHandler<in TRequest>` - request handler in request-response
 - Producers:
   - `IPublishBus` - publisher in pub/sub (or queue producer)
   - `IRequestResponseBus` - sender in req/resp
   - `IMessageBus` - extends `IPublishBus` and `IRequestResponseBus`
 - Misc:
-  - `IRequestMessage<TResponse>` - marker for request messages
+  - `IRequest<out TResponse>` & `IRequest` - a marker for request messages
   - `MessageBus` - static accessor for current context `IMessageBus`
 
 ## Docs

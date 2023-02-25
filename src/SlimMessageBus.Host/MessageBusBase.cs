@@ -240,12 +240,6 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
             () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.ConsumerType)} is not set"));
         Assert.IsNotNull(consumerSettings.ConsumerMethod,
             () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.ConsumerMethod)} is not set"));
-
-        if (consumerSettings.ConsumerMode == ConsumerMode.RequestResponse)
-        {
-            Assert.IsNotNull(consumerSettings.ResponseType,
-                () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.ResponseType)} is not set"));
-        }
     }
 
     protected virtual void AssertSerializerSettings()
@@ -726,11 +720,14 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     #region Implementation of IRequestResponseBus
 
-    public virtual Task<TResponseMessage> Send<TResponseMessage>(IRequestMessage<TResponseMessage> request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, TimeSpan? timeout = null)
-        => SendInternal<TResponseMessage>(request, timeout, path, headers, cancellationToken);
+    public virtual Task<TResponse> Send<TResponse>(IRequest<TResponse> request, string path = null, IDictionary<string, object> headers = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+        => SendInternal<TResponse>(request, timeout, path, headers, cancellationToken);
 
-    public Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, TimeSpan? timeout = null)
-        => SendInternal<TResponseMessage>(request, timeout, path, headers, cancellationToken);
+    public Task Send(IRequest request, string path = null, IDictionary<string, object> headers = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+        => SendInternal<Void>(request, timeout, path, headers, cancellationToken);
+
+    public Task<TResponse> Send<TResponse, TRequest>(TRequest request, string path = null, IDictionary<string, object> headers = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+        => SendInternal<TResponse>(request, timeout, path, headers, cancellationToken);
 
     #endregion
 

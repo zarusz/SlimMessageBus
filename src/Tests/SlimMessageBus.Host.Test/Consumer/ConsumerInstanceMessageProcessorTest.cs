@@ -5,12 +5,12 @@ using Microsoft.Extensions.DependencyInjection;
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Interceptor;
 
-public class ConsumerInstanceMessageProcessorTests
+public class ConsumerInstanceMessageProcessorTest
 {
     private readonly MessageBusMock _busMock;
     private readonly Mock<Func<Type, byte[], object>> _messageProviderMock;
 
-    public ConsumerInstanceMessageProcessorTests()
+    public ConsumerInstanceMessageProcessorTest()
     {
         _busMock = new MessageBusMock();
         _messageProviderMock = new Mock<Func<Type, byte[], object>>();
@@ -197,7 +197,7 @@ public class ConsumerInstanceMessageProcessorTests
     }
 
     [Fact]
-    public async Task When_MessageArrives_Then_RequestHandlerInterceptorIsCalled_Given_SendResponsesIsFalse()
+    public async Task When_RequestArrives_Given_Request_Then_RequestHandlerInterceptorIsCalled_Given_SendResponsesIsFalse()
     {
         // arrange
         var request = new SomeRequest();
@@ -237,6 +237,52 @@ public class ConsumerInstanceMessageProcessorTests
         result.Response.Should().BeSameAs(response);
 
         requestHandlerInterceptor.Verify(x => x.OnHandle(request, It.IsAny<Func<Task<SomeResponse>>>(), It.IsAny<IConsumerContext>()), Times.Once);
+        requestHandlerInterceptor.VerifyNoOtherCalls();
+
+        handlerMock.Verify(x => x.OnHandle(request), Times.Once); // handler called once
+        handlerMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task When_RequestArrives_Given_RequestWithoutResponse_Then_RequestHandlerInterceptorIsCalled_Given_SendResponsesIsFalse()
+    {
+        // arrange
+        var request = new SomeRequestWithoutResponse();
+        var requestPayload = Array.Empty<byte>();
+        var topic = "topic1";
+
+        var handlerMock = new Mock<IRequestHandler<SomeRequestWithoutResponse>>();
+        handlerMock
+            .Setup(x => x.OnHandle(request))
+            .Returns(Task.CompletedTask);
+
+        var requestHandlerInterceptor = new Mock<IRequestHandlerInterceptor<SomeRequestWithoutResponse, Void>>();
+        requestHandlerInterceptor
+            .Setup(x => x.OnHandle(request, It.IsAny<Func<Task<Void>>>(), It.IsAny<IConsumerContext>()))
+            .Returns((SomeRequestWithoutResponse message, Func<Task<Void>> next, IConsumerContext context) => next?.Invoke());
+
+        _busMock.DependencyResolverMock
+            .Setup(x => x.GetService(typeof(IRequestHandler<SomeRequestWithoutResponse>)))
+            .Returns(handlerMock.Object);
+
+        _busMock.DependencyResolverMock
+            .Setup(x => x.GetService(typeof(IEnumerable<IRequestHandlerInterceptor<SomeRequestWithoutResponse, Void>>)))
+            .Returns(new[] { requestHandlerInterceptor.Object });
+
+        var consumerSettings = new HandlerBuilder<SomeRequestWithoutResponse>(_busMock.Bus.Settings).Topic(topic).WithHandler<IRequestHandler<SomeRequestWithoutResponse>>().ConsumerSettings;
+
+        _messageProviderMock.Setup(x => x(request.GetType(), requestPayload)).Returns(request);
+
+        var p = new ConsumerInstanceMessageProcessor<byte[]>(new[] { consumerSettings }, _busMock.Bus, _messageProviderMock.Object, topic, sendResponses: false);
+
+        // act
+        var result = await p.ProcessMessage(requestPayload, new Dictionary<string, object>(), default);
+
+        // assert
+        result.Exception.Should().BeNull();
+        result.Response.Should().BeNull();
+
+        requestHandlerInterceptor.Verify(x => x.OnHandle(request, It.IsAny<Func<Task<Void>>>(), It.IsAny<IConsumerContext>()), Times.Once);
         requestHandlerInterceptor.VerifyNoOtherCalls();
 
         handlerMock.Verify(x => x.OnHandle(request), Times.Once); // handler called once

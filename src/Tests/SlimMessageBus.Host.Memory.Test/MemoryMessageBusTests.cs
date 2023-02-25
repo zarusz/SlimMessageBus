@@ -423,7 +423,7 @@ public class SomeMessageBConsumer : IConsumer<SomeMessageB>
     public virtual Task OnHandle(SomeMessageB message) => Task.CompletedTask;
 }
 
-public record SomeRequest(Guid Id) : IRequestMessage<SomeResponse>;
+public record SomeRequest(Guid Id) : IRequest<SomeResponse>;
 
 public record SomeResponse(Guid Id);
 
@@ -435,4 +435,11 @@ public class SomeRequestHandler : IRequestHandler<SomeRequest, SomeResponse>
 public class SomeRequestConsumer : IConsumer<SomeRequest>
 {
     public virtual Task OnHandle(SomeRequest message) => Task.CompletedTask;
+}
+
+public record SomeRequestWithoutResponse(Guid Id) : IRequest;
+
+public class SomeRequestWithoutResponseHandler : IRequestHandler<SomeRequestWithoutResponse>
+{
+    public virtual Task OnHandle(SomeRequestWithoutResponse request) => Task.CompletedTask;
 }

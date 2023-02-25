@@ -1,36 +1,40 @@
 namespace SlimMessageBus.Host.Config;
 
-public class HandlerBuilder<TRequest, TResponse> : AbstractConsumerBuilder
+/// <summary>
+/// Base builder for request builders (those who have request/response, and those who have no response).
+/// </summary>
+/// <typeparam name="TRequest"></typeparam>
+/// <typeparam name="THandlerBuilder"></typeparam>
+public abstract class AbstractHandlerBuilder<TRequest, THandlerBuilder> : AbstractConsumerBuilder
+    where THandlerBuilder : AbstractHandlerBuilder<TRequest, THandlerBuilder>
 {
-    public HandlerBuilder(MessageBusSettings settings, Type requestType = null, Type responseType = null)
-        : base(settings, requestType ?? typeof(TRequest))
+    protected AbstractHandlerBuilder(MessageBusSettings settings, Type messageType, string path = null) 
+        : base(settings, messageType, path)
     {
-        if (settings == null) throw new ArgumentNullException(nameof(settings));
-
-        ConsumerSettings.ConsumerMode = ConsumerMode.RequestResponse;
-        ConsumerSettings.ResponseType = responseType ?? typeof(TResponse);
     }
 
-    /// <summary>
-    /// Configure topic name (or queue name) that incoming requests (<see cref="TRequest"/>) are expected on.
-    /// </summary>
-    /// <param name="path">Topic name</param>
-    /// <returns></returns>
-    public HandlerBuilder<TRequest, TResponse> Topic(string path) => Path(path);
+    protected THandlerBuilder TypedThis => (THandlerBuilder)this;
 
     /// <summary>
     /// Configure topic name (or queue name) that incoming requests (<see cref="TRequest"/>) are expected on.
     /// </summary>
     /// <param name="path">Topic name</param>
     /// <returns></returns>
-    public HandlerBuilder<TRequest, TResponse> Path(string path)
+    public THandlerBuilder Topic(string path) => Path(path);
+
+    /// <summary>
+    /// Configure topic name (or queue name) that incoming requests (<see cref="TRequest"/>) are expected on.
+    /// </summary>
+    /// <param name="path">Topic name</param>
+    /// <returns></returns>
+    public THandlerBuilder Path(string path)
     {
         var consumerSettingsExist = Settings.Consumers.Any(x => x.Path == path && x.ConsumerMode == ConsumerMode.RequestResponse && x != ConsumerSettings);
         Assert.IsFalse(consumerSettingsExist,
             () => new ConfigurationMessageBusException($"Attempted to configure request handler for topic/queue '{path}' when one was already configured. You can only have one request handler for a given topic/queue, otherwise which response would you send back?"));
 
         ConsumerSettings.Path = path;
-        return this;
+        return TypedThis;
     }
 
     /// <summary>
@@ -39,7 +43,7 @@ public class HandlerBuilder<TRequest, TResponse> : AbstractConsumerBuilder
     /// <param name="topic">Topic name</param>
     /// <param name="topicConfig"></param>
     /// <returns></returns>
-    public HandlerBuilder<TRequest, TResponse> Path(string path, Action<HandlerBuilder<TRequest, TResponse>> pathConfig)
+    public THandlerBuilder Path(string path, Action<THandlerBuilder> pathConfig)
     {
         if (pathConfig is null) throw new ArgumentNullException(nameof(pathConfig));
 
@@ -54,63 +58,43 @@ public class HandlerBuilder<TRequest, TResponse> : AbstractConsumerBuilder
     /// <param name="topic">Topic name</param>
     /// <param name="topicConfig"></param>
     /// <returns></returns>
-    public HandlerBuilder<TRequest, TResponse> Topic(string topic, Action<HandlerBuilder<TRequest, TResponse>> topicConfig) => Path(topic, topicConfig);
+    public THandlerBuilder Topic(string topic, Action<THandlerBuilder> topicConfig) => Path(topic, topicConfig);
 
-    public HandlerBuilder<TRequest, TResponse> WithHandler<THandler>()
-        where THandler : IRequestHandler<TRequest, TResponse>
+    public THandlerBuilder Instances(int numberOfInstances)
     {
-        Assert.IsNotNull(ConsumerSettings.ResponseType,
-            () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(ConsumerSettings.ResponseType)} is not set"));
-
-        ConsumerSettings.ConsumerType = typeof(THandler);
-        ConsumerSettings.ConsumerMethod = (consumer, message) => ((THandler)consumer).OnHandle((TRequest)message);
-
-        ConsumerSettings.Invokers.Add(ConsumerSettings);
-
-        return this;
+        ConsumerSettings.Instances = numberOfInstances;
+        return TypedThis;
     }
 
-    public HandlerBuilder<TRequest, TResponse> WithHandler(Type handlerType)
-    {
-        Assert.IsNotNull(ConsumerSettings.ResponseType,
-            () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(ConsumerSettings.ResponseType)} is not set"));
+    /// <summary>
+    /// Adds custom hooks for the handler.
+    /// </summary>
+    /// <param name="eventsConfig"></param>
+    /// <returns></returns>
+    public THandlerBuilder AttachEvents(Action<IConsumerEvents> eventsConfig) =>
+        AttachEvents<THandlerBuilder>(eventsConfig);
 
+    public THandlerBuilder Do(Action<THandlerBuilder> action) =>
+        base.Do(action);
+
+    public THandlerBuilder WithHandler(Type handlerType)
+    {        
         ConsumerSettings.ConsumerType = handlerType;
         SetupConsumerOnHandleMethod(ConsumerSettings);
 
         ConsumerSettings.Invokers.Add(ConsumerSettings);
 
-        return this;
+        return TypedThis;
     }
 
     /// <summary>
-    /// Declares type <typeparamref name="TConsumer"/> as the consumer of the derived message <typeparamref name="TMessage"/>.
-    /// The consumer type has to implement <see cref="IConsumer{TMessage}"/> interface.
+    /// Declares type the hadlner of a derived message.
+    /// The handler type has to implement <see cref="IRequestHandler{TRequest, TResponse}"/> interface.
     /// </summary>
-    /// <typeparam name="TConsumer"></typeparam>
+    /// <param name="derivedRequestType">The derived request type from type <see cref="TRequest"/>/param>
+    /// <param name="derivedHandlerType">The derived request handler</param>
     /// <returns></returns>
-    public HandlerBuilder<TRequest, TResponse> WithHandler<THandler, TMessage>()
-        where THandler : class, IRequestHandler<TMessage, TResponse>
-        where TMessage : TRequest
-    {
-        AssertInvokerUnique(derivedConsumerType: typeof(THandler), derivedMessageType: typeof(TMessage));
-
-        var invoker = new MessageTypeConsumerInvokerSettings(ConsumerSettings, messageType: typeof(TMessage), consumerType: typeof(THandler))
-        {
-            ConsumerMethod = (consumer, message) => ((IConsumer<TMessage>)consumer).OnHandle((TMessage)message)
-        };
-        ConsumerSettings.Invokers.Add(invoker);
-
-        return this;
-    }
-
-    /// <summary>
-    /// Declares type the consumer of a derived message.
-    /// The consumer type has to implement <see cref="IConsumer{TMessage}"/> interface.
-    /// </summary>
-    /// <typeparam name="TConsumer"></typeparam>
-    /// <returns></returns>
-    public HandlerBuilder<TRequest, TResponse> WithHandler(Type derivedHandlerType, Type derivedRequestType)
+    public THandlerBuilder WithHandler(Type derivedHandlerType, Type derivedRequestType)
     {
         AssertInvokerUnique(derivedHandlerType, derivedRequestType);
 
@@ -123,22 +107,107 @@ public class HandlerBuilder<TRequest, TResponse> : AbstractConsumerBuilder
         SetupConsumerOnHandleMethod(invoker);
         ConsumerSettings.Invokers.Add(invoker);
 
-        return this;
+        return TypedThis;
+    }
+}
+
+/// <summary>
+/// Builder for Request-Response handlers <see cref="IRequestHandler{TRequest, TResponse}"/>
+/// </summary>
+/// <typeparam name="TRequest">The request type</typeparam>
+/// <typeparam name="TResponse"><The response type/typeparam>
+public class HandlerBuilder<TRequest, TResponse> : AbstractHandlerBuilder<TRequest, HandlerBuilder<TRequest, TResponse>>
+{
+    public HandlerBuilder(MessageBusSettings settings, Type requestType = null, Type responseType = null)
+        : base(settings, requestType ?? typeof(TRequest))
+    {
+        if (settings == null) throw new ArgumentNullException(nameof(settings));
+
+        ConsumerSettings.ConsumerMode = ConsumerMode.RequestResponse;
+        ConsumerSettings.ResponseType = responseType ?? typeof(TResponse);
+
+        Assert.IsNotNull(ConsumerSettings.ResponseType,
+            () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(ConsumerSettings.ResponseType)} is not set"));
     }
 
-    public HandlerBuilder<TRequest, TResponse> Instances(int numberOfInstances)
+    public HandlerBuilder<TRequest, TResponse> WithHandler<THandler>()
+        where THandler : IRequestHandler<TRequest, TResponse>
     {
-        ConsumerSettings.Instances = numberOfInstances;
+        ConsumerSettings.ConsumerType = typeof(THandler);
+        ConsumerSettings.ConsumerMethod = (consumer, message) => ((THandler)consumer).OnHandle((TRequest)message);
+
+        ConsumerSettings.Invokers.Add(ConsumerSettings);
+
         return this;
     }
 
     /// <summary>
-    /// Adds custom hooks for the handler.
+    /// Declares type <typeparamref name="THandler"/> as the consumer of the derived message <typeparamref name="TDerivedRequest"/>.
+    /// The consumer type has to implement <see cref="IRequestHandler{TDerivedRequest, TResponse}"/> interface.
     /// </summary>
-    /// <param name="eventsConfig"></param>
+    /// <typeparam name="THandler"></typeparam>
+    /// <typeparam name="TDerivedRequest"></typeparam>
     /// <returns></returns>
-    public HandlerBuilder<TRequest, TResponse> AttachEvents(Action<IConsumerEvents> eventsConfig)
-        => AttachEvents<HandlerBuilder<TRequest, TResponse>>(eventsConfig);
+    public HandlerBuilder<TRequest, TResponse> WithHandler<THandler, TDerivedRequest>()
+        where THandler : class, IRequestHandler<TDerivedRequest, TResponse>
+        where TDerivedRequest : TRequest
+    {
+        AssertInvokerUnique(derivedConsumerType: typeof(THandler), derivedMessageType: typeof(TDerivedRequest));
 
-    public HandlerBuilder<TRequest, TResponse> Do(Action<HandlerBuilder<TRequest, TResponse>> action) => base.Do(action);
+        var invoker = new MessageTypeConsumerInvokerSettings(ConsumerSettings, messageType: typeof(TDerivedRequest), consumerType: typeof(THandler))
+        {
+            ConsumerMethod = (consumer, message) => ((IRequestHandler<TDerivedRequest, TResponse>)consumer).OnHandle((TDerivedRequest)message)
+        };
+        ConsumerSettings.Invokers.Add(invoker);
+
+        return this;
+    }
+}
+
+/// <summary>
+/// The handler builder for handlers that expect no response message.
+/// </summary>
+/// <typeparam name="TRequest"></typeparam>
+public class HandlerBuilder<TRequest> : AbstractHandlerBuilder<TRequest, HandlerBuilder<TRequest>>
+{
+    public HandlerBuilder(MessageBusSettings settings, Type requestType = null)
+        : base(settings, requestType ?? typeof(TRequest))
+    {
+        if (settings == null) throw new ArgumentNullException(nameof(settings));
+        ConsumerSettings.ConsumerMode = ConsumerMode.RequestResponse;
+        ConsumerSettings.ResponseType = null;
+    }
+
+    public HandlerBuilder<TRequest> WithHandler<THandler>()
+        where THandler : IRequestHandler<TRequest>
+    {
+        ConsumerSettings.ConsumerType = typeof(THandler);
+        ConsumerSettings.ConsumerMethod = (consumer, message) => ((THandler)consumer).OnHandle((TRequest)message);
+
+        ConsumerSettings.Invokers.Add(ConsumerSettings);
+
+        return TypedThis;
+    }
+
+    /// <summary>
+    /// Declares type <typeparamref name="THandler"/> as the consumer of the derived message <typeparamref name="TDerivedRequest"/>.
+    /// The consumer type has to implement <see cref="IRequestHandler{TDerivedRequest, TResponse}"/> interface.
+    /// </summary>
+    /// <typeparam name="THandler"></typeparam>
+    /// <typeparam name="TDerivedRequest"></typeparam>
+    /// <returns></returns>
+    public HandlerBuilder<TRequest> WithHandler<THandler, TDerivedRequest>()
+        where THandler : class, IRequestHandler<TDerivedRequest>
+        where TDerivedRequest : TRequest
+    {
+        AssertInvokerUnique(derivedConsumerType: typeof(THandler), derivedMessageType: typeof(TDerivedRequest));
+
+        var invoker = new MessageTypeConsumerInvokerSettings(ConsumerSettings, messageType: typeof(TDerivedRequest), consumerType: typeof(THandler))
+        {
+            ConsumerMethod = (consumer, message) => ((IRequestHandler<TDerivedRequest>)consumer).OnHandle((TDerivedRequest)message)
+        };
+        ConsumerSettings.Invokers.Add(invoker);
+
+        return this;
+    }
 }

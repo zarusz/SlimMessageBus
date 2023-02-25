@@ -43,7 +43,7 @@ public class MessageHandler : IMessageHandler
         var messageType = message.GetType();
 
         var hasResponse = consumerInvoker.ParentSettings.ConsumerMode == ConsumerMode.RequestResponse;
-        var responseType = hasResponse ? consumerInvoker.ParentSettings.ResponseType : null;
+        var responseType = hasResponse ? consumerInvoker.ParentSettings.ResponseType ?? typeof(Void) : null;
 
         object response = null;
         Exception responseException = null;
@@ -134,7 +134,7 @@ public class MessageHandler : IMessageHandler
         var task = consumerInvoker.ConsumerMethod(consumerContext.Consumer, message);
         await task.ConfigureAwait(false);
 
-        if (responseType != null)
+        if (responseType != null && responseType != typeof(Void))
         {
             // the consumer handles the request (and replies)
             var taskOfType = RuntimeTypeCache.GetTaskOfType(responseType);

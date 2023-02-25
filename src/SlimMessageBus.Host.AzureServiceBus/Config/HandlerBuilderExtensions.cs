@@ -11,7 +11,7 @@ public static class HandlerBuilderExtensions
     /// <param name="queue">Queue name</param>
     /// <returns></returns>
     public static HandlerBuilder<TRequest, TResponse> Queue<TRequest, TResponse>(this HandlerBuilder<TRequest, TResponse> builder, string queue)
-        where TRequest : IRequestMessage<TResponse>
+        where TRequest : IRequest<TResponse>
     {
         if (builder is null) throw new ArgumentNullException(nameof(builder));
 
@@ -28,7 +28,7 @@ public static class HandlerBuilderExtensions
     /// <param name="queueConfig"></param>
     /// <returns></returns>
     public static HandlerBuilder<TRequest, TResponse> Topic<TRequest, TResponse>(this HandlerBuilder<TRequest, TResponse> builder, string queue, Action<HandlerBuilder<TRequest, TResponse>> queueConfig)
-        where TRequest : IRequestMessage<TResponse>
+        where TRequest : IRequest<TResponse>
     {
         if (builder is null) throw new ArgumentNullException(nameof(builder));
         if (queueConfig is null) throw new ArgumentNullException(nameof(queueConfig));

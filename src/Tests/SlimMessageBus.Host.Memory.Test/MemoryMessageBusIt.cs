@@ -44,7 +44,6 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
     {
         _settings.EnableMessageSerialization = enableSerialization;
 
-        var concurrency = 2;
         var subscribers = 2;
         var topic = "test-ping";
 
@@ -54,18 +53,14 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
                 .Produce<PingMessage>(x => x.DefaultTopic(topic))
                 .Do(builder => Enumerable.Range(0, subscribers).ToList().ForEach(i =>
                 {
-                    builder
-                        .Consume<PingMessage>(x => x
-                        .Topic(topic)
-                        .WithConsumer<PingConsumer>()
-                        .Instances(concurrency));
+                    builder.Consume<PingMessage>(x => x.Topic(topic));
                 }));
         });
 
-        await BasicPubSub(concurrency, subscribers).ConfigureAwait(false);
+        await BasicPubSub(subscribers).ConfigureAwait(false);
     }
 
-    private async Task BasicPubSub(int concurrency, int subscribers)
+    private async Task BasicPubSub(int subscribers)
     {
         // arrange
         var messageBus = MessageBus;
@@ -119,14 +114,29 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
 
         AddBusConfiguration(mbb =>
         {
-            mbb
-                .Produce<EchoRequest>(x => x.DefaultTopic(topic))
-                .Handle<EchoRequest, EchoResponse>(x => x.Topic(topic)
-                    .WithHandler<EchoRequestHandler>()
-                    .Instances(2));
+            mbb.Produce<EchoRequest>(x => x.DefaultTopic(topic));
+            mbb.Handle<EchoRequest, EchoResponse>(x => x.Topic(topic).Instances(2));
         });
 
         await BasicReqResp().ConfigureAwait(false);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task BasicReqRespWithoutRespOnTopic(bool enableSerialization)
+    {
+        _settings.EnableMessageSerialization = enableSerialization;
+
+        var topic = "test-echo";
+
+        AddBusConfiguration(mbb =>
+        {
+            mbb.Produce<SomeRequestWithoutResponse>(x => x.DefaultTopic(topic));
+            mbb.Handle<SomeRequestWithoutResponse>(x => x.Topic(topic).Instances(2));
+        });
+
+        await BasicReqRespWithoutResp().ConfigureAwait(false);
     }
 
     private async Task BasicReqResp()
@@ -148,7 +158,7 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
         var responseTasks = requests.Select(async req =>
         {
             var resp = await messageBus.Send(req).ConfigureAwait(false);
-                responses.Add(Tuple.Create(req, resp));
+            responses.Add(Tuple.Create(req, resp));
         });
         await Task.WhenAll(responseTasks).ConfigureAwait(false);
 
@@ -160,6 +170,38 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
         // all messages got back
         responses.Count.Should().Be(NumberOfMessages);
         responses.All(x => x.Item1.Message == x.Item2.Message).Should().BeTrue();
+    }
+
+    private async Task BasicReqRespWithoutResp()
+    {
+        // arrange
+        var messageBus = MessageBus;
+
+        // act
+
+        // publish
+        var stopwatch = Stopwatch.StartNew();
+
+        var requests = Enumerable
+            .Range(0, NumberOfMessages)
+            .Select(i => new SomeRequestWithoutResponse(Guid.NewGuid()))
+            .ToList();
+
+        var responses = new ConcurrentBag<SomeRequestWithoutResponse>();
+        var responseTasks = requests.Select(async req =>
+        {
+            await messageBus.Send(req).ConfigureAwait(false);
+            responses.Add(req);
+        });
+        await Task.WhenAll(responseTasks).ConfigureAwait(false);
+
+        stopwatch.Stop();
+        Logger.LogInformation("Published and received {0} messages in {1}", responses.Count, stopwatch.Elapsed);
+
+        // assert
+
+        // all messages got back
+        responses.Count.Should().Be(NumberOfMessages);
     }
 
     internal record PingMessage
@@ -179,7 +221,7 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
         }
     }
 
-    internal record EchoRequest : IRequestMessage<EchoResponse>
+    internal record EchoRequest : IRequest<EchoResponse>
     {
         public int Index { get; init; }
         public string Message { get; init; }
@@ -192,9 +234,7 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
 
     internal class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
     {
-        public Task<EchoResponse> OnHandle(EchoRequest request)
-        {
-            return Task.FromResult(new EchoResponse { Message = request.Message });
-        }
+        public Task<EchoResponse> OnHandle(EchoRequest request) =>
+            Task.FromResult(new EchoResponse { Message = request.Message });
     }
 }

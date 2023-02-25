@@ -2,7 +2,7 @@
 
 using SlimMessageBus;
 
-public record SearchCustomerQuery : IRequestMessage<SearchCustomerResult>
+public record SearchCustomerQuery : IRequest<SearchCustomerResult>
 {
     public Guid? CustomerId { get; set; }
     public string? FirstName { get; set; }

@@ -169,6 +169,10 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
 
         await EnsureConsumersStarted();
 
+        // skip any outstanding messages from previous run
+        await store.WaitUntilArriving(newMessagesTimeout: 5);
+        store.Clear();
+
         // act
         foreach (var cmd in commands)
         {
@@ -193,7 +197,7 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
         var customerContext = scope.ServiceProvider!.GetRequiredService<CustomerContext>();
 
         // Ensure the expected number of events was actually published to ASB and delivered via that channel.
-        validCommands.Count.Should().Be(store.Count);
+        store.Count.Should().Be(validCommands.Count);
 
         // Ensure the DB also has the expected record
         var customerCountWithInvalidLastname = await customerContext.Customers.CountAsync(x => x.Lastname == InvalidLastname);
@@ -214,7 +218,7 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
     }
 }
 
-public record CreateCustomerCommand(string Firstname, string Lastname) : IRequestMessage<Guid>;
+public record CreateCustomerCommand(string Firstname, string Lastname) : IRequest<Guid>;
 
 public record CreateCustomerCommandHandler(IMessageBus Bus, CustomerContext CustomerContext) : IRequestHandler<CreateCustomerCommand, Guid>
 {

@@ -5,7 +5,7 @@ using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Serialization;
 using SlimMessageBus.Host.Serialization.Json;
 
-public class RequestA : IRequestMessage<ResponseA>
+public class RequestA : IRequest<ResponseA>
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
 }
@@ -15,7 +15,7 @@ public class ResponseA
     public string Id { get; set; }
 }
 
-public class RequestB : IRequestMessage<ResponseB> { }
+public class RequestB : IRequest<ResponseB> { }
 
 public class ResponseB { }
 

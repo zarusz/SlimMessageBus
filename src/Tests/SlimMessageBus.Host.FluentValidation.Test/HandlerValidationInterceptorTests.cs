@@ -22,7 +22,7 @@ public class HandlerValidationInterceptorTests
         _nextMock = new();
     }
 
-    public record Message : IRequestMessage<ResponseMessage>;
+    public record Message : IRequest<ResponseMessage>;
     public record ResponseMessage;
 
     [Fact]

@@ -14,11 +14,10 @@ public class ConsumerSettingsTest
 
         // assert
         cs.ResponseType.Should().BeNull();
-        cs.IsRequestMessage.Should().BeFalse();
     }
 
     [Fact]
-    public void When_RequestMessage_GivenRequestMessageWhenSetMessageType_Then_ResponseTypeShouldBeInferred()
+    public void When_MessageTypeSet_GivenRequestMessage_Then_ResponseTypeShouldBeInferred()
     {
         // arrange
 
@@ -27,7 +26,18 @@ public class ConsumerSettingsTest
 
         // assert
         cs.ResponseType.Should().Be(typeof(SomeResponse));
-        cs.IsRequestMessage.Should().BeTrue();
+    }
+
+    [Fact]
+    public void When_MessageTypeSet_GivenRequestMessageWithoutResponse_Then_ResponseTypeShouldBeInferred()
+    {
+        // arrange
+
+        // act
+        var cs = new ConsumerSettings { MessageType = typeof(SomeRequestWithoutResponse) };
+
+        // assert
+        cs.ResponseType.Should().BeNull();
     }
 
     [Fact]

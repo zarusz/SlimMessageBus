@@ -8,9 +8,14 @@ public record SomeMessage : ISomeMessageMarkerInterface
 {
 }
 
-public record SomeRequest : IRequestMessage<SomeResponse>, ISomeMessageMarkerInterface
+public record SomeRequest : IRequest<SomeResponse>, ISomeMessageMarkerInterface
 {
 }
+
+public record SomeRequestWithoutResponse : IRequest
+{
+}
+
 
 public record SomeResponse
 {
@@ -26,6 +31,12 @@ public class SomeRequestMessageHandler : IRequestHandler<SomeRequest, SomeRespon
 {
     public Task<SomeResponse> OnHandle(SomeRequest request)
         => throw new NotImplementedException(nameof(SomeRequest));
+}
+
+public class SomeRequestWithoutResponseHandler : IRequestHandler<SomeRequestWithoutResponse>
+{
+    public Task OnHandle(SomeRequestWithoutResponse request)
+        => throw new NotImplementedException(nameof(SomeRequestWithoutResponse));
 }
 
 public record SomeDerivedMessage : SomeMessage
