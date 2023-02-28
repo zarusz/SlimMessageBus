@@ -48,74 +48,76 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
-        services.AddSlimMessageBus((mbb, svp) =>
-        {
-            var cfg = svp.GetRequiredService<IConfiguration>();
+        services
+            .AddSlimMessageBus((mbb, svp) =>
+            {
+                var cfg = svp.GetRequiredService<IConfiguration>();
 
-            mbb
-                .WithProviderHybrid()
-                .WithSerializer(new JsonMessageSerializer())
-                .AddChildBus("Memory", mbb =>
-                {
-                    mbb.WithProviderMemory()
-                       .AutoDeclareFrom(Assembly.GetExecutingAssembly(), consumerTypeFilter: t => t.Name.Contains("Command"));
+                mbb
+                    .WithProviderHybrid()
+                    .AddChildBus("Memory", mbb =>
+                    {
+                        mbb.WithProviderMemory()
+                           .AutoDeclareFrom(Assembly.GetExecutingAssembly(), consumerTypeFilter: t => t.Name.Contains("Command"));
 
-                    if (_testParamTransactionType == TransactionType.SqlTransaction)
-                    {
-                        mbb.UseSqlTransaction(); // Consumers/Handlers will be wrapped in a SqlTransaction
-                    }
-                    if (_testParamTransactionType == TransactionType.TrnasactionScope)
-                    {
-                        mbb.UseTransactionScope(); // Consumers/Handlers will be wrapped in a TransactionScope
-                    }
-                })
-                .AddChildBus("ExternalBus", mbb =>
-                {
-                    var topic = "";
-                    if (_testParamBusType == BusType.Kafka)
-                    {
-                        var kafkaBrokers = configuration["Kafka:Brokers"];
-                        var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
-                        var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
-
-                        mbb.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+                        if (_testParamTransactionType == TransactionType.SqlTransaction)
                         {
-                            ProducerConfig = (config) =>
-                            {
-                                AddKafkaSsl(kafkaUsername, kafkaPassword, config);
-
-                                config.LingerMs = 5; // 5ms
-                                config.SocketNagleDisable = true;
-                            },
-                            ConsumerConfig = (config) =>
-                            {
-                                AddKafkaSsl(kafkaUsername, kafkaPassword, config);
-
-                                config.FetchErrorBackoffMs = 1;
-                                config.SocketNagleDisable = true;
-
-                                config.StatisticsIntervalMs = 500000;
-                                config.AutoOffsetReset = AutoOffsetReset.Latest;
-                            }
-                        });
-
-                        topic = $"{kafkaUsername}-test-ping";
-                    }
-                    if (_testParamBusType == BusType.AzureSB)
+                            mbb.UseSqlTransaction(); // Consumers/Handlers will be wrapped in a SqlTransaction
+                        }
+                        if (_testParamTransactionType == TransactionType.TrnasactionScope)
+                        {
+                            mbb.UseTransactionScope(); // Consumers/Handlers will be wrapped in a TransactionScope
+                        }
+                    })
+                    .AddChildBus("ExternalBus", mbb =>
                     {
-                        mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(Secrets.Service.PopulateSecrets(cfg["Azure:ServiceBus"])));
-                        topic = "tests.outbox/customer-events";
-                    }
+                        var topic = "";
+                        if (_testParamBusType == BusType.Kafka)
+                        {
+                            var kafkaBrokers = configuration["Kafka:Brokers"];
+                            var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
+                            var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
 
-                    mbb.Produce<CustomerCreatedEvent>(x => x.DefaultTopic(topic))
-                       .Consume<CustomerCreatedEvent>(x => x
-                            .Topic(topic)
-                            .WithConsumer<CustomerCreatedEventConsumer>()
-                            .SubscriptionName(nameof(OutboxTests)) // for AzureSB
-                            .KafkaGroup("subscriber")) // for Kafka
-                       .UseOutbox(); // All outgoing messages from this bus will go out via an outbox
-                });
-        }, addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() });
+                            mbb.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+                            {
+                                ProducerConfig = (config) =>
+                                {
+                                    AddKafkaSsl(kafkaUsername, kafkaPassword, config);
+
+                                    config.LingerMs = 5; // 5ms
+                                    config.SocketNagleDisable = true;
+                                },
+                                ConsumerConfig = (config) =>
+                                {
+                                    AddKafkaSsl(kafkaUsername, kafkaPassword, config);
+
+                                    config.FetchErrorBackoffMs = 1;
+                                    config.SocketNagleDisable = true;
+
+                                    config.StatisticsIntervalMs = 500000;
+                                    config.AutoOffsetReset = AutoOffsetReset.Latest;
+                                }
+                            });
+
+                            topic = $"{kafkaUsername}-test-ping";
+                        }
+                        if (_testParamBusType == BusType.AzureSB)
+                        {
+                            mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(Secrets.Service.PopulateSecrets(cfg["Azure:ServiceBus"])));
+                            topic = "tests.outbox/customer-events";
+                        }
+
+                        mbb.Produce<CustomerCreatedEvent>(x => x.DefaultTopic(topic))
+                           .Consume<CustomerCreatedEvent>(x => x
+                                .Topic(topic)
+                                .WithConsumer<CustomerCreatedEventConsumer>()
+                                .SubscriptionName(nameof(OutboxTests)) // for AzureSB
+                                .KafkaGroup("subscriber")) // for Kafka
+                           .UseOutbox(); // All outgoing messages from this bus will go out via an outbox
+                    });
+            })
+            .AddMessageBusJsonSerializer()
+            .AddMessageBusServicesFromAssembly(Assembly.GetExecutingAssembly());
 
         services.AddMessageBusOutboxUsingDbContext<CustomerContext>(opts =>
         {

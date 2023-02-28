@@ -64,16 +64,15 @@ public class Startup
     public void ConfigureMessageBus(IServiceCollection services)
     {
         // Make the MessageBus per request scope
-        services.AddSlimMessageBus((mbb, svp) =>
+        services
+            .AddSlimMessageBus((mbb, svp) =>
             {
                 mbb
                     .WithProviderMemory()
                     .AutoDeclareFrom(typeof(OrderSubmittedHandler).Assembly);
-            },
-            addConsumersFromAssembly: new[] { typeof(OrderSubmittedHandler).Assembly }
-        );
-
-        services.AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
-        services.AddMessageBusAspNet();
+            })
+            .AddMessageBusServicesFromAssemblyContaining<OrderSubmittedHandler>()
+            .AddMessageBusAspNet()
+            .AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
     }
 }

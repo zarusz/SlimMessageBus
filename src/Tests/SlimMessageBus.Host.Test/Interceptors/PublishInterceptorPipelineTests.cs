@@ -71,6 +71,5 @@ public class PublishInterceptorPipelineTests
         publishInterceptorMock.VerifyNoOtherCalls();
 
         _busMock.BusMock.Verify(x => x.PublishInternal(message, context.Path, context.Headers, context.CancellationToken, producerSettings), Times.Once);
-        _busMock.BusMock.VerifyNoOtherCalls();
     }
 }

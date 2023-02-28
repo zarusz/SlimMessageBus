@@ -58,9 +58,11 @@ builder.Services.AddSlimMessageBus((mbb, svp) =>
                })
                .UseOutbox(); // All outgoing messages from this bus will go out via an outbox
         })
-        .WithSerializer(new JsonMessageSerializer())
         .WithProviderHybrid();
-}, addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() });
+});
+
+builder.Services.AddJsonMessageSerializer();
+builder.Services.AddMessageBusServicesFromAssembly(Assembly.GetExecutingAssembly());
 
 // Register the Outbox plugin, and let it use DbConnection and manage SqlTransaction using the CustomerContext DbContext
 builder.Services.AddMessageBusOutboxUsingDbContext<CustomerContext>(opts =>

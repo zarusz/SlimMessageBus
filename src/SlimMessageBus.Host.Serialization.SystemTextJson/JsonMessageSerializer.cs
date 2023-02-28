@@ -13,9 +13,9 @@ public class JsonMessageSerializer : IMessageSerializer
     /// </summary>
     public JsonSerializerOptions Options { get; set; }
 
-    public JsonMessageSerializer()
+    public JsonMessageSerializer(JsonSerializerOptions options = null)
     {
-        Options = new(JsonSerializerDefaults.Web)
+        Options = options ?? new(JsonSerializerDefaults.Web)
         {
             WriteIndented = false,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,

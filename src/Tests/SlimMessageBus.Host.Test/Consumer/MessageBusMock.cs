@@ -60,14 +60,14 @@ public class MessageBusMock
             return mock.Object;
         });
 
-        DependencyResolverMock.Setup(x => x.GetService(typeof(IServiceScopeFactory))).Returns(serviceScopeFactoryMock.Object);
-
         SerializerMock = new Mock<IMessageSerializer>();
+
+        DependencyResolverMock.Setup(x => x.GetService(typeof(IServiceScopeFactory))).Returns(serviceScopeFactoryMock.Object);
+        DependencyResolverMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(SerializerMock.Object);
 
         var mbSettings = new MessageBusSettings
         {
-            ServiceProvider = DependencyResolverMock.Object,
-            Serializer = SerializerMock.Object
+            ServiceProvider = DependencyResolverMock.Object
         };
 
         CurrentTime = DateTimeOffset.UtcNow;

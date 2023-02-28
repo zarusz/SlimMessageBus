@@ -25,7 +25,6 @@ public class MemoryMessageBusTests
     {
         _builder = MessageBusBuilder.Create()
             .WithDependencyResolver(_serviceProviderMock.ProviderMock.Object)
-            .WithSerializer(_messageSerializerMock.Object)
             .ExpectRequestResponses(x =>
             {
                 x.ReplyToTopic("responses");
@@ -34,6 +33,7 @@ public class MemoryMessageBusTests
 
         _settings = _builder.Settings;
 
+        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(_messageSerializerMock.Object);
         _serviceProviderMock.ProviderMock.Setup(x => x.GetService(It.Is<Type>(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)))).Returns((Type t) =>
         {
             return Enumerable.Empty<object>();
@@ -55,11 +55,12 @@ public class MemoryMessageBusTests
     public void When_Create_Given_MessageSerializationEnabled_And_NoSerializerProvided_Then_ThrowsExceptionOrNot(bool serializationEnabled)
     {
         // arrange
-        _settings.Serializer = null;
+        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(null);
+
         _providerSettings.EnableMessageSerialization = serializationEnabled;
 
         // act
-        Action act = () => { var _ = _subject.Value; };
+        Action act = () => { var _ = _subject.Value.Serializer; };
 
         // assert          
         if (serializationEnabled)
@@ -68,7 +69,7 @@ public class MemoryMessageBusTests
         }
         else
         {
-            act.Should().NotThrow<ConfigurationMessageBusException>();
+            act.Should().NotThrow();
         }
     }
 
@@ -201,7 +202,8 @@ public class MemoryMessageBusTests
 
         // assert
         _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(ILoggerFactory)), Times.Once);
-        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IServiceScopeFactory)), Times.Never);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IServiceProvider)), Times.Never);
+        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(ILoggerFactory)), Times.Once);
         _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(SomeMessageAConsumer)), Times.Once);
         _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IProducerInterceptor<SomeMessageA>>)), Times.Once);
         _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IPublishInterceptor<SomeMessageA>>)), Times.Once);

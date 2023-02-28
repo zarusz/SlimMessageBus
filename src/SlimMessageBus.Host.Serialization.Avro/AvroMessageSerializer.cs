@@ -4,6 +4,8 @@ using global::Avro;
 using global::Avro.IO;
 using global::Avro.Specific;
 
+using Microsoft.Extensions.Logging.Abstractions;
+
 /// <summary>
 /// Apache Avro serialization implementation of <see cref="IMessageSerializer"/>
 /// </summary>
@@ -39,9 +41,9 @@ public class AvroMessageSerializer : IMessageSerializer
     /// <summary>
     /// By default MessageFactory is set to use the <see cref="ReflectionMessageCreationStategy"/> strategy, WriteSchemaLookup and ReadSchemaLookup is set to use <see cref="ReflectionSchemaLookupStrategy"/>.
     /// </summary>
-    public AvroMessageSerializer(ILoggerFactory loggerFactory)
+    public AvroMessageSerializer(ILoggerFactory loggerFactory = null)
     {
-        _logger = loggerFactory.CreateLogger<AvroMessageSerializer>();
+        _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<AvroMessageSerializer>();
 
         // Apply defaults
         WriteMemoryStreamFactory = () => new MemoryStream();
@@ -63,31 +65,30 @@ public class AvroMessageSerializer : IMessageSerializer
     public AvroMessageSerializer(ILoggerFactory loggerFactory, IMessageCreationStrategy messageCreationStrategy, ISchemaLookupStrategy writerSchemaLookupStrategy, ISchemaLookupStrategy readerSchemaLookupStrategy)
         : this(loggerFactory)
     {
-        MessageFactory = (Type type) => messageCreationStrategy.Create(type);
-        WriteSchemaLookup = (Type type) => writerSchemaLookupStrategy.Lookup(type);
-        ReadSchemaLookup = (Type type) => readerSchemaLookupStrategy.Lookup(type);
+        MessageFactory = messageCreationStrategy.Create;
+        WriteSchemaLookup = writerSchemaLookupStrategy.Lookup;
+        ReadSchemaLookup = readerSchemaLookupStrategy.Lookup;
     }
 
     public object Deserialize(Type t, byte[] payload)
     {
-        using (var ms = ReadMemoryStreamFactory(payload))
-        {
-            var dec = new BinaryDecoder(ms);
+        using var ms = ReadMemoryStreamFactory(payload);
+        
+        var dec = new BinaryDecoder(ms);
 
-            var message = MessageFactory(t);
+        var message = MessageFactory(t);
 
-            var readerSchema = ReadSchemaLookup(t);
-            AssertSchemaNotNull(t, readerSchema, false);
+        var readerSchema = ReadSchemaLookup(t);
+        AssertSchemaNotNull(t, readerSchema, false);
 
-            var writerSchema = WriteSchemaLookup(t);
-            AssertSchemaNotNull(t, writerSchema, true);
+        var writerSchema = WriteSchemaLookup(t);
+        AssertSchemaNotNull(t, writerSchema, true);
 
-            _logger.LogDebug("Type {0} writer schema: {1}, reader schema: {2}", t, writerSchema, readerSchema);
+        _logger.LogDebug("Type {0} writer schema: {1}, reader schema: {2}", t, writerSchema, readerSchema);
 
-            var reader = new SpecificDefaultReader(writerSchema, readerSchema);
-            reader.Read(message, dec);
-            return message;
-        }
+        var reader = new SpecificDefaultReader(writerSchema, readerSchema);
+        reader.Read(message, dec);
+        return message;
     }
 
     private static void AssertSchemaNotNull(Type t, Schema schema, bool writerSchema)
@@ -101,18 +102,16 @@ public class AvroMessageSerializer : IMessageSerializer
 
     public byte[] Serialize(Type t, object message)
     {
-        using (var ms = WriteMemoryStreamFactory())
-        {
-            var enc = new BinaryEncoder(ms);
+        using var ms = WriteMemoryStreamFactory();
+        var enc = new BinaryEncoder(ms);
 
-            var writerSchema = WriteSchemaLookup(t);
-            AssertSchemaNotNull(t, writerSchema, true);
+        var writerSchema = WriteSchemaLookup(t);
+        AssertSchemaNotNull(t, writerSchema, true);
 
-            _logger.LogDebug("Type {0} writer schema: {1}", t, writerSchema);
+        _logger.LogDebug("Type {0} writer schema: {1}", t, writerSchema);
 
-            var writer = new SpecificDefaultWriter(writerSchema); // Schema comes from pre-compiled, code-gen phase
-            writer.Write(message, enc);
-            return ms.ToArray();
-        }
+        var writer = new SpecificDefaultWriter(writerSchema); // Schema comes from pre-compiled, code-gen phase
+        writer.Write(message, enc);
+        return ms.ToArray();
     }
 }

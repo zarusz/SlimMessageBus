@@ -23,13 +23,14 @@ Azure Service Bus provider requires a connection string:
 ```cs
 var connectionString = "" // Azure Service Bus connection string
 
-// MessageBusBuilder mbb;
-mbb.    
-    // the bus configuration here
-    .WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString))
-    .WithSerializer(new JsonMessageSerializer());
 
-IMessageBus bus = mbb.Build();
+services
+    .AddSlimMessageBus((mbb, svp) =>
+    {
+        // Bus configuration happens here (...)
+        mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString));
+    })
+    .AddMessageBusJsonSerializer(();
 ```
 
 The `ServiceBusMessageBusSettings` has additional settings that allow overriding factories for Azure SB client objects. This may be used for some advanced scenarios.

@@ -8,11 +8,9 @@ public class MessageBusBuilder
     public MessageBusSettings Settings { get; } = new();
 
     /// <summary>
-    /// Represents global configurators that are part for this builder.
+    /// Declared child buses.
     /// </summary>
-    public IEnumerable<IMessageBusConfigurator> Configurators { get; set; } = Enumerable.Empty<IMessageBusConfigurator>();
-
-    public IDictionary<string, Action<MessageBusBuilder>> ChildBuilders { get; } = new Dictionary<string, Action<MessageBusBuilder>>();
+    public IDictionary<string, MessageBusBuilder> Children { get; } = new Dictionary<string, MessageBusBuilder>();
 
     /// <summary>
     /// The bus factory method.
@@ -26,8 +24,7 @@ public class MessageBusBuilder
     protected MessageBusBuilder(MessageBusBuilder other)
     {
         Settings = other.Settings;
-        Configurators = other.Configurators;
-        ChildBuilders = other.ChildBuilders;
+        Children = other.Children;
         BusFactory = other.BusFactory;
     }
 
@@ -196,15 +193,26 @@ public class MessageBusBuilder
         return this;
     }
 
-    public MessageBusBuilder WithLoggerFacory(ILoggerFactory loggerFactory)
-    {
-        Settings.LoggerFactory = loggerFactory;
-        return this;
-    }
+    /// <summary>
+    /// Serializer type (<see cref="IMessageSerializer"/>) to look up in the DI for this bus.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    public MessageBusBuilder WithSerializer<T>() => WithSerializer(typeof(T));
 
-    public MessageBusBuilder WithSerializer(IMessageSerializer serializer)
-    {
-        Settings.Serializer = serializer;
+    /// <summary>
+    /// Serializer type (<see cref="IMessageSerializer"/>) to look up in the DI for this bus.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    public MessageBusBuilder WithSerializer(Type serializerType)
+    {        
+        if (serializerType is not null && !typeof(IMessageSerializer).IsAssignableFrom(serializerType))
+        {
+            throw new ConfigurationMessageBusException($"The serializer type {serializerType.FullName} does not implement the interface {nameof(IMessageSerializer)}");
+        }
+
+        Settings.SerializerType = serializerType ?? throw new ArgumentNullException(nameof(serializerType));
         return this;
     }
 
@@ -293,11 +301,15 @@ public class MessageBusBuilder
         if (busName is null) throw new ArgumentNullException(nameof(busName));
         if (builderAction is null) throw new ArgumentNullException(nameof(builderAction));
 
-        if (ChildBuilders.ContainsKey(busName))
+        if (Children.ContainsKey(busName))
         {
             throw new ConfigurationMessageBusException($"The child bus with name {busName} has been already declared");
         }
-        ChildBuilders.Add(busName, builderAction);
+        var child = Create();
+        child.Settings.Name = busName;
+        child.MergeFrom(Settings);
+        builderAction?.Invoke(child);
+        Children.Add(busName, child);
         return this;
     }
 
@@ -305,14 +317,9 @@ public class MessageBusBuilder
     {
         if (BusFactory is null)
         {
-            throw new ConfigurationMessageBusException("The bus provider was not configured. Check the MessageBus configuration.");
+            var busName = Settings.Name != null ? $"Child bus [{Settings.Name}]: " : string.Empty;
+            throw new ConfigurationMessageBusException($"{busName}The bus provider was not configured. Check the MessageBus configuration and ensure the has the '.WithProviderXxx()' setting for one of the available transports.");
         }
-
-        foreach (var configurator in Configurators)
-        {
-            configurator.Configure(this, Settings.Name);
-        }
-
         return BusFactory(Settings);
     }
 }

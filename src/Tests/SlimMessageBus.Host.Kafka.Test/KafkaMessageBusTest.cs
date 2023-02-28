@@ -2,8 +2,6 @@
 
 using Confluent.Kafka;
 
-using Microsoft.Extensions.Logging.Abstractions;
-
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization;
 
@@ -21,11 +19,12 @@ public class KafkaMessageBusTest : IDisposable
         var producerBuilderMock = new Mock<ProducerBuilder<byte[], byte[]>>(new ProducerConfig());
         producerBuilderMock.Setup(x => x.Build()).Returns(producerMock.Object);
 
+        var serviceProviderMock = new Mock<IServiceProvider>();
+        serviceProviderMock.Setup(x => x.GetService(typeof(ILogger<IMessageSerializer>))).CallBase();
+
         MbSettings = new MessageBusSettings
         {
-            Serializer = new Mock<IMessageSerializer>().Object,
             ServiceProvider = new Mock<IServiceProvider>().Object,
-            LoggerFactory = NullLoggerFactory.Instance
         };
         KafkaMbSettings = new KafkaMessageBusSettings("host")
         {

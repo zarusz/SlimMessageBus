@@ -4,6 +4,7 @@ using System.Reflection;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 using SlimMessageBus;
 using SlimMessageBus.Host;
@@ -41,21 +42,24 @@ public class HybridTests : IDisposable
         Secrets.Load(@"..\..\..\..\..\secrets.txt");
     }
 
-    private void SetupBus(
-        SerializerType serializerType,
-        Action<IServiceCollection> servicesBuilder = null,
-        Assembly[] addConsumersFromAssembly = null,
-        Assembly[] addInterceptorsFromAssembly = null,
-        Assembly[] addConfiguratorsFromAssembly = null)
+    private void SetupBus(SerializerType serializerType, Action<IServiceCollection> servicesBuilder = null)
     {
         var services = new ServiceCollection();
         services.AddSingleton<ILoggerFactory>(_loggerFactory);
+        services.AddTransient(typeof(ILogger<>), typeof(NullLogger<>));
 
-        services.AddSlimMessageBus(
-            (mbb, svp) => SetupBus(mbb, serializerType),
-            addConsumersFromAssembly: addConsumersFromAssembly,
-            addInterceptorsFromAssembly: addInterceptorsFromAssembly,
-            addConfiguratorsFromAssembly: addConfiguratorsFromAssembly);
+        services
+            .AddSlimMessageBus(SetupBus)
+            .AddMessageBusServicesFromAssemblyContaining<InternalMessageConsumer>();
+
+        if (serializerType == SerializerType.NewtonsoftJson)
+        {
+            Serialization.Json.ServiceCollectionExtensions.AddMessageBusJsonSerializer(services);
+        }
+        if (serializerType == SerializerType.SystemTextJson)
+        {
+            Serialization.SystemTextJson.ServiceCollectionExtensions.AddMessageBusJsonSerializer(services);
+        }
 
         servicesBuilder?.Invoke(services);
 
@@ -99,15 +103,9 @@ public class HybridTests : IDisposable
         }
     }
 
-    private void SetupBus(MessageBusBuilder mbb, SerializerType serializerType)
+    private void SetupBus(MessageBusBuilder mbb)
     {
         mbb.WithProviderHybrid();
-        mbb.WithSerializer(serializerType switch
-        {
-            SerializerType.NewtonsoftJson => new Serialization.Json.JsonMessageSerializer(),
-            SerializerType.SystemTextJson => new Serialization.SystemTextJson.JsonMessageSerializer(),
-            _ => throw new ArgumentOutOfRangeException(nameof(serializerType))
-        });
     }
 
     public record EventMark(Guid CorrelationId, string Name);
@@ -125,9 +123,6 @@ public class HybridTests : IDisposable
         // arrange
         SetupBus(
             serializerType: serializerType,
-            addConsumersFromAssembly: new[] { typeof(InternalMessageConsumer).Assembly },
-            addInterceptorsFromAssembly: new[] { typeof(InternalMessagePublishInterceptor).Assembly },
-            addConfiguratorsFromAssembly: new[] { typeof(MemoryBusConfigurator).Assembly },
             servicesBuilder: services =>
             {
                 // Unit of work should be shared between InternalMessageConsumer and ExternalMessageConsumer.

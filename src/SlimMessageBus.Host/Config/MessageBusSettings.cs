@@ -6,11 +6,10 @@ public class MessageBusSettings : HasProviderExtensions, IBusEvents
     /// The bus name.
     /// </summary>
     public string Name { get; set; }
-    public ILoggerFactory LoggerFactory { get; set; }
     public IList<ProducerSettings> Producers { get; }
     public IList<ConsumerSettings> Consumers { get; }
     public RequestResponseSettings RequestResponse { get; set; }
-    public IMessageSerializer Serializer { get; set; }
+    public Type SerializerType { get; set; }
     public IServiceProvider ServiceProvider { get; set; }
     public IMessageTypeResolver MessageTypeResolver { get; set; }
 
@@ -59,6 +58,7 @@ public class MessageBusSettings : HasProviderExtensions, IBusEvents
         Producers = new List<ProducerSettings>();
         Consumers = new List<ConsumerSettings>();
         MessageTypeResolver = new AssemblyQualifiedNameMessageTypeResolver();
+        SerializerType = typeof(IMessageSerializer);
         AutoStartConsumers = true;
     }
 
@@ -69,11 +69,6 @@ public class MessageBusSettings : HasProviderExtensions, IBusEvents
         if (Name == null && settings.Name != null)
         {
             Name = settings.Name;
-        }
-
-        if (LoggerFactory == null && settings.LoggerFactory != null)
-        {
-            LoggerFactory = settings.LoggerFactory;
         }
 
         if (settings.Producers.Count > 0)
@@ -92,19 +87,14 @@ public class MessageBusSettings : HasProviderExtensions, IBusEvents
             }
         }
 
-        if (Serializer == null && settings.Serializer != null)
+        if (SerializerType == null && settings.SerializerType != null)
         {
-            Serializer = settings.Serializer;
+            SerializerType = settings.SerializerType;
         }
 
         if (RequestResponse == null && settings.RequestResponse != null)
         {
             RequestResponse = settings.RequestResponse;
-        }
-
-        if (Serializer == null && settings.Serializer != null)
-        {
-            Serializer = settings.Serializer;
         }
 
         if (ServiceProvider == null && settings.ServiceProvider != null)

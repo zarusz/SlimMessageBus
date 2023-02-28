@@ -46,17 +46,13 @@ internal static class Program
             {
                 services.AddHostedService<ApplicationService>();
 
-                services.AddSlimMessageBus(mbb =>
+                services
+                    .AddSlimMessageBus(mbb =>
                     {
                         ConfigureMessageBus(mbb, ctx.Configuration);
-                    },
-                    // Option 1
-                    addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() },
-                    addConfiguratorsFromAssembly: new[] { Assembly.GetExecutingAssembly() }
-                );
-                // Option 2
-                //services.AddMessageBusConsumersFromAssembly(Assembly.GetExecutingAssembly())
-                //services.AddMessageBusConfiguratorsFromAssembly(Assembly.GetExecutingAssembly())
+                    })
+                    .AddMessageBusJsonSerializer()
+                    .AddMessageBusServicesFromAssembly(Assembly.GetExecutingAssembly());
             })
             .Build()
             .RunAsync();
@@ -233,7 +229,6 @@ internal static class Program
                 x.SubscriptionName(responseGroup); // for Azure Service Bus
                 x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
             })
-            .WithSerializer(new JsonMessageSerializer()) // Use JSON for message serialization                
             .PerMessageScopeEnabled(true) // Enable DI scope to be created for each message about to be processed
             .WithHeaderModifier((headers, message) =>
             {

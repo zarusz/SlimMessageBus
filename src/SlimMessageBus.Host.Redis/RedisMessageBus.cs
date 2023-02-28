@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Redis;
 
-using System.Runtime.ExceptionServices;
-
 using Microsoft.Extensions.Logging;
 
 using SlimMessageBus.Host.Collections;

@@ -50,35 +50,36 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
         // Topics on cloudkarafka.com are prefixed with username
         TopicPrefix = $"{kafkaUsername}-";
 
-        services.AddSlimMessageBus((mbb) =>
-        {
-            var kafkaSettings = new KafkaMessageBusSettings(kafkaBrokers)
+        services
+            .AddSlimMessageBus((mbb) =>
             {
-                ProducerConfig = (config) =>
+                var kafkaSettings = new KafkaMessageBusSettings(kafkaBrokers)
                 {
-                    AddSsl(kafkaUsername, kafkaPassword, config);
+                    ProducerConfig = (config) =>
+                    {
+                        AddSsl(kafkaUsername, kafkaPassword, config);
 
-                    config.LingerMs = 5; // 5ms
-                    config.SocketNagleDisable = true;
-                },
-                ConsumerConfig = (config) =>
-                {
-                    AddSsl(kafkaUsername, kafkaPassword, config);
+                        config.LingerMs = 5; // 5ms
+                        config.SocketNagleDisable = true;
+                    },
+                    ConsumerConfig = (config) =>
+                    {
+                        AddSsl(kafkaUsername, kafkaPassword, config);
 
-                    config.FetchErrorBackoffMs = 1;
-                    config.SocketNagleDisable = true;
+                        config.FetchErrorBackoffMs = 1;
+                        config.SocketNagleDisable = true;
 
-                    config.StatisticsIntervalMs = 500000;
-                    config.AutoOffsetReset = AutoOffsetReset.Latest;
-                }
-            };
+                        config.StatisticsIntervalMs = 500000;
+                        config.AutoOffsetReset = AutoOffsetReset.Latest;
+                    }
+                };
 
-            mbb
-                .WithSerializer(new JsonMessageSerializer())
-                .WithProviderKafka(kafkaSettings);
+                mbb.WithProviderKafka(kafkaSettings);
 
-            ApplyBusConfiguration(mbb);
-        }, addConsumersFromAssembly: new[] { typeof(PingConsumer).Assembly });
+                ApplyBusConfiguration(mbb);
+            })
+            .AddMessageBusJsonSerializer()
+            .AddMessageBusServicesFromAssemblyContaining<PingConsumer>();
 
         services.AddSingleton<TestEventCollector<ConsumedMessage>>();
     }

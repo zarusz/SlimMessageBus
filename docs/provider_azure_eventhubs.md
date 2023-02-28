@@ -19,12 +19,14 @@ var storageConnectionString = ""; // Azure Storage Account connection string (fo
 var storageContainerName = ""; // Azure Blob Storage container name
 
 // MessageBusBuilder mbb;
-mbb.    
-    // the bus configuration here
-    .WithProviderEventHub(new EventHubMessageBusSettings(connectionString, storageConnectionString, storageContainerName)); // Use Azure Event Hub as provider
-    .WithSerializer(new JsonMessageSerializer());
 
-IMessageBus bus = mbb.Build();
+services
+    .AddSlimMessageBus((mbb, svp) =>
+    {
+        // Bus configuration happens here (...)
+        mbb.WithProviderEventHub(new EventHubMessageBusSettings(connectionString, storageConnectionString, storageContainerName)); // Use Azure Event Hub as provider    
+    })
+    .AddMessageBusJsonSerializer(();
 ```
 
 If your bus only produces messages to Event Hub and does not consume any messages, then you do not need to provide a storage account as part of the config. In that case pass `null` for the storage account details:
@@ -32,11 +34,13 @@ If your bus only produces messages to Event Hub and does not consume any message
 ```cs
 var connectionString = ""; // Azure Event Hubs connection string
 
-// MessageBusBuilder mbb;
-mbb.    
-    // the bus configuration here
-    .WithProviderEventHub(new EventHubMessageBusSettings(connectionString, null, null)); // The bus will only be used to publish messages to Azure Event Hub
-    .WithSerializer(new JsonMessageSerializer());
+services
+    .AddSlimMessageBus((mbb, svp) =>
+    {
+        // Bus configuration happens here (...)
+        mbb.WithProviderEventHub(new EventHubMessageBusSettings(connectionString, null, null)); // The bus will only be used to publish messages to Azure Event Hub
+    })
+    .AddMessageBusJsonSerializer(();
 ```
 
 > The blob storage container will be created if it does not exist. Therefore, ensure the storage account connection string has sufficient permissions or create the storage container ahead of the application start.

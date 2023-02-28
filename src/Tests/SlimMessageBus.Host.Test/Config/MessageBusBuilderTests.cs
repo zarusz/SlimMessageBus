@@ -1,6 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Test.Config;
 
 using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host.Serialization.Json;
 
 public class MessageBusBuilderTests
 {
@@ -9,6 +10,32 @@ public class MessageBusBuilderTests
         public DerivedMessageBusBuilder(MessageBusBuilder other) : base(other)
         {
         }
+    }
+
+    [Fact]
+    public void When_WithSerializer_Given_TypeDoesNotImplementIMessageSerializer_Then_ThrowsException()
+    {
+        // arrange
+        var subject = MessageBusBuilder.Create();
+
+        // act
+        Action act = () => subject.WithSerializer<SomeMessage>();
+
+        // assert
+        act.Should().Throw<ConfigurationMessageBusException>();
+    }
+
+    [Fact]
+    public void When_WithSerializer_Given_DoesImplementIMessageSerializer_Then_ThrowsException()
+    {
+        // arrange
+        var subject = MessageBusBuilder.Create();
+
+        // act
+        Action act = () => subject.WithSerializer<JsonMessageSerializer>();
+
+        // assert
+        act.Should().NotThrow<ConfigurationMessageBusException>();
     }
 
     [Fact]
@@ -69,9 +96,8 @@ public class MessageBusBuilderTests
 
         // assert
         copy.Settings.Should().BeSameAs(subject.Settings);
-        copy.Settings.Name.Should().BeSameAs(subject.Settings.Name);
-        copy.Configurators.Should().BeSameAs(subject.Configurators);
-        copy.ChildBuilders.Should().BeSameAs(subject.ChildBuilders);
+        copy.Settings.Name.Should().BeSameAs(subject.Settings.Name);        
+        copy.Children.Should().BeSameAs(subject.Children);
         copy.BusFactory.Should().BeSameAs(subject.BusFactory);
     }
 }

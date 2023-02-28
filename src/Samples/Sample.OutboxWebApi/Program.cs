@@ -31,33 +31,35 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddMessageBusAspNet();
 
-builder.Services.AddSlimMessageBus((mbb, svp) =>
-{
-    var cfg = svp.GetRequiredService<IConfiguration>();
+builder.Services
+    .AddSlimMessageBus((mbb, svp) =>
+    {
+        var cfg = svp.GetRequiredService<IConfiguration>();
 
-    mbb
-        .AddChildBus("Memory", mbb =>
-        {
-            mbb.WithProviderMemory()
-               .AutoDeclareFrom(Assembly.GetExecutingAssembly(), consumerTypeFilter: t => t.Name.Contains("Command"))
-               //.UseTransactionScope(); // Consumers/Handlers will be wrapped in a TransactionScope
-               .UseSqlTransaction(); // Consumers/Handlers will be wrapped in a SqlTransaction
-        })
-        .AddChildBus("AzureSB", mbb =>
-        {
-            var serviceBusConnectionString = Secrets.Service.PopulateSecrets(cfg["Azure:ServiceBus"]);
-            mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString))
-               .Produce<CustomerCreatedEvent>(x =>
-               {
-                   x.DefaultTopic("samples.outbox/customer-events");
-                   // OR if you want just this producer to sent via outbox
-                   // x.UseOutbox();
-               })
-               .UseOutbox(); // All outgoing messages from this bus will go out via an outbox
-        })
-        .WithSerializer(new JsonMessageSerializer())
-        .WithProviderHybrid();
-}, addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() });
+        mbb
+            .AddChildBus("Memory", mbb =>
+            {
+                mbb.WithProviderMemory()
+                   .AutoDeclareFrom(Assembly.GetExecutingAssembly(), consumerTypeFilter: t => t.Name.Contains("Command"))
+                   //.UseTransactionScope(); // Consumers/Handlers will be wrapped in a TransactionScope
+                   .UseSqlTransaction(); // Consumers/Handlers will be wrapped in a SqlTransaction
+            })
+            .AddChildBus("AzureSB", mbb =>
+            {
+                var serviceBusConnectionString = Secrets.Service.PopulateSecrets(cfg["Azure:ServiceBus"]);
+                mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString))
+                   .Produce<CustomerCreatedEvent>(x =>
+                   {
+                       x.DefaultTopic("samples.outbox/customer-events");
+                       // OR if you want just this producer to sent via outbox
+                       // x.UseOutbox();
+                   })
+                   .UseOutbox(); // All outgoing messages from this bus will go out via an outbox
+            })
+            .WithProviderHybrid();
+    })
+    .AddMessageBusJsonSerializer()
+    .AddMessageBusServicesFromAssembly(Assembly.GetExecutingAssembly());
 
 builder.Services.AddMessageBusOutboxUsingDbContext<CustomerContext>(opts =>
 {

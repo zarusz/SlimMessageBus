@@ -67,42 +67,44 @@ The configuration is done using the [`MessageBusBuilder`](../src/SlimMessageBus.
 Here is a sample configuration:
 
 ```cs
-services.AddSlimMessageBus((mbb, svp) =>
-{
-   // Use JSON for message serialization
-  mbb.WithSerializer(new JsonMessageSerializer());
-  
-  // Use the Kafka transport provider
-  mbb.WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
-
-  // Pub/Sub example:
-  mbb.Produce<AddCommand>(x => x.DefaultTopic("add-command")); // By default AddCommand messages will go to 'add-command' topic (or hub name when Azure Service Hub provider)
-  mbb.Consume<AddCommand>(x => x
-    .Topic("add-command")
-    .WithConsumer<AddCommandConsumer>()
-    //.KafkaGroup(consumerGroup) // Kafka provider specific (Kafka consumer group name)
-  );
-
-  // Req/Resp example:
-  mbb.Produce<MultiplyRequest>(x => x.DefaultTopic("multiply-request")); // By default AddCommand messages will go to 'multiply-request' topic (or hub name when Azure Service Hub provider)
-  mbb.Handle<MultiplyRequest, MultiplyResponse>(x => x
-    .Topic("multiply-request") // Topic to expect the request messages
-    .WithHandler<MultiplyRequestHandler>()
-    //.KafkaGroup(consumerGroup) // Kafka provider specific (Kafka consumer group name)
-  );
-  // Configure response message queue (on topic) when using req/resp
-  mbb.ExpectRequestResponses(x =>
+services
+  .AddSlimMessageBus((mbb, svp) =>
   {
-    x.ReplyToTopic(topicForResponses); // All responses from req/resp will return on this topic (the EventHub name)
-    x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
-    //x.KafkaGroup(responseGroup); // Kafka provider specific (Kafka consumer group)
-  });
-  
-  mbb.Do(builder =>
-  {
-    // do additional configuration logic wrapped in an block for convenience
-  });
-});
+    // Use the Kafka transport provider
+    mbb.WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
+
+    // Pub/Sub example:
+    mbb.Produce<AddCommand>(x => x.DefaultTopic("add-command")); // By default AddCommand messages will go to 'add-command' topic (or hub name when Azure Service Hub provider)
+    mbb.Consume<AddCommand>(x => x
+      .Topic("add-command")
+      .WithConsumer<AddCommandConsumer>()
+      //.KafkaGroup(consumerGroup) // Kafka provider specific (Kafka consumer group name)
+    );
+
+    // Req/Resp example:
+    mbb.Produce<MultiplyRequest>(x => x.DefaultTopic("multiply-request")); // By default AddCommand messages will go to 'multiply-request' topic (or hub name when Azure Service Hub provider)
+    mbb.Handle<MultiplyRequest, MultiplyResponse>(x => x
+      .Topic("multiply-request") // Topic to expect the request messages
+      .WithHandler<MultiplyRequestHandler>()
+      //.KafkaGroup(consumerGroup) // Kafka provider specific (Kafka consumer group name)
+    );
+    // Configure response message queue (on topic) when using req/resp
+    mbb.ExpectRequestResponses(x =>
+    {
+      x.ReplyToTopic(topicForResponses); // All responses from req/resp will return on this topic (the EventHub name)
+      x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
+      //x.KafkaGroup(responseGroup); // Kafka provider specific (Kafka consumer group)
+    });
+    
+    mbb.Do(builder =>
+    {
+      // do additional configuration logic wrapped in an block for convenience
+    });
+  })
+  // Use JSON for message serialization
+  .AddMessageBusJsonSerializer(() // requires SlimMessageBus.Host.Serialization.Json package
+  // Find consumers and handlers in the current assembly and register in the DI
+  .AddMessageBusServicesFromAssembly(Assembly.GetExecutingAssembly());
 ```
 
 The builder (`mbb`) is the blueprint for creating message bus instances `IMessageBus`.
@@ -113,7 +115,7 @@ The `.AddSlimMessageBus()` registers a [`IHostedService`](https://learn.microsof
 
 Having done the SMB setup, one can then inject [`IMessageBus`](../src/SlimMessageBus/IMessageBus.cs) to publish or send messages.
 
-> The `IMessageBus` implementations are thread-safe.
+> The `IMessageBus` implementations are lightweight and thread-safe.
 
 ## Pub/Sub communication
 
@@ -609,38 +611,34 @@ SMB uses the [`Microsoft.Extensions.DependencyInjection`](https://www.nuget.org/
 The consumer/handler is typically resolved from DI container when the message arrives and needs to be handled.
 SMB does not maintain a reference to that object instance after consuming the message - this gives user the ability to decide if the consumer/handler should be a singleton, transient, or scoped (to the message being processed or ongoing web-request) and when it should be disposed of.
 
-The disposal of the consumer instance obtained from the DI is typically handled by the DI (if the consumer implements `IDisposable`).
 By default, SMB creates a child DI scope for every arriving message (`.IsMessageScopeEnabled(true)`). After the message is processed,
+The disposal of the consumer instance obtained from the DI is typically handled by the DI (if the consumer implements `IDisposable`).
 SMB disposes of that child DI scope. With that, the DI will dispose of the consumer instance and its injected collaborators.
+
+> It is recommended to leave the default per-message scope creation, and register the consumer types/handlers as either transient or scoped.
 
 Now, in some special situations, you might want SMB to dispose of the consumer instance
 after the message has been processed - you can enable that with `.DisposeConsumerEnabled(true)`.
 This setting will make SMB dispose of the consumer instance if only it implements the `IDisposable` interface.
 
-> It is recommended to leave the default per-message scope creation, and register the consumer types/handlers as either transient or scoped.
-
 ### Dependency auto-registration
 
-In order to avoid manual registration of consumers, interceptors, and other core component there is a way to automatically scan the assembly, so that SMB can register all the found components in the MSDI.
+In order to avoid manual registration of consumers, interceptors, and other core components there is a way to automatically scan the assembly, so that SMB can register all the found components in the MSDI.
 
 Here is an example:
 
 ```cs
 services.AddSlimMessageBus((mbb, svp) =>
-  {
-    // Bus configuration happens here.
-  }, 
-  // Option 1 (optional)
-  addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() }, // auto discover consumers and register into DI (see next section)
-  addInterceptorsFromAssembly: new[] { Assembly.GetExecutingAssembly() }, // auto discover interceptors and register into DI (see next section)
-  addConfiguratorsFromAssembly: new[] { Assembly.GetExecutingAssembly() } // auto discover modular configuration and register into DI (see next section)
-);
-
-// Option 2 (optional)
-services.AddMessageBusConsumersFromAssembly(Assembly.GetExecutingAssembly());
-services.AddMessageBusInterceptorsFromAssembly(Assembly.GetExecutingAssembly());
-services.AddMessageBusConfiguratorsFromAssembly(Assembly.GetExecutingAssembly());
+{
+  // Bus configuration happens here.
+});
+// auto discover consumers and register into DI (see next section)
+services.AddMessageBusServicesFromAssembly(Assembly.GetExecutingAssembly());
+// OR
+services.AddMessageBusServicesFromAssemblyContaining<SomeMessageConsumer>();
 ```
+
+> The `.AddMessageBusServicesFromAssembly()` methods register the consumers and handler concrete types as well as their interfaces in the DI container.
 
 Consider the following example:
 
@@ -652,8 +650,11 @@ public class SomeMessageConsumer : IConsumer<SomeMessage>
 
 // When auto-registration is used:
 services.AddMessageBusConsumersFromAssembly(Assembly.GetExecutingAssembly());
+```
 
-// Then it will cause the following MSDI setup:
+This will result in an equivalent services registration:
+
+```cs
 services.TryAddTransient<SomeMessageConsumer>();
 services.TryAddTransient<IConsumer<SomeMessage>, SomeMessageConsumer>();
 ```
@@ -671,7 +672,7 @@ services.AddMessageBusAspNet();
 
 > Since version 1.6.4
 
-If you want to avoid configuring the bus all in one place (`Startup.cs`) and rather have modules of the application 
+If you want to avoid configuring the bus all in one place (`Startup.cs`) and rather have modules of the application
 responsible for configuring their consumers or producers then it can be done using an implementation of `IMessageBusConfigurator` that is placed in each module (assembly).
 
 ```cs
@@ -688,25 +689,26 @@ public MyAppModule : IMessageBusConfigurator
 }
 ```
 
-Implementations of `IMessageBusConfigurator` registered in the DI will be resolved and used to configure the message bus as well as any child bus that was declared (see [Hybrid docs](provider_hybrid.md#configuration-modularization)).
-The `busName` parameter is mostly relevant if you are using the Hybrid bus transport.
-The `mbb` parameter represents the builder for the bus.
+Implementations of `IMessageBusConfigurator` registered in the DI will be resolved and used to configure the message bus as well as any child bus that was declared (see [Hybrid docs](provider_hybrid.md#configuration-modularization)):
 
-The extension method `services.AddMessageBusConfiguratorsFromAssembly(...)` can be used to search for any implementations of `IMessageBusConfigurator` and to register them as transient with the container:
+- The `busName` parameter is mostly relevant if you are using the Hybrid bus transport and represents the child bus name (`.AddChildBus()`). For the root bus level or when hybrid is not used the vlaue will be `null`.
+- The `mbb` parameter represents the builder for the bus.
+
+The extension method `services.AddMessageBusServicesFromAssembly(...)` can be used to search for any implementations of `IMessageBusConfigurator` and to register them as transient with the container:
 
 ```cs
 var accountingModuleAssembly = Assembly.GetExecutingAssembly();
-services.AddMessageBusConfiguratorsFromAssembly(accountingModuleAssembly);
+services.AddMessageBusServicesFromAssembly(accountingModuleAssembly);
 ```
 
 ### Autoregistration of consumers, interceptors and configurators
 
 > Since version 1.6.4
 
-We can also use the `AddMessageBusConsumersFromAssembly` extension method to search for any implementations of `IConsumer<T>` (or `IRequestHandler<T, R>`) and register them as Transient with the container:
+We can also use the `.AddMessageBusServicesFromAssembly()` extension method to search for any implementations of `IConsumer<T>`, `IRequestHandler<T, R>` or `IRequestHandler<T>`, and register them as Transient with the container:
 
 ```cs
-services.AddMessageBusConsumersFromAssembly(Assembly.GetExecutingAssembly());
+services.AddMessageBusServicesFromAssembly(Assembly.GetExecutingAssembly());
 ```
 
 ## Serialization
@@ -1031,17 +1033,9 @@ public class LoggingConsumerInterceptor<TMessage> : IConsumerInterceptor<TMessag
 
 SlimMessageBus uses [Microsoft.Extensions.Logging.Abstractions](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Abstractions).
 
-The `ILoggerFactory` will be resolved from the dependency injection container or it can be taken from the `MessageBusBuilder` configuration:
-
-```cs
-ILoggerFactory loggerFactory;    
-
-mbb // of type MessageBusBuilder
-  .WithLoggerFacory(loggerFactory)
-```
+The `ILoggerFactory` will be resolved from the dependency injection container.
 
 When the `ILoggerFactory` is not configured nor available in the DI container SMB will use `NullLoggerFactory.Instance`.
-The `.WithLoggerFactory(...)` takes takes precedence over the instance available in the DI container.
 
 ## Provider specific functionality
 

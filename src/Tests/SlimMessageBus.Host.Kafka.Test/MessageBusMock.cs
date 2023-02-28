@@ -16,14 +16,14 @@ public class MessageBusMock
 
     public MessageBusMock()
     {
-        ServiceProviderMock = new ServiceProviderMock();
-
         SerializerMock = new Mock<IMessageSerializer>();
+
+        ServiceProviderMock = new ServiceProviderMock();
+        ServiceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(SerializerMock.Object);
 
         BusSettings = new MessageBusSettings
         {
             ServiceProvider = ServiceProviderMock.ProviderMock.Object,
-            Serializer = SerializerMock.Object
         };
 
         CurrentTime = DateTimeOffset.UtcNow;

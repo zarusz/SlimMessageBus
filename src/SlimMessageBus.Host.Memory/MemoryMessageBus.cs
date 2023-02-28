@@ -10,10 +10,7 @@ public class MemoryMessageBus : MessageBusBase
 {
     private readonly ILogger _logger;
     private IDictionary<string, IMessageProcessor<object>> _consumersByPath;
-    private readonly IMessageSerializer _serializer;
     private readonly MemoryMessageBusSettings _providerSettings;
-
-    public override IMessageSerializer Serializer => _serializer;
 
     public MemoryMessageBus(MessageBusSettings settings, MemoryMessageBusSettings providerSettings) : base(settings)
     {
@@ -21,20 +18,17 @@ public class MemoryMessageBus : MessageBusBase
         _providerSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
 
         OnBuildProvider();
-
-        _serializer = _providerSettings.EnableMessageSerialization
-            ? Settings.Serializer
-            : new NullMessageSerializer();
     }
 
     #region Overrides of MessageBusBase
 
-    protected override void AssertSerializerSettings()
+    protected override IMessageSerializer GetSerializer()
     {
-        if (_providerSettings.EnableMessageSerialization)
+        if (!_providerSettings.EnableMessageSerialization)
         {
-            base.AssertSerializerSettings();
+            return new NullMessageSerializer();
         }
+        return base.GetSerializer();
     }
 
     protected override void BuildPendingRequestStore()
