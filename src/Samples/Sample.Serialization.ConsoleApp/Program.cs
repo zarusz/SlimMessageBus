@@ -2,7 +2,6 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging.Abstractions;
 
 using Sample.Serialization.MessagesAvro;
 
@@ -41,100 +40,101 @@ class Program
 
             services.AddHostedService<MainProgram>();
 
-            services.AddSlimMessageBus((mbb, svp) =>
+            // alternatively a simpler approach, but using the slower ReflectionMessageCreationStategy and ReflectionSchemaLookupStrategy
+            var avroSerializer = new AvroMessageSerializer();
+
+            // Avro serialized using the AvroConvert library - no schema generation neeeded upfront.
+            var jsonSerializer = new JsonMessageSerializer();
+
+            // Note: Certain messages will be serialized by one Avro serializer, other using the Json serializer
+            services.AddMessageBusHybridSerializer(new Dictionary<IMessageSerializer, Type[]>
             {
-                // Note: remember that Memory provider does not support req-resp yet.
-                var provider = Provider.Redis;
+                [jsonSerializer] = new[] { typeof(SubtractCommand) }, // the first one will be the default serializer, no need to declare types here
+                [avroSerializer] = new[] { typeof(AddCommand), typeof(MultiplyRequest), typeof(MultiplyResponse) },
+            }, defaultMessageSerializer: jsonSerializer);
 
-                /*
-                var sl = new DictionarySchemaLookupStrategy();
-                /// register all your types
-                sl.Add(typeof(AddCommand), AddCommand._SCHEMA);
-                sl.Add(typeof(MultiplyRequest), MultiplyRequest._SCHEMA);
-                sl.Add(typeof(MultiplyResponse), MultiplyResponse._SCHEMA);
-
-                var mf = new DictionaryMessageCreationStategy();
-                /// register all your types
-                mf.Add(typeof(AddCommand), () => new AddCommand());
-                mf.Add(typeof(MultiplyRequest), () => new MultiplyRequest());
-                mf.Add(typeof(MultiplyResponse), () => new MultiplyResponse());
-
-                // longer approach, but should be faster as it's not using reflection
-                var avroSerializer = new AvroMessageSerializer(mf, sl);
-                */
-
-                // alternatively a simpler approach, but using the slower ReflectionMessageCreationStategy and ReflectionSchemaLookupStrategy
-                var avroSerializer = new AvroMessageSerializer(NullLoggerFactory.Instance);
-
-                // Avro serialized using the AvroConvert library - no schema generation neeeded upfront.
-                var jsonSerializer = new JsonMessageSerializer();
-
-                // Note: Certain messages will be serialized by one Avro serializer, other using the Json serializer
-                var routingSerializer = new HybridMessageSerializer(new Dictionary<IMessageSerializer, Type[]>
+            services
+                .AddSlimMessageBus((mbb, svp) =>
                 {
-                    [jsonSerializer] = new[] { typeof(SubtractCommand) }, // the first one will be the default serializer, no need to declare types here
-                    [avroSerializer] = new[] { typeof(AddCommand), typeof(MultiplyRequest), typeof(MultiplyResponse) },
-                }, NullLogger<HybridMessageSerializer>.Instance);
+                    // Note: remember that Memory provider does not support req-resp yet.
+                    var provider = Provider.Redis;
 
-                mbb
-                    .Produce<AddCommand>(x => x.DefaultTopic("AddCommand"))
-                    .Consume<AddCommand>(x => x.Topic("AddCommand").WithConsumer<AddCommandConsumer>())
+                    /*
+                    var sl = new DictionarySchemaLookupStrategy();
+                    /// register all your types
+                    sl.Add(typeof(AddCommand), AddCommand._SCHEMA);
+                    sl.Add(typeof(MultiplyRequest), MultiplyRequest._SCHEMA);
+                    sl.Add(typeof(MultiplyResponse), MultiplyResponse._SCHEMA);
 
-                    .Produce<SubtractCommand>(x => x.DefaultTopic("SubtractCommand"))
-                    .Consume<SubtractCommand>(x => x.Topic("SubtractCommand").WithConsumer<SubtractCommandConsumer>())
+                    var mf = new DictionaryMessageCreationStategy();
+                    /// register all your types
+                    mf.Add(typeof(AddCommand), () => new AddCommand());
+                    mf.Add(typeof(MultiplyRequest), () => new MultiplyRequest());
+                    mf.Add(typeof(MultiplyResponse), () => new MultiplyResponse());
 
-                    .Produce<MultiplyRequest>(x => x.DefaultTopic("MultiplyRequest"))
-                    .Handle<MultiplyRequest, MultiplyResponse>(x => x.Topic("MultiplyRequest").WithHandler<MultiplyRequestHandler>())
+                    // longer approach, but should be faster as it's not using reflection
+                    var avroSerializer = new AvroMessageSerializer(mf, sl);
+                    */
 
-                    .ExpectRequestResponses(x => x.ReplyToTopic("ConsoleApp"))
+                    mbb
+                        .Produce<AddCommand>(x => x.DefaultTopic("AddCommand"))
+                        .Consume<AddCommand>(x => x.Topic("AddCommand").WithConsumer<AddCommandConsumer>())
 
-                    .WithSerializer(routingSerializer) // Use Avro for message serialization                
-                    .Do(builder =>
-                    {
-                        Console.WriteLine($"Using {provider} as the transport provider");
-                        switch (provider)
+                        .Produce<SubtractCommand>(x => x.DefaultTopic("SubtractCommand"))
+                        .Consume<SubtractCommand>(x => x.Topic("SubtractCommand").WithConsumer<SubtractCommandConsumer>())
+
+                        .Produce<MultiplyRequest>(x => x.DefaultTopic("MultiplyRequest"))
+                        .Handle<MultiplyRequest, MultiplyResponse>(x => x.Topic("MultiplyRequest").WithHandler<MultiplyRequestHandler>())
+
+                        .ExpectRequestResponses(x => x.ReplyToTopic("ConsoleApp"))
+
+                        .Do(builder =>
                         {
-                            case Provider.Memory:
-                                builder.WithProviderMemory(new MemoryMessageBusSettings { EnableMessageSerialization = true });
-                                break;
+                            Console.WriteLine($"Using {provider} as the transport provider");
+                            switch (provider)
+                            {
+                                case Provider.Memory:
+                                    builder.WithProviderMemory(new MemoryMessageBusSettings { EnableMessageSerialization = true });
+                                    break;
 
-                            //case Provider.AzureServiceBus:
-                            //    // Provide connection string to your Azure SB
-                            //    var serviceBusConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
+                                //case Provider.AzureServiceBus:
+                                //    // Provide connection string to your Azure SB
+                                //    var serviceBusConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
 
-                            //    builder.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString)); // Use Azure Service Bus as provider
-                            //    break;
+                                //    builder.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString)); // Use Azure Service Bus as provider
+                                //    break;
 
-                            //case Provider.AzureEventHub:
-                            //    // Provide connection string to your event hub namespace
-                            //    var eventHubConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub:ConnectionString"]);
-                            //    var storageConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub:Storage"]);
-                            //    var storageContainerName = configuration["Azure:EventHub:ContainerName"];
+                                //case Provider.AzureEventHub:
+                                //    // Provide connection string to your event hub namespace
+                                //    var eventHubConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub:ConnectionString"]);
+                                //    var storageConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub:Storage"]);
+                                //    var storageContainerName = configuration["Azure:EventHub:ContainerName"];
 
-                            //    builder.WithProviderEventHub(new EventHubMessageBusSettings(eventHubConnectionString, storageConnectionString, storageContainerName)); // Use Azure Event Hub as provider
-                            //    break;
+                                //    builder.WithProviderEventHub(new EventHubMessageBusSettings(eventHubConnectionString, storageConnectionString, storageContainerName)); // Use Azure Event Hub as provider
+                                //    break;
 
-                            //case Provider.Kafka:
-                            //    // Ensure your Kafka broker is running
-                            //    var kafkaBrokers = configuration["Kafka:Brokers"];
-                            //    var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
-                            //    var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
+                                //case Provider.Kafka:
+                                //    // Ensure your Kafka broker is running
+                                //    var kafkaBrokers = configuration["Kafka:Brokers"];
+                                //    var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
+                                //    var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
 
-                            //    builder.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)); // Or use Apache Kafka as provider
-                            //    break;
+                                //    builder.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)); // Or use Apache Kafka as provider
+                                //    break;
 
-                            case Provider.Redis:
-                                // Ensure your Redis broker is running
-                                var redisConnectionString = Secrets.Service.PopulateSecrets(ctx.Configuration["Redis:ConnectionString"]);
+                                case Provider.Redis:
+                                    // Ensure your Redis broker is running
+                                    var redisConnectionString = Secrets.Service.PopulateSecrets(ctx.Configuration["Redis:ConnectionString"]);
 
-                                builder.WithProviderRedis(new RedisMessageBusSettings(redisConnectionString)); // Or use Redis as provider
-                                break;
+                                    builder.WithProviderRedis(new RedisMessageBusSettings(redisConnectionString)); // Or use Redis as provider
+                                    break;
 
-                            default:
-                                throw new NotSupportedException();
-                        }
-                    });
-            }, addConsumersFromAssembly: new[] { typeof(AddCommandConsumer).Assembly });
+                                default:
+                                    throw new NotSupportedException();
+                            }
+                        });
+                })
+                .AddMessageBusServicesFromAssemblyContaining<AddCommandConsumer>();                
         })
         .Build()
         .RunAsync();

@@ -1,6 +1,9 @@
+using System.Net.Mime;
 using System.Reflection;
 
 using FluentValidation;
+
+using Microsoft.AspNetCore.Diagnostics;
 
 using Sample.ValidatingWebApi.Commands;
 using Sample.ValidatingWebApi.Queries;
@@ -15,29 +18,42 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 // Configure SMB
-builder.Services.AddSlimMessageBus(mbb =>
-{
-    mbb
-        .WithProviderMemory()
-        .AutoDeclareFrom(Assembly.GetExecutingAssembly());
-}, addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() });
+builder.Services
+    .AddSlimMessageBus(mbb => mbb.WithProviderMemory().AutoDeclareFrom(Assembly.GetExecutingAssembly()))
+    .AddMessageBusServicesFromAssembly(Assembly.GetExecutingAssembly())
+    .AddMessageBusAspNet()
+    // Configure SlimMessageBus.Host.FluentValidation plugin
+    .AddMessageBusProducerValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();
 
-// register validators
-//builder.Services.AddValidationErrorsHandler(errors => new ApplicationException("Custom Validation Exception"));
+// You can map the validation errors into a custom exception
+//builder.Services.AddMessageBusValidationErrorsHandler(errors => new ApplicationException("Custom Validation Exception"));
+
+// FluentValidation library - find and register IValidator<T> implementations:
 builder.Services.AddValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();
-builder.Services.AddProducerValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();
-//builder.Services.AddTransient<IProducerInterceptor<CreateCustomerCommand>, ProducerValidationInterceptor<CreateCustomerCommand>>();
-//builder.Services.AddTransient(typeof(IProducerInterceptor<>), typeof(ProducerValidationInterceptor<>));
 
+// Required for SlimMessageBus.Host.AspNetCore package
 builder.Services.AddHttpContextAccessor();
-
-builder.Services.AddMessageBusAspNet();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+// Translates the ValidationException into a 400 bad request
+app.UseExceptionHandler(exceptionHandlerApp =>
+{
+    exceptionHandlerApp.Run(async context =>
+    {
+        var exceptionHandlerPathFeature = context.Features.Get<IExceptionHandlerPathFeature>();
+        if (exceptionHandlerPathFeature?.Error is ValidationException e)
+        {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            context.Response.ContentType = MediaTypeNames.Application.Json;
+            await context.Response.WriteAsJsonAsync(new { e.Errors });
+        }
+    });
+});
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

@@ -1,7 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Serialization.Hybrid;
 
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 /// <summary>
 /// <see cref="IMessageSerializer"/> implementation that delegates (routes) the serialization to the respective serializer based on message type.
@@ -13,14 +12,10 @@ public class HybridMessageSerializer : IMessageSerializer
     private readonly IDictionary<Type, IMessageSerializer> _serializerByType = new Dictionary<Type, IMessageSerializer>();
     public IMessageSerializer DefaultSerializer { get; set; }
 
-    public HybridMessageSerializer()
-    {
-        _logger = NullLogger<HybridMessageSerializer>.Instance;
-    }
-
-    public HybridMessageSerializer(IDictionary<IMessageSerializer, Type[]> registration, ILogger<HybridMessageSerializer> logger)
+    public HybridMessageSerializer(ILogger<HybridMessageSerializer> logger, IDictionary<IMessageSerializer, Type[]> registration, IMessageSerializer defaultMessageSerializer = null)
     {
         _logger = logger;
+        DefaultSerializer = defaultMessageSerializer;
         foreach (var entry in registration)
         {
             Add(entry.Key, entry.Value);

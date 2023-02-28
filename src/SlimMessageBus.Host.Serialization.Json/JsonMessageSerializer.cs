@@ -1,8 +1,10 @@
 namespace SlimMessageBus.Host.Serialization.Json;
 
 using System.Text;
+
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+
 using Newtonsoft.Json;
 
 public class JsonMessageSerializer : IMessageSerializer
@@ -14,12 +16,12 @@ public class JsonMessageSerializer : IMessageSerializer
     public JsonMessageSerializer(JsonSerializerSettings serializerSettings, Encoding encoding, ILogger<JsonMessageSerializer> logger)
     {
         _serializerSettings = serializerSettings;
-        _encoding = encoding;
+        _encoding = encoding ?? Encoding.UTF8;
         _logger = logger;
     }
 
     public JsonMessageSerializer()
-        : this(null, Encoding.UTF8, NullLogger<JsonMessageSerializer>.Instance)
+        : this(null, null, NullLogger<JsonMessageSerializer>.Instance)
     {
     }
 

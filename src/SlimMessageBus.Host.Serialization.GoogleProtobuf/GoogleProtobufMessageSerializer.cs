@@ -1,6 +1,7 @@
 namespace SlimMessageBus.Host.Serialization.GoogleProtobuf;
 
 using System.Reflection;
+
 using Google.Protobuf;
 
 public class GoogleProtobufMessageSerializer : IMessageSerializer
@@ -8,18 +9,11 @@ public class GoogleProtobufMessageSerializer : IMessageSerializer
     private readonly ILogger _logger;
     private readonly IMessageParserFactory _messageParserFactory;
 
-    public GoogleProtobufMessageSerializer(ILoggerFactory loggerFactory) : this(
-    loggerFactory,
-    new MessageParserFactory())
-    {
-    }
-
-    public GoogleProtobufMessageSerializer(ILoggerFactory loggerFactory, IMessageParserFactory messageParserFactory)
+    public GoogleProtobufMessageSerializer(ILoggerFactory loggerFactory, IMessageParserFactory messageParserFactory = null)
     {
         _logger = loggerFactory.CreateLogger<GoogleProtobufMessageSerializer>();
-        _messageParserFactory = messageParserFactory;
+        _messageParserFactory = messageParserFactory ?? new MessageParserFactory();
     }
-
 
     public byte[] Serialize(Type t, object message)
     {

@@ -138,10 +138,11 @@ services.AddSlimMessageBus((mbb, svp) =>
          // Default global response timeout
          x.DefaultTimeout(TimeSpan.FromSeconds(30));
       })
-      .WithSerializer(new JsonMessageSerializer())
       .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
    });
-}
+});
+services.AddMessageBusJsonSerializer(();
+services.AddMessageBusServicesFromAssembly(Assembly.GetExecutingAssembly());
 
 services.AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
 ```
@@ -152,37 +153,33 @@ The message bus configuration for the Worker:
 // This sample uses Autofac
 var builder = new ContainerBuilder();
 
-builder.RegisterModule(new SlimMessageBusModule
+services.AddSlimMessageBus((mbb, svp) =>
 {
-   ConfigureBus = (mbb, ctx) =>
-   {
-      // unique id across instances of this application (e.g. 1, 2, 3)
-      var instanceId = configuration["InstanceId"];
-      var kafkaBrokers = configuration["Kafka:Brokers"];
+   // unique id across instances of this application (e.g. 1, 2, 3)
+   var instanceId = configuration["InstanceId"];
+   var kafkaBrokers = configuration["Kafka:Brokers"];
 
-      var instanceGroup = $"worker-{instanceId}";
-      var sharedGroup = "workers";
+   var instanceGroup = $"worker-{instanceId}";
+   var sharedGroup = "workers";
 
-      mbb
-         .Handle<GenerateThumbnailRequest, GenerateThumbnailResponse>(s =>
+   mbb
+      .Handle<GenerateThumbnailRequest, GenerateThumbnailResponse>(s =>
+      {
+         s.Topic("thumbnail-generation", t =>
          {
-            s.Topic("thumbnail-generation", t =>
-            {
-               t.WithHandler<GenerateThumbnailRequestHandler>()
-                  .KafkaGroup(sharedGroup)
-                  .Instances(3);
-            });
-         })
-         .WithSerializer(new JsonMessageSerializer())
-         .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
-         {
-            ConsumerConfig = (config) =>
-            {
-               config.StatisticsIntervalMs = 60000;
-               config.AutoOffsetReset = Confluent.Kafka.AutoOffsetReset.Latest;
-            }
+            t.WithHandler<GenerateThumbnailRequestHandler>()
+               .KafkaGroup(sharedGroup)
+               .Instances(3);
          });
-   }
+      })
+      .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+      {
+         ConsumerConfig = (config) =>
+         {
+            config.StatisticsIntervalMs = 60000;
+            config.AutoOffsetReset = Confluent.Kafka.AutoOffsetReset.Latest;
+         }
+      });
 });
 ```
 

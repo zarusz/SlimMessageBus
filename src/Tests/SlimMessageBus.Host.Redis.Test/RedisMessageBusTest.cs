@@ -24,14 +24,10 @@ public class RedisMessageBusTest
 
     public RedisMessageBusTest()
     {
-        _serviceProviderMock.Setup(x => x.GetService(It.IsAny<Type>())).Returns((Type t) =>
-        {
-            if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
-            return null;
-        });
+        _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(_messageSerializerMock.Object);
+        _serviceProviderMock.Setup(x => x.GetService(It.Is<Type>(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)))).Returns(Enumerable.Empty<object>());
 
         _settings.ServiceProvider = _serviceProviderMock.Object;
-        _settings.Serializer = _messageSerializerMock.Object;
 
         _messageSerializerMock
             .Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<object>()))

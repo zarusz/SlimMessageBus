@@ -22,32 +22,33 @@ public class EventHubMessageBusIt : BaseIntegrationTest<EventHubMessageBusIt>
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
         services.AddSlimMessageBus((mbb, svp) =>
-        {
-            // connection details to the Azure Event Hub
-            var connectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub"]);
-            var storageConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:Storage"]);
-            var storageContainerName = configuration["Azure:ContainerName"];
-
-            var settings = new EventHubMessageBusSettings(connectionString, storageConnectionString, storageContainerName)
             {
-                EventHubProducerClientOptionsFactory = (path) => new Azure.Messaging.EventHubs.Producer.EventHubProducerClientOptions
-                {
-                    Identifier = $"MyService_{Guid.NewGuid()}"
-                },
-                EventHubProcessorClientOptionsFactory = (consumerParams) => new Azure.Messaging.EventHubs.EventProcessorClientOptions
-                {
-                    // Allow the test to be repeatable - force partition lease rebalancing to happen faster
-                    LoadBalancingUpdateInterval = TimeSpan.FromSeconds(2),
-                    PartitionOwnershipExpirationInterval = TimeSpan.FromSeconds(5),
-                }
-            };
+                // connection details to the Azure Event Hub
+                var connectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub"]);
+                var storageConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:Storage"]);
+                var storageContainerName = configuration["Azure:ContainerName"];
 
-            mbb
-                .WithSerializer(new JsonMessageSerializer())
-                .WithProviderEventHub(settings);
+                var settings = new EventHubMessageBusSettings(connectionString, storageConnectionString, storageContainerName)
+                {
+                    EventHubProducerClientOptionsFactory = (path) => new Azure.Messaging.EventHubs.Producer.EventHubProducerClientOptions
+                    {
+                        Identifier = $"MyService_{Guid.NewGuid()}"
+                    },
+                    EventHubProcessorClientOptionsFactory = (consumerParams) => new Azure.Messaging.EventHubs.EventProcessorClientOptions
+                    {
+                        // Allow the test to be repeatable - force partition lease rebalancing to happen faster
+                        LoadBalancingUpdateInterval = TimeSpan.FromSeconds(2),
+                        PartitionOwnershipExpirationInterval = TimeSpan.FromSeconds(5),
+                    }
+                };
 
-            ApplyBusConfiguration(mbb);
-        }, addConsumersFromAssembly: new[] { typeof(PingConsumer).Assembly });
+                mbb
+                    .WithProviderEventHub(settings);
+
+                ApplyBusConfiguration(mbb);
+            })
+            .AddMessageBusJsonSerializer()
+            .AddMessageBusServicesFromAssemblyContaining<PingConsumer>();
 
         services.AddSingleton<ConcurrentBag<PingMessage>>();
     }

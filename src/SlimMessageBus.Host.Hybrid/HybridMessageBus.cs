@@ -21,19 +21,17 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
         Settings = settings ?? throw new ArgumentNullException(nameof(settings));
         ProviderSettings = providerSettings ?? new HybridMessageBusSettings();
 
-        // Use the configured logger factory, if not provided try to resolve from DI, if also not available supress logging using the NullLoggerFactory
-        LoggerFactory = settings.LoggerFactory
-            ?? (ILoggerFactory)settings.ServiceProvider?.GetService(typeof(ILoggerFactory))
-            ?? NullLoggerFactory.Instance;
+        // Try to resolve from DI, if also not available supress logging using the NullLoggerFactory
+        LoggerFactory = (ILoggerFactory)settings.ServiceProvider?.GetService(typeof(ILoggerFactory)) ?? NullLoggerFactory.Instance;
 
         _logger = LoggerFactory.CreateLogger<HybridMessageBus>();
 
         _runtimeTypeCache = new RuntimeTypeCache();
 
         _busByName = new Dictionary<string, MessageBusBase>();
-        foreach (var childBus in mbb.ChildBuilders)
+        foreach (var childBus in mbb.Children)
         {
-            var bus = BuildBus(childBus.Value, childBus.Key, mbb);
+            var bus = BuildBus(childBus.Value);
             _busByName.Add(bus.Settings.Name, bus);
         }
 
@@ -57,14 +55,8 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
         // ToDo: defer start of busses until here
     }
 
-    protected virtual MessageBusBase BuildBus(Action<MessageBusBuilder> builderAction, string busName, MessageBusBuilder parentBuilder)
+    protected virtual MessageBusBase BuildBus(MessageBusBuilder builder)
     {
-        var builder = MessageBusBuilder.Create();
-        builder.Configurators = parentBuilder.Configurators;
-        builder.MergeFrom(Settings);
-        builder.Settings.Name = busName;
-        builderAction(builder);
-
         var bus = builder.Build();
 
         return (MessageBusBase)bus;

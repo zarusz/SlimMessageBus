@@ -4,11 +4,11 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 
 - [Introduction](#introduction)
 - [Configuration](#configuration)
-  - [Configuring with MsDependencyInjection](#configuring-with-msdependencyinjection)
+  - [Configuring FluentValidation](#configuring-fluentvalidation)
     - [Custom exception](#custom-exception)
     - [Producer side validation](#producer-side-validation)
     - [Consumer side validation](#consumer-side-validation)
-  - [Configuring without MsDependencyInjection](#configuring-without-msdependencyinjection)
+  - [Configuring without MSDI](#configuring-without-msdi)
   
 ## Introduction
 
@@ -51,9 +51,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
 }
 ```
 
-### Configuring with MsDependencyInjection
-
-The [`SlimMessageBus.Host.FluentValidation.MsDependencyInjection`](https://www.nuget.org/packages/SlimMessageBus.Host.FluentValidation.MsDependencyInjection) allows to easily configure the plugin using `Microsoft.Extensions.DependencyInjection` container.
+### Configuring FluentValidation
 
 Consider an in-process command that is delivered using the memory bus:
 
@@ -62,15 +60,16 @@ Consider an in-process command that is delivered using the memory bus:
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure SMB
-builder.Services.AddSlimMessageBus(mbb =>
-{
-    mbb
-        .WithProviderMemory()
-        .AutoDeclareFrom(Assembly.GetExecutingAssembly());
-}, addConsumersFromAssembly: new[] { Assembly.GetExecutingAssembly() });
+builder.Services
+    .AddSlimMessageBus(mbb =>
+    {
+        mbb
+            .WithProviderMemory()
+            .AutoDeclareFrom(Assembly.GetExecutingAssembly());
+    })
+    .AddMessageBusServicesFromAssembly(Assembly.GetExecutingAssembly());
 
 // Register FluentValidation validators
-// Requried Package: FluentValidation.DependencyInjectionExtensions
 builder.Services.AddValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();
 ```
 
@@ -80,17 +79,17 @@ By default `FluentValidation.ValidationException` exception is raised on the pro
 It is possible to configure custom exception (or perhaps to supress the validation errors):
 
 ```cs
-builder.Services.AddValidationErrorsHandler(errors => new ApplicationException("Custom exception"));
+builder.Services.AddMessageBusValidationErrorsHandler(errors => new ApplicationException("Custom exception"));
 ```
 
 #### Producer side validation
 
-The `AddProducerValidatorsFromAssemblyContaining` will register an SMB interceptor that will validate the message upon `.Publish()` or `.Send()` - on the producer side before the message even gets deliverd to the underlying transport. Continuing on the example from previous section:
+The `AddMessageBusProducerValidatorsFromAssemblyContaining` will register an SMB interceptor that will validate the message upon `.Publish()` or `.Send()` - on the producer side before the message even gets deliverd to the underlying transport. Continuing on the example from previous section:
 
 ```cs
 // Register validation interceptors for message (here command) producers inside message bus
-// Required Package: SlimMessageBus.Host.FluentValidation.MsDependencyInjection
-builder.Services.AddProducerValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();
+// Required Package: SlimMessageBus.Host.FluentValidation
+builder.Services.AddMessageBusProducerValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();
 ```
 
 For example given an ASP.NET Mimimal WebApi, the request can be delegated to SlimMessageBus in memory transport:
@@ -115,13 +114,13 @@ Such validation would be needed in scenarios when an external system delivers me
 
 ```cs
 // Register validation interceptors for message (here command) consumers inside message bus
-// Required Package: SlimMessageBus.Host.FluentValidation.MsDependencyInjection
-builder.Services.AddConsumerValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();
+// Required Package: SlimMessageBus.Host.FluentValidation
+builder.Services.AddMessageBusConsumerValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();
 ```
 
 In the situation that the message is invalid, the message will fail with `FluentValidation.ValidationException: Validation failed` exception and standard consumer error handling will take place (depending on the underlying transport it might get retried multiple times until it ends up on dead-letter queue).
 
-### Configuring without MsDependencyInjection
+### Configuring without MSDI
 
 If you are using another DI container than Microsoft.Extensions.DependencyInjection, in order for the `SlimMessageBus.Host.FluentValidation` plugin to work, you simply need to:
 

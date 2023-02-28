@@ -31,9 +31,11 @@ Good use case for in memory communication is:
 The memory transport is configured using the `.WithProviderMemory()`:
 
 ```cs
-// MessageBusBuilder mbb;
-mbb
-   .WithProviderMemory();
+services.AddSlimMessageBus((mbb, svp) =>
+{
+  // Bus configuration happens here (...)
+  mbb.WithProviderMemory();
+});
 ```
 
 ### Serialization
@@ -45,14 +47,16 @@ Since messages are passed within the same process, serializing and deserializing
 Serialization can be disabled or enabled:
 
 ```cs
-// MessageBusBuilder mbb;
-mbb
-   .WithProviderMemory(new MemoryMessageBusSettings
+services.AddSlimMessageBus((mbb, svp) =>
+{
+   // Bus configuration happens here (...)
+   mbb.WithProviderMemory(new MemoryMessageBusSettings
    {
       // Do not serialize the domain events and rather pass the same instance across handlers
       EnableMessageSerialization = false
    });
-   //.WithSerializer(new JsonMessageSerializer()); //  serializer not needed if EnableMessageSerialization = false
+});
+//services.AddMessageBusJsonSerializer((); // serializer not needed if EnableMessageSerialization = false
 ```
 
 > When serialization is disabled for in memory passed messages, the exact same object instance send by the producer will be recieved by the consumer. Therefore state changes on the consumer end will be visible by the producer. Consider making the messages immutable (read only).

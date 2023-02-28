@@ -52,10 +52,10 @@ services.AddSlimMessageBus((mbb, svp) =>
                 .Consume<SendEmailCommand>(x => x.Queue("test-ping-queue").WithConsumer<SmtpEmailService>())
                 .WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString));
         })
-        .WithSerializer(new JsonMessageSerializer()) // serialization setup will be shared between bus 1 and 2
         .WithProviderHybrid();
-},
-addConsumersFromAssembly: new[] { typeof(CustomerChangedEventHandler).Assembly });
+});
+services.AddMessageBusJsonSerializer((); // serialization setup will be shared between bus 1 and 2
+services.AddMessageBusServicesFromAssemblyContaining<CustomerChangedEventHandler>(); // register all the found consumers and handlers in DI 
 ```
 
 In the example above, we define the hybrid bus to create two kinds of transports - Memory and Azure Service Bus:

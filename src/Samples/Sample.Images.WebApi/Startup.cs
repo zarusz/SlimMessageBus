@@ -66,9 +66,9 @@ public class Startup
                     // Default global response timeout
                     x.DefaultTimeout(TimeSpan.FromSeconds(30));
                 })
-                .WithSerializer(new JsonMessageSerializer())
                 .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
         });
+        services.AddMessageBusJsonSerializer();
 
         services.AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
         services.AddMessageBusAspNet();

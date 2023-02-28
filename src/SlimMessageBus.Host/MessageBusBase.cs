@@ -15,6 +15,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 {
     private readonly ILogger _logger;
     private CancellationTokenSource _cancellationTokenSource = new();
+    private IMessageSerializer _serializer;
 
     /// <summary>
     /// Special market reference that signifies a dummy producer settings for response types.
@@ -27,7 +28,17 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     public virtual MessageBusSettings Settings { get; }
 
-    public virtual IMessageSerializer Serializer => Settings.Serializer;
+    public virtual IMessageSerializer Serializer
+    {
+        get
+        {
+            if (_serializer is null)
+            {
+                _serializer = GetSerializer();
+            }
+            return _serializer;
+        }
+    }
 
     protected ProducerByMessageTypeCache<ProducerSettings> ProducerSettingsByMessageType { get; private set; }
 
@@ -60,15 +71,22 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     {
         Settings = settings ?? throw new ArgumentNullException(nameof(settings));
 
-        // Use the configured logger factory, if not provided try to resolve from DI, if also not available supress logging using the NullLoggerFactory
-        LoggerFactory = settings.LoggerFactory
-            ?? (ILoggerFactory)settings.ServiceProvider?.GetService(typeof(ILoggerFactory))
-            ?? NullLoggerFactory.Instance;
+        if (settings.ServiceProvider is null)
+        {
+            throw new ConfigurationMessageBusException($"The bus {Name} has no {nameof(settings.ServiceProvider)} configured");
+        }
+
+        // Try to resolve from DI, if also not available supress logging using the NullLoggerFactory
+        LoggerFactory = settings.ServiceProvider.GetService<ILoggerFactory>() ?? NullLoggerFactory.Instance;
 
         _logger = LoggerFactory.CreateLogger<MessageBusBase>();
 
         RuntimeTypeCache = new RuntimeTypeCache();
     }
+
+    protected virtual IMessageSerializer GetSerializer() =>
+        (IMessageSerializer)Settings.ServiceProvider.GetService(Settings.SerializerType)
+            ?? throw new ConfigurationMessageBusException($"The bus {Name} could not resolve the required message serializer type {Settings.SerializerType.Name} from {nameof(Settings.ServiceProvider)}");
 
     /// <summary>
     /// Called by the provider to initialize the bus.
@@ -214,7 +232,6 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         {
             AssertConsumerSettings(consumerSettings);
         }
-        AssertSerializerSettings();
         AssertDepencendyResolverSettings();
         AssertRequestResponseSettings();
     }
@@ -240,12 +257,6 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
             () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.ConsumerType)} is not set"));
         Assert.IsNotNull(consumerSettings.ConsumerMethod,
             () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.ConsumerMethod)} is not set"));
-    }
-
-    protected virtual void AssertSerializerSettings()
-    {
-        Assert.IsNotNull(Settings.Serializer,
-            () => new ConfigurationMessageBusException($"The {nameof(MessageBusSettings)}.{nameof(MessageBusSettings.Serializer)} is not set"));
     }
 
     protected virtual void AssertDepencendyResolverSettings()
@@ -605,7 +616,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         AddMessageTypeHeader(response, responseHeaders);
 
         var responsePayload = response != null
-            ? Settings.Serializer.Serialize(consumerSettings.ResponseType, response)
+            ? Serializer.Serialize(consumerSettings.ResponseType, response)
             : null;
 
         return ProduceToTransport(response, (string)replyTo, responsePayload, responseHeaders);

@@ -19,13 +19,9 @@ public class ServiceBusMessageBusTests : IDisposable
     public ServiceBusMessageBusTests()
     {
         var serviceProviderMock = new Mock<IServiceProvider>();
-        serviceProviderMock.Setup(x => x.GetService(It.IsAny<Type>())).Returns((Type t) =>
-        {
-            if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
-            return null;
-        });
+        serviceProviderMock.Setup(x => x.GetService(It.Is<Type>(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)))).Returns(Enumerable.Empty<object>());
+        serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(new Mock<IMessageSerializer>().Object);
 
-        BusBuilder.WithSerializer(new Mock<IMessageSerializer>().Object);
         BusBuilder.WithDependencyResolver(serviceProviderMock.Object);
 
         ProviderBusSettings = new ServiceBusMessageBusSettings("connection-string")

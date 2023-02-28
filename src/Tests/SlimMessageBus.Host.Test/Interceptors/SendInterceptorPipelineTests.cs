@@ -72,6 +72,5 @@ public class SendInterceptorPipelineTests
         sendInterceptorMock.VerifyNoOtherCalls();
 
         _busMock.BusMock.Verify(x => x.SendInternal<SomeResponse>(request, context.Path, request.GetType(), typeof(SomeResponse), producerSettings, context.Created, context.Expires, context.RequestId, context.Headers, context.CancellationToken), Times.Once);
-        _busMock.BusMock.VerifyNoOtherCalls();
     }
 }

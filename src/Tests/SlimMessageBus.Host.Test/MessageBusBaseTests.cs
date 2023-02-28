@@ -43,11 +43,8 @@ public class MessageBusBaseTests : IDisposable
         _producedMessages = new List<ProducedMessage>();
 
         _serviceProviderMock = new Mock<IServiceProvider>();
-        _serviceProviderMock.Setup(x => x.GetService(It.IsAny<Type>())).Returns((Type t) =>
-        {
-            if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)) return Enumerable.Empty<object>();
-            return null;
-        });
+        _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(new JsonMessageSerializer());
+        _serviceProviderMock.Setup(x => x.GetService(It.Is<Type>(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)))).Returns(Enumerable.Empty<object>());
 
         BusBuilder = MessageBusBuilder.Create()
             .Produce<RequestA>(x =>
@@ -65,7 +62,6 @@ public class MessageBusBaseTests : IDisposable
                 x.DefaultTimeout(TimeSpan.FromSeconds(TimeoutDefault10));
             })
             .WithDependencyResolver(_serviceProviderMock.Object)
-            .WithSerializer(new JsonMessageSerializer())
             .WithProvider(s =>
             {
                 var bus = new MessageBusTested(s)
@@ -258,8 +254,9 @@ public class MessageBusBaseTests : IDisposable
         var someMessageTopic = "some-messages";
 
         BusBuilder
-            .Produce<SomeMessage>(x => x.DefaultTopic(someMessageTopic))
-            .WithSerializer(messageSerializerMock.Object);
+            .Produce<SomeMessage>(x => x.DefaultTopic(someMessageTopic));
+
+        _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(messageSerializerMock.Object);
 
         var m1 = new SomeMessage();
         var m2 = new SomeDerivedMessage();
@@ -538,6 +535,7 @@ public class MessageBusBaseTests : IDisposable
         _serviceProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IPublishInterceptor<SomeMessage>>)), Times.Never);
         _serviceProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IMessageBusLifecycleInterceptor>)), Times.Between(0, 2, Moq.Range.Inclusive));
         _serviceProviderMock.Verify(x => x.GetService(typeof(ILoggerFactory)), Times.Once);
+        _serviceProviderMock.Verify(x => x.GetService(typeof(IMessageSerializer)), Times.Between(0, 1, Moq.Range.Inclusive));
         _serviceProviderMock.VerifyNoOtherCalls();
 
         if (producerInterceptorCallsNext != null)
@@ -635,6 +633,7 @@ public class MessageBusBaseTests : IDisposable
         _serviceProviderMock.Verify(x => x.GetService(typeof(IEnumerable<ISendInterceptor<RequestA, ResponseA>>)), Times.Once);
         _serviceProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IMessageBusLifecycleInterceptor>)), Times.Between(0, 2, Moq.Range.Inclusive));
         _serviceProviderMock.Verify(x => x.GetService(typeof(ILoggerFactory)), Times.Once);
+        _serviceProviderMock.Verify(x => x.GetService(typeof(IMessageSerializer)), Times.Between(0, 1, Moq.Range.Inclusive));
         _serviceProviderMock.VerifyNoOtherCalls();
 
         if (producerInterceptorCallsNext != null)

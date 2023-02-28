@@ -21,7 +21,6 @@ public class HybridMessageBusTest
         _messageBusBuilder = MessageBusBuilder.Create();
 
         _messageBusBuilder.Settings.ServiceProvider = _serviceProviderMock.Object;
-        _messageBusBuilder.Settings.Serializer = _messageSerializerMock.Object;
 
         _messageSerializerMock
             .Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<object>()))
@@ -29,6 +28,8 @@ public class HybridMessageBusTest
         _messageSerializerMock
             .Setup(x => x.Deserialize(It.IsAny<Type>(), It.IsAny<byte[]>()))
             .Returns((Type type, byte[] payload) => JsonConvert.DeserializeObject(Encoding.UTF8.GetString(payload), type));
+
+        _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(_messageSerializerMock.Object);
 
         _messageBusBuilder.AddChildBus("bus1", (mbb) =>
         {

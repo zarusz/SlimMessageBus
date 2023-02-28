@@ -11,18 +11,42 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 
 ## Configuration
 
-Part of message bus configuration is choosing the serialization plugin:
+Message serializers implement the interface [IMessageSerializer](../src/SlimMessageBus.Host.Serialization/IMessageSerializer.cs).
+There are few plugins to choose from.
+
+We register the serializer service in the DI:
 
 ```cs
 // Use JSON for message serialization
-IMessageSerializer serializer = new JsonMessageSerializer();
-
-// MessageBusBuilder mbb;
-mbb.    
-   .WithSerializer(serializer)
+services.AddMessageBusJsonSerializer((); // requires SlimMessageBus.Host.Json or SlimMessageBus.Host.SystemTextJson package
 ```
 
-> One serializer instance will be used across all the concurently running tasks of producing and consuming messages in a given bus instance. The serializers are designed, so that they are Thread-safe.
+If the bus is a Hybrid bus composed of other child buses, then we can register multiple serializers and instuct which serializer type to apply for the given child bus.
+Consider the following example:
+
+```cs
+// Use JSON for message serialization
+services.AddMessageBusJsonSerializer((); // requires SlimMessageBus.Host.Serialization.Json or SlimMessageBus.Host.Serialization.SystemTextJson package
+// Use Protobuf for message serialization
+services.AddMessageBusGoogleProtobufSerializer(); // requires SlimMessageBus.Host.Serialization.GoogleProtobuf package
+
+services.AddSlimMessageBus(mbb => 
+{
+   mbb.AddChildBus("Kafka", builder =>
+   {
+      builder.WithProviderKafka(/*...*/);
+      builder.WithSerializer<GoogleProtobufMessageSerializer>(); // this child bus will use a specific serializer
+   });
+   mbb.AddChildBus("AzureSB", builder =>
+   {
+      builder.WithProviderServiceBus(/*...*/);
+      // this child bus will use the default serializer (IMessageSerializer) - which is the first one registered in DI (here Json)
+      //builder.WithSerializer<IMessageSerializer>();
+   });
+});
+```
+
+> The serializer will be a singleton used across all the concurently running tasks of producing and consuming messages in a given bus instance. The serializers are designed, so that they are Thread-safe.
 
 ## Json (Newtonsoft.Json)
 
@@ -33,25 +57,20 @@ The Json plugin brings in JSON serialization using the [Newtonsoft.Json](https:/
 To use it install the nuget package `SlimMessageBus.Host.Serialization.Json` and then configure the bus:
 
 ```cs
-var jsonSerializer = new JsonMessageSerializer();
-mbb.WithSerializer(jsonSerializer);
+services.AddMessageBusJsonSerializer(();
 ```
 
 This will apply the `Newtonsoft.Json` default serialization settings and will use `UTF8` encoding for converting `string` to `byte[]`.
 
-In order to customize how messages are formatted use the alternative constructor:
+In order to customize the JSON formatting use the additional parameters:
 
 ```cs
-var jsonSerializer = new JsonMessageSerializer();
-
-// OR
-
 var jsonSerializerSettings = new Newtonsoft.Json.JsonSerializerSettings
-   {
-      TypeNameHandling = Newtonsoft.Json.TypeNameHandling.Objects
-   };
+{
+   TypeNameHandling = Newtonsoft.Json.TypeNameHandling.Objects
+};
 
-var jsonSerializer = new JsonMessageSerializer(jsonSerializerSettings, Encoding.UTF8);
+services.AddMessageBusJsonSerializer((jsonSerializerSettings, Encoding.UTF8);
 ```
 
 ## Json (System.Text.Json)
@@ -63,15 +82,18 @@ The Json plugin brings in JSON serialization using the [System.Text.Json](https:
 To use it install the nuget package `SlimMessageBus.Host.Serialization.SystemTextJson` and then configure the bus similar to Json above.
 
 ```cs
-var jsonSerializer = new JsonMessageSerializer();
+services.AddMessageBusJsonSerializer(();
 ```
 
 One can customize or override the `JsonSerializerOptions`:
 
 ```cs
-// Configure JSON options
-//jsonSerializer.Options = new JsonSerializerOptions();
-//jsonSerializer.Options.Converters.Add(...)
+// Configure JSON options in the MSDI
+services.AddTransient(new JsonSerializerOptions { /* ... */ })
+services.AddMessageBusJsonSerializer(();
+
+// Or provide an JSON options directly
+services.AddMessageBusJsonSerializer((new JsonSerializerOptions());
 ```
 
 By default the plugin adds a custom converter (see [`ObjectToInferredTypesConverter`](../src/SlimMessageBus.Host.Serialization.SystemTextJson/ObjectToInferredTypesConverter.cs)) that infers primitive types whenever the type to deseriaize is object (unknown). This helps with header value serialization for transport providers that transmit the headers as binary (Kafka). See the source code for better explanation.
@@ -85,13 +107,12 @@ The Avro plugin brings in the [Apache Avro](https://avro.apache.org/) binary ser
 To use it install the nuget package `SlimMessageBus.Host.Serialization.Avro` and then configure the bus:
 
 ```cs
-var avroSerializer = new AvroMessageSerializer();
-mbb.WithSerializer(avroSerializer);
+service.AddMessageBusAvroSerializer();
 ```
 
 The Apache.Avro library requires each of your serialized messages to implement the interface `Avro.Specific.ISpecificRecord`. That interface requires to provide the `Avro.Schema` object as well as is responsible for serializing and deserializing the message.
 
-The typical approach for working with Avro is to create the contract first using the [Avro IDL contract](https://avro.apache.org/docs/current/idl.html) and then generating the respective C# classes that represent messages. The sample [Sample.Serialization.MessagesAvro](../src/Samples/Sample.Serialization.MessagesAvro) shows how to generate C# classes having the IDL contract. Consult the sample for more details. 
+The typical approach for working with Avro is to create the contract first using the [Avro IDL contract](https://avro.apache.org/docs/current/idl.html) and then generating the respective C# classes that represent messages. The sample [Sample.Serialization.MessagesAvro](../src/Samples/Sample.Serialization.MessagesAvro) shows how to generate C# classes having the IDL contract. Consult the sample for more details.
 
 There are ways to customize the `AvroMessageSerializer` by providing strategies for message creation and Avro schema lookup (for reader and writer):
 
@@ -114,7 +135,7 @@ mf.Add(typeof(MultiplyRequest), () => new MultiplyRequest());
 mf.Add(typeof(MultiplyResponse), () => new MultiplyResponse());
    
 // longer approach, but should be faster as it's not using reflection
-var avroSerializer = new AvroMessageSerializer(mf, sl);
+service.AddMessageBusAvroSerializer(mf, sl);
 ```
 
 The default `AvroMessageSerializer` constructor will use the `ReflectionMessageCreationStategy` and `ReflectionSchemaLookupStrategy` strategies. While these are slower bacause of usage of reflection, it is certainly more convenient to use.
@@ -128,8 +149,7 @@ Nuget package: [SlimMessageBus.Host.Serialization.GoogleProtobuf](https://www.nu
 To use it install the nuget package `SlimMessageBus.Host.Serialization.GoogleProtobuf` and then configure the bus:
 
 ```cs
-var googleProtobufMessageSerializer = new GoogleProtobufMessageSerializer();
-mbb.WithSerializer(googleProtobufMessageSerializer);
+services.AddMessageBusGoogleProtobufSerializer();
 ```
 
 This will apply the `Google.Protobuf` default serialization settings for converting `IMessage` to `byte[]`.
@@ -143,17 +163,18 @@ The Hybrid plugin allows to have multiple serialization formats on one message b
 To use it install the nuget package `SlimMessageBus.Host.Serialization.Hybrid` and then configure the bus:
 
 ```cs
+// serializer 1
 var avroSerializer = new AvroMessageSerializer();
+
+// serializer 2
 var jsonSerializer = new JsonMessageSerializer();
 
-// Note: Certain messages will be serialized by one Avro serializer, other using the Json serializer
-var hybridSerializer = new HybridMessageSerializer(new Dictionary<IMessageSerializer, Type[]>
+// Note: Certain messages will be serialized by the Avro serializer, other using the Json serializer
+services.AddMessageBusHybridSerializer(new Dictionary<IMessageSerializer, Type[]>
 {
    [jsonSerializer] = new[] { typeof(SubtractCommand) }, // the first one will be the default serializer, no need to declare types here
    [avroSerializer] = new[] { typeof(AddCommand), typeof(MultiplyRequest), typeof(MultiplyResponse) },
-});
-
-mbb.WithSerializer(hybridSerializer);
+}, defaultMessageSerializer: jsonSerializer);
 ```
 
-Currently the routing happens based on message type only.
+The routing to the proper serializer happens based on message type. When a type cannot be matched the default serializer will be used.
