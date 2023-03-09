@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BenchmarkDotNet" Version="0.13.2" />
+    <PackageReference Include="BenchmarkDotNet" Version="0.13.5" />
   </ItemGroup>
 
   <ItemGroup>
@@ -15,6 +15,11 @@
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Avro\SlimMessageBus.Host.Serialization.Avro.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Json\SlimMessageBus.Host.Serialization.Json.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.SystemTextJson\SlimMessageBus.Host.Serialization.SystemTextJson.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="FluentAssertions" Version="6.10.0" />
+    <PackageReference Update="Moq" Version="4.18.4" />
   </ItemGroup>
 
 </Project>

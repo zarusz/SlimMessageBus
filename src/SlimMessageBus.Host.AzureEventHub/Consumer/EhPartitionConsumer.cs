@@ -8,20 +8,19 @@ using Azure.Messaging.EventHubs.Processor;
 public abstract class EhPartitionConsumer
 {
     private readonly ILogger _logger;
-    protected EventHubMessageBus MessageBus { get; }
-    protected IMessageProcessor<EventData> MessageProcessor { get; set; }
-    protected ICheckpointTrigger CheckpointTrigger { get; set; }
-
-    public GroupPathPartitionId GroupPathPartition { get; }
-
     private ProcessEventArgs _lastMessage;
     private ProcessEventArgs _lastCheckpointMessage;
 
+    protected EventHubMessageBus MessageBus { get; }
+    protected IMessageProcessor<EventData> MessageProcessor { get; set; }
+    protected ICheckpointTrigger CheckpointTrigger { get; set; }
+    public GroupPathPartitionId GroupPathPartition { get; }
+
     protected EhPartitionConsumer(EventHubMessageBus messageBus, GroupPathPartitionId groupPathPartition)
     {
+        _logger = messageBus.LoggerFactory.CreateLogger<EhPartitionConsumer>();
         MessageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
         GroupPathPartition = groupPathPartition ?? throw new ArgumentNullException(nameof(groupPathPartition));
-        _logger = messageBus.LoggerFactory.CreateLogger<EhPartitionConsumer>();
     }
 
     public Task OpenAsync()
@@ -53,7 +52,7 @@ public abstract class EhPartitionConsumer
             // ToDo: Retry logic in the future
         }
 
-        if (CheckpointTrigger.Increment())
+        if (CheckpointTrigger.Increment() && !args.CancellationToken.IsCancellationRequested)
         {
             await Checkpoint(args).ConfigureAwait(false);
         }

@@ -3,6 +3,7 @@
 using Azure.Messaging.EventHubs;
 using Azure.Messaging.EventHubs.Producer;
 using Azure.Storage.Blobs;
+
 using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.Config;
 
@@ -164,11 +165,7 @@ public class EventHubMessageBus : MessageBusBase
         var producer = _producerByPath[path];
 
         // ToDo: Introduce some micro batching of events (store them between invocations and send when time span elapsed)
-        using EventDataBatch eventBatch = await producer.CreateBatchAsync(new CreateBatchOptions
-        {
-            // When null the partition will be automatically assigned
-            PartitionKey = partitionKey
-        }, cancellationToken);
+        using var eventBatch = await producer.CreateBatchAsync(new CreateBatchOptions { PartitionKey = partitionKey }, cancellationToken);
 
         if (!eventBatch.TryAdd(ev))
         {

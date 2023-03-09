@@ -21,7 +21,8 @@ public class EventHubMessageBusIt : BaseIntegrationTest<EventHubMessageBusIt>
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
-        services.AddSlimMessageBus((mbb, svp) =>
+        services
+            .AddSlimMessageBus((mbb, svp) =>
             {
                 // connection details to the Azure Event Hub
                 var connectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub"]);

@@ -2,6 +2,7 @@ namespace SlimMessageBus.Host.AzureEventHub;
 
 using Azure.Messaging.EventHubs;
 using Azure.Messaging.EventHubs.Processor;
+
 using SlimMessageBus.Host.Collections;
 
 public class EhGroupConsumer : IAsyncDisposable, IConsumerControl
@@ -13,7 +14,7 @@ public class EhGroupConsumer : IAsyncDisposable, IConsumerControl
 
     public EventHubMessageBus MessageBus { get; }
     public bool IsStarted { get; private set; }
-    
+
     public EhGroupConsumer(EventHubMessageBus messageBus, GroupPath groupPath, Func<GroupPathPartitionId, EhPartitionConsumer> partitionConsumerFactory)
     {
         _groupPath = groupPath ?? throw new ArgumentNullException(nameof(groupPath));
@@ -68,8 +69,16 @@ public class EhGroupConsumer : IAsyncDisposable, IConsumerControl
     private Task ProcessErrorHandler(ProcessErrorEventArgs args)
     {
         var partitionId = args.PartitionId;
-        var ep = _partitionConsumerByPartitionId.GetOrAdd(partitionId);
-        return ep.ProcessErrorAsync(args);
+        if (partitionId != null)
+        {
+            var ep = _partitionConsumerByPartitionId.GetOrAdd(partitionId);
+            return ep.ProcessErrorAsync(args);
+        }
+        else
+        {
+            _logger.LogError(args.Exception, "Group error - Group: {Group}, Path: {Path}, Operation: {Operation}", _groupPath.Group, _groupPath.Path, args.Operation);
+        }
+        return Task.CompletedTask;
     }
 
     public async Task Start()
@@ -90,7 +99,7 @@ public class EhGroupConsumer : IAsyncDisposable, IConsumerControl
 
             // stop the processing host
             await _processorClient.StopProcessingAsync().ConfigureAwait(false);
-            
+
             var partitionConsumers = _partitionConsumerByPartitionId.ClearAndSnapshot();
 
             if (MessageBus.ProviderSettings.EnableCheckpointOnBusStop)
