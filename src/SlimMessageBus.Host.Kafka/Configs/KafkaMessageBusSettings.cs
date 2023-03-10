@@ -1,9 +1,11 @@
 namespace SlimMessageBus.Host.Kafka;
 
 using Confluent.Kafka;
-using ProducerBuilder = Confluent.Kafka.ProducerBuilder<byte[], byte[]>;
-using ConsumerBuilder = Confluent.Kafka.ConsumerBuilder<Confluent.Kafka.Ignore, byte[]>;
+
 using SlimMessageBus.Host.Serialization;
+
+using ConsumerBuilder = Confluent.Kafka.ConsumerBuilder<Confluent.Kafka.Ignore, byte[]>;
+using ProducerBuilder = Confluent.Kafka.ProducerBuilder<byte[], byte[]>;
 
 public class KafkaMessageBusSettings
 {
@@ -35,7 +37,7 @@ public class KafkaMessageBusSettings
     public TimeSpan ConsumerPollRetryInterval { get; set; }
 
     /// <summary>
-    /// Serializer used to serialize Kafka message header values. If not specified the default serializer will be used (setup as part of the bus config).
+    /// Serializer used to serialize Kafka message header values. If not specified the default serializer will be used (setup as part of the bus config). By default the <see cref="DefaultKafkaHeaderSerializer"/> is used.
     /// </summary>
     public IMessageSerializer HeaderSerializer { get; set; }
 
@@ -54,5 +56,6 @@ public class KafkaMessageBusSettings
         ConsumerConfig = (config) => { };
         ConsumerBuilderFactory = (config) => new ConsumerBuilder<Ignore, byte[]>(config);
         ConsumerPollRetryInterval = TimeSpan.FromSeconds(2);
+        HeaderSerializer = new DefaultKafkaHeaderSerializer();
     }
 }

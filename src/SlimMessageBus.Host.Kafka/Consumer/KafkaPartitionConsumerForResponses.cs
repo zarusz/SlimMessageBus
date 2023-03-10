@@ -1,9 +1,7 @@
 namespace SlimMessageBus.Host.Kafka;
 
-using Confluent.Kafka;
-using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization;
-using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
+using ConsumeResult = ConsumeResult<Ignore, byte[]>;
 
 /// <summary>
 /// Processor for incomming response messages in the request-response patterns. 

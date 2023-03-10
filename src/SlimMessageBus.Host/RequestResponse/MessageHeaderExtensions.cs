@@ -36,7 +36,7 @@ public static class MessageHeaderExtensions
 
     public static bool TryGetHeader(this IReadOnlyDictionary<string, object> headers, string header, out string value)
     {
-        if (headers.TryGetValue(header, out object objValue))
+        if (headers.TryGetValue(header, out var objValue))
         {
             value = (string)objValue;
             return true;
@@ -47,7 +47,7 @@ public static class MessageHeaderExtensions
 
     public static bool TryGetHeader(this IDictionary<string, object> headers, string header, out string value)
     {
-        if (headers.TryGetValue(header, out object objValue))
+        if (headers.TryGetValue(header, out var objValue))
         {
             value = (string)objValue;
             return true;
@@ -60,9 +60,12 @@ public static class MessageHeaderExtensions
     {
         if (header != null && headers.TryGetValue(header, out var dtObj))
         {
-            var dtLong = (long)dtObj;
-            dt = DateTimeOffset.FromFileTime(dtLong);
-            return true;
+            var dtVal = TryGetDateTimeOffset(dtObj);
+            if (dtVal != null)
+            {
+                dt = dtVal.Value;
+                return true;
+            }
         }
         dt = default;
         return false;
@@ -72,9 +75,12 @@ public static class MessageHeaderExtensions
     {
         if (header != null && headers.TryGetValue(header, out var dtObj))
         {
-            var dtLong = (long)dtObj;
-            dt = DateTimeOffset.FromFileTime(dtLong);
-            return true;
+            var dtVal = TryGetDateTimeOffset(dtObj);
+            if (dtVal != null)
+            {
+                dt = dtVal.Value;
+                return true;
+            }
         }
         dt = default;
         return false;
@@ -100,5 +106,14 @@ public static class MessageHeaderExtensions
         }
         dt = null;
         return false;
+    }
+
+    private static DateTimeOffset? TryGetDateTimeOffset(object value)
+    {
+        if (value is long dtLong || (value is string dtString && long.TryParse(dtString, out dtLong)))
+        {
+            return DateTimeOffset.FromFileTime(dtLong);
+        }
+        return null;
     }
 }

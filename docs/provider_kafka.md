@@ -125,7 +125,7 @@ SMB Kafka allows to set a provider (selector) that will assign the message key f
 
 ```cs
 // MessageBusBuilder mbb;
-mbb.    
+mbb    
    .Produce<MultiplyRequest>(x => 
    {
       x.DefaultTopic("topic1");
@@ -133,7 +133,6 @@ mbb.
       x.KeyProvider((request, topic) => Encoding.ASCII.GetBytes((request.Left + request.Right).ToString()));
    })
    .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers))
-   .Build();
 ```
 
 The key must be a `byte[]`.
@@ -182,7 +181,7 @@ This could be useful to extract the message's offset or partition.
 SMB uses headers to pass additional metadata information with the message. This includes the `MessageType` (of type `string`) or in the case of request/response messages the `RequestId` (of type `string`), `ReplyTo` (of type `string`) and `Expires` (of type `long`).
 
 The Kafka message header values are natively binary (`byte[]`) in the underlying .NET client, as a result SMB needs to serialize the header values.
-By default the same serializer is used to serialize header values as is being used for the message serialization.
+By default the [DefaultKafkaHeaderSerializer](../src/SlimMessageBus.Host.Kafka/DefaultKafkaHeaderSerializer.cs) is used to serialize header values.
 If you need to specify a different serializer provide a specfic `IMessageSerializer` implementation (custom or one of the available serialization plugins):
 
 ```cs
@@ -190,11 +189,11 @@ If you need to specify a different serializer provide a specfic `IMessageSeriali
 mbb.    
    .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
    {
-      HeaderSerializer = new JsonMessageSerializer() // specify a different header values serializer
+      HeaderSerializer = new DefaultKafkaHeaderSerializer() // specify a different header values serializer
    });
 ```
 
-> By default for header serialization (if not specified) SMB Kafka uses the same serializer that was set for the bus.
+> Since version 2.0.0, uses the [DefaultKafkaHeaderSerializer](../src/SlimMessageBus.Host.Kafka/DefaultKafkaHeaderSerializer.cs) serializer which converts the passed values into string. Prior version 2.0.0, by default the same serializer for the bus was used to also serialize message header values.
 
 ## Deployment
 

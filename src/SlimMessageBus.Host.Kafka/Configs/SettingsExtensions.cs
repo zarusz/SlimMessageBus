@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Kafka;
 
-using SlimMessageBus.Host.Config;
-
 public static class SettingsExtensions
 {
     private const string GroupKey = "Group";
