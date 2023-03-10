@@ -1,10 +1,10 @@
 namespace SlimMessageBus.Host.Kafka;
 
 using System.Diagnostics.CodeAnalysis;
-using Confluent.Kafka;
-using SlimMessageBus.Host.Config;
+
 using SlimMessageBus.Host.Serialization;
-using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
+
+using ConsumeResult = ConsumeResult<Ignore, byte[]>;
 
 /// <summary>
 /// Processor for regular consumers. 

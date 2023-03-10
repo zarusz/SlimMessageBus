@@ -1,14 +1,10 @@
 ﻿namespace SlimMessageBus.Host.Kafka;
 
 using System.Diagnostics.CodeAnalysis;
-using System.Threading;
 
-using Confluent.Kafka;
-
-using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization;
 
-using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
+using ConsumeResult = ConsumeResult<Ignore, byte[]>;
 
 public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
 {
@@ -99,7 +95,7 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
         {
             return;
         }
-        
+
         try
         {
             _lastOffset = message.TopicPartitionOffset;

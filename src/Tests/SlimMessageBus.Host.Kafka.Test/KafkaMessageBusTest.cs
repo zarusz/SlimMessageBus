@@ -1,10 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Kafka.Test;
 
-using Confluent.Kafka;
-
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.Serialization;
-
 public class KafkaMessageBusTest : IDisposable
 {
     private MessageBusSettings MbSettings { get; }

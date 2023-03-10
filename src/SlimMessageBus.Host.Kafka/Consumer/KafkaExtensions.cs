@@ -1,8 +1,8 @@
 ﻿namespace SlimMessageBus.Host.Kafka;
 
-using Confluent.Kafka;
-using SlimMessageBus.Host.Serialization;
 using System.Diagnostics.CodeAnalysis;
+
+using SlimMessageBus.Host.Serialization;
 
 public static class KafkaExtensions
 {

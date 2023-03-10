@@ -1,11 +1,11 @@
 namespace SlimMessageBus.Host.Kafka;
 
-using Confluent.Kafka;
-using SlimMessageBus.Host.Config;
-using Message = Confluent.Kafka.Message<byte[], byte[]>;
-using IProducer = Confluent.Kafka.IProducer<byte[], byte[]>;
 using System.Diagnostics.CodeAnalysis;
-using SlimMessageBus.Host.Serialization;
+
+using Confluent.Kafka;
+
+using IProducer = Confluent.Kafka.IProducer<byte[], byte[]>;
+using Message = Confluent.Kafka.Message<byte[], byte[]>;
 
 /// <summary>
 /// <see cref="IMessageBus"/> implementation for Apache Kafka.

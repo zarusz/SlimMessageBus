@@ -2,12 +2,10 @@ namespace SlimMessageBus.Host.Kafka;
 
 using System.Diagnostics.CodeAnalysis;
 
-using Confluent.Kafka;
-
 using SlimMessageBus.Host.Collections;
 
-using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
-using IConsumer = Confluent.Kafka.IConsumer<Confluent.Kafka.Ignore, byte[]>;
+using ConsumeResult = ConsumeResult<Ignore, byte[]>;
+using IConsumer = IConsumer<Ignore, byte[]>;
 
 public class KafkaGroupConsumer : IAsyncDisposable, IKafkaCommitController
 {
