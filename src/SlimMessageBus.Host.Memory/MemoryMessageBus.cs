@@ -1,8 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Memory;
 
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.Serialization;
-
 /// <summary>
 /// In-memory message bus <see cref="IMessageBus"/> implementation to use for in process message passing.
 /// </summary>

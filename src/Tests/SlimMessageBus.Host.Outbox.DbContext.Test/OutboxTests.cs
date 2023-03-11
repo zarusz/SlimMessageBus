@@ -4,8 +4,6 @@ using System.Reflection;
 
 using Confluent.Kafka;
 
-using FluentAssertions;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,8 +19,6 @@ using SlimMessageBus.Host.Outbox.DbContext.Test.DataAccess;
 using SlimMessageBus.Host.Outbox.Sql;
 using SlimMessageBus.Host.Serialization.SystemTextJson;
 using SlimMessageBus.Host.Test.Common.IntegrationTest;
-
-using Xunit.Abstractions;
 
 [Trait("Category", "Integration")]
 public class OutboxTests : BaseIntegrationTest<OutboxTests>
@@ -46,13 +42,11 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
         Kafka,
     }
 
-    protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
+    protected override void SetupServices(ServiceCollection services, IConfigurationRoot cfg)
     {
         services
-            .AddSlimMessageBus((mbb, svp) =>
+            .AddSlimMessageBus(mbb =>
             {
-                var cfg = svp.GetRequiredService<IConfiguration>();
-
                 mbb
                     .WithProviderHybrid()
                     .AddChildBus("Memory", mbb =>
@@ -74,9 +68,9 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
                         var topic = "";
                         if (_testParamBusType == BusType.Kafka)
                         {
-                            var kafkaBrokers = configuration["Kafka:Brokers"];
-                            var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
-                            var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
+                            var kafkaBrokers = cfg["Kafka:Brokers"];
+                            var kafkaUsername = Secrets.Service.PopulateSecrets(cfg["Kafka:Username"]);
+                            var kafkaPassword = Secrets.Service.PopulateSecrets(cfg["Kafka:Password"]);
 
                             mbb.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
                             {
@@ -114,19 +108,18 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
                                 .SubscriptionName(nameof(OutboxTests)) // for AzureSB
                                 .KafkaGroup("subscriber")) // for Kafka
                            .UseOutbox(); // All outgoing messages from this bus will go out via an outbox
+                    })
+                    .AddServicesFromAssembly(Assembly.GetExecutingAssembly())
+                    .AddJsonSerializer()
+                    .AddOutboxUsingDbContext<CustomerContext>(opts =>
+                    {
+                        opts.PollBatchSize = 100;
+                        opts.PollIdleSleep = TimeSpan.FromSeconds(0.5);
+                        opts.MessageCleanup.Interval = TimeSpan.FromSeconds(10);
+                        opts.MessageCleanup.Age = TimeSpan.FromMinutes(1);
+                        opts.DatabaseTableName = "IntTest_Outbox";
                     });
-            })
-            .AddMessageBusJsonSerializer()
-            .AddMessageBusServicesFromAssembly(Assembly.GetExecutingAssembly());
-
-        services.AddMessageBusOutboxUsingDbContext<CustomerContext>(opts =>
-        {
-            opts.PollBatchSize = 100;
-            opts.PollIdleSleep = TimeSpan.FromSeconds(0.5);
-            opts.MessageCleanup.Interval = TimeSpan.FromSeconds(10);
-            opts.MessageCleanup.Age = TimeSpan.FromMinutes(1);
-            opts.DatabaseTableName = "IntTest_Outbox";
-        });
+            });
 
         services.AddSingleton<TestEventCollector<CustomerCreatedEvent>>();
 

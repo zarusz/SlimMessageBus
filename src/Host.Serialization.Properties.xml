@@ -4,7 +4,9 @@
   <Import Project="Common.Properties.xml" />
 
   <PropertyGroup>
-    <Version>2.0.0-rc1</Version>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <PackageIcon>icon.png</PackageIcon>
+    <Version>2.0.0-rc2</Version>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 </Project>

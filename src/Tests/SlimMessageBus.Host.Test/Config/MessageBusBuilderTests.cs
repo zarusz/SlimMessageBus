@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Test.Config;
 
+using Microsoft.Extensions.DependencyInjection;
+
 using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization.Json;
 
@@ -90,6 +92,9 @@ public class MessageBusBuilderTests
     {
         // arrange
         var subject = MessageBusBuilder.Create();
+        subject.WithProvider(Mock.Of<Func<MessageBusSettings, IMessageBus>>());
+        subject.AddChildBus("Bus1", mbb => { });
+        subject.Services = Mock.Of<IServiceCollection>();
 
         // act
         var copy = new DerivedMessageBusBuilder(subject);
@@ -99,5 +104,6 @@ public class MessageBusBuilderTests
         copy.Settings.Name.Should().BeSameAs(subject.Settings.Name);        
         copy.Children.Should().BeSameAs(subject.Children);
         copy.BusFactory.Should().BeSameAs(subject.BusFactory);
+        copy.Services.Should().BeSameAs(subject.Services);
     }
 }

@@ -46,13 +46,12 @@ internal static class Program
             {
                 services.AddHostedService<ApplicationService>();
 
-                services
-                    .AddSlimMessageBus(mbb =>
-                    {
-                        ConfigureMessageBus(mbb, ctx.Configuration);
-                    })
-                    .AddMessageBusJsonSerializer()
-                    .AddMessageBusServicesFromAssembly(Assembly.GetExecutingAssembly());
+                services.AddSlimMessageBus(mbb =>
+                {
+                    ConfigureMessageBus(mbb, ctx.Configuration);
+                    mbb.AddServicesFromAssembly(Assembly.GetExecutingAssembly());
+                    mbb.AddJsonSerializer();
+                });
             })
             .Build()
             .RunAsync();

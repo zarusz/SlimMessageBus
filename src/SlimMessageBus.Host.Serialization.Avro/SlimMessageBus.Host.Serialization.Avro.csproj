@@ -3,21 +3,18 @@
   <Import Project="../Host.Serialization.Properties.xml" />
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
     <Authors>zarusz, beto580, fgparamio</Authors>
     <Description>Plugin for SlimMessageBus that provides Apache.Avro serialization.</Description>
     <PackageTags>SlimMessageBus Avro Apache Serialization messaging</PackageTags>
-    <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Apache.Avro" Version="1.11.1" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.0.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="3.1.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\SlimMessageBus.Host.Serialization\SlimMessageBus.Host.Serialization.csproj" />
+    <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
   </ItemGroup>
 
   <ItemGroup>

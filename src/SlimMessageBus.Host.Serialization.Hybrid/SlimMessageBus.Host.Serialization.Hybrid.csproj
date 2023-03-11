@@ -3,14 +3,13 @@
   <Import Project="../Host.Serialization.Properties.xml" />
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
     <Description>Extension to SlimMessageBus that delegates serialization to the respective serialization plugin based on message type.</Description>
     <PackageTags>SlimMessageBus Serialization messaging</PackageTags>
-    <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\SlimMessageBus.Host.Serialization\SlimMessageBus.Host.Serialization.csproj" />
+    <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -18,11 +17,6 @@
       <Pack>True</Pack>
       <PackagePath></PackagePath>
     </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.0.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="3.1.0" />
   </ItemGroup>
 
 </Project>

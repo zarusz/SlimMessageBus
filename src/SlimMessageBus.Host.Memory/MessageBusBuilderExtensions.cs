@@ -2,7 +2,7 @@
 
 using SlimMessageBus.Host.Config;
 
-public static class MemoryMessageBusBuilderExtensions
+public static class MessageBusBuilderExtensions
 {
     public static MemoryMessageBusBuilder WithProviderMemory(this MessageBusBuilder mbb, MemoryMessageBusSettings providerSettings = null)
     {

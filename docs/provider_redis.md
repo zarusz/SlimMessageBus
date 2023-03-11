@@ -24,14 +24,13 @@ Redis transport provider requires a connection string:
 ```cs
 var connectionString = "server1:6379,server2:6379" // Redis connection string
 
-services
-  .AddSlimMessageBus((mbb, svp) =>
-  {
-    // Bus configuration happens here (...)
-    mbb.WithProviderRedis(new RedisMessageBusSettings(connectionString));
-  })
-  .AddMessageBusJsonSerializer(()
-  .AddMessageBusServicesFromAssembly(Asse);
+services.AddSlimMessageBus(mbb =>
+{
+  // Bus configuration happens here (...)
+  mbb.WithProviderRedis(new RedisMessageBusSettings(connectionString)); // requires SlimMessageBus.Host.Redis package
+  mbb.AddJsonSerializer();
+  mbb.AddServicesFromAssembly(Assembly.GetExecutingAssembly());
+});
 ```
 
 The `RedisMessageBusSettings` has additional settings that allow to override factories for the `ConnectionMultiplexer`. This may be used for some advanced scenarios.
@@ -97,8 +96,6 @@ Unlike other messaging brokers implementing pub/sub, Redis Pub/Sub does not allo
 Consider a micro-service that performs the following SMB registration and uses the SMB Redis transport:
 
 ```cs
-var mbb = MessageBusBuilder.Create();
-
 mbb
   .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
   .Consume<SomeMessage>(x => x

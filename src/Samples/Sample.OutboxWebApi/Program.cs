@@ -29,14 +29,14 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddMessageBusAspNet();
 
 builder.Services
-    .AddSlimMessageBus((mbb, svp) =>
+    .AddSlimMessageBus(mbb =>
     {
-        var cfg = svp.GetRequiredService<IConfiguration>();
+        var cfg = builder.Configuration;
 
         mbb
+            .WithProviderHybrid()
             .AddChildBus("Memory", mbb =>
             {
                 mbb.WithProviderMemory()
@@ -56,19 +56,18 @@ builder.Services
                    })
                    .UseOutbox(); // All outgoing messages from this bus will go out via an outbox
             })
-            .WithProviderHybrid();
-    })
-    .AddMessageBusJsonSerializer()
-    .AddMessageBusServicesFromAssembly(Assembly.GetExecutingAssembly());
-
-builder.Services.AddMessageBusOutboxUsingDbContext<CustomerContext>(opts =>
-{
-    opts.PollBatchSize = 100;
-    opts.MessageCleanup.Interval = TimeSpan.FromSeconds(10);
-    opts.MessageCleanup.Age = TimeSpan.FromMinutes(1);
-    //opts.TransactionIsolationLevel = System.Data.IsolationLevel.RepeatableRead;
-    //opts.Dialect = SqlDialect.SqlServer;
-});
+            .AddServicesFromAssembly(Assembly.GetExecutingAssembly())
+            .AddJsonSerializer()
+            .AddAspNet()
+            .AddOutboxUsingDbContext<CustomerContext>(opts =>
+            {
+                opts.PollBatchSize = 100;
+                opts.MessageCleanup.Interval = TimeSpan.FromSeconds(10);
+                opts.MessageCleanup.Age = TimeSpan.FromMinutes(1);
+                //opts.TransactionIsolationLevel = System.Data.IsolationLevel.RepeatableRead;
+                //opts.Dialect = SqlDialect.SqlServer;
+            });
+    });
 
 /*
 // Alternatively, if we were not using EF, we could use a SqlConnection

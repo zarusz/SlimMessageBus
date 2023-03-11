@@ -29,16 +29,17 @@ Outbox plugin can work with any transport provider.
 
 Consider the following example:
 
-- `services.AddMessageBusOutboxUsingDbContext<CustomerContext>(...)` is used to add the [Outbox.DbContext](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.DbContext) plugin to the container.
+- `services.AddOutboxUsingDbContext<CustomerContext>(...)` is used to add the [Outbox.DbContext](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.DbContext) plugin to the container.
 - `CustomerContext` is the application specific Entity Framework `DbContext`.
 - `CustomerCreatedEvent` is produced on the `AzureSB` child bus, the bus will deliver these events via outbox - see `.UseOutbox()`
 - `CreateCustomerCommand` is consumed on the `Memory` child bus, each command is wrapped in an SQL transaction - see `UseSqlTransaction()`
 
 ```cs
 // Configure the Bus
-builder.Services.AddSlimMessageBus((mbb, svp) =>
+builder.Services.AddSlimMessageBus(mbb =>
 {
     mbb
+        .WithProviderHybrid()
         .AddChildBus("Memory", mbb =>
         {
             mbb.WithProviderMemory()
@@ -58,18 +59,15 @@ builder.Services.AddSlimMessageBus((mbb, svp) =>
                })
                .UseOutbox(); // All outgoing messages from this bus will go out via an outbox
         })
-        .WithProviderHybrid();
-});
-
-builder.Services.AddJsonMessageSerializer();
-builder.Services.AddMessageBusServicesFromAssembly(Assembly.GetExecutingAssembly());
-
-// Register the Outbox plugin, and let it use DbConnection and manage SqlTransaction using the CustomerContext DbContext
-builder.Services.AddMessageBusOutboxUsingDbContext<CustomerContext>(opts =>
-{
-    opts.PollBatchSize = 100;
-    //opts.TransactionIsolationLevel = System.Data.IsolationLevel.RepeatableRead;
-    //opts.Dialect = SqlDialect.SqlServer;
+        .AddJsonMessageSerializer()
+        .AddServicesFromAssembly(Assembly.GetExecutingAssembly())
+        // Register the Outbox plugin, and let it use DbConnection and manage SqlTransaction using the CustomerContext DbContext
+        .AddOutboxUsingDbContext<CustomerContext>(opts =>
+        {
+            opts.PollBatchSize = 100;
+            //opts.TransactionIsolationLevel = System.Data.IsolationLevel.RepeatableRead;
+            //opts.Dialect = SqlDialect.SqlServer;
+        });
 });
 
 // Command handler for CreateCustomerCommand
@@ -101,11 +99,15 @@ Consider the following example:
 - `SqlConnection` is registered in the container
 
 ```cs
-// Alternatively, if we were not using EF, we could use a SqlConnection
-builder.Services.AddMessageBusOutboxUsingSql(opts => { opts.PollBatchSize = 100; });
+builder.Services.AddSlimMessageBus(mbb =>
+{
+    // Alternatively, if we were not using EF, we could use a SqlConnection
+    mbb.AddOutboxUsingSql(opts => { opts.PollBatchSize = 100; });
+});
 
-// Register in the the container how to create SqlConnection
+// Register in the the container the SqlConnection
 builder.Services.AddTransient(svp =>
+{
     var configuration = svp.GetRequiredService<IConfiguration>();
     var connectionString = configuration.GetConnectionString("DefaultConnection");
     return new SqlConnection(connectionString);

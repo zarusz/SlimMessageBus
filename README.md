@@ -112,7 +112,7 @@ var response = await bus.Send(new SomeRequest());
 
 > Note: It is possible to configure the bus to timeout a request when the response does not arrive within the allotted time (see [here](docs/intro.md#produce-request-message)).
 
-The receiving side handles the request and replies back:
+The receiving side handles the request and replies:
 
 ```cs
 public class SomeRequestHandler : IRequestHandler<SomeRequest, SomeResponse>
@@ -136,43 +136,43 @@ The `Microsoft.Extensions.DependencyInjection` is used to compose the bus:
 ```cs
 // IServiceCollection services;
 
-services
-   .AddSlimMessageBus(mbb =>
-   {
-      mbb
-         .AddChildBus("Bus1", (builder) => 
-         {
-            builder
-               .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
-               .Consume<SomeMessage>(x => x.Topic("some-topic")
-                  //.WithConsumer<SomeMessageConsumer>() // Optional: can be skipped as IConsumer<SomeMessage> will be resolved from DI
-                  //.KafkaGroup("some-kafka-consumer-group") // Kafka: Consumer Group
-                  //.SubscriptionName("some-azure-sb-topic-subscription") // Azure ServiceBus: Subscription Name
-               );
-               // ...
-               // Use Kafka transport provider (requires SlimMessageBus.Host.Kafka package)
-               .WithProviderKafka(new KafkaMessageBusSettings("localhost:9092")); // requires SlimMessageBus.Host.Kafka package
-               // Use Azure Service Bus transport provider (requires SlimMessageBus.Host.AzureServiceBus package)
-               //.WithProviderServiceBus(...)
-               // Use Azure Azure Event Hub transport provider (requires SlimMessageBus.Host.AzureEventHub package)
-               //.WithProviderEventHub(...)
-               // Use Redis transport provider (requires SlimMessageBus.Host.Redis package)
-               //.WithProviderRedis(...) 
-               // Use in-memory transport provider (requires SlimMessageBus.Host.Memory package)
-               //.WithProviderMemory(...)
-         })
-         
-         // Add other bus transports (as child bus), if needed
-         //.AddChildBus("Bus2", (builder) => {  })
+services.AddSlimMessageBus(mbb =>
+   mbb
+      .AddChildBus("Bus1", (builder) => 
+      {
+         builder
+            .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
+            .Consume<SomeMessage>(x => x.Topic("some-topic")
+               //.WithConsumer<SomeMessageConsumer>() // Optional: can be skipped as IConsumer<SomeMessage> will be resolved from DI
+               //.KafkaGroup("some-kafka-consumer-group") // Kafka: Consumer Group
+               //.SubscriptionName("some-azure-sb-topic-subscription") // Azure ServiceBus: Subscription Name
+            );
+            // ...
+            // Use Kafka transport provider (requires SlimMessageBus.Host.Kafka package)
+            .WithProviderKafka(new KafkaMessageBusSettings("localhost:9092")); // requires SlimMessageBus.Host.Kafka package
+            // Use Azure Service Bus transport provider (requires SlimMessageBus.Host.AzureServiceBus package)
+            //.WithProviderServiceBus(...)
+            // Use Azure Azure Event Hub transport provider (requires SlimMessageBus.Host.AzureEventHub package)
+            //.WithProviderEventHub(...)
+            // Use Redis transport provider (requires SlimMessageBus.Host.Redis package)
+            //.WithProviderRedis(...) 
+            // Use in-memory transport provider (requires SlimMessageBus.Host.Memory package)
+            //.WithProviderMemory(...)
+      })
+      
+      // Add other bus transports (as child bus), if needed
+      //.AddChildBus("Bus2", (builder) => {  })
 
-         // Use hybrid bus to compose out of different transport types (requires SlimMessageBus.Host.Hybrid package)
-         .WithProviderHybrid();
-   })
-   // Add JSON serializer (requires SlimMessageBus.Host.Serialization.Json or SlimMessageBus.Host.Serialization.SystemTextJson package)
-   .AddMessageBusJsonSerializer()
-   // Scan assembly for consumers, handlers, interceptors and configurators and register into MSDI
-   .AddMessageBusServicesFromAssemblyContaining<SomeMessageConsumer>();
-   //.AddMessageBusServicesFromAssembly(Assembly.GetExecutingAssembly());
+      // Use hybrid bus to compose out of different transport types (requires SlimMessageBus.Host.Hybrid package)
+      .WithProviderHybrid()
+
+      // Scan assembly for consumers, handlers, interceptors and configurators and register into MSDI
+      .AddServicesFromAssemblyContaining<SomeMessageConsumer>()
+      //.AddServicesFromAssembly(Assembly.GetExecutingAssembly());
+
+      // Add JSON serializer (requires SlimMessageBus.Host.Serialization.Json or SlimMessageBus.Host.Serialization.SystemTextJson package)
+      .AddJsonSerializer();
+});
 ```
 
 The configuration can be [modularized](docs/intro.md#modularization-of-configuration).
@@ -255,22 +255,25 @@ The `SlimMessageBus` configuration for the in-memory provider looks like this:
 //IServiceCollection services;
 
 // Cofigure the message bus
-services
-   .AddSlimMessageBus(mbb => 
-   {
-      mbb.WithProviderMemory();
-      // Find types that implement IConsumer<T> and IRequestHandler<T, R> and declare producers and consumers on the mbb
-      mbb.AutoDeclareFrom(Assembly.GetExecutingAssembly());
-   })
+services.AddSlimMessageBus(mbb => 
+{
+   mbb.WithProviderMemory();
+   // Find types that implement IConsumer<T> and IRequestHandler<T, R> and declare producers and consumers on the mbb
+   mbb.AutoDeclareFrom(Assembly.GetExecutingAssembly());
    // Scan assembly for consumers, handlers, interceptors and configurators and register into MSDI
-   .AddMessageBusServicesFromAssemblyContaining<OrderSubmittedHandler>();
+   mbb.AddServicesFromAssemblyContaining<OrderSubmittedHandler>();
+});
 ```
 
 For the ASP.NET project, set up the `MessageBus.Current` helper (if you want to use it, and pick up the current web-request scope):
 
 ```cs
-services.AddMessageBusAspNet();
-services.AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
+services.AddSlimMessageBus(mbb => 
+{
+   // ...
+   mbb.AddAspNet(); // requires SlimMessageBus.Host.AspNetCore package
+})
+services.AddHttpContextAccessor(); // This is required by the SlimMessageBus.Host.AspNetCore plugin
 ```
 
 See the complete [sample](/src/Samples#sampledomainevents) for ASP.NET Core where the handler and bus are web-request scoped.

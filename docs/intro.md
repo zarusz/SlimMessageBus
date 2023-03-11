@@ -24,6 +24,8 @@
   - [Dependency auto-registration](#dependency-auto-registration)
   - [ASP.Net Core](#aspnet-core)
   - [Modularization of configuration](#modularization-of-configuration)
+    - [AddSlimMessageBus overload](#addslimmessagebus-overload)
+    - [IMessageBusConfigurator implementation](#imessagebusconfigurator-implementation)
   - [Autoregistration of consumers, interceptors and configurators](#autoregistration-of-consumers-interceptors-and-configurators)
 - [Serialization](#serialization)
 - [Multiple message types on one topic (or queue)](#multiple-message-types-on-one-topic-or-queue)
@@ -47,13 +49,12 @@ SlimMessageBus integrates with [`Microsoft.Extensions.DependencyInjection` (MSDI
 ```cs
 // IServiceCollection services;
 
-services.AddSlimMessageBus((mbb, svp) =>
+services.AddSlimMessageBus(mbb =>
 {
   // Bus configuration happens here (...)
 });
 ```
 
-- The `svp` (of type `IServiceProvider`) can be used to obtain additional dependencies from DI.
 - The `mbb` (of type `MessageBusBuilder`) can be used to configure the message bus.
 
 The configuration is done using the [`MessageBusBuilder`](../src/SlimMessageBus.Host/Config/Fluent/MessageBusBuilder.cs), which allows configuring couple of elements:
@@ -67,44 +68,45 @@ The configuration is done using the [`MessageBusBuilder`](../src/SlimMessageBus.
 Here is a sample configuration:
 
 ```cs
-services
-  .AddSlimMessageBus((mbb, svp) =>
+services.AddSlimMessageBus(mbb =>
+{
+  // Use the Kafka transport provider
+  mbb.WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
+
+  // Pub/Sub example:
+  mbb.Produce<AddCommand>(x => x.DefaultTopic("add-command")); // By default AddCommand messages will go to 'add-command' topic (or hub name when Azure Service Hub provider)
+  mbb.Consume<AddCommand>(x => x
+    .Topic("add-command")
+    .WithConsumer<AddCommandConsumer>()
+    //.KafkaGroup(consumerGroup) // Kafka provider specific (Kafka consumer group name)
+  );
+
+  // Req/Resp example:
+  mbb.Produce<MultiplyRequest>(x => x.DefaultTopic("multiply-request")); // By default AddCommand messages will go to 'multiply-request' topic (or hub name when Azure Service Hub provider)
+  mbb.Handle<MultiplyRequest, MultiplyResponse>(x => x
+    .Topic("multiply-request") // Topic to expect the request messages
+    .WithHandler<MultiplyRequestHandler>()
+    //.KafkaGroup(consumerGroup) // Kafka provider specific (Kafka consumer group name)
+  );
+  // Configure response message queue (on topic) when using req/resp
+  mbb.ExpectRequestResponses(x =>
   {
-    // Use the Kafka transport provider
-    mbb.WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
+    x.ReplyToTopic(topicForResponses); // All responses from req/resp will return on this topic (the EventHub name)
+    x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
+    //x.KafkaGroup(responseGroup); // Kafka provider specific (Kafka consumer group)
+  });
 
-    // Pub/Sub example:
-    mbb.Produce<AddCommand>(x => x.DefaultTopic("add-command")); // By default AddCommand messages will go to 'add-command' topic (or hub name when Azure Service Hub provider)
-    mbb.Consume<AddCommand>(x => x
-      .Topic("add-command")
-      .WithConsumer<AddCommandConsumer>()
-      //.KafkaGroup(consumerGroup) // Kafka provider specific (Kafka consumer group name)
-    );
-
-    // Req/Resp example:
-    mbb.Produce<MultiplyRequest>(x => x.DefaultTopic("multiply-request")); // By default AddCommand messages will go to 'multiply-request' topic (or hub name when Azure Service Hub provider)
-    mbb.Handle<MultiplyRequest, MultiplyResponse>(x => x
-      .Topic("multiply-request") // Topic to expect the request messages
-      .WithHandler<MultiplyRequestHandler>()
-      //.KafkaGroup(consumerGroup) // Kafka provider specific (Kafka consumer group name)
-    );
-    // Configure response message queue (on topic) when using req/resp
-    mbb.ExpectRequestResponses(x =>
-    {
-      x.ReplyToTopic(topicForResponses); // All responses from req/resp will return on this topic (the EventHub name)
-      x.DefaultTimeout(TimeSpan.FromSeconds(20)); // Timeout request sender if response won't arrive within 10 seconds.
-      //x.KafkaGroup(responseGroup); // Kafka provider specific (Kafka consumer group)
-    });
-    
-    mbb.Do(builder =>
-    {
-      // do additional configuration logic wrapped in an block for convenience
-    });
-  })
-  // Use JSON for message serialization
-  .AddMessageBusJsonSerializer(() // requires SlimMessageBus.Host.Serialization.Json package
   // Find consumers and handlers in the current assembly and register in the DI
-  .AddMessageBusServicesFromAssembly(Assembly.GetExecutingAssembly());
+  mbb.AddServicesFromAssembly(Assembly.GetExecutingAssembly());
+
+  // Use JSON for message serialization
+  mbb.AddJsonSerializer(); // requires SlimMessageBus.Host.Serialization.Json package
+
+  mbb.Do(builder =>
+  {
+    // do additional configuration logic wrapped in an block for convenience
+  });
+});
 ```
 
 The builder (`mbb`) is the blueprint for creating message bus instances `IMessageBus`.
@@ -628,17 +630,18 @@ In order to avoid manual registration of consumers, interceptors, and other core
 Here is an example:
 
 ```cs
-services.AddSlimMessageBus((mbb, svp) =>
+services.AddSlimMessageBus(mbb =>
 {
-  // Bus configuration happens here.
+  // ... Bus configuration happens here.
+
+  // auto discover consumers and register into DI (see next section)
+  mbb.AddServicesFromAssembly(Assembly.GetExecutingAssembly());
+  // OR
+  mbb.AddServicesFromAssemblyContaining<SomeMessageConsumer>();
 });
-// auto discover consumers and register into DI (see next section)
-services.AddMessageBusServicesFromAssembly(Assembly.GetExecutingAssembly());
-// OR
-services.AddMessageBusServicesFromAssemblyContaining<SomeMessageConsumer>();
 ```
 
-> The `.AddMessageBusServicesFromAssembly()` methods register the consumers and handler concrete types as well as their interfaces in the DI container.
+> The `.AddServicesFromAssembly()` methods register the consumers and handler concrete types as well as their interfaces in the DI container.
 
 Consider the following example:
 
@@ -648,8 +651,12 @@ public class SomeMessageConsumer : IConsumer<SomeMessage>
 {
 }
 
-// When auto-registration is used:
-services.AddMessageBusConsumersFromAssembly(Assembly.GetExecutingAssembly());
+services.AddSlimMessageBus(mbb =>
+{
+  // When auto-registration is used:
+  mbb.AddConsumersFromAssembly(Assembly.GetExecutingAssembly());
+};
+
 ```
 
 This will result in an equivalent services registration:
@@ -665,15 +672,55 @@ For ASP.NET services, it is recommended to use the [`AspNetCore`](https://www.nu
 
 ```cs
 services.AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin (the IHttpContextAccessor is used)
-services.AddMessageBusAspNet();
+
+services.AddSlimMessageBus(mbb =>
+{
+  // ...
+  mbb.AddAspNet(); // reqires SlimMessageBus.Host.AspNetCore
+};
 ```
 
 ### Modularization of configuration
 
-> Since version 1.6.4
+The SMB bus configuration can be split into modules. This allows to keep the bus configuration alongside the relevant application module (or layer).
+There are two possible approaches:
 
-If you want to avoid configuring the bus all in one place (`Startup.cs`) and rather have modules of the application
-responsible for configuring their consumers or producers then it can be done using an implementation of `IMessageBusConfigurator` that is placed in each module (assembly).
+- The `services.AddSlimMessageBus(mbb => { })` can be used multiple times.
+- An implementation of `IMessageBusConfigurator` is placed in each module (assembly) and registered in the DI.
+
+#### AddSlimMessageBus overload
+
+Since version 2.0.0, the `services.AddSlimMessageBus(mbb => { })` can be called multiple times. The end result will be a sum of the configurations (the supplied `MessageBusBuilder` instance will be the same). Consider the example:
+
+```cs
+// Module 1
+services.AddSlimMessageBus(mbb =>
+{
+  mbb.WithProviderHybrid();
+});
+
+// Module 2
+services.AddSlimMessageBus(mbb =>
+{
+  mbb.AddChildBus("Kafka", mbb =>
+  {
+    // ...
+  });
+});
+
+// Module 3
+services.AddSlimMessageBus(mbb =>
+{
+  mbb.AddChildBus("AzureSB", mbb =>
+  {
+    // ...
+  });
+});
+```
+
+#### IMessageBusConfigurator implementation
+
+> Since version 1.6.4
 
 ```cs
 public MyAppModule : IMessageBusConfigurator
@@ -694,21 +741,21 @@ Implementations of `IMessageBusConfigurator` registered in the DI will be resolv
 - The `busName` parameter is mostly relevant if you are using the Hybrid bus transport and represents the child bus name (`.AddChildBus()`). For the root bus level or when hybrid is not used the vlaue will be `null`.
 - The `mbb` parameter represents the builder for the bus.
 
-The extension method `services.AddMessageBusServicesFromAssembly(...)` can be used to search for any implementations of `IMessageBusConfigurator` and to register them as transient with the container:
+The extension method `mbb.AddServicesFromAssembly(...)` can be used to search for any implementations of `IMessageBusConfigurator` and to register them as transient with the container:
 
 ```cs
 var accountingModuleAssembly = Assembly.GetExecutingAssembly();
-services.AddMessageBusServicesFromAssembly(accountingModuleAssembly);
+services.AddServicesFromAssembly(accountingModuleAssembly);
 ```
 
 ### Autoregistration of consumers, interceptors and configurators
 
 > Since version 1.6.4
 
-We can also use the `.AddMessageBusServicesFromAssembly()` extension method to search for any implementations of `IConsumer<T>`, `IRequestHandler<T, R>` or `IRequestHandler<T>`, and register them as Transient with the container:
+We can also use the `.AddServicesFromAssembly()` extension method to search for any implementations of `IConsumer<T>`, `IRequestHandler<T, R>` or `IRequestHandler<T>`, and register them as Transient with the container:
 
 ```cs
-services.AddMessageBusServicesFromAssembly(Assembly.GetExecutingAssembly());
+services.AddServicesFromAssembly(Assembly.GetExecutingAssembly());
 ```
 
 ## Serialization
@@ -718,7 +765,7 @@ SMB uses serialization plugins to serialize (and deserialize) the messages into 
 See [Serialization](serialization.md) page.
 
 ## Multiple message types on one topic (or queue)
-
+2
 The `MessageType` header will be set for every published (or produced) message to declare the specific .NET type that was published to the underlying transport. On the consumer side, this header will be used to understand what message type arrived and will be used to dispatched the message to the correct consumer.
 
 This approach allows SMB to send polymorphic message types (messages that share a common ancestry) and even send unrelated message types via the same topic/queue transport.

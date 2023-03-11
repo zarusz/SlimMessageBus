@@ -2,6 +2,8 @@ namespace SlimMessageBus.Host.Integration.Test;
 
 using System.Reflection;
 
+using FluentAssertions.Common;
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -49,17 +51,7 @@ public class HybridTests : IDisposable
         services.AddTransient(typeof(ILogger<>), typeof(NullLogger<>));
 
         services
-            .AddSlimMessageBus(SetupBus)
-            .AddMessageBusServicesFromAssemblyContaining<InternalMessageConsumer>();
-
-        if (serializerType == SerializerType.NewtonsoftJson)
-        {
-            Serialization.Json.ServiceCollectionExtensions.AddMessageBusJsonSerializer(services);
-        }
-        if (serializerType == SerializerType.SystemTextJson)
-        {
-            Serialization.SystemTextJson.ServiceCollectionExtensions.AddMessageBusJsonSerializer(services);
-        }
+            .AddSlimMessageBus(mbb => SetupBus(mbb, serializerType));
 
         servicesBuilder?.Invoke(services);
 
@@ -103,9 +95,19 @@ public class HybridTests : IDisposable
         }
     }
 
-    private void SetupBus(MessageBusBuilder mbb)
+    private void SetupBus(MessageBusBuilder mbb, SerializerType serializerType)
     {
         mbb.WithProviderHybrid();
+        mbb.AddServicesFromAssemblyContaining<InternalMessageConsumer>();
+
+        if (serializerType == SerializerType.NewtonsoftJson)
+        {
+            Serialization.Json.MessageBusBuilderExtensions.AddJsonSerializer(mbb);
+        }
+        if (serializerType == SerializerType.SystemTextJson)
+        {
+            Serialization.SystemTextJson.MessageBusBuilderExtensions.AddJsonSerializer(mbb);
+        }
     }
 
     public record EventMark(Guid CorrelationId, string Name);

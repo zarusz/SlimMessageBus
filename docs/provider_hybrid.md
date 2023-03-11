@@ -28,13 +28,14 @@ A typical example would be when an micro-service has a domain layer which uses d
 Here is an example configuration taken from [Sample.Hybrid.ConsoleApp](../src/Samples/Sample.Hybrid.ConsoleApp) sample:
 
 ```cs
-services.AddSlimMessageBus((mbb, svp) =>
+services.AddSlimMessageBus(mbb =>
 {
     // In summary:
     // - The CustomerChangedEvent messages will be going through the SMB Memory provider.
     // - The SendEmailCommand messages will be going through the SMB Azure Service Bus provider.
     // - Each of the bus providers will serialize messages using JSON and use the same DI to resolve consumers/handlers.
     mbb
+        .WithProviderHybrid()
         // Bus 1
         .AddChildBus("Memory", (mbbChild) =>
         {
@@ -46,16 +47,15 @@ services.AddSlimMessageBus((mbb, svp) =>
         // Bus 2
         .AddChildBus("AzureSB", (mbbChild) =>
         {
-            var serviceBusConnectionString = Secrets.Service.PopulateSecrets(Configuration["Azure:ServiceBus"]);
+            var serviceBusConnectionString = "...";
             mbbChild
                 .Produce<SendEmailCommand>(x => x.DefaultQueue("test-ping-queue"))
                 .Consume<SendEmailCommand>(x => x.Queue("test-ping-queue").WithConsumer<SmtpEmailService>())
                 .WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString));
         })
-        .WithProviderHybrid();
+        .AddJsonSerializer() // serialization setup will be shared between bus 1 and 2
+        .AddServicesFromAssemblyContaining<CustomerChangedEventHandler>(); // register all the found consumers and handlers in DI 
 });
-services.AddMessageBusJsonSerializer((); // serialization setup will be shared between bus 1 and 2
-services.AddMessageBusServicesFromAssemblyContaining<CustomerChangedEventHandler>(); // register all the found consumers and handlers in DI 
 ```
 
 In the example above, we define the hybrid bus to create two kinds of transports - Memory and Azure Service Bus:
@@ -110,11 +110,11 @@ public class AzureServiceBusConfigurator : IMessageBusConfigurator
             var topic = "integration-external-message";
             mbb.Produce<ExternalMessage>(x => x.DefaultTopic(topic));
             mbb.Consume<ExternalMessage>(x => x.Topic(topic).SubscriptionName("test").WithConsumer<ExternalMessageConsumer>());
-            var connectionString = Secrets.Service.PopulateSecrets(_configuration["Azure:ServiceBus"]);
+            var connectionString = "...";
             mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString));
         });
     }
 }
 ```
 
-That allows for modularization of transports that are being introduced by each of your application layers.
+That allows for modularization of transports that are being introduced by the respective application layers (hexagonal architecture).

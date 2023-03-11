@@ -46,15 +46,8 @@ class Program
             // Avro serialized using the AvroConvert library - no schema generation neeeded upfront.
             var jsonSerializer = new JsonMessageSerializer();
 
-            // Note: Certain messages will be serialized by one Avro serializer, other using the Json serializer
-            services.AddMessageBusHybridSerializer(new Dictionary<IMessageSerializer, Type[]>
-            {
-                [jsonSerializer] = new[] { typeof(SubtractCommand) }, // the first one will be the default serializer, no need to declare types here
-                [avroSerializer] = new[] { typeof(AddCommand), typeof(MultiplyRequest), typeof(MultiplyResponse) },
-            }, defaultMessageSerializer: jsonSerializer);
-
             services
-                .AddSlimMessageBus((mbb, svp) =>
+                .AddSlimMessageBus(mbb =>
                 {
                     // Note: remember that Memory provider does not support req-resp yet.
                     var provider = Provider.Redis;
@@ -77,6 +70,14 @@ class Program
                     */
 
                     mbb
+                        .AddServicesFromAssemblyContaining<AddCommandConsumer>()
+                        // Note: Certain messages will be serialized by one Avro serializer, other using the Json serializer
+                        .AddHybridSerializer(new Dictionary<IMessageSerializer, Type[]>
+                        {
+                            [jsonSerializer] = new[] { typeof(SubtractCommand) }, // the first one will be the default serializer, no need to declare types here
+                            [avroSerializer] = new[] { typeof(AddCommand), typeof(MultiplyRequest), typeof(MultiplyResponse) },
+                        }, defaultMessageSerializer: jsonSerializer)
+
                         .Produce<AddCommand>(x => x.DefaultTopic("AddCommand"))
                         .Consume<AddCommand>(x => x.Topic("AddCommand").WithConsumer<AddCommandConsumer>())
 
@@ -133,8 +134,7 @@ class Program
                                     throw new NotSupportedException();
                             }
                         });
-                })
-                .AddMessageBusServicesFromAssemblyContaining<AddCommandConsumer>();                
+                });                
         })
         .Build()
         .RunAsync();

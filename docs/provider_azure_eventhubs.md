@@ -18,15 +18,12 @@ var connectionString = ""; // Azure Event Hubs connection string
 var storageConnectionString = ""; // Azure Storage Account connection string (for the consumer group to store last checkpointed offset of each topic-partition)
 var storageContainerName = ""; // Azure Blob Storage container name
 
-// MessageBusBuilder mbb;
-
-services
-    .AddSlimMessageBus((mbb, svp) =>
-    {
-        // Bus configuration happens here (...)
-        mbb.WithProviderEventHub(new EventHubMessageBusSettings(connectionString, storageConnectionString, storageContainerName)); // Use Azure Event Hub as provider    
-    })
-    .AddMessageBusJsonSerializer(();
+services.AddSlimMessageBus(mbb =>
+{
+    // Bus configuration happens here (...)
+    mbb.WithProviderEventHub(new EventHubMessageBusSettings(connectionString, storageConnectionString, storageContainerName)); // Use Azure Event Hub as provider    
+    mbb.AddJsonSerializer();
+});
 ```
 
 If your bus only produces messages to Event Hub and does not consume any messages, then you do not need to provide a storage account as part of the config. In that case pass `null` for the storage account details:
@@ -34,13 +31,12 @@ If your bus only produces messages to Event Hub and does not consume any message
 ```cs
 var connectionString = ""; // Azure Event Hubs connection string
 
-services
-    .AddSlimMessageBus((mbb, svp) =>
-    {
-        // Bus configuration happens here (...)
-        mbb.WithProviderEventHub(new EventHubMessageBusSettings(connectionString, null, null)); // The bus will only be used to publish messages to Azure Event Hub
-    })
-    .AddMessageBusJsonSerializer(();
+services.AddSlimMessageBus(mbb =>
+{
+    // Bus configuration happens here (...)
+    mbb.WithProviderEventHub(new EventHubMessageBusSettings(connectionString, null, null)); // The bus will only be used to publish messages to Azure Event Hub
+    mbb.AddJsonSerializer();
+})
 ```
 
 > The blob storage container will be created if it does not exist. Therefore, ensure the storage account connection string has sufficient permissions or create the storage container ahead of the application start.
@@ -86,11 +82,11 @@ SMB Azure EventHub allows to set a provider (selector) that will assign the part
 
 ```cs
 mbb.Produce<CustomerUpdated>(x => 
-    {
-        x.DefaultPath("topic1");
-        // Message key could be set for the message
-        x.KeyProvider((message) => message.CustomerId.ToString());
-    });
+{
+    x.DefaultPath("topic1");
+    // Message key could be set for the message
+    x.KeyProvider((message) => message.CustomerId.ToString());
+});
 ```
 
 The partition key value is a `string` for AEH.
@@ -102,10 +98,10 @@ The partition key value is a `string` for AEH.
 Azure Event Hub requires a consumer group name to be provided along with the event hub name:
 
 ```cs
-mbb.Consume<SomeMessage>(x => 
-    x.Path(hubName) // hub name
-     .Group(consumerGroupName) // consumer group name on the hub
-     .WithConsumer<SomeConsumer>())
+mbb.Consume<SomeMessage>(x => x
+    .Path(hubName) // hub name
+    .Group(consumerGroupName) // consumer group name on the hub
+    .WithConsumer<SomeConsumer>());
 ```
 
 ### Checkpointing offsets
@@ -114,12 +110,12 @@ Azure Event Hub client needs to store the last offset for a partition / hub name
 That is checkpointing. Here are some additional configuration options:
 
 ```cs
-mbb.Consume<SomeMessage>(x => 
-    x.Path(hubName) // hub name
-     .Group(consumerGroupName) // consumer group name on the hub
-     .WithConsumer<SomeConsumer>()
-     .CheckpointAfter(TimeSpan.FromSeconds(10)) // trigger checkpoint after 10 seconds 
-     .CheckpointEvery(50)) // trigger checkpoint every 50 messages
+mbb.Consume<SomeMessage>(x => x
+    .Path(hubName) // hub name
+    .Group(consumerGroupName) // consumer group name on the hub
+    .WithConsumer<SomeConsumer>()
+    .CheckpointAfter(TimeSpan.FromSeconds(10)) // trigger checkpoint after 10 seconds 
+    .CheckpointEvery(50)); // trigger checkpoint every 50 messages
 ```
 
 When the service checkpoints are often, this will impact performance/throughput (more round trips to Azure Blob Storage to save the offsets). In contrast, when the service checkpoints are too rare, then the probability for a message retry (if the lease expires or your services crashes) increases. As with everything, this needs to be tweaked to achieve a balance.

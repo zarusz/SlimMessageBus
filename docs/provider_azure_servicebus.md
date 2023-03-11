@@ -23,14 +23,12 @@ Azure Service Bus provider requires a connection string:
 ```cs
 var connectionString = "" // Azure Service Bus connection string
 
-
-services
-    .AddSlimMessageBus((mbb, svp) =>
-    {
-        // Bus configuration happens here (...)
-        mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString));
-    })
-    .AddMessageBusJsonSerializer(();
+services.AddSlimMessageBus(mbb =>
+{
+   // Bus configuration happens here (...)
+   mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString));
+   mbb.AddJsonSerializer();
+});
 ```
 
 The `ServiceBusMessageBusSettings` has additional settings that allow overriding factories for Azure SB client objects. This may be used for some advanced scenarios.
@@ -234,17 +232,17 @@ The request processing service (the responding service) in the case of SMB Azure
 
 ```cs
 mbb.Handle<EchoRequest, EchoResponse>(x => x
-        .Topic(topic)
-        .SubscriptionName("handler")
-        .WithHandler<EchoRequestHandler>()
-        .Instances(2));
+   .Topic(topic)
+   .SubscriptionName("handler")
+   .WithHandler<EchoRequestHandler>()
+   .Instances(2));
 ```
 
 ```cs
 mbb.Handle<EchoRequest, EchoResponse>(x => x
-        .Queue(queue)
-        .WithHandler<EchoRequestHandler>()
-        .Instances(2));
+   .Queue(queue)
+   .WithHandler<EchoRequestHandler>()
+   .Instances(2));
 ```
 
 When a request message is send to a queue the handler service has to also consume from that queue. Likewise, if you send a request to a topic it has to be consumed from that topic. You cannot mix sending to a topic and consuming from a queue (or vice versa).
@@ -385,16 +383,16 @@ Also, it might be desired that only producers or consumers can create the respec
 ```cs
 mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString)
 {
-      TopologyProvisioning = new ServiceBusTopologySettings
-      {
-         Enabled = true,
-         CanProducerCreateQueue = true, // only declared producers will be used to provision queues
-         CanProducerCreateTopic = true, // only declared producers will be used to provision topics
-         CanConsumerCreateQueue = false, // the consumers will not be able to provision a missing queue
-         CanConsumerCreateTopic = false, // the consumers will not be able to provision a missing topic
-         CanConsumerCreateSubscription = true, // but the consumers will add the missing subscription if needed
-         CanConsumerCreateSubscriptionFilter = true, // but the consumers will add the missing filter on subscription if needed
-      }
+   TopologyProvisioning = new ServiceBusTopologySettings
+   {
+      Enabled = true,
+      CanProducerCreateQueue = true, // only declared producers will be used to provision queues
+      CanProducerCreateTopic = true, // only declared producers will be used to provision topics
+      CanConsumerCreateQueue = false, // the consumers will not be able to provision a missing queue
+      CanConsumerCreateTopic = false, // the consumers will not be able to provision a missing topic
+      CanConsumerCreateSubscription = true, // but the consumers will add the missing subscription if needed
+      CanConsumerCreateSubscriptionFilter = true, // but the consumers will add the missing filter on subscription if needed
+   }
 });
 ```
 
