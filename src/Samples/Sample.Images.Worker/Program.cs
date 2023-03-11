@@ -26,7 +26,7 @@ public class Program
 
                 // SlimMessageBus
                 services
-                    .AddSlimMessageBus((mbb, svp) =>
+                    .AddSlimMessageBus(mbb =>
                     {
                         // unique id across instances of this application (e.g. 1, 2, 3)
                         var instanceId = ctx.Configuration["InstanceId"];
@@ -52,10 +52,10 @@ public class Program
                                     config.StatisticsIntervalMs = 60000;
                                     config.AutoOffsetReset = Confluent.Kafka.AutoOffsetReset.Latest;
                                 }
-                            });
-                    })
-                    .AddMessageBusJsonSerializer()
-                    .AddMessageBusServicesFromAssemblyContaining<GenerateThumbnailRequestHandler>();
+                            })
+                            .AddServicesFromAssemblyContaining<GenerateThumbnailRequestHandler>()
+                            .AddJsonSerializer();
+                    });
             })
             .Build()
             .RunAsync();

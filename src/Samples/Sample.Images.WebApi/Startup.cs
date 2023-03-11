@@ -43,7 +43,7 @@ public class Startup
 
     private void ConfigureMessageBus(IServiceCollection services)
     {
-        services.AddSlimMessageBus((mbb, svp) =>
+        services.AddSlimMessageBus(mbb =>
         {
             // unique id across instances of this application (e.g. 1, 2, 3)
             var instanceId = Configuration["InstanceId"];
@@ -66,12 +66,12 @@ public class Startup
                     // Default global response timeout
                     x.DefaultTimeout(TimeSpan.FromSeconds(30));
                 })
-                .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
+                .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers))
+                .AddAspNet()
+                .AddJsonSerializer();
         });
-        services.AddMessageBusJsonSerializer();
 
-        services.AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
-        services.AddMessageBusAspNet();
+        services.AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin        
     }
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

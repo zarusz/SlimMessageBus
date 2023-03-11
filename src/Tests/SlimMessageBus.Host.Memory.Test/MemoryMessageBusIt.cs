@@ -27,12 +27,12 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
             .AddSlimMessageBus(mbb =>
             {
                 mbb
-                    .WithProviderMemory(_settings);
+                    .WithProviderMemory(_settings)
+                    .AddServicesFromAssemblyContaining<PingConsumer>()
+                    .AddJsonSerializer();
 
                 ApplyBusConfiguration(mbb);
-            })
-            .AddMessageBusJsonSerializer()
-            .AddMessageBusServicesFromAssemblyContaining<PingConsumer>();
+            });
 
         services.AddSingleton<TestEventCollector<PingMessage>>();
     }

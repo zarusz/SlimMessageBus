@@ -17,6 +17,11 @@ public class MessageBusBuilder
     /// </summary>
     public Func<MessageBusSettings, IMessageBus> BusFactory { get; private set; }
 
+    /// <summary>
+    /// Optional services collection. It is used only during DI setup phase.
+    /// </summary>
+    public IServiceCollection Services { get; internal set; }
+
     protected MessageBusBuilder()
     {
     }
@@ -26,6 +31,7 @@ public class MessageBusBuilder
         Settings = other.Settings;
         Children = other.Children;
         BusFactory = other.BusFactory;
+        Services = other.Services;
     }
 
     public static MessageBusBuilder Create() => new();

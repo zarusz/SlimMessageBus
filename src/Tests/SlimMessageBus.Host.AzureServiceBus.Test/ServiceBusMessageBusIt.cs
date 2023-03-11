@@ -29,10 +29,10 @@ public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt
             {
                 var connectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
                 mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString));
+                mbb.AddServicesFromAssemblyContaining<PingConsumer>();
+                mbb.AddJsonSerializer();
                 ApplyBusConfiguration(mbb);
-            })
-            .AddMessageBusJsonSerializer()
-            .AddMessageBusServicesFromAssemblyContaining<PingConsumer>();
+            });
 
         services.AddSingleton<TestEventCollector<TestEvent>>();
     }

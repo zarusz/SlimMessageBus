@@ -49,16 +49,10 @@ class Program
                                  .Produce<SendEmailCommand>(x => x.DefaultQueue("test-ping-queue"))
                                  .Consume<SendEmailCommand>(x => x.Queue("test-ping-queue").WithConsumer<SmtpEmailService>());
                          })
-                         .WithProviderHybrid();
-                 })
-                 .AddMessageBusJsonSerializer() // serialization setup will be shared between bus 1 and 2
-                 .AddMessageBusServicesFromAssemblyContaining<CustomerChangedEventHandler>();
-
-             services
-                 .AddSlimMessageBus()
-                 .AddMessageBusJsonSerializer() // serialization setup will be shared between bus 1 and 2                 
-                 .AddMessageBusServicesFromAssemblyContaining<CustomerChangedEventHandler>();
-
+                         .WithProviderHybrid()
+                         .AddServicesFromAssemblyContaining<CustomerChangedEventHandler>()
+                         .AddJsonSerializer(); // serialization setup will be shared between bus 1 and 2
+                 });
          })
          .Build()
          .RunAsync();

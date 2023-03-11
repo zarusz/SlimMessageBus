@@ -1,44 +1,33 @@
 ﻿namespace SlimMessageBus.Host;
 
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-
-using SlimMessageBus;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.Interceptor;
-
 using System.Reflection;
 
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers SlimMessageBus (<see cref="IMessageBus">) master bus instance and required services.
-    /// Ensure an implementation of <see cref="IMessageBusConfigurator"/> in the DI to configure the bus.
+    /// Registers SlimMessageBus (<see cref="IMessageBus">) master bus instance and required mbb. This can be called multiple times and the result will be additive.
     /// </summary>
     /// <param name="services"></param>
     /// <param name="configure">Action to configure the master (root) message bus</param>
     /// <returns></returns>
-    public static IServiceCollection AddSlimMessageBus(this IServiceCollection services, Action<MessageBusBuilder> configure)
-        => services.AddSlimMessageBus(configure: (mbb, svp) => configure(mbb));
-
-    /// <summary>
-    /// Registers SlimMessageBus (<see cref="IMessageBus">) master bus instance and required services.
-    /// </summary>
-    /// <param name="services"></param>
-    /// <param name="configure">Action to configure the master (root) message bus</param>
-    /// <returns></returns>
-    public static IServiceCollection AddSlimMessageBus(this IServiceCollection services, Action<MessageBusBuilder, IServiceProvider> configure = null)
+    public static IServiceCollection AddSlimMessageBus(this IServiceCollection services, Action<MessageBusBuilder> configure = null)
     {
         if (configure is not null)
         {
             // Register the configure action as LambdaMessageBusConfigurator
-            services.AddTransient<IMessageBusConfigurator>(svp => new LambdaMessageBusConfigurator(svp, busName: null, configure));
+            services.AddTransient<IMessageBusConfigurator>(svp => new LambdaMessageBusConfigurator(busName: null, configure));
+
+            // Execute the mbb setup for services registration
+            var mbb = MessageBusBuilder.Create();
+            mbb.Services = services;
+            configure(mbb);
         }
         return services.AddSlimMessageBus();
     }
 
     /// <summary>
-    /// Registers SlimMessageBus (<see cref="IMessageBus">) master bus instance and required services (can be called multiple times).
+    /// Registers SlimMessageBus (<see cref="IMessageBus">) master bus instance and required mbb. This can be called multiple times and the result will be additive.
+    /// Ensure an implementation of <see cref="IMessageBusConfigurator"/> is configured in the DI to configure the bus.
     /// </summary>
     /// <param name="services"></param>
     /// <returns></returns>
@@ -71,7 +60,7 @@ public static class ServiceCollectionExtensions
         });
 
         // Single master bus that holds the defined consumers and message processing pipelines
-        services.TryAddSingleton((svp) =>
+        services.TryAddSingleton(svp =>
         {
             var mbb = svp.GetRequiredService<MessageBusBuilder>();
 
@@ -104,12 +93,18 @@ public static class ServiceCollectionExtensions
     /// The found types are registered in the DI as Transient service (both the consumer type and its interface are registered).
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    /// <param name="services"></param>
+    /// <param name="mbb"></param>
     /// <param name="assembly"></param>
     /// <param name="filterPredicate"></param>
     /// <returns></returns>
-    public static IServiceCollection AddMessageBusServicesFromAssembly(this IServiceCollection services, Assembly assembly, Func<Type, bool> filterPredicate = null)
+    public static MessageBusBuilder AddServicesFromAssembly(this MessageBusBuilder mbb, Assembly assembly, Func<Type, bool> filterPredicate = null)
     {
+        var services = mbb.Services;
+        if (services is null)
+        {
+            return mbb;
+        }
+        
         var scan = ReflectionDiscoveryScanner.From(assembly);
 
         var foundConsumerTypes = scan.GetConsumerTypes(filterPredicate);
@@ -137,7 +132,7 @@ public static class ServiceCollectionExtensions
             services.AddTransient(typeof(IMessageBusConfigurator), foundType);
         }
 
-        return services;
+        return mbb;
     }
 
     /// <summary>
@@ -145,11 +140,11 @@ public static class ServiceCollectionExtensions
     /// The found types are registered in the DI as Transient service (both the consumer type and its interface are registered).
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    /// <param name="services"></param>
+    /// <param name="mbb"></param>
     /// <param name="filterPredicate"></param>
     /// <returns></returns>
-    public static IServiceCollection AddMessageBusServicesFromAssemblyContaining<T>(this IServiceCollection services, Func<Type, bool> filterPredicate = null) =>
-        services.AddMessageBusServicesFromAssembly(typeof(T).Assembly, filterPredicate);
+    public static MessageBusBuilder AddServicesFromAssemblyContaining<T>(this MessageBusBuilder mbb, Func<Type, bool> filterPredicate = null) =>
+        mbb.AddServicesFromAssembly(typeof(T).Assembly, filterPredicate);
 
     #region Obsolete
 
@@ -161,7 +156,7 @@ public static class ServiceCollectionExtensions
     /// <param name="filterPredicate">Filtering predicate that allows to further narrow down the </param>
     /// <param name="assemblies">Assemblies to be scanned</param>
     /// <returns></returns>
-    [Obsolete("Use the new AddMessageBusServicesFromAssembly or AddMessageBusServicesFromAssemblyContaining")]
+    [Obsolete("Use the new mbb.AddServicesFromAssembly() or mbb.AddServicesFromAssemblyContaining()")]
     public static IServiceCollection AddMessageBusConsumersFromAssembly(this IServiceCollection services, Func<Type, bool> filterPredicate, params Assembly[] assemblies)
     {
         var foundTypes = ReflectionDiscoveryScanner.From(assemblies).GetConsumerTypes(filterPredicate);
@@ -187,7 +182,7 @@ public static class ServiceCollectionExtensions
     /// <param name="services"></param>
     /// <param name="assemblies">Assemblies to be scanned</param>
     /// <returns></returns>
-    [Obsolete("Use the new AddMessageBusServicesFromAssembly or AddMessageBusServicesFromAssemblyContaining")]
+    [Obsolete("Use the new mbb.AddServicesFromAssembly() or mbb.AddServicesFromAssemblyContaining()")]
     public static IServiceCollection AddMessageBusConsumersFromAssembly(this IServiceCollection services, params Assembly[] assemblies)
         => services.AddMessageBusConsumersFromAssembly(filterPredicate: null, assemblies);
 
@@ -199,7 +194,7 @@ public static class ServiceCollectionExtensions
     /// <param name="services"></param>
     /// <param name="assemblies">Assemblies to be scanned</param>
     /// <returns></returns>
-    [Obsolete("Use the new AddMessageBusServicesFromAssembly or AddMessageBusServicesFromAssemblyContaining")]
+    [Obsolete("Use the new mbb.AddServicesFromAssembly() or mbb.AddServicesFromAssemblyContaining()")]
     public static IServiceCollection AddMessageBusConfiguratorsFromAssembly(this IServiceCollection services, params Assembly[] assemblies)
     {
         var foundTypes = ReflectionDiscoveryScanner.From(assemblies).GetMessageBusConfiguratorTypes();
@@ -218,7 +213,7 @@ public static class ServiceCollectionExtensions
     /// <param name="services"></param>
     /// <param name="assemblies">Assemblies to be scanned</param>
     /// <returns></returns>
-    [Obsolete("Use the new AddMessageBusServicesFromAssembly or AddMessageBusServicesFromAssemblyContaining")]
+    [Obsolete("Use the new mbb.AddServicesFromAssembly() or mbb.AddServicesFromAssemblyContaining()")]
     public static IServiceCollection AddMessageBusInterceptorsFromAssembly(this IServiceCollection services, params Assembly[] assemblies)
     {
         var foundTypes = ReflectionDiscoveryScanner.From(assemblies).GetInterceptorTypes();

@@ -75,11 +75,11 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
                 };
 
                 mbb.WithProviderKafka(kafkaSettings);
+                mbb.AddServicesFromAssemblyContaining<PingConsumer>();
+                mbb.AddJsonSerializer();
 
                 ApplyBusConfiguration(mbb);
-            })
-            .AddMessageBusJsonSerializer()
-            .AddMessageBusServicesFromAssemblyContaining<PingConsumer>();
+            });
 
         services.AddSingleton<TestEventCollector<ConsumedMessage>>();
     }

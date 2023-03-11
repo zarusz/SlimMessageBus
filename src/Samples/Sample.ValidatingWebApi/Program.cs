@@ -15,18 +15,19 @@ using SlimMessageBus.Host.Memory;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
 // Configure SMB
-builder.Services
-    .AddSlimMessageBus(mbb => mbb.WithProviderMemory().AutoDeclareFrom(Assembly.GetExecutingAssembly()))
-    .AddMessageBusServicesFromAssembly(Assembly.GetExecutingAssembly())
-    .AddMessageBusAspNet()
-    // Configure SlimMessageBus.Host.FluentValidation plugin
-    .AddMessageBusProducerValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();
-
-// You can map the validation errors into a custom exception
-//builder.Services.AddMessageBusValidationErrorsHandler(errors => new ApplicationException("Custom Validation Exception"));
+builder.Services.AddSlimMessageBus(mbb => mbb
+    .WithProviderMemory()
+    .AutoDeclareFrom(Assembly.GetExecutingAssembly())
+    .AddServicesFromAssembly(Assembly.GetExecutingAssembly())
+    .AddAspNet()
+    .AddFluentValidation(cfg =>
+    {
+        // Configure SlimMessageBus.Host.FluentValidation plugin
+        cfg.AddProducerValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();
+        // You can map the validation errors into a custom exception
+        //cfg.AddValidationErrorsHandler(errors => new ApplicationException("Custom Validation Exception"));
+    }));
 
 // FluentValidation library - find and register IValidator<T> implementations:
 builder.Services.AddValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();

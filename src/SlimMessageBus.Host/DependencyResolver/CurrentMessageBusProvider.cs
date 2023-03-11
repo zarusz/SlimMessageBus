@@ -1,8 +1,5 @@
 ﻿namespace SlimMessageBus.Host;
 
-using Microsoft.Extensions.DependencyInjection;
-
-using SlimMessageBus;
 using SlimMessageBus.Host.Consumer;
 
 public class CurrentMessageBusProvider : ICurrentMessageBusProvider
@@ -18,7 +15,6 @@ public class CurrentMessageBusProvider : ICurrentMessageBusProvider
         {
             return current;
         }
-
         return _serviceProvider.GetService<IMessageBus>();
     }
 }

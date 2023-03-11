@@ -60,14 +60,17 @@ Consider an in-process command that is delivered using the memory bus:
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure SMB
-builder.Services
-    .AddSlimMessageBus(mbb =>
-    {
-        mbb
-            .WithProviderMemory()
-            .AutoDeclareFrom(Assembly.GetExecutingAssembly());
-    })
-    .AddMessageBusServicesFromAssembly(Assembly.GetExecutingAssembly());
+builder.Services.AddSlimMessageBus(mbb =>
+{
+    mbb
+        .WithProviderMemory()
+        .AutoDeclareFrom(Assembly.GetExecutingAssembly())
+        .AddServicesFromAssembly(Assembly.GetExecutingAssembly())
+        .AddFluentValidation(opts => 
+        {
+            // SMB FluentValidation setup goes here
+        });
+});
 
 // Register FluentValidation validators
 builder.Services.AddValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();
@@ -79,17 +82,30 @@ By default `FluentValidation.ValidationException` exception is raised on the pro
 It is possible to configure custom exception (or perhaps to supress the validation errors):
 
 ```cs
-builder.Services.AddMessageBusValidationErrorsHandler(errors => new ApplicationException("Custom exception"));
+builder.Services.AddSlimMessageBus(mbb =>
+{
+    mbb.AddFluentValidation(opts => 
+    {
+        // SMB FluentValidation setup goes here
+        opts.AddValidationErrorsHandler(errors => new ApplicationException("Custom exception"));
+    });
+});
 ```
 
 #### Producer side validation
 
-The `AddMessageBusProducerValidatorsFromAssemblyContaining` will register an SMB interceptor that will validate the message upon `.Publish()` or `.Send()` - on the producer side before the message even gets deliverd to the underlying transport. Continuing on the example from previous section:
+The `.AddProducerValidatorsFromAssemblyContaining()` will register an SMB interceptor that will validate the message upon `.Publish()` or `.Send()` - on the producer side before the message even gets deliverd to the underlying transport. Continuing on the example from previous section:
 
 ```cs
-// Register validation interceptors for message (here command) producers inside message bus
-// Required Package: SlimMessageBus.Host.FluentValidation
-builder.Services.AddMessageBusProducerValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();
+builder.Services.AddSlimMessageBus(mbb =>
+{
+    mbb.AddFluentValidation(opts => 
+    {
+        // Register validation interceptors for message (here command) producers inside message bus
+        // Required Package: SlimMessageBus.Host.FluentValidation
+        opts.AddProducerValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();
+    });
+});
 ```
 
 For example given an ASP.NET Mimimal WebApi, the request can be delegated to SlimMessageBus in memory transport:
@@ -113,9 +129,15 @@ We can also enable validation of the incoming message just before it gets delive
 Such validation would be needed in scenarios when an external system delivers messages onto the transport (Kafka, Azure Service Bus) which we do not trust, and therefore we could enable validation on the consumer end. This will prevent the invalid messages to enter the consumer or handler.
 
 ```cs
-// Register validation interceptors for message (here command) consumers inside message bus
-// Required Package: SlimMessageBus.Host.FluentValidation
-builder.Services.AddMessageBusConsumerValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();
+builder.Services.AddSlimMessageBus(mbb =>
+{
+    mbb.AddFluentValidation(opts => 
+    {
+        // Register validation interceptors for message (here command) consumers inside message bus
+        // Required Package: SlimMessageBus.Host.FluentValidation
+        opts.AddConsumerValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();
+    });
+});
 ```
 
 In the situation that the message is invalid, the message will fail with `FluentValidation.ValidationException: Validation failed` exception and standard consumer error handling will take place (depending on the underlying transport it might get retried multiple times until it ends up on dead-letter queue).

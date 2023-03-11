@@ -29,10 +29,10 @@ Producer, consumer and global configuration properties are described [here](http
 The configuration on the underlying Kafka client can be adjusted like so:
 
 ```cs
-// MessageBusBuilder mbb;
-mbb.    
+services.AddSlimMessageBus(mbb =>
+{
    // ...
-   .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+   mbb.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
    {
       ProducerConfig = (config) =>
       {
@@ -43,6 +43,7 @@ mbb.
          // adjust the consumer config
       }
    });
+});
 ```
 
 ### Minimizing message latency
@@ -50,10 +51,10 @@ mbb.
 There is a good description [here](https://github.com/edenhill/librdkafka/wiki/How-to-decrease-message-latency) on improving the latency by applying producer/consumer settings on librdkafka. Here is how you enter the settings using SlimMessageBus:
 
 ```cs
-// MessageBusBuilder mbb;
-mbb.    
+services.AddSlimMessageBus(mbb =>
+{
    // ...
-   .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+   mbb.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
    {
       ProducerConfig = (config) =>
       {
@@ -66,11 +67,13 @@ mbb.
          config.SocketNagleDisable = true;
       }
    });
+});
 ```
 
 There is also a good discussion around latency in [this issue](https://github.com/confluentinc/confluent-kafka-dotnet/issues/89).
 
 More documentation here:
+
 - [How to decrease message latency](https://github.com/edenhill/librdkafka/wiki/How-to-decrease-message-latency)
 - [Reduce latency](https://github.com/confluentinc/confluent-kafka-dotnet/wiki/Producing-messages#reduce-latency)
 
@@ -79,10 +82,10 @@ More documentation here:
 Example on how to configure SSL with SASL authentication (for cloudkarafka.com):
 
 ```cs
-// MessageBusBuilder mbb;
-mbb.    
+services.AddSlimMessageBus(mbb =>
+{
    // ...
-   .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+   mbb.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
    {
       ProducerConfig = (config) =>
       {
@@ -93,6 +96,7 @@ mbb.
          AddSsl(kafkaUsername, kafkaPassword, config);
       }
    });
+});
 ```
 
 ```cs
@@ -143,7 +147,7 @@ SMB Kafka allows to set a provider (selector) that will assign the partition num
 
 ```cs
 // MessageBusBuilder mbb;
-mbb.    
+mbb    
    .Produce<PingMessage>(x =>
    {
       x.DefaultTopic("topic1");
@@ -186,7 +190,7 @@ If you need to specify a different serializer provide a specfic `IMessageSeriali
 
 ```cs
 // MessageBusBuilder mbb;
-mbb.    
+mbb    
    .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
    {
       HeaderSerializer = new DefaultKafkaHeaderSerializer() // specify a different header values serializer

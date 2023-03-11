@@ -37,10 +37,11 @@ public class RedisMessageBusIt : BaseIntegrationTest<RedisMessageBusIt>
                         }
                     });
 
+                mbb.AddServicesFromAssemblyContaining<PingConsumer>();
+                mbb.AddJsonSerializer();
+
                 ApplyBusConfiguration(mbb);
-            })
-            .AddMessageBusJsonSerializer()
-            .AddMessageBusServicesFromAssemblyContaining<PingConsumer>();
+            });
 
         services.AddSingleton<TestEventCollector<PingMessage>>();
     }

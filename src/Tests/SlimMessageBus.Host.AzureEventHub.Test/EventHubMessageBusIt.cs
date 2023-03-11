@@ -22,7 +22,7 @@ public class EventHubMessageBusIt : BaseIntegrationTest<EventHubMessageBusIt>
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
         services
-            .AddSlimMessageBus((mbb, svp) =>
+            .AddSlimMessageBus(mbb =>
             {
                 // connection details to the Azure Event Hub
                 var connectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub"]);
@@ -44,12 +44,12 @@ public class EventHubMessageBusIt : BaseIntegrationTest<EventHubMessageBusIt>
                 };
 
                 mbb
-                    .WithProviderEventHub(settings);
+                    .WithProviderEventHub(settings)
+                    .AddServicesFromAssemblyContaining<PingConsumer>()
+                    .AddJsonSerializer();
 
                 ApplyBusConfiguration(mbb);
-            })
-            .AddMessageBusJsonSerializer()
-            .AddMessageBusServicesFromAssemblyContaining<PingConsumer>();
+            });
 
         services.AddSingleton<ConcurrentBag<PingMessage>>();
     }
