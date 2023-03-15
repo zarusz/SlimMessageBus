@@ -137,6 +137,7 @@ The `Microsoft.Extensions.DependencyInjection` is used to compose the bus:
 // IServiceCollection services;
 
 services.AddSlimMessageBus(mbb =>
+{
    mbb
       .AddChildBus("Bus1", (builder) => 
       {
@@ -166,7 +167,7 @@ services.AddSlimMessageBus(mbb =>
       // Use hybrid bus to compose out of different transport types (requires SlimMessageBus.Host.Hybrid package)
       .WithProviderHybrid()
 
-      // Scan assembly for consumers, handlers, interceptors and configurators and register into MSDI
+      // Scan assembly for consumers, handlers, interceptors, configurators, and register into MSDI
       .AddServicesFromAssemblyContaining<SomeMessageConsumer>()
       //.AddServicesFromAssembly(Assembly.GetExecutingAssembly());
 
@@ -272,7 +273,7 @@ services.AddSlimMessageBus(mbb =>
 {
    // ...
    mbb.AddAspNet(); // requires SlimMessageBus.Host.AspNetCore package
-})
+});
 services.AddHttpContextAccessor(); // This is required by the SlimMessageBus.Host.AspNetCore plugin
 ```
 

@@ -64,6 +64,7 @@ The configuration is done using the [`MessageBusBuilder`](../src/SlimMessageBus.
 - Declaration of messages produced and consumed along with topic/queue names.
 - Request-response configuration (if enabled).
 - Additional provider-specific settings (message partition key, message id, etc).
+- Registration and configuration of plugins.
 
 Here is a sample configuration:
 
@@ -113,7 +114,11 @@ The builder (`mbb`) is the blueprint for creating message bus instances `IMessag
 
 See [Dependency auto-registration](#dependency-auto-registration) for how to scan the consumer types and register them automatically within the DI.
 
-The `.AddSlimMessageBus()` registers a [`IHostedService`](https://learn.microsoft.com/en-us/dotnet/api/microsoft.extensions.hosting.ihostedservice) for the [.NET Generic Host](https://learn.microsoft.com/en-us/dotnet/core/extensions/generic-host) which starts the bus consumers on application host start.
+The `.AddSlimMessageBus()`:
+
+- Registers the `IMessageBus`, `IPublishBus`, `IRequestResponseBus` and other core services.
+- Registers a [`IHostedService`](https://learn.microsoft.com/en-us/dotnet/api/microsoft.extensions.hosting.ihostedservice) implementation for the [.NET Generic Host](https://learn.microsoft.com/en-us/dotnet/core/extensions/generic-host) which starts the bus consumers on application host start.
+- Can be used multiple times, the configuration will be additive as it provides the same `mbb` instance.
 
 Having done the SMB setup, one can then inject [`IMessageBus`](../src/SlimMessageBus/IMessageBus.cs) to publish or send messages.
 
@@ -690,7 +695,9 @@ There are two possible approaches:
 
 #### AddSlimMessageBus overload
 
-Since version 2.0.0, the `services.AddSlimMessageBus(mbb => { })` can be called multiple times. The end result will be a sum of the configurations (the supplied `MessageBusBuilder` instance will be the same). Consider the example:
+> Since version 2.0.0
+
+The `services.AddSlimMessageBus(mbb => { })` can be called multiple times. The end result will be a sum of the configurations (the supplied `MessageBusBuilder` instance will be the same). Consider the example:
 
 ```cs
 // Module 1
@@ -745,7 +752,7 @@ The extension method `mbb.AddServicesFromAssembly(...)` can be used to search fo
 
 ```cs
 var accountingModuleAssembly = Assembly.GetExecutingAssembly();
-services.AddServicesFromAssembly(accountingModuleAssembly);
+mbb.AddServicesFromAssembly(accountingModuleAssembly);
 ```
 
 ### Autoregistration of consumers, interceptors and configurators
@@ -755,7 +762,11 @@ services.AddServicesFromAssembly(accountingModuleAssembly);
 We can also use the `.AddServicesFromAssembly()` extension method to search for any implementations of `IConsumer<T>`, `IRequestHandler<T, R>` or `IRequestHandler<T>`, and register them as Transient with the container:
 
 ```cs
-services.AddServicesFromAssembly(Assembly.GetExecutingAssembly());
+services.AddSlimMessageBus(mbb => {
+
+  mbb.AddServicesFromAssembly(Assembly.GetExecutingAssembly());
+
+});
 ```
 
 ## Serialization
@@ -765,7 +776,7 @@ SMB uses serialization plugins to serialize (and deserialize) the messages into 
 See [Serialization](serialization.md) page.
 
 ## Multiple message types on one topic (or queue)
-2
+
 The `MessageType` header will be set for every published (or produced) message to declare the specific .NET type that was published to the underlying transport. On the consumer side, this header will be used to understand what message type arrived and will be used to dispatched the message to the correct consumer.
 
 This approach allows SMB to send polymorphic message types (messages that share a common ancestry) and even send unrelated message types via the same topic/queue transport.
