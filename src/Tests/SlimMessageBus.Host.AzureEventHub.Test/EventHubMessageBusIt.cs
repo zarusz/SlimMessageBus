@@ -21,35 +21,34 @@ public class EventHubMessageBusIt : BaseIntegrationTest<EventHubMessageBusIt>
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
-        services
-            .AddSlimMessageBus(mbb =>
+        services.AddSlimMessageBus(mbb =>
+        {
+            // connection details to the Azure Event Hub
+            var connectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub"]);
+            var storageConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:Storage"]);
+            var storageContainerName = configuration["Azure:ContainerName"];
+
+            var settings = new EventHubMessageBusSettings(connectionString, storageConnectionString, storageContainerName)
             {
-                // connection details to the Azure Event Hub
-                var connectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub"]);
-                var storageConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:Storage"]);
-                var storageContainerName = configuration["Azure:ContainerName"];
-
-                var settings = new EventHubMessageBusSettings(connectionString, storageConnectionString, storageContainerName)
+                EventHubProducerClientOptionsFactory = (path) => new Azure.Messaging.EventHubs.Producer.EventHubProducerClientOptions
                 {
-                    EventHubProducerClientOptionsFactory = (path) => new Azure.Messaging.EventHubs.Producer.EventHubProducerClientOptions
-                    {
-                        Identifier = $"MyService_{Guid.NewGuid()}"
-                    },
-                    EventHubProcessorClientOptionsFactory = (consumerParams) => new Azure.Messaging.EventHubs.EventProcessorClientOptions
-                    {
-                        // Allow the test to be repeatable - force partition lease rebalancing to happen faster
-                        LoadBalancingUpdateInterval = TimeSpan.FromSeconds(2),
-                        PartitionOwnershipExpirationInterval = TimeSpan.FromSeconds(5),
-                    }
-                };
+                    Identifier = $"MyService_{Guid.NewGuid()}"
+                },
+                EventHubProcessorClientOptionsFactory = (consumerParams) => new Azure.Messaging.EventHubs.EventProcessorClientOptions
+                {
+                    // Allow the test to be repeatable - force partition lease rebalancing to happen faster
+                    LoadBalancingUpdateInterval = TimeSpan.FromSeconds(2),
+                    PartitionOwnershipExpirationInterval = TimeSpan.FromSeconds(5),
+                }
+            };
 
-                mbb
-                    .WithProviderEventHub(settings)
-                    .AddServicesFromAssemblyContaining<PingConsumer>()
-                    .AddJsonSerializer();
+            mbb
+                .WithProviderEventHub(settings)
+                .AddServicesFromAssemblyContaining<PingConsumer>()
+                .AddJsonSerializer();
 
-                ApplyBusConfiguration(mbb);
-            });
+            ApplyBusConfiguration(mbb);
+        });
 
         services.AddSingleton<ConcurrentBag<PingMessage>>();
     }
@@ -61,8 +60,6 @@ public class EventHubMessageBusIt : BaseIntegrationTest<EventHubMessageBusIt>
     {
         // arrange
         var hubName = "test-ping";
-        var consumedMessages = ServiceProvider.GetRequiredService<ConcurrentBag<PingMessage>>();
-
         AddBusConfiguration(mbb =>
         {
             mbb
@@ -74,6 +71,8 @@ public class EventHubMessageBusIt : BaseIntegrationTest<EventHubMessageBusIt>
                                         .CheckpointEvery(50)
                                         .Instances(2));
         });
+
+        var consumedMessages = ServiceProvider.GetRequiredService<ConcurrentBag<PingMessage>>();
 
         var messageBus = MessageBus;
 

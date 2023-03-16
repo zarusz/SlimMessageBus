@@ -177,17 +177,14 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         }
     }
 
+    private IEnumerable<IMessageBusLifecycleInterceptor> _lifecycleInterceptors;
+
     private async Task OnBusLifecycle(MessageBusLifecycleEventType eventType)
     {
-        if (IsDisposing)
+        _lifecycleInterceptors ??= Settings.ServiceProvider?.GetServices<IMessageBusLifecycleInterceptor>();
+        if (_lifecycleInterceptors != null)
         {
-            return;
-        }
-
-        var lifecycleInterceptors = (IEnumerable<object>)Settings.ServiceProvider?.GetService<IEnumerable<IMessageBusLifecycleInterceptor>>();
-        if (lifecycleInterceptors != null)
-        {
-            foreach (var i in lifecycleInterceptors.Cast<IMessageBusLifecycleInterceptor>())
+            foreach (var i in _lifecycleInterceptors)
             {
                 await i.OnBusLifecycle(eventType, this);
             }

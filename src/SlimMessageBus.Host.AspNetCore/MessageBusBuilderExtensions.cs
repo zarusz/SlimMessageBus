@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host;
 
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
 using SlimMessageBus.Host.Config;
 
 public static class MessageBusBuilderExtensions
@@ -11,11 +13,10 @@ public static class MessageBusBuilderExtensions
     /// <returns></returns>
     public static MessageBusBuilder AddAspNet(this MessageBusBuilder mbb)
     {
-        if (mbb.Services is not null)
+        mbb.PostConfigurationActions.Add(services =>
         {
-            mbb.Services.RemoveAll<ICurrentMessageBusProvider>();
-            mbb.Services.AddSingleton<ICurrentMessageBusProvider, HttpContextAccessorCurrentMessageBusProvider>();
-        }
+            services.Replace(ServiceDescriptor.Singleton<ICurrentMessageBusProvider, HttpContextAccessorCurrentMessageBusProvider>());
+        });
         return mbb;
     }
 }

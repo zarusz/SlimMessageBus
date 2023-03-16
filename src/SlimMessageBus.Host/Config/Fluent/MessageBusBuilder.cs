@@ -3,9 +3,9 @@ namespace SlimMessageBus.Host.Config;
 public class MessageBusBuilder
 {
     /// <summary>
-    /// The current settings that are being built.
+    /// Parent bus builder.
     /// </summary>
-    public MessageBusSettings Settings { get; } = new();
+    public MessageBusBuilder Parent { get; private set; }
 
     /// <summary>
     /// Declared child buses.
@@ -13,14 +13,16 @@ public class MessageBusBuilder
     public IDictionary<string, MessageBusBuilder> Children { get; } = new Dictionary<string, MessageBusBuilder>();
 
     /// <summary>
+    /// The current settings that are being built.
+    /// </summary>
+    public MessageBusSettings Settings { get; private set; } = new();
+
+    /// <summary>
     /// The bus factory method.
     /// </summary>
     public Func<MessageBusSettings, IMessageBus> BusFactory { get; private set; }
 
-    /// <summary>
-    /// Optional services collection. It is used only during DI setup phase.
-    /// </summary>
-    public IServiceCollection Services { get; internal set; }
+    public IList<Action<IServiceCollection>> PostConfigurationActions { get; } = new List<Action<IServiceCollection>>();
 
     protected MessageBusBuilder()
     {
@@ -31,10 +33,10 @@ public class MessageBusBuilder
         Settings = other.Settings;
         Children = other.Children;
         BusFactory = other.BusFactory;
-        Services = other.Services;
+        PostConfigurationActions = other.PostConfigurationActions;
     }
 
-    public static MessageBusBuilder Create() => new();
+    public static MessageBusBuilder Create() => new();    
 
     public MessageBusBuilder MergeFrom(MessageBusSettings settings)
     {
@@ -212,7 +214,7 @@ public class MessageBusBuilder
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
     public MessageBusBuilder WithSerializer(Type serializerType)
-    {        
+    {
         if (serializerType is not null && !typeof(IMessageSerializer).IsAssignableFrom(serializerType))
         {
             throw new ConfigurationMessageBusException($"The serializer type {serializerType.FullName} does not implement the interface {nameof(IMessageSerializer)}");
@@ -307,15 +309,22 @@ public class MessageBusBuilder
         if (busName is null) throw new ArgumentNullException(nameof(busName));
         if (builderAction is null) throw new ArgumentNullException(nameof(builderAction));
 
-        if (Children.ContainsKey(busName))
+        if (!Children.TryGetValue(busName, out var child))
         {
-            throw new ConfigurationMessageBusException($"The child bus with name {busName} has been already declared");
+            child = Create();
+            child.Settings = new MessageBusSettings(Settings)
+            {
+                Name = busName
+            };
+
+            child.Parent = this;
+            Children.Add(busName, child);
+
+            child.MergeFrom(Settings);
         }
-        var child = Create();
-        child.Settings.Name = busName;
-        child.MergeFrom(Settings);
+
         builderAction?.Invoke(child);
-        Children.Add(busName, child);
+
         return this;
     }
 

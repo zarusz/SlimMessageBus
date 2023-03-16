@@ -90,10 +90,6 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
     public async Task BasicPubSub()
     {
         // arrange
-
-        // ensure the topic has 2 partitions
-        var consumedMessages = ServiceProvider.GetRequiredService<TestEventCollector<ConsumedMessage>>();
-
         AddBusConfiguration(mbb =>
         {
             var topic = $"{TopicPrefix}test-ping";
@@ -116,6 +112,7 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
                 });
         });
 
+        var consumedMessages = ServiceProvider.GetRequiredService<TestEventCollector<ConsumedMessage>>();
         var messageBus = MessageBus;
 
         // act

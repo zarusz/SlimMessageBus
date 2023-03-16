@@ -86,35 +86,5 @@ Individual child busses can provide their own serialization (or any other settin
 
 ### Configuration modularization
 
-The [Modularization of configuration](intro.md#modularization-of-configuration) section mentions the usage of `IMessageBusConfigurator` interface.
-The `busName` param corresponds to the child bus name that was added as part of the hybrid bus setup. During bus creation the DI will be asked to resolve all implementations of `IMessageBusConfigurator` and SMB will execute the interface method against the root bus as well as every child bus.
-
-> The root bus (hybrid transport) will have `busName` set to `null`.
-
-Note that it is also possible to add a child bus from the `IMessageBusConfigurator` like in this case:
-
-```cs
-public class AzureServiceBusConfigurator : IMessageBusConfigurator
-{
-    private readonly IConfiguration _configuration;
-
-    public AzureServiceBusConfigurator(IConfiguration configuration) => _configuration = configuration;
-
-    public void Configure(MessageBusBuilder builder, string busName)
-    {
-        if (busName != null) return; // ensure it only runs for the root (hybrid) bus
-
-        // add Azure Service Bus as child bus
-        builder.AddChildBus("AzureSB", (mbb) =>
-        {
-            var topic = "integration-external-message";
-            mbb.Produce<ExternalMessage>(x => x.DefaultTopic(topic));
-            mbb.Consume<ExternalMessage>(x => x.Topic(topic).SubscriptionName("test").WithConsumer<ExternalMessageConsumer>());
-            var connectionString = "...";
-            mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString));
-        });
-    }
-}
-```
-
+The [Modularization of configuration](intro.md#modularization-of-configuration) section mentions the ability to use `services.AddSlimMessageBus()` multiple times in order to segregate the configuration of the message bus by the application modules (or layers).
 That allows for modularization of transports that are being introduced by the respective application layers (hexagonal architecture).

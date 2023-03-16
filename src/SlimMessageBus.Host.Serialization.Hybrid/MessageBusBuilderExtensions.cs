@@ -17,11 +17,11 @@ public static class MessageBusBuilderExtensions
     /// <returns></returns>
     public static MessageBusBuilder AddHybridSerializer(this MessageBusBuilder mbb, IDictionary<IMessageSerializer, Type[]> registration, IMessageSerializer defaultMessageSerializer)
     {
-        if (mbb.Services is not null)
+        mbb.PostConfigurationActions.Add(services =>
         {
-            mbb.Services.AddSingleton(svp => new HybridMessageSerializer(svp.GetRequiredService<ILogger<HybridMessageSerializer>>(), registration, defaultMessageSerializer));
-            mbb.Services.TryAddSingleton<IMessageSerializer>(svp => svp.GetRequiredService<HybridMessageSerializer>());
-        }
+            services.TryAddSingleton(svp => new HybridMessageSerializer(svp.GetRequiredService<ILogger<HybridMessageSerializer>>(), registration, defaultMessageSerializer));
+            services.TryAddSingleton<IMessageSerializer>(svp => svp.GetRequiredService<HybridMessageSerializer>());
+        });
         return mbb;
     }
 }

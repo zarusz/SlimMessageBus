@@ -24,9 +24,7 @@
   - [Dependency auto-registration](#dependency-auto-registration)
   - [ASP.Net Core](#aspnet-core)
   - [Modularization of configuration](#modularization-of-configuration)
-    - [AddSlimMessageBus overload](#addslimmessagebus-overload)
-    - [IMessageBusConfigurator implementation](#imessagebusconfigurator-implementation)
-  - [Autoregistration of consumers, interceptors and configurators](#autoregistration-of-consumers-interceptors-and-configurators)
+  - [Autoregistration of consumers and interceptors](#autoregistration-of-consumers-and-interceptors)
 - [Serialization](#serialization)
 - [Multiple message types on one topic (or queue)](#multiple-message-types-on-one-topic-or-queue)
   - [Message Type Resolver](#message-type-resolver)
@@ -687,15 +685,9 @@ services.AddSlimMessageBus(mbb =>
 
 ### Modularization of configuration
 
-The SMB bus configuration can be split into modules. This allows to keep the bus configuration alongside the relevant application module (or layer).
-There are two possible approaches:
-
-- The `services.AddSlimMessageBus(mbb => { })` can be used multiple times.
-- An implementation of `IMessageBusConfigurator` is placed in each module (assembly) and registered in the DI.
-
-#### AddSlimMessageBus overload
-
 > Since version 2.0.0
+
+The SMB bus configuration can be split into modules. This allows to keep the bus configuration alongside the relevant application module (or layer).
 
 The `services.AddSlimMessageBus(mbb => { })` can be called multiple times. The end result will be a sum of the configurations (the supplied `MessageBusBuilder` instance will be the same). Consider the example:
 
@@ -725,47 +717,25 @@ services.AddSlimMessageBus(mbb =>
 });
 ```
 
-#### IMessageBusConfigurator implementation
+Before version 2.0.0 there was support for modularity using `IMessageBusConfigurator` implementation. However, the interface was deprecated in favor of the `AddSlimMessageBus()` extension method that was made additive.
+
+### Autoregistration of consumers and interceptors
 
 > Since version 1.6.4
 
+The `mbb.AddServicesFromAssembly()` extension method performs search for any implementations of the bus interfaces:
+
+- consumers `IConsumer<T>`, `IRequestHandler<T, R>` or `IRequestHandler<T>`,
+- [interceptors](#interceptors)
+
+Found types are registered (by default as `Transient`) servcices with the MSDI container.
+
 ```cs
-public MyAppModule : IMessageBusConfigurator
+services.AddSlimMessageBus(mbb =>
 {
-    public MyAppModule(/* dependencies injected by DI */) { }
-
-    public void Configure(MessageBusBuilder mbb, string busName) 
-    {
-        mbb
-            .Produce<SomeMessage>(...)
-            .Consume<SomeMessage>(...)
-    }
-}
-```
-
-Implementations of `IMessageBusConfigurator` registered in the DI will be resolved and used to configure the message bus as well as any child bus that was declared (see [Hybrid docs](provider_hybrid.md#configuration-modularization)):
-
-- The `busName` parameter is mostly relevant if you are using the Hybrid bus transport and represents the child bus name (`.AddChildBus()`). For the root bus level or when hybrid is not used the vlaue will be `null`.
-- The `mbb` parameter represents the builder for the bus.
-
-The extension method `mbb.AddServicesFromAssembly(...)` can be used to search for any implementations of `IMessageBusConfigurator` and to register them as transient with the container:
-
-```cs
-var accountingModuleAssembly = Assembly.GetExecutingAssembly();
-mbb.AddServicesFromAssembly(accountingModuleAssembly);
-```
-
-### Autoregistration of consumers, interceptors and configurators
-
-> Since version 1.6.4
-
-We can also use the `.AddServicesFromAssembly()` extension method to search for any implementations of `IConsumer<T>`, `IRequestHandler<T, R>` or `IRequestHandler<T>`, and register them as Transient with the container:
-
-```cs
-services.AddSlimMessageBus(mbb => {
-
   mbb.AddServicesFromAssembly(Assembly.GetExecutingAssembly());
-
+  // or
+  // mbb.AddServicesFromAssemblyContaining<SomeMessageConsumer>();
 });
 ```
 

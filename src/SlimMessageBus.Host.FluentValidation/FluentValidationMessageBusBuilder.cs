@@ -12,12 +12,9 @@ using SlimMessageBus.Host.Interceptor;
 
 public class FluentValidationMessageBusBuilder
 {
-    public IServiceCollection Services { get; internal set; }
+    public MessageBusBuilder Builder { get; internal set; }
 
-    public FluentValidationMessageBusBuilder(MessageBusBuilder mbb)
-    {
-        Services = mbb.Services;
-    }
+    public FluentValidationMessageBusBuilder(MessageBusBuilder mbb) => Builder = mbb;
 
     private static List<Type> GetMessageTypesFromFoundValidatorImplementations(Assembly assembly, Func<Type, bool>? filterPredicate)
     {
@@ -46,7 +43,6 @@ public class FluentValidationMessageBusBuilder
     /// <summary>
     /// Scans the specified assembly for FluentValidation's <see cref="IValidator{T}"/> implementations. For the found types T, registers a <see cref="ProducerValidationInterceptor{T}"/>, so that SlimMessageBus can trigger the validation.
     /// </summary>
-    /// <param name="services"></param>
     /// <param name="assembly"></param>
     /// <param name="filterPredicate"></param>
     /// <param name="lifetime"></param>
@@ -58,13 +54,16 @@ public class FluentValidationMessageBusBuilder
         var producerInterceptorOpenGenericType = typeof(IProducerInterceptor<>);
         var implementationProducerInterceptorOpenGenericType = typeof(ProducerValidationInterceptor<>);
 
-        foreach (var messageType in messageTypes)
+        Builder.PostConfigurationActions.Add(services =>
         {
-            Services.TryAdd(new ServiceDescriptor(
-                serviceType: producerInterceptorOpenGenericType.MakeGenericType(messageType),
-                implementationType: implementationProducerInterceptorOpenGenericType.MakeGenericType(messageType),
-                lifetime: lifetime));
-        }
+            foreach (var messageType in messageTypes)
+            {
+                services.TryAdd(new ServiceDescriptor(
+                    serviceType: producerInterceptorOpenGenericType.MakeGenericType(messageType),
+                    implementationType: implementationProducerInterceptorOpenGenericType.MakeGenericType(messageType),
+                    lifetime: lifetime));
+            }
+        });
 
         return this;
     }
@@ -83,7 +82,6 @@ public class FluentValidationMessageBusBuilder
     /// <summary>
     /// Scans the specified assembly for FluentValidation's <see cref="IValidator{T}"/> implementations. For the found types T, registers a <see cref="ProducerValidationInterceptor{T}"/>, so that SlimMessageBus can trigger the validation.
     /// </summary>
-    /// <param name="services"></param>
     /// <param name="assembly"></param>
     /// <param name="filterPredicate"></param>
     /// <param name="lifetime"></param>
@@ -95,13 +93,16 @@ public class FluentValidationMessageBusBuilder
         var consumerInterceptorOpenGenericType = typeof(IConsumerInterceptor<>);
         var implementationConsumerInterceptorOpenGenericType = typeof(ConsumerValidationInterceptor<>);
 
-        foreach (var messageType in messageTypes)
+        Builder.PostConfigurationActions.Add(services =>
         {
-            Services.TryAdd(new ServiceDescriptor(
-                serviceType: consumerInterceptorOpenGenericType.MakeGenericType(messageType),
-                implementationType: implementationConsumerInterceptorOpenGenericType.MakeGenericType(messageType),
-                lifetime: lifetime));
-        }
+            foreach (var messageType in messageTypes)
+            {
+                services.TryAdd(new ServiceDescriptor(
+                    serviceType: consumerInterceptorOpenGenericType.MakeGenericType(messageType),
+                    implementationType: implementationConsumerInterceptorOpenGenericType.MakeGenericType(messageType),
+                    lifetime: lifetime));
+            }
+        });
 
         return this;
     }
@@ -116,7 +117,10 @@ public class FluentValidationMessageBusBuilder
     {
         if (validationErrorsHandler == null) throw new ArgumentNullException(nameof(validationErrorsHandler));
 
-        Services.TryAddSingleton<IValidationErrorsHandler>(new LambdaValidationErrorsInterceptor(validationErrorsHandler));
+        Builder.PostConfigurationActions.Add(services =>
+        {
+            services.TryAddSingleton<IValidationErrorsHandler>(new LambdaValidationErrorsInterceptor(validationErrorsHandler));
+        });
 
         return this;
     }

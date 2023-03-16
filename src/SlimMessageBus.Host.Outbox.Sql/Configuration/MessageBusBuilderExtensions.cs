@@ -5,29 +5,26 @@ public static class MessageBusBuilderExtensions
     public static MessageBusBuilder AddOutboxUsingSql<TOutboxRepository>(this MessageBusBuilder mbb, Action<SqlOutboxSettings> configure)
         where TOutboxRepository : class, ISqlOutboxRepository
     {
-        if (mbb.Services is null)
-        {
-            return mbb;
-        }
-
         mbb.AddOutbox();
-        
-        mbb.Services.TryAddSingleton(svp =>
+
+        mbb.PostConfigurationActions.Add(services =>
         {
-            var settings = new SqlOutboxSettings();
-            configure?.Invoke(settings);
-            return settings;
+            services.TryAddSingleton(svp =>
+            {
+                var settings = new SqlOutboxSettings();
+                configure?.Invoke(settings);
+                return settings;
+            });
+            services.Replace(ServiceDescriptor.Transient<OutboxSettings>(svp => svp.GetRequiredService<SqlOutboxSettings>()));
+
+            services.TryAddEnumerable(ServiceDescriptor.Transient(typeof(IConsumerInterceptor<>), typeof(SqlTransactionConsumerInterceptor<>)));
+
+            services.TryAddScoped<TOutboxRepository>();
+            services.Replace(ServiceDescriptor.Scoped<ISqlOutboxRepository>(svp => svp.GetRequiredService<TOutboxRepository>()));
+            services.Replace(ServiceDescriptor.Scoped<IOutboxRepository>(svp => svp.GetRequiredService<TOutboxRepository>()));
+
+            services.TryAddSingleton<SqlOutboxTemplate>();
         });
-        mbb.Services.Replace(ServiceDescriptor.Transient<OutboxSettings>(svp => svp.GetRequiredService<SqlOutboxSettings>()));
-
-        mbb.Services.TryAddEnumerable(ServiceDescriptor.Transient(typeof(IConsumerInterceptor<>), typeof(SqlTransactionConsumerInterceptor<>)));
-
-        mbb.Services.TryAddScoped<TOutboxRepository>();
-        mbb.Services.Replace(ServiceDescriptor.Scoped<ISqlOutboxRepository>(svp => svp.GetRequiredService<TOutboxRepository>()));
-        mbb.Services.Replace(ServiceDescriptor.Scoped<IOutboxRepository>(svp => svp.GetRequiredService<TOutboxRepository>()));
-
-        mbb.Services.TryAddSingleton<SqlOutboxTemplate>();
-
         return mbb;
     }
 

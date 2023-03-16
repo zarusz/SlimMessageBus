@@ -21,11 +21,11 @@ public static class MessageBusBuilderExtensions
     /// <returns></returns>
     public static MessageBusBuilder AddJsonSerializer(this MessageBusBuilder mbb, Encoding encoding = null, JsonSerializerSettings jsonSerializerSettings = null)
     {
-        if (mbb.Services is not null)
+        mbb.PostConfigurationActions.Add(services =>
         {
-            mbb.Services.AddSingleton(svp => new JsonMessageSerializer(jsonSerializerSettings ?? svp.GetService<JsonSerializerSettings>(), encoding, svp.GetRequiredService<ILogger<JsonMessageSerializer>>()));
-            mbb.Services.TryAddSingleton<IMessageSerializer>(svp => svp.GetRequiredService<JsonMessageSerializer>());
-        }
+            services.TryAddSingleton(svp => new JsonMessageSerializer(jsonSerializerSettings ?? svp.GetService<JsonSerializerSettings>(), encoding, svp.GetRequiredService<ILogger<JsonMessageSerializer>>()));
+            services.TryAddSingleton<IMessageSerializer>(svp => svp.GetRequiredService<JsonMessageSerializer>());
+        });
         return mbb;
     }
 }

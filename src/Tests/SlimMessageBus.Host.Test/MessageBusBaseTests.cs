@@ -472,10 +472,10 @@ public class MessageBusBaseTests : IDisposable
 
         // assert
         onMessageProducedMock.Verify(
-            x => x(Bus, It.IsAny<ProducerSettings>(), m, someMessageTopic), Times.Exactly(2)); // callback twice - at the producer and bus level
+            x => x(Bus, It.IsAny<ProducerSettings>(), m, someMessageTopic), Times.Exactly(2)); // callback twice - at the producer and _bus level
 
         onMessageProducedMock.Verify(
-            x => x(Bus, It.IsAny<ProducerSettings>(), r, someRequestTopic), Times.Exactly(2)); // callback twice - at the producer and bus level
+            x => x(Bus, It.IsAny<ProducerSettings>(), r, someRequestTopic), Times.Exactly(2)); // callback twice - at the producer and _bus level
     }
 
     [Theory]

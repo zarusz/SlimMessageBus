@@ -2,6 +2,18 @@ namespace SlimMessageBus.Host.Config;
 
 public class MessageBusSettings : HasProviderExtensions, IBusEvents
 {
+    private IServiceProvider _serviceProvider;
+    private readonly IList<MessageBusSettings> _children;
+
+    public MessageBusSettings Parent { get; }
+    public IEnumerable<MessageBusSettings> Children => _children;
+
+    public IServiceProvider ServiceProvider
+    {
+        get => _serviceProvider ?? Parent?.ServiceProvider;
+        set => _serviceProvider = value;
+    }
+
     /// <summary>
     /// The bus name.
     /// </summary>
@@ -10,7 +22,6 @@ public class MessageBusSettings : HasProviderExtensions, IBusEvents
     public IList<ConsumerSettings> Consumers { get; }
     public RequestResponseSettings RequestResponse { get; set; }
     public Type SerializerType { get; set; }
-    public IServiceProvider ServiceProvider { get; set; }
     public IMessageTypeResolver MessageTypeResolver { get; set; }
 
     #region Implementation of IConsumerEvents
@@ -53,13 +64,20 @@ public class MessageBusSettings : HasProviderExtensions, IBusEvents
     /// </summary>
     public bool AutoStartConsumers { get; set; }
 
-    public MessageBusSettings()
+    public MessageBusSettings(MessageBusSettings parent = null)
     {
+        _children = new List<MessageBusSettings>();
         Producers = new List<ProducerSettings>();
         Consumers = new List<ConsumerSettings>();
         MessageTypeResolver = new AssemblyQualifiedNameMessageTypeResolver();
         SerializerType = typeof(IMessageSerializer);
         AutoStartConsumers = true;
+
+        if (parent != null)
+        {
+            Parent = parent;
+            parent._children.Add(this);
+        }
     }
 
     public virtual void MergeFrom(MessageBusSettings settings)
@@ -71,30 +89,9 @@ public class MessageBusSettings : HasProviderExtensions, IBusEvents
             Name = settings.Name;
         }
 
-        if (settings.Producers.Count > 0)
-        {
-            foreach (var p in settings.Producers)
-            {
-                Producers.Add(p);
-            }
-        }
-
-        if (settings.Consumers.Count > 0)
-        {
-            foreach (var c in settings.Consumers)
-            {
-                Consumers.Add(c);
-            }
-        }
-
         if (SerializerType == null && settings.SerializerType != null)
         {
             SerializerType = settings.SerializerType;
-        }
-
-        if (RequestResponse == null && settings.RequestResponse != null)
-        {
-            RequestResponse = settings.RequestResponse;
         }
 
         if (ServiceProvider == null && settings.ServiceProvider != null)
