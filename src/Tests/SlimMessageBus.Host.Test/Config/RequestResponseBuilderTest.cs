@@ -1,7 +1,4 @@
 ﻿namespace SlimMessageBus.Host.Test.Config;
-
-using SlimMessageBus.Host.Config;
-
 public class RequestResponseBuilderTest
 {
     [Fact]

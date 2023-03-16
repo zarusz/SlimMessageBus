@@ -6,7 +6,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
     <PackageIcon>icon.png</PackageIcon>
-    <Version>2.0.0-rc2</Version>
+    <Version>2.0.0-rc3</Version>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 </Project>

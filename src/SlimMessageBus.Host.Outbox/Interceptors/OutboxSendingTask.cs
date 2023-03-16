@@ -1,11 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Outbox;
 
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-
-using SlimMessageBus;
-using SlimMessageBus.Host.Interceptor;
-
 public class OutboxSendingTask : IMessageBusLifecycleInterceptor, IAsyncDisposable
 {
     private readonly ILogger<OutboxSendingTask> _logger;
@@ -54,14 +48,19 @@ public class OutboxSendingTask : IMessageBusLifecycleInterceptor, IAsyncDisposab
     {
         if (_loopCts == null)
         {
+            _logger.LogDebug("Outbox loop starting...");
+
             _loopCts = new CancellationTokenSource();
-            _loopTask = Task.Factory.StartNew(Run, TaskCreationOptions.LongRunning);
+            _loopTask = Run();
+
         }
         return Task.CompletedTask;
     }
 
     protected async Task Stop()
     {
+        _logger.LogDebug("Outbox loop stopping...");
+
         _loopCts?.Cancel();
 
         if (_loopTask != null)
@@ -98,10 +97,11 @@ public class OutboxSendingTask : IMessageBusLifecycleInterceptor, IAsyncDisposab
         return Task.CompletedTask;
     }
 
-    private async void Run()
+    private async Task Run()
     {
         try
         {
+            _logger.LogInformation("Outbox loop started");
             var scope = _serviceProvider.CreateScope();
             try
             {
@@ -151,6 +151,7 @@ public class OutboxSendingTask : IMessageBusLifecycleInterceptor, IAsyncDisposab
                 {
                     scope.Dispose();
                 }
+                _logger.LogInformation("Outbox loop stopped");
             }
         }
         catch (Exception e)
@@ -159,9 +160,9 @@ public class OutboxSendingTask : IMessageBusLifecycleInterceptor, IAsyncDisposab
         }
     }
 
-    private async Task<bool> SendMessages(IServiceProvider scope, IOutboxRepository outboxRepository, List<Guid> processedIds, CancellationToken ct)
+    private async Task<bool> SendMessages(IServiceProvider serviceProvider, IOutboxRepository outboxRepository, List<Guid> processedIds, CancellationToken ct)
     {
-        var messageBus = scope.GetRequiredService<IMessageBus>();
+        var messageBus = serviceProvider.GetRequiredService<IMessageBus>();
         var compositeMessageBus = messageBus as ICompositeMessageBus;
 
         var idleRun = true;
@@ -197,9 +198,12 @@ public class OutboxSendingTask : IMessageBusLifecycleInterceptor, IAsyncDisposab
                     var headers = outboxMessage.Headers ?? new Dictionary<string, object>();
                     headers.Add(OutboxForwardingPublishInterceptor<object>.SkipOutboxHeader, string.Empty);
 
-                    await bus.Publish(message, path: outboxMessage.Path, headers: headers, cancellationToken: ct, currentServiceProvider: scope);
+                    if (!ct.IsCancellationRequested)
+                    {
+                        await bus.Publish(message, path: outboxMessage.Path, headers: headers, cancellationToken: ct, currentServiceProvider: serviceProvider);
 
-                    processedIds.Add(outboxMessage.Id);
+                        processedIds.Add(outboxMessage.Id);
+                    }
                 }
             }
             finally

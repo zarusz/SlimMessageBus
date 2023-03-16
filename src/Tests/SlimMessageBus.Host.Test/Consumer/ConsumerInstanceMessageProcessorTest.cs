@@ -155,7 +155,7 @@ public class ConsumerInstanceMessageProcessorTest
         _busMock.ConsumerMock.Verify(x => x.OnHandle(message), Times.Once); // handler called once
         _busMock.ConsumerMock.VerifyNoOtherCalls();
 
-        onMessageArrivedMock.Verify(x => x(_busMock.Bus, consumerSettings, message, topic, It.IsAny<object>()), Times.Exactly(2)); // callback called once for consumer and bus level
+        onMessageArrivedMock.Verify(x => x(_busMock.Bus, consumerSettings, message, topic, It.IsAny<object>()), Times.Exactly(2)); // callback called once for consumer and _bus level
         onMessageArrivedMock.VerifyNoOtherCalls();
     }
 

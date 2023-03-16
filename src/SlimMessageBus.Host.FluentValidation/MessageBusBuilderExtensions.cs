@@ -14,11 +14,8 @@ public static class MessageBusBuilderExtensions
     {
         if (configuration is null) throw new ArgumentNullException(nameof(configuration));
 
-        if (mbb.Services is not null)
-        {
-            var pluginBuilder = new FluentValidationMessageBusBuilder(mbb);
-            configuration(pluginBuilder);
-        }
+        var pluginBuilder = new FluentValidationMessageBusBuilder(mbb);
+        configuration(pluginBuilder);
 
         return mbb;
     }

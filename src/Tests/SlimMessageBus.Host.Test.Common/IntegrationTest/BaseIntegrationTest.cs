@@ -8,6 +8,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using SlimMessageBus.Host.Config;
 
+using Xunit;
+
 /// <summary>
 /// Base integration test setup that:
 /// - uses MS Dependency Injection
@@ -16,9 +18,8 @@ using SlimMessageBus.Host.Config;
 /// - sets up a message bus
 /// </summary>
 /// <typeparam name="T"></typeparam>
-public abstract class BaseIntegrationTest<T> : IDisposable
+public abstract class BaseIntegrationTest<T> : IAsyncLifetime
 {
-    private bool _disposedValue;
     private Lazy<ServiceProvider> _serviceProvider;
     private Action<MessageBusBuilder> messageBusBuilderAction = (mbb) => { };
 
@@ -53,29 +54,6 @@ public abstract class BaseIntegrationTest<T> : IDisposable
         });
     }
 
-    protected virtual void Dispose(bool disposing)
-    {
-        if (!_disposedValue)
-        {
-            if (disposing)
-            {
-                if (_serviceProvider.IsValueCreated)
-                {
-                    _serviceProvider.Value.DisposeAsync().GetAwaiter().GetResult();
-                    _serviceProvider.Value.Dispose();
-                }
-            }
-
-            _disposedValue = true;
-        }
-    }
-
-    public void Dispose()
-    {
-        Dispose(disposing: true);
-        GC.SuppressFinalize(this);
-    }
-
     protected abstract void SetupServices(ServiceCollection services, IConfigurationRoot configuration);
 
     protected void AddBusConfiguration(Action<MessageBusBuilder> action)
@@ -97,5 +75,18 @@ public abstract class BaseIntegrationTest<T> : IDisposable
 
         // ensure the consumers are warm
         while (!consumerControl.IsStarted && timeout.ElapsedMilliseconds < 3000) await Task.Delay(200);
+    }
+
+    public Task InitializeAsync()
+    {
+        return Task.CompletedTask;
+    }
+
+    async Task IAsyncLifetime.DisposeAsync()
+    {
+        if (_serviceProvider.IsValueCreated)
+        {
+            await _serviceProvider.Value.DisposeAsync().ConfigureAwait(false);
+        }
     }
 }

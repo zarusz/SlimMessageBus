@@ -1,10 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Outbox;
 
-using Microsoft.Extensions.Logging;
-
-using SlimMessageBus;
-using SlimMessageBus.Host.Interceptor;
-
 public abstract class OutboxForwardingPublishInterceptor
 {
 }
@@ -26,27 +21,11 @@ public class OutboxForwardingPublishInterceptor<T> : OutboxForwardingPublishInte
         _outboxSettings = outboxSettings;
     }
 
-    private bool IsOutboxEnabled(IProducerContext context, out MessageBusBase bus)
-    {
-        bus = context.Bus as MessageBusBase;
-
-        if (bus is null || context is not ProducerContext producerContext)
-        {
-            return false;
-        }
-
-        // If producer has outbox enabled, if not set check if bus has outbox enabled
-        var outboxEnabled = producerContext.ProducerSettings.GetOrDefault<bool?>(BuilderExtensions.PropertyOutboxEnabled, null)
-            ?? bus.Settings.GetOrDefault(BuilderExtensions.PropertyOutboxEnabled, false);
-
-        return outboxEnabled;
-    }
-
     public async Task OnHandle(T message, Func<Task> next, IProducerContext context)
     {
-        var outboxEnabled = IsOutboxEnabled(context, out var bus);
+        var bus = context.Bus as MessageBusBase;
         var skipOutbox = context.Headers != null && context.Headers.ContainsKey(SkipOutboxHeader);
-        if (!outboxEnabled || skipOutbox)
+        if (bus is null || skipOutbox)
         {
             if (skipOutbox)
             {

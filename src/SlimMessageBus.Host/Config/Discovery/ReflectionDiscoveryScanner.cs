@@ -67,16 +67,6 @@ public class ReflectionDiscoveryScanner
         typeof(IRequestHandler<>)
     };
 
-    public IReadOnlyCollection<Type> GetMessageBusConfiguratorTypes()
-    {
-        var foundTypes = ProspectTypes
-            .Where(x => x.InterfaceType == typeof(IMessageBusConfigurator))
-            .Select(x => x.Type)
-            .ToList();
-
-        return foundTypes;
-    }
-
     public IReadOnlyCollection<DiscoveryProspectType> GetInterceptorTypes()
     {
         var foundTypes = ProspectTypes

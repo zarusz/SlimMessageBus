@@ -23,16 +23,15 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
-        services
-            .AddSlimMessageBus(mbb =>
-            {
-                mbb
-                    .WithProviderMemory(_settings)
-                    .AddServicesFromAssemblyContaining<PingConsumer>()
-                    .AddJsonSerializer();
+        services.AddSlimMessageBus(mbb =>
+        {
+            mbb
+                .WithProviderMemory(_settings)
+                .AddServicesFromAssemblyContaining<PingConsumer>()
+                .AddJsonSerializer();
 
-                ApplyBusConfiguration(mbb);
-            });
+            ApplyBusConfiguration(mbb);
+        });
 
         services.AddSingleton<TestEventCollector<PingMessage>>();
     }

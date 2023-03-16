@@ -17,11 +17,11 @@ public static class MessageBusBuilderExtensions
     /// <returns></returns>
     public static MessageBusBuilder AddAvroSerializer(this MessageBusBuilder mbb, IMessageCreationStrategy messageCreationStrategy, ISchemaLookupStrategy schemaLookupStrategy)
     {
-        if (mbb.Services is not null)
+        mbb.PostConfigurationActions.Add(services =>
         {
-            mbb.Services.AddSingleton(svp => new AvroMessageSerializer(svp.GetRequiredService<ILoggerFactory>(), messageCreationStrategy, schemaLookupStrategy));
-            mbb.Services.TryAddSingleton<IMessageSerializer>(svp => svp.GetRequiredService<AvroMessageSerializer>());
-        }
+            services.TryAddSingleton(svp => new AvroMessageSerializer(svp.GetRequiredService<ILoggerFactory>(), messageCreationStrategy, schemaLookupStrategy));
+            services.TryAddSingleton<IMessageSerializer>(svp => svp.GetRequiredService<AvroMessageSerializer>());
+        });
         return mbb;
     }
 
@@ -33,11 +33,11 @@ public static class MessageBusBuilderExtensions
     /// <returns></returns>
     public static MessageBusBuilder AddAvroSerializer(this MessageBusBuilder mbb)
     {
-        if (mbb.Services is not null)
+        mbb.PostConfigurationActions.Add(services =>
         {
-            mbb.Services.AddSingleton(svp => new AvroMessageSerializer(svp.GetRequiredService<ILoggerFactory>()));
-            mbb.Services.TryAddSingleton<IMessageSerializer>(svp => svp.GetRequiredService<AvroMessageSerializer>());
-        }
+            services.TryAddSingleton(svp => new AvroMessageSerializer(svp.GetRequiredService<ILoggerFactory>()));
+            services.TryAddSingleton<IMessageSerializer>(svp => svp.GetRequiredService<AvroMessageSerializer>());
+        });
         return mbb;
     }
 }

@@ -15,4 +15,15 @@ public abstract class HasProviderExtensions
         }
         return defaultValue;
     }
+
+    public T GetOrDefault<T>(string key, MessageBusSettings messageBusSettings, T defaultValue = default)
+    {
+        if (Properties.TryGetValue(key, out var value)
+            || messageBusSettings.Properties.TryGetValue(key, out value)
+            || (messageBusSettings.Parent != null && messageBusSettings.Parent.Properties.TryGetValue(key, out value)))
+        {
+            return (T)value;
+        }
+        return defaultValue;
+    }
 }

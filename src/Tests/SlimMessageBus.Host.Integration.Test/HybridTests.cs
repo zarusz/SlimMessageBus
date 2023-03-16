@@ -2,8 +2,6 @@ namespace SlimMessageBus.Host.Integration.Test;
 
 using System.Reflection;
 
-using FluentAssertions.Common;
-
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -50,49 +48,13 @@ public class HybridTests : IDisposable
         services.AddSingleton<ILoggerFactory>(_loggerFactory);
         services.AddTransient(typeof(ILogger<>), typeof(NullLogger<>));
 
-        services
-            .AddSlimMessageBus(mbb => SetupBus(mbb, serializerType));
+        services.AddSlimMessageBus(mbb => SetupBus(mbb, serializerType));
 
         servicesBuilder?.Invoke(services);
 
         _serviceProvider = services.BuildServiceProvider();
 
         containerDisposable = _serviceProvider as IDisposable;
-    }
-
-    public class MemoryBusConfigurator : IMessageBusConfigurator
-    {
-        public void Configure(MessageBusBuilder builder, string busName)
-        {
-            if (busName != null) return;
-
-            builder.AddChildBus("Memory", (mbb) =>
-            {
-                mbb.WithProviderMemory()
-                   .AutoDeclareFrom(Assembly.GetExecutingAssembly(), consumerTypeFilter: (consumerType) => consumerType.Name.Contains("Internal"));
-            });
-        }
-    }
-
-    public class AzureServiceBusConfigurator : IMessageBusConfigurator
-    {
-        private readonly IConfiguration _configuration;
-
-        public AzureServiceBusConfigurator(IConfiguration configuration) => _configuration = configuration;
-
-        public void Configure(MessageBusBuilder builder, string busName)
-        {
-            if (busName != null) return;
-
-            builder.AddChildBus("AzureSB", (mbb) =>
-            {
-                var topic = "integration-external-message";
-                mbb.Produce<ExternalMessage>(x => x.DefaultTopic(topic));
-                mbb.Consume<ExternalMessage>(x => x.Topic(topic).SubscriptionName("test").WithConsumer<ExternalMessageConsumer>());
-                var connectionString = Secrets.Service.PopulateSecrets(_configuration["Azure:ServiceBus"]);
-                mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString));
-            });
-        }
     }
 
     private void SetupBus(MessageBusBuilder mbb, SerializerType serializerType)
@@ -108,6 +70,20 @@ public class HybridTests : IDisposable
         {
             Serialization.SystemTextJson.MessageBusBuilderExtensions.AddJsonSerializer(mbb);
         }
+
+        mbb.AddChildBus("Memory", (mbb) =>
+        {
+            mbb.WithProviderMemory()
+               .AutoDeclareFrom(Assembly.GetExecutingAssembly(), consumerTypeFilter: (consumerType) => consumerType.Name.Contains("Internal"));
+        });
+        mbb.AddChildBus("AzureSB", (mbb) =>
+        {
+            var topic = "integration-external-message";
+            mbb.Produce<ExternalMessage>(x => x.DefaultTopic(topic));
+            mbb.Consume<ExternalMessage>(x => x.Topic(topic).SubscriptionName("test").WithConsumer<ExternalMessageConsumer>());
+            var connectionString = Secrets.Service.PopulateSecrets(_configuration["Azure:ServiceBus"]);
+            mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString));
+        });
     }
 
     public record EventMark(Guid CorrelationId, string Name);
