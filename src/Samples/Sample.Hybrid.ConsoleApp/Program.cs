@@ -49,7 +49,6 @@ class Program
                                  .Produce<SendEmailCommand>(x => x.DefaultQueue("test-ping-queue"))
                                  .Consume<SendEmailCommand>(x => x.Queue("test-ping-queue").WithConsumer<SmtpEmailService>());
                          })
-                         .WithProviderHybrid()
                          .AddServicesFromAssemblyContaining<CustomerChangedEventHandler>()
                          .AddJsonSerializer(); // serialization setup will be shared between bus 1 and 2
                  });

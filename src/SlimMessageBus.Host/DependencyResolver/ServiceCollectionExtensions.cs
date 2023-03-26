@@ -2,6 +2,8 @@
 
 using System.Reflection;
 
+using SlimMessageBus.Host.Hybrid;
+
 public static class ServiceCollectionExtensions
 {
     /// <summary>
@@ -43,7 +45,10 @@ public static class ServiceCollectionExtensions
         if (!services.Any(x => x.ServiceType == typeof(MessageBusBuilder)))
         {
             // Register MessageBusBuilder for the root bus
-            var mbb = MessageBusBuilder.Create();
+            var mbb = MessageBusBuilder
+                .Create()
+                .WithProviderHybrid(); // By default apply the hybrid bus transport, the user can override.
+
             services.Add(ServiceDescriptor.Singleton(mbb));
         }
 

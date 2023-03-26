@@ -9,7 +9,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\SlimMessageBus.Host.AzureServiceBus\SlimMessageBus.Host.AzureServiceBus.csproj" />
-    <ProjectReference Include="..\..\SlimMessageBus.Host.Hybrid\SlimMessageBus.Host.Hybrid.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Memory\SlimMessageBus.Host.Memory.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Json\SlimMessageBus.Host.Serialization.Json.csproj" />
     <ProjectReference Include="..\..\Tools\SecretStore\SecretStore.csproj" />

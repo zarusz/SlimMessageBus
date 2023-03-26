@@ -59,7 +59,6 @@ public class HybridTests : IDisposable
 
     private void SetupBus(MessageBusBuilder mbb, SerializerType serializerType)
     {
-        mbb.WithProviderHybrid();
         mbb.AddServicesFromAssemblyContaining<InternalMessageConsumer>();
 
         if (serializerType == SerializerType.NewtonsoftJson)
@@ -160,6 +159,7 @@ public class HybridTests : IDisposable
             containerDisposable.Dispose();
             containerDisposable = null;
         }
+        GC.SuppressFinalize(this);
     }
 
     public class UnitOfWork

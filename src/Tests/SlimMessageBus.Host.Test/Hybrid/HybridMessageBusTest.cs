@@ -1,15 +1,15 @@
-namespace SlimMessageBus.Host.Hybrid.Test;
+namespace SlimMessageBus.Host.Test.Hybrid;
+
+using System.Text;
 
 using Newtonsoft.Json;
-using System.Text;
-using SlimMessageBus.Host.Config;
-using SlimMessageBus.Host.Serialization;
+
+using SlimMessageBus.Host.Hybrid;
 
 public class HybridMessageBusTest
 {
     private readonly Lazy<HybridMessageBus> _subject;
     private readonly MessageBusBuilder _messageBusBuilder;
-    private readonly MessageBusSettings _settings = new();
     private readonly Mock<IServiceProvider> _serviceProviderMock = new();
     private readonly Mock<IMessageSerializer> _messageSerializerMock = new();
 
