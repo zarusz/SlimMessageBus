@@ -2,14 +2,7 @@ namespace SlimMessageBus.Host;
 
 using System.Globalization;
 
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
-
-using SlimMessageBus.Host.Collections;
-using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Consumer;
-using SlimMessageBus.Host.Interceptor;
-using SlimMessageBus.Host.Serialization;
 
 public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMessageBus, IMessageScopeFactory, IMessageHeadersFactory, ICurrentTimeProvider
 {
@@ -32,10 +25,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     {
         get
         {
-            if (_serializer is null)
-            {
-                _serializer = GetSerializer();
-            }
+            _serializer ??= GetSerializer();
             return _serializer;
         }
     }
@@ -330,7 +320,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     /// Stops the consumers and disposes of internal bus objects.
     /// </summary>
     /// <returns></returns>
-    protected virtual async ValueTask DisposeAsyncCore()
+    protected async virtual ValueTask DisposeAsyncCore()
     {
         await Stop().ConfigureAwait(false);
 
@@ -541,7 +531,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         return SendInternal<TResponse>(request, path, requestType, responseType, producerSettings, created, expires, requestId, requestHeaders, cancellationToken);
     }
 
-    protected internal virtual async Task<TResponseMessage> SendInternal<TResponseMessage>(object request, string path, Type requestType, Type responseType, ProducerSettings producerSettings, DateTimeOffset created, DateTimeOffset expires, string requestId, IDictionary<string, object> requestHeaders, CancellationToken cancellationToken)
+    protected async internal virtual Task<TResponseMessage> SendInternal<TResponseMessage>(object request, string path, Type requestType, Type responseType, ProducerSettings producerSettings, DateTimeOffset created, DateTimeOffset expires, string requestId, IDictionary<string, object> requestHeaders, CancellationToken cancellationToken)
     {
         // record the request state
         var requestState = new PendingRequestState(requestId, request, requestType, responseType, created, expires, cancellationToken);

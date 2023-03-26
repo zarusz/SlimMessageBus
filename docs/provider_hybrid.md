@@ -11,9 +11,9 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 ## What is the Hybrid provider?
 
 The Hybrid bus enables a composition of many transport providers into one bus.
-This allows different layers of the application to work with just one `IMessageBus` interface, and to rely on the hybrid bus implementation to route messages to the respective transport provider based on configuration.
+This allows different layers of the application to work with just one `IMessageBus` interface, and to rely on the hybrid bus implementation to route produced messages to the respective transport provider based on configuration.
 
-Package: [SlimMessageBus.Host.Hybrid](https://www.nuget.org/packages/SlimMessageBus.Host.Hybrid/)
+> Since version 2.0.0 the hybrid bus has been incorporated into every transport - the [SlimMessageBus.Host.Hybrid](https://www.nuget.org/packages/SlimMessageBus.Host.Hybrid/) package has been deprecated.
 
 ![](provider_hybrid_1.png)
 
@@ -35,7 +35,9 @@ services.AddSlimMessageBus(mbb =>
     // - The SendEmailCommand messages will be going through the SMB Azure Service Bus provider.
     // - Each of the bus providers will serialize messages using JSON and use the same DI to resolve consumers/handlers.
     mbb
-        .WithProviderHybrid()
+        // No need to specify the hybrid provider - it is the default bus since 2.0.0
+        //.WithProviderHybrid()
+
         // Bus 1
         .AddChildBus("Memory", (mbbChild) =>
         {

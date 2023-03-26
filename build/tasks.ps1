@@ -31,7 +31,6 @@ $projects = @(
 	"SlimMessageBus.Host.AzureServiceBus",
 	"SlimMessageBus.Host.Memory",
 	"SlimMessageBus.Host.Redis",
-	"SlimMessageBus.Host.Hybrid",
 	
 	"SlimMessageBus.Host.FluentValidation",
 

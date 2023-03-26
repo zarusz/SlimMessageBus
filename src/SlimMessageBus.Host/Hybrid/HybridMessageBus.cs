@@ -1,8 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Hybrid;
 
-using SlimMessageBus.Host.Collections;
-using SlimMessageBus.Host.Config;
-
 public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDisposable, IAsyncDisposable
 {
     private readonly ILogger _logger;
@@ -95,7 +92,7 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
     /// Stops the consumers and disposes of internal bus objects.
     /// </summary>
     /// <returns></returns>
-    protected virtual async ValueTask DisposeAsyncCore()
+    protected async virtual ValueTask DisposeAsyncCore()
     {
         foreach (var bus in _busByName.Values)
         {

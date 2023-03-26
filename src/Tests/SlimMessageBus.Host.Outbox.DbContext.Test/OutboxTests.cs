@@ -12,7 +12,6 @@ using SecretStore;
 
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
-using SlimMessageBus.Host.Hybrid;
 using SlimMessageBus.Host.Kafka;
 using SlimMessageBus.Host.Memory;
 using SlimMessageBus.Host.Outbox.DbContext.Test.DataAccess;
@@ -46,7 +45,6 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
     {
         services.AddSlimMessageBus(mbb =>
         {
-            mbb.WithProviderHybrid();
             mbb.AddChildBus("Memory", mbb =>
             {
                 mbb.WithProviderMemory()

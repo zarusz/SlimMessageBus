@@ -61,7 +61,6 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 | `.Host.AzureEventHub`                | Transport provider for Azure Event Hubs                                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AzureEventHub.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)                               |
 | `.Host.Redis`                        | Transport provider for Redis                                                                                        | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Redis.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Redis)                                               |
 | `.Host.Memory`                       | Transport provider implementation for in-process (in memory) message passing (no messaging infrastructure required) | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Memory.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Memory)                                             |
-| `.Host.Hybrid`                       | Bus implementation that composes the bus out of other transport providers and performs message routing              | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Hybrid.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Hybrid)                                             |
 | **Serialization**                    |                                                                                                                     |                                                                                                                                                                                  |
 | `.Host.Serialization.Json`           | Serialization plugin for JSON (Newtonsoft.Json library)                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Serialization.Json.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json)                     |
 | `.Host.Serialization.SystemTextJson` | Serialization plugin for JSON (System.Text.Json library)                                                            | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Serialization.SystemTextJson.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.SystemTextJson) |
@@ -139,6 +138,7 @@ The `Microsoft.Extensions.DependencyInjection` is used to compose the bus:
 services.AddSlimMessageBus(mbb =>
 {
    mbb
+      // First child bus - in this example Kafka transport
       .AddChildBus("Bus1", (builder) => 
       {
          builder
@@ -163,9 +163,6 @@ services.AddSlimMessageBus(mbb =>
       
       // Add other bus transports (as child bus), if needed
       //.AddChildBus("Bus2", (builder) => {  })
-
-      // Use hybrid bus to compose out of different transport types (requires SlimMessageBus.Host.Hybrid package)
-      .WithProviderHybrid()
 
       // Scan assembly for consumers, handlers, interceptors, configurators, and register into MSDI
       .AddServicesFromAssemblyContaining<SomeMessageConsumer>()

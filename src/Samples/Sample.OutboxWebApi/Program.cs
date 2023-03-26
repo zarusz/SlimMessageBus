@@ -36,7 +36,6 @@ builder.Services
         var cfg = builder.Configuration;
 
         mbb
-            .WithProviderHybrid()
             .AddChildBus("Memory", mbb =>
             {
                 mbb.WithProviderMemory()
