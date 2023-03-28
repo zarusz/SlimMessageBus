@@ -1,7 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Outbox;
 
-using SlimMessageBus.Host.Config;
-    
+using SlimMessageBus.Host;
+
 public static class BuilderExtensions
 {
     static readonly internal string PropertyOutboxEnabled = "Outbox_Enabled";

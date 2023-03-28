@@ -3,7 +3,6 @@
 using Microsoft.Extensions.Logging;
 
 using SlimMessageBus.Host.Collections;
-using SlimMessageBus.Host.Config;
 
 using StackExchange.Redis;
 

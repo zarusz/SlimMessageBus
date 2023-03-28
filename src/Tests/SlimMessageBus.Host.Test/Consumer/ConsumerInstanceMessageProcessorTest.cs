@@ -2,7 +2,6 @@
 
 using Microsoft.Extensions.DependencyInjection;
 
-using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Interceptor;
 
 public class ConsumerInstanceMessageProcessorTest
@@ -411,7 +410,7 @@ public class ConsumerInstanceMessageProcessorTest
 
         var mesageHeaders = new Dictionary<string, object>
         {
-            [MessageHeaders.MessageType] = _busMock.Bus.Settings.MessageTypeResolver.ToName(message.GetType())
+            [MessageHeaders.MessageType] = _busMock.Bus.MessageTypeResolver.ToName(message.GetType())
         };
 
         var p = new ConsumerInstanceMessageProcessor<byte[]>(new[] { consumerSettingsForSomeMessage, consumerSettingsForSomeRequest, consumerSettingsForSomeMessageInterface }, _busMock.Bus, messageWithHeaderProviderMock.Object, topic);

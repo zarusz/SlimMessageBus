@@ -1,9 +1,5 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus.Consumer;
 
-using Azure.Messaging.ServiceBus;
-
-using SlimMessageBus.Host.Config;
-
 public abstract class AsbBaseConsumer : IAsyncDisposable, IConsumerControl
 {
     private readonly ILogger _logger;

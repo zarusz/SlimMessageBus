@@ -1,7 +1,8 @@
 namespace SlimMessageBus.Host.AzureEventHub;
 
 using Azure.Messaging.EventHubs;
-using SlimMessageBus.Host.Config;
+
+using SlimMessageBus.Host;
 
 /// <summary>
 /// <see cref="EhPartitionConsumer"/> implementation meant for processing responses returning back in the request-response flows.

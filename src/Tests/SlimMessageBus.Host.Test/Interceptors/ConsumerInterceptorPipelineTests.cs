@@ -1,7 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Test;
 
 using SlimMessageBus.Host.Collections;
-using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Interceptor;
 
 public class ConsumerInterceptorPipelineTests

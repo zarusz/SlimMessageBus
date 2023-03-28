@@ -30,6 +30,8 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         }
     }
 
+    public IMessageTypeResolver MessageTypeResolver { get; }
+
     protected ProducerByMessageTypeCache<ProducerSettings> ProducerSettingsByMessageType { get; private set; }
 
     protected IPendingRequestStore PendingRequestStore { get; set; }
@@ -70,6 +72,10 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         LoggerFactory = settings.ServiceProvider.GetService<ILoggerFactory>() ?? NullLoggerFactory.Instance;
 
         _logger = LoggerFactory.CreateLogger<MessageBusBase>();
+
+        var messageTypeResolverType = settings.MessageTypeResolverType ?? typeof(IMessageTypeResolver);
+        MessageTypeResolver = (IMessageTypeResolver)settings.ServiceProvider.GetService(messageTypeResolverType)
+            ?? throw new ConfigurationMessageBusException($"The bus {Name} could not resolve the required type {messageTypeResolverType.Name} from {nameof(Settings.ServiceProvider)}");
 
         RuntimeTypeCache = new RuntimeTypeCache();
     }
@@ -449,7 +455,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     {
         if (message != null)
         {
-            headers.SetHeader(MessageHeaders.MessageType, Settings.MessageTypeResolver.ToName(message.GetType()));
+            headers.SetHeader(MessageHeaders.MessageType, MessageTypeResolver.ToName(message.GetType()));
         }
     }
 

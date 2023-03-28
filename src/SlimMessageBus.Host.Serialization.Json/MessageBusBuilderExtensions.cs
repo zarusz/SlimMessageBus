@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 
 using Newtonsoft.Json;
 
-using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host;
 
 public static class MessageBusBuilderExtensions
 {

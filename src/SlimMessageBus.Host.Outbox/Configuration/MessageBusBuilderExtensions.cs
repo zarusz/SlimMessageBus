@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Outbox;
 
+using SlimMessageBus.Host;
+
 public static class MessageBusBuilderExtensions
 {
     public static MessageBusBuilder AddOutbox(this MessageBusBuilder mbb, Action<OutboxSettings> configure = null)

@@ -1,6 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Kafka.Test;
 
-using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Serialization;
 using SlimMessageBus.Host.Test.Common;
 
@@ -20,6 +19,7 @@ public class MessageBusMock
 
         ServiceProviderMock = new ServiceProviderMock();
         ServiceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(SerializerMock.Object);
+        ServiceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
 
         BusSettings = new MessageBusSettings
         {

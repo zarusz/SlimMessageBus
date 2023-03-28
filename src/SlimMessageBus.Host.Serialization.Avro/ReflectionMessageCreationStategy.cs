@@ -10,7 +10,7 @@ public class ReflectionMessageCreationStategy : IMessageCreationStrategy
 {
     private readonly ILogger _logger;
     private readonly IDictionary<Type, ConstructorInfo> _constructorByType = new Dictionary<Type, ConstructorInfo>();
-    private readonly object _constructorByTypeLock = new object();
+    private readonly object _constructorByTypeLock = new();
 
     public ReflectionMessageCreationStategy(ILogger logger)
     {

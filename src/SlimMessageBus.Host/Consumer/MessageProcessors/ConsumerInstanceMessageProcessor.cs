@@ -1,7 +1,4 @@
 ﻿namespace SlimMessageBus.Host;
-
-using SlimMessageBus.Host.Config;
-
 /// <summary>
 /// Implementation of <see cref="IMessageProcessor{TMessage}"/> that peforms orchestration around processing of a new message using an instance of the declared consumer (<see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/> interface).
 /// </summary>
@@ -32,7 +29,7 @@ public class ConsumerInstanceMessageProcessor<TTransportMessage> : MessageHandle
     : base(
         messageBus ?? throw new ArgumentNullException(nameof(messageBus)),
         messageScopeFactory: messageBus,
-        messageTypeResolver: messageBus.Settings.MessageTypeResolver,
+        messageTypeResolver: messageBus.MessageTypeResolver,
         messageHeadersFactory: messageBus,
         runtimeTypeCache: messageBus.RuntimeTypeCache,
         currentTimeProvider: messageBus,

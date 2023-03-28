@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Outbox;
 
+using Microsoft.Extensions.Logging;
+
 public abstract class OutboxForwardingPublishInterceptor
 {
 }

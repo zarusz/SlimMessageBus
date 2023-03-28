@@ -7,7 +7,7 @@ using global::FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host;
 using SlimMessageBus.Host.Interceptor;
 
 public class FluentValidationMessageBusBuilder

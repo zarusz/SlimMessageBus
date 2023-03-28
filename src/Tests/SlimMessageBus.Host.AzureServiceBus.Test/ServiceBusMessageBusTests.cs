@@ -5,7 +5,7 @@ using System.Globalization;
 
 using Azure.Messaging.ServiceBus;
 
-using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host;
 using SlimMessageBus.Host.Serialization;
 
 public class ServiceBusMessageBusTests : IDisposable
@@ -21,6 +21,7 @@ public class ServiceBusMessageBusTests : IDisposable
         var serviceProviderMock = new Mock<IServiceProvider>();
         serviceProviderMock.Setup(x => x.GetService(It.Is<Type>(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)))).Returns(Enumerable.Empty<object>());
         serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(new Mock<IMessageSerializer>().Object);
+        serviceProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
 
         BusBuilder.WithDependencyResolver(serviceProviderMock.Object);
 

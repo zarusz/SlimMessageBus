@@ -1,6 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Test;
 
-using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Interceptor;
 
 public class SendInterceptorPipelineTests

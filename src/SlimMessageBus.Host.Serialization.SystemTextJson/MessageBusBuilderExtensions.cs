@@ -5,7 +5,7 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host;
 
 public static class MessageBusBuilderExtensions
 {

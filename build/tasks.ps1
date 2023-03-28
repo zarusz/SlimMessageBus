@@ -15,8 +15,8 @@ $projects = @(
 	"SlimMessageBus.Host",
 
 	"SlimMessageBus.Host.Interceptor", 
-
 	"SlimMessageBus.Host.Serialization", 
+	"SlimMessageBus.Host.Configuration", 
 
 	"SlimMessageBus.Host.Serialization.Hybrid", 
 	"SlimMessageBus.Host.Serialization.Json",
@@ -25,7 +25,6 @@ $projects = @(
 	"SlimMessageBus.Host.Serialization.GoogleProtobuf", 
 
 	"SlimMessageBus.Host.AspNetCore",
-
 	"SlimMessageBus.Host.Kafka",
 	"SlimMessageBus.Host.AzureEventHub",
 	"SlimMessageBus.Host.AzureServiceBus",

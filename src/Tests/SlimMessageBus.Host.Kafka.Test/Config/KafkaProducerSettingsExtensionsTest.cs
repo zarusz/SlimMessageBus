@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Kafka.Test;
 
-using SlimMessageBus.Host.Config;
-
 public class KafkaProducerSettingsExtensionsTest
 {
     [Fact]

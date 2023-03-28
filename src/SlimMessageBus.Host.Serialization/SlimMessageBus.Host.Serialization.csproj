@@ -4,7 +4,7 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard1.3</TargetFramework>
-    <Version>1.1.1</Version>
+    <Version>2.0.0-rc1</Version>
     <Description>Core serialization interfaces of SlimMessageBus</Description>
     <PackageTags>SlimMessageBus</PackageTags>
     <PackageIcon>icon.png</PackageIcon>

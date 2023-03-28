@@ -16,7 +16,6 @@ using SlimMessageBus;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureEventHub;
 using SlimMessageBus.Host.AzureServiceBus;
-using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Kafka;
 using SlimMessageBus.Host.Memory;
 using SlimMessageBus.Host.Redis;

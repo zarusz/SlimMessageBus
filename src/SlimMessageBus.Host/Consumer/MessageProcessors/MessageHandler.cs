@@ -1,7 +1,6 @@
 ﻿namespace SlimMessageBus.Host;
 
 using SlimMessageBus.Host.Collections;
-using SlimMessageBus.Host.Config;
 
 public interface IMessageHandler
 {

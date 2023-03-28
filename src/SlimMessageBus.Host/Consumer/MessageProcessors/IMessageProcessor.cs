@@ -1,7 +1,5 @@
 namespace SlimMessageBus.Host;
 
-using SlimMessageBus.Host.Config;
-
 public interface IMessageProcessor<TMessage> : IAsyncDisposable
 {
     IReadOnlyCollection<AbstractConsumerSettings> ConsumerSettings { get; }

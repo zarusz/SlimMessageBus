@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host;
 
-using SlimMessageBus.Host.Config;
-
 internal class SendInterceptorPipeline<TResponse> : ProducerInterceptorPipeline<SendContext>
 {
     private readonly IEnumerable<object> _sendInterceptors;

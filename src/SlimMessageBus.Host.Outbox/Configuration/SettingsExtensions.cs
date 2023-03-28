@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Outbox;
 
-using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host;
 
 public static class SettingsExtensions
 {

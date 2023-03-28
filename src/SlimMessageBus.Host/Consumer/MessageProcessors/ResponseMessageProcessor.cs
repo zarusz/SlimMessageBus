@@ -1,7 +1,5 @@
 namespace SlimMessageBus.Host;
 
-using SlimMessageBus.Host.Config;
-
 /// <summary>
 /// The <see cref="IMessageProcessor{TMessage}"/> implementation that processes the responses arriving to the bus.
 /// </summary>

@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host;
 
-using SlimMessageBus.Host.Config;
-
 internal abstract class ProducerInterceptorPipeline<TContext> where TContext : ProducerContext
 {
     protected readonly MessageBusBase _bus;

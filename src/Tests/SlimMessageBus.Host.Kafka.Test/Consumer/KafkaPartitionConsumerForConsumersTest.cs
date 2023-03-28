@@ -1,8 +1,10 @@
 ﻿namespace SlimMessageBus.Host.Kafka.Test;
 
-using Microsoft.Extensions.Logging.Abstractions;
 using Confluent.Kafka;
-using SlimMessageBus.Host.Config;
+
+using Microsoft.Extensions.Logging.Abstractions;
+
+using SlimMessageBus.Host;
 
 using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
 
@@ -35,6 +37,7 @@ public class KafkaPartitionConsumerForConsumersTest : IAsyncDisposable
         massageBusMock.BusSettings.Consumers.Add(_consumerBuilder.ConsumerSettings);
         massageBusMock.ServiceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeMessageConsumer))).Returns(_consumer);
         massageBusMock.ServiceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(ILoggerFactory))).Returns(_loggerFactory);
+        massageBusMock.ServiceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
 
         var headerSerializer = new StringValueSerializer();
 

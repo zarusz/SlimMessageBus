@@ -138,8 +138,10 @@ public class KafkaMessageBus : MessageBusBase
             Assert.IsTrue(Settings.RequestResponse.GetGroup() != null,
                 () => new ConfigurationMessageBusException("Request-response: group was not provided"));
 
-            Assert.IsFalse(Settings.Consumers.Any(x => x.GetGroup() == Settings.RequestResponse.GetGroup() && x.Path == Settings.RequestResponse.Path),
-                () => new ConfigurationMessageBusException("Request-response: cannot use topic that is already being used by a consumer"));
+            if (Settings.Consumers.Any(x => x.GetGroup() == Settings.RequestResponse.GetGroup() && x.Path == Settings.RequestResponse.Path))
+            {
+                throw new ConfigurationMessageBusException("Request-response: cannot use topic that is already being used by a consumer");
+            }
         }
     }
 

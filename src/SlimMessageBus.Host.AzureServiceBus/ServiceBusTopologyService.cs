@@ -1,9 +1,5 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus;
 
-using Azure.Messaging.ServiceBus;
-using Azure.Messaging.ServiceBus.Administration;
-using SlimMessageBus.Host.Config;
-
 public class ServiceBusTopologyService
 {
     private readonly ILogger<ServiceBusTopologyService> logger;

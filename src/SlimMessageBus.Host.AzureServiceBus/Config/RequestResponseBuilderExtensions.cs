@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus;
 
-using SlimMessageBus.Host.Config;
-
 public static class RequestResponseBuilderExtensions
 {
     public static RequestResponseBuilder ReplyToQueue(this RequestResponseBuilder builder, string queue)

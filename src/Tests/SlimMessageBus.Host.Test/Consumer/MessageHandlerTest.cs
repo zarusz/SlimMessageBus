@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Test;
 
-using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host;
 
 public class MessageHandlerTest
 {

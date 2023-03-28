@@ -9,7 +9,7 @@ public class SqlOutboxSettings : OutboxSettings
     public string DatabaseMigrationsTableName { get; set; } = "__EFMigrationsHistory";
     public SqlDialect Dialect { get; set; } = SqlDialect.SqlServer;
     /// <summary>
-    /// Desired <see cref="TransactionIsolationLevel"/> of the transaction scope created by the consumers (when <see cref="BuilderExtensions.UseTransactionScope(Config.MessageBusBuilder, bool)"/> is enabled).
+    /// Desired <see cref="TransactionIsolationLevel"/> of the transaction scope created by the consumers (when <see cref="BuilderExtensions.UseTransactionScope(MessageBusBuilder, bool)"/> is enabled).
     /// </summary>
     public IsolationLevel TransactionIsolationLevel { get; set; } = IsolationLevel.RepeatableRead;
 

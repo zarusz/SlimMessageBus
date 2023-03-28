@@ -1,8 +1,10 @@
 namespace SlimMessageBus.Host.AzureEventHub;
 
-using Azure.Messaging.EventHubs;
-using SlimMessageBus.Host.Config;
 using System.Diagnostics.CodeAnalysis;
+
+using Azure.Messaging.EventHubs;
+
+using SlimMessageBus.Host;
 
 /// <summary>
 /// <see cref="EhPartitionConsumer"/> implementation meant for processing messages coming to consumers (<see cref="IConsumer{TMessage}"/>) in pub-sub or handlers (<see cref="IRequestHandler{TRequest,TResponse}"/>) in request-response flows.

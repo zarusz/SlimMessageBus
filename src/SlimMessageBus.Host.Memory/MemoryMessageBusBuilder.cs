@@ -2,7 +2,7 @@
 
 using System.Reflection;
 
-using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host;
 
 /// <summary>
 /// Message Bus Builder specific to the Memory transport.

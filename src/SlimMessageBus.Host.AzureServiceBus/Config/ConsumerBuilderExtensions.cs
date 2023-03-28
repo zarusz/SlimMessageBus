@@ -2,7 +2,6 @@
 
 using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
-using SlimMessageBus.Host.Config;
 
 public static class ConsumerBuilderExtensions
 {

@@ -2,8 +2,6 @@
 
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-using SlimMessageBus.Host.Config;
-
 public static class MessageBusBuilderExtensions
 {
     /// <summary>
