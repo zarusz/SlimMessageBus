@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Test;
 
-using SlimMessageBus.Host.Config;
-
 public class MessageBusTested : MessageBusBase
 {
     public MessageBusTested(MessageBusSettings settings)

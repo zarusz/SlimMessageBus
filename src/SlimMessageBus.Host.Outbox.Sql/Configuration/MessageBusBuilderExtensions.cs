@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Sql;
 
+using SlimMessageBus.Host;
+
 public static class MessageBusBuilderExtensions
 {
     public static MessageBusBuilder AddOutboxUsingSql<TOutboxRepository>(this MessageBusBuilder mbb, Action<SqlOutboxSettings> configure)

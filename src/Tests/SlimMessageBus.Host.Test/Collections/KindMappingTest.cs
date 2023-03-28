@@ -1,7 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Test.Collections;
 
 using SlimMessageBus.Host.Collections;
-using SlimMessageBus.Host.Config;
 
 public class KindMappingTest
 {

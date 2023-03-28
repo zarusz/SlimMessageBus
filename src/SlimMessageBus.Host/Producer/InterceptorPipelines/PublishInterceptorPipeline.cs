@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host;
 
-using SlimMessageBus.Host.Config;
-
 internal class PublishInterceptorPipeline : ProducerInterceptorPipeline<PublishContext>
 {
     private readonly IEnumerable<object> _publishInterceptors;

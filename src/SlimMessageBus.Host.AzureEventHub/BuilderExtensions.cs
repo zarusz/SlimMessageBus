@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host.AzureEventHub;
 
-using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host;
 
 public static class BuilderExtensions
 {

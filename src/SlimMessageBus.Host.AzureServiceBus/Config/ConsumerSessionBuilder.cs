@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus;
 
-using SlimMessageBus.Host.Config;
-
 public class ConsumerSessionBuilder
 {
     internal ConsumerSettings ConsumerSettings { get; }

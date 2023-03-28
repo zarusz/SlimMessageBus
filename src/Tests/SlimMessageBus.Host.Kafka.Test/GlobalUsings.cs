@@ -8,7 +8,7 @@ global using Moq;
 
 global using SecretStore;
 
-global using SlimMessageBus.Host.Config;
+global using SlimMessageBus.Host;
 global using SlimMessageBus.Host.Serialization;
 
 global using Xunit;

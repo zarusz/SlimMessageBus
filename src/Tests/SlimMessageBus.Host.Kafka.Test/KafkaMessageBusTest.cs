@@ -16,10 +16,11 @@ public class KafkaMessageBusTest : IDisposable
 
         var serviceProviderMock = new Mock<IServiceProvider>();
         serviceProviderMock.Setup(x => x.GetService(typeof(ILogger<IMessageSerializer>))).CallBase();
+        serviceProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
 
         MbSettings = new MessageBusSettings
         {
-            ServiceProvider = new Mock<IServiceProvider>().Object,
+            ServiceProvider = serviceProviderMock.Object,
         };
         KafkaMbSettings = new KafkaMessageBusSettings("host")
         {

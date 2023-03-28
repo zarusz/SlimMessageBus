@@ -1,7 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Test.Consumer;
 
 using Microsoft.Extensions.Logging.Abstractions;
-using SlimMessageBus.Host.Config;
 
 public class MessageQueueWorkerTest
 {

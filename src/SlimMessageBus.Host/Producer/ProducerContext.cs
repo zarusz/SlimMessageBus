@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host;
 
-using SlimMessageBus.Host.Config;
-
 public class ProducerContext : IProducerContext
 {
     private IDictionary<string, object> _properties;

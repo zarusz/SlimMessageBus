@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host;
 
-using SlimMessageBus.Host.Config;
-
 /// <summary>
 /// Decorator for <see cref="IMessageProcessor{TMessage}"> that increases the amount of messages being concurrently processed.
 /// The expectation is that <see cref="IMessageProcessor{TMessage}.ProcessMessage(TMessage)"/> will be executed synchronously (in sequential order) by the caller on which we want to increase amount of concurrent message being processed.

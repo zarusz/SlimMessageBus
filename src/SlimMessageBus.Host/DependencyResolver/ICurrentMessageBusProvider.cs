@@ -2,6 +2,5 @@
 
 public interface ICurrentMessageBusProvider
 {
-    public IMessageBus GetCurrent();
+    IMessageBus GetCurrent();
 }
-

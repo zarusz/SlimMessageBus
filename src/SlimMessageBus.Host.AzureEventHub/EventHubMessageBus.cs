@@ -4,8 +4,8 @@ using Azure.Messaging.EventHubs;
 using Azure.Messaging.EventHubs.Producer;
 using Azure.Storage.Blobs;
 
+using SlimMessageBus.Host;
 using SlimMessageBus.Host.Collections;
-using SlimMessageBus.Host.Config;
 
 /// <summary>
 /// MessageBus implementation for Azure Event Hub.

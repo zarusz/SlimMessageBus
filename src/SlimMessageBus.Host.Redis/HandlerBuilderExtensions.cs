@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Redis;
 
-using SlimMessageBus.Host.Config;
-
 public static class HandlerBuilderExtensions
 {
     /// <summary>

@@ -4,6 +4,7 @@ using System.Text;
 
 using Newtonsoft.Json;
 
+using SlimMessageBus.Host;
 using SlimMessageBus.Host.Hybrid;
 
 public class HybridMessageBusTest
@@ -30,6 +31,7 @@ public class HybridMessageBusTest
             .Returns((Type type, byte[] payload) => JsonConvert.DeserializeObject(Encoding.UTF8.GetString(payload), type));
 
         _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(_messageSerializerMock.Object);
+        _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
 
         _messageBusBuilder.AddChildBus("bus1", (mbb) =>
         {

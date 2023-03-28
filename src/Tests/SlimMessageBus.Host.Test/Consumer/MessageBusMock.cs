@@ -2,7 +2,6 @@ namespace SlimMessageBus.Host.Test;
 
 using Microsoft.Extensions.DependencyInjection;
 
-using SlimMessageBus.Host.Config;
 using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Serialization;
 
@@ -31,7 +30,7 @@ public class MessageBusMock
         {
             mock.Setup(x => x.GetService(typeof(IConsumer<SomeMessage>))).Returns(ConsumerMock.Object);
             mock.Setup(x => x.GetService(typeof(IRequestHandler<SomeRequest, SomeResponse>))).Returns(HandlerMock.Object);
-
+            mock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
             mock.Setup(x => x.GetService(It.Is<Type>(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>) && t.GetGenericArguments().Length == 1 && t.GetGenericArguments()[0].IsGenericType && InterceptorTypes.Contains(t.GetGenericArguments()[0].GetGenericTypeDefinition()))))
                 .Returns(Enumerable.Empty<object>());
         }

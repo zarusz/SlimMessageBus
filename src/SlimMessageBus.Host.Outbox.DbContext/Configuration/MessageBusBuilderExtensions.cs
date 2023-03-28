@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Outbox.DbContext;
 
-using SlimMessageBus.Host.Config;
+using SlimMessageBus.Host;
 using SlimMessageBus.Host.Outbox.Sql;
 
 public static class MessageBusBuilderExtensions

@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Collections;
 
-using SlimMessageBus.Host.Config;
-
 public class KindMapping
 {
     private readonly IDictionary<string, PathKind> _kindByTopic = new Dictionary<string, PathKind>();

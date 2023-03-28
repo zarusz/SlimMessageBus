@@ -1,8 +1,8 @@
 ﻿namespace SlimMessageBus.Host.Test.Collections;
 
-using SlimMessageBus.Host.Collections;
-using SlimMessageBus.Host.Config;
 using Microsoft.Extensions.Logging.Abstractions;
+
+using SlimMessageBus.Host.Collections;
 
 public class ProducerByMessageTypeCacheTests
 {

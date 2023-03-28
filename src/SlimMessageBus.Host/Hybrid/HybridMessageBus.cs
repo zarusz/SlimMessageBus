@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Hybrid;
 
+using SlimMessageBus.Host;
+
 public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDisposable, IAsyncDisposable
 {
     private readonly ILogger _logger;

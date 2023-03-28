@@ -1,9 +1,10 @@
 ﻿namespace SlimMessageBus.Host.Kafka.Test;
 
-using Confluent.Kafka;
-using SlimMessageBus.Host.Config;
-using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
 using System.Text;
+
+using Confluent.Kafka;
+
+using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
 
 public class KafkaPartitionConsumerForResponsesTest : IAsyncDisposable
 {

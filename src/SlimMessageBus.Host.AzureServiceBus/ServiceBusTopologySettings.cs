@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus;
 
-using Azure.Messaging.ServiceBus.Administration;
-
 public class ServiceBusTopologySettings
 {
     /// <summary>

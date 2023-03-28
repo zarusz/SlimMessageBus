@@ -58,6 +58,12 @@ public static class ServiceCollectionExtensions
             var mbb = svp.GetRequiredService<MessageBusBuilder>();
             mbb.WithDependencyResolver(svp);
 
+            // Apply settings post processing
+            foreach (var postProcessor in svp.GetServices<IMessageBusSettingsPostProcessor>())
+            {
+                postProcessor.Run(mbb.Settings);
+            }
+
             // Set the MessageBus.Current
             var currentBusProvider = svp.GetRequiredService<ICurrentMessageBusProvider>();
             MessageBus.SetProvider(currentBusProvider.GetCurrent);
@@ -76,6 +82,8 @@ public static class ServiceCollectionExtensions
         services.TryAddTransient<IRequestResponseBus>(svp => svp.GetRequiredService<MessageBusProxy>());
 
         services.TryAddSingleton<ICurrentMessageBusProvider, CurrentMessageBusProvider>();
+        services.TryAddSingleton<IMessageTypeResolver, AssemblyQualifiedNameMessageTypeResolver>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageBusSettingsPostProcessor, ConsumerMethodPostProcessor>());
 
         services.AddHostedService<MessageBusHostedService>();
 

@@ -1,10 +1,7 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus;
 
-using Azure.Messaging.ServiceBus;
-
 using SlimMessageBus.Host.AzureServiceBus.Consumer;
 using SlimMessageBus.Host.Collections;
-using SlimMessageBus.Host.Config;
 
 public class ServiceBusMessageBus : MessageBusBase
 {

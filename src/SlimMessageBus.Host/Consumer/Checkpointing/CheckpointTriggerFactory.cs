@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host;
 
-using SlimMessageBus.Host.Config;
-
 public class CheckpointTriggerFactory : ICheckpointTriggerFactory
 {
     private readonly ILoggerFactory _loggerFactory;

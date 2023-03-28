@@ -1,7 +1,6 @@
 ﻿namespace SlimMessageBus.Host;
 
 using System.Diagnostics;
-using SlimMessageBus.Host.Config;
 
 public class CheckpointTrigger : ICheckpointTrigger
 {
