@@ -53,18 +53,16 @@ services.AddSlimMessageBus(mbb =>
 });
 ```
 
-- The `mbb` (of type `MessageBusBuilder`) can be used to configure the message bus.
+The `mbb` parameter (of type [`MessageBusBuilder`](../src/SlimMessageBus.Host.Configuration/Builders/MessageBusBuilder.cs)) is used be used to configure the message bus. Several elements of the bus can be configured:
 
-The configuration is done using the [`MessageBusBuilder`](../src/SlimMessageBus.Host/Config/Fluent/MessageBusBuilder.cs), which allows configuring couple of elements:
-
-- The bus transport provider (Apache Kafka, Azure Service Bus, Memory).
-- The serialization provider.
+- The bus transport provider (Apache Kafka, Azure Service Bus, Memory, Hybrid).
+- The serialization plugin.
 - Declaration of messages produced and consumed along with topic/queue names.
 - Request-response configuration (if enabled).
 - Additional provider-specific settings (message partition key, message id, etc).
-- Registration and configuration of plugins.
+- Registration and configuration of additional plugins.
 
-Here is a sample configuration:
+Sample bus configuration is shown below:
 
 ```cs
 services.AddSlimMessageBus(mbb =>
@@ -121,6 +119,8 @@ The `.AddSlimMessageBus()`:
 Having done the SMB setup, one can then inject [`IMessageBus`](../src/SlimMessageBus/IMessageBus.cs) to publish or send messages.
 
 > The `IMessageBus` implementations are lightweight and thread-safe.
+
+For completness, please also see the [Hybrid provider configuration](provider_hybrid.md#configuration) which might be needed if the application needs to use more than one transport.
 
 ## Pub/Sub communication
 
@@ -211,7 +211,7 @@ Finally, it is possible to specify a headers modifier for the entire bus:
 
 ```cs
 mbb
-   x.WithHeaderModifier((headers, message) =>
+   .WithHeaderModifier((headers, message) =>
    {
       headers["Source"] = "Customer-MicroService";
    })
@@ -269,11 +269,9 @@ If you want to prevent this default use the follwing setting:
 mbb.AutoStartConsumersEnabled(false); // default is true
 ```
 
-Later inject `IMessageBus` and cast it to `IConsumerControl` which exposes a `Start()` and `Stop()` methods to respectively start message consumers or stop them.
+Later inject `IConsumerControl` which exposes a `Start()` and `Stop()` methods to respectively start message consumers or stop them.
 
 ```cs
-IMessageBus bus = // injected
-
 IConsumerControl consumerControl = (IConsumerControl)bus; // Need to reference SlimMessageBus.Host package
 
 // Start message consumers
@@ -405,8 +403,8 @@ For more advanced scenarios (third-party plugins) the SMB runtime provides a sta
 
 #### Hybrid bus and message scope reuse
 
-In the case of using the hybrid message bus (`SlimMessageBus.Host.Hybrid` package) you might have a setup where there are two or more bus instances.
-For example, the Azure Service Bus (ASB) might be used to consume messages arriving to your service (by default each arriving message will have a DI scope created) and the memory bus (`SlimMessageBus.Host.Memory`) to implement domain events.
+In the case of using the hybrid message bus (`mbb.WithProviderHybrid()`) you might have a setup where there are two or more bus instances.
+For example, the Azure Service Bus (ASB) might be used to consume messages arriving to the service (by default each arriving message will have a DI scope created) and the memory bus (`SlimMessageBus.Host.Memory`) to implement domain events.
 In this scenario, the arriving message on ASB would create a message scope, and as part of message handling your code might raise some domain events (in process messages) via the Memory bus.
 Here the memory bus would detect there is a message scope already started and will use that to resolve its domain handlers/consumers and required dependencies.
 

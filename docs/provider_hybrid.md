@@ -69,7 +69,7 @@ In the example above, we define the hybrid bus to create two kinds of transports
 
 The `IMessageBus` injected into any layer of your application will be the hybrid bus, therefore production of a message will be routed to the respective bus implementation (memory or Azure SB in our example).
 
-It is important to understand, that handlers (`IHandler<>`) or consumers (`IConsumer<>`) registered will be managed by the respective child bus that they are configured on.
+It is important to understand, that handlers (`IRequestHandler<>`) or consumers (`IConsumer<>`) registered will be managed by the respective child bus that they are configured on.
 
 There can be more than one child bus that can consume the given message type. In this case hybrid bus will route the message to all of the child bus.
 By default any matching child bus will be executed in sequence. There is also an option to execute this in pararell (see the `PublishExecutionMode` setting on `HybridMessageBusSettings`).
