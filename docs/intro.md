@@ -53,7 +53,7 @@ services.AddSlimMessageBus(mbb =>
 });
 ```
 
-The `mbb` parameter (of type [`MessageBusBuilder`](../src/SlimMessageBus.Host.Configuration/Builders/MessageBusBuilder.cs)) is used be used to configure the message bus. Several elements of the bus can be configured:
+The `mbb` parameter (of type [`MessageBusBuilder`](../src/SlimMessageBus.Host.Configuration/Builders/MessageBusBuilder.cs)) is used to configure the message bus. Several elements can be configured:
 
 - The bus transport provider (Apache Kafka, Azure Service Bus, Memory, Hybrid).
 - The serialization plugin.
