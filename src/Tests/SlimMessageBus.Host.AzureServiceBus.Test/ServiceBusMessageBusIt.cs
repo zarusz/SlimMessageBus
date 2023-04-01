@@ -26,13 +26,12 @@ public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
         services.AddSlimMessageBus((mbb) =>
-            {
-                var connectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
-                mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString));
-                mbb.AddServicesFromAssemblyContaining<PingConsumer>();
-                mbb.AddJsonSerializer();
-                ApplyBusConfiguration(mbb);
-            });
+        {
+            mbb.WithProviderServiceBus(cfg => cfg.ConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]));
+            mbb.AddServicesFromAssemblyContaining<PingConsumer>();
+            mbb.AddJsonSerializer();
+            ApplyBusConfiguration(mbb);
+        });
 
         services.AddSingleton<TestEventCollector<TestEvent>>();
     }

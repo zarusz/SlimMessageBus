@@ -247,9 +247,10 @@ internal static class Program
                         var serviceBusConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
 
                         // Use Azure Service Bus as provider
-                        builder.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString)
+                        builder.WithProviderServiceBus(cfg =>
                         {
-                            TopologyProvisioning = new ServiceBusTopologySettings()
+                            cfg.ConnectionString = serviceBusConnectionString;
+                            cfg.TopologyProvisioning = new ServiceBusTopologySettings()
                             {
                                 Enabled = true,
                                 CreateQueueOptions = (options) =>
@@ -265,7 +266,7 @@ internal static class Program
                                 {
                                     options.LockDuration = TimeSpan.FromMinutes(5);
                                 }
-                            }
+                            };
                         });
                         break;
 
@@ -275,7 +276,14 @@ internal static class Program
                         var storageConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub:Storage"]);
                         var storageContainerName = configuration["Azure:EventHub:ContainerName"];
 
-                        builder.WithProviderEventHub(new EventHubMessageBusSettings(eventHubConnectionString, storageConnectionString, storageContainerName)); // Use Azure Event Hub as provider
+                        // Use Azure Event Hub as provider
+                        builder.WithProviderEventHub(cfg =>
+                        {
+                            cfg.ConnectionString = eventHubConnectionString;
+                            cfg.StorageConnectionString = storageConnectionString;
+                            cfg.StorageBlobContainerName = storageContainerName;
+                        });
+
                         break;
 
                     case Provider.Kafka:
@@ -293,27 +301,33 @@ internal static class Program
                             c.SslCaLocation = "cloudkarafka_2022-10.ca";
                         }
 
-                        builder.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+                        // Or use Apache Kafka as provider
+                        builder.WithProviderKafka(cfg =>
                         {
+                            cfg.BrokerList = kafkaBrokers;
                             //HeaderSerializer = new JsonMessageSerializer(),
-                            ProducerConfig = (config) =>
+                            cfg.ProducerConfig = (config) =>
                             {
                                 AddSsl(config);
-                            },
-                            ConsumerConfig = (config) =>
+                            };
+                            cfg.ConsumerConfig = (config) =>
                             {
                                 config.AutoOffsetReset = AutoOffsetReset.Earliest;
                                 AddSsl(config);
-                            }
+                            };
 
-                        }); // Or use Apache Kafka as provider
+                        });
                         break;
 
                     case Provider.Redis:
                         // Ensure your Kafka broker is running
                         var redisConnectionString = Secrets.Service.PopulateSecrets(configuration["Redis:ConnectionString"]);
 
-                        builder.WithProviderRedis(new RedisMessageBusSettings(redisConnectionString) { EnvelopeSerializer = new MessageWithHeadersSerializer() }); // Or use Redis as provider
+                        // Or use Redis as provider
+                        builder.WithProviderRedis(cfg =>
+                        {
+                            cfg.ConnectionString = redisConnectionString;
+                        });
                         break;
                 }
             });

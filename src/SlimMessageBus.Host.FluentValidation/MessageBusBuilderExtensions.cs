@@ -4,12 +4,13 @@ using SlimMessageBus.Host;
 
 public static class MessageBusBuilderExtensions
 {
-    public static MessageBusBuilder AddFluentValidation(this MessageBusBuilder mbb, Action<FluentValidationMessageBusBuilder> configuration)
+    public static MessageBusBuilder AddFluentValidation(this MessageBusBuilder mbb, Action<FluentValidationMessageBusBuilder> configure)
     {
-        if (configuration is null) throw new ArgumentNullException(nameof(configuration));
+        if (mbb is null) throw new ArgumentNullException(nameof(mbb));
+        if (configure is null) throw new ArgumentNullException(nameof(configure));
 
         var pluginBuilder = new FluentValidationMessageBusBuilder(mbb);
-        configuration(pluginBuilder);
+        configure(pluginBuilder);
 
         return mbb;
     }

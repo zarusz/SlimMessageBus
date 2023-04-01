@@ -32,16 +32,17 @@ The configuration on the underlying Kafka client can be adjusted like so:
 services.AddSlimMessageBus(mbb =>
 {
    // ...
-   mbb.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+   mbb.WithProviderKafka(cfg =>
    {
-      ProducerConfig = (config) =>
+      cfg.BrokerList = kafkaBrokers;
+      cfg.ProducerConfig = (config) =>
       {
          // adjust the producer config
-      },
-      ConsumerConfig = (config) => 
+      };
+      cfg.ConsumerConfig = (config) => 
       {
          // adjust the consumer config
-      }
+      };
    });
 });
 ```
@@ -53,19 +54,20 @@ There is a good description [here](https://github.com/edenhill/librdkafka/wiki/H
 ```cs
 services.AddSlimMessageBus(mbb =>
 {
-   // ...
-   mbb.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+   mbb.WithProviderKafka(cfg =>
    {
-      ProducerConfig = (config) =>
+      cfg.BrokerList = kafkaBrokers;
+
+      cfg.ProducerConfig = (config) =>
       {
          config.LingerMs = 5; // 5ms
          config.SocketNagleDisable = true;
-      },
-      ConsumerConfig = (config) => 
+      };
+      cfg.ConsumerConfig = (config) => 
       {
          config.FetchErrorBackoffMs = 1;
          config.SocketNagleDisable = true;
-      }
+      };
    });
 });
 ```
@@ -84,17 +86,18 @@ Example on how to configure SSL with SASL authentication (for cloudkarafka.com):
 ```cs
 services.AddSlimMessageBus(mbb =>
 {
-   // ...
-   mbb.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+   mbb.WithProviderKafka(cfg =>
    {
-      ProducerConfig = (config) =>
+      cfg.BrokerList = kafkaBrokers;
+
+      cfg.ProducerConfig = (config) =>
       {
          AddSsl(kafkaUsername, kafkaPassword, config);
-      },
-      ConsumerConfig = (config) => 
+      };
+      cfg.ConsumerConfig = (config) => 
       {
          AddSsl(kafkaUsername, kafkaPassword, config);
-      }
+      };
    });
 });
 ```
@@ -136,7 +139,7 @@ mbb
       // Message key could be set for the message
       x.KeyProvider((request, topic) => Encoding.ASCII.GetBytes((request.Left + request.Right).ToString()));
    })
-   .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers))
+   .WithProviderKafka(cfg => cfg.BrokerList = kafkaBrokers);
 ```
 
 The key must be a `byte[]`.
@@ -155,7 +158,7 @@ mbb
       // Partition #1 for odd counters
       x.PartitionProvider((message, topic) => message.Counter % 2);
    })
-   .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers));
+   .WithProviderKafka(cfg => cfg.BrokerList = kafkaBrokers);
 ```
 
 With this approach your provider needs to know the number of partitions for a topic.
@@ -191,9 +194,10 @@ If you need to specify a different serializer provide a specfic `IMessageSeriali
 ```cs
 // MessageBusBuilder mbb;
 mbb    
-   .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+   .WithProviderKafka(cfg =>
    {
-      HeaderSerializer = new DefaultKafkaHeaderSerializer() // specify a different header values serializer
+      cfg.BrokerList = kafkaBrokers;
+      cfg.HeaderSerializer = new DefaultKafkaHeaderSerializer() // specify a different header values serializer
    });
 ```
 

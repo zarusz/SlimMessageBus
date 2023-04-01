@@ -30,8 +30,15 @@ public class RedisMessageBus : MessageBusBase
     {
         base.AssertSettings();
 
-        Assert.IsNotNull(ProviderSettings.EnvelopeSerializer,
-            () => new ConfigurationMessageBusException($"The {nameof(RedisMessageBusSettings)}.{nameof(RedisMessageBusSettings.EnvelopeSerializer)} is not set"));
+        if (string.IsNullOrEmpty(ProviderSettings.ConnectionString))
+        {
+            throw new ConfigurationMessageBusException(Settings, $"The {nameof(RedisMessageBusSettings)}.{nameof(RedisMessageBusSettings.ConnectionString)} must be set");
+        }
+
+        if (ProviderSettings.EnvelopeSerializer is null)
+        {
+            throw new ConfigurationMessageBusException(Settings, $"The {nameof(RedisMessageBusSettings)}.{nameof(RedisMessageBusSettings.EnvelopeSerializer)} must be set");
+        }
     }
 
     #region Overrides of MessageBusBase
@@ -90,7 +97,7 @@ public class RedisMessageBus : MessageBusBase
     protected override async ValueTask DisposeAsyncCore()
     {
         await base.DisposeAsyncCore();
-        
+
         await ((IAsyncDisposable)Connection).DisposeSilently(nameof(ConnectionMultiplexer), _logger);
     }
 
@@ -189,7 +196,7 @@ public class RedisMessageBus : MessageBusBase
     {
         _logger.LogInformation("Destroying consumers");
 
-        foreach(var consumer in _consumers)
+        foreach (var consumer in _consumers)
         {
             await consumer.DisposeSilently(nameof(RedisTopicConsumer), _logger).ConfigureAwait(false);
         }

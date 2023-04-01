@@ -15,7 +15,7 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
 {
     private const int NumberOfMessages = 77;
 
-    private MemoryMessageBusSettings _settings = new();
+    private bool _enableSerialization = false;
 
     public MemoryMessageBusIt(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
     {
@@ -26,7 +26,7 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
         services.AddSlimMessageBus(mbb =>
         {
             mbb
-                .WithProviderMemory(_settings)
+                .WithProviderMemory(cfg => cfg.EnableMessageSerialization = _enableSerialization)
                 .AddServicesFromAssemblyContaining<PingConsumer>()
                 .AddJsonSerializer();
 
@@ -43,7 +43,7 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
     [InlineData(false)]
     public async Task BasicPubSubOnTopic(bool enableSerialization)
     {
-        _settings.EnableMessageSerialization = enableSerialization;
+        _enableSerialization = enableSerialization;
 
         var subscribers = 2;
         var topic = "test-ping";
@@ -109,7 +109,7 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
     [InlineData(false)]
     public async Task BasicReqRespOnTopic(bool enableSerialization)
     {
-        _settings.EnableMessageSerialization = enableSerialization;
+        _enableSerialization = enableSerialization;
 
         var topic = "test-echo";
 
@@ -127,7 +127,7 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
     [InlineData(false)]
     public async Task BasicReqRespWithoutRespOnTopic(bool enableSerialization)
     {
-        _settings.EnableMessageSerialization = enableSerialization;
+        _enableSerialization = enableSerialization;
 
         var topic = "test-echo";
 

@@ -32,7 +32,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services
     .AddSlimMessageBus(mbb =>
     {
-        var cfg = builder.Configuration;
+        var configuration = builder.Configuration;
 
         mbb
             .AddChildBus("Memory", mbb =>
@@ -44,8 +44,7 @@ builder.Services
             })
             .AddChildBus("AzureSB", mbb =>
             {
-                var serviceBusConnectionString = Secrets.Service.PopulateSecrets(cfg["Azure:ServiceBus"]);
-                mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString))
+                mbb.WithProviderServiceBus(cfg => cfg.ConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]))
                    .Produce<CustomerCreatedEvent>(x =>
                    {
                        x.DefaultTopic("samples.outbox/customer-events");

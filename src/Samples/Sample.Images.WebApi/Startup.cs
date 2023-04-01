@@ -66,7 +66,7 @@ public class Startup
                     // Default global response timeout
                     x.DefaultTimeout(TimeSpan.FromSeconds(30));
                 })
-                .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers))
+                .WithProviderKafka(cfg => cfg.BrokerList = kafkaBrokers)
                 .AddAspNet()
                 .AddJsonSerializer();
         });

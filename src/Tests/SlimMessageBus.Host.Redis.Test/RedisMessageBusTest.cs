@@ -42,7 +42,7 @@ public class RedisMessageBusTest
         _connectionMultiplexerMock.Setup(x => x.GetDatabase(-1, null)).Returns(() => _databaseMock.Object);
         _connectionMultiplexerMock.Setup(x => x.GetSubscriber(null)).Returns(() => _subscriberMock.Object);
 
-        _providerSettings = new RedisMessageBusSettings("")
+        _providerSettings = new RedisMessageBusSettings("some string")
         {
             ConnectionFactory = () => _connectionMultiplexerMock.Object
         };
@@ -64,11 +64,6 @@ public class RedisMessageBusTest
         }
 
         return pb.Settings;
-    }
-
-    private static ConsumerSettings Consumer(Type messageType, string topic, Type consumerType)
-    {
-        return new ConsumerBuilder<object>(new MessageBusSettings(), messageType).Topic(topic).WithConsumer(consumerType).ConsumerSettings;
     }
 
     private MessageWithHeaders UnwrapPayload(RedisValue redisValue)

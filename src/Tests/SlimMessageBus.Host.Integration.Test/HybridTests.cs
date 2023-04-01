@@ -79,8 +79,7 @@ public class HybridTests : IDisposable
             var topic = "integration-external-message";
             mbb.Produce<ExternalMessage>(x => x.DefaultTopic(topic));
             mbb.Consume<ExternalMessage>(x => x.Topic(topic).SubscriptionName("test").WithConsumer<ExternalMessageConsumer>());
-            var connectionString = Secrets.Service.PopulateSecrets(_configuration["Azure:ServiceBus"]);
-            mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString));
+            mbb.WithProviderServiceBus(cfg => cfg.ConnectionString = Secrets.Service.PopulateSecrets(_configuration["Azure:ServiceBus"]));
         });
     }
 

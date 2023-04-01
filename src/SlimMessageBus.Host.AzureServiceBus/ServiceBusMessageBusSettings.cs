@@ -5,7 +5,7 @@ using Azure.Messaging.ServiceBus.Administration;
 
 public class ServiceBusMessageBusSettings
 {
-    public string ServiceBusConnectionString { get; set; }
+    public string ConnectionString { get; set; }
     public Func<ServiceBusClient> ClientFactory { get; set; }
     public Func<ServiceBusAdministrationClient> AdminClientFactory { get; set; }
     public Func<string, ServiceBusClient, ServiceBusSender> SenderFactory { get; set; }
@@ -45,8 +45,8 @@ public class ServiceBusMessageBusSettings
 
     public ServiceBusMessageBusSettings()
     {
-        ClientFactory = () => new ServiceBusClient(ServiceBusConnectionString);
-        AdminClientFactory = () => new ServiceBusAdministrationClient(ServiceBusConnectionString);
+        ClientFactory = () => new ServiceBusClient(ConnectionString);
+        AdminClientFactory = () => new ServiceBusAdministrationClient(ConnectionString);
 
         SenderFactory = (path, client) => client.CreateSender(path);
 
@@ -72,6 +72,6 @@ public class ServiceBusMessageBusSettings
     public ServiceBusMessageBusSettings(string serviceBusConnectionString)
         : this()
     {
-        ServiceBusConnectionString = serviceBusConnectionString;
+        ConnectionString = serviceBusConnectionString;
     }
 }

@@ -127,6 +127,11 @@ public class KafkaMessageBus : MessageBusBase
     {
         base.AssertSettings();
 
+        if (string.IsNullOrEmpty(ProviderSettings.BrokerList))
+        {
+            throw new ConfigurationMessageBusException(Settings, $"The {nameof(KafkaMessageBusSettings)}.{nameof(KafkaMessageBusSettings.BrokerList)} must be set");
+        }
+
         foreach (var consumer in Settings.Consumers)
         {
             Assert.IsTrue(consumer.GetGroup() != null,

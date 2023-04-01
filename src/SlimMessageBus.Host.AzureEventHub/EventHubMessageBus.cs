@@ -34,13 +34,21 @@ public class EventHubMessageBus : MessageBusBase
     {
         base.AssertSettings();
 
+        if (string.IsNullOrEmpty(ProviderSettings.ConnectionString))
+        {
+            throw new ConfigurationMessageBusException(Settings, $"The {nameof(EventHubMessageBusSettings)}.{nameof(EventHubMessageBusSettings.ConnectionString)} must be set");
+        }
+
         if (IsAnyConsumerDeclared)
         {
-            Assert.IsNotNull(ProviderSettings.StorageConnectionString,
-                () => new ConfigurationMessageBusException($"The {nameof(EventHubMessageBusSettings)}.{nameof(EventHubMessageBusSettings.StorageConnectionString)} is not set"));
-
-            Assert.IsNotNull(ProviderSettings.LeaseContainerName,
-                () => new ConfigurationMessageBusException($"The {nameof(EventHubMessageBusSettings)}.{nameof(EventHubMessageBusSettings.LeaseContainerName)} is not set"));
+            if (string.IsNullOrEmpty(ProviderSettings.StorageConnectionString))
+            {
+                throw new ConfigurationMessageBusException(Settings, $"When consumers are declared, the {nameof(EventHubMessageBusSettings)}.{nameof(EventHubMessageBusSettings.StorageConnectionString)} must be set");
+            }
+            if (string.IsNullOrEmpty(ProviderSettings.StorageBlobContainerName))
+            {
+                throw new ConfigurationMessageBusException(Settings, $"When consumers are declared, the {nameof(EventHubMessageBusSettings)}.{nameof(EventHubMessageBusSettings.StorageBlobContainerName)} must be set");
+            }
         }
     }
 

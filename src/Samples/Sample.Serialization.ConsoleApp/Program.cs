@@ -95,7 +95,7 @@ class Program
                             switch (provider)
                             {
                                 case Provider.Memory:
-                                    builder.WithProviderMemory(new MemoryMessageBusSettings { EnableMessageSerialization = true });
+                                    builder.WithProviderMemory(cfg => cfg.EnableMessageSerialization = true);
                                     break;
 
                                 //case Provider.AzureServiceBus:
@@ -125,16 +125,15 @@ class Program
 
                                 case Provider.Redis:
                                     // Ensure your Redis broker is running
-                                    var redisConnectionString = Secrets.Service.PopulateSecrets(ctx.Configuration["Redis:ConnectionString"]);
-
-                                    builder.WithProviderRedis(new RedisMessageBusSettings(redisConnectionString)); // Or use Redis as provider
+                                    // Or use Redis as provider
+                                    builder.WithProviderRedis(cfg => cfg.ConnectionString = Secrets.Service.PopulateSecrets(ctx.Configuration["Redis:ConnectionString"]));
                                     break;
 
                                 default:
                                     throw new NotSupportedException();
                             }
                         });
-                });                
+                });
         })
         .Build()
         .RunAsync();

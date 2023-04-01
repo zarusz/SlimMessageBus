@@ -45,13 +45,14 @@ public class Program
                                         .Instances(3);
                                 });
                             })
-                            .WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+                            .WithProviderKafka(cfg =>
                             {
-                                ConsumerConfig = (config) =>
+                                cfg.BrokerList = kafkaBrokers;
+                                cfg.ConsumerConfig = (config) =>
                                 {
                                     config.StatisticsIntervalMs = 60000;
                                     config.AutoOffsetReset = Confluent.Kafka.AutoOffsetReset.Latest;
-                                }
+                                };
                             })
                             .AddServicesFromAssemblyContaining<GenerateThumbnailRequestHandler>()
                             .AddJsonSerializer();

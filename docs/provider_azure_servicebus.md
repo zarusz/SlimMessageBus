@@ -26,12 +26,15 @@ var connectionString = "" // Azure Service Bus connection string
 services.AddSlimMessageBus(mbb =>
 {
    // Bus configuration happens here (...)
-   mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString));
+   mbb.WithProviderServiceBus(cfg =>
+   {
+      cfg.ConnectionString = connectionString;
+   });
    mbb.AddJsonSerializer();
 });
 ```
 
-The `ServiceBusMessageBusSettings` has additional settings that allow overriding factories for Azure SB client objects. This may be used for some advanced scenarios.
+The `ServiceBusMessageBusSettings cfg` has additional settings that allow overriding factories for Azure SB client objects. This may be used for some advanced scenarios.
 
 Since Azure SB supports topics and queues, the SMB needs to know whether to produce (or consume) messages to (from) a topic or a queue.
 This determination is set as part of the bus builder configuration.
@@ -286,10 +289,11 @@ mbb.Consume<CustomerMessage>(x => x
 When the session settings inside `.EnableSessions()` are not provided, they can be provided in the bus settings. Doing so, will apply these as default values for every consumer with sessions enabled:
 
 ```cs
-mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString)
+mbb.WithProviderServiceBus(cfg =>
 {
-   SessionIdleTimeout = TimeSpan.FromSeconds(5),
-   MaxConcurrentSessions = 10,   
+   //cfg.ConnectionString = "";
+   cfg.SessionIdleTimeout = TimeSpan.FromSeconds(5);
+   cfg.MaxConcurrentSessions = 10;
 });
 ```
 
@@ -310,12 +314,13 @@ The topology creation is turned on by default.
 If you want to disable it:
 
 ```cs
-mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString)
+mbb.WithProviderServiceBus(cfg =>
 {
-   TopologyProvisioning = new ServiceBusTopologySettings
+   //cfg.ConnectionString = serviceBusConnectionString;
+   cfg.TopologyProvisioning = new ServiceBusTopologySettings
    {
       Enabled = false
-   }
+   };
 });
 ```
 
@@ -324,9 +329,11 @@ When a queue/topic/subscription/rule needs to be created, SMB will create the un
 The bus wide default creation options can be set in this way:
 
 ```cs
-mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString)
+mbb.WithProviderServiceBus(cfg =>
 {
-   TopologyProvisioning = new ServiceBusTopologySettings
+   //cfg.ConnectionString = serviceBusConnectionString;
+
+   cfg.TopologyProvisioning = new ServiceBusTopologySettings
    {
       CreateQueueOptions = (options) =>
       {
@@ -347,7 +354,7 @@ mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnection
       CreateSubscriptionFilterOptions = (options) => {
 
       },
-   }
+   };
 });
 ```
 
@@ -381,9 +388,11 @@ For any queue/topic/subscription/rule that needs to be created, the relevant opt
 Also, it might be desired that only producers or consumers can create the respective queue/topic/subscription. This can be specified:
 
 ```cs
-mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString)
+mbb.WithProviderServiceBus(cfg =>
 {
-   TopologyProvisioning = new ServiceBusTopologySettings
+   //cfg.ConnectionString = serviceBusConnectionString;
+
+   cfg.TopologyProvisioning = new ServiceBusTopologySettings
    {
       Enabled = true,
       CanProducerCreateQueue = true, // only declared producers will be used to provision queues
@@ -392,7 +401,7 @@ mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnection
       CanConsumerCreateTopic = false, // the consumers will not be able to provision a missing topic
       CanConsumerCreateSubscription = true, // but the consumers will add the missing subscription if needed
       CanConsumerCreateSubscriptionFilter = true, // but the consumers will add the missing filter on subscription if needed
-   }
+   };
 });
 ```
 

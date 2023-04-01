@@ -42,6 +42,7 @@ public static class ServiceCollectionExtensions
     /// <returns></returns>
     public static IServiceCollection AddSlimMessageBus(this IServiceCollection services)
     {
+        // MessageBusBuilder
         if (!services.Any(x => x.ServiceType == typeof(MessageBusBuilder)))
         {
             // Register MessageBusBuilder for the root bus
@@ -52,7 +53,7 @@ public static class ServiceCollectionExtensions
             services.Add(ServiceDescriptor.Singleton(mbb));
         }
 
-        // Single master bus that holds the defined consumers and message processing pipelines
+        // MessageBusSettings
         services.TryAddSingleton(svp =>
         {
             var mbb = svp.GetRequiredService<MessageBusBuilder>();
@@ -63,6 +64,15 @@ public static class ServiceCollectionExtensions
             {
                 postProcessor.Run(mbb.Settings);
             }
+
+            return mbb.Settings;
+        });
+
+        // IMasterMessageBus - Single master bus that holds the defined consumers and message processing pipelines
+        services.TryAddSingleton(svp =>
+        {
+            var mbb = svp.GetRequiredService<MessageBusBuilder>();
+            var messageBusSettings = svp.GetRequiredService<MessageBusSettings>();
 
             // Set the MessageBus.Current
             var currentBusProvider = svp.GetRequiredService<ICurrentMessageBusProvider>();

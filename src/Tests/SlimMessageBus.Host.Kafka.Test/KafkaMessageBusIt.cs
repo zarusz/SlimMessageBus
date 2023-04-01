@@ -53,16 +53,17 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
         services
             .AddSlimMessageBus((mbb) =>
             {
-                var kafkaSettings = new KafkaMessageBusSettings(kafkaBrokers)
+                mbb.WithProviderKafka(cfg =>
                 {
-                    ProducerConfig = (config) =>
+                    cfg.BrokerList = kafkaBrokers;
+                    cfg.ProducerConfig = (config) =>
                     {
                         AddSsl(kafkaUsername, kafkaPassword, config);
 
                         config.LingerMs = 5; // 5ms
                         config.SocketNagleDisable = true;
-                    },
-                    ConsumerConfig = (config) =>
+                    };
+                    cfg.ConsumerConfig = (config) =>
                     {
                         AddSsl(kafkaUsername, kafkaPassword, config);
 
@@ -71,10 +72,8 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
 
                         config.StatisticsIntervalMs = 500000;
                         config.AutoOffsetReset = AutoOffsetReset.Latest;
-                    }
-                };
-
-                mbb.WithProviderKafka(kafkaSettings);
+                    };
+                });
                 mbb.AddServicesFromAssemblyContaining<PingConsumer>();
                 mbb.AddJsonSerializer();
 

@@ -41,7 +41,7 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
         Kafka,
     }
 
-    protected override void SetupServices(ServiceCollection services, IConfigurationRoot cfg)
+    protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
         services.AddSlimMessageBus(mbb =>
         {
@@ -64,20 +64,21 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
                 var topic = "";
                 if (_testParamBusType == BusType.Kafka)
                 {
-                    var kafkaBrokers = cfg["Kafka:Brokers"];
-                    var kafkaUsername = Secrets.Service.PopulateSecrets(cfg["Kafka:Username"]);
-                    var kafkaPassword = Secrets.Service.PopulateSecrets(cfg["Kafka:Password"]);
+                    var kafkaBrokers = configuration["Kafka:Brokers"];
+                    var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
+                    var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
 
-                    mbb.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)
+                    mbb.WithProviderKafka(cfg =>
                     {
-                        ProducerConfig = (config) =>
+                        cfg.BrokerList = kafkaBrokers;
+                        cfg.ProducerConfig = (config) =>
                         {
                             AddKafkaSsl(kafkaUsername, kafkaPassword, config);
 
                             config.LingerMs = 5; // 5ms
                             config.SocketNagleDisable = true;
-                        },
-                        ConsumerConfig = (config) =>
+                        };
+                        cfg.ConsumerConfig = (config) =>
                         {
                             AddKafkaSsl(kafkaUsername, kafkaPassword, config);
 
@@ -86,14 +87,14 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
 
                             config.StatisticsIntervalMs = 500000;
                             config.AutoOffsetReset = AutoOffsetReset.Latest;
-                        }
+                        };
                     });
 
                     topic = $"{kafkaUsername}-test-ping";
                 }
                 if (_testParamBusType == BusType.AzureSB)
                 {
-                    mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(Secrets.Service.PopulateSecrets(cfg["Azure:ServiceBus"])));
+                    mbb.WithProviderServiceBus(cfg => cfg.ConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]));
                     topic = "tests.outbox/customer-events";
                 }
 
