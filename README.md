@@ -6,6 +6,9 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 [![GitHub license](https://img.shields.io/github/license/zarusz/SlimMessageBus)](https://github.com/zarusz/SlimMessageBus/blob/master/LICENSE)
 [![Build](https://github.com/zarusz/SlimMessageBus/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/zarusz/SlimMessageBus/actions/workflows/build.yml)
 
+> The v2.0.0 major release is available.
+> Please review the [release notes](https://github.com/zarusz/SlimMessageBus/releases/tag/Host.Transport-2.0.0-rc8).
+
 - [Key elements of SlimMessageBus](#key-elements-of-slimmessagebus)
 - [Docs](#docs)
 - [Packages](#packages)
