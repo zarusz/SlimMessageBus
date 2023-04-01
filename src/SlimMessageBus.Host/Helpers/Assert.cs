@@ -16,11 +16,6 @@ public static class Assert
         }
     }
 
-    public static void IsFalse(bool value, Func<Exception> exceptionFactory)
-    {
-        IsTrue(!value, exceptionFactory);
-    }
-
     public static void IsNotNull(object value, Func<Exception> exceptionFactory)
     {
         IsTrue(value != null, exceptionFactory);

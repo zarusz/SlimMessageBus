@@ -44,7 +44,7 @@ services.AddSlimMessageBus(mbb =>
             mbbChild
                 .Produce<CustomerEmailChangedEvent>(x => x.DefaultTopic(x.MessageType.Name))
                 .Consume<CustomerEmailChangedEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<CustomerChangedEventHandler>())
-                .WithProviderMemory(new MemoryMessageBusSettings { EnableMessageSerialization = false });
+                .WithProviderMemory();
         })
         // Bus 2
         .AddChildBus("AzureSB", (mbbChild) =>
@@ -53,7 +53,7 @@ services.AddSlimMessageBus(mbb =>
             mbbChild
                 .Produce<SendEmailCommand>(x => x.DefaultQueue("test-ping-queue"))
                 .Consume<SendEmailCommand>(x => x.Queue("test-ping-queue").WithConsumer<SmtpEmailService>())
-                .WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString));
+                .WithProviderServiceBus(cfg => cfg.ConnectionString = serviceBusConnectionString);
         })
         .AddJsonSerializer() // serialization setup will be shared between bus 1 and 2
         .AddServicesFromAssemblyContaining<CustomerChangedEventHandler>(); // register all the found consumers and handlers in DI 

@@ -26,16 +26,16 @@ public class RedisMessageBusIt : BaseIntegrationTest<RedisMessageBusIt>
             {
                 var connectionString = Secrets.Service.PopulateSecrets(configuration["Redis:ConnectionString"]);
 
-                mbb
-                    .WithProviderRedis(new RedisMessageBusSettings(connectionString)
+                mbb.WithProviderRedis(cfg =>
+                {
+                    cfg.ConnectionString = connectionString;
+                    cfg.OnDatabaseConnected = (database) =>
                     {
-                        OnDatabaseConnected = (database) =>
-                        {
-                            // Upon connect clear the redis list with the specified keys
-                            database.KeyDelete("test-echo-queue");
-                            database.KeyDelete("test-echo-queue-resp");
-                        }
-                    });
+                        // Upon connect clear the redis list with the specified keys
+                        database.KeyDelete("test-echo-queue");
+                        database.KeyDelete("test-echo-queue-resp");
+                    };
+                });
 
                 mbb.AddServicesFromAssemblyContaining<PingConsumer>();
                 mbb.AddJsonSerializer();

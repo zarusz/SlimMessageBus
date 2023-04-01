@@ -1,14 +1,15 @@
 ﻿namespace SlimMessageBus.Host.Redis;
 
 using SlimMessageBus.Host.Serialization;
+
 using StackExchange.Redis;
 
 public class RedisMessageBusSettings
 {
     /// <summary>
-    /// The <see cref="ConnectionMultiplexer.Configuration"/> configuration setting.
+    /// The <see cref="ConnectionMultiplexer.Configuration"/> connection setting.
     /// </summary>
-    public string Configuration { get; set; }
+    public string ConnectionString { get; set; }
     /// <summary>
     /// Allows to override the default <see cref="ConnectionMultiplexer"/> factory.
     /// </summary>
@@ -36,10 +37,14 @@ public class RedisMessageBusSettings
     /// </summary>
     public Action<IDatabase> OnDatabaseConnected { get; set; }
 
-    public RedisMessageBusSettings(string configuration)
+    public RedisMessageBusSettings()
     {
-        Configuration = configuration;
-        ConnectionFactory = () => ConnectionMultiplexer.Connect(Configuration);
+        ConnectionFactory = () => ConnectionMultiplexer.Connect(ConnectionString);
         EnvelopeSerializer = new MessageWithHeadersSerializer();
+    }
+
+    public RedisMessageBusSettings(string connectionString) : this()
+    {
+        ConnectionString = connectionString;
     }
 }

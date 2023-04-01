@@ -20,21 +20,33 @@ var storageContainerName = ""; // Azure Blob Storage container name
 
 services.AddSlimMessageBus(mbb =>
 {
-    // Bus configuration happens here (...)
-    mbb.WithProviderEventHub(new EventHubMessageBusSettings(connectionString, storageConnectionString, storageContainerName)); // Use Azure Event Hub as provider    
+    // Use Azure Event Hub as provider    
+    mbb.WithProviderEventHub(cfg =>
+    {
+        cfg.ConnectionString = eventHubConnectionString;
+        cfg.StorageConnectionString = storageConnectionString;
+        cfg.StorageBlobContainerName = storageContainerName;
+    });    
     mbb.AddJsonSerializer();
+
+    // ...
 });
 ```
 
-If your bus only produces messages to Event Hub and does not consume any messages, then you do not need to provide a storage account as part of the config. In that case pass `null` for the storage account details:
+If your bus only produces messages to Event Hub and does not consume any messages, then you do not need to provide a storage account as part of the config. In such case, the storage account details can be omitted:
 
 ```cs
 var connectionString = ""; // Azure Event Hubs connection string
 
 services.AddSlimMessageBus(mbb =>
 {
-    // Bus configuration happens here (...)
-    mbb.WithProviderEventHub(new EventHubMessageBusSettings(connectionString, null, null)); // The bus will only be used to publish messages to Azure Event Hub
+    mbb.WithProviderEventHub(cfg =>
+    {
+        cfg.ConnectionString = eventHubConnectionString;
+        // The bus will only be used to publish messages to Azure Event Hub - no need to set the storage account details for consumer leases
+        //cfg.StorageConnectionString = storageConnectionString;
+        //cfg.StorageBlobContainerName = storageContainerName;
+    });
     mbb.AddJsonSerializer();
 })
 ```
@@ -47,19 +59,28 @@ There are additional configuration options from the underlying AEH client availa
 that can be used to further tweak the client behavior. Here is an example:
 
 ```cs
-var settings = new EventHubMessageBusSettings(connectionString, storageConnectionString, storageContainerName)
+services.AddSlimMessageBus(mbb =>
 {
-    EventHubProducerClientOptionsFactory = (path) => new Azure.Messaging.EventHubs.Producer.EventHubProducerClientOptions
+    mbb.WithProviderEventHub(cfg =>
     {
-        Identifier = $"MyService_{Guid.NewGuid()}"
-    },
-    EventHubProcessorClientOptionsFactory = (consumerParams) => new Azure.Messaging.EventHubs.EventProcessorClientOptions
-    {
-        // Force partition lease rebalancing to happen faster (if new consumers join they can quickly gain a partition lease)
-        LoadBalancingUpdateInterval = TimeSpan.FromSeconds(2),
-        PartitionOwnershipExpirationInterval = TimeSpan.FromSeconds(5),
-    }
-};
+        cfg.ConnectionString = eventHubConnectionString;
+        cfg.StorageConnectionString = storageConnectionString;
+        cfg.StorageBlobContainerName = storageContainerName;
+
+        // More advanced settings can be changed on the the underlying AEH client
+        cfg.EventHubProducerClientOptionsFactory = (path) => new Azure.Messaging.EventHubs.Producer.EventHubProducerClientOptions
+        {
+            Identifier = $"MyService_{Guid.NewGuid()}"
+        };
+        
+        cfg.EventHubProcessorClientOptionsFactory = (consumerParams) => new Azure.Messaging.EventHubs.EventProcessorClientOptions
+        {
+            // Force partition lease rebalancing to happen faster (if new consumers join they can quickly gain a partition lease)
+            LoadBalancingUpdateInterval = TimeSpan.FromSeconds(2),
+            PartitionOwnershipExpirationInterval = TimeSpan.FromSeconds(5),
+        };
+    });    
+});
 ```
 
 ## Producing Messages

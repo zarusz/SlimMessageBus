@@ -11,7 +11,6 @@ using SecretStore;
 
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
-using SlimMessageBus.Host.Hybrid;
 using SlimMessageBus.Host.Memory;
 using SlimMessageBus.Host.Serialization.Json;
 
@@ -45,7 +44,7 @@ class Program
                          {
                              var serviceBusConnectionString = Secrets.Service.PopulateSecrets(ctx.Configuration["Azure:ServiceBus"]);
                              mbbChild
-                                 .WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString))
+                                 .WithProviderServiceBus(cfg => cfg.ConnectionString = serviceBusConnectionString)
                                  .Produce<SendEmailCommand>(x => x.DefaultQueue("test-ping-queue"))
                                  .Consume<SendEmailCommand>(x => x.Queue("test-ping-queue").WithConsumer<SmtpEmailService>());
                          })

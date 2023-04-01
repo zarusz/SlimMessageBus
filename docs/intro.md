@@ -68,7 +68,16 @@ Sample bus configuration is shown below:
 services.AddSlimMessageBus(mbb =>
 {
   // Use the Kafka transport provider
-  mbb.WithProviderKafka(new KafkaMessageBusSettings("localhost:9092"));
+  mbb.WithProviderKafka(cfg => cfg.BrokerList = "localhost:9092");
+
+  // Use Azure Service Bus transport provider (requires SlimMessageBus.Host.AzureServiceBus package)
+  //.WithProviderServiceBus(...)
+  // Use Azure Azure Event Hub transport provider (requires SlimMessageBus.Host.AzureEventHub package)
+  //.WithProviderEventHub(...)
+  // Use Redis transport provider (requires SlimMessageBus.Host.Redis package)
+  //.WithProviderRedis(...) 
+  // Use in-memory transport provider (requires SlimMessageBus.Host.Memory package)
+  //.WithProviderMemory(...)
 
   // Pub/Sub example:
   mbb.Produce<AddCommand>(x => x.DefaultTopic("add-command")); // By default AddCommand messages will go to 'add-command' topic (or hub name when Azure Service Hub provider)
@@ -98,11 +107,6 @@ services.AddSlimMessageBus(mbb =>
 
   // Use JSON for message serialization
   mbb.AddJsonSerializer(); // requires SlimMessageBus.Host.Serialization.Json package
-
-  mbb.Do(builder =>
-  {
-    // do additional configuration logic wrapped in an block for convenience
-  });
 });
 ```
 

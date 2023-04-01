@@ -23,29 +23,24 @@ public class EventHubMessageBusIt : BaseIntegrationTest<EventHubMessageBusIt>
     {
         services.AddSlimMessageBus(mbb =>
         {
-            // connection details to the Azure Event Hub
-            var connectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub"]);
-            var storageConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:Storage"]);
-            var storageContainerName = configuration["Azure:ContainerName"];
-
-            var settings = new EventHubMessageBusSettings(connectionString, storageConnectionString, storageContainerName)
+            mbb.WithProviderEventHub(cfg =>
             {
-                EventHubProducerClientOptionsFactory = (path) => new Azure.Messaging.EventHubs.Producer.EventHubProducerClientOptions
+                cfg.ConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub"]);
+                cfg.StorageConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:Storage"]);
+                cfg.StorageBlobContainerName = configuration["Azure:ContainerName"];
+                cfg.EventHubProducerClientOptionsFactory = (path) => new Azure.Messaging.EventHubs.Producer.EventHubProducerClientOptions
                 {
                     Identifier = $"MyService_{Guid.NewGuid()}"
-                },
-                EventHubProcessorClientOptionsFactory = (consumerParams) => new Azure.Messaging.EventHubs.EventProcessorClientOptions
+                };
+                cfg.EventHubProcessorClientOptionsFactory = (consumerParams) => new Azure.Messaging.EventHubs.EventProcessorClientOptions
                 {
                     // Allow the test to be repeatable - force partition lease rebalancing to happen faster
                     LoadBalancingUpdateInterval = TimeSpan.FromSeconds(2),
                     PartitionOwnershipExpirationInterval = TimeSpan.FromSeconds(5),
-                }
-            };
-
-            mbb
-                .WithProviderEventHub(settings)
-                .AddServicesFromAssemblyContaining<PingConsumer>()
-                .AddJsonSerializer();
+                };
+            });
+            mbb.AddServicesFromAssemblyContaining<PingConsumer>();
+            mbb.AddJsonSerializer();
 
             ApplyBusConfiguration(mbb);
         });

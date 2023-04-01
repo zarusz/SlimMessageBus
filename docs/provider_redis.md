@@ -26,8 +26,11 @@ var connectionString = "server1:6379,server2:6379" // Redis connection string
 
 services.AddSlimMessageBus(mbb =>
 {
-  // Bus configuration happens here (...)
-  mbb.WithProviderRedis(new RedisMessageBusSettings(connectionString)); // requires SlimMessageBus.Host.Redis package
+  // requires SlimMessageBus.Host.Redis package
+  mbb.WithProviderRedis(cfg =>
+  {
+    cfg.ConnectionString = connectionString;
+  });
   mbb.AddJsonSerializer();
   mbb.AddServicesFromAssembly(Assembly.GetExecutingAssembly());
 });
@@ -148,9 +151,9 @@ Redis does not support headers natively hence SMB Redis transport emulates them.
 The emulation works by using a message wrapper envelope (`MessageWithHeader`) that during serialization puts the headers first and then the actual message content after that. If you want to override that behaviour, you could provide another serializer as long as it is able to serialize the wrapper `MessageWithHeaders` type:
 
 ```cs
-mbb.WithProviderRedis(new RedisMessageBusSettings(redisConnectionString) 
+mbb.WithProviderRedis(cfg => 
 { 
-    EnvelopeSerializer = new MessageWithHeadersSerializer() 
+    cfg.EnvelopeSerializer = new MessageWithHeadersSerializer();
 });
 ```
 
@@ -159,13 +162,13 @@ mbb.WithProviderRedis(new RedisMessageBusSettings(redisConnectionString)
 Redis transport provider has also an additional hook that allows to perform some initialization once the connection to Redis database object (`IDatabase`) is established by SMB:
 
 ```cs
-mbb.WithProviderRedis(new RedisMessageBusSettings(connectionString)
+mbb.WithProviderRedis(cfg =>
 {
-    OnDatabaseConnected = (database) =>
+    cfg.OnDatabaseConnected = (database) =>
     {
         // Upon connect clear the redis list with the specified keys
         database.KeyDelete("test-echo-queue");
         database.KeyDelete("test-echo-queue-resp");
-    }
+    };
 });
 ```

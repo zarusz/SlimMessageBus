@@ -28,6 +28,11 @@ public class ServiceBusMessageBus : MessageBusBase
     {
         base.AssertSettings();
 
+        if (string.IsNullOrEmpty(ProviderSettings.ConnectionString))
+        {
+            throw new ConfigurationMessageBusException(Settings, $"The {nameof(ServiceBusMessageBusSettings)}.{nameof(ServiceBusMessageBusSettings.ConnectionString)} must be set");
+        }
+
         var kindMapping = new KindMapping();
         // This will validae if one path is mapped to both a topic and a queue
         kindMapping.Configure(Settings);

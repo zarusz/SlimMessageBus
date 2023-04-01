@@ -17,6 +17,11 @@ public class EventHubMessageBusSettings
     public string StorageConnectionString { get; set; }
 
     /// <summary>
+    /// The Blob storage container name for leases.
+    /// </summary>
+    public string StorageBlobContainerName { get; set; }
+
+    /// <summary>
     /// Factory for <see cref="EventHubProducerClientOptions"/>. Called whenever a new instance needs to be created.
     /// </summary>
     public Func<string, EventHubProducerClientOptions> EventHubProducerClientOptionsFactory { get; set; }
@@ -45,29 +50,27 @@ public class EventHubMessageBusSettings
     public Func<BlobContainerClient> BlobContanerClientFactory { get; set; }
 
     /// <summary>
-    /// The storage container name for leases.
-    /// </summary>
-    public string LeaseContainerName { get; set; }
-
-    /// <summary>
     /// Should the checkpoint on partitions for the consumed messages happen when the bus is stopped (or disposed)?
     /// This ensures the message reprocessing is minimized in between application restarts.
     /// Default is true.
     /// </summary>
     public bool EnableCheckpointOnBusStop { get; set; } = true;
 
-    public EventHubMessageBusSettings(string connectionString, string storageConnectionString, string leaseContainerName)
+    public EventHubMessageBusSettings()
     {
-        ConnectionString = connectionString;
-        StorageConnectionString = storageConnectionString;
-        LeaseContainerName = leaseContainerName;
-
-        BlobContanerClientFactory = () => new BlobContainerClient(StorageConnectionString, LeaseContainerName);
+        BlobContanerClientFactory = () => new BlobContainerClient(StorageConnectionString, StorageBlobContainerName);
 
         EventHubProducerClientOptionsFactory = (path) => new EventHubProducerClientOptions();
         EventHubProducerClientFactory = (path) => new EventHubProducerClient(ConnectionString, path, EventHubProducerClientOptionsFactory(path));
 
         EventHubProcessorClientOptionsFactory = (consumerParams) => new EventProcessorClientOptions();
         EventHubProcessorClientFactory = (consumerParams) => new EventProcessorClient(consumerParams.CheckpointClient, consumerParams.Group, ConnectionString, consumerParams.Path, EventHubProcessorClientOptionsFactory(consumerParams));
+    }
+
+    public EventHubMessageBusSettings(string connectionString, string storageConnectionString, string storageBlobContainerName) : this()
+    {
+        ConnectionString = connectionString;
+        StorageConnectionString = storageConnectionString;
+        StorageBlobContainerName = storageBlobContainerName;
     }
 }

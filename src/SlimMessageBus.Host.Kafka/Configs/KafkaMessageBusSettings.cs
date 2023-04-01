@@ -48,14 +48,18 @@ public class KafkaMessageBusSettings
     /// </summary>
     public bool EnableCommitOnBusStop { get; set; } = true;
 
-    public KafkaMessageBusSettings(string brokerList)
+    public KafkaMessageBusSettings()
     {
-        BrokerList = brokerList;
         ProducerConfig = (config) => { };
         ProducerBuilderFactory = (config) => new ProducerBuilder<byte[], byte[]>(config);
         ConsumerConfig = (config) => { };
         ConsumerBuilderFactory = (config) => new ConsumerBuilder<Ignore, byte[]>(config);
         ConsumerPollRetryInterval = TimeSpan.FromSeconds(2);
         HeaderSerializer = new DefaultKafkaHeaderSerializer();
+    }
+
+    public KafkaMessageBusSettings(string brokerList) : this()
+    {
+        BrokerList = brokerList;
     }
 }

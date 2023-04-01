@@ -150,15 +150,15 @@ services.AddSlimMessageBus(mbb =>
             );
             // ...
             // Use Kafka transport provider (requires SlimMessageBus.Host.Kafka package)
-            .WithProviderKafka(new KafkaMessageBusSettings("localhost:9092")); // requires SlimMessageBus.Host.Kafka package
-            // Use Azure Service Bus transport provider (requires SlimMessageBus.Host.AzureServiceBus package)
-            //.WithProviderServiceBus(...)
-            // Use Azure Azure Event Hub transport provider (requires SlimMessageBus.Host.AzureEventHub package)
-            //.WithProviderEventHub(...)
-            // Use Redis transport provider (requires SlimMessageBus.Host.Redis package)
-            //.WithProviderRedis(...) 
-            // Use in-memory transport provider (requires SlimMessageBus.Host.Memory package)
-            //.WithProviderMemory(...)
+            .WithProviderKafka(cfg => { cfg.BrokerList = "localhost:9092"; }); // requires SlimMessageBus.Host.Kafka package
+            // Use Azure Service Bus transport provider
+            //.WithProviderServiceBus(...) // requires SlimMessageBus.Host.AzureServiceBus package
+            // Use Azure Azure Event Hub transport provider
+            //.WithProviderEventHub(...) // requires SlimMessageBus.Host.AzureEventHub package
+            // Use Redis transport provider
+            //.WithProviderRedis(...) // requires SlimMessageBus.Host.Redis package
+            // Use in-memory transport provider
+            //.WithProviderMemory(...) // requires SlimMessageBus.Host.Memory package
       })
       
       // Add other bus transports (as child bus), if needed
@@ -168,8 +168,8 @@ services.AddSlimMessageBus(mbb =>
       .AddServicesFromAssemblyContaining<SomeMessageConsumer>()
       //.AddServicesFromAssembly(Assembly.GetExecutingAssembly());
 
-      // Add JSON serializer (requires SlimMessageBus.Host.Serialization.Json or SlimMessageBus.Host.Serialization.SystemTextJson package)
-      .AddJsonSerializer();
+      // Add JSON serializer
+      .AddJsonSerializer(); // requires SlimMessageBus.Host.Serialization.Json or SlimMessageBus.Host.Serialization.SystemTextJson package
 });
 ```
 
