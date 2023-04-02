@@ -52,6 +52,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
   - [Serialization](docs/serialization.md)
   - [Transactional Outbox](docs/plugin_outbox.md)
   - [Validation using FluentValidation](docs/plugin_fluent_validation.md)
+  - [AsyncAPI specification generation](docs/plugin_asyncapi.md)
 
 ## Packages
 
@@ -76,6 +77,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 | `.Host.FluentValidation`             | Validation for messages based on [FluentValidation](https://www.nuget.org/packages/FluentValidation)                | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.FluentValidation.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.FluentValidation)                         |
 | `.Host.Outbox.Sql`                   | Transactional Outbox using SQL                                                                                      | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Outbox.Sql.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql)                                     |
 | `.Host.Outbox.DbContext`             | Transactional Outbox using EF DbContext                                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Outbox.DbContext.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.DbContext)                         |
+| `.Host.AsyncApi`                     | [AsyncAPI](https://www.asyncapi.com/) specification generation via [Saunter](https://github.com/tehmantra/saunter)  | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AsyncApi.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AsyncApi)                                         |
 
 Typically the application layers (domain model, business logic) only need to depend on `SlimMessageBus` which is the facade, and ultimately the application hosting layer (ASP.NET, Console App, Windows Service) will reference and configure the other packages (`SlimMessageBus.Host.*`) which are the messaging transport providers and additional plugins.
 

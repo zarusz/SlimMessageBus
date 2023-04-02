@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="../Host.Interceptor.Properties.xml" />
+  <Import Project="../Host.Plugins.Properties.xml" />
 
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>

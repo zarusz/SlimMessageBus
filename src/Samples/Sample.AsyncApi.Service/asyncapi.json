@@ -1,0 +1,134 @@
+{
+  "asyncapi": "2.4.0",
+  "info": {
+    "title": "SlimMessageBus AsyncAPI Sample API",
+    "version": "1.0.0",
+    "description": "This is a sample of the SlimMessageBus AsyncAPI plugin",
+    "license": {
+      "name": "Apache 2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0"
+    }
+  },
+  "servers": {
+    "root": {
+      "url": "kafka://kafka.cluster",
+      "protocol": "kafka"
+    },
+    "Memory": {
+      "url": "kafka://kafka.cluster",
+      "protocol": "kafka"
+    },
+    "AzureSB": {
+      "url": "kafka://kafka.cluster",
+      "protocol": "kafka"
+    }
+  },
+  "defaultContentType": "application/json",
+  "channels": {
+    "samples.asyncapi/customer-events": {
+      "description": "Topic: samples.asyncapi/customer-events",
+      "subscribe": {
+        "operationId": "samples.asyncapi/customer-events:CustomerEvent",
+        "summary": "Process the CustomerEvent and acts accordingly.",
+        "description": "This will create an customer entry in the local databse for the created customer.",
+        "bindings": {
+          "$ref": "#/components/operationBindings/AzureSB"
+        },
+        "message": {
+          "oneOf": [
+            {
+              "$ref": "#/components/messages/customerCreatedEvent"
+            },
+            {
+              "$ref": "#/components/messages/customerEvent"
+            }
+          ]
+        }
+      },
+      "publish": {
+        "operationId": "samples.asyncapi/customer-events_CustomerEvent",
+        "bindings": {
+          "$ref": "#/components/operationBindings/AzureSB"
+        },
+        "message": {
+          "$ref": "#/components/messages/customerEvent"
+        }
+      },
+      "bindings": {
+        "$ref": "#/components/channelBindings/AzureSB"
+      },
+      "servers": [
+        "AzureSB"
+      ]
+    }
+  },
+  "components": {
+    "schemas": {
+      "customerCreatedEvent": {
+        "id": "customerCreatedEvent",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/customerEvent"
+          },
+          {
+            "type": "object",
+            "description": "Event when a customer is created within the domain.",
+            "additionalProperties": false,
+            "properties": {
+              "firstname": {
+                "type": "string"
+              },
+              "lastname": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "customerEvent": {
+        "id": "customerEvent",
+        "type": "object",
+        "description": "Customer related events that notify about interesting events around customer lifecycle.",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "guid"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "messages": {
+      "customerCreatedEvent": {
+        "messageId": "Sample.AsyncApi.Service.Messages.CustomerCreatedEvent",
+        "payload": {
+          "$ref": "#/components/schemas/customerCreatedEvent"
+        },
+        "name": "customerCreatedEvent",
+        "title": "CustomerCreatedEvent",
+        "summary": "Event when a customer is created within the domain.",
+        "description": "",
+        "bindings": {
+          "$ref": "#/components/messageBindings/AzureSB"
+        }
+      },
+      "customerEvent": {
+        "messageId": "Sample.AsyncApi.Service.Messages.CustomerEvent",
+        "payload": {
+          "$ref": "#/components/schemas/customerEvent"
+        },
+        "name": "customerEvent",
+        "title": "CustomerEvent",
+        "summary": "Customer related events that notify about interesting events around customer lifecycle.",
+        "description": "",
+        "bindings": {
+          "$ref": "#/components/messageBindings/AzureSB"
+        }
+      }
+    }
+  }
+}
