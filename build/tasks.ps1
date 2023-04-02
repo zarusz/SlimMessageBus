@@ -35,7 +35,9 @@ $projects = @(
 
 	"SlimMessageBus.Host.Outbox",
 	"SlimMessageBus.Host.Outbox.Sql",
-	"SlimMessageBus.Host.Outbox.DbContext"
+	"SlimMessageBus.Host.Outbox.DbContext",
+
+	"SlimMessageBus.Host.AsyncApi"
 )
 
 # msbuild.exe https://msdn.microsoft.com/pl-pl/library/ms164311(v=vs.80).aspx
