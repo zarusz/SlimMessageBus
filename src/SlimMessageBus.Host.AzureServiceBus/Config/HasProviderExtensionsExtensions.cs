@@ -13,7 +13,7 @@ internal static class HasProviderExtensionsExtensions
 
     internal static Action<object, ServiceBusMessage> GetMessageModifier(this HasProviderExtensions producerSettings)
     {
-        return producerSettings.GetOrDefault<Action<object, ServiceBusMessage>>(nameof(SetMessageModifier), (x, y) => { });
+        return producerSettings.GetOrDefault<Action<object, ServiceBusMessage>>(nameof(SetMessageModifier), null);
     }
 
     internal static HasProviderExtensions SetQueueOptions(this HasProviderExtensions producerSettings, Action<CreateQueueOptions> optionsAction)

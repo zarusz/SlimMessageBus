@@ -2,22 +2,15 @@
 
 using System.Diagnostics;
 
-using SlimMessageBus.Host.Serialization;
-
-using StackExchange.Redis;
-
-public class RedisListCheckerConsumer : IRedisConsumer
+public class RedisListCheckerConsumer : AbstractConsumer, IRedisConsumer
 {
-    private readonly ILogger<RedisListCheckerConsumer> _logger;
     private readonly IDatabase _database;
     private readonly IList<QueueProcessors> _queues;
     private readonly TimeSpan? _pollDelay;
     private readonly TimeSpan _maxIdle;
     private readonly IMessageSerializer _envelopeSerializer;
-    private CancellationTokenSource _cancellationTokenSource;
     private Task _task;
 
-    public bool IsStarted { get; private set; }
     protected class QueueProcessors
     {
         public string Name { get; }
@@ -31,8 +24,8 @@ public class RedisListCheckerConsumer : IRedisConsumer
     }
 
     public RedisListCheckerConsumer(ILogger<RedisListCheckerConsumer> logger, IDatabase database, TimeSpan? pollDelay, TimeSpan maxIdle, IEnumerable<(string QueueName, IMessageProcessor<MessageWithHeaders> Processor)> queues, IMessageSerializer envelopeSerializer)
+        : base(logger)
     {
-        _logger = logger;
         _database = database;
         _pollDelay = pollDelay;
         _maxIdle = maxIdle;
@@ -40,45 +33,25 @@ public class RedisListCheckerConsumer : IRedisConsumer
         _queues = queues.GroupBy(x => x.QueueName, x => x.Processor).Select(x => new QueueProcessors(x.Key, x.ToList())).ToList();
     }
 
-    public async Task Start()
+    protected override Task OnStart()
     {
-        if (IsStarted)
-        {
-            return;
-        }
-
-        if (_cancellationTokenSource == null || _cancellationTokenSource.IsCancellationRequested)
-        {
-            _cancellationTokenSource?.Cancel();
-            _cancellationTokenSource = new CancellationTokenSource();
-        }
-        _task = await Task.Factory.StartNew(Run, _cancellationTokenSource.Token, TaskCreationOptions.LongRunning, TaskScheduler.Current).ConfigureAwait(false);
-
-        IsStarted = true;
+        _task = Run();
+        return Task.CompletedTask;
     }
 
-    public async Task Stop()
+    protected override async Task OnStop()
     {
-        if (!IsStarted)
-        {
-            return;
-        }
-
-        _cancellationTokenSource?.Cancel();
-
         await _task.ConfigureAwait(false);
         _task = null;
-
-        IsStarted = false;
     }
 
     protected async Task Run()
     {
         var idle = Stopwatch.StartNew();
 
-        while (!_cancellationTokenSource.Token.IsCancellationRequested)
+        while (!CancellationToken.IsCancellationRequested)
         {
-            _logger.LogTrace("Checking keys...");
+            Logger.LogTrace("Checking keys...");
 
             var itemsArrived = false;
 
@@ -90,26 +63,26 @@ public class RedisListCheckerConsumer : IRedisConsumer
                 var value = await _database.ListLeftPopAsync(queue.Name).ConfigureAwait(false);
                 if (value != RedisValue.Null)
                 {
-                    _logger.LogDebug("Retrieved value on queue {Queue}", queue.Name);
+                    Logger.LogDebug("Retrieved value on queue {Queue}", queue.Name);
                     try
                     {
                         var transportMessage = (MessageWithHeaders)_envelopeSerializer.Deserialize(typeof(MessageWithHeaders), value);
 
                         // for loop to avoid iterator allocation
-                        for (var i = 0; i < queue.Processors.Count && !_cancellationTokenSource.Token.IsCancellationRequested; i++)
+                        for (var i = 0; i < queue.Processors.Count && !CancellationToken.IsCancellationRequested; i++)
                         {
                             var processor = queue.Processors[i];
 
-                            var (exception, _, _) = await processor.ProcessMessage(transportMessage, transportMessage.Headers, _cancellationTokenSource.Token).ConfigureAwait(false);
+                            var (exception, _, _) = await processor.ProcessMessage(transportMessage, transportMessage.Headers, CancellationToken).ConfigureAwait(false);
                             if (exception != null)
                             {
-                                _logger.LogError(exception, "Error occured while processing the list item on {Queue}", queue.Name);
+                                Logger.LogError(exception, "Error occured while processing the list item on {Queue}", queue.Name);
                             }
                         }
                     }
                     catch (Exception e)
                     {
-                        _logger.LogError(e, "Error occured while processing the list item on {Queue}", queue.Name);
+                        Logger.LogError(e, "Error occured while processing the list item on {Queue}", queue.Name);
                     }
 
                     itemsArrived = true;
@@ -117,25 +90,17 @@ public class RedisListCheckerConsumer : IRedisConsumer
                 }
             }
 
-            if (!itemsArrived && _pollDelay != null && idle.Elapsed >= _maxIdle && !_cancellationTokenSource.Token.IsCancellationRequested)
+            if (!itemsArrived && _pollDelay != null && idle.Elapsed >= _maxIdle && !CancellationToken.IsCancellationRequested)
             {
-                _logger.LogTrace("Performing delay since no new items arrived");
+                Logger.LogTrace("Performing delay since no new items arrived");
                 await Task.Delay(_pollDelay.Value).ConfigureAwait(false);
             }
         }
     }
 
-    #region IAsyncDisposable
-
-    public async ValueTask DisposeAsync()
+    protected override async ValueTask DisposeAsyncCore()
     {
-        await DisposeAsyncCore().ConfigureAwait(false);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual async ValueTask DisposeAsyncCore()
-    {
-        await Stop().ConfigureAwait(false);
+        await base.DisposeAsyncCore();
 
         var processors = _queues.SelectMany(x => x.Processors).ToList();
         foreach (var processor in processors)
@@ -143,10 +108,5 @@ public class RedisListCheckerConsumer : IRedisConsumer
             await processor.DisposeSilently().ConfigureAwait(false);
         }
         _queues.Clear();
-
-        _cancellationTokenSource?.Dispose();
-        _cancellationTokenSource = null;
     }
-
-    #endregion
 }

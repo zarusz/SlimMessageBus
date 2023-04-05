@@ -21,27 +21,26 @@ public class RedisMessageBusIt : BaseIntegrationTest<RedisMessageBusIt>
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
-        services
-            .AddSlimMessageBus(mbb =>
+        services.AddSlimMessageBus(mbb =>
+        {
+            var connectionString = Secrets.Service.PopulateSecrets(configuration["Redis:ConnectionString"]);
+
+            mbb.WithProviderRedis(cfg =>
             {
-                var connectionString = Secrets.Service.PopulateSecrets(configuration["Redis:ConnectionString"]);
-
-                mbb.WithProviderRedis(cfg =>
+                cfg.ConnectionString = connectionString;
+                cfg.OnDatabaseConnected = (database) =>
                 {
-                    cfg.ConnectionString = connectionString;
-                    cfg.OnDatabaseConnected = (database) =>
-                    {
-                        // Upon connect clear the redis list with the specified keys
-                        database.KeyDelete("test-echo-queue");
-                        database.KeyDelete("test-echo-queue-resp");
-                    };
-                });
-
-                mbb.AddServicesFromAssemblyContaining<PingConsumer>();
-                mbb.AddJsonSerializer();
-
-                ApplyBusConfiguration(mbb);
+                    // Upon connect clear the redis list with the specified keys
+                    database.KeyDelete("test-echo-queue");
+                    database.KeyDelete("test-echo-queue-resp");
+                };
             });
+
+            mbb.AddServicesFromAssemblyContaining<PingConsumer>();
+            mbb.AddJsonSerializer();
+
+            ApplyBusConfiguration(mbb);
+        });
 
         services.AddSingleton<TestEventCollector<PingMessage>>();
     }

@@ -187,8 +187,6 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
         if (messageType != null)
         {
             var producerSettings = GetProducerSettings(messageType);
-
-            // execute message modifier
             try
             {
                 var messageModifier = producerSettings.GetMessageModifier();
