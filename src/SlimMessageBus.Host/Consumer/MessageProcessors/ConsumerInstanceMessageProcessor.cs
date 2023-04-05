@@ -1,4 +1,5 @@
 ﻿namespace SlimMessageBus.Host;
+
 /// <summary>
 /// Implementation of <see cref="IMessageProcessor{TMessage}"/> that peforms orchestration around processing of a new message using an instance of the declared consumer (<see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/> interface).
 /// </summary>

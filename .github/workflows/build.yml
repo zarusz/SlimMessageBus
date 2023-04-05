@@ -37,10 +37,11 @@ jobs:
         azure_servicebus_key: ${{ secrets.azure_servicebus_key }}
         azure_eventhub_key: ${{ secrets.azure_eventhub_key }}
         azure_eventhub_storage_key: ${{ secrets.azure_eventhub_storage_key }}
+        azure_sql_password: ${{ secrets.azure_sql_password }}
         kafka_username: ${{ secrets.kafka_username }}
         kafka_password: ${{ secrets.kafka_password }}
         redis_password: ${{ secrets.redis_password }}
-        azure_sql_password: ${{ secrets.azure_sql_password }}
+        mqtt_password: ${{ secrets.mqtt_password }}
     - name: Upload test results
       uses: actions/upload-artifact@v3
       with:

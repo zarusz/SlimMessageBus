@@ -47,6 +47,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
   - [Azure EventHubs](docs/provider_azure_eventhubs.md)
   - [Redis](docs/provider_redis.md)
   - [Memory](docs/provider_memory.md)
+  - [Mqtt](docs/provider_mqtt.md)
   - [Hybrid](docs/provider_hybrid.md)
 - Plugins:
   - [Serialization](docs/serialization.md)
@@ -65,6 +66,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 | `.Host.AzureEventHub`                | Transport provider for Azure Event Hubs                                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AzureEventHub.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)                               |
 | `.Host.Redis`                        | Transport provider for Redis                                                                                        | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Redis.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Redis)                                               |
 | `.Host.Memory`                       | Transport provider implementation for in-process (in memory) message passing (no messaging infrastructure required) | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Memory.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Memory)                                             |
+| `.Host.Mqtt`                         | Transport provider for MQTT                                                                                         | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Mqtt.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Mqtt)                                                 |
 | **Serialization**                    |                                                                                                                     |                                                                                                                                                                                  |
 | `.Host.Serialization.Json`           | Serialization plugin for JSON (Newtonsoft.Json library)                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Serialization.Json.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json)                     |
 | `.Host.Serialization.SystemTextJson` | Serialization plugin for JSON (System.Text.Json library)                                                            | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Serialization.SystemTextJson.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.SystemTextJson) |
@@ -358,13 +360,14 @@ dotnet test --filter Category!=Integration
 
 ## Credits
 
-Thanks to [Gravity9](https://www.gravity9.com/) for providing an Azure subscription that allows to run our integration test infrastructure.
+Thanks to [Gravity9](https://www.gravity9.com/) for providing an Azure subscription that allows running the integration test infrastructure.
 
 <a href="https://www.gravity9.com/" target="_blank"><img src="https://uploads-ssl.webflow.com/5ce7ef1205884e25c3d2daa4/5f71f56c89fd4db58dd214d3_Gravity9_logo.svg" width="100" alt="Gravity9"></a>
 
 Thanks to the following service cloud providers for providing free instances for our integration tests:
 
-- Redis https://redislabs.com/
-- Kafka https://www.cloudkarafka.com/
+- Redis - [Redis Labs](https://redislabs.com/)
+- Kafka - [CloudKarafka](https://www.cloudkarafka.com/)
+- MQTT - [HiveMQ](https://www.hivemq.com/)
 
 If you want to help and sponsor, please write to me.

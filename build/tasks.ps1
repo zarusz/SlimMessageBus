@@ -30,6 +30,7 @@ $projects = @(
 	"SlimMessageBus.Host.AzureServiceBus",
 	"SlimMessageBus.Host.Memory",
 	"SlimMessageBus.Host.Redis",
+	"SlimMessageBus.Host.Mqtt",
 	
 	"SlimMessageBus.Host.FluentValidation",
 

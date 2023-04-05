@@ -1,73 +1,38 @@
 ﻿namespace SlimMessageBus.Host.Redis;
 
-using Microsoft.Extensions.Logging;
-
-using SlimMessageBus.Host.Serialization;
-
-using StackExchange.Redis;
-
-public class RedisTopicConsumer : IRedisConsumer
+public class RedisTopicConsumer : AbstractConsumer, IRedisConsumer
 {
-    private readonly ILogger<RedisTopicConsumer> _logger;
-    private readonly string _topic;
     private readonly ISubscriber _subscriber;
     private readonly IMessageSerializer _envelopeSerializer;
-    private IMessageProcessor<MessageWithHeaders> _messageProcessor;
     private ChannelMessageQueue _channelMessageQueue;
-    private CancellationTokenSource _cancellationTokenSource;
+    private IMessageProcessor<MessageWithHeaders> _messageProcessor;
 
-    public bool IsStarted { get; private set; }
+    public string Path { get; }
 
     public RedisTopicConsumer(ILogger<RedisTopicConsumer> logger, string topic, ISubscriber subscriber, IMessageProcessor<MessageWithHeaders> messageProcessor, IMessageSerializer envelopeSerializer)
+        : base(logger)
     {
-        _logger = logger;
-        _topic = topic;
+        Path = topic;
+        _messageProcessor = messageProcessor;
         _envelopeSerializer = envelopeSerializer;
         _subscriber = subscriber ?? throw new ArgumentNullException(nameof(subscriber));
-        _messageProcessor = messageProcessor;
     }
 
-    public async Task Start()
+    protected override async Task OnStart()
     {
-        if (IsStarted)
-        {
-            return;
-        }
-
-        _logger.LogInformation("Subscribing to redis channel {Topic}", _topic);
-
-        if (_cancellationTokenSource == null || _cancellationTokenSource.IsCancellationRequested)
-        {
-            _cancellationTokenSource?.Cancel();
-            _cancellationTokenSource = new CancellationTokenSource();
-        }
-
-        _channelMessageQueue = await _subscriber.SubscribeAsync(_topic);
+        _channelMessageQueue = await _subscriber.SubscribeAsync(Path).ConfigureAwait(false);
         _channelMessageQueue.OnMessage(OnMessage);
-
-        IsStarted = true;
     }
 
-    public async Task Stop()
+    protected override async Task OnStop()
     {
-        if (!IsStarted)
-        {
-            return;
-        }
-
-        _logger.LogInformation("Unsubscribing from redis channel {Topic}", _topic);
-
-        _cancellationTokenSource.Cancel();
-
-        await _channelMessageQueue.UnsubscribeAsync();
+        await _channelMessageQueue.UnsubscribeAsync().ConfigureAwait(false);
         _channelMessageQueue = null;
-
-        IsStarted = false;
     }
 
     private async Task OnMessage(ChannelMessage m)
     {
-        if (_cancellationTokenSource.Token.IsCancellationRequested)
+        if (CancellationToken.IsCancellationRequested)
         {
             return;
         }
@@ -76,7 +41,7 @@ public class RedisTopicConsumer : IRedisConsumer
         try
         {
             var messageWithHeaders = (MessageWithHeaders)_envelopeSerializer.Deserialize(typeof(MessageWithHeaders), m.Message);
-            (exception, var exceptionConsumerSettings, _) = await _messageProcessor.ProcessMessage(messageWithHeaders, messageWithHeaders.Headers, _cancellationTokenSource.Token);
+            (exception, var exceptionConsumerSettings, _) = await _messageProcessor.ProcessMessage(messageWithHeaders, messageWithHeaders.Headers, CancellationToken);
         }
         catch (Exception e)
         {
@@ -85,31 +50,18 @@ public class RedisTopicConsumer : IRedisConsumer
         if (exception != null)
         {
             // In the future offer better error handling support - retries + option to put failed messages on a DLQ.
-            _logger.LogError(exception, "Error occured while processing the redis channel {Topic}", _topic);
+            Logger.LogError(exception, "Error occured while processing the redis channel {Topic}", Path);
         }
     }
 
-    #region IAsyncDisposable
-
-    public async ValueTask DisposeAsync()
+    protected override async ValueTask DisposeAsyncCore()
     {
-        await DisposeAsyncCore().ConfigureAwait(false);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual async ValueTask DisposeAsyncCore()
-    {
-        await Stop().ConfigureAwait(false);
+        await base.DisposeAsyncCore();
 
         if (_messageProcessor != null)
         {
             await _messageProcessor.DisposeAsync();
             _messageProcessor = null;
         }
-
-        _cancellationTokenSource?.Dispose();
-        _cancellationTokenSource = null;
     }
-
-    #endregion
 }
