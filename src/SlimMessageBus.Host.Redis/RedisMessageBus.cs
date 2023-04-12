@@ -1,27 +1,18 @@
 ﻿namespace SlimMessageBus.Host.Redis;
 
-using Microsoft.Extensions.Logging;
-
-using SlimMessageBus.Host.Collections;
-
-using StackExchange.Redis;
-
-public class RedisMessageBus : MessageBusBase
+public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
 {
     private readonly ILogger _logger;
     private readonly KindMapping _kindMapping = new();
     private readonly List<IRedisConsumer> _consumers = new();
 
-    public RedisMessageBusSettings ProviderSettings { get; }
-
     protected IConnectionMultiplexer Connection { get; private set; }
     protected IDatabase Database { get; private set; }
 
     public RedisMessageBus(MessageBusSettings settings, RedisMessageBusSettings providerSettings)
-        : base(settings)
+        : base(settings, providerSettings)
     {
         _logger = LoggerFactory.CreateLogger<RedisMessageBus>();
-        ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
 
         OnBuildProvider();
     }

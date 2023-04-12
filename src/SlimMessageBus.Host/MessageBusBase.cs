@@ -4,6 +4,16 @@ using System.Globalization;
 
 using SlimMessageBus.Host.Consumer;
 
+public abstract class MessageBusBase<TProviderSettings> : MessageBusBase where TProviderSettings : class
+{
+    public TProviderSettings ProviderSettings { get; }
+
+    protected MessageBusBase(MessageBusSettings settings, TProviderSettings providerSettings) : base(settings)
+    {
+        ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
+    }
+}
+
 public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMessageBus, IMessageScopeFactory, IMessageHeadersFactory, ICurrentTimeProvider
 {
     private readonly ILogger _logger;
@@ -119,18 +129,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     protected virtual void BuildPendingRequestStore()
     {
         PendingRequestStore = new InMemoryPendingRequestStore();
-        PendingRequestManager = new PendingRequestManager(PendingRequestStore, () => CurrentTime, TimeSpan.FromSeconds(1), LoggerFactory, request =>
-        {
-            // Execute the event hook
-            try
-            {
-                (Settings.RequestResponse.OnMessageExpired ?? Settings.OnMessageExpired)?.Invoke(this, Settings.RequestResponse, request, null);
-            }
-            catch (Exception eh)
-            {
-                HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageExpired));
-            }
-        });
+        PendingRequestManager = new PendingRequestManager(PendingRequestStore, () => CurrentTime, TimeSpan.FromSeconds(1), LoggerFactory);
         PendingRequestManager.Start();
     }
 
@@ -417,8 +416,6 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     protected internal virtual Task PublishInternal(object message, string path, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken, ProducerSettings producerSettings, IServiceProvider currentServiceProvider)
     {
-        OnProducedHook(message, path, producerSettings);
-
         var payload = Serializer.Serialize(producerSettings.MessageType, message);
 
         _logger.LogDebug("Producing message {Message} of type {MessageType} to path {Path}", message, producerSettings.MessageType, path);
@@ -484,8 +481,6 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
         path ??= GetDefaultPath(requestType, producerSettings);
         timeout ??= GetDefaultRequestTimeout(requestType, producerSettings);
-
-        OnProducedHook(request, path, producerSettings);
 
         var created = CurrentTime;
         var expires = created.Add(timeout.Value);
@@ -556,19 +551,6 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         // convert Task<object> to Task<TResponseMessage>
         var responseUntyped = await requestState.TaskCompletionSource.Task.ConfigureAwait(false);
         return (TResponseMessage)responseUntyped;
-    }
-
-    private void OnProducedHook(object message, string name, ProducerSettings producerSettings)
-    {
-        try
-        {
-            producerSettings?.OnMessageProduced?.Invoke(this, producerSettings, message, name);
-            Settings.OnMessageProduced?.Invoke(this, producerSettings, message, name);
-        }
-        catch (Exception eh)
-        {
-            HookFailed(_logger, eh, nameof(IProducerEvents.OnMessageProduced));
-        }
     }
 
     public virtual Task ProduceRequest(object request, IDictionary<string, object> requestHeaders, string path, ProducerSettings producerSettings)
@@ -729,4 +711,5 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     #endregion
 
     #endregion
+
 }

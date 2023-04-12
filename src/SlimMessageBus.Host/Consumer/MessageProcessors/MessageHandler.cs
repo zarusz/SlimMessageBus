@@ -56,14 +56,11 @@ public class MessageHandler : IMessageHandler
                 if (currentTime > expires.Value)
                 {
                     // ToDo: Call interceptor
-                    OnMessageExpired(expires, message, currentTime, nativeMessage, consumerInvoker);
 
                     // Do not process the expired message
                     return (null, null, requestId);
                 }
             }
-
-            OnMessageArrived(message, nativeMessage, consumerInvoker);
 
             var consumerType = consumerInvoker.ConsumerType;
             var consumerInstance = messageScope.ServiceProvider.GetService(consumerType)
@@ -97,7 +94,6 @@ public class MessageHandler : IMessageHandler
             }
             catch (Exception e)
             {
-                OnMessageError(message, e, nativeMessage, consumerInvoker);
                 responseException = e;
             }
             finally
@@ -108,8 +104,6 @@ public class MessageHandler : IMessageHandler
                     consumerInstanceDisposable.DisposeSilently("ConsumerInstance", _logger);
                 }
             }
-
-            OnMessageFinished(message, nativeMessage, consumerInvoker);
         }
 
         return (response, responseException, requestId);
@@ -137,65 +131,5 @@ public class MessageHandler : IMessageHandler
         }
 
         return null;
-    }
-
-    private void OnMessageExpired(DateTimeOffset? expires, object message, DateTimeOffset currentTime, object nativeMessage, IMessageTypeConsumerInvokerSettings consumerInvoker)
-    {
-        _logger.LogWarning("The message {Message} arrived too late and is already expired (expires {ExpiresAt}, current {Time})", message, expires.Value, currentTime);
-
-        try
-        {
-            // Execute the event hook
-            consumerInvoker.ParentSettings.OnMessageExpired?.Invoke(MessageBus, consumerInvoker.ParentSettings, message, nativeMessage);
-            MessageBus.Settings.OnMessageExpired?.Invoke(MessageBus, consumerInvoker.ParentSettings, message, nativeMessage);
-        }
-        catch (Exception eh)
-        {
-            MessageBusBase.HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageExpired));
-        }
-    }
-
-    private void OnMessageError(object message, Exception e, object nativeMessage, IMessageTypeConsumerInvokerSettings consumerInvoker)
-    {
-        _logger.LogError(e, consumerInvoker.ParentSettings.ConsumerMode == ConsumerMode.RequestResponse ? "Handler execution failed" : "Consumer execution failed");
-
-        try
-        {
-            // Execute the event hook
-            consumerInvoker.ParentSettings.OnMessageFault?.Invoke(MessageBus, consumerInvoker.ParentSettings, message, e, nativeMessage);
-            MessageBus.Settings.OnMessageFault?.Invoke(MessageBus, consumerInvoker.ParentSettings, message, e, nativeMessage);
-        }
-        catch (Exception eh)
-        {
-            MessageBusBase.HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageFault));
-        }
-    }
-
-    private void OnMessageArrived(object message, object nativeMessage, IMessageTypeConsumerInvokerSettings consumerInvoker)
-    {
-        try
-        {
-            // Execute the event hook
-            consumerInvoker.ParentSettings.OnMessageArrived?.Invoke(MessageBus, consumerInvoker.ParentSettings, message, consumerInvoker.ParentSettings.Path, nativeMessage);
-            MessageBus.Settings.OnMessageArrived?.Invoke(MessageBus, consumerInvoker.ParentSettings, message, consumerInvoker.ParentSettings.Path, nativeMessage);
-        }
-        catch (Exception eh)
-        {
-            MessageBusBase.HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageArrived));
-        }
-    }
-
-    private void OnMessageFinished(object message, object nativeMessage, IMessageTypeConsumerInvokerSettings consumerInvoker)
-    {
-        try
-        {
-            // Execute the event hook
-            consumerInvoker.ParentSettings.OnMessageFinished?.Invoke(MessageBus, consumerInvoker.ParentSettings, message, consumerInvoker.ParentSettings.Path, nativeMessage);
-            MessageBus.Settings.OnMessageFinished?.Invoke(MessageBus, consumerInvoker.ParentSettings, message, consumerInvoker.ParentSettings.Path, nativeMessage);
-        }
-        catch (Exception eh)
-        {
-            MessageBusBase.HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageFinished));
-        }
     }
 }

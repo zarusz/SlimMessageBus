@@ -44,19 +44,6 @@ public class ResponseMessageProcessor<TMessage> : IMessageProcessor<TMessage>
         {
             _logger.LogError(e, "Error occured while consuming response message, {Message}", message);
 
-            if (_requestResponseSettings.OnResponseMessageFault != null)
-            {
-                // Call the hook
-                try
-                {
-                    _requestResponseSettings.OnResponseMessageFault(_requestResponseSettings, message, e);
-                }
-                catch (Exception eh)
-                {
-                    MessageBusBase.HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageFault));
-                }
-            }
-
             // We can only continue and process all messages in the lease    
             return (e, _requestResponseSettings, null);
         }

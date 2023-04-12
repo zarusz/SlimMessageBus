@@ -1,9 +1,5 @@
 namespace SlimMessageBus.Host.AzureEventHub;
 
-using Azure.Messaging.EventHubs;
-using Azure.Messaging.EventHubs.Producer;
-using Azure.Storage.Blobs;
-
 public class EventHubMessageBusSettings
 {
     /// <summary>

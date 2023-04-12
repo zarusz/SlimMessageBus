@@ -1,9 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Redis;
 
-using SlimMessageBus.Host.Serialization;
-
-using StackExchange.Redis;
-
 public class RedisMessageBusSettings
 {
     /// <summary>

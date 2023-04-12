@@ -31,14 +31,6 @@ public class ProducerBuilder<T>
         return this;
     }
 
-    public ProducerBuilder<T> AttachEvents(Action<IProducerEvents> eventsConfig)
-    {
-        if (eventsConfig == null) throw new ArgumentNullException(nameof(eventsConfig));
-
-        eventsConfig(Settings);
-        return this;
-    }
-
     /// <summary>
     /// Hook called whenver message is being produced. Can be used to add (or mutate) message headers.
     /// </summary>

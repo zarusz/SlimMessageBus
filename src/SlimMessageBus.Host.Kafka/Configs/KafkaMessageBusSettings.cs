@@ -1,9 +1,5 @@
 namespace SlimMessageBus.Host.Kafka;
 
-using Confluent.Kafka;
-
-using SlimMessageBus.Host.Serialization;
-
 using ConsumerBuilder = Confluent.Kafka.ConsumerBuilder<Confluent.Kafka.Ignore, byte[]>;
 using ProducerBuilder = Confluent.Kafka.ProducerBuilder<byte[], byte[]>;
 

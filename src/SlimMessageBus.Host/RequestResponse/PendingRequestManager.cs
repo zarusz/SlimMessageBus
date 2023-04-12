@@ -17,7 +17,7 @@ public class PendingRequestManager : IDisposable
 
     public IPendingRequestStore Store { get; }
 
-    public PendingRequestManager(IPendingRequestStore store, Func<DateTimeOffset> timeProvider, TimeSpan interval, ILoggerFactory loggerFactory, Action<object> onRequestTimeout)
+    public PendingRequestManager(IPendingRequestStore store, Func<DateTimeOffset> timeProvider, TimeSpan interval, ILoggerFactory loggerFactory, Action<object> onRequestTimeout = null)
     {
         _logger = loggerFactory.CreateLogger<PendingRequestManager>();
         Store = store;
@@ -91,7 +91,7 @@ public class PendingRequestManager : IDisposable
             if (canceled)
             {
                 _logger.LogDebug("Pending request timed-out: {0}, now: {1}", requestState, now);
-                _onRequestTimeout(requestState.Request);
+                _onRequestTimeout?.Invoke(requestState.Request);
             }
         }
         Store.RemoveAll(requestsToCancel.Select(x => x.Id));

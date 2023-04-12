@@ -244,30 +244,6 @@ public class MessageBusBuilder
         return this;
     }
 
-    public MessageBusBuilder AttachEvents(Action<IProducerEvents> eventsConfig)
-    {
-        if (eventsConfig == null) throw new ArgumentNullException(nameof(eventsConfig));
-
-        eventsConfig(Settings);
-        return this;
-    }
-
-    public MessageBusBuilder AttachEvents(Action<IConsumerEvents> eventsConfig)
-    {
-        if (eventsConfig == null) throw new ArgumentNullException(nameof(eventsConfig));
-
-        eventsConfig(Settings);
-        return this;
-    }
-
-    public MessageBusBuilder AttachEvents(Action<IBusEvents> eventsConfig)
-    {
-        if (eventsConfig == null) throw new ArgumentNullException(nameof(eventsConfig));
-
-        eventsConfig(Settings);
-        return this;
-    }
-
     /// <summary>
     /// Sets the default enable (or disable) creation of DI child scope for each meesage.
     /// </summary>

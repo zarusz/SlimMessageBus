@@ -20,16 +20,6 @@ public abstract class AbstractConsumerBuilder
         Settings.Consumers.Add(ConsumerSettings);
     }
 
-    [Obsolete("Please use the interceptors https://github.com/zarusz/SlimMessageBus/blob/master/docs/intro.md#interceptors")]
-    public TBuilder AttachEvents<TBuilder>(Action<IConsumerEvents> eventsConfig)
-        where TBuilder : AbstractConsumerBuilder
-    {
-        if (eventsConfig == null) throw new ArgumentNullException(nameof(eventsConfig));
-
-        eventsConfig(ConsumerSettings);
-        return (TBuilder)this;
-    }
-
     public T Do<T>(Action<T> builder) where T : AbstractConsumerBuilder
     {
         if (builder == null) throw new ArgumentNullException(nameof(builder));

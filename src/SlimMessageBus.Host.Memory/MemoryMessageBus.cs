@@ -3,16 +3,15 @@
 /// <summary>
 /// In-memory message bus <see cref="IMessageBus"/> implementation to use for in process message passing.
 /// </summary>
-public class MemoryMessageBus : MessageBusBase
+public class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
 {
     private readonly ILogger _logger;
     private IDictionary<string, IMessageProcessor<object>> _consumersByPath;
-    private readonly MemoryMessageBusSettings _providerSettings;
 
-    public MemoryMessageBus(MessageBusSettings settings, MemoryMessageBusSettings providerSettings) : base(settings)
+    public MemoryMessageBus(MessageBusSettings settings, MemoryMessageBusSettings providerSettings) 
+        : base(settings, providerSettings)
     {
         _logger = LoggerFactory.CreateLogger<MemoryMessageBus>();
-        _providerSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
 
         OnBuildProvider();
     }
@@ -21,7 +20,7 @@ public class MemoryMessageBus : MessageBusBase
 
     protected override IMessageSerializer GetSerializer()
     {
-        if (!_providerSettings.EnableMessageSerialization)
+        if (!ProviderSettings.EnableMessageSerialization)
         {
             return new NullMessageSerializer();
         }
@@ -35,7 +34,7 @@ public class MemoryMessageBus : MessageBusBase
 
     public override IDictionary<string, object> CreateHeaders()
     {
-        if (_providerSettings.EnableMessageSerialization)
+        if (ProviderSettings.EnableMessageSerialization)
         {
             return base.CreateHeaders();
         }
@@ -67,10 +66,10 @@ public class MemoryMessageBus : MessageBusBase
         => new ConsumerInstanceMessageProcessor<object>(consumerSettings, this,
             path: path,
             sendResponses: false,
-            messageProvider: _providerSettings.EnableMessageSerialization
+            messageProvider: ProviderSettings.EnableMessageSerialization
                 ? (messageType, transportMessage) => Serializer.Deserialize(messageType, (byte[])transportMessage)
                 : (messageType, transportMessage) => transportMessage,
-            messageTypeProvider: _providerSettings.EnableMessageSerialization
+            messageTypeProvider: ProviderSettings.EnableMessageSerialization
                 ? null
                 : transportMessage => transportMessage.GetType());
 
@@ -96,7 +95,7 @@ public class MemoryMessageBus : MessageBusBase
             return default;
         }
 
-        var transportMessage = _providerSettings.EnableMessageSerialization
+        var transportMessage = ProviderSettings.EnableMessageSerialization
             ? Serializer.Serialize(producerSettings.MessageType, message)
             : message;
 
@@ -104,12 +103,7 @@ public class MemoryMessageBus : MessageBusBase
             ? requestHeaders as IReadOnlyDictionary<string, object> ?? new Dictionary<string, object>(requestHeaders)
             : null;
 
-        var (exception, exceptionConsumerSettings, response) = await messageProcessor.ProcessMessage(transportMessage, messageHeadersReadOnly, cancellationToken, currentServiceProvider);
-        if (exception != null)
-        {
-            OnMessageFailed(message, exceptionConsumerSettings, exception);
-        }
-
+        var (exception, _, response) = await messageProcessor.ProcessMessage(transportMessage, messageHeadersReadOnly, cancellationToken, currentServiceProvider);
         if (exception != null)
         {
             // We want to pass the same exception to the sender as it happened in the handler/consumer
@@ -117,20 +111,5 @@ public class MemoryMessageBus : MessageBusBase
         }
 
         return (TResponseMessage)response;
-    }
-
-    private void OnMessageFailed(object message, AbstractConsumerSettings consumerSettings, Exception e)
-    {
-        try
-        {
-            _logger.LogDebug(e, "Error occured while executing {ConsumerType} on {Message} of type {MessageType}", consumerSettings is ConsumerSettings cs ? cs.ConsumerType : null, message, message?.GetType());
-            // Invoke fault handler.
-            consumerSettings.OnMessageFault?.Invoke(this, consumerSettings, message, e, null);
-            Settings.OnMessageFault?.Invoke(this, consumerSettings, message, e, null);
-        }
-        catch (Exception hookEx)
-        {
-            HookFailed(_logger, hookEx, nameof(consumerSettings.OnMessageFault));
-        }
     }
 }

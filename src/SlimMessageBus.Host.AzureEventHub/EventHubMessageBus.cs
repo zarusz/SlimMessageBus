@@ -1,16 +1,9 @@
 ﻿namespace SlimMessageBus.Host.AzureEventHub;
 
-using Azure.Messaging.EventHubs;
-using Azure.Messaging.EventHubs.Producer;
-using Azure.Storage.Blobs;
-
-using SlimMessageBus.Host;
-using SlimMessageBus.Host.Collections;
-
 /// <summary>
 /// MessageBus implementation for Azure Event Hub.
 /// </summary>
-public class EventHubMessageBus : MessageBusBase
+public class EventHubMessageBus : MessageBusBase<EventHubMessageBusSettings>
 {
     private readonly ILogger _logger;
     private BlobContainerClient _blobContainerClient;
@@ -19,13 +12,10 @@ public class EventHubMessageBus : MessageBusBase
 
     protected internal BlobContainerClient BlobContainerClient => _blobContainerClient;
 
-    public EventHubMessageBusSettings ProviderSettings { get; }
-
-    public EventHubMessageBus(MessageBusSettings settings, EventHubMessageBusSettings eventHubSettings)
-        : base(settings)
+    public EventHubMessageBus(MessageBusSettings settings, EventHubMessageBusSettings providerSettings)
+        : base(settings, providerSettings)
     {
-        _logger = LoggerFactory.CreateLogger<EventHubMessageBus>();
-        ProviderSettings = eventHubSettings;
+        _logger = LoggerFactory.CreateLogger<EventHubMessageBus>();        
 
         OnBuildProvider();
     }

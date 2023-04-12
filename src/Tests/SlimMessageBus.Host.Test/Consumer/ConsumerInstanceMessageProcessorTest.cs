@@ -16,13 +16,10 @@ public class ConsumerInstanceMessageProcessorTest
     }
 
     [Fact]
-    public async Task When_RequestExpired_Then_OnMessageExpiredIsCalled()
+    public async Task When_RequestExpired_Then_HandlerNeverCalled()
     {
         // arrange
-        var onMessageExpiredMock = new Mock<Action<IMessageBus, AbstractConsumerSettings, object, object>>();
-
         var consumerSettings = new HandlerBuilder<SomeRequest, SomeResponse>(new MessageBusSettings()).Topic(null).WithHandler<IRequestHandler<SomeRequest, SomeResponse>>().ConsumerSettings;
-        consumerSettings.OnMessageExpired = onMessageExpiredMock.Object;
 
         var transportMessage = Array.Empty<byte>();
 
@@ -43,19 +40,14 @@ public class ConsumerInstanceMessageProcessorTest
         // assert
         _busMock.HandlerMock.Verify(x => x.OnHandle(It.IsAny<SomeRequest>()), Times.Never); // the handler should not be called
         _busMock.HandlerMock.VerifyNoOtherCalls();
-
-        onMessageExpiredMock.Verify(x => x(_busMock.Bus, consumerSettings, request, It.IsAny<object>()), Times.Once); // callback called once
-        onMessageExpiredMock.VerifyNoOtherCalls();
     }
 
     [Fact]
-    public async Task When_RequestFails_Then_OnMessageFaultIsCalledAndErrorResponseIsSent()
+    public async Task When_RequestFails_Then_ErrorResponseIsSent()
     {
         // arrange
         var topic = "topic";
-        var onMessageFaultMock = new Mock<Action<IMessageBus, AbstractConsumerSettings, object, Exception, object>>();
         var consumerSettings = new HandlerBuilder<SomeRequest, SomeResponse>(new MessageBusSettings()).Topic(topic).WithHandler<IRequestHandler<SomeRequest, SomeResponse>>().Instances(1).ConsumerSettings;
-        consumerSettings.OnMessageFault = onMessageFaultMock.Object;
 
         var replyTo = "reply-topic";
         var requestId = "request-id";
@@ -82,24 +74,23 @@ public class ConsumerInstanceMessageProcessorTest
         _busMock.HandlerMock.Verify(x => x.OnHandle(request), Times.Once); // handler called once
         _busMock.HandlerMock.VerifyNoOtherCalls();
 
-        onMessageFaultMock.Verify(x => x(_busMock.Bus, consumerSettings, request, ex, It.IsAny<object>()), Times.Once); // callback called once
-        onMessageFaultMock.VerifyNoOtherCalls();
-
         _busMock.BusMock.Verify(
-            x => x.ProduceResponse(request, It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<SomeResponse>(), It.Is<IDictionary<string, object>>(m => (string)m[ReqRespMessageHeaders.RequestId] == requestId), It.IsAny<ConsumerSettings>()));
+            x => x.ProduceResponse(
+                request,
+                It.IsAny<IReadOnlyDictionary<string, object>>(),
+                It.IsAny<SomeResponse>(),
+                It.Is<IDictionary<string, object>>(m => (string)m[ReqRespMessageHeaders.RequestId] == requestId),
+                It.IsAny<ConsumerSettings>()));
 
         exception.Should().BeNull();
-        exceptionConsumerSettings.Should().BeNull();
     }
 
     [Fact]
-    public async Task When_MessageFails_Then_OnMessageFaultIsCalledAndExceptionReturned()
+    public async Task When_MessageFails_Then_ExceptionReturned()
     {
         // arrange
         var topic = "topic";
-        var onMessageFaultMock = new Mock<Action<IMessageBus, AbstractConsumerSettings, object, Exception, object>>();
         var consumerSettings = new ConsumerBuilder<SomeMessage>(new MessageBusSettings()).Topic(topic).WithConsumer<IConsumer<SomeMessage>>().Instances(1).ConsumerSettings;
-        consumerSettings.OnMessageFault = onMessageFaultMock.Object;
 
         var transportMessage = Array.Empty<byte>();
 
@@ -119,26 +110,18 @@ public class ConsumerInstanceMessageProcessorTest
         _busMock.ConsumerMock.Verify(x => x.OnHandle(message), Times.Once); // handler called once
         _busMock.ConsumerMock.VerifyNoOtherCalls();
 
-        onMessageFaultMock.Verify(x => x(_busMock.Bus, consumerSettings, message, ex, It.IsAny<object>()), Times.Once); // callback called once           
-        onMessageFaultMock.VerifyNoOtherCalls();
-
         exception.Should().BeSameAs(exception);
         exceptionConsumerSettings.Should().BeSameAs(consumerSettings);
     }
 
     [Fact]
-    public async Task When_MessageArrives_Then_OnMessageArrivedIsCalled()
+    public async Task When_MessageArrives_Then_MessageHandlerIsCalled()
     {
         // arrange
         var message = new SomeMessage();
         var topic = "topic1";
 
-        var onMessageArrivedMock = new Mock<Action<IMessageBus, AbstractConsumerSettings, object, string, object>>();
-
-        _busMock.Bus.Settings.OnMessageArrived = onMessageArrivedMock.Object;
-
         var consumerSettings = new ConsumerBuilder<SomeMessage>(_busMock.Bus.Settings).Topic(topic).WithConsumer<IConsumer<SomeMessage>>().ConsumerSettings;
-        consumerSettings.OnMessageArrived = onMessageArrivedMock.Object;
 
         var transportMessage = Array.Empty<byte>();
 
@@ -153,9 +136,6 @@ public class ConsumerInstanceMessageProcessorTest
         // assert
         _busMock.ConsumerMock.Verify(x => x.OnHandle(message), Times.Once); // handler called once
         _busMock.ConsumerMock.VerifyNoOtherCalls();
-
-        onMessageArrivedMock.Verify(x => x(_busMock.Bus, consumerSettings, message, topic, It.IsAny<object>()), Times.Exactly(2)); // callback called once for consumer and _bus level
-        onMessageArrivedMock.VerifyNoOtherCalls();
     }
 
     [Fact]
