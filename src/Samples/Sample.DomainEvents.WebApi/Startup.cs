@@ -29,7 +29,22 @@ public class Startup
 
         services.AddControllers();
 
-        ConfigureMessageBus(services);
+        // Add services to the container.
+        // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+        services.AddEndpointsApiExplorer();
+        services.AddSwaggerGen();
+
+        services.AddScoped<IAuditService, AuditService>();
+
+        services.AddSlimMessageBus(mbb =>
+        {
+            mbb.WithProviderMemory()
+               .AutoDeclareFrom(typeof(OrderSubmittedHandler).Assembly);
+
+            mbb.AddServicesFromAssemblyContaining<OrderSubmittedHandler>();
+            mbb.AddAspNet();
+        })
+        .AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
     }
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -55,25 +70,12 @@ public class Startup
         //app.UseAuthentication();
         //app.UseAuthorization();
 
+        app.UseSwagger();
+        app.UseSwaggerUI();
+
         app.UseEndpoints(endpoints =>
         {
             endpoints.MapDefaultControllerRoute();
         });
-    }
-
-    public void ConfigureMessageBus(IServiceCollection services)
-    {
-        // Make the MessageBus per request scope
-        services
-            .AddSlimMessageBus(mbb =>
-            {
-                mbb
-                    .WithProviderMemory()
-                    .AutoDeclareFrom(typeof(OrderSubmittedHandler).Assembly);
-
-                mbb.AddServicesFromAssemblyContaining<OrderSubmittedHandler>();
-                mbb.AddAspNet();
-            })
-            .AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
     }
 }

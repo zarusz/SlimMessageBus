@@ -168,16 +168,18 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
         // act
         foreach (var cmd in commands)
         {
-            using var unitOfWorkScope = ServiceProvider!.CreateScope();
-
-            var bus = unitOfWorkScope.ServiceProvider.GetRequiredService<IMessageBus>();
-
-            try
+            var unitOfWorkScope = ServiceProvider!.CreateScope();
+            await using (unitOfWorkScope as IAsyncDisposable)
             {
-                var res = await bus.Send(cmd);
-            }
-            catch
-            {
+                var bus = unitOfWorkScope.ServiceProvider.GetRequiredService<IMessageBus>();
+
+                try
+                {
+                    var res = await bus.Send(cmd);
+                }
+                catch
+                {
+                }
             }
         }
 

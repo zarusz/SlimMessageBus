@@ -8,7 +8,7 @@ public static class BuilderExtensions
     static readonly internal string PropertyTransactionScopeEnabled = "TransactionScope_Enabled";
 
     /// <summary>
-    /// Enables the Publish for all message types in this bus to go via the outbox.
+    /// Enables the ProducePublish for all message types in this bus to go via the outbox.
     /// </summary>
     /// <param name="builder"></param>
     /// <param name="enabled"></param>
@@ -20,7 +20,7 @@ public static class BuilderExtensions
     }
 
     /// <summary>
-    /// Enables the Publish for the particular message type to go via the outbox.
+    /// Enables the ProducePublish for the particular message type to go via the outbox.
     /// </summary>
     /// <param name="builder"></param>
     /// <param name="enabled"></param>

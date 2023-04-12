@@ -2,12 +2,6 @@
 
 using SlimMessageBus.Host.Collections;
 
-public interface IMessageHandler
-{
-    Task<(object Response, Exception ResponseException, string RequestId)> DoHandle(object message, IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, CancellationToken cancellationToken, object nativeMessage = null);
-    Task<object> ExecuteConsumer(object message, IConsumerContext consumerContext, IMessageTypeConsumerInvokerSettings consumerInvoker, Type responseType);
-}
-
 public class MessageHandler : IMessageHandler
 {
     private readonly ILogger _logger;
@@ -37,7 +31,7 @@ public class MessageHandler : IMessageHandler
         Path = path ?? throw new ArgumentNullException(nameof(path));
     }
 
-    public async Task<(object Response, Exception ResponseException, string RequestId)> DoHandle(object message, IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, CancellationToken cancellationToken, object nativeMessage = null)
+    public async Task<(object Response, Exception ResponseException, string RequestId)> DoHandle(object message, IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, CancellationToken cancellationToken, object nativeMessage = null, IServiceProvider currentServiceProvider = null)
     {
         var messageType = message.GetType();
 
@@ -53,7 +47,7 @@ public class MessageHandler : IMessageHandler
             messageHeaders.TryGetHeader(ReqRespMessageHeaders.RequestId, out requestId);
         }
 
-        await using (var messageScope = _messageScopeFactory.CreateMessageScope(consumerInvoker.ParentSettings, message))
+        await using (var messageScope = _messageScopeFactory.CreateMessageScope(consumerInvoker.ParentSettings, message, currentServiceProvider))
         {
             if (messageHeaders != null && messageHeaders.TryGetHeader(ReqRespMessageHeaders.Expires, out DateTimeOffset? expires) && expires != null)
             {

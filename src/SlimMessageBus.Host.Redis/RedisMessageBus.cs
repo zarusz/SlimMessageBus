@@ -211,7 +211,7 @@ public class RedisMessageBus : MessageBusBase
 
     #region Overrides of MessageBusBase
 
-    public override Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
+    protected override Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
     {
         var messageType = message.GetType();
 

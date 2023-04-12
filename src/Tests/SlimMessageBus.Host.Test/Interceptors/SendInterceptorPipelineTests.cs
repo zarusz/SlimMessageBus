@@ -47,10 +47,10 @@ public class SendInterceptorPipelineTests
         };
 
         _busMock.BusMock
-            .Setup(x => x.SendInternal<SomeResponse>(request, context.Path, request.GetType(), typeof(SomeResponse), producerSettings, context.Created, context.Expires, context.RequestId, context.Headers, context.CancellationToken))
+            .Setup(x => x.SendInternal<SomeResponse>(request, context.Path, request.GetType(), typeof(SomeResponse), producerSettings, context.Created, context.Expires, context.RequestId, context.Headers, _busMock.DependencyResolverMock.Object, context.CancellationToken))
             .Returns(() => Task.FromResult(response));
 
-        var subject = new SendInterceptorPipeline<SomeResponse>(_busMock.Bus, request, producerSettings, context, producerInterceptors: producerInterceptors, sendInterceptors: sendInterceptors);
+        var subject = new SendInterceptorPipeline<SomeResponse>(_busMock.Bus, request, producerSettings, _busMock.DependencyResolverMock.Object, context, producerInterceptors: producerInterceptors, sendInterceptors: sendInterceptors);
 
         // act
         var result = await subject.Next();
@@ -70,6 +70,6 @@ public class SendInterceptorPipelineTests
         }
         sendInterceptorMock.VerifyNoOtherCalls();
 
-        _busMock.BusMock.Verify(x => x.SendInternal<SomeResponse>(request, context.Path, request.GetType(), typeof(SomeResponse), producerSettings, context.Created, context.Expires, context.RequestId, context.Headers, context.CancellationToken), Times.Once);
+        _busMock.BusMock.Verify(x => x.SendInternal<SomeResponse>(request, context.Path, request.GetType(), typeof(SomeResponse), producerSettings, context.Created, context.Expires, context.RequestId, context.Headers, _busMock.DependencyResolverMock.Object, context.CancellationToken), Times.Once);
     }
 }

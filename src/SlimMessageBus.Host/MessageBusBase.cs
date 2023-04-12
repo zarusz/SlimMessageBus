@@ -369,17 +369,9 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         return path;
     }
 
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="message"></param>
-    /// <param name="path"></param>
-    /// <param name="messagePayload"></param>
-    /// <param name="messageHeaders"></param>
-    /// <param name="cancellationToken"></param>
-    public abstract Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null, CancellationToken cancellationToken = default);
+    protected abstract Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null, CancellationToken cancellationToken = default);
 
-    public virtual Task Publish(object message, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, IServiceProvider currentServiceProvider = null)
+    public virtual Task ProducePublish(object message, string path, IDictionary<string, object> headers, IServiceProvider currentServiceProvider, CancellationToken cancellationToken)
     {
         if (message == null) throw new ArgumentNullException(nameof(message));
         AssertActive();
@@ -401,10 +393,10 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
             AddMessageHeaders(messageHeaders, headers, message, producerSettings);
         }
 
-        var resolver = currentServiceProvider ?? Settings.ServiceProvider;
+        var serviceProvider = currentServiceProvider ?? Settings.ServiceProvider;
 
-        var producerInterceptors = RuntimeTypeCache.ProducerInterceptorType.ResolveAll(resolver, messageType);
-        var publishInterceptors = RuntimeTypeCache.PublishInterceptorType.ResolveAll(resolver, messageType);
+        var producerInterceptors = RuntimeTypeCache.ProducerInterceptorType.ResolveAll(serviceProvider, messageType);
+        var publishInterceptors = RuntimeTypeCache.PublishInterceptorType.ResolveAll(serviceProvider, messageType);
         if (producerInterceptors != null || publishInterceptors != null)
         {
             var context = new PublishContext
@@ -416,14 +408,14 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
                 ProducerSettings = producerSettings
             };
 
-            var pipeline = new PublishInterceptorPipeline(this, message, producerSettings, context, producerInterceptors: producerInterceptors, publishInterceptors: publishInterceptors);
+            var pipeline = new PublishInterceptorPipeline(this, message, producerSettings, serviceProvider, context, producerInterceptors: producerInterceptors, publishInterceptors: publishInterceptors);
             return pipeline.Next();
         }
 
-        return PublishInternal(message, path, messageHeaders, cancellationToken, producerSettings);
+        return PublishInternal(message, path, messageHeaders, cancellationToken, producerSettings, currentServiceProvider);
     }
 
-    protected internal virtual Task PublishInternal(object message, string path, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken, ProducerSettings producerSettings)
+    protected internal virtual Task PublishInternal(object message, string path, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken, ProducerSettings producerSettings, IServiceProvider currentServiceProvider)
     {
         OnProducedHook(message, path, producerSettings);
 
@@ -474,7 +466,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         return timeout;
     }
 
-    public virtual Task<TResponse> SendInternal<TResponse>(object request, TimeSpan? timeout, string path, IDictionary<string, object> headers, CancellationToken cancellationToken, IServiceProvider currentServiceProvider = null)
+    public virtual Task<TResponse> ProduceSend<TResponse>(object request, TimeSpan? timeout, string path, IDictionary<string, object> headers, IServiceProvider currentServiceProvider, CancellationToken cancellationToken)
     {
         if (request == null) throw new ArgumentNullException(nameof(request));
         AssertActive();
@@ -512,10 +504,10 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
             requestHeaders.SetHeader(ReqRespMessageHeaders.Expires, expires);
         }
 
-        var resolver = currentServiceProvider ?? Settings.ServiceProvider;
+        var serviceProvider = currentServiceProvider ?? Settings.ServiceProvider;
 
-        var producerInterceptors = RuntimeTypeCache.ProducerInterceptorType.ResolveAll(resolver, requestType);
-        var sendInterceptors = RuntimeTypeCache.SendInterceptorType.ResolveAll(resolver, (requestType, responseType));
+        var producerInterceptors = RuntimeTypeCache.ProducerInterceptorType.ResolveAll(serviceProvider, requestType);
+        var sendInterceptors = RuntimeTypeCache.SendInterceptorType.ResolveAll(serviceProvider, (requestType, responseType));
         if (producerInterceptors != null || sendInterceptors != null)
         {
             var context = new SendContext
@@ -530,14 +522,14 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
                 RequestId = requestId,
             };
 
-            var pipeline = new SendInterceptorPipeline<TResponse>(this, request, producerSettings, context, producerInterceptors: producerInterceptors, sendInterceptors: sendInterceptors);
+            var pipeline = new SendInterceptorPipeline<TResponse>(this, request, producerSettings, serviceProvider, context, producerInterceptors: producerInterceptors, sendInterceptors: sendInterceptors);
             return pipeline.Next();
         }
 
-        return SendInternal<TResponse>(request, path, requestType, responseType, producerSettings, created, expires, requestId, requestHeaders, cancellationToken);
+        return SendInternal<TResponse>(request, path, requestType, responseType, producerSettings, created, expires, requestId, requestHeaders, currentServiceProvider, cancellationToken);
     }
 
-    protected async internal virtual Task<TResponseMessage> SendInternal<TResponseMessage>(object request, string path, Type requestType, Type responseType, ProducerSettings producerSettings, DateTimeOffset created, DateTimeOffset expires, string requestId, IDictionary<string, object> requestHeaders, CancellationToken cancellationToken)
+    protected async internal virtual Task<TResponseMessage> SendInternal<TResponseMessage>(object request, string path, Type requestType, Type responseType, ProducerSettings producerSettings, DateTimeOffset created, DateTimeOffset expires, string requestId, IDictionary<string, object> requestHeaders, IServiceProvider currentServiceProvider, CancellationToken cancellationToken)
     {
         // record the request state
         var requestState = new PendingRequestState(requestId, request, requestType, responseType, created, expires, cancellationToken);
@@ -706,36 +698,35 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     public virtual bool IsMessageScopeEnabled(ConsumerSettings consumerSettings) => consumerSettings.IsMessageScopeEnabled ?? Settings.IsMessageScopeEnabled ?? true;
 
-    public virtual MessageScopeWrapper CreateMessageScope(ConsumerSettings consumerSettings, object message)
+    public virtual MessageScopeWrapper CreateMessageScope(ConsumerSettings consumerSettings, object message, IServiceProvider currentServiceProvider = null)
     {
-        // ToDo: Move to MessageBusProxy to pick up the local scope
         var createMessageScope = IsMessageScopeEnabled(consumerSettings);
-        return new MessageScopeWrapper(_logger, Settings.ServiceProvider, createMessageScope, message);
+        return new MessageScopeWrapper(_logger, currentServiceProvider ?? Settings.ServiceProvider, createMessageScope, message);
     }
+
+    public virtual Task ProvisionTopology() => Task.CompletedTask;
 
     #region Implementation of IMessageBus
 
     #region Implementation of IPublishBus
 
     public virtual Task Publish<TMessage>(TMessage message, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
-        => Publish(message, path, headers, cancellationToken, currentServiceProvider: null);
+        => ProducePublish(message, path, headers, currentServiceProvider: null, cancellationToken);
 
     #endregion
 
     #region Implementation of IRequestResponseBus
 
     public virtual Task<TResponse> Send<TResponse>(IRequest<TResponse> request, string path = null, IDictionary<string, object> headers = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-        => SendInternal<TResponse>(request, timeout, path, headers, cancellationToken);
+        => ProduceSend<TResponse>(request, timeout, path, headers, currentServiceProvider: null, cancellationToken);
 
     public Task Send(IRequest request, string path = null, IDictionary<string, object> headers = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-        => SendInternal<Void>(request, timeout, path, headers, cancellationToken);
+        => ProduceSend<Void>(request, timeout, path, headers, currentServiceProvider: null, cancellationToken);
 
     public Task<TResponse> Send<TResponse, TRequest>(TRequest request, string path = null, IDictionary<string, object> headers = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-        => SendInternal<TResponse>(request, timeout, path, headers, cancellationToken);
+        => ProduceSend<TResponse>(request, timeout, path, headers, currentServiceProvider: null, cancellationToken);
 
     #endregion
 
     #endregion
-
-    public virtual Task ProvisionTopology() => Task.CompletedTask;
 }

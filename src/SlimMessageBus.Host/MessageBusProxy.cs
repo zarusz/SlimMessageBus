@@ -22,20 +22,20 @@ public class MessageBusProxy : IMessageBus, ICompositeMessageBus
     #region Implementation of IPublishBus
 
     public Task Publish<TMessage>(TMessage message, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
-        => Target.Publish(message, path: path, headers: headers, cancellationToken: cancellationToken, currentServiceProvider: ServiceProvider);
+        => Target.ProducePublish(message, path, headers, currentServiceProvider: ServiceProvider, cancellationToken);
 
     #endregion
 
     #region Implementation of IRequestResponseBus
 
     public Task<TResponseMessage> Send<TResponseMessage>(IRequest<TResponseMessage> request, string path = null, IDictionary<string, object> headers = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-        => Target.SendInternal<TResponseMessage>(request, timeout: timeout, path: path, headers: headers, cancellationToken, currentServiceProvider: ServiceProvider);
+        => Target.ProduceSend<TResponseMessage>(request, timeout: timeout, path: path, headers: headers, currentServiceProvider: ServiceProvider, cancellationToken);
 
     public Task<TResponseMessage> Send<TResponseMessage, TRequestMessage>(TRequestMessage request, string path = null, IDictionary<string, object> headers = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-        => Target.SendInternal<TResponseMessage>(request, timeout: timeout, path: path, headers: headers, cancellationToken, currentServiceProvider: ServiceProvider);
+        => Target.ProduceSend<TResponseMessage>(request, timeout: timeout, path: path, headers: headers, currentServiceProvider: ServiceProvider, cancellationToken);
 
     public Task Send(IRequest request, string path = null, IDictionary<string, object> headers = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-        => Target.SendInternal<Void>(request, timeout: timeout, path: path, headers: headers, cancellationToken, currentServiceProvider: ServiceProvider);
+        => Target.ProduceSend<Void>(request, timeout: timeout, path: path, headers: headers, currentServiceProvider: ServiceProvider, cancellationToken);
 
     #endregion
 

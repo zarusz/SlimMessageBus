@@ -64,37 +64,32 @@ public class MemoryMessageBus : MessageBusBase
     }
 
     private IMessageProcessor<object> CreateMessageProcessor(IEnumerable<ConsumerSettings> consumerSettings, string path)
-        => new ConsumerInstanceMessageProcessor<object>(consumerSettings, this, MessageProvider, path: path,
+        => new ConsumerInstanceMessageProcessor<object>(consumerSettings, this,
+            path: path,
             sendResponses: false,
+            messageProvider: _providerSettings.EnableMessageSerialization
+                ? (messageType, transportMessage) => Serializer.Deserialize(messageType, (byte[])transportMessage)
+                : (messageType, transportMessage) => transportMessage,
             messageTypeProvider: _providerSettings.EnableMessageSerialization
                 ? null
                 : transportMessage => transportMessage.GetType());
 
-    private object MessageProvider(Type messageType, object transportMessage)
-    {
-        if (_providerSettings.EnableMessageSerialization)
-        {
-            // The serialization is enabled, hence we need to deserialize bytes
-            return Serializer.Deserialize(messageType, (byte[])transportMessage);
-        }
-        // The copy of the message is passed (searialization does not happen)
-        return transportMessage;
-    }
-
-    public override Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null, CancellationToken cancellationToken = default)
+    protected override Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null, CancellationToken cancellationToken = default)
         => Task.CompletedTask; // Not used
 
-    protected override Task PublishInternal(object message, string path, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken, ProducerSettings producerSettings)
-        => ProduceInternal<object>(message, path, producerSettings, messageHeaders, expectsResponse: false, cancellationToken);
+    protected override Task PublishInternal(object message, string path, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken, ProducerSettings producerSettings, IServiceProvider currentServiceProvider)
+        => ProduceInternal<object>(message, path, messageHeaders, currentServiceProvider, cancellationToken);
 
-    protected override Task<TResponseMessage> SendInternal<TResponseMessage>(object request, string path, Type requestType, Type responseType, ProducerSettings producerSettings, DateTimeOffset created, DateTimeOffset expires, string requestId, IDictionary<string, object> requestHeaders, CancellationToken cancellationToken)
-        => ProduceInternal<TResponseMessage>(request, path, producerSettings, requestHeaders, expectsResponse: true, cancellationToken);
+    protected override Task<TResponseMessage> SendInternal<TResponseMessage>(object request, string path, Type requestType, Type responseType, ProducerSettings producerSettings, DateTimeOffset created, DateTimeOffset expires, string requestId, IDictionary<string, object> requestHeaders, IServiceProvider currentServiceProvider, CancellationToken cancellationToken)
+        => ProduceInternal<TResponseMessage>(request, path, requestHeaders, currentServiceProvider, cancellationToken);
 
     #endregion
 
-    private async Task<TResponseMessage> ProduceInternal<TResponseMessage>(object message, string path, ProducerSettings producerSettings, IDictionary<string, object> requestHeaders, bool expectsResponse, CancellationToken cancellationToken)
+    private async Task<TResponseMessage> ProduceInternal<TResponseMessage>(object message, string path, IDictionary<string, object> requestHeaders, IServiceProvider currentServiceProvider, CancellationToken cancellationToken)
     {
         var messageType = message.GetType();
+        var producerSettings = GetProducerSettings(messageType);
+        path ??= GetDefaultPath(producerSettings.MessageType, producerSettings);
         if (!_consumersByPath.TryGetValue(path, out var messageProcessor))
         {
             _logger.LogDebug("No consumers interested in message type {MessageType} on path {Path}", messageType, path);
@@ -109,7 +104,7 @@ public class MemoryMessageBus : MessageBusBase
             ? requestHeaders as IReadOnlyDictionary<string, object> ?? new Dictionary<string, object>(requestHeaders)
             : null;
 
-        var (exception, exceptionConsumerSettings, response) = await messageProcessor.ProcessMessage(transportMessage, messageHeadersReadOnly, cancellationToken);
+        var (exception, exceptionConsumerSettings, response) = await messageProcessor.ProcessMessage(transportMessage, messageHeadersReadOnly, cancellationToken, currentServiceProvider);
         if (exception != null)
         {
             OnMessageFailed(message, exceptionConsumerSettings, exception);

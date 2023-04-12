@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Hybrid;
 
-using SlimMessageBus.Host;
-
 public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDisposable, IAsyncDisposable
 {
     private readonly ILogger _logger;
@@ -142,10 +140,10 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
 
     #endregion
 
-    public Task<TResponseMessage> SendInternal<TResponseMessage>(object request, TimeSpan? timeout, string path, IDictionary<string, object> headers, CancellationToken cancellationToken, IServiceProvider currentServiceProvider = null)
+    public Task<TResponseMessage> ProduceSend<TResponseMessage>(object request, TimeSpan? timeout, string path, IDictionary<string, object> headers, IServiceProvider currentServiceProvider, CancellationToken cancellationToken)
     {
         var buses = Route(request, path);
-        return buses[0].SendInternal<TResponseMessage>(request, timeout, path, headers, cancellationToken, currentServiceProvider);
+        return buses[0].ProduceSend<TResponseMessage>(request, timeout, path, headers, currentServiceProvider, cancellationToken);
     }
 
     #region Implementation of IPublishBus
@@ -172,25 +170,25 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
         }
     }
 
-    public async Task Publish(object message, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default, IServiceProvider currentServiceProvider = null)
+    public async Task ProducePublish(object message, string path, IDictionary<string, object> headers, IServiceProvider currentServiceProvider, CancellationToken cancellationToken)
     {
         var buses = Route(message, path);
 
         if (buses.Length == 1)
         {
-            await buses[0].Publish(message, path, headers, cancellationToken, currentServiceProvider);
+            await buses[0].ProducePublish(message, path, headers, currentServiceProvider, cancellationToken);
             return;
         }
 
         if (ProviderSettings.PublishExecutionMode == PublishExecutionMode.Parallel)
         {
-            await Task.WhenAll(buses.Select(bus => bus.Publish(message, path, headers, cancellationToken, currentServiceProvider)));
+            await Task.WhenAll(buses.Select(bus => bus.ProducePublish(message, path, headers, currentServiceProvider, cancellationToken)));
             return;
         }
 
         for (var i = 0; i < buses.Length; i++)
         {
-            await buses[i].Publish(message, path, headers, cancellationToken, currentServiceProvider);
+            await buses[i].ProducePublish(message, path, headers, currentServiceProvider, cancellationToken);
         }
     }
 

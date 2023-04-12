@@ -25,31 +25,33 @@ public class ConcurrencyIncreasingMessageProcessorDecoratorTest
         var maxSectionCountLock = new object();
         var messageCount = 0;
 
-        _messageProcessorMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<CancellationToken>())).Returns(async () =>
-        {
-            // Entering critical section
-            Interlocked.Increment(ref currentSectionCount);
-
-            // Simulate work
-            await Task.Delay(50);
-
-            Interlocked.Increment(ref messageCount);
-
-            lock (maxSectionCountLock)
+        _messageProcessorMock
+            .Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<CancellationToken>(), It.IsAny<IServiceProvider>()))
+            .Returns(async () =>
             {
-                if (currentSectionCount > maxSectionCount)
+                // Entering critical section
+                Interlocked.Increment(ref currentSectionCount);
+
+                // Simulate work
+                await Task.Delay(50);
+
+                Interlocked.Increment(ref messageCount);
+
+                lock (maxSectionCountLock)
                 {
-                    maxSectionCount = currentSectionCount;
+                    if (currentSectionCount > maxSectionCount)
+                    {
+                        maxSectionCount = currentSectionCount;
+                    }
                 }
-            }
 
-            // Simulate work
-            await Task.Delay(50);
+                // Simulate work
+                await Task.Delay(50);
 
-            // Leaving critical section
-            Interlocked.Decrement(ref currentSectionCount);
-            return (null, null, null);
-        });
+                // Leaving critical section
+                Interlocked.Decrement(ref currentSectionCount);
+                return (null, null, null);
+            });
 
         // act
         var msg = new SomeMessage();

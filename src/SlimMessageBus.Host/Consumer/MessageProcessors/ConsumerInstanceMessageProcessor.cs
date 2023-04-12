@@ -61,7 +61,7 @@ public class ConsumerInstanceMessageProcessor<TTransportMessage> : MessageHandle
 
     #endregion
 
-    public virtual async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response)> ProcessMessage(TTransportMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
+    public virtual async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response)> ProcessMessage(TTransportMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken, IServiceProvider currentServiceProvider = null)
     {
         IMessageTypeConsumerInvokerSettings lastConsumerInvoker = null;
         Exception lastException = null;
@@ -91,7 +91,7 @@ public class ConsumerInstanceMessageProcessor<TTransportMessage> : MessageHandle
                             break;
                         }
 
-                        (lastResponse, lastException, var requestId) = await DoHandle(message, messageHeaders, consumerInvoker, cancellationToken, transportMessage).ConfigureAwait(false);
+                        (lastResponse, lastException, var requestId) = await DoHandle(message, messageHeaders, consumerInvoker, cancellationToken, transportMessage, currentServiceProvider).ConfigureAwait(false);
 
                         if (consumerInvoker.ParentSettings.ConsumerMode == ConsumerMode.RequestResponse && _sendResponses)
                         {

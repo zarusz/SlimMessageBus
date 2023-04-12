@@ -148,7 +148,7 @@ public class EventHubMessageBus : MessageBusBase
         await Task.WhenAll(_groupConsumers.Select(x => x.Stop()));
     }
 
-    public override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
+    protected override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
     {
         AssertActive();
 

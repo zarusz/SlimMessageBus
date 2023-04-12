@@ -1,7 +1,9 @@
 ﻿namespace Sample.DomainEvents.Application;
 
 using Microsoft.Extensions.Logging;
+
 using Sample.DomainEvents.Domain;
+
 using SlimMessageBus;
 
 /// <summary>
@@ -25,4 +27,3 @@ public class OrderSubmittedHandler : IConsumer<OrderSubmittedEvent>
         return Task.Delay(1000);
     }
 }
-

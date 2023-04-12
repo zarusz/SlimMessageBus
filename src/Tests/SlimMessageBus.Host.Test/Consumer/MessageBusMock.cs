@@ -76,6 +76,6 @@ public class MessageBusMock
         BusMock.SetupGet(x => x.Serializer).CallBase();
         BusMock.SetupGet(x => x.CurrentTime).Returns(() => CurrentTime);
         BusMock.Setup(x => x.CreateHeaders()).CallBase();
-        BusMock.Setup(x => x.CreateMessageScope(It.IsAny<ConsumerSettings>(), It.IsAny<object>())).CallBase();
+        BusMock.Setup(x => x.CreateMessageScope(It.IsAny<ConsumerSettings>(), It.IsAny<object>(), It.IsAny<IServiceProvider>())).CallBase();
     }
 }

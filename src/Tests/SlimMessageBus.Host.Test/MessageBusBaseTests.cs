@@ -548,7 +548,7 @@ public class MessageBusBaseTests : IDisposable
 
         if (publishInterceptorCallsNext != null)
         {
-            // Publish interceptor is called after Producer interceptor, if producer does not call next() the publish interceptor does not get a chance to fire
+            // ProducePublish interceptor is called after Producer interceptor, if producer does not call next() the publish interceptor does not get a chance to fire
             if (producerInterceptorCallsNext == null || producerInterceptorCallsNext == true)
             {
                 publishInterceptorMock.Verify(x => x.OnHandle(m, It.IsAny<Func<Task>>(), It.IsAny<IProducerContext>()), Times.Once);
@@ -647,7 +647,7 @@ public class MessageBusBaseTests : IDisposable
 
         if (sendInterceptorCallsNext != null)
         {
-            // Publish interceptor is called after Producer interceptor, if producer does not call next() the publish interceptor does not get a chance to fire
+            // ProducePublish interceptor is called after Producer interceptor, if producer does not call next() the publish interceptor does not get a chance to fire
             if (producerInterceptorCallsNext == null || producerInterceptorCallsNext == true)
             {
                 sendInterceptorMock.Verify(x => x.OnHandle(request, It.IsAny<Func<Task<ResponseA>>>(), It.IsAny<IProducerContext>()), Times.Once);
