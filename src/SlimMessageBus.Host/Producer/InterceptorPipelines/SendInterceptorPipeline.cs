@@ -7,8 +7,8 @@ internal class SendInterceptorPipeline<TResponse> : ProducerInterceptorPipeline<
     private IEnumerator<object> _sendInterceptorsEnumerator;
     private bool _sendInterceptorsVisited = false;
 
-    public SendInterceptorPipeline(MessageBusBase bus, object message, ProducerSettings producerSettings, SendContext context, IEnumerable<object> producerInterceptors, IEnumerable<object> sendInterceptors)
-        : base(bus, message, producerSettings, context, producerInterceptors)
+    public SendInterceptorPipeline(MessageBusBase bus, object message, ProducerSettings producerSettings, IServiceProvider currentServiceProvider, SendContext context, IEnumerable<object> producerInterceptors, IEnumerable<object> sendInterceptors)
+        : base(bus, message, producerSettings, currentServiceProvider, context, producerInterceptors)
     {
         _sendInterceptors = sendInterceptors;
         _sendInterceptorFunc = bus.RuntimeTypeCache.SendInterceptorType[(message.GetType(), typeof(TResponse))];
@@ -45,7 +45,7 @@ internal class SendInterceptorPipeline<TResponse> : ProducerInterceptorPipeline<
         if (!_targetVisited)
         {
             _targetVisited = true;
-            var response = await _bus.SendInternal<TResponse>(_message, _context.Path, _message.GetType(), typeof(TResponse), _producerSettings, _context.Created, _context.Expires, _context.RequestId, _context.Headers, _context.CancellationToken);
+            var response = await _bus.SendInternal<TResponse>(_message, _context.Path, _message.GetType(), typeof(TResponse), _producerSettings, _context.Created, _context.Expires, _context.RequestId, _context.Headers, _currentServiceProvider, _context.CancellationToken);
             return response;
         }
 

@@ -46,30 +46,20 @@ public class MessageScopeWrapperTest
         var subject = new MessageScopeWrapper(NullLogger.Instance, serviceProviderMock.Object, createScope, messageMock.Object);
 
         // assert
-        if (currentScopeExists)
+        if (createScope)
         {
-            MessageScope.Current.Should().BeSameAs(currentServiceProvider.Object);
+            MessageScope.Current.Should().BeSameAs(scopeServiceProviderMock.Object);
         }
         else
         {
-            if (createScope)
-            {
-                MessageScope.Current.Should().BeSameAs(scopeServiceProviderMock.Object);
-            }
-            else
-            {
-                MessageScope.Current.Should().BeNull();
-            }
+            MessageScope.Current.Should().BeSameAs(currentServiceProvider?.Object);
         }
 
-        if (!currentScopeExists)
+        if (createScope)
         {
-            if (createScope)
-            {
-                scopeMock.VerifyGet(x => x.ServiceProvider, Times.Once());
-                serviceScopeFactoryMock.Verify(x => x.CreateScope(), Times.Once());
-                serviceProviderMock.Verify(x => x.GetService(typeof(IServiceScopeFactory)), Times.Once());
-            }
+            scopeMock.VerifyGet(x => x.ServiceProvider, Times.Once());
+            serviceScopeFactoryMock.Verify(x => x.CreateScope(), Times.Once());
+            serviceProviderMock.Verify(x => x.GetService(typeof(IServiceScopeFactory)), Times.Once());
         }
 
         scopeMock.VerifyNoOtherCalls();
@@ -96,25 +86,22 @@ public class MessageScopeWrapperTest
         await subject.DisposeAsync().ConfigureAwait(false);
 
         // assert
-        if (currentScopeExists)
-        {
-            MessageScope.Current.Should().BeSameAs(currentServiceProvider.Object);
-        }
-        else
+        if (createScope)
         {
             MessageScope.Current.Should().BeNull();
         }
-
-        if (!currentScopeExists)
+        else
         {
-            if (createScope)
-            {
-                scopeMock.VerifyGet(x => x.ServiceProvider, Times.Once());
-                scopeMock.Verify(x => x.Dispose(), Times.Once());
+            MessageScope.Current.Should().BeSameAs(currentServiceProvider?.Object);
+        }
 
-                serviceScopeFactoryMock.Verify(x => x.CreateScope(), Times.Once());
-                serviceProviderMock.Verify(x => x.GetService(typeof(IServiceScopeFactory)), Times.Once());
-            }
+        if (createScope)
+        {
+            scopeMock.VerifyGet(x => x.ServiceProvider, Times.Once());
+            scopeMock.Verify(x => x.Dispose(), Times.Once());
+
+            serviceScopeFactoryMock.Verify(x => x.CreateScope(), Times.Once());
+            serviceProviderMock.Verify(x => x.GetService(typeof(IServiceScopeFactory)), Times.Once());
         }
 
         scopeMock.VerifyNoOtherCalls();

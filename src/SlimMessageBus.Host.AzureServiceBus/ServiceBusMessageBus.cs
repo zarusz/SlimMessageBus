@@ -168,7 +168,7 @@ public class ServiceBusMessageBus : MessageBusBase
         }
     }
 
-    public override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
+    protected override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
     {
         var messageType = message?.GetType();
 

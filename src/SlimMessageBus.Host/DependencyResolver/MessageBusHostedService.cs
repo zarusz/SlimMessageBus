@@ -8,10 +8,21 @@ using Microsoft.Extensions.Hosting;
 public class MessageBusHostedService : IHostedService
 {
     private readonly IConsumerControl _bus;
+    private readonly MessageBusSettings _messageBusSettings;
 
-    public MessageBusHostedService(IConsumerControl bus) => _bus = bus;
+    public MessageBusHostedService(IConsumerControl bus, MessageBusSettings messageBusSettings)
+    {
+        _bus = bus;
+        _messageBusSettings = messageBusSettings;
+    }
 
-    public Task StartAsync(CancellationToken cancellationToken) => _bus.Start();
+    public async Task StartAsync(CancellationToken cancellationToken)
+    {
+        if (_messageBusSettings.AutoStartConsumers)
+        {
+            await _bus.Start();
+        }
+    }
 
     public Task StopAsync(CancellationToken cancellationToken) => _bus.Stop();
 }

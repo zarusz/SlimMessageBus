@@ -200,7 +200,7 @@ public class OutboxSendingTask : IMessageBusLifecycleInterceptor, IAsyncDisposab
 
                     if (!ct.IsCancellationRequested)
                     {
-                        await bus.Publish(message, path: outboxMessage.Path, headers: headers, cancellationToken: ct, currentServiceProvider: serviceProvider);
+                        await bus.ProducePublish(message, path: outboxMessage.Path, headers: headers, cancellationToken: ct, currentServiceProvider: serviceProvider);
 
                         processedIds.Add(outboxMessage.Id);
                     }

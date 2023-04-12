@@ -20,7 +20,7 @@ public class MessageBusTested : MessageBusBase
 
     #region Overrides of MessageBusBase
 
-    public override async Task<object> ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken = default)
+    protected override async Task<object> ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken = default)
     {
         var messageType = message.GetType();
         OnProduced(messageType, path, message);

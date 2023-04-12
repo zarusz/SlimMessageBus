@@ -7,8 +7,8 @@ internal class PublishInterceptorPipeline : ProducerInterceptorPipeline<PublishC
     private IEnumerator<object> _publishInterceptorsEnumerator;
     private bool _publishInterceptorsVisited = false;
 
-    public PublishInterceptorPipeline(MessageBusBase bus, object message, ProducerSettings producerSettings, PublishContext context, IEnumerable<object> producerInterceptors, IEnumerable<object> publishInterceptors)
-        : base(bus, message, producerSettings, context, producerInterceptors)
+    public PublishInterceptorPipeline(MessageBusBase bus, object message, ProducerSettings producerSettings, IServiceProvider currentServiceProvider, PublishContext context, IEnumerable<object> producerInterceptors, IEnumerable<object> publishInterceptors)
+        : base(bus, message, producerSettings, currentServiceProvider, context, producerInterceptors)
     {
         _publishInterceptors = publishInterceptors;
         _publishInterceptorFunc = bus.RuntimeTypeCache.PublishInterceptorType[message.GetType()];
@@ -42,7 +42,7 @@ internal class PublishInterceptorPipeline : ProducerInterceptorPipeline<PublishC
         if (!_targetVisited)
         {
             _targetVisited = true;
-            await _bus.PublishInternal(_message, _context.Path, _context.Headers, _context.CancellationToken, _producerSettings);
+            await _bus.PublishInternal(_message, _context.Path, _context.Headers, _context.CancellationToken, _producerSettings, _currentServiceProvider);
             return null;
         }
 

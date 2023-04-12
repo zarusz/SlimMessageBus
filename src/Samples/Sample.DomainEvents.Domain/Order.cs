@@ -7,6 +7,7 @@ using SlimMessageBus;
 /// </summary>
 public class Order
 {
+    public Guid Id { get; }
     public Customer Customer { get; }
     public OrderState State { get; private set; }
 
@@ -15,6 +16,7 @@ public class Order
 
     public Order(Customer customer)
     {
+        Id = Guid.NewGuid();
         State = OrderState.New;
         Customer = customer;
     }

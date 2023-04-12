@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Consumer;
 
-using Microsoft.Extensions.DependencyInjection;
-
 public sealed class MessageScopeWrapper : IAsyncDisposable
 {
     private readonly ILogger _logger;
@@ -15,14 +13,7 @@ public sealed class MessageScopeWrapper : IAsyncDisposable
         _logger = logger;
         _messageScope = serviceProvider;
 
-        // Capture if an existing scope has already been started
-        var existingScope = MessageScope.Current;
-        if (existingScope != null)
-        {
-            _logger.LogDebug("Joining existing message scope for {Message} of type {MessageType}", message, message.GetType());
-            _messageScope = existingScope;
-        }
-        else if (createMessageScope)
+        if (createMessageScope)
         {
             _logger.LogDebug("Creating message scope for {Message} of type {MessageType}", message, message.GetType());
             var ms = serviceProvider.CreateScope();

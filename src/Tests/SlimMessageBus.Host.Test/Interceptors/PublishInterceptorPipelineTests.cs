@@ -46,10 +46,10 @@ public class PublishInterceptorPipelineTests
         };
 
         _busMock.BusMock
-            .Setup(x => x.PublishInternal(message, context.Path, context.Headers, context.CancellationToken, producerSettings))
+            .Setup(x => x.PublishInternal(message, context.Path, context.Headers, context.CancellationToken, producerSettings, _busMock.DependencyResolverMock.Object))
             .Returns(() => Task.FromResult<object>(null));
 
-        var subject = new PublishInterceptorPipeline(_busMock.Bus, message, producerSettings, context, producerInterceptors: producerInterceptors, publishInterceptors: publishInterceptors);
+        var subject = new PublishInterceptorPipeline(_busMock.Bus, message, producerSettings, _busMock.DependencyResolverMock.Object, context, producerInterceptors: producerInterceptors, publishInterceptors: publishInterceptors);
 
         // act
         var result = await subject.Next();
@@ -69,6 +69,6 @@ public class PublishInterceptorPipelineTests
         }
         publishInterceptorMock.VerifyNoOtherCalls();
 
-        _busMock.BusMock.Verify(x => x.PublishInternal(message, context.Path, context.Headers, context.CancellationToken, producerSettings), Times.Once);
+        _busMock.BusMock.Verify(x => x.PublishInternal(message, context.Path, context.Headers, context.CancellationToken, producerSettings, _busMock.DependencyResolverMock.Object), Times.Once);
     }
 }
