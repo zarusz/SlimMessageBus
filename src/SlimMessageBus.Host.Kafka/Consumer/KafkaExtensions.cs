@@ -2,8 +2,6 @@
 
 using System.Diagnostics.CodeAnalysis;
 
-using SlimMessageBus.Host.Serialization;
-
 public static class KafkaExtensions
 {
     public static TopicPartitionOffset AddOffset([NotNull] this TopicPartitionOffset topicPartitionOffset, int addOffset)

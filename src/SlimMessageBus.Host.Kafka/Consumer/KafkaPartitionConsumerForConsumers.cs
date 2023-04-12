@@ -2,8 +2,6 @@ namespace SlimMessageBus.Host.Kafka;
 
 using System.Diagnostics.CodeAnalysis;
 
-using SlimMessageBus.Host.Serialization;
-
 using ConsumeResult = ConsumeResult<Ignore, byte[]>;
 
 /// <summary>

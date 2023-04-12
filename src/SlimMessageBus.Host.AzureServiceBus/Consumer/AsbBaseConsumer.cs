@@ -190,21 +190,10 @@ public abstract class AsbBaseConsumer : IAsyncDisposable, IConsumerControl
             return;
         }
 
-        var (exception, consumerSettings, response) = await MessageProcessor.ProcessMessage(message, message.ApplicationProperties, token).ConfigureAwait(false);
+        var (exception, _, _) = await MessageProcessor.ProcessMessage(message, message.ApplicationProperties, token).ConfigureAwait(false);
         if (exception != null)
         {
             _logger.LogError(exception, "Abandon message (exception occured while processing) - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
-
-            try
-            {
-                // Execute the event hook
-                consumerSettings?.OnMessageFault?.Invoke(MessageBus, consumerSettings, null, exception, message);
-                MessageBus.Settings.OnMessageFault?.Invoke(MessageBus, consumerSettings, null, exception, message);
-            }
-            catch (Exception eh)
-            {
-                MessageBusBase.HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageFault));
-            }
 
             var messageProperties = new Dictionary<string, object>
             {
@@ -224,17 +213,7 @@ public abstract class AsbBaseConsumer : IAsyncDisposable, IConsumerControl
 
     protected Task ProcessErrorAsyncInternal(Exception exception, ServiceBusErrorSource errorSource)
     {
-        try
-        {
-            _logger.LogError(exception, "Error while processing Path: {Path}, SubscriptionName: {SubscriptionName}, Error Message: {ErrorMessage}, Error Source: {ErrorSource}", TopicSubscription.Path, TopicSubscription.SubscriptionName, exception.Message, errorSource);
-
-            // Execute the event hook
-            MessageBus.Settings.OnMessageFault?.Invoke(MessageBus, null, null, exception, null);
-        }
-        catch (Exception eh)
-        {
-            MessageBusBase.HookFailed(_logger, eh, nameof(IConsumerEvents.OnMessageFault));
-        }
+        _logger.LogError(exception, "Error while processing Path: {Path}, SubscriptionName: {SubscriptionName}, Error Message: {ErrorMessage}, Error Source: {ErrorSource}", TopicSubscription.Path, TopicSubscription.SubscriptionName, exception.Message, errorSource);
         return Task.CompletedTask;
     }
 }

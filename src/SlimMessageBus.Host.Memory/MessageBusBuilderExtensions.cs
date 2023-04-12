@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Memory;
 
-using SlimMessageBus.Host;
-
 public static class MessageBusBuilderExtensions
 {
     public static MemoryMessageBusBuilder WithProviderMemory(this MessageBusBuilder mbb, Action<MemoryMessageBusSettings> configure = null)

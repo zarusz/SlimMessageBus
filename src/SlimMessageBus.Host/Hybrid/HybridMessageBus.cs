@@ -118,56 +118,12 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
         return buses;
     }
 
-    #region Implementation of IRequestResponseBus
-
-    public Task<TResponse> Send<TResponse>(IRequest<TResponse> request, string path = null, IDictionary<string, object> headers = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-    {
-        var buses = Route(request, path);
-        return buses[0].Send(request, path, headers, timeout, cancellationToken);
-    }
-
-    public Task Send(IRequest request, string path = null, IDictionary<string, object> headers = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-    {
-        var buses = Route(request, path);
-        return buses[0].Send(request, path, headers, timeout, cancellationToken);
-    }
-
-    public Task<TResponse> Send<TResponse, TRequest>(TRequest request, string path = null, IDictionary<string, object> headers = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-    {
-        var buses = Route(request, path);
-        return buses[0].Send<TResponse, TRequest>(request, path, headers, timeout, cancellationToken);
-    }
-
-    #endregion
+    #region Implementation of IMessageBusProducer
 
     public Task<TResponseMessage> ProduceSend<TResponseMessage>(object request, TimeSpan? timeout, string path, IDictionary<string, object> headers, IServiceProvider currentServiceProvider, CancellationToken cancellationToken)
     {
         var buses = Route(request, path);
         return buses[0].ProduceSend<TResponseMessage>(request, timeout, path, headers, currentServiceProvider, cancellationToken);
-    }
-
-    #region Implementation of IPublishBus
-
-    public async Task Publish<TMessage>(TMessage message, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
-    {
-        var buses = Route(message, path);
-
-        if (buses.Length == 1)
-        {
-            await buses[0].Publish(message, path, headers, cancellationToken);
-            return;
-        }
-
-        if (ProviderSettings.PublishExecutionMode == PublishExecutionMode.Parallel)
-        {
-            await Task.WhenAll(buses.Select(bus => bus.Publish(message, path, headers, cancellationToken)));
-            return;
-        }
-
-        for (var i = 0; i < buses.Length; i++)
-        {
-            await buses[i].Publish(message, path, headers, cancellationToken);
-        }
     }
 
     public async Task ProducePublish(object message, string path, IDictionary<string, object> headers, IServiceProvider currentServiceProvider, CancellationToken cancellationToken)
@@ -210,6 +166,54 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
     }
 
     public IEnumerable<IMessageBus> GetChildBuses() => _busByName.Values;
+
+    #endregion
+
+    #region Implementation of IPublishBus
+
+    public async Task Publish<TMessage>(TMessage message, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
+    {
+        var buses = Route(message, path);
+
+        if (buses.Length == 1)
+        {
+            await buses[0].Publish(message, path, headers, cancellationToken);
+            return;
+        }
+
+        if (ProviderSettings.PublishExecutionMode == PublishExecutionMode.Parallel)
+        {
+            await Task.WhenAll(buses.Select(bus => bus.Publish(message, path, headers, cancellationToken)));
+            return;
+        }
+
+        for (var i = 0; i < buses.Length; i++)
+        {
+            await buses[i].Publish(message, path, headers, cancellationToken);
+        }
+    }
+
+    #endregion
+
+    #region Implementation of IRequestResponseBus
+
+    public Task<TResponse> Send<TResponse>(IRequest<TResponse> request, string path = null, IDictionary<string, object> headers = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
+        var buses = Route(request, path);
+        return buses[0].Send(request, path, headers, timeout, cancellationToken);
+    }
+
+    public Task Send(IRequest request, string path = null, IDictionary<string, object> headers = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
+        var buses = Route(request, path);
+        return buses[0].Send(request, path, headers, timeout, cancellationToken);
+    }
+
+    public Task<TResponse> Send<TResponse, TRequest>(TRequest request, string path = null, IDictionary<string, object> headers = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
+        var buses = Route(request, path);
+        return buses[0].Send<TResponse, TRequest>(request, path, headers, timeout, cancellationToken);
+    }
 
     #endregion
 }

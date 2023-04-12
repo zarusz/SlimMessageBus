@@ -2,8 +2,6 @@ namespace SlimMessageBus.Host.Kafka;
 
 using System.Diagnostics.CodeAnalysis;
 
-using Confluent.Kafka;
-
 using IProducer = Confluent.Kafka.IProducer<byte[], byte[]>;
 using Message = Confluent.Kafka.Message<byte[], byte[]>;
 
@@ -11,19 +9,16 @@ using Message = Confluent.Kafka.Message<byte[], byte[]>;
 /// <see cref="IMessageBus"/> implementation for Apache Kafka.
 /// Note that internal driver Producer/Consumer are all thread-safe (see https://github.com/edenhill/librdkafka/issues/215)
 /// </summary>
-public class KafkaMessageBus : MessageBusBase
+public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
 {
     private readonly ILogger _logger;
     private IProducer _producer;
     private readonly IList<KafkaGroupConsumer> _groupConsumers = new List<KafkaGroupConsumer>();
 
-    public KafkaMessageBusSettings ProviderSettings { get; }
-
     public KafkaMessageBus(MessageBusSettings settings, KafkaMessageBusSettings providerSettings)
-        : base(settings)
+        : base(settings, providerSettings)
     {
         _logger = LoggerFactory.CreateLogger<KafkaMessageBus>();
-        ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
 
         OnBuildProvider();
     }

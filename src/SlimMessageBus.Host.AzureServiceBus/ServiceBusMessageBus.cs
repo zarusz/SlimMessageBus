@@ -3,12 +3,10 @@
 using SlimMessageBus.Host.AzureServiceBus.Consumer;
 using SlimMessageBus.Host.Collections;
 
-public class ServiceBusMessageBus : MessageBusBase
+public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
 {
     private readonly ILogger _logger;
     private readonly List<AsbBaseConsumer> _consumers = new();
-
-    public ServiceBusMessageBusSettings ProviderSettings { get; }
 
     private ServiceBusClient _client;
     private SafeDictionaryWrapper<string, ServiceBusSender> _producerByPath;
@@ -16,10 +14,9 @@ public class ServiceBusMessageBus : MessageBusBase
     private Task _provisionTopologyTask = null;
 
     public ServiceBusMessageBus(MessageBusSettings settings, ServiceBusMessageBusSettings providerSettings)
-        : base(settings)
+        : base(settings, providerSettings)
     {
         _logger = LoggerFactory.CreateLogger<ServiceBusMessageBus>();
-        ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
 
         OnBuildProvider();
     }

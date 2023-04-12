@@ -1,7 +1,6 @@
 namespace SlimMessageBus.Host.Kafka;
 
 using System.Diagnostics.CodeAnalysis;
-using Confluent.Kafka;
 using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
 
 /// <summary>

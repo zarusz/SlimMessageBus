@@ -1,6 +1,6 @@
 namespace SlimMessageBus.Host;
 
-public class MessageBusSettings : HasProviderExtensions, IBusEvents
+public class MessageBusSettings : HasProviderExtensions
 {
     private IServiceProvider _serviceProvider;
     private readonly IList<MessageBusSettings> _children;
@@ -22,32 +22,7 @@ public class MessageBusSettings : HasProviderExtensions, IBusEvents
     public IList<ConsumerSettings> Consumers { get; }
     public RequestResponseSettings RequestResponse { get; set; }
     public Type SerializerType { get; set; }
-    public Type MessageTypeResolverType { get; set; }
-
-    #region Implementation of IConsumerEvents
-    ///
-    /// <inheritdoc/>
-    ///
-    public Action<IMessageBus, AbstractConsumerSettings, object, string, object> OnMessageArrived { get; set; }
-    ///
-    /// <inheritdoc/>
-    ///
-    public Action<IMessageBus, AbstractConsumerSettings, object, string, object> OnMessageFinished { get; set; }
-    ///
-    /// <inheritdoc/>
-    ///
-    public Action<IMessageBus, AbstractConsumerSettings, object, object> OnMessageExpired { get; set; }
-    ///
-    /// <inheritdoc/>
-    ///
-    public Action<IMessageBus, AbstractConsumerSettings, object, Exception, object> OnMessageFault { get; set; }
-    #endregion
-
-    #region Implementation of IProducerEvents
-
-    public Action<IMessageBus, ProducerSettings, object, string> OnMessageProduced { get; set; }
-
-    #endregion
+    public Type MessageTypeResolverType { get; set; }  
 
     /// <summary>
     /// Determines if a child scope is created for the message consumption. The consumer instance is then derived from that scope.
@@ -101,31 +76,6 @@ public class MessageBusSettings : HasProviderExtensions, IBusEvents
         if (ServiceProvider == null && settings.ServiceProvider != null)
         {
             ServiceProvider = settings.ServiceProvider;
-        }
-
-        if (OnMessageArrived == null && settings.OnMessageArrived != null)
-        {
-            OnMessageArrived = settings.OnMessageArrived;
-        }
-
-        if (OnMessageFinished == null && settings.OnMessageFinished != null)
-        {
-            OnMessageFinished = settings.OnMessageFinished;
-        }
-
-        if (OnMessageExpired == null && settings.OnMessageExpired != null)
-        {
-            OnMessageExpired = settings.OnMessageExpired;
-        }
-
-        if (OnMessageFault == null && settings.OnMessageFault != null)
-        {
-            OnMessageFault = settings.OnMessageFault;
-        }
-
-        if (OnMessageProduced == null && settings.OnMessageProduced != null)
-        {
-            OnMessageProduced = settings.OnMessageProduced;
         }
 
         if (HeaderModifier == null && settings.HeaderModifier != null)

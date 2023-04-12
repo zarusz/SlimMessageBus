@@ -68,15 +68,6 @@ public abstract class AbstractHandlerBuilder<TRequest, THandlerBuilder> : Abstra
         return TypedThis;
     }
 
-    /// <summary>
-    /// Adds custom hooks for the handler.
-    /// </summary>
-    /// <param name="eventsConfig"></param>
-    /// <returns></returns>
-    [Obsolete("Please use the interceptors https://github.com/zarusz/SlimMessageBus/blob/master/docs/intro.md#interceptors")]
-    public THandlerBuilder AttachEvents(Action<IConsumerEvents> eventsConfig) =>
-        AttachEvents<THandlerBuilder>(eventsConfig);
-
     public THandlerBuilder Do(Action<THandlerBuilder> action) =>
         base.Do(action);
 

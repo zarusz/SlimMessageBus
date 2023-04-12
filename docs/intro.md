@@ -3,11 +3,9 @@
 - [Configuration](#configuration)
 - [Pub/Sub communication](#pubsub-communication)
   - [Producer](#producer)
-    - [Producer hooks](#producer-hooks)
     - [Set message headers](#set-message-headers)
   - [Consumer](#consumer)
     - [Start or Stop message consumption](#start-or-stop-message-consumption)
-    - [Consumer hooks](#consumer-hooks)
     - [Consumer context (additional message information)](#consumer-context-additional-message-information)
     - [Per-message DI container scope](#per-message-di-container-scope)
     - [Hybrid bus and message scope reuse](#hybrid-bus-and-message-scope-reuse)
@@ -155,38 +153,6 @@ await bus.Publish(msg, "other-topic");
 
 > The transport plugins might introduce additional configuration options. Please check the relevant provider docs. For example, Azure Service Bus, Azure Event Hub and Kafka allow setting the partitioning key for a given message type.
 
-#### Producer hooks
-
-> The [Interceptors](#interceptors) is a newer approach that should be used instead of the hooks.
-
-When you need to intercept a message that is being published or sent via the bus, you can use the available producer hooks:
-
-```cs
-mbb
-   .Produce<SomeMessage>(x =>
-   {
-      x.DefaultTopic(someMessageTopic);
-      x.AttachEvents(events =>
-      {
-         // Invoke the action for the specified message type published/sent via the bus:
-         events.OnMessageProduced = (bus, producerSettings, message, path) => {
-            Console.WriteLine("The SomeMessage: {0} was sent to topic/queue {1}", message, path);
-         }
-      });
-   })
-   .AttachEvents(events =>
-   {
-      // Invoke the action for any message type published/sent via the bus:
-      events.OnMessageProduced = (bus, producerSettings, message, path) => {
-         Console.WriteLine("The message: {0} was sent to topic/queue {1}", message, path);
-      };
-   });
-```
-
-The hook can be applied at the specified producer or the whole bus.
-
-> The user-specified `Action<>` methods need to be thread-safe.
-
 #### Set message headers
 
 > Since version 1.15.0
@@ -288,57 +254,6 @@ await consumerControl.Stop();
 ```
 
 > Since version 1.15.5
-
-#### Consumer hooks
-
-> The [Interceptors](#interceptors) is a newer approach that should be used instead of the hooks.
-
-When you need to intercept a message that is delivered to a consumer, you can use the available consumer hooks:
-
-```cs
-mbb
-   .Consume<SomeMessage>(x =>
-   {
-       x.Topic("some-topic");
-       // This events trigger only for this consumer
-       x.AttachEvents(events =>
-       {
-          // 1. Invoke the action for the specified message type when arrived on the bus (pre consumer OnHandle method):
-          events.OnMessageArrived = (bus, consumerSettings, message, path, nativeMessage) => {
-             Console.WriteLine("The SomeMessage: {0} arrived on the topic/queue {1}", message, path);
-          }
-          
-          // 2. Invoke the action when the consumer caused an unhandled exception
-          events.OnMessageFault = (bus, consumerSettings, message, ex, nativeMessage) => {
-          };
-          
-          // 3. Invoke the action for the specified message type after consumer processed (post consumer OnHandle method).
-          // This is executed also if the message handling faulted (2.)
-          events.OnMessageFinished = (bus, consumerSettings, message, path, nativeMessage) => {
-             Console.WriteLine("The SomeMessage: {0} finished on the topic/queue {1}", message, path);
-          }
-       });
-    })
-    // Any consumer events for the bus (a sum of all events across registered consumers)
-    .AttachEvents(events =>
-    {
-          // Invoke the action for the specified message type when sent via the bus:
-          events.OnMessageArrived = (bus, consumerSettings, message, path, nativeMessage) => {
-             Console.WriteLine("The message: {0} arrived on the topic/queue {1}", message, path);
-          };
-          
-          events.OnMessageFault = (bus, consumerSettings, message, ex, nativeMessage) => {
-          };
-          
-          events.OnMessageFinished = (bus, consumerSettings, message, path, nativeMessage) => {
-             Console.WriteLine("The SomeMessage: {0} finished on the topic/queue {1}", message, path);
-          }
-   });
-```
-
-The hook can be applied for the specified consumer, or for all consumers in the particular bus instance.
-
-> The user specified `Action<>` methods need to be thread-safe as they will be executed concurrently as messages are being processed.
 
 #### Consumer context (additional message information)
 
@@ -912,6 +827,8 @@ Interceptors allow to tap into the message processing pipeline on both the produ
 - prevent a message from being produced or from being consumed or handled,
 - perform some additional application specific authorization checks.
 
+![](images/interceptors.jpg)
+
 ### Producer Lifecycle
 
 When a message is produced (via the `bus.Publish(message)` or `bus.Send(request)`) the SMB is performing a DI lookup for the interceptor interface types that are relevant given the message type (or request and response types) and execute them in order.
@@ -936,7 +853,7 @@ public interface ISendInterceptor<in TRequest, TResponse> : IInterceptor
 }
 ```
 
-Remember to register your interceptor types in the DI (either using auto-discovery [`addInterceptorsFromAssembly`](#MsDependencyInjection) or manually).
+Remember to register your interceptor types in the DI (either using auto-discovery [`AddServicesFromAssembly()`](#autoregistration-of-consumers-and-interceptors) or manually).
 
 > SMB has an optimization that will remember the types of messages for which the DI resolved interceptor. That allows us to avoid having to perform lookups with the DI and other internal processing.
 

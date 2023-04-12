@@ -10,12 +10,6 @@ public class RequestResponseSettings : AbstractConsumerSettings
     /// </summary>
     public TimeSpan Timeout { get; set; }
 
-    /// <summary>
-    /// Called whenever an incoming response message errors out.
-    /// </summary>
-    [Obsolete("Please use the interceptors https://github.com/zarusz/SlimMessageBus/blob/master/docs/intro.md#interceptors")]
-    public Action<RequestResponseSettings, object, Exception> OnResponseMessageFault { get; set; }
-
     public RequestResponseSettings()
     {
         Timeout = TimeSpan.FromSeconds(20);

@@ -84,26 +84,6 @@ public class KafkaPartitionConsumerForResponsesTest : IAsyncDisposable
     }
 
     [Fact]
-    public async Task When_OnMessage_Given_MessageErrors_Then_ShouldCallHook()
-    {
-        // arrange
-        var message = GetSomeMessage();
-        var onResponseMessageFaultMock = new Mock<Action<RequestResponseSettings, object, Exception>>();
-        _messageBusMock.BusSettings.RequestResponse.OnResponseMessageFault = onResponseMessageFaultMock.Object;
-        var e = new Exception();
-        _messageBusMock.BusMock.Setup(x => x.OnResponseArrived(message.Message.Value, message.Topic, It.IsAny<IReadOnlyDictionary<string, object>>())).Throws(e);
-
-        _subject.OnPartitionAssigned(message.TopicPartition);
-
-        // act
-        await _subject.OnMessage(message);
-
-        // assert
-        onResponseMessageFaultMock.Verify(x => x(_messageBusMock.BusSettings.RequestResponse, message, e), Times.Once);
-
-    }
-
-    [Fact]
     public async Task When_OnMessage_Given_CheckpointReturnTrue_Then_ShouldCommit()
     {
         // arrange

@@ -155,15 +155,6 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
     }
 
     /// <summary>
-    /// Adds custom hooks for the consumer.
-    /// </summary>
-    /// <param name="eventsConfig"></param>
-    /// <returns></returns>
-    [Obsolete("Please use the interceptors https://github.com/zarusz/SlimMessageBus/blob/master/docs/intro.md#interceptors")]
-    public ConsumerBuilder<T> AttachEvents(Action<IConsumerEvents> eventsConfig)
-        => AttachEvents<ConsumerBuilder<T>>(eventsConfig);
-
-    /// <summary>
     /// Enable (or disable) creation of DI child scope for each meesage.
     /// </summary>
     /// <param name="enabled"></param>

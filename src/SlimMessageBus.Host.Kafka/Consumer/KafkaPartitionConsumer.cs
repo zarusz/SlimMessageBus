@@ -2,8 +2,6 @@
 
 using System.Diagnostics.CodeAnalysis;
 
-using SlimMessageBus.Host.Serialization;
-
 using ConsumeResult = ConsumeResult<Ignore, byte[]>;
 
 public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer

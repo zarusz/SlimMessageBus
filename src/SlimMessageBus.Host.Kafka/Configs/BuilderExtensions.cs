@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Kafka;
 
-using SlimMessageBus.Host;
-
 public static class BuilderExtensions
 {
     /// <summary>

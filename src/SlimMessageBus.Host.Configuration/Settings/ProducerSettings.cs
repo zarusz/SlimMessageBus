@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host;
 
-public class ProducerSettings : HasProviderExtensions, IProducerEvents
+public class ProducerSettings : HasProviderExtensions
 {
     /// <summary>
     /// Message type that will be published.
@@ -22,12 +22,4 @@ public class ProducerSettings : HasProviderExtensions, IProducerEvents
     /// Hook called whenver message is being produced. Can be used to add (or mutate) message headers.
     /// </summary>
     public Action<IDictionary<string, object>, object> HeaderModifier { get; set; }
-
-    #region IProducerEvents
-
-    /// <inheritdoc/>
-    [Obsolete("Please use the interceptors https://github.com/zarusz/SlimMessageBus/blob/master/docs/intro.md#interceptors")]
-    public Action<IMessageBus, ProducerSettings, object, string> OnMessageProduced { get; set; }
-
-    #endregion
 }
