@@ -11,13 +11,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\..\icon.png">
-      <Pack>True</Pack>
-      <PackagePath></PackagePath>
-    </None>
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Namotion.Reflection" Version="2.1.1" />
     <PackageReference Include="Saunter" Version="0.11.0" />
   </ItemGroup>

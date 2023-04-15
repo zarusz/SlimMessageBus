@@ -1,12 +1,17 @@
 ﻿namespace Sample.DomainEvents.WebApi.Controllers;
 
 using Microsoft.AspNetCore.Mvc;
+
 using Sample.DomainEvents.Domain;
 
 [Route("api/[controller]")]
 [ApiController]
 public class OrdersController : Controller
 {
+    /// <summary>
+    /// Create sample order
+    /// </summary>
+    /// <returns></returns>
     [HttpPost]
     public async Task<IActionResult> Post()
     {

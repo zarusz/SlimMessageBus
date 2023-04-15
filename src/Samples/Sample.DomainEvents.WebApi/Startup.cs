@@ -47,7 +47,6 @@ public class Startup
         .AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
     }
 
-    // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
     {
         if (env.IsDevelopment())
