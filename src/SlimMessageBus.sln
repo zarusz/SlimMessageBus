@@ -192,9 +192,6 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Memory.Benchmark", "Tests\SlimMessageBus.Host.Memory.Benchmark\SlimMessageBus.Host.Memory.Benchmark.csproj", "{3674417F-9856-4B11-8A03-4D0BDCBDC288}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Interceptors", "Interceptors", "{B7CDA0D2-98AB-42B6-A41A-9D893C1B9DCB}"
-	ProjectSection(SolutionItems) = preProject
-		Host.Plugins.Properties.xml = Host.Plugins.Properties.xml
-	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.FluentValidation", "SlimMessageBus.Host.FluentValidation\SlimMessageBus.Host.FluentValidation.csproj", "{3B4C79C0-2469-4CA0-A03B-87575F6B9CB8}"
 EndProject
