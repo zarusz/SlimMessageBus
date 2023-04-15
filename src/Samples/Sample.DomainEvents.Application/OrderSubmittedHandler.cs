@@ -17,10 +17,10 @@ public class OrderSubmittedHandler : IConsumer<OrderSubmittedEvent>
 
     public Task OnHandle(OrderSubmittedEvent e)
     {
-        _logger.LogInformation("Customer {0} {1} just placed an order for:", e.Order.Customer.Firstname, e.Order.Customer.Lastname);
+        _logger.LogInformation("Customer {Firstname} {Lastname} just placed an order for:", e.Order.Customer.Firstname, e.Order.Customer.Lastname);
         foreach (var orderLine in e.Order.Lines)
         {
-            _logger.LogInformation("- {0}x {1}", orderLine.Quantity, orderLine.ProductId);
+            _logger.LogInformation("- {Quantity}x {ProductId}", orderLine.Quantity, orderLine.ProductId);
         }
 
         _logger.LogInformation("Generating a shipping order...");

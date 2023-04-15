@@ -3,14 +3,7 @@
 /// <summary>
 /// Domain event
 /// </summary>
-public record OrderSubmittedEvent
+public record OrderSubmittedEvent(Order Order)
 {
-    public Order Order { get; }
-    public DateTime Timestamp { get; }
-
-    public OrderSubmittedEvent(Order order)
-    {
-        Order = order;
-        Timestamp = DateTime.UtcNow;
-    }
+    public DateTime Timestamp { get; } = DateTime.UtcNow;
 }
