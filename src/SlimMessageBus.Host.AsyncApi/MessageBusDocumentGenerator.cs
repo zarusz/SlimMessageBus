@@ -67,7 +67,7 @@ public class MessageBusDocumentGenerator : IDocumentGenerator
         return asyncApiSchema;
     }
 
-    private IDictionary<string, ChannelItem> GenerateChannels(AsyncApiSchemaResolver schemaResolver, AsyncApiOptions options, JsonSchemaGenerator jsonSchemaGenerator, IServiceProvider serviceProvider, MessageBusSettings messageBusSettings, NamedServer namedServer)
+    private static IDictionary<string, ChannelItem> GenerateChannels(AsyncApiSchemaResolver schemaResolver, AsyncApiOptions options, JsonSchemaGenerator jsonSchemaGenerator, IServiceProvider serviceProvider, MessageBusSettings messageBusSettings, NamedServer namedServer)
     {
         var channels = new Dictionary<string, ChannelItem>();
 
@@ -76,6 +76,16 @@ public class MessageBusDocumentGenerator : IDocumentGenerator
 
         return channels;
     }
+
+    /// <summary>
+    /// Gets the SubscriptionName (Azure SB) / Consumer Group (Kafka/Azure EH) from the consumer settings.
+    /// </summary>
+    /// <param name="consumer"></param>
+    /// <returns></returns>
+    private static string TryGetSubscriptionName(ConsumerSettings consumer) =>
+        consumer.GetOrDefault<string>("Group")
+        ?? consumer.GetOrDefault<string>("SubscriptionName")
+        ?? consumer.GetOrDefault<string>("Eh_Group");
 
     private static void GenerateChannelsFromConsumers(IDictionary<string, ChannelItem> channels, AsyncApiSchemaResolver schemaResolver, AsyncApiOptions options, JsonSchemaGenerator jsonSchemaGenerator, IServiceProvider serviceProvider, MessageBusSettings messageBusSettings, NamedServer namedServer)
     {
@@ -95,7 +105,12 @@ public class MessageBusDocumentGenerator : IDocumentGenerator
                 Servers = new List<string> { namedServer.Name },
             };
 
-            channels.AddOrAppend(consumer.Path, channelItem);
+            var subsriptionName = TryGetSubscriptionName(consumer);
+            var channelKey = subsriptionName != null
+                    ? $"{consumer.Path}/{subsriptionName}"
+                    : consumer.Path;
+
+            channels.AddOrAppend(channelKey, channelItem);
 
             var context = new ChannelItemFilterContext(consumer.MessageType, schemaResolver, jsonSchemaGenerator, new ChannelAttribute(consumer.Path));
             foreach (var filterType in options.ChannelItemFilters)
