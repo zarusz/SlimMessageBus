@@ -94,7 +94,10 @@ Setting the default queue name `DefaultQueue()` for a message type will implicit
 
 ### Pub/Sub
 
-Unlike other messaging brokers implementing pub/sub, Redis Pub/Sub does not allow to have multiple named subscriptions for a topic and the same client (see [here](https://redis.io/topics/pubsub)). Instead each redis client becomes an individual subscriber of a topic when the client subscribes.
+Unlike other messaging brokers implementing pub/sub, [Redis Pub/Sub](https://redis.io/docs/manual/pubsub/) does not have a concept of named subscriptions for a topic. Instead each connected consumer process (Redis client) subscribes to the topic. As a result each connected consumer process will get a copy of the published message.
+From the Redis docs:
+
+> Messages sent by other clients to these channels will be pushed by Redis to all the subscribed clients. Subscribers receive the messages in the order that the messages are published.
 
 Consider a micro-service that performs the following SMB registration and uses the SMB Redis transport:
 
@@ -131,17 +134,20 @@ mbb.Consume<TMessage>(x => x
 
 ## Queue implementation on Redis
 
-The queue is emulated using a Redis list type (the key represents the queue name and the value is a Redis list type).
-Internally when a new message is added to a queue `some-queue` then message bus will:
+The queue (FIFO) is emulated using a [Redis list type](https://redis.io/docs/data-types/lists/):
 
-- producer will use the [`RPUSH`](https://redis.io/commands/rpush) to add the message at the tail of the list with key `some-queue`
-- consumer will use the [`LPOP`](https://redis.io/commands/lpop) to remove the massage from the head of the list with key `some-queue`
+- the key represents the queue name,
+- the value is a Redis list type and stores messages (in FIFO order).
 
-> The above implementation provides at-most-once delivery guarantee. 
+Internally the queue is implemetned in the following way:
+
+- producer will use the [`RPUSH`](https://redis.io/commands/rpush) to add the message at the tail of the list with a redis key (queue name),
+- consumer will use the [`LPOP`](https://redis.io/commands/lpop) to remove the massage from the head of the list with a redis key (queue name).
+
+> The implementation provides at-most-once delivery guarantee.
 
 There is a chance that the consumer process dies after it performs `LPOP` and before it fully processes the message.
-
-Another implementation was also considered using [`RPOPLPUSH`](https://redis.io/commands/rpoplpush) that would allow for at-least-once quarantee. 
+Another implementation was also considered using [`RPOPLPUSH`](https://redis.io/commands/rpoplpush) that would allow for at-least-once quarantee.
 However, that would require to manage individual per process instance local queues making tha runtime and configuration not practical.
 
 ### Message Headers
