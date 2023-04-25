@@ -39,6 +39,8 @@ public class MessageBusDocumentGenerator : IDocumentGenerator
 
         var generator = new JsonSchemaGenerator(options.SchemaOptions);
 
+        var busFilter = _busSettings.GetOrDefault<Func<MessageBusSettings, bool>?>(MessageBusBuilderExtensions.BusFilter, null);
+
         // ToDo: implement
         var serverByBusSettings = new Dictionary<MessageBusSettings, NamedServer>
         {
@@ -46,7 +48,10 @@ public class MessageBusDocumentGenerator : IDocumentGenerator
         };
         foreach (var childMessageBusSettings in _busSettings.Children)
         {
-            serverByBusSettings.Add(childMessageBusSettings, new(childMessageBusSettings.Name, new Server("kafka://kafka.cluster", "kafka")));
+            if (busFilter == null || busFilter(childMessageBusSettings))
+            {
+                serverByBusSettings.Add(childMessageBusSettings, new(childMessageBusSettings.Name, new Server("kafka://kafka.cluster", "kafka")));
+            }
         }
 
         foreach (var (messageBusSettings, namedServer) in serverByBusSettings)
