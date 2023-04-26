@@ -10,7 +10,6 @@ using NJsonSchema.Generation;
 
 using Saunter;
 using Saunter.AsyncApiSchema.v2;
-using Saunter.AsyncApiSchema.v2.Bindings;
 using Saunter.Attributes;
 using Saunter.Generation;
 using Saunter.Generation.Filters;
@@ -44,13 +43,13 @@ public class MessageBusDocumentGenerator : IDocumentGenerator
         // ToDo: implement
         var serverByBusSettings = new Dictionary<MessageBusSettings, NamedServer>
         {
-            { _busSettings, new("root", new Server("kafka://kafka.cluster", "kafka")) }
+            { _busSettings, new("root", new Server("smb://smb.cluster", "kafka")) }
         };
         foreach (var childMessageBusSettings in _busSettings.Children)
         {
             if (busFilter == null || busFilter(childMessageBusSettings))
             {
-                serverByBusSettings.Add(childMessageBusSettings, new(childMessageBusSettings.Name, new Server("kafka://kafka.cluster", "kafka")));
+                serverByBusSettings.Add(childMessageBusSettings, new(childMessageBusSettings.Name, new Server("smb://smb.cluster", "kafka")));
             }
         }
 
@@ -106,7 +105,6 @@ public class MessageBusDocumentGenerator : IDocumentGenerator
             {
                 Description = $"{consumer.PathKind}: {consumer.Path}",
                 Subscribe = subscribeOperation,
-                Bindings = new ChannelBindingsReference(namedServer.Name),
                 Servers = new List<string> { namedServer.Name },
             };
 
@@ -140,7 +138,6 @@ public class MessageBusDocumentGenerator : IDocumentGenerator
             {
                 Description = $"{producer.PathKind}: {producer.DefaultPath}",
                 Publish = publishOperation,
-                Bindings = new ChannelBindingsReference(namedServer.Name),
                 Servers = new List<string> { namedServer.Name },
             };
 
@@ -172,7 +169,6 @@ public class MessageBusDocumentGenerator : IDocumentGenerator
             Summary = consumerHandleMethod!.GetXmlDocsSummary() ?? consumerType.GetXmlDocsSummary(),
             Description = (!string.IsNullOrEmpty(consumerHandleMethod!.GetXmlDocsRemarks()) ? consumerHandleMethod!.GetXmlDocsRemarks() : null) ?? (!string.IsNullOrEmpty(consumerType.GetXmlDocsRemarks()) ? consumerType.GetXmlDocsRemarks() : null),
             Message = messages,
-            Bindings = new OperationBindingsReference(namedServer.Name),
         };
 
         // Add all message types pushed via this channel (topic/queue)
@@ -210,7 +206,6 @@ public class MessageBusDocumentGenerator : IDocumentGenerator
         {
             OperationId = $"{producer.DefaultPath}_{producer.MessageType.Name}",
             Message = messages,
-            Bindings = new OperationBindingsReference(namedServer.Name),
         };
 
         // Add all message types pushed via this channel (topic/queue)
@@ -237,7 +232,6 @@ public class MessageBusDocumentGenerator : IDocumentGenerator
             Title = messageType.Name,
             Summary = messageType.GetXmlDocsSummary(),
             Description = messageType.GetXmlDocsRemarks(),
-            Bindings = new MessageBindingsReference(namedServer.Name),
         };
         message.Name = message.Payload.ActualSchema.Id;
 
