@@ -38,11 +38,11 @@ public class ServiceBusTopologyService
         }
     }
 
-    private Task<Response> SwallowExceptionIfMessagingEntityNotFound(Func<Task<Response>> task)
+    private async Task<Response> SwallowExceptionIfMessagingEntityNotFound(Func<Task<Response>> task)
     {
         try
         {
-            return task();
+            return await task();
         }
         catch (ServiceBusException e) when (e.Reason == ServiceBusFailureReason.MessagingEntityNotFound)
         {
@@ -206,9 +206,9 @@ public class ServiceBusTopologyService
                                             removeRuleTasks
                                                 .AddRange(rulesPage.Values
                                                     .Where(rule => !filters.Any(filter => filter.Name == rule.Name))
-                                                    .Select(rule => SwallowExceptionIfMessagingEntityNotFound(() =>
+                                                    .Select(rule => SwallowExceptionIfMessagingEntityNotFound(() => 
                                                         adminClient.DeleteRuleAsync(path, subscriptionName, rule.Name)))
-                                                    .Where(task => task != null));
+                                                );
                                         }
                                         await Task.WhenAll(removeRuleTasks);
                                     }
