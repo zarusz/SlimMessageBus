@@ -38,6 +38,19 @@ public class ServiceBusTopologyService
         }
     }
 
+    private Task<Response> SwallowExceptionIfMessagingEntityNotFound(Func<Task<Response>> task)
+    {
+        try
+        {
+            return task();
+        }
+        catch (ServiceBusException e) when (e.Reason == ServiceBusFailureReason.MessagingEntityNotFound)
+        {
+            // do nothing as another service instance might have deleted entity in the meantime
+            return null;
+        }
+    }
+
     private Task<TopologyCreationStatus> TryCreateQueue(string path, bool canCreate, Action<CreateQueueOptions> action) => SwallowExceptionIfEntityExists(async () =>
     {
         if (await adminClient.QueueExistsAsync(path)) return TopologyCreationStatus.Exists;
@@ -191,8 +204,11 @@ public class ServiceBusTopologyService
                                         await foreach (var rulesPage in adminClient.GetRulesAsync(path, subscriptionName).AsPages())
                                         {
                                             removeRuleTasks
-                                                .AddRange(rulesPage.Values.Where(rule => !filters.Any(filter => filter.Name == rule.Name))
-                                                .Select(rule => adminClient.DeleteRuleAsync(path, subscriptionName, rule.Name)));
+                                                .AddRange(rulesPage.Values
+                                                    .Where(rule => !filters.Any(filter => filter.Name == rule.Name))
+                                                    .Select(rule => SwallowExceptionIfMessagingEntityNotFound(() =>
+                                                        adminClient.DeleteRuleAsync(path, subscriptionName, rule.Name)))
+                                                    .Where(task => task != null));
                                         }
                                         await Task.WhenAll(removeRuleTasks);
                                     }
