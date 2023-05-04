@@ -5,9 +5,9 @@ name: build
 
 on:
   push:
-    branches: [ "master", "release/*", "feature/*" ]
-  pull_request_target:
-    branches: [ "master" ]
+    branches: ["master", "release/*", "feature/*"]
+  pull_request:
+    branches: ["master"]
 
 env:
   SOLUTION_NAME: SlimMessageBus.sln
@@ -19,44 +19,48 @@ jobs:
     concurrency: int-tests
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: 7.0.x
-    - name: Restore dependencies
-      run: dotnet restore $SOLUTION_NAME
-      working-directory: ./src
-    - name: Build
-      run: dotnet build $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-restore
-      working-directory: ./src
-    - name: Test
-      run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults
-      working-directory: ./src      
-      env: # needed to run integration tests against the test infrastructure
-        azure_servicebus_key: ${{ secrets.azure_servicebus_key }}
-        azure_eventhub_key: ${{ secrets.azure_eventhub_key }}
-        azure_eventhub_storage_key: ${{ secrets.azure_eventhub_storage_key }}
-        azure_sql_password: ${{ secrets.azure_sql_password }}
-        kafka_username: ${{ secrets.kafka_username }}
-        kafka_password: ${{ secrets.kafka_password }}
-        redis_password: ${{ secrets.redis_password }}
-        mqtt_password: ${{ secrets.mqtt_password }}
-    - name: Upload test results
-      uses: actions/upload-artifact@v3
-      with:
-        name: dotnet-results
-        path: ./src/TestResults
-      # Use always() to always run this step to publish test results when there are test failures
-      if: ${{ always() }}
-    - name: Copy NuGet packages
-      shell: bash
-      run: |
-        mkdir ./dist
-        find -name "*.nupkg" -exec cp {} ./dist \;
-        find ./dist
-    - name: Archive NuGet packages
-      uses: actions/upload-artifact@v3
-      with:
-        name: nuget-packages
-        path: './dist'
+      - uses: actions/checkout@v3
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 7.0.x
+      - name: Restore dependencies
+        run: dotnet restore $SOLUTION_NAME
+        working-directory: ./src
+      - name: Build
+        run: dotnet build $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-restore
+        working-directory: ./src
+      - name: Unit Tests
+        run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --filter Category!=Integration
+        working-directory: ./src
+      - name: Integrations Tests
+        if: github.repository == 'zarusz/SlimMessageBus'
+        run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --filter Category=Integration
+        working-directory: ./src
+        env: # needed to run integration tests against the test infrastructure
+          azure_servicebus_key: ${{ secrets.azure_servicebus_key }}
+          azure_eventhub_key: ${{ secrets.azure_eventhub_key }}
+          azure_eventhub_storage_key: ${{ secrets.azure_eventhub_storage_key }}
+          azure_sql_password: ${{ secrets.azure_sql_password }}
+          kafka_username: ${{ secrets.kafka_username }}
+          kafka_password: ${{ secrets.kafka_password }}
+          redis_password: ${{ secrets.redis_password }}
+          mqtt_password: ${{ secrets.mqtt_password }}
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: dotnet-results
+          path: ./src/TestResults
+        # Use always() to always run this step to publish test results when there are test failures
+        if: ${{ always() }}
+      - name: Copy NuGet packages
+        shell: bash
+        run: |
+          mkdir ./dist
+          find -name "*.nupkg" -exec cp {} ./dist \;
+          find ./dist
+      - name: Archive NuGet packages
+        uses: actions/upload-artifact@v3
+        with:
+          name: nuget-packages
+          path: "./dist"
