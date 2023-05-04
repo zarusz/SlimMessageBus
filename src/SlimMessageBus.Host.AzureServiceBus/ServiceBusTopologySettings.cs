@@ -31,6 +31,10 @@ public class ServiceBusTopologySettings
     /// </summary>
     public bool CanConsumerCreateSubscriptionFilter { get; set; } = true;
     /// <summary>
+    /// A filter that allows (or not) for declared consumers to replace already defined filters. False by default.
+    /// </summary>
+    public bool CanConsumerReplaceSubscriptionFilters { get; set; } = false;
+    /// <summary>
     /// Default configuration to be applied when a queue needs to be created (<see cref="CreateQueueOptions"/>).
     /// </summary>
     public Action<CreateQueueOptions> CreateQueueOptions { get; set; }

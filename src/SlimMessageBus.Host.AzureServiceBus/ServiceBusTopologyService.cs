@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus;
 
+using Azure;
+
 public class ServiceBusTopologyService
 {
     private readonly ILogger<ServiceBusTopologyService> logger;
@@ -33,6 +35,19 @@ public class ServiceBusTopologyService
         {
             // do nothing as another service instance might have created that in the meantime
             return TopologyCreationStatus.Exists;
+        }
+    }
+
+    private async Task<Response> SwallowExceptionIfMessagingEntityNotFound(Func<Task<Response>> task)
+    {
+        try
+        {
+            return await task();
+        }
+        catch (ServiceBusException e) when (e.Reason == ServiceBusFailureReason.MessagingEntityNotFound)
+        {
+            // do nothing as another service instance might have deleted entity in the meantime
+            return null;
         }
     }
 
@@ -180,6 +195,22 @@ public class ServiceBusTopologyService
                                     {
                                         // Note: for a newly created subscription, ASB creates a default filter automatically, we need to remove it and let the user defined rules take over
                                         await adminClient.DeleteRuleAsync(path, subscriptionName, "$Default");
+                                    }
+
+                                    if (topologyProvisioning.CanConsumerReplaceSubscriptionFilters)
+                                    {
+                                        // Note: remove already defined rules for existing subscription
+                                        var removeRuleTasks = new List<Task<Response>>();
+                                        await foreach (var rulesPage in adminClient.GetRulesAsync(path, subscriptionName).AsPages())
+                                        {
+                                            removeRuleTasks
+                                                .AddRange(rulesPage.Values
+                                                    .Where(rule => !filters.Any(filter => filter.Name == rule.Name))
+                                                    .Select(rule => SwallowExceptionIfMessagingEntityNotFound(() => 
+                                                        adminClient.DeleteRuleAsync(path, subscriptionName, rule.Name)))
+                                                );
+                                        }
+                                        await Task.WhenAll(removeRuleTasks);
                                     }
 
                                     var tasks = filters.Select(filter => TryCreateRule(path, subscriptionName, filter.Name, options =>
