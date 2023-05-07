@@ -63,6 +63,7 @@ public class MessageHandler : IMessageHandler
             }
 
             var consumerType = consumerInvoker.ConsumerType;
+            // ToDo: Introduce lazy resolution
             var consumerInstance = messageScope.ServiceProvider.GetService(consumerType)
                 ?? throw new ConfigurationMessageBusException($"Could not resolve consumer/handler type {consumerType} from the DI container. Please check that the configured type {consumerType} is registered within the DI container.");
 
