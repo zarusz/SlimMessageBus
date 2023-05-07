@@ -24,14 +24,17 @@ public class MemoryMessageBusBuilder : MessageBusBuilder
     /// For every found type declares the produced and consumer/handler by applying the topic name that corresponds to the mesage name.
     /// </summary>
     /// <param name="assemblies"></param>
-    /// <param name="consumerTypeFilter">Allows to apply a filter for any found consumer/handler.</param>
+    /// <param name="consumerTypeFilter">Allows to apply a filter for the found consumer/handler types.</param>
     /// <param name="messageTypeToTopicConverter">By default the type name is used for the topic name. This can be used to customize the topic name. For example, if have types that have same names but are in the namespaces, you might want to include the full type in the topic name.</param>
     /// <returns></returns>
     public MemoryMessageBusBuilder AutoDeclareFrom(IEnumerable<Assembly> assemblies, Func<Type, bool> consumerTypeFilter = null, Func<Type, string> messageTypeToTopicConverter = null)
     {
         messageTypeToTopicConverter ??= DefaultMessageTypeToTopicConverter;
 
-        var prospectTypes = ReflectionDiscoveryScanner.From(assemblies).Scan().GetConsumerTypes(consumerTypeFilter);
+        var prospectTypes = ReflectionDiscoveryScanner.From(assemblies).Scan()
+            .GetConsumerTypes(consumerTypeFilter)
+            // Take only closed generic types
+            .Where(x => !x.ConsumerType.IsGenericType || x.ConsumerType.IsConstructedGenericType);
 
         var foundConsumers = prospectTypes.Where(x => x.InterfaceType.GetGenericTypeDefinition() == typeof(IConsumer<>)).ToList();
         var foundHandlers = prospectTypes.Where(x => x.InterfaceType.GetGenericTypeDefinition() == typeof(IRequestHandler<,>) || x.InterfaceType.GetGenericTypeDefinition() == typeof(IRequestHandler<>)).ToList();

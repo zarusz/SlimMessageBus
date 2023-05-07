@@ -566,24 +566,39 @@ services.AddSlimMessageBus(mbb =>
 Consider the following example:
 
 ```cs
-// Given a consumer that is found:
-public class SomeMessageConsumer : IConsumer<SomeMessage>
-{
-}
-
+// Given a consumer that is found in the executing assembly:
+public class SomeMessageConsumer : IConsumer<SomeMessage> { }
+ 
+// When configuring the bus:
 services.AddSlimMessageBus(mbb =>
 {
   // When auto-registration is used:
   mbb.AddConsumersFromAssembly(Assembly.GetExecutingAssembly());
 };
 
+// Then the .AddConsumersFromAssembly() will result in an equivalent services registration (if it were done manually):
+// services.TryAddTransient<SomeMessageConsumer>();
+// services.TryAddTransient<IConsumer<SomeMessage>>(svp => svp.GetRequiredService<SomeMessageConsumer>());
 ```
 
-This will result in an equivalent services registration:
+There is also an option to override the default lifetime of the discovered types (since v2.1.5):
 
 ```cs
-services.TryAddTransient<SomeMessageConsumer>();
-services.TryAddTransient<IConsumer<SomeMessage>, SomeMessageConsumer>();
+services.AddSlimMessageBus(mbb =>
+{
+  // Register the found types as Scoped lifetime in MSDI
+  mbb.AddConsumersFromAssembly(Assembly.GetExecutingAssembly(), consumerLifetime: ServiceLifetime.Scoped);
+};
+```
+
+There is also an option to provide a type filter predicate. This might be helpful to scan only for types in a specified namespace inside of the assembly:
+
+```cs
+services.AddSlimMessageBus(mbb =>
+{
+  // Register the found types that contain DomainEventHandlers in the namespacce
+  mbb.AddConsumersFromAssembly(Assembly.GetExecutingAssembly(), filter: (type) => type.Namespace.Contains("DomainEventHandlers"));
+};
 ```
 
 ### ASP.Net Core

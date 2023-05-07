@@ -101,110 +101,73 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Scans the specified assemblies (using reflection) for types that implement any consumer/handler interface, or any interceptor interface (<see cref="IMessageBusConfigurator"/>).
-    /// The found types are registered in the DI as Transient service (both the consumer type and its interface are registered).
+    /// Scans the specified assemblies (using reflection) for types that implement consumer/handler interface, or interceptor interface).
+    /// The found types are registered in the MSDI (both the consumer type and its interface are registered).
     /// </summary>
     /// <param name="mbb"></param>
     /// <param name="assembly"></param>
-    /// <param name="filterPredicate"></param>
+    /// <param name="filter">The filter to be applied for the found types - only types that evaluate the given filter predicate will be registered in MSDI.</param>
+    /// <param name="consumerLifetime">The consumer lifetime under which the found types should be registerd as.</param>
+    /// <param name="interceptorLifetime">The interceptor lifetime under which the found types should be registerd as.</param>
     /// <returns></returns>
-    public static MessageBusBuilder AddServicesFromAssembly(this MessageBusBuilder mbb, Assembly assembly, Func<Type, bool> filterPredicate = null)
+    public static MessageBusBuilder AddServicesFromAssembly(
+        this MessageBusBuilder mbb,
+        Assembly assembly,
+        Func<Type, bool> filter = null,
+        ServiceLifetime consumerLifetime = ServiceLifetime.Transient,
+        ServiceLifetime interceptorLifetime = ServiceLifetime.Transient)
     {
         var scan = ReflectionDiscoveryScanner.From(assembly);
-        var foundConsumerTypes = scan.GetConsumerTypes(filterPredicate);
+        var foundConsumerTypes = scan.GetConsumerTypes(filter);
+        var foundInterceptorTypes = scan.GetInterceptorTypes(filter);
 
         mbb.PostConfigurationActions.Add(services =>
         {
             foreach (var (foundType, interfaceTypes) in foundConsumerTypes.GroupBy(x => x.ConsumerType, x => x.InterfaceType).ToDictionary(x => x.Key, x => x))
             {
                 // Register the consumer/handler type
-                services.TryAddTransient(foundType);
+                services.TryAdd(ServiceDescriptor.Describe(foundType, foundType, consumerLifetime));
 
                 foreach (var interfaceType in interfaceTypes)
                 {
+                    if (foundType.IsGenericType && !foundType.IsConstructedGenericType)
+                    {
+                        // Skip open generic types
+                        continue;
+                    }
+
                     // Register the interface of the consumer / handler
-                    services.TryAddTransient(interfaceType, foundType);
+                    services.TryAdd(ServiceDescriptor.Describe(interfaceType, svp => svp.GetRequiredService(foundType), consumerLifetime));
                 }
             }
 
-            var foundInterceptorTypes = scan.GetInterceptorTypes();
             foreach (var foundType in foundInterceptorTypes)
             {
-                services.AddTransient(foundType.InterfaceType, foundType.Type);
+                if (foundType.Type.IsGenericType && !foundType.Type.IsConstructedGenericType)
+                {
+                    // Skip open generic types
+                    continue;
+                }
+                services.TryAddEnumerable(ServiceDescriptor.Describe(foundType.InterfaceType, foundType.Type, interceptorLifetime));
             }
         });
         return mbb;
     }
 
     /// <summary>
-    /// Scans the specified assemblies (using reflection) for types that implement any consumer/handler interface, any interceptor interface or message bus configurator interface (<see cref="IMessageBusConfigurator"/>).
-    /// The found types are registered in the DI as Transient service (both the consumer type and its interface are registered).
+    /// Scans the specified assemblies (using reflection) for types that implement consumer/handler interface, or interceptor interface).
+    /// The found types are registered in the MSDI (both the consumer type and its interface are registered).
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <param name="mbb"></param>
-    /// <param name="filterPredicate"></param>
+    /// <param name="filter">The filter to be applied for the found types - only types that evaluate the given filter predicate will be registered in MSDI.</param>
+    /// <param name="consumerLifetime">The consumer lifetime under which the found types should be registerd as.</param>
+    /// <param name="interceptorLifetime">The interceptor lifetime under which the found types should be registerd as.</param>
     /// <returns></returns>
-    public static MessageBusBuilder AddServicesFromAssemblyContaining<T>(this MessageBusBuilder mbb, Func<Type, bool> filterPredicate = null) =>
-        mbb.AddServicesFromAssembly(typeof(T).Assembly, filterPredicate);
-
-    #region Obsolete
-
-    /// <summary>
-    /// Scans the specified assemblies (using reflection) for types that implement either <see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/> or <see cref="IRequestHandler{TRequest}"/>. 
-    /// The found types are registered in the DI as Transient service (both the consumer type and its interface are registered).
-    /// </summary>
-    /// <param name="services"></param>
-    /// <param name="filterPredicate">Filtering predicate that allows to further narrow down the </param>
-    /// <param name="assemblies">Assemblies to be scanned</param>
-    /// <returns></returns>
-    [Obsolete("Use the new mbb.AddServicesFromAssembly() or mbb.AddServicesFromAssemblyContaining()")]
-    public static IServiceCollection AddMessageBusConsumersFromAssembly(this IServiceCollection services, Func<Type, bool> filterPredicate, params Assembly[] assemblies)
-    {
-        var foundTypes = ReflectionDiscoveryScanner.From(assemblies).GetConsumerTypes(filterPredicate);
-        foreach (var (foundType, interfaceTypes) in foundTypes.GroupBy(x => x.ConsumerType, x => x.InterfaceType).ToDictionary(x => x.Key, x => x))
-        {
-            // Register the consumer/handler type
-            services.TryAddTransient(foundType);
-
-            foreach (var interfaceType in interfaceTypes)
-            {
-                // Register the interface of the consumer / handler
-                services.TryAddTransient(interfaceType, foundType);
-            }
-        }
-
-        return services;
-    }
-
-    /// <summary>
-    /// Scans the specified assemblies (using reflection) for types that implement either <see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/> or <see cref="IRequestHandler{TRequest}"/>. 
-    /// The found types are registered in the DI as Transient service.
-    /// </summary>
-    /// <param name="services"></param>
-    /// <param name="assemblies">Assemblies to be scanned</param>
-    /// <returns></returns>
-    [Obsolete("Use the new mbb.AddServicesFromAssembly() or mbb.AddServicesFromAssemblyContaining()")]
-    public static IServiceCollection AddMessageBusConsumersFromAssembly(this IServiceCollection services, params Assembly[] assemblies)
-        => services.AddMessageBusConsumersFromAssembly(filterPredicate: null, assemblies);
-
-    /// <summary>
-    /// Scans the specified assemblies (using reflection) for types that implement one of the interceptor interfaces (<see cref="IPublishInterceptor{TMessage}"/> or <see cref="IConsumerInterceptor{TMessage}"/>) and adds them to DI.
-    /// This types will be use during message bus configuration.
-    /// </summary>
-    /// <param name="services"></param>
-    /// <param name="assemblies">Assemblies to be scanned</param>
-    /// <returns></returns>
-    [Obsolete("Use the new mbb.AddServicesFromAssembly() or mbb.AddServicesFromAssemblyContaining()")]
-    public static IServiceCollection AddMessageBusInterceptorsFromAssembly(this IServiceCollection services, params Assembly[] assemblies)
-    {
-        var foundTypes = ReflectionDiscoveryScanner.From(assemblies).GetInterceptorTypes();
-        foreach (var foundType in foundTypes)
-        {
-            services.AddTransient(foundType.InterfaceType, foundType.Type);
-        }
-
-        return services;
-    }
-
-    #endregion
+    public static MessageBusBuilder AddServicesFromAssemblyContaining<T>(
+        this MessageBusBuilder mbb,
+        Func<Type, bool> filter = null,
+        ServiceLifetime consumerLifetime = ServiceLifetime.Transient,
+        ServiceLifetime interceptorLifetime = ServiceLifetime.Transient) =>
+        mbb.AddServicesFromAssembly(typeof(T).Assembly, filter, consumerLifetime: consumerLifetime, interceptorLifetime: interceptorLifetime);
 }
