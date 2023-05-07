@@ -434,6 +434,11 @@ public class SomeMessageAConsumer : IConsumer<SomeMessageA>, IDisposable
     public virtual Task OnHandle(SomeMessageA messageA) => Task.CompletedTask;
 }
 
+public class GenericConsumer<T> : IConsumer<T>
+{
+    public Task OnHandle(T message) => Task.CompletedTask;
+}
+
 public class SomeMessageAConsumer2 : IConsumer<SomeMessageA>
 {
     public virtual Task OnHandle(SomeMessageA messageA) => Task.CompletedTask;

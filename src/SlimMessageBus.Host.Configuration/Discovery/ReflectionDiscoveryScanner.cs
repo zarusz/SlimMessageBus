@@ -67,10 +67,11 @@ public class ReflectionDiscoveryScanner
         typeof(IRequestHandler<>)
     };
 
-    public IReadOnlyCollection<DiscoveryProspectType> GetInterceptorTypes()
+    public IReadOnlyCollection<DiscoveryProspectType> GetInterceptorTypes(Func<Type, bool> filterPredicate = null)
     {
         var foundTypes = ProspectTypes
             .Where(x => x.InterfaceType.IsGenericType && GenericTypesInterceptors.Contains(x.InterfaceType.GetGenericTypeDefinition()))
+            .Where(x => filterPredicate == null || filterPredicate(x.Type))
             .ToList();
 
         return foundTypes;

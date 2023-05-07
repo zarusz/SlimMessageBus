@@ -117,7 +117,7 @@ public class ServiceCollectionExtensionsTest
         {
             mbb.AddChildBus("bus1", mbb =>
             {
-                mbb.AddServicesFromAssemblyContaining<ServiceCollectionExtensionsTest>(x => x.Name == nameof(SomeMessageConsumer));
+                mbb.AddServicesFromAssemblyContaining<ServiceCollectionExtensionsTest>(x => x.Name == nameof(SomeMessageConsumer), consumerLifetime: ServiceLifetime.Scoped);
             });
         });
 
@@ -125,14 +125,14 @@ public class ServiceCollectionExtensionsTest
         {
             mbb.AddChildBus("bus2", mbb =>
             {
-                mbb.AddServicesFromAssemblyContaining<ServiceCollectionExtensionsTest>(x => x.Name == nameof(SomeMessageConsumer));
+                mbb.AddServicesFromAssemblyContaining<ServiceCollectionExtensionsTest>(x => x.Name == nameof(SomeMessageConsumer), consumerLifetime: ServiceLifetime.Transient);
             });
         });
 
         // assert
         _services.Count(x => x.ServiceType == typeof(SomeMessageConsumer)).Should().Be(1);
         _services.Count(x => x.ServiceType == typeof(IConsumer<SomeMessage>)).Should().Be(1);
-        _services.Should().Contain(x => x.ServiceType == typeof(SomeMessageConsumer) && x.ImplementationType == typeof(SomeMessageConsumer) && x.Lifetime == ServiceLifetime.Transient);
-        _services.Should().Contain(x => x.ServiceType == typeof(IConsumer<SomeMessage>) && x.ImplementationType == typeof(SomeMessageConsumer) && x.Lifetime == ServiceLifetime.Transient);
+        _services.Should().Contain(x => x.ServiceType == typeof(SomeMessageConsumer) && x.ImplementationType == typeof(SomeMessageConsumer) && x.Lifetime == ServiceLifetime.Scoped);
+        _services.Should().Contain(x => x.ServiceType == typeof(IConsumer<SomeMessage>) && x.ImplementationFactory != null && x.Lifetime == ServiceLifetime.Scoped);
     }
 }

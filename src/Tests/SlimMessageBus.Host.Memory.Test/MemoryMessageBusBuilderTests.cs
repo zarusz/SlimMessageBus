@@ -21,8 +21,9 @@ public class MemoryMessageBusBuilderTests
         // arrange
 
         // act
+        var whitelistNames = new[] { "Ping", "Echo", "Some", "Generic" };
         subject.AutoDeclareFrom(Assembly.GetExecutingAssembly(),
-            consumerTypeFilter: (consumerType) => consumerType.Name.Contains("Ping") || consumerType.Name.Contains("Echo") || consumerType.Name.Contains("Some")); // include specific consumers only
+            consumerTypeFilter: (consumerType) => whitelistNames.Any(name => consumerType.Name.Contains(name))); // include specific consumers only
 
         // assert
 
