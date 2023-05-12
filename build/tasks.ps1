@@ -31,6 +31,7 @@ $projects = @(
 	"SlimMessageBus.Host.Memory",
 	"SlimMessageBus.Host.Redis",
 	"SlimMessageBus.Host.Mqtt",
+	"SlimMessageBus.Host.RabbitMQ",
 	
 	"SlimMessageBus.Host.FluentValidation",
 

@@ -175,7 +175,6 @@ public class MemoryMessageBusTests
         consumerMock.Verify(x => x.OnHandle(m), Times.Once);
         consumerMock.Verify(x => x.Dispose(), Times.Never);
         consumerMock.VerifyNoOtherCalls();
-
     }
 
     [Fact]

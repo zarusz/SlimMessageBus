@@ -46,6 +46,7 @@ jobs:
           kafka_password: ${{ secrets.kafka_password }}
           redis_password: ${{ secrets.redis_password }}
           mqtt_password: ${{ secrets.mqtt_password }}
+          rabbitmq_password: ${{ secrets.rabbitmq_password }}
       - name: Upload test results
         uses: actions/upload-artifact@v3
         with:

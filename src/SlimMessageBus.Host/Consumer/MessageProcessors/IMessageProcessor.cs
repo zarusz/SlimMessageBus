@@ -8,5 +8,5 @@ public interface IMessageProcessor<TMessage> : IAsyncDisposable
     /// Processes the arrived message
     /// </summary>
     /// <returns>Null, if message processing was sucessful, otherwise the Exception</returns>
-    Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response)> ProcessMessage(TMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken, IServiceProvider currentServiceProvider = null);
+    Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response, object Message)> ProcessMessage(TMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken, IServiceProvider currentServiceProvider = null);
 }

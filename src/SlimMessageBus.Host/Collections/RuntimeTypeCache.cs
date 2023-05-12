@@ -4,6 +4,7 @@ public class RuntimeTypeCache : IRuntimeTypeCache
 {
     private readonly IReadOnlyCache<(Type From, Type To), bool> _isAssignable;
     private readonly IReadOnlyCache<Type, TaskOfTypeCache> _taskOfType;
+    private readonly IReadOnlyCache<(Type OpenGenericType, Type GenericParameterType), Type> _closedGenericTypeOfOpenGenericType;
 
     public IReadOnlyCache<(Type ClassType, string MethodName, Type GenericArgument), Func<object, object>> GenericMethod { get; }
 
@@ -14,7 +15,6 @@ public class RuntimeTypeCache : IRuntimeTypeCache
     public IGenericTypeCache<Func<object, object, Func<Task<object>>, IConsumerContext, Task<object>>> ConsumerInterceptorType { get; }
     public IGenericTypeCache2<Func<object, object, object, IConsumerContext, Task>> HandlerInterceptorType { get; }
 
-
     public RuntimeTypeCache()
     {
         static Type ReturnTypeFunc(Type responseType) => typeof(Task<>).MakeGenericType(responseType);
@@ -22,6 +22,7 @@ public class RuntimeTypeCache : IRuntimeTypeCache
 
         _isAssignable = new SafeDictionaryWrapper<(Type From, Type To), bool>(x => x.To.IsAssignableFrom(x.From));
         _taskOfType = new SafeDictionaryWrapper<Type, TaskOfTypeCache>(type => new TaskOfTypeCache(type));
+        _closedGenericTypeOfOpenGenericType = new SafeDictionaryWrapper<(Type OpenGenericType, Type GenericPatameterType), Type>(x => x.OpenGenericType.MakeGenericType(x.GenericPatameterType));
 
         GenericMethod = new SafeDictionaryWrapper<(Type ClassType, string MethodName, Type GenericArgument), Func<object, object>>(key =>
         {
@@ -69,4 +70,7 @@ public class RuntimeTypeCache : IRuntimeTypeCache
 
     public TaskOfTypeCache GetTaskOfType(Type type)
         => _taskOfType[type];
+
+    public Type GetClosedGenericType(Type openGenericType, Type genericParameterType)
+        => _closedGenericTypeOfOpenGenericType[(openGenericType, genericParameterType)];
 }

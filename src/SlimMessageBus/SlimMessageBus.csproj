@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="../Common.Properties.xml" />
+  <Import Project="../Common.NuGet.Properties.xml" />
 
   <PropertyGroup>
     <TargetFramework>netstandard1.3</TargetFramework>
@@ -8,7 +8,6 @@
     <Description>A lightweight message bus interface for .NET. The goal of this library is to introduce a slim facade for messaging brokers. Use one of the transport providers for popular messaging systems or in-process (in-memory) messaging.</Description>
     <NeutralLanguage />
     <PackageTags>MessageBus facade EventBus broker events messages message bus DomainEvents domain DDD messaging EDA mediator</PackageTags>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
 </Project>

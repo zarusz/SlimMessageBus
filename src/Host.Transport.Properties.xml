@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 	
-	<Import Project="Common.Properties.xml" />
+	<Import Project="Common.NuGet.Properties.xml" />
 
 	<PropertyGroup>
-    <Version>2.1.6</Version>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Version>2.1.7-rc1</Version>
   </PropertyGroup>
 
 </Project>

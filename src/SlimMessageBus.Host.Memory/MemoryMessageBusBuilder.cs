@@ -165,8 +165,8 @@ public class MemoryMessageBusBuilder : MessageBusBuilder
         => AutoDeclareFrom(assemblies.AsEnumerable());
 
     /// <summary>
-    /// In the specified assemblies, searches for any types that implement <see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/>. 
-    /// For every found type declares the produced and consumer/handler by applying the topic name that corresponds to the mesage name.
+    /// In the specified assemblies, searches for any types that implement <see cref="IConsumer{TMessage}"/>, <see cref="IRequestHandler{TRequest, TResponse}"/> or <see cref="IRequestHandler{TRequest}"/>. 
+    /// For every found type declares the producer and consumer/handler by applying the topic name that corresponds to the mesage name (provide custom converter to override this behavior).
     /// </summary>
     /// <param name="assembly"></param>
     /// <param name="consumerTypeFilter">Allows to apply a filter for any found consumer/handler.</param>

@@ -28,24 +28,24 @@ public class ResponseMessageProcessor<TMessage> : IMessageProcessor<TMessage>
     [Obsolete]
     public async Task<Exception> ProcessMessage(TMessage message, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken, IMessageTypeConsumerInvokerSettings consumerInvoker, IServiceProvider currentServiceProvider = null)
     {
-        var (exception, _, _) = await ProcessMessage(message, messageHeaders, cancellationToken, currentServiceProvider);
+        var (exception, _, _, _) = await ProcessMessage(message, messageHeaders, cancellationToken, currentServiceProvider);
         return exception;
     }
 
-    public async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response)> ProcessMessage(TMessage message, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken, IServiceProvider currentServiceProvider = null)
+    public async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response, object Message)> ProcessMessage(TMessage message, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken, IServiceProvider currentServiceProvider = null)
     {
         try
         {
             var messagePayload = _messageProvider(message);
             var exception = await _messageBus.OnResponseArrived(messagePayload, _requestResponseSettings.Path, messageHeaders);
-            return (exception, _requestResponseSettings, null);
+            return (exception, _requestResponseSettings, null, message);
         }
         catch (Exception e)
         {
             _logger.LogError(e, "Error occured while consuming response message, {Message}", message);
 
             // We can only continue and process all messages in the lease    
-            return (e, _requestResponseSettings, null);
+            return (e, _requestResponseSettings, null, message);
         }
     }
 

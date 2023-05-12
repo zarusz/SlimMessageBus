@@ -6,7 +6,6 @@
     <TargetFramework>net6.0</TargetFramework>
     <Description>Extension for SlimMessageBus that adds AsyncAPI specification generator for the Saunter library</Description>
     <PackageTags>SlimMessageBus MessageBus AsyncAPI Specification Saunter</PackageTags>
-    <PackageIcon>icon.png</PackageIcon>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 

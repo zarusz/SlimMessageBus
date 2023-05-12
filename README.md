@@ -42,13 +42,14 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 
 - [Introduction](docs/intro.md)
 - Providers:
-  - [Apache Kafka](docs/provider_kafka.md)
-  - [Azure ServiceBus](docs/provider_azure_servicebus.md)
   - [Azure EventHubs](docs/provider_azure_eventhubs.md)
-  - [Redis](docs/provider_redis.md)
-  - [Memory](docs/provider_memory.md)
-  - [Mqtt](docs/provider_mqtt.md)
+  - [Azure ServiceBus](docs/provider_azure_servicebus.md)
+  - [Apache Kafka](docs/provider_kafka.md)
   - [Hybrid](docs/provider_hybrid.md)
+  - [Memory](docs/provider_memory.md)
+  - [MQTT](docs/provider_mqtt.md)
+  - [RabbitMQ](docs/provider_rabbitmq.md)
+  - [Redis](docs/provider_redis.md)
 - Plugins:
   - [Serialization](docs/serialization.md)
   - [Transactional Outbox](docs/plugin_outbox.md)
@@ -61,12 +62,13 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SlimMessageBus`                     | The core API for SlimMessageBus                                                                                     | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.svg)](https://www.nuget.org/packages/SlimMessageBus)                                                                     |
 | **Transport providers**              |                                                                                                                     |                                                                                                                                                                                  |
-| `.Host.Kafka`                        | Transport provider for Apache Kafka                                                                                 | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Kafka.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)                                               |
-| `.Host.AzureServiceBus`              | Transport provider for Azure Service Bus                                                                            | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AzureServiceBus.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AzureServiceBus)                           |
 | `.Host.AzureEventHub`                | Transport provider for Azure Event Hubs                                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AzureEventHub.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)                               |
-| `.Host.Redis`                        | Transport provider for Redis                                                                                        | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Redis.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Redis)                                               |
+| `.Host.AzureServiceBus`              | Transport provider for Azure Service Bus                                                                            | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AzureServiceBus.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AzureServiceBus)                           |
+| `.Host.Kafka`                        | Transport provider for Apache Kafka                                                                                 | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Kafka.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)                                               |
 | `.Host.Memory`                       | Transport provider implementation for in-process (in memory) message passing (no messaging infrastructure required) | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Memory.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Memory)                                             |
-| `.Host.Mqtt`                         | Transport provider for MQTT                                                                                         | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Mqtt.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Mqtt)                                                 |
+| `.Host.MQTT`                         | Transport provider for MQTT                                                                                         | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.MQTT.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.MQTT)                                                 |
+| `.Host.RabbitMQ`                     | Transport provider for RabbitMQ                                                                                     | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.RabbitMQ.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.RabbitMQ)                                         |
+| `.Host.Redis`                        | Transport provider for Redis                                                                                        | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Redis.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Redis)                                               |
 | **Serialization**                    |                                                                                                                     |                                                                                                                                                                                  |
 | `.Host.Serialization.Json`           | Serialization plugin for JSON (Newtonsoft.Json library)                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Serialization.Json.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json)                     |
 | `.Host.Serialization.SystemTextJson` | Serialization plugin for JSON (System.Text.Json library)                                                            | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Serialization.SystemTextJson.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.SystemTextJson) |
@@ -369,5 +371,6 @@ Thanks to the following service cloud providers for providing free instances for
 - Redis - [Redis Labs](https://redislabs.com/)
 - Kafka - [CloudKarafka](https://www.cloudkarafka.com/)
 - MQTT - [HiveMQ](https://www.hivemq.com/)
+- RabbitMQ - [CloudAMQP](https://www.cloudamqp.com/)
 
 If you want to help and sponsor, please write to me.
