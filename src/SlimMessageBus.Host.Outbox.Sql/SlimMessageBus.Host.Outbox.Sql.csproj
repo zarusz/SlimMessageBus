@@ -6,7 +6,6 @@
     <TargetFramework>netstandard2.1</TargetFramework>
     <Description>Plugin for SlimMessageBus that adds Transactional Outbox pattern support using SQL database</Description>
     <PackageTags>SlimMessageBus MessageBus Transactional Outbox SQL</PackageTags>
-    <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup>

@@ -20,7 +20,7 @@ public class MessageQueueWorkerTest
         var w = new MessageQueueWorker<SomeMessage>(_consumerInstancePoolMock.Object, _checkpointTriggerMock.Object, NullLoggerFactory.Instance);
 
         var numFinishedMessages = 0;
-        _consumerInstancePoolMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<CancellationToken>(), It.IsAny<IServiceProvider>())).Returns(() => Task.Delay(50).ContinueWith(t => { Interlocked.Increment(ref numFinishedMessages); return ((Exception)null, (AbstractConsumerSettings)null, (object)null); }, TaskScheduler.Current));
+        _consumerInstancePoolMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<CancellationToken>(), It.IsAny<IServiceProvider>())).Returns(() => Task.Delay(50).ContinueWith(t => { Interlocked.Increment(ref numFinishedMessages); return ((Exception)null, (AbstractConsumerSettings)null, (object)null, (object)null); }, TaskScheduler.Current));
 
         const int numMessages = 100;
         for (var i = 0; i < numMessages; i++)
@@ -52,7 +52,7 @@ public class MessageQueueWorkerTest
 
         var messages = taskQueue.Select(x => new SomeMessage()).ToArray();
 
-        _consumerInstancePoolMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<CancellationToken>(), It.IsAny<IServiceProvider>())).Returns(async () => { var e = await taskQueue.Dequeue(); return (e, null, null); });
+        _consumerInstancePoolMock.Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<CancellationToken>(), It.IsAny<IServiceProvider>())).Returns(async () => { var e = await taskQueue.Dequeue(); return (e, null, null, null); });
 
         foreach (var t in messages)
         {

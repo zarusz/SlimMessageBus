@@ -68,4 +68,56 @@ public class HasProviderExtensionsTest
         // assert
         result.Should().BeFalse();
     }
+
+    [Fact]
+    public void When_GetOrDefault_Given_ValueInParentNotInCurrent_Then_ReturnsParentValue()
+    {
+        // arrange
+        _bus.Properties["key"] = "parent-value";
+
+        // act
+        var result = _producerSettings.GetOrDefault("key", _bus as HasProviderExtensions, "default");
+
+        // assert
+
+        result.Should().Be("parent-value");
+    }
+
+    [Fact]
+    public void When_GetOrDefault_Given_ValueNotPresent_Then_ReturnsDefault()
+    {
+        // arrange
+
+        // act
+        var result = _producerSettings.GetOrDefault("key", (HasProviderExtensions)null, "default");
+
+        // assert
+
+        result.Should().Be("default");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void When_GetOrCreate_Given_ValueNotPresent_Then_CreatesValuesAndStores(bool valueExisted)
+    {
+        // arrange
+        var value = "value1";
+        var key = "key1";
+        if (valueExisted)
+        {
+            _producerSettings.Properties[key] = value;
+        }
+        var factoryMethodMock = new Mock<Func<string>>();
+        factoryMethodMock.Setup(x => x()).Returns(value);
+
+        // act
+        var result = _producerSettings.GetOrCreate(key, factoryMethodMock.Object);
+
+        // assert
+        result.Should().Be(value);
+        _producerSettings.Properties[key].Should().Be(value);
+        factoryMethodMock.Verify(x => x(), Times.Exactly(valueExisted ? 0 : 1));
+        factoryMethodMock.VerifyNoOtherCalls();
+    }
 }

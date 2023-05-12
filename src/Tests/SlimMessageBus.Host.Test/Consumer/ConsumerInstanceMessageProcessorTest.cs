@@ -68,9 +68,10 @@ public class ConsumerInstanceMessageProcessorTest
         _busMock.HandlerMock.Setup(x => x.OnHandle(request)).Returns(Task.FromException<SomeResponse>(ex));
 
         // act
-        var (exception, exceptionConsumerSettings, response) = await p.ProcessMessage(transportMessage, headers, default);
+        var (exception, exceptionConsumerSettings, response, requestReturned) = await p.ProcessMessage(transportMessage, headers, default);
 
         // assert
+        requestReturned.Should().BeSameAs(request);
         _busMock.HandlerMock.Verify(x => x.OnHandle(request), Times.Once); // handler called once
         _busMock.HandlerMock.VerifyNoOtherCalls();
 
@@ -104,9 +105,10 @@ public class ConsumerInstanceMessageProcessorTest
         var p = new ConsumerInstanceMessageProcessor<byte[]>(new[] { consumerSettings }, _busMock.Bus, _messageProviderMock.Object, topic);
 
         // act
-        var (exception, exceptionConsumerSettings, response) = await p.ProcessMessage(transportMessage, messageHeaders, default);
+        var (exception, exceptionConsumerSettings, response, messageReturned) = await p.ProcessMessage(transportMessage, messageHeaders, default);
 
         // assert
+        messageReturned.Should().BeSameAs(message);
         _busMock.ConsumerMock.Verify(x => x.OnHandle(message), Times.Once); // handler called once
         _busMock.ConsumerMock.VerifyNoOtherCalls();
 
@@ -131,9 +133,10 @@ public class ConsumerInstanceMessageProcessorTest
         var p = new ConsumerInstanceMessageProcessor<byte[]>(new[] { consumerSettings }, _busMock.Bus, _messageProviderMock.Object, topic);
 
         // act
-        await p.ProcessMessage(transportMessage, new Dictionary<string, object>(), default);
+        var (_, _, _, messageReturned) = await p.ProcessMessage(transportMessage, new Dictionary<string, object>(), default);
 
         // assert
+        messageReturned.Should().BeSameAs(message);
         _busMock.ConsumerMock.Verify(x => x.OnHandle(message), Times.Once); // handler called once
         _busMock.ConsumerMock.VerifyNoOtherCalls();
     }
@@ -416,7 +419,7 @@ public class ConsumerInstanceMessageProcessorTest
         someRequestMessageHandlerMock.Setup(x => x.OnHandle(It.IsAny<SomeRequest>())).Returns(Task.FromResult(new SomeResponse()));
 
         // act
-        var (exception, consumerSettings, response) = await p.ProcessMessage(transportMessage, mesageHeaders, default);
+        var (exception, consumerSettings, response, _) = await p.ProcessMessage(transportMessage, mesageHeaders, default);
 
         // assert
         consumerSettings.Should().BeNull();

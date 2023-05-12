@@ -120,6 +120,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
 		cloudkarafka_2020-12.ca = cloudkarafka_2020-12.ca
+		Common.NuGet.Properties.xml = Common.NuGet.Properties.xml
 		Common.Properties.xml = Common.Properties.xml
 		..\CONTRIBUTING.md = ..\CONTRIBUTING.md
 		..\build\do_build.ps1 = ..\build\do_build.ps1
@@ -225,7 +226,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.AsyncAp
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Mqtt", "SlimMessageBus.Host.Mqtt\SlimMessageBus.Host.Mqtt.csproj", "{CD2BF2FF-D277-4974-8645-0CFD5E3923FC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.Mqtt.Test", "Tests\SlimMessageBus.Host.Mqtt.Test\SlimMessageBus.Host.Mqtt.Test.csproj", "{547C247F-0BAE-43D0-A5E7-FACC0B612B08}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Mqtt.Test", "Tests\SlimMessageBus.Host.Mqtt.Test\SlimMessageBus.Host.Mqtt.Test.csproj", "{547C247F-0BAE-43D0-A5E7-FACC0B612B08}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.RabbitMQ", "SlimMessageBus.Host.RabbitMQ\SlimMessageBus.Host.RabbitMQ.csproj", "{65BD0C01-EFDC-4775-B0A8-CF13073D9650}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.RabbitMQ.Test", "Tests\SlimMessageBus.Host.RabbitMQ.Test\SlimMessageBus.Host.RabbitMQ.Test.csproj", "{F5373E1D-A2B4-46CC-9B07-94F6655C8E29}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -691,6 +696,22 @@ Global
 		{547C247F-0BAE-43D0-A5E7-FACC0B612B08}.Release|Any CPU.Build.0 = Release|Any CPU
 		{547C247F-0BAE-43D0-A5E7-FACC0B612B08}.Release|x86.ActiveCfg = Release|Any CPU
 		{547C247F-0BAE-43D0-A5E7-FACC0B612B08}.Release|x86.Build.0 = Release|Any CPU
+		{65BD0C01-EFDC-4775-B0A8-CF13073D9650}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{65BD0C01-EFDC-4775-B0A8-CF13073D9650}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{65BD0C01-EFDC-4775-B0A8-CF13073D9650}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{65BD0C01-EFDC-4775-B0A8-CF13073D9650}.Debug|x86.Build.0 = Debug|Any CPU
+		{65BD0C01-EFDC-4775-B0A8-CF13073D9650}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{65BD0C01-EFDC-4775-B0A8-CF13073D9650}.Release|Any CPU.Build.0 = Release|Any CPU
+		{65BD0C01-EFDC-4775-B0A8-CF13073D9650}.Release|x86.ActiveCfg = Release|Any CPU
+		{65BD0C01-EFDC-4775-B0A8-CF13073D9650}.Release|x86.Build.0 = Release|Any CPU
+		{F5373E1D-A2B4-46CC-9B07-94F6655C8E29}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F5373E1D-A2B4-46CC-9B07-94F6655C8E29}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F5373E1D-A2B4-46CC-9B07-94F6655C8E29}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F5373E1D-A2B4-46CC-9B07-94F6655C8E29}.Debug|x86.Build.0 = Debug|Any CPU
+		{F5373E1D-A2B4-46CC-9B07-94F6655C8E29}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F5373E1D-A2B4-46CC-9B07-94F6655C8E29}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F5373E1D-A2B4-46CC-9B07-94F6655C8E29}.Release|x86.ActiveCfg = Release|Any CPU
+		{F5373E1D-A2B4-46CC-9B07-94F6655C8E29}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -759,6 +780,8 @@ Global
 		{9E70EB58-8D40-4913-844B-7ECA8CB57BD9} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
 		{CD2BF2FF-D277-4974-8645-0CFD5E3923FC} = {9291D340-B4FA-44A3-8060-C14743FB1712}
 		{547C247F-0BAE-43D0-A5E7-FACC0B612B08} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
+		{65BD0C01-EFDC-4775-B0A8-CF13073D9650} = {9291D340-B4FA-44A3-8060-C14743FB1712}
+		{F5373E1D-A2B4-46CC-9B07-94F6655C8E29} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {435A0D65-610C-4B84-B1AA-2C7FBE72DB80}

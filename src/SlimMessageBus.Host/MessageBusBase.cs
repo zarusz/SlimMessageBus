@@ -211,12 +211,6 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     protected virtual Task OnStart() => Task.CompletedTask;
     protected virtual Task OnStop() => Task.CompletedTask;
 
-    public static void HookFailed(ILogger logger, Exception eh, string name)
-    {
-        // When the hook itself error out, catch the exception
-        logger.LogError(eh, "{HookName} method failed", name);
-    }
-
     protected virtual void AssertSettings()
     {
         AssertProducers();

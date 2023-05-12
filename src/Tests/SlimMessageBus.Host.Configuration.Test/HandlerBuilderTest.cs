@@ -30,7 +30,7 @@ public class HandlerBuilderTest
         // arrange
         var path = "topic";
         var subject = new HandlerBuilder<SomeRequest, SomeResponse>(messageBusSettings);
-        
+
         // act
         subject.Path(path);
 

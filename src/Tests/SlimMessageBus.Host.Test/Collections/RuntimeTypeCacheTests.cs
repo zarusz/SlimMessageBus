@@ -5,18 +5,24 @@ using SlimMessageBus.Host.Interceptor;
 
 public class RuntimeTypeCacheTests
 {
+    private readonly RuntimeTypeCache _subject;
+
+    public RuntimeTypeCacheTests()
+    {
+        _subject = new RuntimeTypeCache();
+    }
+
     [Theory]
     [InlineData(typeof(bool), typeof(int), false)]
     [InlineData(typeof(SomeMessageConsumer), typeof(IConsumer<SomeMessage>), true)]
     [InlineData(typeof(SomeMessageConsumer), typeof(IRequestHandler<SomeRequest, SomeResponse>), false)]
     [InlineData(typeof(IConsumer<SomeMessage>), typeof(SomeMessageConsumer), false)]
-    public void IsAssignableFromWorks(Type from, Type to, bool expectedResult)
+    public void When_IsAssignableFrom(Type from, Type to, bool expectedResult)
     {
         // arrange
-        var subject = new RuntimeTypeCache();
 
         // act
-        var result = subject.IsAssignableFrom(from, to);
+        var result = _subject.IsAssignableFrom(from, to);
 
         // assert
         result.Should().Be(expectedResult);
@@ -35,8 +41,6 @@ public class RuntimeTypeCacheTests
             .Setup(x => x.GetService(typeof(IEnumerable<IRequestHandlerInterceptor<SomeRequest, SomeResponse>>)))
             .Returns(() => new[] { requestHandlerInterceptorMock.Object });
 
-        var subject = new RuntimeTypeCache();
-
         var request = new SomeRequest();
         var response = new SomeResponse();
 
@@ -52,7 +56,7 @@ public class RuntimeTypeCacheTests
             .Returns((SomeRequest r, Func<Task<SomeResponse>> n, IConsumerContext c) => n());
 
         // act
-        var interceptorTypeFunc = subject.HandlerInterceptorType[(typeof(SomeRequest), typeof(SomeResponse))];
+        var interceptorTypeFunc = _subject.HandlerInterceptorType[(typeof(SomeRequest), typeof(SomeResponse))];
 
         var task = (Task<SomeResponse>)interceptorTypeFunc(requestHandlerInterceptorMock.Object, request, next, consumerContext);
         await task;
@@ -63,5 +67,19 @@ public class RuntimeTypeCacheTests
         requestHandlerInterceptorMock.VerifyNoOtherCalls();
 
         actualResponse.Should().BeSameAs(response);
+    }
+
+    [Theory]
+    [InlineData(typeof(IConsumer<>), typeof(bool), typeof(IConsumer<bool>))]
+    [InlineData(typeof(IConsumer<>), typeof(SomeMessage), typeof(IConsumer<SomeMessage>))]
+    public void When_GetClosedGenericType(Type openGenericType, Type genericParameterType, Type expectedResult)
+    {
+        // arrange
+
+        // act
+        var result = _subject.GetClosedGenericType(openGenericType, genericParameterType);
+
+        // assert
+        result.Should().Be(expectedResult);
     }
 }

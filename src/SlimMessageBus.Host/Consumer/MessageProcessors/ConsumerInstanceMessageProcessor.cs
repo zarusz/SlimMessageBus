@@ -22,10 +22,13 @@ public class ConsumerInstanceMessageProcessor<TTransportMessage> : MessageHandle
     public ConsumerInstanceMessageProcessor(
         IEnumerable<AbstractConsumerSettings> consumerSettings,
         MessageBusBase messageBus,
+        // ToDo: introduce delagate for this
         Func<Type, TTransportMessage, object> messageProvider,
         string path,
+        // ToDo: introduce delagate for this
         Action<TTransportMessage, ConsumerContext> consumerContextInitializer = null,
         bool sendResponses = true,
+        // ToDo: introduce delagate for this
         Func<TTransportMessage, Type> messageTypeProvider = null)
     : base(
         messageBus ?? throw new ArgumentNullException(nameof(messageBus)),
@@ -62,11 +65,12 @@ public class ConsumerInstanceMessageProcessor<TTransportMessage> : MessageHandle
 
     #endregion
 
-    public virtual async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response)> ProcessMessage(TTransportMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken, IServiceProvider currentServiceProvider = null)
+    public virtual async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response, object Message)> ProcessMessage(TTransportMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken, IServiceProvider currentServiceProvider = null)
     {
         IMessageTypeConsumerInvokerSettings lastConsumerInvoker = null;
         Exception lastException = null;
         object lastResponse = null;
+        object message = null;
 
         try
         {
@@ -78,7 +82,7 @@ public class ConsumerInstanceMessageProcessor<TTransportMessage> : MessageHandle
             {
                 try
                 {
-                    var message = _messageProvider(messageType, transportMessage);
+                    message = _messageProvider(messageType, transportMessage);
 
                     var consumerInvokers = TryMatchConsumerInvoker(messageType);
 
@@ -117,7 +121,7 @@ public class ConsumerInstanceMessageProcessor<TTransportMessage> : MessageHandle
         {
             _logger.LogDebug(e, "Processing of the message {TransportMessage} failed", transportMessage);
         }
-        return (lastException, lastException != null ? lastConsumerInvoker?.ParentSettings : null, lastResponse);
+        return (lastException, lastException != null ? lastConsumerInvoker?.ParentSettings : null, lastResponse, message);
     }
 
     private async Task ProduceResponse(string requestId, object request, IReadOnlyDictionary<string, object> requestHeaders, object response, Exception responseException, IMessageTypeConsumerInvokerSettings consumerInvoker)
@@ -131,6 +135,7 @@ public class ConsumerInstanceMessageProcessor<TTransportMessage> : MessageHandle
         {
             responseHeaders.SetHeader(ReqRespMessageHeaders.Error, responseException.Message);
         }
+        // ToDo: refactor, so that we can provide an interface instead
         await MessageBus.ProduceResponse(request, requestHeaders, response, responseHeaders, consumerInvoker.ParentSettings).ConfigureAwait(false);
     }
 

@@ -6,7 +6,6 @@
     <TargetFramework>netstandard2.1</TargetFramework>
     <Description>Extensions for SlimMessageBus that adds validation to the producer or consumer side based on the FluentValidation library</Description>
     <PackageTags>SlimMessageBus MessageBus FluentValidation Validation</PackageTags>
-    <PackageIcon>icon.png</PackageIcon>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 

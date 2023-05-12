@@ -2,7 +2,7 @@
 
 /// <summary>
 /// Decorator for <see cref="IMessageProcessor{TMessage}"> that increases the amount of messages being concurrently processed.
-/// The expectation is that <see cref="IMessageProcessor{TMessage}.ProcessMessage(TMessage)"/> will be executed synchronously (in sequential order) by the caller on which we want to increase amount of concurrent message being processed.
+/// The expectation is that <see cref="IMessageProcessor{TMessage}.ProcessMessage(TMessage)"/> will be executed synchronously (in sequential order) by the caller on which we want to increase amount of concurrent transportMessage being processed.
 /// </summary>
 /// <typeparam name="TMessage"></typeparam>
 public class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : IMessageProcessor<TMessage>
@@ -32,18 +32,18 @@ public class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : IMessage
 
     public IReadOnlyCollection<AbstractConsumerSettings> ConsumerSettings => _target.ConsumerSettings;
 
-    public async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response)> ProcessMessage(TMessage message, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken, IServiceProvider currentServiceProvider = null)
+    public async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response, object Message)> ProcessMessage(TMessage message, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken, IServiceProvider currentServiceProvider = null)
     {
         // Ensure only desired number of messages are being processed concurrently
         await _concurrentSemaphore.WaitAsync().ConfigureAwait(false);
 
-        // Check if there was an exception from and earlier message processing
+        // Check if there was an exception from and earlier transportMessage processing
         var e = _lastException;
         if (e != null)
         {
             // report the last exception
             _lastException = null;
-            return (e, _lastExceptionSettings, null);
+            return (e, _lastExceptionSettings, null, _lastExceptionMessage);
         }
 
         Interlocked.Increment(ref _pendingCount);
@@ -52,7 +52,7 @@ public class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : IMessage
         _ = ProcessInBackground(message, messageHeaders, currentServiceProvider, cancellationToken);
 
         // Not exception - we don't know yet
-        return (null, null, null);
+        return (null, null, null, null);
     }
 
     public TMessage GetMessageWithException()
@@ -73,12 +73,12 @@ public class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : IMessage
         }
     }
 
-    private async Task ProcessInBackground(TMessage message, IReadOnlyDictionary<string, object> messageHeaders, IServiceProvider currentServiceProvider, CancellationToken cancellationToken)
+    private async Task ProcessInBackground(TMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, IServiceProvider currentServiceProvider, CancellationToken cancellationToken)
     {
         try
         {
             _logger.LogDebug("Entering ProcessMessages for message {MessageType}", typeof(TMessage));
-            var (exception, consumerSettings, response) = await _target.ProcessMessage(message, messageHeaders, cancellationToken, currentServiceProvider).ConfigureAwait(false);
+            var (exception, consumerSettings, response, _) = await _target.ProcessMessage(transportMessage, messageHeaders, cancellationToken, currentServiceProvider).ConfigureAwait(false);
             if (exception != null)
             {
                 lock (_lastExceptionLock)
@@ -87,7 +87,7 @@ public class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : IMessage
                     if (_lastException == null && _lastExceptionMessage == null)
                     {
                         _lastException = exception;
-                        _lastExceptionMessage = message;
+                        _lastExceptionMessage = transportMessage;
                         _lastExceptionSettings = consumerSettings;
                     }
                 }

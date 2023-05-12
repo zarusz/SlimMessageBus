@@ -11,6 +11,7 @@ Transports:
 - Azure Event Hub
 - Redis
 - MQTT / Azure IoT Hub
+- RabbitMQ
 - In-Memory transport (domain events, mediator)
 - Hybrid (composition of the bus out of many transports)
 
