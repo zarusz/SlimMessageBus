@@ -81,6 +81,13 @@ public class RabbitMqMessageBusIt : BaseIntegrationTest<RabbitMqMessageBusIt>
                 .Produce<PingMessage>(x => x
                     .Exchange(topic, exchangeType: ExchangeType.Fanout)
                     .RoutingKeyProvider((m, p) => m.Value.ToString())
+                    .WithHeaderModifier((h, m) =>
+                    {
+                        // testing string serialization
+                        h["Counter"] = m.Counter;
+                        // testing bool serialization
+                        h["Even"] = m.Counter % 2 == 0;
+                    })
                     .MessagePropertiesModifier((m, p) =>
                     {
                         p.MessageId = GetMessageId(m);
@@ -114,7 +121,7 @@ public class RabbitMqMessageBusIt : BaseIntegrationTest<RabbitMqMessageBusIt>
             mbb
             .Produce<PingMessage>(x => x.DefaultQueue(queue).WithModifier(UseMessagePropertiesModifier))
             .Consume<PingMessage>(x => x
-                    .Queue(queue)
+                    .SetQueueProperties(queue)
                     .WithConsumer<PingConsumer>()
                     .WithConsumer<PingDerivedConsumer, PingDerivedMessage>()
                     .Instances(concurrency));
@@ -178,67 +185,55 @@ public class RabbitMqMessageBusIt : BaseIntegrationTest<RabbitMqMessageBusIt>
             messageCopies.Should().Be((producedMessage is PingDerivedMessage ? 2 : 1) * expectedMessageCopies);
         }
 
+        var messages = consumedMessages.Snapshot();
+        messages.All(x => x.Message.Counter == (int)x.Headers["Counter"]).Should().BeTrue();
+        messages.All(x => (x.Message.Counter % 2 == 0) == (bool)x.Headers["Even"]).Should().BeTrue();
+
         additionalAssertion?.Invoke(new TestData { ProducedMessages = producedMessages, ConsumedMessages = consumedMessages.Snapshot() });
     }
 
-    /*
     [Fact]
     public async Task BasicReqRespOnTopic()
     {
         var topic = "test-echo";
-
+ 
         AddBusConfiguration(mbb =>
         {
             mbb.Produce<EchoRequest>(x =>
             {
-                x.DefaultTopic(topic);
+                // The requests should be send to "test-echo" exchange
+                x.Exchange(topic, exchangeType: ExchangeType.Fanout);
+                x.RoutingKeyProvider((m, p) => m.Index.ToString());
                 // this is optional
-                x.WithModifier((message, transportMessage) =>
+                x.MessagePropertiesModifier((message, transportMessage) =>
                 {
                     // set the Azure SB message ID
                     transportMessage.MessageId = $"ID_{message.Index}";
-                    // set the Azure SB message partition key
-                    transportMessage.PartitionKey = message.Index.ToString(CultureInfo.InvariantCulture);
                 });
             })
-            .Handle<EchoRequest, EchoResponse>(x => x.Topic(topic)
-                .SubscriptionName("handler")
-                .WithHandler<EchoRequestHandler>()
-                .Instances(2))
+            .Handle<EchoRequest, EchoResponse>(x => x
+                // Declare the queue for the handler
+                .Queue("echo-request-handler")
+                // Bind the queue to the "test-echo" exchange
+                .ExchangeBinding("test-echo")
+                // If the request handling fails, the failed messages will be routed to the DLQ exchange
+                .DeadLetterExchange("echo-request-handler-dlq")
+                .WithHandler<EchoRequestHandler>())
             .ExpectRequestResponses(x =>
             {
-                x.ReplyToTopic("test-echo-resp");
-                x.SubscriptionName("response-consumer");
+                // Tell the handler to which exchange send the responses to
+                x.ReplyToExchange("test-echo-resp", ExchangeType.Fanout);
+                // Which queue to use to read responses from
+                x.Queue("test-echo-resp-queue");
+                // Bind to the reply to exchange
+                x.ExchangeBinding();
+                // Timeout if the response doesn't arrive within 60 seconds
                 x.DefaultTimeout(TimeSpan.FromSeconds(60));
             });
         });
 
         await BasicReqResp().ConfigureAwait(false);
     }
-
-    [Fact]
-    public async Task BasicReqRespOnQueue()
-    {
-        var queue = "test-echo-queue";
-
-        AddBusConfiguration(mbb =>
-        {
-            mbb.Produce<EchoRequest>(x =>
-            {
-                x.DefaultQueue(queue);
-            })
-            .Handle<EchoRequest, EchoResponse>(x => x.Queue(queue)
-                .WithHandler<EchoRequestHandler>()
-                .Instances(2))
-            .ExpectRequestResponses(x =>
-            {
-                x.ReplyToQueue("test-echo-queue-resp");
-                x.DefaultTimeout(TimeSpan.FromSeconds(60));
-            });
-        });
-        await BasicReqResp().ConfigureAwait(false);
-    }
-    */
 
     private async Task BasicReqResp()
     {
@@ -274,7 +269,7 @@ public class RabbitMqMessageBusIt : BaseIntegrationTest<RabbitMqMessageBusIt>
     }
 }
 
-public record TestEvent(PingMessage Message, string MessageId, string ContentType);
+public record TestEvent(PingMessage Message, string MessageId, string ContentType, IReadOnlyDictionary<string, object> Headers);
 
 public record PingMessage
 {
@@ -305,7 +300,7 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
     {
         var transportMessage = Context.GetTransportMessage();
 
-        _messages.Add(new(message, transportMessage.BasicProperties.MessageId, transportMessage.BasicProperties.ContentType));
+        _messages.Add(new(message, transportMessage.BasicProperties.MessageId, transportMessage.BasicProperties.ContentType, Context.Headers));
 
         _logger.LogInformation("Got message {Counter:000} on path {Path}.", message.Counter, Context.Path);
 
@@ -333,7 +328,7 @@ public class PingDerivedConsumer : IConsumer<PingDerivedMessage>, IConsumerWithC
     {
         var transportMessage = Context.GetTransportMessage();
 
-        _messages.Add(new(message, transportMessage.BasicProperties.MessageId, transportMessage.BasicProperties.ContentType));
+        _messages.Add(new(message, transportMessage.BasicProperties.MessageId, transportMessage.BasicProperties.ContentType, Context.Headers));
 
         _logger.LogInformation("Got message {Counter:000} on path {Path}.", message.Counter, Context.Path);
 

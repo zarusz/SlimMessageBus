@@ -23,7 +23,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     /// <summary>
     /// Special market reference that signifies a dummy producer settings for response types.
     /// </summary>
-    private static readonly ProducerSettings MarkerProducerSettingsForResponses = new();
+    protected static readonly ProducerSettings MarkerProducerSettingsForResponses = new();
 
     public RuntimeTypeCache RuntimeTypeCache { get; }
 
@@ -256,7 +256,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         if (Settings.RequestResponse != null)
         {
             Assert.IsNotNull(Settings.RequestResponse.Path,
-                () => new ConfigurationMessageBusException("Request-response: name was not set"));
+                () => new ConfigurationMessageBusException("Request-response: path was not set"));
         }
     }
 

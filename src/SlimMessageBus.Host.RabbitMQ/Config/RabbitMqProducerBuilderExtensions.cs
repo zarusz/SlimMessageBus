@@ -3,7 +3,7 @@
 public static class RabbitMqProducerBuilderExtensions
 {
     /// <summary>
-    /// Sets the exchange name and optionally other parameters.
+    /// Sets the exchange name (and optionally other exchange parameters).
     /// </summary>
     /// <remarks>Setting the name is equivalent to using <see cref="ProducerBuilder{T}.DefaultPath(string)"/>.</remarks>
     /// <typeparam name="T"></typeparam>
@@ -19,62 +19,28 @@ public static class RabbitMqProducerBuilderExtensions
         if (string.IsNullOrEmpty(exchangeName)) throw new ArgumentNullException(nameof(exchangeName));
 
         builder.DefaultPath(exchangeName);
+        builder.Settings.SetExchangeProperties(exchangeType: exchangeType, durable: durable, autoDelete: autoDelete, arguments: arguments);
+        return builder;
+    }
+
+    internal static void SetExchangeProperties(this HasProviderExtensions settings, ExchangeType? exchangeType = null, bool? durable = null, bool? autoDelete = null, IDictionary<string, object>? arguments = null)
+    {
         if (exchangeType != null)
         {
-            builder.ExchangeType(exchangeType.Value);
+            settings.Properties[RabbitMqProperties.ExchangeType] = MapExchangeType(exchangeType.Value);
         }
         if (durable != null)
         {
-            builder.Durable(durable.Value);
+            settings.Properties[RabbitMqProperties.ExchangeDurable] = durable.Value;
         }
         if (autoDelete != null)
         {
-            builder.AutoDelete(autoDelete.Value);
+            settings.Properties[RabbitMqProperties.ExchangeAutoDelete] = autoDelete.Value;
         }
         if (arguments != null)
         {
-            builder.ExchangeArguments(arguments);
+            settings.Properties[RabbitMqProperties.ExchangeArguments] = arguments;
         }
-        return builder;
-    }
-
-    /// <summary>
-    /// Sets the exchange type.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="builder"></param>
-    /// <param name="exchangeType"></param>
-    /// <returns></returns>
-    public static ProducerBuilder<T> ExchangeType<T>(this ProducerBuilder<T> builder, ExchangeType exchangeType)
-    {
-        builder.Settings.Properties[RabbitMqProperties.ExchangeType] = MapExchangeType(exchangeType);
-        return builder;
-    }
-
-    /// <summary>
-    /// Sets the the exchange to durable or not.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="builder"></param>
-    /// <param name="enabled"></param>
-    /// <returns></returns>
-    public static ProducerBuilder<T> Durable<T>(this ProducerBuilder<T> builder, bool enabled = true)
-    {
-        builder.Settings.Properties[RabbitMqProperties.ExchangeDurable] = enabled;
-        return builder;
-    }
-
-    /// <summary>
-    /// Sets the auto delete on an exchange.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="builder"></param>
-    /// <param name="enabled"></param>
-    /// <returns></returns>
-    public static ProducerBuilder<T> AutoDelete<T>(this ProducerBuilder<T> builder, bool enabled = true)
-    {
-        builder.Settings.Properties[RabbitMqProperties.ExchangeAutoDelete] = enabled;
-        return builder;
     }
 
     /// <summary>
@@ -122,19 +88,6 @@ public static class RabbitMqProducerBuilderExtensions
         return builder;
     }
 
-    /// <summary>
-    /// Sets the exchange arguments.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="builder"></param>
-    /// <param name="exchangeArguments"></param>
-    /// <returns></returns>
-    public static ProducerBuilder<T> ExchangeArguments<T>(this ProducerBuilder<T> builder, IDictionary<string, object> exchangeArguments)
-    {
-        builder.Settings.Properties[RabbitMqProperties.ExchangeArguments] = exchangeArguments;
-        return builder;
-    }
-
     internal static string MapExchangeType(ExchangeType exchangeType) => exchangeType switch
     {
         RabbitMQ.ExchangeType.Direct => global::RabbitMQ.Client.ExchangeType.Direct,
@@ -144,29 +97,3 @@ public static class RabbitMqProducerBuilderExtensions
         _ => throw new ArgumentOutOfRangeException(nameof(exchangeType))
     };
 }
-
-/// <summary>
-/// Represents an initializer that is able to perform additional RabbitMQ topology setup.
-/// </summary>
-/// <param name="channel">The RabbitMQ client channel</param>
-/// <param name="applyDefaultTopology">Calling this action will peform the default topology setup by SMB</param>
-public delegate void RabbitMqTopologyInitializer(IModel channel, Action applyDefaultTopology);
-
-/// <summary>
-/// Represents a key provider provider for a given message.
-/// </summary>
-/// <typeparam name="T"></typeparam>
-/// <param name="message">The message</param>
-/// <param name="messageProperties">The message properties</param>
-/// <returns></returns>
-public delegate string RabbitMqMessageRoutingKeyProvider<T>(T message, IBasicProperties messageProperties);
-
-/// <summary>
-/// Represents a message modifier for a given message.
-/// </summary>
-/// <typeparam name="T"></typeparam>
-/// <param name="message">The message</param>
-/// <param name="messageProperties">The message properties to be modified</param>
-/// <returns></returns>
-public delegate void RabbitMqMessagePropertiesModifier<T>(T message, IBasicProperties messageProperties);
-
