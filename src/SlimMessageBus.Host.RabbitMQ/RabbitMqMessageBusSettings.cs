@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.RabbitMQ;
 
-using SlimMessageBus.Host.Serialization;
-
 public class RabbitMqMessageBusSettings : HasProviderExtensions
 {
     /// <summary>
@@ -20,5 +18,16 @@ public class RabbitMqMessageBusSettings : HasProviderExtensions
 
     public IList<AmqpTcpEndpoint> Endpoints { get; set; } = new List<AmqpTcpEndpoint>();
 
-    public IMessageSerializer HeaderSerializer { get; set; } = new DefaultRabbitMqHeaderSerializer();
+    /// <summary>
+    /// Allows to set a custom header values converter between SMB and the underlying RabbitMq client.
+    /// See the <see cref="DefaultHeaderValueConverter"/>.
+    /// </summary>
+    public IHeaderValueConverter HeaderValueConverter { get; set; } = new DefaultHeaderValueConverter();
 }
+
+public interface IHeaderValueConverter
+{
+    object ConvertTo(object v);
+    object ConvertFrom(object v);
+}
+

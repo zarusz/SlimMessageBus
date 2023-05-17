@@ -38,6 +38,7 @@ public class ProducerBuilder<T>
     {
         if (headerModifierAction == null) throw new ArgumentNullException(nameof(headerModifierAction));
 
+        // ToDo: Introduce delegate (HeaderModifier)
         Settings.HeaderModifier = (headers, message) => headerModifierAction(headers, (T)message);
         return this;
     }

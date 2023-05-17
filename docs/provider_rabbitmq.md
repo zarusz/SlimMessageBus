@@ -10,9 +10,10 @@ Please read the [Introduction](intro.md) before reading this provider documentat
   - [Consumer Error Handling](#consumer-error-handling)
     - [Dead Letter Exchange](#dead-letter-exchange)
     - [Custom Consumer Error Handler](#custom-consumer-error-handler)
-- [Message Headers](#message-headers)
+  - [Request-Response](#request-response)
 - [Topology Provisioning](#topology-provisioning)
 - [Not Supported](#not-supported)
+- [Feeback](#feeback)
 
 ## Underlying client
 
@@ -232,11 +233,40 @@ services.AddTransient(typeof(RabbitMqConsumerErrorHandler<>), typeof(CustomRabbi
 
 > When error handler is not found in the DI or it returns `false` then default error handling will be applied.
 
-## Message Headers
+### Request-Response
 
-- UseDefaultMessageProperties
-- Default behaviour
-- Custom Serializer
+Here is an example how to set-up request-response flow over RabbitMQ. The fanout exchange types was used, but other type could be used as well (altough we might have to provide the [routing key provider](#producers) on the producer side.)
+
+```cs
+services.AddSlimMessageBus((mbb) =>
+{
+    // ...
+    mbb.Produce<EchoRequest>(x =>
+    {
+        // The requests should be send to "test-echo" exchange
+        x.Exchange("test-echo", exchangeType: ExchangeType.Fanout);
+    })
+    .Handle<EchoRequest, EchoResponse>(x => x
+        // Declare the queue for the handler
+        .Queue("echo-request-handler")
+        // Bind the queue to the "test-echo" exchange
+        .ExchangeBinding("test-echo")
+        // If the request handling fails, the failed messages will be routed to the DLQ exchange
+        .DeadLetterExchange("echo-request-handler-dlq")
+        .WithHandler<EchoRequestHandler>())
+    .ExpectRequestResponses(x =>
+    {
+        // Tell the handler to which exchange send the responses to
+        x.ReplyToExchange("test-echo-resp", ExchangeType.Fanout);                
+        // Which queue to use to read responses from
+        x.Queue("test-echo-resp-queue");
+        // Bind to the reply to exchange
+        x.ExchangeBinding();
+        // Timeout if the response doesn't arrive within 60 seconds
+        x.DefaultTimeout(TimeSpan.FromSeconds(60));
+    });
+});
+```
 
 ## Topology Provisioning
 
@@ -269,4 +299,9 @@ This might be useful in case the SMB inferred topology is not desired or there a
 
 ## Not Supported
 
-- The request-response is not yet supported. It will be made available soon.
+- [Default type exchanges](https://www.rabbitmq.com/tutorials/amqp-concepts.html#exchange-default) are not yet supported
+- Broker generated queues are not yet supported.
+
+## Feeback
+
+Open a github issue if you need a feature, have a suggestion for improvement, or want to contribute an enhancement.

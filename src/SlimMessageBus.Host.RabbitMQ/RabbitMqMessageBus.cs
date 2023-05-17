@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.RabbitMQ;
 
-using global::RabbitMQ.Client;
-
 public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IRabbitMqChannel
 {
     private readonly ILogger _logger;
@@ -31,8 +29,6 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
 
     protected override void AssertProducers()
     {
-        base.AssertProducers();
-
         foreach (var producer in Settings.Producers)
         {
             var exchangeName = producer.DefaultPath;
@@ -41,33 +37,55 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
                 throw new ConfigurationMessageBusException($"The {nameof(RabbitMqProducerBuilderExtensions.Exchange)} is not provided on the producer for message type {producer.MessageType.Name}");
             }
 
-            var exchangeType = producer.GetOrDefault<string>(RabbitMqProperties.ExchangeType, ProviderSettings, null);
-            if (exchangeType == null)
-            {
-                throw new ConfigurationMessageBusException($"The {nameof(RabbitMqProducerBuilderExtensions.ExchangeType)} is neither provided on the producer for exchange {producer.DefaultPath} nor a default provider exists at the bus level (check that .{nameof(RabbitMqProducerBuilderExtensions.ExchangeType)}() exists on the producer or bus level)");
-            }
-
             var routingKeyProvider = producer.GetMessageRoutingKeyProvider(ProviderSettings);
             if (routingKeyProvider == null)
             {
-                throw new ConfigurationMessageBusException($"The {nameof(RabbitMqProducerBuilderExtensions.RoutingKeyProvider)} is neither provided on the producer for exchange {producer.DefaultPath} nor a default provider exists at the bus level (check that .{nameof(RabbitMqProducerBuilderExtensions.RoutingKeyProvider)}() exists on the producer or bus level)");
+                // Requirement for the routing key depends on the ExchangeType
+                var exchangeType = producer.GetExchageType(ProviderSettings);
+                if (exchangeType == global::RabbitMQ.Client.ExchangeType.Direct || exchangeType == global::RabbitMQ.Client.ExchangeType.Topic)
+                {
+                    throw new ConfigurationMessageBusException($"The {nameof(RabbitMqProducerBuilderExtensions.RoutingKeyProvider)} is neither provided on the producer for exchange {producer.DefaultPath} nor a default provider exists at the bus level (check that .{nameof(RabbitMqProducerBuilderExtensions.RoutingKeyProvider)}() exists on the producer or bus level). Exchange type {exchangeType} requires the producer to has a routing key provider.");
+                }
             }
         }
 
-        foreach (var consumer in Settings.Consumers)
+        base.AssertProducers();
+    }
+
+    protected override void AssertConsumerSettings(ConsumerSettings consumerSettings)
+    {
+        var exchangeName = consumerSettings.Path;
+        if (exchangeName == null)
         {
-            var exchangeName = consumer.Path;
+            throw new ConfigurationMessageBusException($"The {nameof(RabbitMqConsumerBuilderExtensions.ExchangeBinding)} is not provided on the consumer for message type {consumerSettings.MessageType.Name}");
+        }
+
+        var queueName = consumerSettings.GetQueueName();
+        if (queueName == null)
+        {
+            throw new ConfigurationMessageBusException($"The {nameof(RabbitMqConsumerBuilderExtensions.Queue)} is not provided on the consumer for message type {consumerSettings.MessageType.Name}");
+        }
+
+        base.AssertConsumerSettings(consumerSettings);
+    }
+
+    protected override void AssertRequestResponseSettings()
+    {
+        if (Settings.RequestResponse != null)
+        {
+            var exchangeName = Settings.RequestResponse.Path;
             if (exchangeName == null)
             {
-                throw new ConfigurationMessageBusException($"The {nameof(RabbitMqConsumerBuilderExtensions.ExchangeBinding)} is not provided on the consumer for message type {consumer.MessageType.Name}");
+                throw new ConfigurationMessageBusException($"The {nameof(RabbitMqRequestResponseBuilderExtensions.ReplyToExchange)} is not provided on the {nameof(MessageBusBuilder.ExpectRequestResponses)}()");
             }
 
-            var queueName = consumer.GetQueueName();
+            var queueName = Settings.RequestResponse.GetQueueName();
             if (queueName == null)
             {
-                throw new ConfigurationMessageBusException($"The {nameof(RabbitMqConsumerBuilderExtensions.Queue)} is not provided on the consummer for message type {consumer.MessageType.Name}");
+                throw new ConfigurationMessageBusException($"The {nameof(RabbitMqRequestResponseBuilderExtensions.Queue)} is not provided on the {nameof(MessageBusBuilder.ExpectRequestResponses)}()");
             }
         }
+        base.AssertRequestResponseSettings();
     }
 
     protected override void Build()
@@ -76,18 +94,13 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
 
         foreach (var (queueName, consumers) in Settings.Consumers.GroupBy(x => x.GetQueueName()).ToDictionary(x => x.Key, x => x.ToList()))
         {
-            _consumers.Add(new RabbitMqConsumer(LoggerFactory, channel: this, queueName: queueName, consumers, Serializer, messageBus: this, ProviderSettings.HeaderSerializer));
+            _consumers.Add(new RabbitMqConsumer(LoggerFactory, channel: this, queueName: queueName, consumers, Serializer, messageBus: this, ProviderSettings.HeaderValueConverter));
         }
 
-        // ToDo: Implement Request-Response
-        /*
-        if (_settings.RequestResponse != null)
+        if (Settings.RequestResponse != null)
         {
-            var topicSubscription = new TopicSubscriptionParams(_settings.RequestResponse.Path, _settings.RequestResponse.GetSubscriptionName(required: false));
-            var messageProcessor = new ResponseMessageProcessor<ServiceBusReceivedMessage>(_settings.RequestResponse, this, m => m.Body.ToArray());
-            AddConsumer(topicSubscription, messageProcessor, new[] { _settings.RequestResponse });
+            _consumers.Add(new RabbitMqResponseConsumer(LoggerFactory, channel: this, queueName: Settings.RequestResponse.GetQueueName(), Settings.RequestResponse, this, ProviderSettings.HeaderValueConverter));
         }
-        */
 
         _initTask = Task.Factory.StartNew(CreateConnection).Unwrap();
     }
@@ -227,20 +240,13 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
                 messageProperties.Headers ??= new Dictionary<string, object>();
                 foreach (var header in messageHeaders)
                 {
-                    var value = header.Value is string str
-                        ? ProviderSettings.HeaderSerializer.Serialize(typeof(object), str)
-                        : header.Value;
-
-                    messageProperties.Headers[header.Key] = value;
+                    messageProperties.Headers[header.Key] = ProviderSettings.HeaderValueConverter.ConvertTo(header.Value);
                 }
             }
 
+            // Calculate the routing key for the message (if provider set)
             var routingKeyProvider = producer.GetMessageRoutingKeyProvider(ProviderSettings);
-            var routingKey = routingKeyProvider?.Invoke(message, messageProperties);
-            if (routingKey == null)
-            {
-                throw new ProducerMessageBusException($"The RoutingKey returned from the provider for producer on exchange {producer.DefaultPath} was null (check your {nameof(RabbitMqProducerBuilderExtensions.RoutingKeyProvider)} on the producer or bus level)");
-            }
+            var routingKey = routingKeyProvider?.Invoke(message, messageProperties) ?? string.Empty;
 
             // Invoke the bus level modifier
             var messagePropertiesModifier = ProviderSettings.GetMessagePropertiesModifier();

@@ -10,4 +10,10 @@ internal static class RabbitMqHasProviderExtensions
 
     public static string GetQueueName(this AbstractConsumerSettings p)
         => p.GetOrDefault<string>(RabbitMqProperties.QueueName, null);
+
+    public static string GetQueueName(this RequestResponseSettings p)
+        => p.GetOrDefault<string>(RabbitMqProperties.QueueName, null);
+
+    public static string GetExchageType(this ProducerSettings p, HasProviderExtensions settings = null)
+        => p.GetOrDefault<string>(RabbitMqProperties.ExchangeType, settings, null);
 }
