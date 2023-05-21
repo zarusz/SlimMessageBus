@@ -161,19 +161,21 @@ services.AddSlimMessageBus(mbb =>
             // Use Kafka transport provider (requires SlimMessageBus.Host.Kafka package)
             .WithProviderKafka(cfg => { cfg.BrokerList = "localhost:9092"; }); // requires SlimMessageBus.Host.Kafka package
             // Use Azure Service Bus transport provider
-            //.WithProviderServiceBus(...) // requires SlimMessageBus.Host.AzureServiceBus package
+            //.WithProviderServiceBus(cfg => { ... }) // requires SlimMessageBus.Host.AzureServiceBus package
             // Use Azure Azure Event Hub transport provider
-            //.WithProviderEventHub(...) // requires SlimMessageBus.Host.AzureEventHub package
+            //.WithProviderEventHub(cfg => { ... }) // requires SlimMessageBus.Host.AzureEventHub package
             // Use Redis transport provider
-            //.WithProviderRedis(...) // requires SlimMessageBus.Host.Redis package
+            //.WithProviderRedis(cfg => { ... }) // requires SlimMessageBus.Host.Redis package
+            // Use RabbitMQ transport provider
+            //.WithProviderRabbitMQ(cfg => { ... }) // requires SlimMessageBus.Host.RabbitMQ package
             // Use in-memory transport provider
-            //.WithProviderMemory(...) // requires SlimMessageBus.Host.Memory package
+            //.WithProviderMemory(cfg => { ... }) // requires SlimMessageBus.Host.Memory package
       })
       
       // Add other bus transports (as child bus), if needed
       //.AddChildBus("Bus2", (builder) => {  })
 
-      // Scan assembly for consumers, handlers, interceptors, configurators, and register into MSDI
+      // Scan assembly for consumers, handlers, interceptors, and register into MSDI
       .AddServicesFromAssemblyContaining<SomeMessageConsumer>()
       //.AddServicesFromAssembly(Assembly.GetExecutingAssembly());
 

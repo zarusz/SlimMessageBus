@@ -33,7 +33,7 @@ enum Provider
 /// <summary>
 /// This sample is a console app that uses the .NET Generic Host https://docs.microsoft.com/en-us/dotnet/core/extensions/generic-host
 /// </summary>
-internal static class Program
+static internal class Program
 {
     private static async Task Main(string[] args)
     {

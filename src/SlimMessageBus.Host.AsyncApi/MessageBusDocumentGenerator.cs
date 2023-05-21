@@ -189,7 +189,7 @@ public class MessageBusDocumentGenerator : IDocumentGenerator
         return operation;
     }
 
-    internal static string GetMessageId(Type messageType)
+    static internal string GetMessageId(Type messageType)
     {
         if (messageType.IsGenericType)
         {

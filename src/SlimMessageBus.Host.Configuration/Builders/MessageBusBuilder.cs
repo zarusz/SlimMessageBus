@@ -266,9 +266,22 @@ public class MessageBusBuilder
     /// <summary>
     /// Hook called whenver message is being produced. Can be used to add (or mutate) message headers.
     /// </summary>
-    public MessageBusBuilder WithHeaderModifier(Action<IDictionary<string, object>, object> headerModifierAction)
+    public MessageBusBuilder WithHeaderModifier(MessageHeaderModifier<object> headerModifier) => WithHeaderModifier<object>(headerModifier);
+
+    /// <summary>
+    /// Hook called whenver message is being produced. Can be used to add (or mutate) message headers.
+    /// </summary>
+    public MessageBusBuilder WithHeaderModifier<T>(MessageHeaderModifier<T> headerModifier)
     {
-        Settings.HeaderModifier = headerModifierAction ?? throw new ArgumentNullException(nameof(headerModifierAction));
+        if (headerModifier == null) throw new ArgumentNullException(nameof(headerModifier));
+
+        Settings.HeaderModifier = (headers, message) =>
+        {
+            if (message is T typedMessage)
+            {
+                headerModifier(headers, typedMessage);
+            }
+        };
         return this;
     }
 

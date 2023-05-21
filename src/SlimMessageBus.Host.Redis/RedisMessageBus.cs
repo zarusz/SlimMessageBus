@@ -4,7 +4,6 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
 {
     private readonly ILogger _logger;
     private readonly KindMapping _kindMapping = new();
-    private readonly List<IRedisConsumer> _consumers = new();
 
     protected IConnectionMultiplexer Connection { get; private set; }
     protected IDatabase Database { get; private set; }
@@ -17,20 +16,7 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
         OnBuildProvider();
     }
 
-    protected override void AssertSettings()
-    {
-        base.AssertSettings();
-
-        if (string.IsNullOrEmpty(ProviderSettings.ConnectionString))
-        {
-            throw new ConfigurationMessageBusException(Settings, $"The {nameof(RedisMessageBusSettings)}.{nameof(RedisMessageBusSettings.ConnectionString)} must be set");
-        }
-
-        if (ProviderSettings.EnvelopeSerializer is null)
-        {
-            throw new ConfigurationMessageBusException(Settings, $"The {nameof(RedisMessageBusSettings)}.{nameof(RedisMessageBusSettings.EnvelopeSerializer)} must be set");
-        }
-    }
+    protected override IMessageBusSettingsValidationService ValidationService => new RedisMessageBusSettingsValidationService(Settings, ProviderSettings);
 
     #region Overrides of MessageBusBase
 
@@ -60,6 +46,15 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
         }
     }
 
+    protected override async ValueTask DisposeAsyncCore()
+    {
+        await base.DisposeAsyncCore();
+
+        await ((IAsyncDisposable)Connection).DisposeSilently(nameof(ConnectionMultiplexer), _logger);
+    }
+
+    #endregion
+
     private void Connection_ErrorMessage(object sender, RedisErrorEventArgs e)
     {
         _logger.LogError("Redis recieved error message: {ErrorMessage}", e.Message);
@@ -85,51 +80,25 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
         _logger.LogError(e.Exception, "Redis connection failed - failure type {FailureType}, connection type: {ConnectionType}, with message {ErrorMessage}", e.FailureType, e.ConnectionType, e.Exception?.Message ?? "(empty)");
     }
 
-    protected override async ValueTask DisposeAsyncCore()
+    protected override async Task CreateConsumers()
     {
-        await base.DisposeAsyncCore();
+        await base.CreateConsumers();
 
-        await ((IAsyncDisposable)Connection).DisposeSilently(nameof(ConnectionMultiplexer), _logger);
-    }
-
-    #endregion
-
-    protected override async Task OnStart()
-    {
-        await base.OnStart().ConfigureAwait(false);
-
-        CreateConsumers();
-
-        foreach (var consumer in _consumers)
-        {
-            await consumer.Start().ConfigureAwait(false);
-        }
-    }
-
-    protected override async Task OnStop()
-    {
-        await base.OnStop().ConfigureAwait(false);
-
-        foreach (var consumer in _consumers)
-        {
-            await consumer.Stop().ConfigureAwait(false);
-        }
-
-        await DestroyConsumers().ConfigureAwait(false);
-    }
-
-    protected void CreateConsumers()
-    {
         var subscriber = Connection.GetSubscriber();
 
         var queues = new List<(string, IMessageProcessor<MessageWithHeaders>)>();
 
         object MessageProvider(Type messageType, MessageWithHeaders transportMessage) => Serializer.Deserialize(messageType, transportMessage.Payload);
 
-        _logger.LogInformation("Creating consumers");
+        void AddTopicConsumer(string topic, ISubscriber subscriber, IMessageProcessor<MessageWithHeaders> messageProcessor)
+        {
+            var consumer = new RedisTopicConsumer(LoggerFactory.CreateLogger<RedisTopicConsumer>(), topic, subscriber, messageProcessor, ProviderSettings.EnvelopeSerializer);
+            AddConsumer(consumer);
+        }
+
         foreach (var ((path, pathKind), consumerSettings) in Settings.Consumers.GroupBy(x => (x.Path, x.PathKind)).ToDictionary(x => x.Key, x => x.ToList()))
         {
-            IMessageProcessor<MessageWithHeaders> processor = new ConsumerInstanceMessageProcessor<MessageWithHeaders>(consumerSettings, this, MessageProvider, path);
+            IMessageProcessor<MessageWithHeaders> processor = new MessageProcessor<MessageWithHeaders>(consumerSettings, this, MessageProvider, path, responseProducer: this);
 
             var instances = consumerSettings.Max(x => x.Instances);
             if (instances > 1)
@@ -169,35 +138,18 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
 
             if (Settings.RequestResponse.PathKind == PathKind.Topic)
             {
-                AddTopicConsumer(Settings.RequestResponse.Path, subscriber, new ResponseMessageProcessor<MessageWithHeaders>(Settings.RequestResponse, this, messageProvider: m => m.Payload));
+                AddTopicConsumer(Settings.RequestResponse.Path, subscriber, new ResponseMessageProcessor<MessageWithHeaders>(LoggerFactory, Settings.RequestResponse, this, messagePayloadProvider: m => m.Payload));
             }
             else
             {
-                queues.Add((Settings.RequestResponse.Path, new ResponseMessageProcessor<MessageWithHeaders>(Settings.RequestResponse, this, messageProvider: m => m.Payload)));
+                queues.Add((Settings.RequestResponse.Path, new ResponseMessageProcessor<MessageWithHeaders>(LoggerFactory, Settings.RequestResponse, this, messagePayloadProvider: m => m.Payload)));
             }
         }
 
         if (queues.Count > 0)
         {
-            _consumers.Add(new RedisListCheckerConsumer(LoggerFactory.CreateLogger<RedisListCheckerConsumer>(), Database, ProviderSettings.QueuePollDelay, ProviderSettings.QueuePollMaxIdle, queues, ProviderSettings.EnvelopeSerializer));
+            AddConsumer(new RedisListCheckerConsumer(LoggerFactory.CreateLogger<RedisListCheckerConsumer>(), Database, ProviderSettings.QueuePollDelay, ProviderSettings.QueuePollMaxIdle, queues, ProviderSettings.EnvelopeSerializer));
         }
-    }
-
-    protected async Task DestroyConsumers()
-    {
-        _logger.LogInformation("Destroying consumers");
-
-        foreach (var consumer in _consumers)
-        {
-            await consumer.DisposeSilently(nameof(RedisTopicConsumer), _logger).ConfigureAwait(false);
-        }
-        _consumers.Clear();
-    }
-
-    protected void AddTopicConsumer(string topic, ISubscriber subscriber, IMessageProcessor<MessageWithHeaders> messageProcessor)
-    {
-        var consumer = new RedisTopicConsumer(LoggerFactory.CreateLogger<RedisTopicConsumer>(), topic, subscriber, messageProcessor, ProviderSettings.EnvelopeSerializer);
-        _consumers.Add(consumer);
     }
 
     #region Overrides of MessageBusBase
@@ -214,7 +166,7 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
 
     #endregion
 
-    protected virtual async Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken, PathKind kind)
+    protected async virtual Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken, PathKind kind)
     {
         if (messageType is null) throw new ArgumentNullException(nameof(messageType));
         if (messagePayload is null) throw new ArgumentNullException(nameof(messagePayload));

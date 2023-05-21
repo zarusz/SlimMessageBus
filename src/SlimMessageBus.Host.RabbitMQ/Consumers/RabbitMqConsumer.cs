@@ -9,10 +9,11 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer
         : base(loggerFactory.CreateLogger<RabbitMqConsumer>(), channel, queueName, headerValueConverter)
     {
         _messageBus = messageBus;
-        _messageProcessor = new ConsumerInstanceMessageProcessor<BasicDeliverEventArgs>(
+        _messageProcessor = new MessageProcessor<BasicDeliverEventArgs>(
             consumers,
             messageBus,
             path: queueName,
+            responseProducer: messageBus,
             messageProvider: (messageType, m) => serializer.Deserialize(messageType, m.Body.ToArray()),
             consumerContextInitializer: InitializeConsumerContext);
     }

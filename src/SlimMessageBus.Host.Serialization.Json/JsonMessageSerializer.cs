@@ -30,7 +30,7 @@ public class JsonMessageSerializer : IMessageSerializer
     public byte[] Serialize(Type t, object message)
     {
         var jsonPayload = JsonConvert.SerializeObject(message, t, _serializerSettings);
-        _logger.LogDebug("Type {0} serialized from {1} to JSON {2}", t, message, jsonPayload);
+        _logger.LogDebug("Type {MessageType} serialized from {Message} to JSON {MessageJson}", t, message, jsonPayload);
 
         var payload = _encoding.GetBytes(jsonPayload);
         return payload;
@@ -43,12 +43,12 @@ public class JsonMessageSerializer : IMessageSerializer
         {
             jsonPayload = _encoding.GetString(payload);
             var message = JsonConvert.DeserializeObject(jsonPayload, t, _serializerSettings);
-            _logger.LogDebug("Type {0} deserialized from JSON {2} to {1}", t, message, jsonPayload);
+            _logger.LogDebug("Type {MessageType} deserialized from JSON {MessageJson} to {Message}", t, jsonPayload, message);
             return message;
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "Type {0} could not been deserialized, payload: {1}, JSON: {2}", t, _logger.IsEnabled(LogLevel.Debug) ? Convert.ToBase64String(payload) : "(...)", jsonPayload);
+            _logger.LogError(e, "Type {MessageType} could not been deserialized, payload: {MessagePayload}, JSON: {MessageJson}", t, _logger.IsEnabled(LogLevel.Debug) ? Convert.ToBase64String(payload) : "(...)", jsonPayload);
             throw;
         }
     }

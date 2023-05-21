@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host.AzureEventHub;
 
-internal static class SettingsExtensions
+static internal class SettingsExtensions
 {
     private const string GroupKey = "Eh_Group";
     private const string KeyProviderKey = "Eh_KeyProvider";

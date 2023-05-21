@@ -1,12 +1,9 @@
 ﻿namespace SlimMessageBus.Host.Mqtt;
 
-using MQTTnet.Extensions.ManagedClient;
-
 public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
 {
     private readonly ILogger _logger;
     private IManagedMqttClient _mqttClient;
-    private readonly List<MqttTopicConsumer> _consumers = new();
 
     public MqttMessageBus(MessageBusSettings settings, MqttMessageBusSettings providerSettings) : base(settings, providerSettings)
     {
@@ -15,28 +12,13 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
         OnBuildProvider();
     }
 
-    protected override void AssertSettings()
-    {
-        base.AssertSettings();
-
-        if (ProviderSettings.ClientBuilder is null)
-        {
-            throw new ConfigurationMessageBusException(Settings, $"The {nameof(MqttMessageBusSettings)}.{nameof(MqttMessageBusSettings.ClientBuilder)} must be set");
-        }
-        if (ProviderSettings.ManagedClientBuilder is null)
-        {
-            throw new ConfigurationMessageBusException(Settings, $"The {nameof(MqttMessageBusSettings)}.{nameof(MqttMessageBusSettings.ManagedClientBuilder)} must be set");
-        }
-    }
+    protected override IMessageBusSettingsValidationService ValidationService => new MqttMessageBusSettingsValidationService(Settings, ProviderSettings);
 
     public bool IsConnected => _mqttClient?.IsConnected ?? false;
 
     protected override async Task OnStart()
     {
         await base.OnStart().ConfigureAwait(false);
-
-        _mqttClient = ProviderSettings.MqttFactory.CreateManagedMqttClient();
-        _mqttClient.ApplicationMessageReceivedAsync += OnMessageReceivedAsync;
 
         var clientOptions = ProviderSettings.ClientBuilder
             .Build();
@@ -45,42 +27,64 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
             .WithClientOptions(clientOptions)
             .Build();
 
-        await CreateConsumers();
-
         await _mqttClient.StartAsync(managedClientOptions).ConfigureAwait(false);
     }
 
-    protected async Task CreateConsumers()
+    protected override async Task OnStop()
     {
+        await base.OnStop().ConfigureAwait(false);
+
+        if (_mqttClient != null)
+        {
+            await _mqttClient.StopAsync().ConfigureAwait(false);
+        }
+    }
+
+    protected override async Task CreateConsumers()
+    {
+        _mqttClient = ProviderSettings.MqttFactory.CreateManagedMqttClient();
+        _mqttClient.ApplicationMessageReceivedAsync += OnMessageReceivedAsync;
+
         object MessageProvider(Type messageType, MqttApplicationMessage transportMessage) => Serializer.Deserialize(messageType, transportMessage.Payload);
 
         void AddTopicConsumer(string topic, IMessageProcessor<MqttApplicationMessage> messageProcessor)
         {
             _logger.LogInformation("Creating consumer for {Path}", topic);
             var consumer = new MqttTopicConsumer(LoggerFactory.CreateLogger<MqttTopicConsumer>(), topic, messageProcessor);
-            _consumers.Add(consumer);
+            AddConsumer(consumer);
         }
 
         _logger.LogInformation("Creating consumers");
         foreach (var (path, consumerSettings) in Settings.Consumers.GroupBy(x => x.Path).ToDictionary(x => x.Key, x => x.ToList()))
         {
-            var processor = new ConsumerInstanceMessageProcessor<MqttApplicationMessage>(consumerSettings, this, MessageProvider, path);
+            var processor = new MessageProcessor<MqttApplicationMessage>(consumerSettings, this, MessageProvider, path, responseProducer: this);
             AddTopicConsumer(path, processor);
         }
 
         if (Settings.RequestResponse != null)
         {
-            var processor = new ResponseMessageProcessor<MqttApplicationMessage>(Settings.RequestResponse, this, messageProvider: m => m.Payload);
+            var processor = new ResponseMessageProcessor<MqttApplicationMessage>(LoggerFactory, Settings.RequestResponse, responseConsumer: this, messagePayloadProvider: m => m.Payload);
             AddTopicConsumer(Settings.RequestResponse.Path, processor);
         }
 
-        var topics = _consumers.Select(x => new MqttTopicFilterBuilder().WithTopic(x.Topic).Build()).ToList();
+        var topics = Consumers.Cast<MqttTopicConsumer>().Select(x => new MqttTopicFilterBuilder().WithTopic(x.Topic).Build()).ToList();
         await _mqttClient.SubscribeAsync(topics).ConfigureAwait(false);
+    }
+
+    protected override async Task DestroyConsumers()
+    {
+        await base.DestroyConsumers();
+
+        if (_mqttClient != null)
+        {
+            _mqttClient.Dispose();
+            _mqttClient = null;
+        }
     }
 
     private Task OnMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs arg)
     {
-        var consumer = _consumers.FirstOrDefault(x => x.Topic == arg.ApplicationMessage.Topic);
+        var consumer = Consumers.Cast<MqttTopicConsumer>().FirstOrDefault(x => x.Topic == arg.ApplicationMessage.Topic);
         if (consumer != null)
         {
             var headers = new Dictionary<string, object>();
@@ -96,34 +100,12 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
         return Task.CompletedTask;
     }
 
-    protected override async Task OnStop()
-    {
-        if (_mqttClient != null)
-        {
-            await _mqttClient.StopAsync().ConfigureAwait(false);
-        }
-
-        foreach(var consumer in _consumers)
-        {
-            await consumer.Stop();
-        }
-        _consumers.Clear();
-
-        if (_mqttClient != null)
-        {
-            _mqttClient.Dispose();
-            _mqttClient = null;
-        }
-
-        await base.OnStop().ConfigureAwait(false);
-    }
-
     protected override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null, CancellationToken cancellationToken = default)
     {
         var m = new MqttApplicationMessage
         {
             Payload = messagePayload,
-            Topic = path 
+            Topic = path
         };
 
         if (messageHeaders != null)

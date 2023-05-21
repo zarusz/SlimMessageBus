@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Redis;
 
-public static class RequestResponseBuilderExtensions
+public static class RedisRequestResponseBuilderExtensions
 {
     public static RequestResponseBuilder ReplyToQueue(this RequestResponseBuilder builder, string queue)
     {

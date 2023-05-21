@@ -1,11 +1,5 @@
 namespace SlimMessageBus.Host.AzureEventHub;
 
-using System.Diagnostics.CodeAnalysis;
-
-using Azure.Messaging.EventHubs;
-
-using SlimMessageBus.Host;
-
 /// <summary>
 /// <see cref="EhPartitionConsumer"/> implementation meant for processing messages coming to consumers (<see cref="IConsumer{TMessage}"/>) in pub-sub or handlers (<see cref="IRequestHandler{TRequest,TResponse}"/>) in request-response flows.
 /// </summary>
@@ -19,7 +13,7 @@ public class EhPartitionConsumerForConsumers : EhPartitionConsumer
         _consumerSettings = consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings));
         if (!consumerSettings.Any()) throw new ArgumentOutOfRangeException(nameof(consumerSettings));
 
-        MessageProcessor = new ConsumerInstanceMessageProcessor<EventData>(_consumerSettings, MessageBus, messageProvider: GetMessageFromTransportMessage, path: GroupPathPartition.ToString(), consumerContextInitializer: InitializeConsumerContext);
+        MessageProcessor = new MessageProcessor<EventData>(_consumerSettings, MessageBus, messageProvider: GetMessageFromTransportMessage, path: GroupPathPartition.ToString(), responseProducer: MessageBus, consumerContextInitializer: InitializeConsumerContext);
         CheckpointTrigger = CreateCheckpointTrigger();
     }
 
@@ -29,7 +23,7 @@ public class EhPartitionConsumerForConsumers : EhPartitionConsumer
         return f.Create(_consumerSettings);
     }
 
-    private object GetMessageFromTransportMessage([NotNull] Type messageType, [NotNull] EventData e)
+    private object GetMessageFromTransportMessage(Type messageType, EventData e)
         => MessageBus.Serializer.Deserialize(messageType, e.Body.ToArray());
 
     private static void InitializeConsumerContext(EventData nativeMessage, ConsumerContext consumerContext)

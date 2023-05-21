@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Redis;
 
-public static class ConsumerBuilderExtensions
+public static class RedisConsumerBuilderExtensions
 {
     public static ConsumerBuilder<T> Queue<T>(this ConsumerBuilder<T> builder, string queue)
     {

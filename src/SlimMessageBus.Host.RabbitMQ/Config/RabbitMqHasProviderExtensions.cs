@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host.RabbitMQ;
 
-internal static class RabbitMqHasProviderExtensions
+static internal class RabbitMqHasProviderExtensions
 {
     public static RabbitMqMessageRoutingKeyProvider<object> GetMessageRoutingKeyProvider(this HasProviderExtensions p, HasProviderExtensions settings = null)
         => p.GetOrDefault<RabbitMqMessageRoutingKeyProvider<object>>(RabbitMqProperties.MessageRoutingKeyProvider, settings, null);

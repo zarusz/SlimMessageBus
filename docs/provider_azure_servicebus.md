@@ -190,9 +190,11 @@ mbb.Consume<TMessage>(x => x
 Where applicable, selected settings can have the default values applied using `ServiceBusMessageBusSettings`:
 
 ```cs
-mbb.WithProviderServiceBus(new ServiceBusMessageBusSettings(connectionString) {
-   MaxAutoLockRenewalDuration = TimeSpan.FromMinutes(7),
-   PrefetchCount = 10,
+mbb.WithProviderServiceBus(cfg =>
+{
+   // ...
+   cfg.MaxAutoLockRenewalDuration = TimeSpan.FromMinutes(7);
+   cfg.PrefetchCount = 10;
 })
 ```
 

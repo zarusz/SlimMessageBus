@@ -23,7 +23,7 @@ public static class RabbitMqProducerBuilderExtensions
         return builder;
     }
 
-    internal static void SetExchangeProperties(this HasProviderExtensions settings, ExchangeType? exchangeType = null, bool? durable = null, bool? autoDelete = null, IDictionary<string, object>? arguments = null)
+    static internal void SetExchangeProperties(this HasProviderExtensions settings, ExchangeType? exchangeType = null, bool? durable = null, bool? autoDelete = null, IDictionary<string, object>? arguments = null)
     {
         if (exchangeType != null)
         {
@@ -88,7 +88,7 @@ public static class RabbitMqProducerBuilderExtensions
         return builder;
     }
 
-    internal static string MapExchangeType(ExchangeType exchangeType) => exchangeType switch
+    static internal string MapExchangeType(ExchangeType exchangeType) => exchangeType switch
     {
         RabbitMQ.ExchangeType.Direct => global::RabbitMQ.Client.ExchangeType.Direct,
         RabbitMQ.ExchangeType.Fanout => global::RabbitMQ.Client.ExchangeType.Fanout,

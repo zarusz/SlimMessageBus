@@ -8,10 +8,6 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
     private IModel _channel;
     private readonly object _channelLock = new();
 
-    private readonly IList<AbstractConsumer> _consumers = new List<AbstractConsumer>();
-
-    private Task _initTask;
-
     #region IRabbitMqChannel
 
     public IModel Channel => _channel;
@@ -27,82 +23,39 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
         OnBuildProvider();
     }
 
-    protected override void AssertProducers()
-    {
-        foreach (var producer in Settings.Producers)
-        {
-            var exchangeName = producer.DefaultPath;
-            if (exchangeName == null)
-            {
-                throw new ConfigurationMessageBusException($"The {nameof(RabbitMqProducerBuilderExtensions.Exchange)} is not provided on the producer for message type {producer.MessageType.Name}");
-            }
-
-            var routingKeyProvider = producer.GetMessageRoutingKeyProvider(ProviderSettings);
-            if (routingKeyProvider == null)
-            {
-                // Requirement for the routing key depends on the ExchangeType
-                var exchangeType = producer.GetExchageType(ProviderSettings);
-                if (exchangeType == global::RabbitMQ.Client.ExchangeType.Direct || exchangeType == global::RabbitMQ.Client.ExchangeType.Topic)
-                {
-                    throw new ConfigurationMessageBusException($"The {nameof(RabbitMqProducerBuilderExtensions.RoutingKeyProvider)} is neither provided on the producer for exchange {producer.DefaultPath} nor a default provider exists at the bus level (check that .{nameof(RabbitMqProducerBuilderExtensions.RoutingKeyProvider)}() exists on the producer or bus level). Exchange type {exchangeType} requires the producer to has a routing key provider.");
-                }
-            }
-        }
-
-        base.AssertProducers();
-    }
-
-    protected override void AssertConsumerSettings(ConsumerSettings consumerSettings)
-    {
-        var exchangeName = consumerSettings.Path;
-        if (exchangeName == null)
-        {
-            throw new ConfigurationMessageBusException($"The {nameof(RabbitMqConsumerBuilderExtensions.ExchangeBinding)} is not provided on the consumer for message type {consumerSettings.MessageType.Name}");
-        }
-
-        var queueName = consumerSettings.GetQueueName();
-        if (queueName == null)
-        {
-            throw new ConfigurationMessageBusException($"The {nameof(RabbitMqConsumerBuilderExtensions.Queue)} is not provided on the consumer for message type {consumerSettings.MessageType.Name}");
-        }
-
-        base.AssertConsumerSettings(consumerSettings);
-    }
-
-    protected override void AssertRequestResponseSettings()
-    {
-        if (Settings.RequestResponse != null)
-        {
-            var exchangeName = Settings.RequestResponse.Path;
-            if (exchangeName == null)
-            {
-                throw new ConfigurationMessageBusException($"The {nameof(RabbitMqRequestResponseBuilderExtensions.ReplyToExchange)} is not provided on the {nameof(MessageBusBuilder.ExpectRequestResponses)}()");
-            }
-
-            var queueName = Settings.RequestResponse.GetQueueName();
-            if (queueName == null)
-            {
-                throw new ConfigurationMessageBusException($"The {nameof(RabbitMqConsumerBuilderExtensions.Queue)} is not provided on the {nameof(MessageBusBuilder.ExpectRequestResponses)}()");
-            }
-        }
-        base.AssertRequestResponseSettings();
-    }
+    protected override IMessageBusSettingsValidationService ValidationService => new RabbitMqMessageBusSettingsValidationService(Settings, ProviderSettings);
 
     protected override void Build()
     {
         base.Build();
 
+        AddInit(CreateConnection());
+    }
+
+    protected override async Task CreateConsumers()
+    {
+        await base.CreateConsumers();
+
         foreach (var (queueName, consumers) in Settings.Consumers.GroupBy(x => x.GetQueueName()).ToDictionary(x => x.Key, x => x.ToList()))
         {
-            _consumers.Add(new RabbitMqConsumer(LoggerFactory, channel: this, queueName: queueName, consumers, Serializer, messageBus: this, ProviderSettings.HeaderValueConverter));
+            AddConsumer(new RabbitMqConsumer(LoggerFactory, 
+                channel: this, 
+                queueName: queueName, 
+                consumers, 
+                Serializer, 
+                messageBus: this, 
+                ProviderSettings.HeaderValueConverter));
         }
 
         if (Settings.RequestResponse != null)
         {
-            _consumers.Add(new RabbitMqResponseConsumer(LoggerFactory, channel: this, queueName: Settings.RequestResponse.GetQueueName(), Settings.RequestResponse, this, ProviderSettings.HeaderValueConverter));
+            AddConsumer(new RabbitMqResponseConsumer(LoggerFactory, 
+                channel: this, 
+                queueName: Settings.RequestResponse.GetQueueName(), 
+                Settings.RequestResponse, 
+                this, 
+                ProviderSettings.HeaderValueConverter));
         }
-
-        _initTask = Task.Factory.StartNew(CreateConnection).Unwrap();
     }
 
     private async Task CreateConnection()
@@ -151,25 +104,12 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
         catch (Exception e)
         {
             _logger.LogError(e, "Could not initialize RabbitMQ connection: {ErrorMessage}", e.Message);
-        }
-        finally
-        {
-            _initTask = null;
-        }
+        }       
     }
 
     protected override async ValueTask DisposeAsyncCore()
     {
         await base.DisposeAsyncCore().ConfigureAwait(false);
-
-        if (_consumers.Count > 0)
-        {
-            foreach (var consumer in _consumers)
-            {
-                await consumer.DisposeSilently("Consumer", _logger).ConfigureAwait(false);
-            }
-            _consumers.Clear();
-        }
 
         if (_channel != null)
         {
@@ -184,44 +124,9 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
         }
     }
 
-    protected override void AssertSettings()
-    {
-        base.AssertSettings();
-
-        if (ProviderSettings.ConnectionFactory is null)
-        {
-            throw new ConfigurationMessageBusException(Settings, $"The {nameof(RabbitMqMessageBusSettings)}.{nameof(RabbitMqMessageBusSettings.ConnectionFactory)} must be set");
-        }
-    }
-
-    protected override async Task OnStart()
-    {
-        if (_initTask != null)
-        {
-            await _initTask.ConfigureAwait(false);
-        }
-
-        await base.OnStart().ConfigureAwait(false);
-        await Task.WhenAll(_consumers.Select(x => x.Start())).ConfigureAwait(false);
-    }
-
-    protected override async Task OnStop()
-    {
-        if (_initTask != null)
-        {
-            await _initTask.ConfigureAwait(false);
-        }
-
-        await base.OnStop().ConfigureAwait(false);
-        await Task.WhenAll(_consumers.Select(x => x.Stop())).ConfigureAwait(false);
-    }
-
     protected override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null, CancellationToken cancellationToken = default)
     {
-        if (_initTask != null)
-        {
-            await _initTask.ConfigureAwait(false);
-        }
+        await EnsureInitFinished();
 
         if (_channel == null)
         {

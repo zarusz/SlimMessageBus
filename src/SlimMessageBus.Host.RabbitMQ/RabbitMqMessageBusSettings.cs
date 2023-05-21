@@ -25,9 +25,3 @@ public class RabbitMqMessageBusSettings : HasProviderExtensions
     public IHeaderValueConverter HeaderValueConverter { get; set; } = new DefaultHeaderValueConverter();
 }
 
-public interface IHeaderValueConverter
-{
-    object ConvertTo(object v);
-    object ConvertFrom(object v);
-}
-

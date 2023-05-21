@@ -8,11 +8,19 @@ using ConsumeResult = ConsumeResult<Ignore, byte[]>;
 /// </summary>
 public class KafkaPartitionConsumerForResponses : KafkaPartitionConsumer
 {
-    public KafkaPartitionConsumerForResponses(RequestResponseSettings requestResponseSettings, string group, TopicPartition topicPartition, IKafkaCommitController commitController, MessageBusBase messageBus, IMessageSerializer headerSerializer)
-        : base(new[] { requestResponseSettings }, group, topicPartition, commitController, messageBus, headerSerializer)
+    public KafkaPartitionConsumerForResponses(ILoggerFactory loggerFactory, RequestResponseSettings requestResponseSettings, string group, TopicPartition topicPartition, IKafkaCommitController commitController, IResponseConsumer responseConsumer, IMessageSerializer headerSerializer)
+        : base(
+            loggerFactory, 
+            new[] { requestResponseSettings }, 
+            group, 
+            topicPartition, 
+            commitController, 
+            headerSerializer,
+            messageProcessor: new ResponseMessageProcessor<ConsumeResult>(
+                loggerFactory, 
+                requestResponseSettings, 
+                responseConsumer,
+                messagePayloadProvider: m => m.Message.Value))
     {
     }
-
-    protected override IMessageProcessor<ConsumeResult<Ignore, byte[]>> CreateMessageProcessor()
-        => new ResponseMessageProcessor<ConsumeResult>((RequestResponseSettings)ConsumerSettings[0], MessageBus, m => m.Message.Value);
 }

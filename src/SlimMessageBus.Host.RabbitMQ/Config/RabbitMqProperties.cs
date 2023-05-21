@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host.RabbitMQ;
 
-internal static class RabbitMqProperties
+static internal class RabbitMqProperties
 {
     public static readonly string ExchangeType = $"RabbitMQ_{nameof(ExchangeType)}";
     public static readonly string ExchangeArguments = $"RabbitMQ_{nameof(ExchangeArguments)}";

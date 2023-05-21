@@ -2,14 +2,14 @@
 
 public static class AsbAbstractConsumerSettingsExtensions
 {
-    internal static void SetSubscriptionName(this AbstractConsumerSettings consumerSettings, string subscriptionName)
+    static internal void SetSubscriptionName(this AbstractConsumerSettings consumerSettings, string subscriptionName)
     {
         if (subscriptionName is null) throw new ArgumentNullException(nameof(subscriptionName));
 
         consumerSettings.Properties[AsbProperties.SubscriptionNameKey] = subscriptionName;
     }
 
-    internal static string GetSubscriptionName(this AbstractConsumerSettings consumerSettings, bool required = true)
+    static internal string GetSubscriptionName(this AbstractConsumerSettings consumerSettings, bool required = true)
     {
         if (!consumerSettings.Properties.ContainsKey(AsbProperties.SubscriptionNameKey) && !required)
         {
@@ -18,43 +18,43 @@ public static class AsbAbstractConsumerSettingsExtensions
         return consumerSettings.Properties[AsbProperties.SubscriptionNameKey] as string;
     }
 
-    internal static void SetMaxAutoLockRenewalDuration(this AbstractConsumerSettings consumerSettings, TimeSpan duration)
+    static internal void SetMaxAutoLockRenewalDuration(this AbstractConsumerSettings consumerSettings, TimeSpan duration)
         => consumerSettings.Properties[AsbProperties.MaxAutoLockRenewalDurationKey] = duration;
 
-    internal static TimeSpan? GetMaxAutoLockRenewalDuration(this AbstractConsumerSettings consumerSettings)
+    static internal TimeSpan? GetMaxAutoLockRenewalDuration(this AbstractConsumerSettings consumerSettings)
         => consumerSettings.GetOrDefault<TimeSpan?>(AsbProperties.MaxAutoLockRenewalDurationKey);
 
-    internal static void SetSubQueue(this AbstractConsumerSettings consumerSettings, SubQueue subQueue)
+    static internal void SetSubQueue(this AbstractConsumerSettings consumerSettings, SubQueue subQueue)
         => consumerSettings.Properties[AsbProperties.SubQueueKey] = subQueue;
 
-    internal static SubQueue? GetSubQueue(this AbstractConsumerSettings consumerSettings)
+    static internal SubQueue? GetSubQueue(this AbstractConsumerSettings consumerSettings)
         => consumerSettings.GetOrDefault<SubQueue?>(AsbProperties.SubQueueKey);
 
-    internal static void SetPrefetchCount(this AbstractConsumerSettings consumerSettings, int prefetchCount)
+    static internal void SetPrefetchCount(this AbstractConsumerSettings consumerSettings, int prefetchCount)
         => consumerSettings.Properties[AsbProperties.PrefetchCountKey] = prefetchCount;
 
-    internal static int? GetPrefetchCount(this AbstractConsumerSettings consumerSettings)
+    static internal int? GetPrefetchCount(this AbstractConsumerSettings consumerSettings)
         => consumerSettings.GetOrDefault<int?>(AsbProperties.PrefetchCountKey);
 
-    internal static void SetEnableSession(this AbstractConsumerSettings consumerSettings, bool enableSession)
+    static internal void SetEnableSession(this AbstractConsumerSettings consumerSettings, bool enableSession)
         => consumerSettings.Properties[AsbProperties.EnableSessionKey] = enableSession;
 
-    internal static bool GetEnableSession(this AbstractConsumerSettings consumerSettings)
+    static internal bool GetEnableSession(this AbstractConsumerSettings consumerSettings)
         => consumerSettings.GetOrDefault(AsbProperties.EnableSessionKey, false);
 
-    internal static void SetSessionIdleTimeout(this AbstractConsumerSettings consumerSettings, TimeSpan sessionIdleTimeout)
+    static internal void SetSessionIdleTimeout(this AbstractConsumerSettings consumerSettings, TimeSpan sessionIdleTimeout)
         => consumerSettings.Properties[AsbProperties.SessionIdleTimeoutKey] = sessionIdleTimeout;
 
-    internal static TimeSpan? GetSessionIdleTimeout(this AbstractConsumerSettings consumerSettings)
+    static internal TimeSpan? GetSessionIdleTimeout(this AbstractConsumerSettings consumerSettings)
         => consumerSettings.GetOrDefault<TimeSpan?>(AsbProperties.SessionIdleTimeoutKey);
 
-    internal static void SetMaxConcurrentSessions(this AbstractConsumerSettings consumerSettings, int maxConcurrentSessions)
+    static internal void SetMaxConcurrentSessions(this AbstractConsumerSettings consumerSettings, int maxConcurrentSessions)
         => consumerSettings.Properties[AsbProperties.MaxConcurrentSessionsKey] = maxConcurrentSessions;
 
-    internal static int? GetMaxConcurrentSessions(this AbstractConsumerSettings consumerSettings)
+    static internal int? GetMaxConcurrentSessions(this AbstractConsumerSettings consumerSettings)
         => consumerSettings.GetOrDefault<int?>(AsbProperties.MaxConcurrentSessionsKey);
 
-    internal static IDictionary<string, SubscriptionSqlRule> GetRules(this AbstractConsumerSettings consumerSettings, bool createIfNotExists = false)
+    static internal IDictionary<string, SubscriptionSqlRule> GetRules(this AbstractConsumerSettings consumerSettings, bool createIfNotExists = false)
     {
         var filterByName = consumerSettings.GetOrDefault<IDictionary<string, SubscriptionSqlRule>>(AsbProperties.RulesKey);
         if (filterByName == null && createIfNotExists)

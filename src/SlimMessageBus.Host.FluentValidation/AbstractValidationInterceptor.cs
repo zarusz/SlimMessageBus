@@ -13,7 +13,7 @@ public abstract class AbstractValidationInterceptor<T>
         _errorsHandler = errorsHandler;
     }
 
-    internal protected async Task OnValidate(T message, CancellationToken cancellationToken)
+    protected async internal Task OnValidate(T message, CancellationToken cancellationToken)
     {
         var context = new ValidationContext<T>(message);
 

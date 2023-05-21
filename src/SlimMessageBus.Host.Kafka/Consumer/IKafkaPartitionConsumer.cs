@@ -6,7 +6,7 @@ using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte
 /// <summary>
 /// The processor of assigned partition (<see cref="TopicPartition"/>).
 /// </summary>
-public interface IKafkaPartitionConsumer : IAsyncDisposable
+public interface IKafkaPartitionConsumer : IDisposable
 {
     TopicPartition TopicPartition { get; }
 

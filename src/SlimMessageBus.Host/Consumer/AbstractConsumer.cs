@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host;
 
-public abstract class AbstractConsumer : IAsyncDisposable
+public abstract class AbstractConsumer : IAsyncDisposable, IConsumerControl
 {
     private CancellationTokenSource _cancellationTokenSource;
     private bool _starting;
@@ -76,7 +76,7 @@ public abstract class AbstractConsumer : IAsyncDisposable
         GC.SuppressFinalize(this);
     }
 
-    protected virtual async ValueTask DisposeAsyncCore()
+    protected async virtual ValueTask DisposeAsyncCore()
     {
         await Stop().ConfigureAwait(false);
 

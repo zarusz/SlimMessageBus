@@ -51,13 +51,13 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
 
     public virtual SqlTransaction CurrentTransaction => _transaction;
 
-    public virtual async ValueTask BeginTransaction()
+    public async virtual ValueTask BeginTransaction()
     {
         ValidateNoTransactionStarted();
         _transaction = (SqlTransaction)await Connection.BeginTransactionAsync(Settings.TransactionIsolationLevel);
     }
 
-    public virtual async ValueTask CommitTransaction()
+    public async virtual ValueTask CommitTransaction()
     {
         ValidateTransactionStarted();
 
@@ -66,7 +66,7 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
         _transaction = null;
     }
 
-    public virtual async ValueTask RollbackTransaction()
+    public async virtual ValueTask RollbackTransaction()
     {
         ValidateTransactionStarted();
 
@@ -91,7 +91,7 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
         }
     }
 
-    public virtual async Task Initialize(CancellationToken token)
+    public async virtual Task Initialize(CancellationToken token)
     {
         await EnsureConnection();
         try
@@ -221,7 +221,7 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
             return await cmd.ExecuteNonQueryAsync();
         });
 
-    public virtual async Task Save(OutboxMessage message, CancellationToken token)
+    public async virtual Task Save(OutboxMessage message, CancellationToken token)
     {
         await EnsureConnection();
 
@@ -334,7 +334,7 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
         GC.SuppressFinalize(this);
     }
 
-    protected virtual async ValueTask DisposeAsyncCore()
+    protected async virtual ValueTask DisposeAsyncCore()
     {
         if (_transaction != null)
         {

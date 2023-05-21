@@ -70,7 +70,7 @@ public static class ReflectionUtils
         return Expression.Lambda<Func<Task<object>, Task>>(typedMethodResultExpr, taskOfObjectParam).Compile();
     }
 
-    internal static Func<Task, Task<object>> TaskOfTypeContinueWithTaskOfObjectFunc(Type targetType)
+    static internal Func<Task, Task<object>> TaskOfTypeContinueWithTaskOfObjectFunc(Type targetType)
     {
         var taskOfType = typeof(Task<>).MakeGenericType(targetType);
         var taskOfTypeResultProperty = taskOfType.GetProperty(nameof(Task<object>.Result));
@@ -90,7 +90,7 @@ public static class ReflectionUtils
         return Expression.Lambda<Func<Task, Task<object>>>(typedMethodResultExpr, taskParam).Compile();
     }
 
-    internal static Func<Task, object> TaskOfTypeResult(Type targetType)
+    static internal Func<Task, object> TaskOfTypeResult(Type targetType)
     {
         var taskOfType = typeof(Task<>).MakeGenericType(targetType);
         var taskOfTypeResultProperty = taskOfType.GetProperty(nameof(Task<object>.Result));
