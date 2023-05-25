@@ -92,9 +92,9 @@ public abstract class AbstractHandlerBuilder<TRequest, THandlerBuilder> : Abstra
     {
         AssertInvokerUnique(derivedHandlerType, derivedRequestType);
 
-        if (!MessageType.IsAssignableFrom(derivedRequestType))
+        if (!ConsumerSettings.MessageType.IsAssignableFrom(derivedRequestType))
         {
-            throw new ConfigurationMessageBusException($"The (derived) message type {derivedRequestType} is not assignable to message type {MessageType}");
+            throw new ConfigurationMessageBusException($"The (derived) message type {derivedRequestType} is not assignable to message type {ConsumerSettings.MessageType}");
         }
 
         var invoker = new MessageTypeConsumerInvokerSettings(ConsumerSettings, messageType: derivedRequestType, consumerType: derivedHandlerType);

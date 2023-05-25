@@ -14,37 +14,33 @@ public static class RabbitMqConsumerBuilderExtensions
     /// <param name="arguments"></param>
     /// <returns></returns>
     public static TConsumerBuilder Queue<TConsumerBuilder>(this TConsumerBuilder builder, string queueName, bool? exclusive = null, bool? durable = null, bool? autoDelete = null, IDictionary<string, object> arguments = null)
-        where TConsumerBuilder : AbstractConsumerBuilder
-    {
-        builder.ConsumerSettings.SetQueueProperties(queueName: queueName, exclusive: exclusive, durable: durable, autoDelete: autoDelete, arguments: arguments);
-        return builder;
-    }
-
-    internal static void SetQueueProperties(this HasProviderExtensions settings, string queueName, bool? exclusive = null, bool? durable = null, bool? autoDelete = null, IDictionary<string, object> arguments = null)
+        where TConsumerBuilder : IAbstractConsumerBuilder
     {
         if (string.IsNullOrEmpty(queueName)) throw new ArgumentNullException(nameof(queueName));
 
-        settings.Properties[RabbitMqProperties.QueueName] = queueName;
+        builder.ConsumerSettings.Properties[RabbitMqProperties.QueueName] = queueName;
 
         if (exclusive != null)
         {
-            settings.Properties[RabbitMqProperties.QueueExclusive] = exclusive.Value;
+            builder.ConsumerSettings.Properties[RabbitMqProperties.QueueExclusive] = exclusive.Value;
         }
 
         if (durable != null)
         {
-            settings.Properties[RabbitMqProperties.QueueDurable] = durable.Value;
+            builder.ConsumerSettings.Properties[RabbitMqProperties.QueueDurable] = durable.Value;
         }
 
         if (autoDelete != null)
         {
-            settings.Properties[RabbitMqProperties.QueueAutoDelete] = autoDelete.Value;
+            builder.ConsumerSettings.Properties[RabbitMqProperties.QueueAutoDelete] = autoDelete.Value;
         }
 
         if (arguments != null)
         {
-            settings.Properties[RabbitMqProperties.QueueArguments] = arguments;
+            builder.ConsumerSettings.Properties[RabbitMqProperties.QueueArguments] = arguments;
         }
+
+        return builder;
     }
 
     /// <summary>

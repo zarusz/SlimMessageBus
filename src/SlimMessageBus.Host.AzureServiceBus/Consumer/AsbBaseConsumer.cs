@@ -31,20 +31,20 @@ public abstract class AsbBaseConsumer : IAsyncDisposable, IConsumerControl
 
         var instances = GetSingleValue(x => x.Instances, nameof(ConsumerSettings.Instances));
 
-        var maxAutoLockRenewalDuration = GetSingleValue(x => x.GetMaxAutoLockRenewalDuration(), nameof(ConsumerBuilderExtensions.MaxAutoLockRenewalDuration))
+        var maxAutoLockRenewalDuration = GetSingleValue(x => x.GetMaxAutoLockRenewalDuration(), nameof(AsbConsumerBuilderExtensions.MaxAutoLockRenewalDuration))
             ?? messageBus.ProviderSettings.MaxAutoLockRenewalDuration;
 
-        var subQueue = GetSingleValue(x => x.GetSubQueue(), nameof(ConsumerBuilderExtensions.SubQueue));
+        var subQueue = GetSingleValue(x => x.GetSubQueue(), nameof(AsbConsumerBuilderExtensions.SubQueue));
 
-        var prefetchCount = GetSingleValue(x => x.GetPrefetchCount(), nameof(ConsumerBuilderExtensions.PrefetchCount))
+        var prefetchCount = GetSingleValue(x => x.GetPrefetchCount(), nameof(AsbConsumerBuilderExtensions.PrefetchCount))
             ?? messageBus.ProviderSettings.PrefetchCount;
 
-        var enableSession = GetSingleValue(x => x.GetEnableSession(), nameof(ConsumerBuilderExtensions.EnableSession));
+        var enableSession = GetSingleValue(x => x.GetEnableSession(), nameof(AsbConsumerBuilderExtensions.EnableSession));
 
-        var sessionIdleTimeout = GetSingleValue(x => x.GetSessionIdleTimeout(), nameof(ConsumerSessionBuilder.SessionIdleTimeout))
+        var sessionIdleTimeout = GetSingleValue(x => x.GetSessionIdleTimeout(), nameof(AsbConsumerSessionBuilder.SessionIdleTimeout))
             ?? messageBus.ProviderSettings.SessionIdleTimeout;
 
-        var maxConcurrentSessions = GetSingleValue(x => x.GetMaxConcurrentSessions(), nameof(ConsumerSessionBuilder.MaxConcurrentSessions))
+        var maxConcurrentSessions = GetSingleValue(x => x.GetMaxConcurrentSessions(), nameof(AsbConsumerSessionBuilder.MaxConcurrentSessions))
             ?? messageBus.ProviderSettings.MaxConcurrentSessions;
 
         if (enableSession)

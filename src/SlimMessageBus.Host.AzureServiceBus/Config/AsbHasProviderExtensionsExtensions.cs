@@ -3,7 +3,7 @@
 using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
 
-internal static class HasProviderExtensionsExtensions
+internal static class AsbHasProviderExtensionsExtensions
 {
     internal static HasProviderExtensions SetMessageModifier(this HasProviderExtensions producerSettings, Action<object, ServiceBusMessage> messageModifierAction)
     {
