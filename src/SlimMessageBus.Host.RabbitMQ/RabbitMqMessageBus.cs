@@ -82,7 +82,7 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
             var queueName = Settings.RequestResponse.GetQueueName();
             if (queueName == null)
             {
-                throw new ConfigurationMessageBusException($"The {nameof(RabbitMqRequestResponseBuilderExtensions.Queue)} is not provided on the {nameof(MessageBusBuilder.ExpectRequestResponses)}()");
+                throw new ConfigurationMessageBusException($"The {nameof(RabbitMqConsumerBuilderExtensions.Queue)} is not provided on the {nameof(MessageBusBuilder.ExpectRequestResponses)}()");
             }
         }
         base.AssertRequestResponseSettings();

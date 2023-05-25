@@ -3,14 +3,14 @@
 using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
 
-public static class ProducerBuilderExtensions
+public static class AsbProducerBuilderExtensions
 {
     public static ProducerBuilder<T> DefaultQueue<T>(this ProducerBuilder<T> producerBuilder, string queue)
     {
         if (producerBuilder is null) throw new ArgumentNullException(nameof(producerBuilder));
         if (queue is null) throw new ArgumentNullException(nameof(queue));
 
-        producerBuilder.DefaultTopic(queue);
+        producerBuilder.DefaultPath(queue);
         producerBuilder.ToQueue();
         return producerBuilder;
     }

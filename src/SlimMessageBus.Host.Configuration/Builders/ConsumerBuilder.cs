@@ -75,7 +75,7 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
     {
         AssertInvokerUnique(derivedConsumerType, derivedMessageType);
 
-        if (!MessageType.IsAssignableFrom(derivedMessageType))
+        if (!ConsumerSettings.MessageType.IsAssignableFrom(derivedMessageType))
         {
             throw new ConfigurationMessageBusException($"The (derived) message type {derivedMessageType} is not assignable to message type {ConsumerSettings.MessageType}");
         }

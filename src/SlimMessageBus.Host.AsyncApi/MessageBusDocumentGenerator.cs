@@ -88,7 +88,7 @@ public class MessageBusDocumentGenerator : IDocumentGenerator
     /// <returns></returns>
     private static string TryGetSubscriptionName(ConsumerSettings consumer) =>
         consumer.GetOrDefault<string>("Group")
-        ?? consumer.GetOrDefault<string>("SubscriptionName")
+        ?? consumer.GetOrDefault<string>("Asb_SubscriptionName")
         ?? consumer.GetOrDefault<string>("Eh_Group");
 
     private static void GenerateChannelsFromConsumers(IDictionary<string, ChannelItem> channels, AsyncApiSchemaResolver schemaResolver, AsyncApiOptions options, JsonSchemaGenerator jsonSchemaGenerator, IServiceProvider serviceProvider, MessageBusSettings messageBusSettings, NamedServer namedServer)

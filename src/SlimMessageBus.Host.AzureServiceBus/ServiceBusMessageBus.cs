@@ -42,7 +42,7 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
         base.AssertConsumerSettings(consumerSettings);
 
         Assert.IsTrue(consumerSettings.PathKind != PathKind.Topic || consumerSettings.GetSubscriptionName(required: false) != null,
-            () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(SettingsExtensions.SubscriptionName)} is not set on topic {consumerSettings.Path}"));
+            () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(AsbConsumerBuilderExtensions.SubscriptionName)} is not set on topic {consumerSettings.Path}"));
     }
 
     protected void AddConsumer(TopicSubscriptionParams topicSubscription, IMessageProcessor<ServiceBusReceivedMessage> messageProcessor, IEnumerable<AbstractConsumerSettings> consumerSettings)

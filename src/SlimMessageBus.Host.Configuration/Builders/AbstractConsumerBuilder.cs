@@ -1,12 +1,12 @@
 namespace SlimMessageBus.Host;
 
-public abstract class AbstractConsumerBuilder
+public abstract class AbstractConsumerBuilder : IAbstractConsumerBuilder
 {
-    public Type MessageType => ConsumerSettings.MessageType;
-
     public MessageBusSettings Settings { get; }
 
     public ConsumerSettings ConsumerSettings { get; }
+
+    AbstractConsumerSettings IAbstractConsumerBuilder.ConsumerSettings => ConsumerSettings;
 
     protected AbstractConsumerBuilder(MessageBusSettings settings, Type messageType, string path = null)
     {

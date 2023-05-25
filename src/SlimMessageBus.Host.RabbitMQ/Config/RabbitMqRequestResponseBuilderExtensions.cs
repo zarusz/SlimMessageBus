@@ -23,22 +23,6 @@ public static class RabbitMqRequestResponseBuilderExtensions
     }
 
     /// <summary>
-    /// Sets the queue name (and optionally other parameters) for a RabbitMQ queue that should be used to read and process arrived responses.
-    /// </summary>
-    /// <param name="builder"></param>
-    /// <param name="queueName"></param>
-    /// <param name="durable"></param>
-    /// <param name="autoDelete"></param>
-    /// <param name="exclusive"></param>
-    /// <param name="arguments"></param>
-    /// <returns></returns>
-    public static RequestResponseBuilder Queue(this RequestResponseBuilder builder, string queueName, bool? exclusive = null, bool? durable = null, bool? autoDelete = null, IDictionary<string, object> arguments = null)
-    {
-        builder.Settings.SetQueueProperties(queueName: queueName, exclusive: exclusive, durable: durable, autoDelete: autoDelete, arguments: arguments);
-        return builder;
-    }
-
-    /// <summary>
     /// Sets the binding of this request-response <see cref="Queue(RequestResponseBuilder, string, bool?, bool?, bool?, IDictionary{string, object})"/> to the <see cref="ReplyToExchange(RequestResponseBuilder, string, ExchangeType?, bool?, bool?, IDictionary{string, object}?)"/> (will declare at the bus initialization).
     /// </summary>
     /// <param name="builder"></param>
