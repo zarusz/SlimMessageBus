@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Memory;
 
+using System.Runtime.ExceptionServices;
+
 /// <summary>
 /// In-memory message bus <see cref="IMessageBus"/> implementation to use for in process message passing.
 /// </summary>
@@ -106,8 +108,9 @@ public class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
         var (exception, _, response, _) = await messageProcessor.ProcessMessage(transportMessage, messageHeadersReadOnly, cancellationToken, currentServiceProvider);
         if (exception != null)
         {
+            
             // We want to pass the same exception to the sender as it happened in the handler/consumer
-            throw exception;
+            ExceptionDispatchInfo.Capture(exception).Throw();
         }
 
         return (TResponseMessage)response;
