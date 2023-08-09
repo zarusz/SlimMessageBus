@@ -33,11 +33,16 @@ jobs:
       - name: Unit Tests
         run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --filter Category!=Integration
         working-directory: ./src
+      # - name: Dump GitHub context
+      #   env:
+      #     GITHUB_CONTEXT: ${{ toJson(github) }}
+      #   run: echo "$GITHUB_CONTEXT"
+      # Run integration tests against the test infrastructure if secrets are provided
       - name: Integrations Tests
-        if: github.repository == 'zarusz/SlimMessageBus'
+        if: "${{ env.azure_servicebus_key != '' }}"
         run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --filter Category=Integration
         working-directory: ./src
-        env: # needed to run integration tests against the test infrastructure
+        env:
           azure_servicebus_key: ${{ secrets.azure_servicebus_key }}
           azure_eventhub_key: ${{ secrets.azure_eventhub_key }}
           azure_eventhub_storage_key: ${{ secrets.azure_eventhub_storage_key }}
