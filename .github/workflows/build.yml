@@ -33,8 +33,12 @@ jobs:
       - name: Unit Tests
         run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --filter Category!=Integration
         working-directory: ./src
+      # - name: Dump GitHub context
+      #   env:
+      #     GITHUB_CONTEXT: ${{ toJson(github) }}
+      #   run: echo "$GITHUB_CONTEXT"
       - name: Integrations Tests
-        if: github.repository == 'zarusz/SlimMessageBus'
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --filter Category=Integration
         working-directory: ./src
         env: # needed to run integration tests against the test infrastructure
