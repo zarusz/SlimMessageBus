@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="7.0.0" />
-    <PackageReference Include="xunit" Version="2.4.2" />
+    <PackageReference Include="xunit" Version="2.5.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="7.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.0" />
   </ItemGroup>
@@ -20,8 +20,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Update="FluentAssertions" Version="6.10.0" />
-    <PackageReference Update="Moq" Version="4.18.4" />
+    <PackageReference Update="FluentAssertions" Version="6.12.0" />
+    <PackageReference Update="Moq" Version="4.20.69" />
   </ItemGroup>
 
 </Project>

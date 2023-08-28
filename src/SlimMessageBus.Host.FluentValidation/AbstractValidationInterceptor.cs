@@ -13,17 +13,16 @@ public abstract class AbstractValidationInterceptor<T>
         _errorsHandler = errorsHandler;
     }
 
-    protected async Task OnValidate(T message, CancellationToken cancellationToken)
+    internal protected async Task OnValidate(T message, CancellationToken cancellationToken)
     {
         var context = new ValidationContext<T>(message);
 
         var validationTasks = _validators
             .Select(x => x.ValidateAsync(context, cancellationToken));
 
-        await Task.WhenAll(validationTasks);
+        var results = await Task.WhenAll(validationTasks);
 
-        var failures = validationTasks
-            .SelectMany(x => x.Result.Errors);
+        var failures = results.SelectMany(x => x.Errors);
 
         if (failures.Any())
         {

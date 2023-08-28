@@ -10,12 +10,19 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="FluentValidation" Version="11.5.1" />
+    <PackageReference Include="FluentValidation" Version="11.7.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\SlimMessageBus.Host.Configuration\SlimMessageBus.Host.Configuration.csproj" />
     <ProjectReference Include="..\SlimMessageBus.Host.Interceptor\SlimMessageBus.Host.Interceptor.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>SlimMessageBus.Host.FluentValidation.Test</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
 
 </Project>
