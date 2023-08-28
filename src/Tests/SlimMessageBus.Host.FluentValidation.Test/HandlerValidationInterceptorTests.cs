@@ -29,7 +29,9 @@ public class HandlerValidationInterceptorTests
     public async Task Given_Validator_When_ValidationFails_Then_RaisesException()
     {
         // arrange
-        _validatorMock.Setup(x => x.ValidateAsync(It.IsAny<ValidationContext<Message>>(), _cancellationToken)).ThrowsAsync(new ValidationException("Bad message"));
+        _validatorMock
+            .Setup(x => x.ValidateAsync(It.IsAny<ValidationContext<Message>>(), _cancellationToken))
+            .ThrowsAsync(new ValidationException("Bad message"));
 
         // act
         Func<Task> act = () => _subject.OnHandle(_message, _nextMock.Object, _consumerContextMock.Object);
@@ -42,7 +44,9 @@ public class HandlerValidationInterceptorTests
     public async Task Given_Validator_When_ValidationSucceeds_Then_CallsNext()
     {
         // arrange
-        _validatorMock.Setup(x => x.ValidateAsync(It.IsAny<ValidationContext<Message>>(), _cancellationToken)).ReturnsAsync(new ValidationResult());
+        _validatorMock
+            .Setup(x => x.ValidateAsync(It.IsAny<ValidationContext<Message>>(), _cancellationToken))
+            .ReturnsAsync(new ValidationResult());
 
         // act
         await _subject.OnHandle(_message, _nextMock.Object, _consumerContextMock.Object);
