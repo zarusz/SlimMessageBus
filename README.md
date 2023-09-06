@@ -245,7 +245,7 @@ public class Order
 Sample logic executed by the client of the domain model:
 
 ```cs
-var john = new Customer("John", "Whick");
+var john = new Customer("John", "Wick");
 
 var order = new Order(john);
 order.Add("id_machine_gun", 2);
