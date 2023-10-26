@@ -28,7 +28,7 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Include="..\..\cloudkarafka_2022-10.ca" Link="cloudkarafka_2022-10.ca">
+    <None Include="..\..\cloudkarafka_2023-10.pem" Link="cloudkarafka_2023-10.pem">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="xunit.runner.json">
