@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="../Host.Serialization.Properties.xml" />
+  <Import Project="../Host.Plugin.Serialization.Properties.xml" />
 
   <PropertyGroup>
     <Authors>zarusz, beto580, fgparamio</Authors>
