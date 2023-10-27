@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="../Host.Plugin.Transport.Properties.xml" />
+  <Import Project="../Host.Plugin.Properties.xml" />
 
   <PropertyGroup>
     <Description>Simple provider for SlimMessageBus for in process message passing. Messages are stored in memory (state is transient).</Description>

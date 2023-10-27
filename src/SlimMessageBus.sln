@@ -59,9 +59,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Plugins", "Plugins", "{75BD
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Transport", "Transport", "{9291D340-B4FA-44A3-8060-C14743FB1712}"
-	ProjectSection(SolutionItems) = preProject
-		Host.Plugin.Transport.Properties.xml = Host.Plugin.Transport.Properties.xml
-	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus", "SlimMessageBus\SlimMessageBus.csproj", "{C47CFB84-E5AC-4539-822D-6612D671CA6C}"
 EndProject
@@ -131,8 +128,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		..\build\do_test.ps1 = ..\build\do_test.ps1
 		..\build\do_test_ci.ps1 = ..\build\do_test_ci.ps1
 		Host.Plugin.Properties.xml = Host.Plugin.Properties.xml
-		Host.Plugin.Serialization.Properties.xml = Host.Plugin.Serialization.Properties.xml
-		Host.Plugin.Transport.Properties.xml = Host.Plugin.Transport.Properties.xml
 		..\README.md = ..\README.md
 		..\build\tasks.ps1 = ..\build\tasks.ps1
 	EndProjectSection
@@ -164,9 +159,6 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Redis", "SlimMessageBus.Host.Redis\SlimMessageBus.Host.Redis.csproj", "{5F0638BD-2967-4257-A73D-80C45F40CE4F}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Serialization", "Serialization", "{D7DCD96A-C3B8-4D22-8216-0E8ADD30C03F}"
-	ProjectSection(SolutionItems) = preProject
-		Host.Plugin.Serialization.Properties.xml = Host.Plugin.Serialization.Properties.xml
-	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Infrastructure", "Infrastructure", "{59F88FB5-6D19-4520-87E8-227B3539BBB3}"
 	ProjectSection(SolutionItems) = preProject
