@@ -1,6 +1,6 @@
 namespace SlimMessageBus.Host.Redis;
 
-public static class MessageBusBuilderExtensions
+public static class RedisMessageBusBuilderExtensions
 {
     public static MessageBusBuilder WithProviderRedis(this MessageBusBuilder mbb, Action<RedisMessageBusSettings> configure)
     {

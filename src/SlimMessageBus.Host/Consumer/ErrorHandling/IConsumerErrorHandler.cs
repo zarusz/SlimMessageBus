@@ -1,6 +1,5 @@
 ﻿namespace SlimMessageBus.Host;
 
-// ToDo: Move to Host
 public interface IConsumerErrorHandler<in T>
 {
     /// <summary>
@@ -10,6 +9,6 @@ public interface IConsumerErrorHandler<in T>
     /// <param name="message"></param>
     /// <param name="consumerContext"></param>
     /// <param name="exception"></param>
-    /// <returns></returns>
+    /// <returns>True, when the error was handled</returns>
     Task<bool> OnHandleError(T message, IConsumerContext consumerContext, Exception exception);
 }

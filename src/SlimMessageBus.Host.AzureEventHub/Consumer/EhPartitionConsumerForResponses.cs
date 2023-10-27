@@ -16,7 +16,7 @@ public class EhPartitionConsumerForResponses : EhPartitionConsumer
     {
         _requestResponseSettings = requestResponseSettings ?? throw new ArgumentNullException(nameof(requestResponseSettings));
 
-        MessageProcessor = new ResponseMessageProcessor<EventData>(_requestResponseSettings, MessageBus, messageProvider: eventData => eventData.EventBody.ToArray());
+        MessageProcessor = new ResponseMessageProcessor<EventData>(MessageBus.LoggerFactory, _requestResponseSettings,  MessageBus, messagePayloadProvider: eventData => eventData.EventBody.ToArray());
         CheckpointTrigger = new CheckpointTrigger(_requestResponseSettings, MessageBus.LoggerFactory);
     }
 }

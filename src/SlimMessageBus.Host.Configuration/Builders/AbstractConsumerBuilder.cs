@@ -29,7 +29,7 @@ public abstract class AbstractConsumerBuilder : IAbstractConsumerBuilder
         return (T)this;
     }
 
-    internal static void SetupConsumerOnHandleMethod(IMessageTypeConsumerInvokerSettings invoker, string methodName = null)
+    static internal void SetupConsumerOnHandleMethod(IMessageTypeConsumerInvokerSettings invoker, string methodName = null)
     {
         if (invoker == null) throw new ArgumentNullException(nameof(invoker));
 

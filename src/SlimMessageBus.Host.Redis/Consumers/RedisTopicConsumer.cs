@@ -53,15 +53,4 @@ public class RedisTopicConsumer : AbstractConsumer, IRedisConsumer
             Logger.LogError(exception, "Error occured while processing the redis channel {Topic}", Path);
         }
     }
-
-    protected override async ValueTask DisposeAsyncCore()
-    {
-        await base.DisposeAsyncCore();
-
-        if (_messageProcessor != null)
-        {
-            await _messageProcessor.DisposeAsync();
-            _messageProcessor = null;
-        }
-    }
 }

@@ -1,4 +1,4 @@
-namespace SlimMessageBus.Host.RabbitMQ.Test;
+namespace SlimMessageBus.Host.RabbitMQ.Test.IntegrationTests;
 
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -6,6 +6,7 @@ using System.Net.Mime;
 
 using SlimMessageBus;
 using SlimMessageBus.Host;
+using SlimMessageBus.Host.RabbitMQ;
 using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
@@ -109,26 +110,6 @@ public class RabbitMqMessageBusIt : BaseIntegrationTest<RabbitMqMessageBusIt>
         });
     }
 
-    /*
-    [Fact]
-    public async Task BasicPubSubOnQueue()
-    {
-        var concurrency = 2;
-        var queue = "test-ping-queue";
-
-        AddBusConfiguration(mbb =>
-        {
-            mbb
-            .Produce<PingMessage>(x => x.DefaultQueue(queue).WithModifier(UseMessagePropertiesModifier))
-            .Consume<PingMessage>(x => x
-                    .SetQueueProperties(queue)
-                    .WithConsumer<PingConsumer>()
-                    .WithConsumer<PingDerivedConsumer, PingDerivedMessage>()
-                    .Instances(concurrency));
-        });
-        await BasicPubSub(concurrency, 1, 1).ConfigureAwait(false);
-    }
-    */
     private static string GetMessageId(PingMessage message) => $"ID_{message.Counter}";
 
     public class TestData
@@ -187,7 +168,7 @@ public class RabbitMqMessageBusIt : BaseIntegrationTest<RabbitMqMessageBusIt>
 
         var messages = consumedMessages.Snapshot();
         messages.All(x => x.Message.Counter == (int)x.Headers["Counter"]).Should().BeTrue();
-        messages.All(x => (x.Message.Counter % 2 == 0) == (bool)x.Headers["Even"]).Should().BeTrue();
+        messages.All(x => x.Message.Counter % 2 == 0 == (bool)x.Headers["Even"]).Should().BeTrue();
 
         additionalAssertion?.Invoke(new TestData { ProducedMessages = producedMessages, ConsumedMessages = consumedMessages.Snapshot() });
     }
@@ -196,7 +177,7 @@ public class RabbitMqMessageBusIt : BaseIntegrationTest<RabbitMqMessageBusIt>
     public async Task BasicReqRespOnTopic()
     {
         var topic = "test-echo";
- 
+
         AddBusConfiguration(mbb =>
         {
             mbb.Produce<EchoRequest>(x =>

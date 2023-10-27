@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Redis;
 
-public static class ProducerBuilderExtensions
+public static class RedisProducerBuilderExtensions
 {
     public static ProducerBuilder<T> DefaultQueue<T>(this ProducerBuilder<T> producerBuilder, string queue)
     {

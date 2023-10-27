@@ -9,7 +9,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using SlimMessageBus;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
-using SlimMessageBus.Host.Hybrid;
 using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Memory;
 using SlimMessageBus.Host.Test.Common;

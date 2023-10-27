@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Redis;
 
-public static class HandlerBuilderExtensions
+public static class RedisHandlerBuilderExtensions
 {
     /// <summary>
     /// Configure queue name that incoming requests (<see cref="TRequest"/>) are expected on.

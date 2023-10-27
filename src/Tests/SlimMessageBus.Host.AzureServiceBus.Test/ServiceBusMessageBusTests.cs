@@ -145,8 +145,8 @@ public class ServiceBusMessageBusTests : IDisposable
     public async Task When_Publish_Then_TopicClientOrQueueClientIsCreatedForTopicNameOrQueueName()
     {
         // arrange
-        BusBuilder.Produce<SomeMessage>(x => x.ToTopic());
-        BusBuilder.Produce<OtherMessage>(x => x.ToQueue());
+        BusBuilder.Produce<SomeMessage>(x => x.DefaultTopic("some-topic"));
+        BusBuilder.Produce<OtherMessage>(x => x.DefaultQueue("some-queue"));
 
         var sm1 = new SomeMessage { Id = "1", Value = 10 };
         var sm2 = new SomeMessage { Id = "2", Value = 12 };

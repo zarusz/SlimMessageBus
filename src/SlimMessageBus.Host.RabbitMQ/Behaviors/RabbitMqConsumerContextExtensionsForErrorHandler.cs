@@ -4,10 +4,10 @@ public static class RabbitMqConsumerContextExtensionsForErrorHandler
 {
     private static readonly string Key = "RabbitMq_MessageConfirmAction";
 
-    internal static void SetConfirmAction(this IConsumerContext consumerContext, Action<RabbitMqMessageConfirmOption> messageConfirmAction)
+    static internal void SetConfirmAction(this IConsumerContext consumerContext, Action<RabbitMqMessageConfirmOption> messageConfirmAction)
         => consumerContext.Properties[Key] = messageConfirmAction;
 
-    internal static void ConfirmAction(this IConsumerContext consumerContext, RabbitMqMessageConfirmOption option)
+    static internal void ConfirmAction(this IConsumerContext consumerContext, RabbitMqMessageConfirmOption option)
     {
         var messageConfirmAction = consumerContext.Properties[Key] as Action<RabbitMqMessageConfirmOption>;
         messageConfirmAction(option);

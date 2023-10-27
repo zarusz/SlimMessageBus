@@ -32,7 +32,8 @@ public class MessageBusSettings : HasProviderExtensions
     /// <summary>
     /// Hook called whenver message is being produced. Can be used to add (or mutate) message headers.
     /// </summary>
-    public Action<IDictionary<string, object>, object> HeaderModifier { get; set; }
+    // ToDo: Support many modifiers
+    public MessageHeaderModifier<object> HeaderModifier { get; set; }
 
     /// <summary>
     /// When true will start the message consumption on consumers after the bus is created.

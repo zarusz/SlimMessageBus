@@ -33,7 +33,7 @@ enum Provider
 /// <summary>
 /// This sample is a console app that uses the .NET Generic Host https://docs.microsoft.com/en-us/dotnet/core/extensions/generic-host
 /// </summary>
-internal static class Program
+static internal class Program
 {
     private static async Task Main(string[] args)
     {
@@ -298,7 +298,7 @@ internal static class Program
                             c.SaslUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
                             c.SaslPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
                             c.SaslMechanism = SaslMechanism.ScramSha256;
-                            c.SslCaLocation = "cloudkarafka_2022-10.ca";
+                            c.SslCaLocation = "cloudkarafka_2023-10.pem";
                         }
 
                         // Or use Apache Kafka as provider

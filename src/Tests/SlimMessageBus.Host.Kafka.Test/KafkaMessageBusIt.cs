@@ -34,7 +34,7 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
         c.SaslUsername = username;
         c.SaslPassword = password;
         c.SaslMechanism = SaslMechanism.ScramSha256;
-        c.SslCaLocation = "cloudkarafka_2022-10.ca";
+        c.SslCaLocation = "cloudkarafka_2023-10.pem";
     }
 
     public KafkaMessageBusIt(ITestOutputHelper testOutputHelper) : base(testOutputHelper)

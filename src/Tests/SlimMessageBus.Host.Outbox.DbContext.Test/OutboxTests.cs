@@ -145,6 +145,9 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
 
         await PerformDbOperation(async context =>
         {
+            // clean outbox from previous test run
+            await context.Database.ExecuteSqlRawAsync("delete from dbo.IntTest_Outbox");
+
             // migrate db
             await context.Database.MigrateAsync();
 
@@ -208,7 +211,7 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
         c.SaslUsername = username;
         c.SaslPassword = password;
         c.SaslMechanism = SaslMechanism.ScramSha256;
-        c.SslCaLocation = "cloudkarafka_2022-10.ca";
+        c.SslCaLocation = "cloudkarafka_2023-10.pem";
     }
 }
 

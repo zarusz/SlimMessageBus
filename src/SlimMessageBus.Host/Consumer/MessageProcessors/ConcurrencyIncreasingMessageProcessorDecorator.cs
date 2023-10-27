@@ -5,7 +5,7 @@
 /// The expectation is that <see cref="IMessageProcessor{TMessage}.ProcessMessage(TMessage)"/> will be executed synchronously (in sequential order) by the caller on which we want to increase amount of concurrent transportMessage being processed.
 /// </summary>
 /// <typeparam name="TMessage"></typeparam>
-public class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : IMessageProcessor<TMessage>
+public sealed class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : IMessageProcessor<TMessage>, IDisposable
 {
     private readonly ILogger _logger;
     private SemaphoreSlim _concurrentSemaphore;
@@ -16,8 +16,10 @@ public class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : IMessage
     private readonly object _lastExceptionLock = new();
 
     private int _pendingCount;
-
+    
     public int PendingCount => _pendingCount;
+
+    public IReadOnlyCollection<AbstractConsumerSettings> ConsumerSettings => _target.ConsumerSettings;
 
     public ConcurrencyIncreasingMessageProcessorDecorator(int concurrency, MessageBusBase messageBus, IMessageProcessor<TMessage> target)
     {
@@ -30,7 +32,16 @@ public class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : IMessage
         _target = target;
     }
 
-    public IReadOnlyCollection<AbstractConsumerSettings> ConsumerSettings => _target.ConsumerSettings;
+
+    #region IDisposable
+
+    public void Dispose()
+    {
+        _concurrentSemaphore?.Dispose();
+        _concurrentSemaphore = null;
+    }
+
+    #endregion
 
     public async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response, object Message)> ProcessMessage(TMessage message, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken, IServiceProvider currentServiceProvider = null)
     {
@@ -101,24 +112,4 @@ public class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : IMessage
             Interlocked.Decrement(ref _pendingCount);
         }
     }
-
-    #region IAsyncDisposable
-
-    public async ValueTask DisposeAsync()
-    {
-        await DisposeAsyncCore().ConfigureAwait(false);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual async ValueTask DisposeAsyncCore()
-    {
-        if (_concurrentSemaphore != null)
-        {
-            _concurrentSemaphore.Dispose();
-            _concurrentSemaphore = null;
-        }
-        await _target.DisposeAsync();
-    }
-
-    #endregion
 }

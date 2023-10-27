@@ -1,9 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="../Host.Transport.Properties.xml" />
+  <Import Project="../Host.Plugin.Properties.xml" />
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.1</TargetFramework>
     <Description>Apache Kafka provider for SlimMessageBus</Description>
     <PackageTags>Apache Kafka provider SlimMessageBus MessageBus bus facade messaging</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
@@ -11,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Confluent.Kafka" Version="2.2.0" />
+    <PackageReference Include="Confluent.Kafka" Version="2.3.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="../Host.Serialization.Properties.xml" />
+  <Import Project="../Host.Plugin.Properties.xml" />
 
   <PropertyGroup>
     <Description>Plugin for SlimMessageBus that provides JSON serialization based on the native System.Text.Json library</Description>

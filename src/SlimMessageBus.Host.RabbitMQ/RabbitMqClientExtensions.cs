@@ -1,8 +1,6 @@
 ﻿namespace SlimMessageBus.Host.RabbitMQ;
 
-using global::RabbitMQ.Client;
-
-internal static class RabbitMqClientExtensions
+static internal class RabbitMqClientExtensions
 {
     public static void CloseAndDispose(this IModel channel)
     {

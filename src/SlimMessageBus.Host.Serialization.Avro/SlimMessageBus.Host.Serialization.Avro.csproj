@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="../Host.Serialization.Properties.xml" />
+  <Import Project="../Host.Plugin.Properties.xml" />
 
   <PropertyGroup>
     <Authors>zarusz, beto580, fgparamio</Authors>
@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Apache.Avro" Version="1.11.2" />
+    <PackageReference Include="Apache.Avro" Version="1.11.3" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.1.0" />
   </ItemGroup>
 

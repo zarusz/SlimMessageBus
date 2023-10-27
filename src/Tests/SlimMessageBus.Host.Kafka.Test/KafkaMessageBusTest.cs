@@ -41,10 +41,12 @@ public class KafkaMessageBusTest : IDisposable
         // arrange
         var producerA = new ProducerSettings();
         new ProducerBuilder<MessageA>(producerA)
+            .DefaultTopic("topic1")
             .KeyProvider((m, t) => m.Key);
 
         var producerB = new ProducerSettings();
-        new ProducerBuilder<MessageB>(producerB);
+        new ProducerBuilder<MessageB>(producerB)
+            .DefaultTopic("topic1");
 
         MbSettings.Producers.Add(producerA);
         MbSettings.Producers.Add(producerB);
@@ -67,10 +69,12 @@ public class KafkaMessageBusTest : IDisposable
         // arrange
         var producerA = new ProducerSettings();
         new ProducerBuilder<MessageA>(producerA)
+            .DefaultTopic("topic1")
             .PartitionProvider((m, t) => 10);
 
         var producerB = new ProducerSettings();
-        new ProducerBuilder<MessageB>(producerB);
+        new ProducerBuilder<MessageB>(producerB)
+            .DefaultTopic("topic1");
 
         MbSettings.Producers.Add(producerA);
         MbSettings.Producers.Add(producerB);

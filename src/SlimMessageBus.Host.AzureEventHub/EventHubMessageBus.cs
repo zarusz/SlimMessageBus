@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.AzureEventHub;
 
+using SlimMessageBus.Host.Services;
+
 /// <summary>
 /// MessageBus implementation for Azure Event Hub.
 /// </summary>
@@ -8,41 +10,18 @@ public class EventHubMessageBus : MessageBusBase<EventHubMessageBusSettings>
     private readonly ILogger _logger;
     private BlobContainerClient _blobContainerClient;
     private SafeDictionaryWrapper<string, EventHubProducerClient> _producerByPath;
-    private List<EhGroupConsumer> _groupConsumers;
 
     protected internal BlobContainerClient BlobContainerClient => _blobContainerClient;
 
     public EventHubMessageBus(MessageBusSettings settings, EventHubMessageBusSettings providerSettings)
         : base(settings, providerSettings)
     {
-        _logger = LoggerFactory.CreateLogger<EventHubMessageBus>();        
+        _logger = LoggerFactory.CreateLogger<EventHubMessageBus>();
 
         OnBuildProvider();
     }
 
-    protected override void AssertSettings()
-    {
-        base.AssertSettings();
-
-        if (string.IsNullOrEmpty(ProviderSettings.ConnectionString))
-        {
-            throw new ConfigurationMessageBusException(Settings, $"The {nameof(EventHubMessageBusSettings)}.{nameof(EventHubMessageBusSettings.ConnectionString)} must be set");
-        }
-
-        if (IsAnyConsumerDeclared)
-        {
-            if (string.IsNullOrEmpty(ProviderSettings.StorageConnectionString))
-            {
-                throw new ConfigurationMessageBusException(Settings, $"When consumers are declared, the {nameof(EventHubMessageBusSettings)}.{nameof(EventHubMessageBusSettings.StorageConnectionString)} must be set");
-            }
-            if (string.IsNullOrEmpty(ProviderSettings.StorageBlobContainerName))
-            {
-                throw new ConfigurationMessageBusException(Settings, $"When consumers are declared, the {nameof(EventHubMessageBusSettings)}.{nameof(EventHubMessageBusSettings.StorageBlobContainerName)} must be set");
-            }
-        }
-    }
-
-    private bool IsAnyConsumerDeclared => Settings.Consumers.Count > 0 || Settings.RequestResponse != null;
+    protected override IMessageBusSettingsValidationService ValidationService => new EventHubMessageBusSettingsValidationService(Settings, ProviderSettings);
 
     #region Overrides of MessageBusBase
 
@@ -51,7 +30,7 @@ public class EventHubMessageBus : MessageBusBase<EventHubMessageBusSettings>
         base.Build();
 
         // Initialize storage client only when there are consumers declared
-        _blobContainerClient = IsAnyConsumerDeclared
+        _blobContainerClient = Settings.IsAnyConsumerDeclared()
             ? ProviderSettings.BlobContanerClientFactory()
             : null;
 
@@ -68,37 +47,30 @@ public class EventHubMessageBus : MessageBusBase<EventHubMessageBusSettings>
                 throw;
             }
         });
+   }
 
-        _groupConsumers = new List<EhGroupConsumer>();
+    protected override async Task CreateConsumers()
+    {
+        await base.CreateConsumers();
 
-        _logger.LogInformation("Creating consumers");
         foreach (var (groupPath, consumerSettings) in Settings.Consumers.GroupBy(x => new GroupPath(path: x.Path, group: x.GetGroup())).ToDictionary(x => x.Key, x => x.ToList()))
         {
             _logger.LogInformation("Creating consumer for Path: {Path}, Group: {Group}", groupPath.Path, groupPath.Group);
-            _groupConsumers.Add(new EhGroupConsumer(this, groupPath, groupPathPartition => new EhPartitionConsumerForConsumers(this, consumerSettings, groupPathPartition)));
+            AddConsumer(new EhGroupConsumer(this, groupPath, groupPathPartition => new EhPartitionConsumerForConsumers(this, consumerSettings, groupPathPartition)));
         }
 
         if (Settings.RequestResponse != null)
         {
             var pathGroup = new GroupPath(Settings.RequestResponse.Path, Settings.RequestResponse.GetGroup());
             _logger.LogInformation("Creating response consumer for Path: {Path}, Group: {Group}", pathGroup.Path, pathGroup.Group);
-            _groupConsumers.Add(new EhGroupConsumer(this, pathGroup, groupPathPartition => new EhPartitionConsumerForResponses(this, Settings.RequestResponse, groupPathPartition)));
+            AddConsumer(new EhGroupConsumer(this, pathGroup, groupPathPartition => new EhPartitionConsumerForResponses(this, Settings.RequestResponse, groupPathPartition)));
         }
+
     }
 
     protected override async ValueTask DisposeAsyncCore()
     {
         await base.DisposeAsyncCore();
-
-        if (_groupConsumers != null)
-        {
-            foreach (var groupConsumer in _groupConsumers)
-            {
-                await groupConsumer.DisposeSilently("Consumer", _logger);
-            }
-            _groupConsumers.Clear();
-            _groupConsumers = null;
-        }
 
         if (_producerByPath != null)
         {
@@ -128,14 +100,6 @@ public class EventHubMessageBus : MessageBusBase<EventHubMessageBusSettings>
                 _logger.LogWarning(e, "Attempt to create blob container {BlobContainer} failed - the blob container is needed to store the consumer group offsets", _blobContainerClient.Name);
             }
         }
-
-        await Task.WhenAll(_groupConsumers.Select(x => x.Start()));
-    }
-
-    protected override async Task OnStop()
-    {
-        await base.OnStop();
-        await Task.WhenAll(_groupConsumers.Select(x => x.Stop()));
     }
 
     protected override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)

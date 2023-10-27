@@ -3,6 +3,7 @@ namespace SlimMessageBus.Host;
 using System.Globalization;
 
 using SlimMessageBus.Host.Consumer;
+using SlimMessageBus.Host.Services;
 
 public abstract class MessageBusBase<TProviderSettings> : MessageBusBase where TProviderSettings : class
 {
@@ -14,11 +15,13 @@ public abstract class MessageBusBase<TProviderSettings> : MessageBusBase where T
     }
 }
 
-public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMessageBus, IMessageScopeFactory, IMessageHeadersFactory, ICurrentTimeProvider
+public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMessageBus, IMessageScopeFactory, IMessageHeadersFactory, ICurrentTimeProvider, IResponseProducer, IResponseConsumer
 {
     private readonly ILogger _logger;
     private CancellationTokenSource _cancellationTokenSource = new();
     private IMessageSerializer _serializer;
+    private readonly IMessageHeaderService _headerService;
+    private readonly List<AbstractConsumer> _consumers = new();
 
     /// <summary>
     /// Special market reference that signifies a dummy producer settings for response types.
@@ -56,9 +59,11 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     #endregion
 
-    #region Start & Stop
+    private readonly object _initTaskLock = new();
 
-    protected Task BeforeStartTask { get; set; } = Task.CompletedTask;
+    private Task _initTask = null;
+
+    #region Start & Stop
 
     public bool IsStarted { get; private set; }
 
@@ -69,14 +74,14 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     public virtual string Name => Settings.Name ?? "Main";
 
+    public IReadOnlyCollection<AbstractConsumer> Consumers => _consumers;
+
     protected MessageBusBase(MessageBusSettings settings)
     {
-        Settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        if (settings is null) throw new ArgumentNullException(nameof(settings));
+        if (settings.ServiceProvider is null) throw new ConfigurationMessageBusException($"The bus {Name} has no {nameof(settings.ServiceProvider)} configured");
 
-        if (settings.ServiceProvider is null)
-        {
-            throw new ConfigurationMessageBusException($"The bus {Name} has no {nameof(settings.ServiceProvider)} configured");
-        }
+        Settings = settings;
 
         // Try to resolve from DI, if also not available supress logging using the NullLoggerFactory
         LoggerFactory = settings.ServiceProvider.GetService<ILoggerFactory>() ?? NullLoggerFactory.Instance;
@@ -87,19 +92,52 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         MessageTypeResolver = (IMessageTypeResolver)settings.ServiceProvider.GetService(messageTypeResolverType)
             ?? throw new ConfigurationMessageBusException($"The bus {Name} could not resolve the required type {messageTypeResolverType.Name} from {nameof(Settings.ServiceProvider)}");
 
+        _headerService = new MessageHeaderService(LoggerFactory.CreateLogger<MessageHeaderService>(), Settings, MessageTypeResolver);
+
         RuntimeTypeCache = new RuntimeTypeCache();
+    }
+
+    protected void AddInit(Task task)
+    {
+        lock (_initTaskLock)
+        {
+            var prevInitTask = _initTask;
+            _initTask = prevInitTask != null
+                ? prevInitTask.ContinueWith(_ => task)
+                : task;
+        }
+    }
+
+    protected async Task EnsureInitFinished()
+    {
+        var initTask = _initTask;
+        if (initTask != null)
+        {
+            await initTask.ConfigureAwait(false);
+
+            lock (_initTaskLock)
+            {
+                if (ReferenceEquals(_initTask, initTask))
+                {
+                    _initTask = null;
+                }
+            }
+        }
     }
 
     protected virtual IMessageSerializer GetSerializer() =>
         (IMessageSerializer)Settings.ServiceProvider.GetService(Settings.SerializerType)
             ?? throw new ConfigurationMessageBusException($"The bus {Name} could not resolve the required message serializer type {Settings.SerializerType.Name} from {nameof(Settings.ServiceProvider)}");
 
+    protected virtual IMessageBusSettingsValidationService ValidationService { get => new DefaultMessageBusSettingsValidationService(Settings); }
+
     /// <summary>
     /// Called by the provider to initialize the bus.
     /// </summary>
     protected void OnBuildProvider()
     {
-        AssertSettings();
+        ValidationService.AssertSettings();
+
         Build();
 
         if (Settings.AutoStartConsumers)
@@ -109,7 +147,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
             {
                 try
                 {
-                    await Start();
+                    await Start().ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -148,30 +186,6 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         return producerByBaseMessageType;
     }
 
-    public async Task Start()
-    {
-        if (!IsStarted && !IsStarting)
-        {
-            IsStarting = true;
-            try
-            {
-                await BeforeStartTask;
-
-                _logger.LogInformation("Starting consumers for {BusName} bus...", Name);
-                await OnBusLifecycle(MessageBusLifecycleEventType.Starting);
-                await OnStart();
-                await OnBusLifecycle(MessageBusLifecycleEventType.Started);
-                _logger.LogInformation("Started consumers for {BusName} bus", Name);
-
-                IsStarted = true;
-            }
-            finally
-            {
-                IsStarting = false;
-            }
-        }
-    }
-
     private IEnumerable<IMessageBusLifecycleInterceptor> _lifecycleInterceptors;
 
     private async Task OnBusLifecycle(MessageBusLifecycleEventType eventType)
@@ -186,6 +200,34 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         }
     }
 
+    public async Task Start()
+    {
+        if (!IsStarted && !IsStarting)
+        {
+            IsStarting = true;
+            try
+            {
+                await EnsureInitFinished();
+
+                _logger.LogInformation("Starting consumers for {BusName} bus...", Name);
+                await OnBusLifecycle(MessageBusLifecycleEventType.Starting).ConfigureAwait(false);
+
+                await CreateConsumers();
+                await OnStart().ConfigureAwait(false);
+                await Task.WhenAll(_consumers.Select(x => x.Start())).ConfigureAwait(false);
+
+                await OnBusLifecycle(MessageBusLifecycleEventType.Started).ConfigureAwait(false);
+                _logger.LogInformation("Started consumers for {BusName} bus", Name);
+
+                IsStarted = true;
+            }
+            finally
+            {
+                IsStarting = false;
+            }
+        }
+    }
+
     public async Task Stop()
     {
         if (IsStarted && !IsStopping)
@@ -193,10 +235,16 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
             IsStopping = true;
             try
             {
+                await EnsureInitFinished();
+
                 _logger.LogInformation("Stopping consumers for {BusName} bus...", Name);
-                await OnBusLifecycle(MessageBusLifecycleEventType.Stopping);
-                await OnStop();
-                await OnBusLifecycle(MessageBusLifecycleEventType.Stopped);
+                await OnBusLifecycle(MessageBusLifecycleEventType.Stopping).ConfigureAwait(false);
+
+                await Task.WhenAll(_consumers.Select(x => x.Stop())).ConfigureAwait(false);
+                await OnStop().ConfigureAwait(false);
+                await DestroyConsumers().ConfigureAwait(false);
+
+                await OnBusLifecycle(MessageBusLifecycleEventType.Stopped).ConfigureAwait(false);
                 _logger.LogInformation("Stopped consumers for {BusName} bus", Name);
 
                 IsStarted = false;
@@ -210,55 +258,6 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     protected virtual Task OnStart() => Task.CompletedTask;
     protected virtual Task OnStop() => Task.CompletedTask;
-
-    protected virtual void AssertSettings()
-    {
-        AssertProducers();
-        foreach (var consumerSettings in Settings.Consumers)
-        {
-            AssertConsumerSettings(consumerSettings);
-        }
-        AssertDepencendyResolverSettings();
-        AssertRequestResponseSettings();
-    }
-
-    protected virtual void AssertProducers()
-    {
-        var duplicateMessageTypeProducer = Settings.Producers.GroupBy(x => x.MessageType).Where(x => x.Count() > 1).Select(x => x.FirstOrDefault()).FirstOrDefault();
-        if (duplicateMessageTypeProducer != null)
-        {
-            throw new ConfigurationMessageBusException($"The produced message type {duplicateMessageTypeProducer.MessageType} was declared more than once (check the {nameof(MessageBusBuilder.Produce)} configuration)");
-        }
-    }
-
-    protected virtual void AssertConsumerSettings(ConsumerSettings consumerSettings)
-    {
-        if (consumerSettings == null) throw new ArgumentNullException(nameof(consumerSettings));
-
-        Assert.IsNotNull(consumerSettings.Path,
-            () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.Path)} is not set"));
-        Assert.IsNotNull(consumerSettings.MessageType,
-            () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.MessageType)} is not set"));
-        Assert.IsNotNull(consumerSettings.ConsumerType,
-            () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.ConsumerType)} is not set"));
-        Assert.IsNotNull(consumerSettings.ConsumerMethod,
-            () => new ConfigurationMessageBusException($"The {nameof(ConsumerSettings)}.{nameof(consumerSettings.ConsumerMethod)} is not set"));
-    }
-
-    protected virtual void AssertDepencendyResolverSettings()
-    {
-        Assert.IsNotNull(Settings.ServiceProvider,
-            () => new ConfigurationMessageBusException($"The {nameof(MessageBusSettings)}.{nameof(MessageBusSettings.ServiceProvider)} is not set"));
-    }
-
-    protected virtual void AssertRequestResponseSettings()
-    {
-        if (Settings.RequestResponse != null)
-        {
-            Assert.IsNotNull(Settings.RequestResponse.Path,
-                () => new ConfigurationMessageBusException("Request-response: path was not set"));
-        }
-    }
 
     protected void AssertActive()
     {
@@ -337,7 +336,26 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         }
     }
 
+    protected virtual Task CreateConsumers()
+    {
+        _logger.LogInformation("Creating consumers");
+        return Task.CompletedTask;
+    }
+
+    protected async virtual Task DestroyConsumers()
+    {
+        _logger.LogInformation("Destroying consumers");
+
+        foreach (var consumer in _consumers)
+        {
+            await consumer.DisposeSilently("Consumer", _logger).ConfigureAwait(false);
+        }
+        _consumers.Clear();
+    }
+
     #endregion
+
+    protected void AddConsumer(AbstractConsumer consumer) => _consumers.Add(consumer);
 
     public virtual DateTimeOffset CurrentTime => DateTimeOffset.UtcNow;
 
@@ -383,7 +401,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         var messageHeaders = CreateHeaders();
         if (messageHeaders != null)
         {
-            AddMessageHeaders(messageHeaders, headers, message, producerSettings);
+            _headerService.AddMessageHeaders(messageHeaders, headers, message, producerSettings);
         }
 
         var serviceProvider = currentServiceProvider ?? Settings.ServiceProvider;
@@ -414,32 +432,6 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
         _logger.LogDebug("Producing message {Message} of type {MessageType} to path {Path}", message, producerSettings.MessageType, path);
         return ProduceToTransport(message, path, payload, messageHeaders, cancellationToken);
-    }
-
-    private void AddMessageHeaders(IDictionary<string, object> messageHeaders, IDictionary<string, object> headers, object message, ProducerSettings producerSettings)
-    {
-        if (headers != null)
-        {
-            // Add user specific headers
-            foreach (var (key, value) in headers)
-            {
-                messageHeaders[key] = value;
-            }
-        }
-
-        AddMessageTypeHeader(message, messageHeaders);
-        // Call header hook
-        producerSettings.HeaderModifier?.Invoke(messageHeaders, message);
-        // Call header hook
-        Settings.HeaderModifier?.Invoke(messageHeaders, message);
-    }
-
-    private void AddMessageTypeHeader(object message, IDictionary<string, object> headers)
-    {
-        if (message != null)
-        {
-            headers.SetHeader(MessageHeaders.MessageType, MessageTypeResolver.ToName(message.GetType()));
-        }
     }
 
     /// <summary>
@@ -485,7 +477,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         var requestHeaders = CreateHeaders();
         if (requestHeaders != null)
         {
-            AddMessageHeaders(requestHeaders, headers, request, producerSettings);
+            _headerService.AddMessageHeaders(requestHeaders, headers, request, producerSettings);
             if (requestId != null)
             {
                 requestHeaders.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
@@ -557,27 +549,36 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         if (requestHeaders != null)
         {
             requestHeaders.SetHeader(ReqRespMessageHeaders.ReplyTo, Settings.RequestResponse.Path);
-            AddMessageTypeHeader(request, requestHeaders);
+            _headerService.AddMessageTypeHeader(request, requestHeaders);
         }
 
         return ProduceToTransport(request, path, requestPayload, requestHeaders);
     }
 
-    public virtual Task ProduceResponse(object request, IReadOnlyDictionary<string, object> requestHeaders, object response, IDictionary<string, object> responseHeaders, ConsumerSettings consumerSettings)
+    public virtual Task ProduceResponse(string requestId, object request, IReadOnlyDictionary<string, object> requestHeaders, object response, Exception responseException, IMessageTypeConsumerInvokerSettings consumerInvoker)
     {
         if (requestHeaders == null) throw new ArgumentNullException(nameof(requestHeaders));
-        if (responseHeaders == null) throw new ArgumentNullException(nameof(responseHeaders));
-        if (consumerSettings == null) throw new ArgumentNullException(nameof(consumerSettings));
+        if (consumerInvoker == null) throw new ArgumentNullException(nameof(consumerInvoker));
+
+        var responseType = consumerInvoker.ParentSettings.ResponseType;
+        _logger.LogDebug("Sending the response {Response} of type {MessageType} for RequestId: {RequestId}...", response, responseType, requestId);
+
+        var responseHeaders = CreateHeaders();
+        responseHeaders.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
+        if (responseException != null)
+        {
+            responseHeaders.SetHeader(ReqRespMessageHeaders.Error, responseException.Message);
+        }
 
         if (!requestHeaders.TryGetHeader(ReqRespMessageHeaders.ReplyTo, out object replyTo))
         {
             throw new MessageBusException($"The header {ReqRespMessageHeaders.ReplyTo} was missing on the message");
         }
 
-        AddMessageTypeHeader(response, responseHeaders);
+        _headerService.AddMessageTypeHeader(response, responseHeaders);
 
         var responsePayload = response != null
-            ? Serializer.Serialize(consumerSettings.ResponseType, response)
+            ? Serializer.Serialize(responseType, response)
             : null;
 
         return ProduceToTransport(response, (string)replyTo, responsePayload, responseHeaders);
@@ -705,5 +706,4 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     #endregion
 
     #endregion
-
 }

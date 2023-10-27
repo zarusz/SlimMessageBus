@@ -1,33 +1,35 @@
 ﻿namespace SlimMessageBus.Host;
 
-using SlimMessageBus.Host.Collections;
-
 public class MessageHandler : IMessageHandler
 {
     private readonly ILogger _logger;
     private readonly IMessageScopeFactory _messageScopeFactory;
-    protected RuntimeTypeCache RuntimeTypeCache { get; }
     private readonly ICurrentTimeProvider _currentTimeProvider;
-    private readonly Action<object, ConsumerContext> _consumerContextInitializer;
-
+    
+    protected RuntimeTypeCache RuntimeTypeCache { get; }
     protected IMessageTypeResolver MessageTypeResolver { get; }
     protected IMessageHeadersFactory MessageHeadersFactory { get; }
+
     public MessageBusBase MessageBus { get; }
     public string Path { get; }
 
-    public MessageHandler(MessageBusBase messageBus, IMessageScopeFactory messageScopeFactory, IMessageTypeResolver messageTypeResolver, IMessageHeadersFactory messageHeadersFactory, RuntimeTypeCache runtimeTypeCache, ICurrentTimeProvider currentTimeProvider, string path, Action<object, ConsumerContext> consumerContextInitializer = null)
+    /// <summary>
+    /// Represents a response that has been discarded (it expired)
+    /// </summary>
+    protected static readonly object ResponseForExpiredRequest = new ();
+
+    public MessageHandler(MessageBusBase messageBus, IMessageScopeFactory messageScopeFactory, IMessageTypeResolver messageTypeResolver, IMessageHeadersFactory messageHeadersFactory, RuntimeTypeCache runtimeTypeCache, ICurrentTimeProvider currentTimeProvider, string path)
     {
         if (messageBus is null) throw new ArgumentNullException(nameof(messageBus));
 
         _logger = messageBus.LoggerFactory.CreateLogger<MessageHandler>();
         _messageScopeFactory = messageScopeFactory;
         _currentTimeProvider = currentTimeProvider;
-        _consumerContextInitializer = consumerContextInitializer;
 
         RuntimeTypeCache = runtimeTypeCache;
         MessageTypeResolver = messageTypeResolver;
         MessageHeadersFactory = messageHeadersFactory;
-        MessageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
+        MessageBus = messageBus;
         Path = path ?? throw new ArgumentNullException(nameof(path));
     }
 
@@ -58,7 +60,7 @@ public class MessageHandler : IMessageHandler
                     // ToDo: Call interceptor
 
                     // Do not process the expired message
-                    return (null, null, requestId);
+                    return (ResponseForExpiredRequest, null, requestId);
                 }
             }
 
@@ -69,16 +71,7 @@ public class MessageHandler : IMessageHandler
 
             try
             {
-                var context = new ConsumerContext
-                {
-                    Path = Path,
-                    Headers = messageHeaders,
-                    CancellationToken = cancellationToken,
-                    Bus = MessageBus,
-                    Consumer = consumerInstance,
-                    ConsumerInvoker = consumerInvoker
-                };
-                _consumerContextInitializer?.Invoke(nativeMessage, context);
+                var context = CreateConsumerContext(messageHeaders, consumerInvoker, nativeMessage, consumerInstance, cancellationToken);
 
                 var consumerInterceptors = RuntimeTypeCache.ConsumerInterceptorType.ResolveAll(messageScope.ServiceProvider, messageType);
                 var handlerInterceptors = hasResponse ? RuntimeTypeCache.HandlerInterceptorType.ResolveAll(messageScope.ServiceProvider, (messageType, responseType)) : null;
@@ -109,6 +102,16 @@ public class MessageHandler : IMessageHandler
 
         return (response, responseException, requestId);
     }
+
+    protected virtual ConsumerContext CreateConsumerContext(IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, object transportMessage, object consumerInstance, CancellationToken cancellationToken)
+        => new()
+        {
+            Path = Path,
+            Headers = messageHeaders,
+            CancellationToken = cancellationToken,
+            Consumer = consumerInstance,
+            ConsumerInvoker = consumerInvoker
+        };
 
     public async Task<object> ExecuteConsumer(object message, IConsumerContext consumerContext, IMessageTypeConsumerInvokerSettings consumerInvoker, Type responseType)
     {

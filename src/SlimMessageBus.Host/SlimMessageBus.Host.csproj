@@ -1,9 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="../Host.Transport.Properties.xml" />
+  <Import Project="../Host.Plugin.Properties.xml" />
 
-  <PropertyGroup>
-    <TargetFramework>netstandard2.1</TargetFramework>
+  <PropertyGroup>  
     <LangVersion>latest</LangVersion>
     <Description>A lightweight message bus interface for .NET. The goal of this library is to introduce a slim facade for messaging brokers. Use one of the transport providers for in-process (in-memory), Apache Kafka or Azure Service Bus messaging.</Description>
     <PackageTags>SlimMessageBus Provider MessageBus Facade</PackageTags>

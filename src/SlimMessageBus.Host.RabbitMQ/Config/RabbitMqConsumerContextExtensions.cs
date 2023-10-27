@@ -11,7 +11,7 @@ public static class RabbitMqConsumerContextExtensions
         return context.GetPropertyOrDefault<BasicDeliverEventArgs>(RabbitMqProperties.Message);
     }
 
-    internal static void SetTransportMessage(this ConsumerContext context, BasicDeliverEventArgs message)
+    static internal void SetTransportMessage(this ConsumerContext context, BasicDeliverEventArgs message)
     {
         if (context is null) throw new ArgumentNullException(nameof(context));
 

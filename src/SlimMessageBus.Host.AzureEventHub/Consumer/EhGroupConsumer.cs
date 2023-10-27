@@ -3,46 +3,70 @@ namespace SlimMessageBus.Host.AzureEventHub;
 using Azure.Messaging.EventHubs;
 using Azure.Messaging.EventHubs.Processor;
 
-using SlimMessageBus.Host.Collections;
-
-public class EhGroupConsumer : IAsyncDisposable, IConsumerControl
+public class EhGroupConsumer : AbstractConsumer
 {
-    private readonly ILogger _logger;
     private readonly EventProcessorClient _processorClient;
     private readonly SafeDictionaryWrapper<string, EhPartitionConsumer> _partitionConsumerByPartitionId;
     private readonly GroupPath _groupPath;
 
     public EventHubMessageBus MessageBus { get; }
-    public bool IsStarted { get; private set; }
 
     public EhGroupConsumer(EventHubMessageBus messageBus, GroupPath groupPath, Func<GroupPathPartitionId, EhPartitionConsumer> partitionConsumerFactory)
+        : base(messageBus.LoggerFactory.CreateLogger<EhGroupConsumer>())
     {
         _groupPath = groupPath ?? throw new ArgumentNullException(nameof(groupPath));
-        _ = partitionConsumerFactory ?? throw new ArgumentNullException(nameof(partitionConsumerFactory));
+        if (partitionConsumerFactory == null) throw new ArgumentNullException(nameof(partitionConsumerFactory));
 
         MessageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
-        _logger = messageBus.LoggerFactory.CreateLogger<EhGroupConsumer>();
 
         _partitionConsumerByPartitionId = new SafeDictionaryWrapper<string, EhPartitionConsumer>(partitionId =>
         {
-            _logger.LogDebug("Creating PartitionConsumer for Group: {Group}, Path: {Path}, PartitionId: {PartitionId}", groupPath.Group, groupPath.Path, partitionId);
+            Logger.LogDebug("Creating PartitionConsumer for Group: {Group}, Path: {Path}, PartitionId: {PartitionId}", groupPath.Group, groupPath.Path, partitionId);
             try
             {
                 return partitionConsumerFactory(new GroupPathPartitionId(groupPath, partitionId));
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Error creating PartitionConsumer for Group: {Group}, Path: {Path}, PartitionId: {PartitionId}", groupPath.Group, groupPath.Path, partitionId);
+                Logger.LogError(e, "Error creating PartitionConsumer for Group: {Group}, Path: {Path}, PartitionId: {PartitionId}", groupPath.Group, groupPath.Path, partitionId);
                 throw;
             }
         });
 
-        _logger.LogInformation("Creating EventProcessorClient for EventHub with Group: {Group}, Path: {Path}", groupPath.Group, groupPath.Path);
+        Logger.LogInformation("Creating EventProcessorClient for EventHub with Group: {Group}, Path: {Path}", groupPath.Group, groupPath.Path);
         _processorClient = MessageBus.ProviderSettings.EventHubProcessorClientFactory(new ConsumerParams(groupPath.Path, groupPath.Group, messageBus.BlobContainerClient));
         _processorClient.PartitionInitializingAsync += PartitionInitializingAsync;
         _processorClient.PartitionClosingAsync += PartitionClosingAsync;
         _processorClient.ProcessEventAsync += ProcessEventHandler;
         _processorClient.ProcessErrorAsync += ProcessErrorHandler;
+    }
+
+    protected override async Task OnStart()
+    {
+        if (!_processorClient.IsRunning)
+        {
+            Logger.LogInformation("Starting consumer Group: {Group}, Path: {Path}...", _groupPath.Group, _groupPath.Path);
+            await _processorClient.StartProcessingAsync().ConfigureAwait(false);
+        }
+    }
+
+    protected override async Task OnStop()
+    {
+        if (_processorClient.IsRunning)
+        {
+            Logger.LogInformation("Stopping consumer Group: {Group}, Path: {Path}...", _groupPath.Group, _groupPath.Path);
+
+            // stop the processing host
+            await _processorClient.StopProcessingAsync().ConfigureAwait(false);
+
+            var partitionConsumers = _partitionConsumerByPartitionId.ClearAndSnapshot();
+
+            if (MessageBus.ProviderSettings.EnableCheckpointOnBusStop)
+            {
+                // checkpoint anything we've processed thus far
+                await Task.WhenAll(partitionConsumers.Select(pc => pc.TryCheckpoint()));
+            }
+        }
     }
 
     private Task PartitionInitializingAsync(PartitionInitializingEventArgs args)
@@ -76,54 +100,8 @@ public class EhGroupConsumer : IAsyncDisposable, IConsumerControl
         }
         else
         {
-            _logger.LogError(args.Exception, "Group error - Group: {Group}, Path: {Path}, Operation: {Operation}", _groupPath.Group, _groupPath.Path, args.Operation);
+            Logger.LogError(args.Exception, "Group error - Group: {Group}, Path: {Path}, Operation: {Operation}", _groupPath.Group, _groupPath.Path, args.Operation);
         }
         return Task.CompletedTask;
     }
-
-    public async Task Start()
-    {
-        if (!_processorClient.IsRunning)
-        {
-            _logger.LogInformation("Starting consumer Group: {Group}, Path: {Path}...", _groupPath.Group, _groupPath.Path);
-            await _processorClient.StartProcessingAsync().ConfigureAwait(false);
-            IsStarted = true;
-        }
-    }
-
-    public async Task Stop()
-    {
-        if (_processorClient.IsRunning)
-        {
-            _logger.LogInformation("Stopping consumer Group: {Group}, Path: {Path}...", _groupPath.Group, _groupPath.Path);
-
-            // stop the processing host
-            await _processorClient.StopProcessingAsync().ConfigureAwait(false);
-
-            var partitionConsumers = _partitionConsumerByPartitionId.ClearAndSnapshot();
-
-            if (MessageBus.ProviderSettings.EnableCheckpointOnBusStop)
-            {
-                // checkpoint anything we've processed thus far
-                await Task.WhenAll(partitionConsumers.Select(pc => pc.TryCheckpoint()));
-            }
-
-            IsStarted = false;
-        }
-    }
-
-    #region IAsyncDisposable
-
-    public async ValueTask DisposeAsync()
-    {
-        await DisposeAsyncCore().ConfigureAwait(false);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual async ValueTask DisposeAsyncCore()
-    {
-        await Stop().ConfigureAwait(false);
-    }
-
-    #endregion
 }

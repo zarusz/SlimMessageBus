@@ -54,11 +54,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Content", "Content", "{8835
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Plugins", "Plugins", "{75BDDBB5-8DB8-4893-BD89-8FFC6C42244D}"
+	ProjectSection(SolutionItems) = preProject
+		Host.Plugin.Properties.xml = Host.Plugin.Properties.xml
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Transport", "Transport", "{9291D340-B4FA-44A3-8060-C14743FB1712}"
-	ProjectSection(SolutionItems) = preProject
-		Host.Transport.Properties.xml = Host.Transport.Properties.xml
-	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus", "SlimMessageBus\SlimMessageBus.csproj", "{C47CFB84-E5AC-4539-822D-6612D671CA6C}"
 EndProject
@@ -119,7 +119,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A6C28448-3839-490C-BE30-580C1A45E225}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
-		cloudkarafka_2020-12.ca = cloudkarafka_2020-12.ca
+		cloudkarafka_2023-10.pem = cloudkarafka_2023-10.pem
 		Common.NuGet.Properties.xml = Common.NuGet.Properties.xml
 		Common.Properties.xml = Common.Properties.xml
 		..\CONTRIBUTING.md = ..\CONTRIBUTING.md
@@ -127,6 +127,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		..\build\do_package.ps1 = ..\build\do_package.ps1
 		..\build\do_test.ps1 = ..\build\do_test.ps1
 		..\build\do_test_ci.ps1 = ..\build\do_test_ci.ps1
+		Host.Plugin.Properties.xml = Host.Plugin.Properties.xml
 		..\README.md = ..\README.md
 		..\build\tasks.ps1 = ..\build\tasks.ps1
 	EndProjectSection
@@ -158,9 +159,6 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Redis", "SlimMessageBus.Host.Redis\SlimMessageBus.Host.Redis.csproj", "{5F0638BD-2967-4257-A73D-80C45F40CE4F}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Serialization", "Serialization", "{D7DCD96A-C3B8-4D22-8216-0E8ADD30C03F}"
-	ProjectSection(SolutionItems) = preProject
-		Host.Serialization.Properties.xml = Host.Serialization.Properties.xml
-	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Infrastructure", "Infrastructure", "{59F88FB5-6D19-4520-87E8-227B3539BBB3}"
 	ProjectSection(SolutionItems) = preProject
@@ -230,7 +228,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Mqtt.Te
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.RabbitMQ", "SlimMessageBus.Host.RabbitMQ\SlimMessageBus.Host.RabbitMQ.csproj", "{65BD0C01-EFDC-4775-B0A8-CF13073D9650}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.RabbitMQ.Test", "Tests\SlimMessageBus.Host.RabbitMQ.Test\SlimMessageBus.Host.RabbitMQ.Test.csproj", "{F5373E1D-A2B4-46CC-9B07-94F6655C8E29}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.RabbitMQ.Test", "Tests\SlimMessageBus.Host.RabbitMQ.Test\SlimMessageBus.Host.RabbitMQ.Test.csproj", "{F5373E1D-A2B4-46CC-9B07-94F6655C8E29}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -718,6 +716,7 @@ Global
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{8835721D-ECA4-42CB-BA8B-F8C1A06340EC} = {A5B15524-93B8-4CCE-AC6D-A22984498BA0}
+		{9291D340-B4FA-44A3-8060-C14743FB1712} = {75BDDBB5-8DB8-4893-BD89-8FFC6C42244D}
 		{C47CFB84-E5AC-4539-822D-6612D671CA6C} = {BC358EE4-734D-4CE3-A053-0A2490A2E39A}
 		{CA4F7162-B1FA-4236-92A7-FE26150F848B} = {9291D340-B4FA-44A3-8060-C14743FB1712}
 		{4522DD48-C123-453D-8982-B50F334FB710} = {D7DCD96A-C3B8-4D22-8216-0E8ADD30C03F}

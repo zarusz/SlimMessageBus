@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Test;
 
-using SlimMessageBus.Host;
-
 public class MessageHandlerTest
 {
     private readonly MessageBusMock busMock;

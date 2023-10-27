@@ -1,9 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="../Host.Transport.Properties.xml" />
+  <Import Project="../Host.Plugin.Properties.xml" />
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.1</TargetFramework>
     <Description>Plugin for SlimMessageBus that adds Transactional Outbox pattern support using SQL database</Description>
     <PackageTags>SlimMessageBus MessageBus Transactional Outbox SQL</PackageTags>
   </PropertyGroup>

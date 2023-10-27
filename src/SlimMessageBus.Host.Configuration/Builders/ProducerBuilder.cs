@@ -34,12 +34,11 @@ public class ProducerBuilder<T>
     /// <summary>
     /// Hook called whenver message is being produced. Can be used to add (or mutate) message headers.
     /// </summary>
-    public ProducerBuilder<T> WithHeaderModifier(Action<IDictionary<string, object>, T> headerModifierAction)
+    public ProducerBuilder<T> WithHeaderModifier(MessageHeaderModifier<T> headerModifier)
     {
-        if (headerModifierAction == null) throw new ArgumentNullException(nameof(headerModifierAction));
+        if (headerModifier == null) throw new ArgumentNullException(nameof(headerModifier));
 
-        // ToDo: Introduce delegate (HeaderModifier)
-        Settings.HeaderModifier = (headers, message) => headerModifierAction(headers, (T)message);
+        Settings.HeaderModifier = (headers, message) => headerModifier(headers, (T)message);
         return this;
     }
 }

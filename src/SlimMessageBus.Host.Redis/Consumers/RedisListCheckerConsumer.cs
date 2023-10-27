@@ -105,7 +105,10 @@ public class RedisListCheckerConsumer : AbstractConsumer, IRedisConsumer
         var processors = _queues.SelectMany(x => x.Processors).ToList();
         foreach (var processor in processors)
         {
-            await processor.DisposeSilently().ConfigureAwait(false);
+            if (processor is IDisposable disposable)
+            {
+                disposable.DisposeSilently();
+            }
         }
         _queues.Clear();
     }

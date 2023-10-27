@@ -6,7 +6,7 @@ using Confluent.Kafka;
 
 using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
 
-public class KafkaPartitionConsumerForResponsesTest : IAsyncDisposable
+public class KafkaPartitionConsumerForResponsesTest : IDisposable
 {
     private readonly MessageBusMock _messageBusMock;
     private readonly TopicPartition _topicPartition;
@@ -32,7 +32,7 @@ public class KafkaPartitionConsumerForResponsesTest : IAsyncDisposable
             }
         };
 
-        _subject = new KafkaPartitionConsumerForResponses(requestResponseSettings, requestResponseSettings.GetGroup(), _topicPartition, _commitControllerMock.Object, _messageBusMock.Bus, _messageBusMock.SerializerMock.Object)
+        _subject = new KafkaPartitionConsumerForResponses(_messageBusMock.Bus.LoggerFactory, requestResponseSettings, requestResponseSettings.GetGroup(), _topicPartition, _commitControllerMock.Object, _messageBusMock.Bus, _messageBusMock.SerializerMock.Object)
         {
             CheckpointTrigger = _checkpointTrigger.Object
         };
@@ -135,16 +135,12 @@ public class KafkaPartitionConsumerForResponsesTest : IAsyncDisposable
         };
     }
 
-    #region IAsyncDisposable
+    #region IDisposable
 
-    public async ValueTask DisposeAsync()
+    public void Dispose()
     {
-        if (_subject != null)
-        {
-            await _subject.DisposeAsync();
-            _subject = null;
-
-        }
+        _subject?.Dispose();
+        _subject = null;
     }
 
     #endregion
