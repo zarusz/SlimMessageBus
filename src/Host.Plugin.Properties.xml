@@ -4,6 +4,7 @@
 	<Import Project="Common.NuGet.Properties.xml" />
 
 	<PropertyGroup>
+    <TargetFrameworks>netstandard2.1;net6.0</TargetFrameworks>
     <Version>2.2.0-rc1</Version>
   </PropertyGroup>
 

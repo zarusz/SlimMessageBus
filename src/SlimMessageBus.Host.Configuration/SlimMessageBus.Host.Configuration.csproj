@@ -3,7 +3,7 @@
   <Import Project="../Common.NuGet.Properties.xml" />
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFrameworks>netstandard2.0;net6.0</TargetFrameworks>
     <Description>Core configuration interfaces of SlimMessageBus</Description>
     <PackageTags>SlimMessageBus</PackageTags>
     <RootNamespace>SlimMessageBus.Host</RootNamespace>

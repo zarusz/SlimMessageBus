@@ -3,7 +3,6 @@
   <Import Project="../Host.Plugin.Transport.Properties.xml" />
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.1</TargetFramework>
     <Description>Extensions for SlimMessageBus to integrate it with ASP.NET Core dependency injection</Description>
     <PackageTags>SlimMessageBus MessageBus ASP.Net Core</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
