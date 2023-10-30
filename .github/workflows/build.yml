@@ -120,5 +120,5 @@ jobs:
         shell: powershell
         run: |
           .\.sonar\scanner\dotnet-sonarscanner begin /k:"zarusz_SlimMessageBus" /o:"zarusz" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io"
-          dotnet build src/$SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION
+          dotnet build ".\src\$SOLUTION_NAME" --configuration $SOLUTION_CONFIGURATION
           .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
