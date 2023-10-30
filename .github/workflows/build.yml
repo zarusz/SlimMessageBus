@@ -32,7 +32,7 @@ jobs:
         run: dotnet tool update dotnet-sonarscanner --tool-path ./.sonar/scanner
 
       - name: Install Coverlet
-        run: find . -name "*.Test.csproj" | xargs -t -I {} dotnet add {} package coverlet.msbuild
+        run: find . -name "*.Test.csproj" | xargs -t -I {} dotnet add {} package coverlet.collector
         working-directory: ./src
 
       - name: Restore dependencies
