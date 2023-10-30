@@ -28,6 +28,10 @@ jobs:
         with:
           dotnet-version: 7.0.x
 
+      - name: Restore dependencies
+        run: dotnet restore $SOLUTION_NAME
+        working-directory: ./src
+
       - name: Install SonarCloud scanner
         run: dotnet tool update dotnet-sonarscanner --tool-path ./.sonar/scanner
 
@@ -35,15 +39,11 @@ jobs:
         run: find . -name "*.Test.csproj" | xargs -t -I {} dotnet add {} package coverlet.collector
         working-directory: ./src
 
-      - name: Restore dependencies
-        run: dotnet restore $SOLUTION_NAME
-        working-directory: ./src
-
       - name: SonarScanner Begin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: ../.sonar/scanner/dotnet-sonarscanner begin /k:"zarusz_SlimMessageBus" /o:"zarusz" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io"
+        run: ../.sonar/scanner/dotnet-sonarscanner begin /k:"zarusz_SlimMessageBus" /o:"zarusz" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths=coverage.xml
         working-directory: ./src
 
       - name: Build
