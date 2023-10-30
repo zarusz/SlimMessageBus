@@ -22,34 +22,59 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
-        with:
-          projectBaseDir: src
-          args: >
-            -Dsonar.organization=zarusz
-            -Dsonar.projectKey=zarusz_SlimMessageBus
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      # - name: SonarCloud Scan
+      #   uses: SonarSource/sonarcloud-github-action@master
+      #   with:
+      #     projectBaseDir: src
+      #     args: >
+      #       -Dsonar.organization=zarusz
+      #       -Dsonar.projectKey=zarusz_SlimMessageBus
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: 7.0.x
+      - name: Install SonarCloud scanner
+        shell: powershell
+        run: |
+          New-Item -Path .\.sonar\scanner -ItemType Directory
+          dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
       - name: Restore dependencies
         run: dotnet restore $SOLUTION_NAME
         working-directory: ./src
+
+      - name: SonarScanner Begin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        shell: powershell
+        run: |
+          .\.sonar\scanner\dotnet-sonarscanner begin /k:"zarusz_SlimMessageBus" /o:"zarusz" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io"
+      #         dotnet build .\src\$SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION
+      #         .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+
       - name: Build
         run: dotnet build $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-restore
         working-directory: ./src
       - name: Unit Tests
         run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --filter Category!=Integration
         working-directory: ./src
-      # - name: Dump GitHub context
+
+        # - name: Dump GitHub context
       #   env:
       #     GITHUB_CONTEXT: ${{ toJson(github) }}
       #   run: echo "$GITHUB_CONTEXT"
       # Run integration tests against the test infrastructure if secrets are provided
+
+      - name: SonarScanner End
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        shell: powershell
+        run: |
+          .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
       - name: Integrations Tests
         if: "${{ env.azure_servicebus_key != '' }}"
         run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --filter Category=Integration
