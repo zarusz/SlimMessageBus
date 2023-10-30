@@ -38,7 +38,8 @@ jobs:
           dotnet-version: 7.0.x
       - name: Install SonarCloud scanner
         run: |
-          dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
+          dotnet tool update dotnet-sonarscanner --tool-path ./.sonar/scanner
+          find .
       - name: Restore dependencies
         run: dotnet restore $SOLUTION_NAME
         working-directory: ./src
