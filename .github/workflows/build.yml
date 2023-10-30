@@ -50,7 +50,7 @@ jobs:
         run: dotnet build $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-restore
         working-directory: ./src
       - name: Unit Tests
-        run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --collect:"XPlat Code Coverage" --filter Category!=Integration
+        run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --collect:"XPlat Code Coverage;Format=opencover" --filter Category!=Integration
         working-directory: ./src
 
       # - name: Dump GitHub context
@@ -68,7 +68,7 @@ jobs:
 
       - name: Integrations Tests
         if: "${{ env.azure_servicebus_key != '' }}"
-        run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --collect:"XPlat Code Coverage" --filter Category=Integration
+        run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --collect:"XPlat Code Coverage;Format=opencover" --filter Category=Integration
         working-directory: ./src
         env:
           azure_servicebus_key: ${{ secrets.azure_servicebus_key }}
