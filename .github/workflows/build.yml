@@ -43,7 +43,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: ../.sonar/scanner/dotnet-sonarscanner begin /k:"zarusz_SlimMessageBus" /o:"zarusz" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.exclusions="src/Samples/**/*"
+        run: ../.sonar/scanner/dotnet-sonarscanner begin /k:"zarusz_SlimMessageBus" /o:"zarusz" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.exclusions="Samples/**/*,Tests/**/*"
         working-directory: ./src
 
       - name: Build
