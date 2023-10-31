@@ -43,7 +43,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: ../.sonar/scanner/dotnet-sonarscanner begin /k:"zarusz_SlimMessageBus" /o:"zarusz" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths=coverage.opencover.xml
+        run: ../.sonar/scanner/dotnet-sonarscanner begin /k:"zarusz_SlimMessageBus" /o:"zarusz" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
         working-directory: ./src
 
       - name: Build
@@ -59,13 +59,6 @@ jobs:
       #   run: echo "$GITHUB_CONTEXT"
       # Run integration tests against the test infrastructure if secrets are provided
 
-      - name: SonarScanner End
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: ../.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
-        working-directory: ./src
-
       - name: Integrations Tests
         if: "${{ env.azure_servicebus_key != '' }}"
         run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --collect:"XPlat Code Coverage;Format=opencover" --filter Category=Integration
@@ -80,6 +73,14 @@ jobs:
           redis_password: ${{ secrets.redis_password }}
           mqtt_password: ${{ secrets.mqtt_password }}
           rabbitmq_password: ${{ secrets.rabbitmq_password }}
+
+      - name: SonarScanner End
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: ../.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+        working-directory: ./src
+
       - name: Upload test results
         uses: actions/upload-artifact@v3
         with:
