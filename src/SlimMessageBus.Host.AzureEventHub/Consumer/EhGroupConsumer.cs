@@ -17,7 +17,7 @@ public class EhGroupConsumer : AbstractConsumer
         _groupPath = groupPath ?? throw new ArgumentNullException(nameof(groupPath));
         if (partitionConsumerFactory == null) throw new ArgumentNullException(nameof(partitionConsumerFactory));
 
-        MessageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
+        MessageBus = messageBus;
 
         _partitionConsumerByPartitionId = new SafeDictionaryWrapper<string, EhPartitionConsumer>(partitionId =>
         {

@@ -47,7 +47,7 @@ public class EventHubMessageBus : MessageBusBase<EventHubMessageBusSettings>
                 throw;
             }
         });
-   }
+    }
 
     protected override async Task CreateConsumers()
     {
@@ -102,7 +102,7 @@ public class EventHubMessageBus : MessageBusBase<EventHubMessageBusSettings>
         }
     }
 
-    protected override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
+    protected override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null, CancellationToken cancellationToken = default)
     {
         AssertActive();
 

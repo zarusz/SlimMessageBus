@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 public class SecretService
 {
-    private readonly Regex _placeholder = new(@"\{\{(\w+)\}\}");
+    private readonly Regex _placeholder = new(@"\{\{(\w+)\}\}", RegexOptions.None, TimeSpan.FromSeconds(2));
     private readonly ISecretStore _secretStore;
 
     public SecretService(ISecretStore secretStore) => _secretStore = secretStore;

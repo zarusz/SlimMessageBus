@@ -342,13 +342,13 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
         }
     }
 
-    public async Task DeleteSent(DateTime timestampBefore, CancellationToken token)
+    public async Task DeleteSent(DateTime olderThan, CancellationToken token)
     {
         await EnsureConnection();
 
         var affected = await ExecuteNonQuery(token, Settings.OperationRetry, _sqlTemplate.SqlOutboxMessageDeleteSent, cmd =>
         {
-            cmd.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = timestampBefore;
+            cmd.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = olderThan;
         });
 
         _logger.Log(affected > 0 ? LogLevel.Information : LogLevel.Debug, "Removed {MessageCount} sent messages from outbox table", affected);

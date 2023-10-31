@@ -20,9 +20,10 @@ public class ServiceBusTopologyService
     [Flags]
     private enum TopologyCreationStatus
     {
-        NotExists = 0,
-        Exists = 1,
-        Created = 2
+        None = 0,
+        NotExists = 1,
+        Exists = 2,
+        Created = 4
     }
 
     private async Task<TopologyCreationStatus> SwallowExceptionIfEntityExists(Func<Task<TopologyCreationStatus>> task)
@@ -206,7 +207,7 @@ public class ServiceBusTopologyService
                                             removeRuleTasks
                                                 .AddRange(rulesPage.Values
                                                     .Where(rule => !filters.Any(filter => filter.Name == rule.Name))
-                                                    .Select(rule => SwallowExceptionIfMessagingEntityNotFound(() => 
+                                                    .Select(rule => SwallowExceptionIfMessagingEntityNotFound(() =>
                                                         adminClient.DeleteRuleAsync(path, subscriptionName, rule.Name)))
                                                 );
                                         }

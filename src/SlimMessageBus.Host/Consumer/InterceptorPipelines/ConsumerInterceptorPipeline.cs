@@ -12,12 +12,10 @@ internal class ConsumerInterceptorPipeline
     private readonly IMessageTypeConsumerInvokerSettings _consumerInvoker;
     private readonly Type _responseType;
 
-    private readonly IEnumerable<object> _consumerInterceptors;
     private readonly Func<object, object, Func<Task<object>>, IConsumerContext, Task<object>> _consumerInterceptorFunc;
     private IEnumerator<object> _consumerInterceptorsEnumerator;
     private bool _consumerInterceptorsVisited;
 
-    private readonly IEnumerable<object> _handlerInterceptors;
     private readonly Func<object, object, object, IConsumerContext, Task> _handlerInterceptorFunc;
     private IEnumerator<object> _handlerInterceptorsEnumerator;
     private bool _handlerInterceptorsVisited;
@@ -34,12 +32,10 @@ internal class ConsumerInterceptorPipeline
         _consumerInvoker = consumerInvoker;
         _responseType = responseType;
 
-        _consumerInterceptors = consumerInterceptors;
         _consumerInterceptorFunc = runtimeTypeCache.ConsumerInterceptorType[message.GetType()];
         _consumerInterceptorsVisited = consumerInterceptors is null;
         _consumerInterceptorsEnumerator = consumerInterceptors?.GetEnumerator();
 
-        _handlerInterceptors = handlerInterceptors;
         _handlerInterceptorFunc = responseType != null ? runtimeTypeCache.HandlerInterceptorType[(message.GetType(), responseType)] : null;
         _handlerInterceptorsVisited = handlerInterceptors is null;
         _handlerInterceptorsEnumerator = handlerInterceptors?.GetEnumerator();

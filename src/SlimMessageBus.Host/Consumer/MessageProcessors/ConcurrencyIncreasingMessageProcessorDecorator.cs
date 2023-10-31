@@ -16,7 +16,7 @@ public sealed class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : I
     private readonly object _lastExceptionLock = new();
 
     private int _pendingCount;
-    
+
     public int PendingCount => _pendingCount;
 
     public IReadOnlyCollection<AbstractConsumerSettings> ConsumerSettings => _target.ConsumerSettings;
@@ -43,7 +43,7 @@ public sealed class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : I
 
     #endregion
 
-    public async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response, object Message)> ProcessMessage(TMessage message, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken, IServiceProvider currentServiceProvider = null)
+    public async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response, object Message)> ProcessMessage(TMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken, IServiceProvider currentServiceProvider = null)
     {
         // Ensure only desired number of messages are being processed concurrently
         await _concurrentSemaphore.WaitAsync().ConfigureAwait(false);
@@ -60,7 +60,7 @@ public sealed class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : I
         Interlocked.Increment(ref _pendingCount);
 
         // Fire and forget
-        _ = ProcessInBackground(message, messageHeaders, currentServiceProvider, cancellationToken);
+        _ = ProcessInBackground(transportMessage, messageHeaders, currentServiceProvider, cancellationToken);
 
         // Not exception - we don't know yet
         return (null, null, null, null);
