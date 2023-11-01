@@ -5,9 +5,14 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 [![Gitter](https://badges.gitter.im/SlimMessageBus/community.svg)](https://gitter.im/SlimMessageBus/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 [![GitHub license](https://img.shields.io/github/license/zarusz/SlimMessageBus)](https://github.com/zarusz/SlimMessageBus/blob/master/LICENSE)
 [![Build](https://github.com/zarusz/SlimMessageBus/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/zarusz/SlimMessageBus/actions/workflows/build.yml)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=zarusz_SlimMessageBus)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=coverage)](https://sonarcloud.io/summary/new_code?id=zarusz_SlimMessageBus)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=zarusz_SlimMessageBus)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=zarusz_SlimMessageBus)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=zarusz_SlimMessageBus)
 
-> The v2.0.0 major release is available.
-> Please review the [release notes](https://github.com/zarusz/SlimMessageBus/releases/tag/Host.Transport-2.0.0).
+> The 2.x.x major release is available.
+> Please review the [migration guide](https://github.com/zarusz/SlimMessageBus/releases/tag/Host.Transport-2.0.0).
 
 - [Key elements of SlimMessageBus](#key-elements-of-slimmessagebus)
 - [Docs](#docs)
@@ -148,7 +153,7 @@ services.AddSlimMessageBus(mbb =>
 {
    mbb
       // First child bus - in this example Kafka transport
-      .AddChildBus("Bus1", (builder) => 
+      .AddChildBus("Bus1", (builder) =>
       {
          builder
             .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
@@ -171,7 +176,7 @@ services.AddSlimMessageBus(mbb =>
             // Use in-memory transport provider
             //.WithProviderMemory(cfg => { ... }) // requires SlimMessageBus.Host.Memory package
       })
-      
+
       // Add other bus transports (as child bus), if needed
       //.AddChildBus("Bus2", (builder) => {  })
 
@@ -264,7 +269,7 @@ The `SlimMessageBus` configuration for the in-memory provider looks like this:
 //IServiceCollection services;
 
 // Cofigure the message bus
-services.AddSlimMessageBus(mbb => 
+services.AddSlimMessageBus(mbb =>
 {
    mbb.WithProviderMemory();
    // Find types that implement IConsumer<T> and IRequestHandler<T, R> and declare producers and consumers on the mbb
@@ -277,7 +282,7 @@ services.AddSlimMessageBus(mbb =>
 For the ASP.NET project, set up the `MessageBus.Current` helper (if you want to use it, and pick up the current web-request scope):
 
 ```cs
-services.AddSlimMessageBus(mbb => 
+services.AddSlimMessageBus(mbb =>
 {
    // ...
    mbb.AddAspNet(); // requires SlimMessageBus.Host.AspNetCore package
@@ -356,7 +361,7 @@ Run all tests:
 dotnet test
 ```
 
-Run all tests except  integration tests that require local/cloud infrastructure:
+Run all tests except integration tests that require local/cloud infrastructure:
 
 ```cmd
 dotnet test --filter Category!=Integration

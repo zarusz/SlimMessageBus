@@ -32,14 +32,20 @@ jobs:
         run: dotnet restore $SOLUTION_NAME
         working-directory: ./src
 
-      - name: Install SonarCloud scanner
+      - name: SonarCloud - Setup Java17
+        uses: actions/setup-java@v3
+        with:
+          distribution: "zulu"
+          java-version: "17"
+
+      - name: SonarCloud - Install SonarCloud scanner
         run: dotnet tool update dotnet-sonarscanner --tool-path ./.sonar/scanner
 
       - name: Install Coverlet
         run: find . -name "*.Test.csproj" | xargs -t -I {} dotnet add {} package coverlet.collector
         working-directory: ./src
 
-      - name: SonarScanner Begin
+      - name: SonarCloud - SonarScanner Begin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -74,7 +80,7 @@ jobs:
           mqtt_password: ${{ secrets.mqtt_password }}
           rabbitmq_password: ${{ secrets.rabbitmq_password }}
 
-      - name: SonarScanner End
+      - name: SonarCloud - SonarScanner End
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
