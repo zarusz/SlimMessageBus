@@ -15,13 +15,10 @@ public class ResponseMessageProcessor<TMessage> : IMessageProcessor<TMessage>
     public ResponseMessageProcessor(ILoggerFactory loggerFactory, RequestResponseSettings requestResponseSettings, IResponseConsumer responseConsumer, MessagePayloadProvider<TMessage> messagePayloadProvider)
     {
         if (loggerFactory is null) throw new ArgumentNullException(nameof(loggerFactory));
-        if (requestResponseSettings is null) throw new ArgumentNullException(nameof(requestResponseSettings));
-        if (responseConsumer is null) throw new ArgumentNullException(nameof(responseConsumer));
-        if (messagePayloadProvider is null) throw new ArgumentNullException(nameof(messagePayloadProvider));
 
         _logger = loggerFactory.CreateLogger<ResponseMessageProcessor<TMessage>>();
         _requestResponseSettings = requestResponseSettings ?? throw new ArgumentNullException(nameof(requestResponseSettings));
-        _responseConsumer = responseConsumer;
+        _responseConsumer = responseConsumer ?? throw new ArgumentNullException(nameof(responseConsumer));
         _consumerSettings = new List<AbstractConsumerSettings> { _requestResponseSettings };
         _messagePayloadProvider = messagePayloadProvider ?? throw new ArgumentNullException(nameof(messagePayloadProvider));
     }

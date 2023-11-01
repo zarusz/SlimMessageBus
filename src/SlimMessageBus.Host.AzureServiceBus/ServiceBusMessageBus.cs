@@ -114,7 +114,7 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
         }
     }
 
-    protected override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken)
+    protected override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null, CancellationToken cancellationToken = default)
     {
         var messageType = message?.GetType();
 
@@ -164,11 +164,11 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
         }
     }
 
-    public override Task ProduceRequest(object request, IDictionary<string, object> headers, string path, ProducerSettings producerSettings)
+    public override Task ProduceRequest(object request, IDictionary<string, object> requestHeaders, string path, ProducerSettings producerSettings)
     {
-        if (headers is null) throw new ArgumentNullException(nameof(headers));
+        if (requestHeaders is null) throw new ArgumentNullException(nameof(requestHeaders));
 
-        return base.ProduceRequest(request, headers, path, producerSettings);
+        return base.ProduceRequest(request, requestHeaders, path, producerSettings);
     }
 
     #endregion

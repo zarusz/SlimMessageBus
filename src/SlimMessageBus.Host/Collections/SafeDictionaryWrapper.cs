@@ -10,8 +10,10 @@ using System.Collections.ObjectModel;
 /// <typeparam name="TValue"></typeparam>
 public class SafeDictionaryWrapper<TKey, TValue> : IReadOnlyCache<TKey, TValue>
 {
+    private readonly object _lock = new();
     private readonly IDictionary<TKey, TValue> _mutableDict;
     private ReadOnlyDictionary<TKey, TValue> _readonlyDict;
+    private readonly Func<TKey, TValue> _valueFactory;
 
     /// <summary>
     /// Provides read only snapshot of the mutable internal dictionary
@@ -22,7 +24,7 @@ public class SafeDictionaryWrapper<TKey, TValue> : IReadOnlyCache<TKey, TValue>
         {
             if (_readonlyDict == null)
             {
-                lock (this)
+                lock (_lock)
                 {
                     if (_readonlyDict == null)
                     {
@@ -35,7 +37,6 @@ public class SafeDictionaryWrapper<TKey, TValue> : IReadOnlyCache<TKey, TValue>
         }
     }
 
-    private readonly Func<TKey, TValue> _valueFactory;
 
     public SafeDictionaryWrapper()
         : this(null)
@@ -59,7 +60,7 @@ public class SafeDictionaryWrapper<TKey, TValue> : IReadOnlyCache<TKey, TValue>
         // check if we have the value already for the key
         if (!_mutableDict.TryGetValue(key, out var value))
         {
-            lock (this)
+            lock (_lock)
             {
                 // double check if another thread did create it in meantime (before lock)
                 if (!_mutableDict.TryGetValue(key, out value))
@@ -83,7 +84,7 @@ public class SafeDictionaryWrapper<TKey, TValue> : IReadOnlyCache<TKey, TValue>
 
     public void Set(TKey key, TValue value)
     {
-        lock (this)
+        lock (_lock)
         {
             // allocate a new dictonary to avoid mutation while reading in another thread
             _mutableDict[key] = value;
@@ -93,7 +94,7 @@ public class SafeDictionaryWrapper<TKey, TValue> : IReadOnlyCache<TKey, TValue>
 
     public void Mutate(Action<IDictionary<TKey, TValue>> action)
     {
-        lock (this)
+        lock (_lock)
         {
             action(_mutableDict);
             OnChanged();
@@ -102,7 +103,7 @@ public class SafeDictionaryWrapper<TKey, TValue> : IReadOnlyCache<TKey, TValue>
 
     public void Clear(Action<TValue> action = null)
     {
-        lock (this)
+        lock (_lock)
         {
             if (action != null)
             {
@@ -115,7 +116,7 @@ public class SafeDictionaryWrapper<TKey, TValue> : IReadOnlyCache<TKey, TValue>
 
     public IReadOnlyCollection<TValue> ClearAndSnapshot()
     {
-        lock (this)
+        lock (_lock)
         {
             var snapshot = Dictionary.Values.ToList();
             _mutableDict.Clear();
@@ -128,7 +129,7 @@ public class SafeDictionaryWrapper<TKey, TValue> : IReadOnlyCache<TKey, TValue>
 
     public void ForEach(Action<TKey, TValue> action)
     {
-        lock (this)
+        lock (_lock)
         {
             foreach (var entry in _mutableDict)
             {
@@ -139,7 +140,7 @@ public class SafeDictionaryWrapper<TKey, TValue> : IReadOnlyCache<TKey, TValue>
 
     public void ForEach(Action<TValue> action)
     {
-        lock (this)
+        lock (_lock)
         {
             foreach (var value in _mutableDict.Values)
             {

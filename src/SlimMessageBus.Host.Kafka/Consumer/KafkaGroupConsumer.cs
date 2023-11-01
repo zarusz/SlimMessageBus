@@ -20,7 +20,7 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
     public KafkaGroupConsumer(KafkaMessageBus messageBus, string group, IReadOnlyCollection<string> topics, Func<TopicPartition, IKafkaCommitController, IKafkaPartitionConsumer> processorFactory)
         : base(messageBus.LoggerFactory.CreateLogger<KafkaGroupConsumer>())
     {
-        MessageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
+        MessageBus = messageBus;
         Group = group ?? throw new ArgumentNullException(nameof(group));
         Topics = topics ?? throw new ArgumentNullException(nameof(topics));
 

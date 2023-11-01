@@ -5,8 +5,8 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
     private readonly ILogger _logger;
     private IConnection _connection;
 
-    private IModel _channel;
     private readonly object _channelLock = new();
+    private IModel _channel;
 
     #region IRabbitMqChannel
 
@@ -38,22 +38,22 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
 
         foreach (var (queueName, consumers) in Settings.Consumers.GroupBy(x => x.GetQueueName()).ToDictionary(x => x.Key, x => x.ToList()))
         {
-            AddConsumer(new RabbitMqConsumer(LoggerFactory, 
-                channel: this, 
-                queueName: queueName, 
-                consumers, 
-                Serializer, 
-                messageBus: this, 
+            AddConsumer(new RabbitMqConsumer(LoggerFactory,
+                channel: this,
+                queueName: queueName,
+                consumers,
+                Serializer,
+                messageBus: this,
                 ProviderSettings.HeaderValueConverter));
         }
 
         if (Settings.RequestResponse != null)
         {
-            AddConsumer(new RabbitMqResponseConsumer(LoggerFactory, 
-                channel: this, 
-                queueName: Settings.RequestResponse.GetQueueName(), 
-                Settings.RequestResponse, 
-                this, 
+            AddConsumer(new RabbitMqResponseConsumer(LoggerFactory,
+                channel: this,
+                queueName: Settings.RequestResponse.GetQueueName(),
+                Settings.RequestResponse,
+                this,
                 ProviderSettings.HeaderValueConverter));
         }
     }
@@ -83,28 +83,32 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
 
             lock (_channelLock)
             {
-                _channel.CloseAndDispose();
-                _channel = _connection.CreateModel();
+                _channel?.CloseAndDispose();
 
-                var topologyService = new RabbitMqTopologyService(LoggerFactory, _channel, Settings, ProviderSettings);
+                if (_connection != null)
+                {
+                    _channel = _connection.CreateModel();
 
-                var customAction = ProviderSettings.GetOrDefault<RabbitMqTopologyInitializer>(RabbitMqProperties.TopologyInitializer);
-                if (customAction != null)
-                {
-                    // Allow the user to specify its own initializer
-                    customAction(_channel, () => topologyService.ProvisionTopology());
-                }
-                else
-                {
-                    // Perform default topology setup
-                    topologyService.ProvisionTopology();
+                    var topologyService = new RabbitMqTopologyService(LoggerFactory, _channel, Settings, ProviderSettings);
+
+                    var customAction = ProviderSettings.GetOrDefault<RabbitMqTopologyInitializer>(RabbitMqProperties.TopologyInitializer);
+                    if (customAction != null)
+                    {
+                        // Allow the user to specify its own initializer
+                        customAction(_channel, () => topologyService.ProvisionTopology());
+                    }
+                    else
+                    {
+                        // Perform default topology setup
+                        topologyService.ProvisionTopology();
+                    }
                 }
             }
         }
         catch (Exception e)
         {
             _logger.LogError(e, "Could not initialize RabbitMQ connection: {ErrorMessage}", e.Message);
-        }       
+        }
     }
 
     protected override async ValueTask DisposeAsyncCore()

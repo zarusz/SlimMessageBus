@@ -22,27 +22,52 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: 7.0.x
+
       - name: Restore dependencies
         run: dotnet restore $SOLUTION_NAME
         working-directory: ./src
+
+      - name: Install Coverlet
+        run: find . -name "*.Test.csproj" | xargs -t -I {} dotnet add {} package coverlet.collector
+        working-directory: ./src
+
+      - name: SonarCloud - Setup Java17
+        uses: actions/setup-java@v3
+        with:
+          distribution: "zulu"
+          java-version: "17"
+
+      - name: SonarCloud - Install SonarCloud scanner
+        run: dotnet tool update dotnet-sonarscanner --tool-path ./.sonar/scanner
+
+      - name: SonarCloud - SonarScanner Begin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: ../.sonar/scanner/dotnet-sonarscanner begin /k:"zarusz_SlimMessageBus" /o:"zarusz" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.exclusions="Samples/**/*,Tests/**/*"
+        working-directory: ./src
+
       - name: Build
         run: dotnet build $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-restore
         working-directory: ./src
       - name: Unit Tests
-        run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --filter Category!=Integration
+        run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --collect:"XPlat Code Coverage;Format=opencover" --filter Category!=Integration
         working-directory: ./src
+
       # - name: Dump GitHub context
       #   env:
       #     GITHUB_CONTEXT: ${{ toJson(github) }}
       #   run: echo "$GITHUB_CONTEXT"
       # Run integration tests against the test infrastructure if secrets are provided
+
       - name: Integrations Tests
         if: "${{ env.azure_servicebus_key != '' }}"
-        run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --filter Category=Integration
+        run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --collect:"XPlat Code Coverage;Format=opencover" --filter Category=Integration
         working-directory: ./src
         env:
           azure_servicebus_key: ${{ secrets.azure_servicebus_key }}
@@ -54,6 +79,14 @@ jobs:
           redis_password: ${{ secrets.redis_password }}
           mqtt_password: ${{ secrets.mqtt_password }}
           rabbitmq_password: ${{ secrets.rabbitmq_password }}
+
+      - name: SonarCloud - SonarScanner End
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: ../.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+        working-directory: ./src
+
       - name: Upload test results
         uses: actions/upload-artifact@v3
         with:

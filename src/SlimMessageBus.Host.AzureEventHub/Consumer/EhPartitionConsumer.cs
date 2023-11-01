@@ -18,9 +18,9 @@ public abstract class EhPartitionConsumer
 
     protected EhPartitionConsumer(EventHubMessageBus messageBus, GroupPathPartitionId groupPathPartition)
     {
-        _logger = messageBus.LoggerFactory.CreateLogger<EhPartitionConsumer>();
         MessageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
         GroupPathPartition = groupPathPartition ?? throw new ArgumentNullException(nameof(groupPathPartition));
+        _logger = messageBus.LoggerFactory.CreateLogger<EhPartitionConsumer>();
     }
 
     public Task OpenAsync()

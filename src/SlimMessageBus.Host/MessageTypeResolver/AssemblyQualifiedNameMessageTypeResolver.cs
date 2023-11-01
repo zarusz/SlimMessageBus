@@ -1,14 +1,15 @@
 ﻿namespace SlimMessageBus.Host;
 
-using SlimMessageBus.Host.Collections;
 using System.Text.RegularExpressions;
+
+using SlimMessageBus.Host.Collections;
 
 /// <summary>
 /// <see cref="IMessageTypeResolver"/> that uses the <see cref="Type.AssemblyQualifiedName"/> for the message type string passed in the message header.
 /// </summary>
 public class AssemblyQualifiedNameMessageTypeResolver : IMessageTypeResolver
 {
-    private static readonly Regex RedundantAssemblyTokens = new(@"\, (Version|Culture|PublicKeyToken)\=([\w\d.]+)");
+    private static readonly Regex RedundantAssemblyTokens = new(@"\, (Version|Culture|PublicKeyToken)\=([\w\d.]+)", RegexOptions.None, TimeSpan.FromSeconds(2));
 
     /// <summary>
     /// Determines wheather to emit the Version, Culture and PublicKeyToken along with the Assembly name (for strong assembly naming).

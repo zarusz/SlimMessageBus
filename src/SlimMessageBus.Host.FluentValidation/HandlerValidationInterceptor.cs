@@ -12,9 +12,9 @@ public class HandlerValidationInterceptor<T, R> : AbstractValidationInterceptor<
     {
     }
 
-    public async Task<R> OnHandle(T message, Func<Task<R>> next, IConsumerContext context)
+    public async Task<R> OnHandle(T request, Func<Task<R>> next, IConsumerContext context)
     {
-        await OnValidate(message, context.CancellationToken).ConfigureAwait(false);
+        await OnValidate(request, context.CancellationToken).ConfigureAwait(false);
         return await next().ConfigureAwait(false);
     }
 }
