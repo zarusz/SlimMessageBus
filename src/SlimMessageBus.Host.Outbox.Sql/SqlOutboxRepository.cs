@@ -99,13 +99,13 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
             _logger.LogInformation("Outbox database schema provisioning started...");
 
             // Retry few times to create the schema - perhaps there are concurrently running other service process-es that attempt to do the same (distributed micro-service).
-            await SqlHelper.RetryIfError(_logger, token, Settings.SchemaCreationRetry, _ => true, async () =>
+            await SqlHelper.RetryIfError(_logger, Settings.SchemaCreationRetry, _ => true, async () =>
             {
                 await BeginTransaction();
                 try
                 {
                     _logger.LogDebug("Ensuring table {TableName} is created", _sqlTemplate.MigrationsTableNameQualified);
-                    await ExecuteNonQuery(token, Settings.SchemaCreationRetry,
+                    await ExecuteNonQuery(Settings.SchemaCreationRetry,
                         @$"IF OBJECT_ID('{_sqlTemplate.MigrationsTableNameQualified}') IS NULL 
                         BEGIN 
                             CREATE TABLE {_sqlTemplate.MigrationsTableNameQualified} (
@@ -113,10 +113,10 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
                                 ProductVersion nvarchar(32) NOT NULL,
                                 CONSTRAINT [PK_{Settings.DatabaseMigrationsTableName}] PRIMARY KEY CLUSTERED ([MigrationId] ASC)
                             )
-                        END");
+                        END", token: token);
 
                     _logger.LogDebug("Ensuring table {TableName} is created", _sqlTemplate.TableNameQualified);
-                    await ExecuteNonQuery(token, Settings.SchemaCreationRetry,
+                    await ExecuteNonQuery(Settings.SchemaCreationRetry,
                         @$"IF OBJECT_ID('{_sqlTemplate.TableNameQualified}') IS NULL 
                         BEGIN 
                             CREATE TABLE {_sqlTemplate.TableNameQualified} (
@@ -134,28 +134,30 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
                                 DeliveryComplete bit NOT NULL,
                                 CONSTRAINT [PK_{Settings.DatabaseTableName}] PRIMARY KEY CLUSTERED ([Id] ASC)
                             )
-                        END");
+                        END", token: token);
 
-                    await CreateIndex(token, "IX_Outbox_InstanceId", new string[] {
+#pragma warning disable CA1861
+                    await CreateIndex("IX_Outbox_InstanceId", new string[] {
                         "DeliveryComplete",
                         "InstanceId"
-                    });
+                    }, token);
 
-                    await CreateIndex(token, "IX_Outbox_LockExpiresOn", new string[] {
+                    await CreateIndex("IX_Outbox_LockExpiresOn", new string[] {
                         "DeliveryComplete",
                         "LockExpiresOn"
-                    });
+                    }, token);
 
-                    await CreateIndex(token, "IX_Outbox_Timestamp_LockInstanceId", new string[] {
+                    await CreateIndex("IX_Outbox_Timestamp_LockInstanceId", new string[] {
                         "DeliveryComplete",
                         "Timestamp",
                         "LockInstanceId",
-                    });
+                    }, token);
+#pragma warning restore CA1861
 
-                    await TryApplyMigration(token, "20230120000000_SMB_Init", null);
+                    await TryApplyMigration("20230120000000_SMB_Init", null, token);
 
-                    await TryApplyMigration(token, "20230128225000_SMB_BusNameOptional",
-                        @$"ALTER TABLE {_sqlTemplate.TableNameQualified} ALTER COLUMN BusName nvarchar(64) NULL");
+                    await TryApplyMigration("20230128225000_SMB_BusNameOptional",
+                        @$"ALTER TABLE {_sqlTemplate.TableNameQualified} ALTER COLUMN BusName nvarchar(64) NULL", token);
 
                     await CommitTransaction();
                     return true;
@@ -165,7 +167,7 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
                     await RollbackTransaction();
                     throw;
                 }
-            });
+            }, token);
 
             _logger.LogInformation("Outbox database schema provisioning finished");
         }
@@ -176,50 +178,50 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
         }
     }
 
-    private async Task CreateIndex(CancellationToken token, string indexName, IEnumerable<string> columns)
+    private async Task CreateIndex(string indexName, IEnumerable<string> columns, CancellationToken token)
     {
         _logger.LogDebug("Ensuring index {IndexName} on table {TableName} is created", indexName, _sqlTemplate.TableNameQualified);
-        await ExecuteNonQuery(token, Settings.SchemaCreationRetry,
+        await ExecuteNonQuery(Settings.SchemaCreationRetry,
             @$"IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = '{indexName}' AND object_id = OBJECT_ID('{_sqlTemplate.TableNameQualified}'))
             BEGIN 
                 CREATE NONCLUSTERED INDEX [{indexName}] ON {_sqlTemplate.TableNameQualified}
                 (
                     {string.Join(',', columns.Select(c => $"{c} ASC"))}
                 )
-            END");
+            END", token: token);
     }
 
-    private async Task<bool> TryApplyMigration(CancellationToken token, string migrationId, string migrationSql)
+    private async Task<bool> TryApplyMigration(string migrationId, string migrationSql, CancellationToken token)
     {
         var versionId = Assembly.GetExecutingAssembly().GetName().Version.ToString();
 
         _logger.LogTrace("Ensuring migration {MigrationId} is applied", migrationId);
-        var affected = await ExecuteNonQuery(token, Settings.SchemaCreationRetry,
+        var affected = await ExecuteNonQuery(Settings.SchemaCreationRetry,
             @$"IF NOT EXISTS (SELECT * FROM {_sqlTemplate.MigrationsTableNameQualified} WHERE MigrationId = '{migrationId}')
             BEGIN 
                 INSERT INTO {_sqlTemplate.MigrationsTableNameQualified} (MigrationId, ProductVersion) VALUES ('{migrationId}', '{versionId}')
-            END");
+            END", token: token);
 
         if (affected > 0)
         {
             if (migrationSql != null)
             {
                 _logger.LogDebug("Executing migration {MigrationId}...", migrationId);
-                await ExecuteNonQuery(token, Settings.SchemaCreationRetry, migrationSql);
+                await ExecuteNonQuery(Settings.SchemaCreationRetry, migrationSql, token: token);
             }
             return true;
         }
         return false;
     }
 
-    private Task<int> ExecuteNonQuery(CancellationToken token, SqlRetrySettings retrySettings, string sql, Action<SqlCommand> setParameters = null) =>
-        SqlHelper.RetryIfTransientError(_logger, token, retrySettings, async () =>
+    private Task<int> ExecuteNonQuery(SqlRetrySettings retrySettings, string sql, Action<SqlCommand> setParameters = null, CancellationToken token = default) =>
+        SqlHelper.RetryIfTransientError(_logger, retrySettings, async () =>
         {
             using var cmd = CreateCommand();
             cmd.CommandText = sql;
             setParameters?.Invoke(cmd);
             return await cmd.ExecuteNonQueryAsync();
-        });
+        }, token);
 
     public async virtual Task Save(OutboxMessage message, CancellationToken token)
     {
@@ -227,7 +229,7 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
 
         // ToDo: Create command template
 
-        await ExecuteNonQuery(token, Settings.OperationRetry, _sqlTemplate.SqlOutboxMessageInsert, cmd =>
+        await ExecuteNonQuery(Settings.OperationRetry, _sqlTemplate.SqlOutboxMessageInsert, cmd =>
         {
             cmd.Parameters.Add("@Id", SqlDbType.UniqueIdentifier).Value = message.Id;
             cmd.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = message.Timestamp;
@@ -241,7 +243,7 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
             cmd.Parameters.Add("@LockExpiresOn", SqlDbType.DateTime2).Value = message.LockExpiresOn;
             cmd.Parameters.Add("@DeliveryAttempt", SqlDbType.Int).Value = message.DeliveryAttempt;
             cmd.Parameters.Add("@DeliveryComplete", SqlDbType.Bit).Value = message.DeliveryComplete;
-        });
+        }, token);
     }
 
     public async Task<IReadOnlyList<OutboxMessage>> FindNextToSend(string instanceId, CancellationToken token)
@@ -304,8 +306,9 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
 
         await EnsureConnection();
 
-        var affected = await ExecuteNonQuery(token, Settings.OperationRetry,
-            @$"UPDATE {_sqlTemplate.TableNameQualified} SET [DeliveryComplete] = 1 WHERE [Id] IN ({string.Join(",", ids.Select(id => string.Concat("'", id, "'")))})");
+        var affected = await ExecuteNonQuery(Settings.OperationRetry,
+            @$"UPDATE {_sqlTemplate.TableNameQualified} SET [DeliveryComplete] = 1 WHERE [Id] IN ({string.Join(",", ids.Select(id => string.Concat("'", id, "'")))})",
+            token: token);
 
         if (affected != ids.Count)
         {
@@ -318,11 +321,11 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
         await EnsureConnection();
 
         // Extend the lease if still the owner of it, or claim the lease if another instace had possesion, but it expired (or message never was locked)
-        var affected = await ExecuteNonQuery(token, Settings.OperationRetry, _sqlTemplate.SqlOutboxMessageTryLockUpdate, cmd =>
+        var affected = await ExecuteNonQuery(Settings.OperationRetry, _sqlTemplate.SqlOutboxMessageTryLockUpdate, cmd =>
         {
             cmd.Parameters.Add("@InstanceId", SqlDbType.NVarChar).Value = instanceId;
             cmd.Parameters.Add("@ExpiresOn", SqlDbType.DateTime2).Value = expiresOn;
-        });
+        }, token);
 
         return affected;
     }
@@ -346,10 +349,10 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
     {
         await EnsureConnection();
 
-        var affected = await ExecuteNonQuery(token, Settings.OperationRetry, _sqlTemplate.SqlOutboxMessageDeleteSent, cmd =>
+        var affected = await ExecuteNonQuery(Settings.OperationRetry, _sqlTemplate.SqlOutboxMessageDeleteSent, cmd =>
         {
             cmd.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = olderThan;
-        });
+        }, token);
 
         _logger.Log(affected > 0 ? LogLevel.Information : LogLevel.Debug, "Removed {MessageCount} sent messages from outbox table", affected);
     }

@@ -45,7 +45,7 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
         _mqttClient = ProviderSettings.MqttFactory.CreateManagedMqttClient();
         _mqttClient.ApplicationMessageReceivedAsync += OnMessageReceivedAsync;
 
-        object MessageProvider(Type messageType, MqttApplicationMessage transportMessage) => Serializer.Deserialize(messageType, transportMessage.Payload);
+        object MessageProvider(Type messageType, MqttApplicationMessage transportMessage) => Serializer.Deserialize(messageType, transportMessage.PayloadSegment.Array);
 
         void AddTopicConsumer(string topic, IMessageProcessor<MqttApplicationMessage> messageProcessor)
         {
@@ -63,7 +63,7 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
 
         if (Settings.RequestResponse != null)
         {
-            var processor = new ResponseMessageProcessor<MqttApplicationMessage>(LoggerFactory, Settings.RequestResponse, responseConsumer: this, messagePayloadProvider: m => m.Payload);
+            var processor = new ResponseMessageProcessor<MqttApplicationMessage>(LoggerFactory, Settings.RequestResponse, responseConsumer: this, messagePayloadProvider: m => m.PayloadSegment.Array);
             AddTopicConsumer(Settings.RequestResponse.Path, processor);
         }
 
@@ -104,7 +104,7 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
     {
         var m = new MqttApplicationMessage
         {
-            Payload = messagePayload,
+            PayloadSegment = messagePayload,
             Topic = path
         };
 

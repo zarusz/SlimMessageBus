@@ -83,7 +83,7 @@ public class MessageScopeWrapperTest
         var subject = new MessageScopeWrapper(NullLogger.Instance, serviceProviderMock.Object, createScope, messageMock.Object);
 
         // act
-        await subject.DisposeAsync().ConfigureAwait(false);
+        await subject.DisposeAsync();
 
         // assert
         if (createScope)

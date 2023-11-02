@@ -3,7 +3,7 @@
 public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDisposable, IAsyncDisposable
 {
     private readonly ILogger _logger;
-    private readonly IDictionary<string, MessageBusBase> _busByName;
+    private readonly Dictionary<string, MessageBusBase> _busByName;
     private readonly ProducerByMessageTypeCache<MessageBusBase[]> _busesByMessageType;
     private readonly RuntimeTypeCache _runtimeTypeCache;
 
@@ -38,7 +38,7 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
             .ToDictionary(x => x.Key, x => x.Select(y => y.Bus).ToArray());
 
         var requestTypesWithMoreThanOneBus = busesByMessageType
-            .Where(x => x.Value.Length > 1 && x.Key.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequest<>)))
+            .Where(x => x.Value.Length > 1 && Array.Exists(x.Key.GetInterfaces(), i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequest<>)))
             .Select(x => x.Key)
             .ToList();
 
@@ -73,7 +73,7 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
         GC.SuppressFinalize(this);
     }
 
-    protected void Dispose(bool disposing)
+    protected virtual void Dispose(bool disposing)
     {
         if (disposing)
         {
@@ -120,13 +120,13 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
 
     #region Implementation of IMessageBusProducer
 
-    public Task<TResponseMessage> ProduceSend<TResponseMessage>(object request, TimeSpan? timeout, string path, IDictionary<string, object> headers, IServiceProvider currentServiceProvider, CancellationToken cancellationToken)
+    public Task<TResponseMessage> ProduceSend<TResponseMessage>(object request, TimeSpan? timeout, string path = null, IDictionary<string, object> headers = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
     {
         var buses = Route(request, path);
         return buses[0].ProduceSend<TResponseMessage>(request, timeout, path, headers, currentServiceProvider, cancellationToken);
     }
 
-    public async Task ProducePublish(object message, string path, IDictionary<string, object> headers, IServiceProvider currentServiceProvider, CancellationToken cancellationToken)
+    public async Task ProducePublish(object message, string path = null, IDictionary<string, object> headers = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
     {
         var buses = Route(message, path);
 

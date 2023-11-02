@@ -15,12 +15,12 @@ public class CheckpointTriggerTest
     }
 
     [Fact]
-    public void WhenAfterDurationReachedThenShouldBecomeActive()
+    public async Task WhenAfterDurationReachedThenShouldBecomeActive()
     {
         var ct = new CheckpointTrigger(2, TimeSpan.FromSeconds(2), NullLoggerFactory.Instance);
 
         // act
-        Thread.Sleep(2500);
+        await Task.Delay(2500);
         var incrementResult1 = ct.Increment();
         var incrementResult2 = ct.Increment();
 

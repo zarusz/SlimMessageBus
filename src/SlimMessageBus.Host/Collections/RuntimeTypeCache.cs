@@ -28,8 +28,7 @@ public class RuntimeTypeCache : IRuntimeTypeCache
         {
             var genericMethod = key.ClassType
                 .GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
-                .Where(x => x.ContainsGenericParameters && x.IsGenericMethodDefinition && x.GetGenericArguments().Length == 1 && x.Name == key.MethodName)
-                .Single();
+                .Single(x => x.ContainsGenericParameters && x.IsGenericMethodDefinition && x.GetGenericArguments().Length == 1 && x.Name == key.MethodName);
 
             return ReflectionUtils.GenerateGenericMethodCallToFunc<Func<object, object>>(genericMethod, new[] { key.GenericArgument }, key.ClassType, typeof(Task<object>));
         });

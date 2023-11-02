@@ -15,5 +15,5 @@ static internal class SettingsExtensions
         => producerSettings.Properties[KeyProviderKey] = keyProvider;
 
     public static Func<object, string> GetKeyProvider(this ProducerSettings producerSettings)
-        => producerSettings.Properties.ContainsKey(KeyProviderKey) ? producerSettings.Properties[KeyProviderKey] as Func<object, string> : null;
+        => producerSettings.Properties.TryGetValue(KeyProviderKey, out var value) ? value as Func<object, string> : null;
 }

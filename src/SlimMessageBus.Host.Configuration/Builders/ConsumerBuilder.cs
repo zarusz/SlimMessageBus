@@ -14,8 +14,6 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
         return this;
     }
 
-    public ConsumerBuilder<T> Topic(string topic) => Path(topic);
-
     public ConsumerBuilder<T> Path(string path, Action<ConsumerBuilder<T>> pathConfig)
     {
         if (pathConfig is null) throw new ArgumentNullException(nameof(pathConfig));
@@ -24,6 +22,8 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
         pathConfig(b);
         return b;
     }
+
+    public ConsumerBuilder<T> Topic(string topic) => Path(topic);
 
     public ConsumerBuilder<T> Topic(string topic, Action<ConsumerBuilder<T>> topicConfig) => Path(topic, topicConfig);
 

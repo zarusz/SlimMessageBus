@@ -20,7 +20,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     private readonly ILogger _logger;
     private CancellationTokenSource _cancellationTokenSource = new();
     private IMessageSerializer _serializer;
-    private readonly IMessageHeaderService _headerService;
+    private readonly MessageHeaderService _headerService;
     private readonly List<AbstractConsumer> _consumers = new();
 
     /// <summary>
@@ -171,7 +171,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         PendingRequestManager.Start();
     }
 
-    private IDictionary<Type, ProducerSettings> BuildProducerByBaseMessageType()
+    private Dictionary<Type, ProducerSettings> BuildProducerByBaseMessageType()
     {
         var producerByBaseMessageType = new Dictionary<Type, ProducerSettings>();
         foreach (var producerSettings in Settings.Producers)
@@ -382,7 +382,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     protected abstract Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null, CancellationToken cancellationToken = default);
 
-    public virtual Task ProducePublish(object message, string path, IDictionary<string, object> headers, IServiceProvider currentServiceProvider, CancellationToken cancellationToken)
+    public virtual Task ProducePublish(object message, string path = null, IDictionary<string, object> headers = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
     {
         if (message == null) throw new ArgumentNullException(nameof(message));
         AssertActive();
@@ -449,7 +449,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         return timeout;
     }
 
-    public virtual Task<TResponse> ProduceSend<TResponse>(object request, TimeSpan? timeout, string path, IDictionary<string, object> headers, IServiceProvider currentServiceProvider, CancellationToken cancellationToken)
+    public virtual Task<TResponse> ProduceSend<TResponse>(object request, TimeSpan? timeout = null, string path = null, IDictionary<string, object> headers = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
     {
         if (request == null) throw new ArgumentNullException(nameof(request));
         AssertActive();

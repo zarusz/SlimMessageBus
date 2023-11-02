@@ -5,11 +5,11 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 [![Gitter](https://badges.gitter.im/SlimMessageBus/community.svg)](https://gitter.im/SlimMessageBus/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 [![GitHub license](https://img.shields.io/github/license/zarusz/SlimMessageBus)](https://github.com/zarusz/SlimMessageBus/blob/master/LICENSE)
 [![Build](https://github.com/zarusz/SlimMessageBus/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/zarusz/SlimMessageBus/actions/workflows/build.yml)
-[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=zarusz_SlimMessageBus)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=coverage)](https://sonarcloud.io/summary/new_code?id=zarusz_SlimMessageBus)
-[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=zarusz_SlimMessageBus)
-[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=zarusz_SlimMessageBus)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=zarusz_SlimMessageBus)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=sqale_rating)](https://sonarcloud.io/summary/overall?id=zarusz_SlimMessageBus)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=coverage)](https://sonarcloud.io/summary/overall?id=zarusz_SlimMessageBus)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=duplicated_lines_density)](https://sonarcloud.io/summary/overall?id=zarusz_SlimMessageBus)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=vulnerabilities)](https://sonarcloud.io/summary/overall?id=zarusz_SlimMessageBus)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=alert_status)](https://sonarcloud.io/summary/overall?id=zarusz_SlimMessageBus)
 
 > The 2.x.x major release is available.
 > Please review the [migration guide](https://github.com/zarusz/SlimMessageBus/releases/tag/Host.Transport-2.0.0).
