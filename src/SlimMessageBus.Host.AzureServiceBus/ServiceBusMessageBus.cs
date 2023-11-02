@@ -5,11 +5,8 @@ using SlimMessageBus.Host.AzureServiceBus.Consumer;
 public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
 {
     private readonly ILogger _logger;
-
     private ServiceBusClient _client;
     private SafeDictionaryWrapper<string, ServiceBusSender> _producerByPath;
-
-    private Task _provisionTopologyTask = null;
 
     public ServiceBusMessageBus(MessageBusSettings settings, ServiceBusMessageBusSettings providerSettings)
         : base(settings, providerSettings)

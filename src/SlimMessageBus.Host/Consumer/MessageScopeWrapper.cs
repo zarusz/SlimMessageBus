@@ -35,6 +35,9 @@ public sealed class MessageScopeWrapper : IAsyncDisposable
             MessageScope.Current = null;
         }
 
+        // Suppress finalization.
+        GC.SuppressFinalize(this);
+
         return DisposeAsyncCore();
     }
 
@@ -52,7 +55,5 @@ public sealed class MessageScopeWrapper : IAsyncDisposable
             }
             _messageScopeDisposable = null;
         }
-
-        GC.SuppressFinalize(this);
     }
 }

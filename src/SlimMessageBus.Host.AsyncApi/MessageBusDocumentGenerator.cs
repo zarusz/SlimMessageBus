@@ -95,7 +95,7 @@ public class MessageBusDocumentGenerator : IDocumentGenerator
     {
         foreach (var consumer in messageBusSettings.Consumers)
         {
-            var subscribeOperation = GenerateOperationConsumer(consumer, schemaResolver, jsonSchemaGenerator, serviceProvider, namedServer);
+            var subscribeOperation = GenerateOperationConsumer(consumer, schemaResolver, jsonSchemaGenerator, serviceProvider);
             if (subscribeOperation == null)
             {
                 continue;
@@ -128,7 +128,7 @@ public class MessageBusDocumentGenerator : IDocumentGenerator
     {
         foreach (var producer in messageBusSettings.Producers)
         {
-            var publishOperation = GenerateOperationProducer(producer, schemaResolver, jsonSchemaGenerator, serviceProvider, namedServer);
+            var publishOperation = GenerateOperationProducer(producer, schemaResolver, jsonSchemaGenerator);
             if (publishOperation == null)
             {
                 continue;
@@ -152,7 +152,7 @@ public class MessageBusDocumentGenerator : IDocumentGenerator
         }
     }
 
-    private static Operation? GenerateOperationConsumer(ConsumerSettings consumer, AsyncApiSchemaResolver schemaResolver, JsonSchemaGenerator jsonSchemaGenerator, IServiceProvider serviceProvider, NamedServer namedServer)
+    private static Operation? GenerateOperationConsumer(ConsumerSettings consumer, AsyncApiSchemaResolver schemaResolver, JsonSchemaGenerator jsonSchemaGenerator, IServiceProvider serviceProvider)
     {
         var consumerInstance = serviceProvider.GetRequiredService(consumer.ConsumerType);
         var consumerType = consumerInstance.GetType();
@@ -174,7 +174,7 @@ public class MessageBusDocumentGenerator : IDocumentGenerator
         // Add all message types pushed via this channel (topic/queue)
         foreach (var invoker in consumer.Invokers)
         {
-            var message = GenerateMessageFromAttribute(invoker.MessageType, schemaResolver, jsonSchemaGenerator, namedServer);
+            var message = GenerateMessageFromAttribute(invoker.MessageType, schemaResolver, jsonSchemaGenerator);
             if (message != null)
             {
                 messages.OneOf.Add(message);
@@ -183,7 +183,7 @@ public class MessageBusDocumentGenerator : IDocumentGenerator
 
         if (messages.OneOf.Count == 1)
         {
-            operation.Message = messages.OneOf.First();
+            operation.Message = messages.OneOf[0];
         }
 
         return operation;
@@ -199,7 +199,7 @@ public class MessageBusDocumentGenerator : IDocumentGenerator
         return messageType.Name;
     }
 
-    private static Operation? GenerateOperationProducer(ProducerSettings producer, AsyncApiSchemaResolver schemaResolver, JsonSchemaGenerator jsonSchemaGenerator, IServiceProvider serviceProvider, NamedServer namedServer)
+    private static Operation? GenerateOperationProducer(ProducerSettings producer, AsyncApiSchemaResolver schemaResolver, JsonSchemaGenerator jsonSchemaGenerator)
     {
         var messages = new Messages();
         var operation = new Operation
@@ -209,7 +209,7 @@ public class MessageBusDocumentGenerator : IDocumentGenerator
         };
 
         // Add all message types pushed via this channel (topic/queue)
-        var message = GenerateMessageFromAttribute(producer.MessageType, schemaResolver, jsonSchemaGenerator, namedServer);
+        var message = GenerateMessageFromAttribute(producer.MessageType, schemaResolver, jsonSchemaGenerator);
         if (message != null)
         {
             messages.OneOf.Add(message);
@@ -217,13 +217,13 @@ public class MessageBusDocumentGenerator : IDocumentGenerator
 
         if (messages.OneOf.Count == 1)
         {
-            operation.Message = messages.OneOf.First();
+            operation.Message = messages.OneOf[0];
         }
 
         return operation;
     }
 
-    private static IMessage GenerateMessageFromAttribute(Type messageType, AsyncApiSchemaResolver schemaResolver, JsonSchemaGenerator jsonSchemaGenerator, NamedServer namedServer)
+    private static IMessage GenerateMessageFromAttribute(Type messageType, AsyncApiSchemaResolver schemaResolver, JsonSchemaGenerator jsonSchemaGenerator)
     {
         var message = new Message
         {

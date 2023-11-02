@@ -2,8 +2,8 @@
 
 public class KindMapping
 {
-    private readonly IDictionary<string, PathKind> _kindByTopic = new Dictionary<string, PathKind>();
-    private readonly IDictionary<Type, PathKind> _kindByMessageType = new Dictionary<Type, PathKind>();
+    private readonly Dictionary<string, PathKind> _kindByTopic = new();
+    private readonly Dictionary<Type, PathKind> _kindByMessageType = new();
 
     public void Configure(MessageBusSettings settings)
     {
@@ -28,7 +28,7 @@ public class KindMapping
         }
     }
 
-    private PathKind AddTypeMapping(ProducerSettings producerSettings, PathKind producerKind)
+    private void AddTypeMapping(ProducerSettings producerSettings, PathKind producerKind)
     {
         if (_kindByMessageType.TryGetValue(producerSettings.MessageType, out var existingKind))
         {
@@ -41,8 +41,6 @@ public class KindMapping
         {
             _kindByMessageType.Add(producerSettings.MessageType, producerKind);
         }
-
-        return existingKind;
     }
 
     private PathKind AddPathMapping(PathKind producerKind, string path)

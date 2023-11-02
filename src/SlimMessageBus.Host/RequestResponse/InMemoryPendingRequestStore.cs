@@ -13,7 +13,7 @@ public class InMemoryPendingRequestStore : IPendingRequestStore
 
     public void Add(PendingRequestState requestState)
     {
-        Assert.IsNotNull(requestState, () => new ArgumentNullException(nameof(requestState)));
+        if (requestState is null) throw new ArgumentNullException(nameof(requestState));
 
         lock (_itemsLock)
         {

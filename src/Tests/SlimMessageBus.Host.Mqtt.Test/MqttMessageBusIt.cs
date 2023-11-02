@@ -20,7 +20,9 @@ public class MqttMessageBusIt : BaseIntegrationTest<MqttMessageBusIt>
             {
                 cfg.ClientBuilder
                     .WithTcpServer(configuration["Mqtt:Server"], int.Parse(configuration["Mqtt:Port"]))
-                    .WithTls()
+                    .WithTlsOptions(opts =>
+                    {
+                    })
                     .WithCredentials(configuration["Mqtt:Username"], Secrets.Service.PopulateSecrets(configuration["Mqtt:Password"]))
                     // We want to use message headers as part of the tests
                     .WithProtocolVersion(MQTTnet.Formatter.MqttProtocolVersion.V500);
@@ -50,7 +52,7 @@ public class MqttMessageBusIt : BaseIntegrationTest<MqttMessageBusIt>
                 .Consume<PingMessage>(x => x.Topic(topic).Instances(concurrency));
         });
 
-        await BasicPubSub(1).ConfigureAwait(false);
+        await BasicPubSub(1);
     }
 
     private async Task BasicPubSub(int expectedMessageCopies)
@@ -76,17 +78,17 @@ public class MqttMessageBusIt : BaseIntegrationTest<MqttMessageBusIt>
 
         var messageTasks = producedMessages.Select(m => messageBus.Publish(m));
         // wait until all messages are sent
-        await Task.WhenAll(messageTasks).ConfigureAwait(false);
+        await Task.WhenAll(messageTasks);
 
         stopwatch.Stop();
-        Logger.LogInformation("Published {0} messages in {1}", producedMessages.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Published {MessageCount} messages in {Duration}", producedMessages.Count, stopwatch.Elapsed);
 
         // consume
         stopwatch.Restart();
         await consumedMessages.WaitUntilArriving(expectedCount: expectedMessageCopies * producedMessages.Count);
         stopwatch.Stop();
 
-        Logger.LogInformation("Consumed {0} messages in {1}", consumedMessages, stopwatch.Elapsed);
+        Logger.LogInformation("Consumed {MessageCount} messages in {Duration}", consumedMessages, stopwatch.Elapsed);
 
         // assert
 
@@ -124,7 +126,7 @@ public class MqttMessageBusIt : BaseIntegrationTest<MqttMessageBusIt>
                 });
         });
 
-        await BasicReqResp().ConfigureAwait(false);
+        await BasicReqResp();
     }
 
     private async Task BasicReqResp()
@@ -148,14 +150,14 @@ public class MqttMessageBusIt : BaseIntegrationTest<MqttMessageBusIt>
         var responses = new ConcurrentBag<(EchoRequest Request, EchoResponse Response)>();
         var responseTasks = requests.Select(async req =>
         {
-            var resp = await messageBus.Send<EchoResponse, EchoRequest>(req).ConfigureAwait(false);
-            Logger.LogDebug("Recieved response for index {0:000}", req.Index);
+            var resp = await messageBus.Send<EchoResponse, EchoRequest>(req);
+            Logger.LogDebug("Recieved response for index {EchoIndex:000}", req.Index);
             responses.Add((req, resp));
         });
-        await Task.WhenAll(responseTasks).ConfigureAwait(false);
+        await Task.WhenAll(responseTasks);
 
         stopwatch.Stop();
-        Logger.LogInformation("Published and received {0} messages in {1}", responses.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Published and received {MessageCount} messages in {Duration}", responses.Count, stopwatch.Elapsed);
 
         // assert
 

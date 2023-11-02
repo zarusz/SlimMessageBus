@@ -5,12 +5,12 @@ using Microsoft.Extensions.Logging;
 
 public static class SqlHelper
 {
-    private static readonly ISet<int> TransientErrorNumbers = new HashSet<int>
+    private static readonly HashSet<int> TransientErrorNumbers = new()
     {
         4060, 40197, 40501, 40613, 49918, 49919, 49920, 11001
     };
 
-    public static async Task<TResult> RetryIfError<TResult>(ILogger logger, CancellationToken token, SqlRetrySettings retrySettings, Func<SqlException, bool> shouldRetry, Func<Task<TResult>> operation)
+    public static async Task<TResult> RetryIfError<TResult>(ILogger logger, SqlRetrySettings retrySettings, Func<SqlException, bool> shouldRetry, Func<Task<TResult>> operation, CancellationToken token)
     {
         Exception lastTransientException = null;
         var nextRetryInterval = retrySettings.RetryInterval;
@@ -20,8 +20,8 @@ public static class SqlHelper
             {
                 if (tries > 1)
                 {
-                    logger.LogInformation("SQL error encountered. Will begin attempt number {0} of {1} max...", tries, retrySettings.RetryCount);
-                    await Task.Delay(nextRetryInterval);
+                    logger.LogInformation("SQL error encountered. Will begin attempt number {SqlRetryNumber} of {SqlRetryCount} max...", tries, retrySettings.RetryCount);
+                    await Task.Delay(nextRetryInterval, token);
                     nextRetryInterval = nextRetryInterval.Multiply(retrySettings.RetryIntervalFactor);
                 }
                 var result = await operation();
@@ -42,9 +42,9 @@ public static class SqlHelper
         throw lastTransientException;
     }
 
-    public static Task<TResult> RetryIfTransientError<TResult>(ILogger logger, CancellationToken token, SqlRetrySettings retrySettings, Func<Task<TResult>> operation) =>
-        RetryIfError(logger, token, retrySettings, sqlEx => TransientErrorNumbers.Contains(sqlEx.Number), operation);
+    public static Task<TResult> RetryIfTransientError<TResult>(ILogger logger, SqlRetrySettings retrySettings, Func<Task<TResult>> operation, CancellationToken token) =>
+        RetryIfError(logger, retrySettings, sqlEx => TransientErrorNumbers.Contains(sqlEx.Number), operation, token);
 
-    public static Task RetryIfTransientError(ILogger logger, CancellationToken token, SqlRetrySettings retrySettings, Func<Task> operation) =>
-        RetryIfTransientError<object>(logger, token, retrySettings, async () => { await operation(); return null; });
+    public static Task RetryIfTransientError(ILogger logger, SqlRetrySettings retrySettings, Func<Task> operation, CancellationToken token) =>
+        RetryIfTransientError<object>(logger, retrySettings, async () => { await operation(); return null; }, token);
 }

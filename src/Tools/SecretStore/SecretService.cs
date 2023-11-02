@@ -21,11 +21,8 @@ public class SecretService
                 if (match.Success)
                 {
                     var secretName = match.Groups[1].Value;
-                    var secretValue = _secretStore.GetSecret(secretName);
-                    if (secretValue == null)
-                    {
-                        throw new ApplicationException($"The secret name '{secretName}' was not present in vault. Ensure that you have a local secrets.txt file in the src folder.");
-                    }
+                    var secretValue = _secretStore.GetSecret(secretName)
+                        ?? throw new ArgumentException($"The secret name '{secretName}' was not present in vault. Ensure that you have a local secrets.txt file in the src folder.");
                     value = value.Replace(match.Value, secretValue, StringComparison.InvariantCulture);
                     index = match.Index + 1;
                 }

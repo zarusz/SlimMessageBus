@@ -56,7 +56,7 @@ public static class ReflectionUtils
         var taskOfType = typeof(Task<>).MakeGenericType(targetType);
 
         var taskOfObjectParam = Expression.Parameter(taskOfObject, "instance");
-        var taskOfObjectContinueWithMethodGeneric = taskOfObject.GetMethods().Where(x => x.Name == nameof(Task<object>.ContinueWith) && x.IsGenericMethodDefinition && x.GetParameters().Length == 2 && x.GetParameters()[1].ParameterType == typeof(TaskContinuationOptions)).First();
+        var taskOfObjectContinueWithMethodGeneric = taskOfObject.GetMethods().First(x => x.Name == nameof(Task<object>.ContinueWith) && x.IsGenericMethodDefinition && x.GetParameters().Length == 2 && x.GetParameters()[1].ParameterType == typeof(TaskContinuationOptions));
         var taskOfObjectContinueWithMethod = taskOfObjectContinueWithMethodGeneric.MakeGenericMethod(targetType);
 
         // Expression: x => (TargetType)x.Result
@@ -75,7 +75,7 @@ public static class ReflectionUtils
         var taskOfType = typeof(Task<>).MakeGenericType(targetType);
         var taskOfTypeResultProperty = taskOfType.GetProperty(nameof(Task<object>.Result));
 
-        var taskOfTypeContinueWithMethodGeneric = taskOfType.GetMethods().Where(x => x.Name == nameof(Task<object>.ContinueWith) && x.IsGenericMethodDefinition && x.GetParameters().Length == 2 && x.GetParameters()[1].ParameterType == typeof(TaskContinuationOptions)).First();
+        var taskOfTypeContinueWithMethodGeneric = taskOfType.GetMethods().First(x => x.Name == nameof(Task<object>.ContinueWith) && x.IsGenericMethodDefinition && x.GetParameters().Length == 2 && x.GetParameters()[1].ParameterType == typeof(TaskContinuationOptions));
         var taskOfTypeContinueWithMethod = taskOfTypeContinueWithMethodGeneric.MakeGenericMethod(typeof(object));
 
         // Expression: x => (TargetType)x.Result
