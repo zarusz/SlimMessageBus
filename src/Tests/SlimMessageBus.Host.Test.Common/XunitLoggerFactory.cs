@@ -3,7 +3,7 @@
 public class XunitLoggerFactory : ILoggerFactory
 {
     private readonly ITestOutputHelper _output;
-    
+
     public ITestOutputHelper Output => _output;
 
     public XunitLoggerFactory(ITestOutputHelper output) => _output = output;

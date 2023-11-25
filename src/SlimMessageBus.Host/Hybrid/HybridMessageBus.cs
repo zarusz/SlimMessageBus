@@ -1,11 +1,14 @@
 ﻿namespace SlimMessageBus.Host.Hybrid;
 
+using System.Collections.Concurrent;
+
 public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDisposable, IAsyncDisposable
 {
     private readonly ILogger _logger;
     private readonly Dictionary<string, MessageBusBase> _busByName;
     private readonly ProducerByMessageTypeCache<MessageBusBase[]> _busesByMessageType;
     private readonly RuntimeTypeCache _runtimeTypeCache;
+    private readonly ConcurrentDictionary<Type, bool> _undeclaredMessageType;
 
     public ILoggerFactory LoggerFactory { get; }
     public MessageBusSettings Settings { get; }
@@ -48,6 +51,8 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
         }
 
         _busesByMessageType = new ProducerByMessageTypeCache<MessageBusBase[]>(_logger, busesByMessageType, _runtimeTypeCache);
+
+        _undeclaredMessageType = new();
 
         // ToDo: defer start of busses until here
     }
@@ -107,15 +112,28 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
     {
         var messageType = message.GetType();
 
-        var buses = _busesByMessageType[messageType]
-            ?? throw new ConfigurationMessageBusException($"Could not find any bus that produces the message type: {messageType}");
-
-        if (_logger.IsEnabled(LogLevel.Debug))
+        var buses = _busesByMessageType[messageType];
+        if (buses != null)
         {
-            _logger.LogDebug("Resolved bus {BusName} for message type: {MessageType} and path {Path}", string.Join(",", buses.Select(x => x.Settings.Name)), messageType, path);
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+                _logger.LogDebug("Resolved bus {BusName} for message type: {MessageType} and path {Path}", string.Join(",", buses.Select(x => x.Settings.Name)), messageType, path);
+            }
+            return buses;
         }
 
-        return buses;
+        if (ProviderSettings.UndeclaredMessageTypeMode == UndeclaredMessageTypeMode.RaiseException)
+        {
+            throw new ConfigurationMessageBusException($"Could not find any bus that produces the message type: {messageType}");
+        }
+
+        // Add the message type, so that we only emit warn log once
+        if (ProviderSettings.UndeclaredMessageTypeMode == UndeclaredMessageTypeMode.RaiseOneTimeLog && _undeclaredMessageType.TryAdd(messageType, true))
+        {
+            _logger.LogInformation("Could not find any bus that produces the message type: {MessageType}. Messages of that type will not be delivered to any child bus. Double check the message bus configuration.", messageType);
+        }
+
+        return Array.Empty<MessageBusBase>();
     }
 
     #region Implementation of IMessageBusProducer
@@ -123,12 +141,20 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
     public Task<TResponseMessage> ProduceSend<TResponseMessage>(object request, TimeSpan? timeout, string path = null, IDictionary<string, object> headers = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
     {
         var buses = Route(request, path);
-        return buses[0].ProduceSend<TResponseMessage>(request, timeout, path, headers, currentServiceProvider, cancellationToken);
+        if (buses.Length > 0)
+        {
+            return buses[0].ProduceSend<TResponseMessage>(request, timeout, path, headers, currentServiceProvider, cancellationToken);
+        }
+        return Task.FromResult<TResponseMessage>(default);
     }
 
     public async Task ProducePublish(object message, string path = null, IDictionary<string, object> headers = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
     {
         var buses = Route(message, path);
+        if (buses.Length == 0)
+        {
+            return;
+        }
 
         if (buses.Length == 1)
         {
@@ -174,7 +200,10 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
     public async Task Publish<TMessage>(TMessage message, string path = null, IDictionary<string, object> headers = null, CancellationToken cancellationToken = default)
     {
         var buses = Route(message, path);
-
+        if (buses.Length == 0)
+        {
+            return;
+        }
         if (buses.Length == 1)
         {
             await buses[0].Publish(message, path, headers, cancellationToken);
@@ -200,19 +229,31 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
     public Task<TResponse> Send<TResponse>(IRequest<TResponse> request, string path = null, IDictionary<string, object> headers = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
         var buses = Route(request, path);
-        return buses[0].Send(request, path, headers, timeout, cancellationToken);
+        if (buses.Length > 0)
+        {
+            return buses[0].Send(request, path, headers, timeout, cancellationToken);
+        }
+        return Task.FromResult<TResponse>(default);
     }
 
     public Task Send(IRequest request, string path = null, IDictionary<string, object> headers = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
         var buses = Route(request, path);
-        return buses[0].Send(request, path, headers, timeout, cancellationToken);
+        if (buses.Length > 0)
+        {
+            return buses[0].Send(request, path, headers, timeout, cancellationToken);
+        }
+        return Task.CompletedTask;
     }
 
     public Task<TResponse> Send<TResponse, TRequest>(TRequest request, string path = null, IDictionary<string, object> headers = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
         var buses = Route(request, path);
-        return buses[0].Send<TResponse, TRequest>(request, path, headers, timeout, cancellationToken);
+        if (buses.Length > 0)
+        {
+            return buses[0].Send<TResponse, TRequest>(request, path, headers, timeout, cancellationToken);
+        }
+        return Task.FromResult<TResponse>(default);
     }
 
     #endregion
