@@ -190,7 +190,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     private async Task OnBusLifecycle(MessageBusLifecycleEventType eventType)
     {
-        _lifecycleInterceptors ??= Settings.ServiceProvider?.GetServices<IMessageBusLifecycleInterceptor>();
+        _lifecycleInterceptors ??= Settings.ServiceProvider?.GetService<IEnumerable<IMessageBusLifecycleInterceptor>>();
         if (_lifecycleInterceptors != null)
         {
             foreach (var i in _lifecycleInterceptors)
@@ -256,8 +256,8 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         }
     }
 
-    protected virtual Task OnStart() => Task.CompletedTask;
-    protected virtual Task OnStop() => Task.CompletedTask;
+    protected internal virtual Task OnStart() => Task.CompletedTask;
+    protected internal virtual Task OnStop() => Task.CompletedTask;
 
     protected void AssertActive()
     {

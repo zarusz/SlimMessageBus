@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.Hybrid;
+using SlimMessageBus.Host.Test.Common;
 
 public class HybridMessageBusTest
 {
@@ -13,9 +14,13 @@ public class HybridMessageBusTest
     private readonly MessageBusBuilder _messageBusBuilder;
     private readonly Mock<IServiceProvider> _serviceProviderMock = new();
     private readonly Mock<IMessageSerializer> _messageSerializerMock = new();
+    private readonly Mock<ILoggerFactory> _loggerFactoryMock = new();
+    private readonly Mock<ILogger<HybridMessageBusSettings>> _loggerMock = new();
 
     private Mock<MessageBusBase> _bus1Mock;
     private Mock<MessageBusBase> _bus2Mock;
+
+    private readonly HybridMessageBusSettings _providerSettings;
 
     public HybridMessageBusTest()
     {
@@ -32,6 +37,9 @@ public class HybridMessageBusTest
 
         _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(_messageSerializerMock.Object);
         _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
+        _serviceProviderMock.Setup(x => x.GetService(typeof(ILoggerFactory))).Returns(_loggerFactoryMock.Object);
+
+        _loggerFactoryMock.Setup(x => x.CreateLogger(It.IsAny<string>())).Returns(_loggerMock.Object);
 
         _messageBusBuilder.AddChildBus("bus1", (mbb) =>
         {
@@ -64,7 +72,195 @@ public class HybridMessageBusTest
             });
         });
 
-        _subject = new Lazy<HybridMessageBus>(() => new HybridMessageBus(_messageBusBuilder.Settings, new HybridMessageBusSettings(), _messageBusBuilder));
+        _providerSettings = new();
+
+        _subject = new Lazy<HybridMessageBus>(() => new HybridMessageBus(_messageBusBuilder.Settings, _providerSettings, _messageBusBuilder));
+    }
+
+    [Fact]
+    public async Task When_Start_Then_StartChildBuses()
+    {
+        // act
+        await _subject.Value.Start();
+
+        // assert
+        _bus1Mock.Verify(x => x.OnStart(), Times.Once);
+        _bus2Mock.Verify(x => x.OnStart(), Times.Once);
+    }
+
+    [Fact]
+    public async Task When_Stop_Then_StopChildBuses()
+    {
+        await _subject.Value.Start();
+
+        // act
+        await _subject.Value.Stop();
+
+        // assert
+        _bus1Mock.Verify(x => x.OnStop(), Times.Once);
+        _bus2Mock.Verify(x => x.OnStop(), Times.Once);
+    }
+
+    [Fact]
+    public async Task When_ProvisionTopology_Then_CallsProvisionTopologyOnChildBuses()
+    {
+        // act
+        await _subject.Value.ProvisionTopology();
+
+        // assert
+        _bus1Mock.Verify(x => x.ProvisionTopology(), Times.Once);
+        _bus2Mock.Verify(x => x.ProvisionTopology(), Times.Once);
+    }
+
+    [Theory]
+    [InlineData("bus1", true)]
+    [InlineData("bus2", true)]
+    [InlineData("bus3", false)]
+    public void When_GetChildBus_Then_ReturnsBusOrNull(string busName, bool returnsValue)
+    {
+        // act
+        var childBus = _subject.Value.GetChildBus(busName);
+
+        // assert
+        if (returnsValue)
+        {
+            childBus.Should().NotBeNull();
+        }
+        else
+        {
+            childBus.Should().BeNull();
+        }
+    }
+
+    [Fact]
+    public void When_GetChildBuses_Then_ReturnsBuses()
+    {
+        // act
+        var childBuses = _subject.Value.GetChildBuses();
+
+        // assert
+        childBuses.Should()
+            .HaveCount(2)
+            .And
+            .Contain(x => ReferenceEquals(x, _bus1Mock.Object))
+            .And
+            .Contain(x => ReferenceEquals(x, _bus2Mock.Object));
+
+    }
+
+    [Theory]
+    [InlineData(UndeclaredMessageTypeMode.DoNothing)]
+    [InlineData(UndeclaredMessageTypeMode.RaiseOneTimeLog)]
+    [InlineData(UndeclaredMessageTypeMode.RaiseException)]
+    public async Task Given_UndeclareMessageType_When_Publish_Then_FollowsSettingsMode(UndeclaredMessageTypeMode mode)
+    {
+        // arrange
+        _providerSettings.UndeclaredMessageTypeMode = mode;
+
+        var message = new object();
+
+        // act
+        Func<Task> act = () => _subject.Value.Publish(message);
+
+        // assert
+        if (mode == UndeclaredMessageTypeMode.RaiseException)
+        {
+            await act.Should().ThrowAsync<ConfigurationMessageBusException>();
+        }
+        else
+        {
+            await act.Should().NotThrowAsync();
+
+            _loggerMock.Verify(x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((x, _) => MoqMatchers.LogMessageMatcher(x, m => m.StartsWith("Could not find any bus that produces the message type: "))),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception, string>>()), mode == UndeclaredMessageTypeMode.RaiseOneTimeLog ? Times.Once : Times.Never);
+        }
+
+        _bus1Mock.VerifyGet(x => x.Settings);
+        _bus1Mock.VerifyNoOtherCalls();
+
+        _bus2Mock.VerifyGet(x => x.Settings);
+        _bus2Mock.VerifyNoOtherCalls();
+    }
+
+    [Theory]
+    [InlineData(UndeclaredMessageTypeMode.DoNothing)]
+    [InlineData(UndeclaredMessageTypeMode.RaiseOneTimeLog)]
+    [InlineData(UndeclaredMessageTypeMode.RaiseException)]
+    public async Task Given_UndeclaredRequestType_When_Send_Then_FollowsSettingsMode(UndeclaredMessageTypeMode mode)
+    {
+        // arrange
+        _providerSettings.UndeclaredMessageTypeMode = mode;
+
+        var message = new SomeUndeclaredRequest();
+
+        // act
+        Func<Task<SomeResponse>> act = () => _subject.Value.Send(message);
+
+        // assert
+        if (mode == UndeclaredMessageTypeMode.RaiseException)
+        {
+            await act.Should().ThrowAsync<ConfigurationMessageBusException>();
+        }
+        else
+        {
+            var r = await act();
+            r.Should().BeNull();
+
+            _loggerMock.Verify(x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((x, _) => MoqMatchers.LogMessageMatcher(x, m => m.StartsWith("Could not find any bus that produces the message type: "))),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception, string>>()), mode == UndeclaredMessageTypeMode.RaiseOneTimeLog ? Times.Once : Times.Never);
+        }
+
+        _bus1Mock.VerifyGet(x => x.Settings);
+        _bus1Mock.VerifyNoOtherCalls();
+
+        _bus2Mock.VerifyGet(x => x.Settings);
+        _bus2Mock.VerifyNoOtherCalls();
+    }
+
+    [Theory]
+    [InlineData(UndeclaredMessageTypeMode.DoNothing)]
+    [InlineData(UndeclaredMessageTypeMode.RaiseOneTimeLog)]
+    [InlineData(UndeclaredMessageTypeMode.RaiseException)]
+    public async Task Given_UndeclaredRequestTypeWithoutResponse_When_Send_Then_FollowsSettingsMode(UndeclaredMessageTypeMode mode)
+    {
+        // arrange
+        _providerSettings.UndeclaredMessageTypeMode = mode;
+
+        var message = new SomeUndeclaredRequestWithoutResponse();
+
+        // act
+        Func<Task> act = () => _subject.Value.Send(message);
+
+        // assert
+        if (mode == UndeclaredMessageTypeMode.RaiseException)
+        {
+            await act.Should().ThrowAsync<ConfigurationMessageBusException>();
+        }
+        else
+        {
+            await act.Should().NotThrowAsync();
+
+            _loggerMock.Verify(x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((x, _) => MoqMatchers.LogMessageMatcher(x, m => m.StartsWith("Could not find any bus that produces the message type: "))),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception, string>>()), mode == UndeclaredMessageTypeMode.RaiseOneTimeLog ? Times.Once : Times.Never);
+        }
+
+        _bus1Mock.VerifyGet(x => x.Settings);
+        _bus1Mock.VerifyNoOtherCalls();
+
+        _bus2Mock.VerifyGet(x => x.Settings);
+        _bus2Mock.VerifyNoOtherCalls();
     }
 
     [Fact]
@@ -156,18 +352,6 @@ public class HybridMessageBusTest
     }
 
     [Fact]
-    public async Task Given_NotDeclaredMessageType_When_Publish_Then_ThrowsException()
-    {
-        // arrange
-
-        // act
-        Func<Task> notDeclaredTypePublish = () => _subject.Value.Publish("Fake Message");
-
-        // assert
-        await notDeclaredTypePublish.Should().ThrowAsync<ConfigurationMessageBusException>();
-    }
-
-    [Fact]
     public void Given_RequestMessageTypeDeclaredOnMoreThanOneBus_When_Constructor_Then_ThrowsException()
     {
         // arrange
@@ -219,6 +403,13 @@ public class HybridMessageBusTest
     }
 
     internal class SomeResponse
+    {
+    }
+
+    internal class SomeUndeclaredRequest : IRequest<SomeResponse>
+    {
+    }
+    internal class SomeUndeclaredRequestWithoutResponse : IRequest
     {
     }
 }
