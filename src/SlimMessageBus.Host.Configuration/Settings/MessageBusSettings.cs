@@ -22,7 +22,7 @@ public class MessageBusSettings : HasProviderExtensions
     public IList<ConsumerSettings> Consumers { get; }
     public RequestResponseSettings RequestResponse { get; set; }
     public Type SerializerType { get; set; }
-    public Type MessageTypeResolverType { get; set; }  
+    public Type MessageTypeResolverType { get; set; }
 
     /// <summary>
     /// Determines if a child scope is created for the message consumption. The consumer instance is then derived from that scope.
@@ -30,9 +30,8 @@ public class MessageBusSettings : HasProviderExtensions
     public bool? IsMessageScopeEnabled { get; set; }
 
     /// <summary>
-    /// Hook called whenver message is being produced. Can be used to add (or mutate) message headers.
+    /// Hook called whenever message is being produced. Can be used to change message headers.
     /// </summary>
-    // ToDo: Support many modifiers
     public MessageHeaderModifier<object> HeaderModifier { get; set; }
 
     /// <summary>

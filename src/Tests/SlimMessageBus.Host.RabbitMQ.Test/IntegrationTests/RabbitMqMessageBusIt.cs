@@ -213,7 +213,7 @@ public class RabbitMqMessageBusIt : BaseIntegrationTest<RabbitMqMessageBusIt>
             });
         });
 
-        await BasicReqResp().ConfigureAwait(false);
+        await BasicReqResp();
     }
 
     private async Task BasicReqResp()

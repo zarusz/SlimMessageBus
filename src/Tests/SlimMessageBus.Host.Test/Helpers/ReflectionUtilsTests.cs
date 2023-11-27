@@ -6,7 +6,7 @@ public class ReflectionUtilsTests
     public void When_GenerateGetterFunc_Given_TaskOfT_Then_ResultOfTaskIsObtained()
     {
         // arrange
-        Task<int> taskWithResult = Task.FromResult(1);
+        var taskWithResult = Task.FromResult(1);
         var resultPropertyInfo = typeof(Task<int>).GetProperty(nameof(Task<int>.Result));
 
         // act

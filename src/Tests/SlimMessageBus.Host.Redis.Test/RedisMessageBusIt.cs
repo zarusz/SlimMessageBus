@@ -70,7 +70,7 @@ public class RedisMessageBusIt : BaseIntegrationTest<RedisMessageBusIt>
                 }));
         });
 
-        await BasicPubSub(consumers).ConfigureAwait(false);
+        await BasicPubSub(consumers);
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public class RedisMessageBusIt : BaseIntegrationTest<RedisMessageBusIt>
                 }));
         });
 
-        await BasicPubSub(consumers).ConfigureAwait(false);
+        await BasicPubSub(consumers);
     }
 
     private async Task BasicPubSub(int expectedMessageCopies)
@@ -172,7 +172,7 @@ public class RedisMessageBusIt : BaseIntegrationTest<RedisMessageBusIt>
                 });
         });
 
-        await BasicReqResp().ConfigureAwait(false);
+        await BasicReqResp();
     }
 
     [Fact]
@@ -198,7 +198,7 @@ public class RedisMessageBusIt : BaseIntegrationTest<RedisMessageBusIt>
                 });
         });
 
-        await BasicReqResp().ConfigureAwait(false);
+        await BasicReqResp();
     }
 
     private async Task BasicReqResp()

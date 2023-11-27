@@ -113,11 +113,7 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
                 processor = new ConcurrencyIncreasingMessageProcessorDecorator<MessageWithHeaders>(instances, this, processor);
             }
 
-            _logger.LogInformation(
-                pathKind == PathKind.Topic
-                    ? "Creating consumer for redis channel {Path}"
-                    : "Creating consumer for redis list {Path}",
-                path);
+            _logger.LogInformation("Creating consumer for redis {PathKind} {Path}", GetPathKindString(pathKind), path);
             if (pathKind == PathKind.Topic)
             {
                 AddTopicConsumer(path, subscriber, processor);
@@ -130,12 +126,7 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
 
         if (Settings.RequestResponse != null)
         {
-            _logger.LogInformation(
-                Settings.RequestResponse.PathKind == PathKind.Topic
-                    ? "Creating response consumer for redis channel {Path}"
-                    : "Creating response consumer for redis list {Path}",
-                Settings.RequestResponse.Path);
-
+            _logger.LogInformation("Creating response consumer for redis {PathKind} {Path}", GetPathKindString(Settings.RequestResponse.PathKind), Settings.RequestResponse.Path);
             if (Settings.RequestResponse.PathKind == PathKind.Topic)
             {
                 AddTopicConsumer(Settings.RequestResponse.Path, subscriber, new ResponseMessageProcessor<MessageWithHeaders>(LoggerFactory, Settings.RequestResponse, this, messagePayloadProvider: m => m.Payload));
@@ -151,6 +142,8 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
             AddConsumer(new RedisListCheckerConsumer(LoggerFactory.CreateLogger<RedisListCheckerConsumer>(), Database, ProviderSettings.QueuePollDelay, ProviderSettings.QueuePollMaxIdle, queues, ProviderSettings.EnvelopeSerializer));
         }
     }
+
+    private static string GetPathKindString(PathKind pathKind) => pathKind == PathKind.Topic ? "channel" : "list";
 
     #region Overrides of MessageBusBase
 
@@ -177,19 +170,15 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
         var messageWithHeadersBytes = ProviderSettings.EnvelopeSerializer.Serialize(typeof(MessageWithHeaders), messageWithHeaders);
 
         _logger.LogDebug(
-            kind == PathKind.Topic
-                ? "Producing message {Message} of type {MessageType} to redis channel {Path} with size {MessageSize}"
-                : "Producing message {Message} of type {MessageType} to redis list {Path} with size {MessageSize}",
-            message, messageType.Name, path, messageWithHeadersBytes.Length);
+            "Producing message {Message} of type {MessageType} to redis {PathKind} {Path} with size {MessageSize}",
+            message, messageType.Name, GetPathKindString(kind), path, messageWithHeadersBytes.Length);
 
         var result = kind == PathKind.Topic
-            ? await Database.PublishAsync(path, messageWithHeadersBytes).ConfigureAwait(false) // Use Redis Pub/Sub
+            ? await Database.PublishAsync(RedisUtils.ToRedisChannel(path), messageWithHeadersBytes).ConfigureAwait(false) // Use Redis Pub/Sub
             : await Database.ListRightPushAsync(path, messageWithHeadersBytes).ConfigureAwait(false); // Use Redis List Type (append on the right side/end of list)
 
         _logger.LogDebug(
-            kind == PathKind.Topic
-                ? "Produced message {Message} of type {MessageType} to redis channel {Path} with result {RedisResult}"
-                : "Produced message {Message} of type {MessageType} to redis list {Path} with result {RedisResult}",
-            message, messageType, path, result);
+            "Produced message {Message} of type {MessageType} to redis channel {PathKind} {Path} with result {RedisResult}",
+            message, messageType, GetPathKindString(kind), path, result);
     }
 }

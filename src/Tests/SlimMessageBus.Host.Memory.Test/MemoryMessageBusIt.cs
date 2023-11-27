@@ -58,7 +58,7 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
                 }));
         });
 
-        await BasicPubSub(subscribers).ConfigureAwait(false);
+        await BasicPubSub(subscribers);
     }
 
     private async Task BasicPubSub(int subscribers)
@@ -119,7 +119,7 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
             mbb.Handle<EchoRequest, EchoResponse>(x => x.Topic(topic).Instances(2));
         });
 
-        await BasicReqResp().ConfigureAwait(false);
+        await BasicReqResp();
     }
 
     [Theory]
@@ -137,7 +137,7 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
             mbb.Handle<SomeRequestWithoutResponse>(x => x.Topic(topic).Instances(2));
         });
 
-        await BasicReqRespWithoutResp().ConfigureAwait(false);
+        await BasicReqRespWithoutResp();
     }
 
     private async Task BasicReqResp()

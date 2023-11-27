@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Services;
 
-using System.Runtime;
-
 internal interface IMessageHeaderService
 {
     void AddMessageHeaders(IDictionary<string, object> messageHeaders, IDictionary<string, object> headers, object message, ProducerSettings producerSettings);
@@ -34,18 +32,18 @@ internal class MessageHeaderService : IMessageHeaderService
 
         AddMessageTypeHeader(message, messageHeaders);
 
-        if (_settings.HeaderModifier != null)
-        {
-            // Call header hook
-            _logger.LogTrace($"Executing bus {nameof(MessageBusSettings.HeaderModifier)}");
-            _settings.HeaderModifier(messageHeaders, message);
-        }
-
         if (producerSettings.HeaderModifier != null)
         {
             // Call header hook        
             _logger.LogTrace($"Executing producer {nameof(ProducerSettings.HeaderModifier)}");
             producerSettings.HeaderModifier(messageHeaders, message);
+        }
+
+        if (_settings.HeaderModifier != null)
+        {
+            // Call header hook
+            _logger.LogTrace($"Executing bus {nameof(MessageBusSettings.HeaderModifier)}");
+            _settings.HeaderModifier(messageHeaders, message);
         }
     }
 
