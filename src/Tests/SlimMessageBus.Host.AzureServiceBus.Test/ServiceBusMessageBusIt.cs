@@ -75,7 +75,7 @@ public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt
                 }));
         });
 
-        await BasicPubSub(concurrency, subscribers, subscribers).ConfigureAwait(false);
+        await BasicPubSub(concurrency, subscribers, subscribers);
     }
 
     [Fact]
@@ -94,7 +94,7 @@ public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt
                     .WithConsumer<PingDerivedConsumer, PingDerivedMessage>()
                     .Instances(concurrency));
         });
-        await BasicPubSub(concurrency, 1, 1).ConfigureAwait(false);
+        await BasicPubSub(concurrency, 1, 1);
     }
 
     private static string GetMessageId(PingMessage message) => $"ID_{message.Counter}";
@@ -187,7 +187,7 @@ public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt
             });
         });
 
-        await BasicReqResp().ConfigureAwait(false);
+        await BasicReqResp();
     }
 
     [Fact]
@@ -210,7 +210,7 @@ public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt
                 x.DefaultTimeout(TimeSpan.FromSeconds(60));
             });
         });
-        await BasicReqResp().ConfigureAwait(false);
+        await BasicReqResp();
     }
 
     private async Task BasicReqResp()
@@ -262,7 +262,7 @@ public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt
                     .Instances(concurrency)
                     .EnableSession(x => x.MaxConcurrentSessions(10).SessionIdleTimeout(TimeSpan.FromSeconds(5))));
         });
-        await BasicPubSub(concurrency, 1, 1, CheckMessagesWithinSameSessionAreInOrder).ConfigureAwait(false);
+        await BasicPubSub(concurrency, 1, 1, CheckMessagesWithinSameSessionAreInOrder);
     }
 
     private static void CheckMessagesWithinSameSessionAreInOrder(TestData testData)
@@ -295,7 +295,7 @@ public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt
                     .EnableSession(x => x.MaxConcurrentSessions(10).SessionIdleTimeout(TimeSpan.FromSeconds(5))));
         });
 
-        await BasicPubSub(concurrency, 1, 1, CheckMessagesWithinSameSessionAreInOrder).ConfigureAwait(false);
+        await BasicPubSub(concurrency, 1, 1, CheckMessagesWithinSameSessionAreInOrder);
     }
 }
 

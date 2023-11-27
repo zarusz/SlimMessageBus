@@ -3,7 +3,7 @@
 using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
 
-public class ServiceBusMessageBusSettings
+public class ServiceBusMessageBusSettings : HasProviderExtensions
 {
     public string ConnectionString { get; set; }
     public Func<ServiceBusClient> ClientFactory { get; set; }
@@ -74,4 +74,54 @@ public class ServiceBusMessageBusSettings
     {
         ConnectionString = serviceBusConnectionString;
     }
+
+    /// <summary>
+    /// Configures the default subscription name when consuming form Azure ServiceBus topic.
+    /// </summary>
+    /// <param name="subscriptionName"></param>
+    /// <returns></returns>
+    public ServiceBusMessageBusSettings SubscriptionName(string subscriptionName)
+    {
+        if (subscriptionName is null) throw new ArgumentNullException(nameof(subscriptionName));
+
+        this.SetSubscriptionName(subscriptionName);
+        return this;
+    }
+
+    /// <summary>
+    /// Allows to set additional properties to the native <see cref="ServiceBusMessage"/> when producing the any message.
+    /// </summary>
+    /// <param name="modifier"></param>
+    /// <param name="executePrevious">Should the previously set modifier be executed as well?</param>
+    /// <returns></returns>
+    public ServiceBusMessageBusSettings WithModifier(AsbMessageModifier<object> modifier, bool executePrevious = true)
+    {
+        if (modifier is null) throw new ArgumentNullException(nameof(modifier));
+
+        var previousModifier = executePrevious ? this.GetMessageModifier() : null;
+        this.SetMessageModifier(previousModifier == null
+            ? modifier
+            : (message, transportMessage) =>
+            {
+                previousModifier(message, transportMessage);
+                modifier(message, transportMessage);
+            });
+        return this;
+    }
+
+    /// <summary>
+    /// Allows to set additional properties to the native <see cref="ServiceBusMessage"/> when producing the any message.
+    /// </summary>
+    /// <param name="modifier"></param>
+    /// <param name="executePrevious">Should the previously set modifier be executed as well?</param>
+    /// <returns></returns>
+    public ServiceBusMessageBusSettings WithModifier<T>(AsbMessageModifier<T> modifier, bool executePrevious = true)
+        => WithModifier((message, transportMessage) =>
+            {
+                if (message is T typedMessage)
+                {
+                    modifier(typedMessage, transportMessage);
+                }
+            },
+            executePrevious);
 }

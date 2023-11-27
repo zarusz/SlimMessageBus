@@ -70,7 +70,7 @@ public class MessageHeaderServiceTests
         // assert
         messageHeaders.Should().HaveCount(5);
         messageHeaders.Should().Contain(x => x.Key == MessageHeaders.MessageType && (string)x.Value == nameof(SomeMessage));
-        messageHeaders.Should().Contain(x => x.Key == "order" && (int)x.Value == 2);
+        messageHeaders.Should().Contain(x => x.Key == "order" && (int)x.Value == 1);
         messageHeaders.Should().Contain(x => x.Key == "bus-header" && (bool)x.Value);
         messageHeaders.Should().Contain(x => x.Key == "producer-header" && (bool)x.Value);
         messageHeaders.Should().Contain(x => x.Key == "existing-header" && (bool)x.Value);

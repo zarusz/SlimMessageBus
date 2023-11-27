@@ -24,7 +24,7 @@ internal class ServiceBusMessageBusSettingsValidationService : DefaultMessageBus
     {
         base.AssertConsumer(consumerSettings);
 
-        if (consumerSettings.PathKind == PathKind.Topic && string.IsNullOrEmpty(consumerSettings.GetSubscriptionName(required: false)))
+        if (consumerSettings.PathKind == PathKind.Topic && string.IsNullOrEmpty(consumerSettings.GetSubscriptionName(ProviderSettings)))
         {
             ThrowConsumerFieldNotSet(consumerSettings, nameof(AsbConsumerBuilderExtensions.SubscriptionName));
         }

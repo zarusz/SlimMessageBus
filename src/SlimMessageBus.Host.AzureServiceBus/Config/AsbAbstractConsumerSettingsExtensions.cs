@@ -2,20 +2,21 @@
 
 public static class AsbAbstractConsumerSettingsExtensions
 {
-    static internal void SetSubscriptionName(this AbstractConsumerSettings consumerSettings, string subscriptionName)
+    static internal void SetSubscriptionName(this HasProviderExtensions consumerSettings, string subscriptionName)
     {
         if (subscriptionName is null) throw new ArgumentNullException(nameof(subscriptionName));
 
         consumerSettings.Properties[AsbProperties.SubscriptionNameKey] = subscriptionName;
     }
 
-    static internal string GetSubscriptionName(this AbstractConsumerSettings consumerSettings, bool required = true)
+    static internal string GetSubscriptionName(this AbstractConsumerSettings consumerSettings, ServiceBusMessageBusSettings providerSettings)
     {
-        if (!consumerSettings.Properties.ContainsKey(AsbProperties.SubscriptionNameKey) && !required)
+        if (consumerSettings.PathKind == PathKind.Topic)
         {
-            return null;
+            return consumerSettings.GetOrDefault<string>(AsbProperties.SubscriptionNameKey, providerSettings, null)
+                ?? throw new ConfigurationMessageBusException($"SubscriptionName was not configured for topic {consumerSettings.Path}");
         }
-        return consumerSettings.Properties[AsbProperties.SubscriptionNameKey] as string;
+        return null;
     }
 
     static internal void SetMaxAutoLockRenewalDuration(this AbstractConsumerSettings consumerSettings, TimeSpan duration)

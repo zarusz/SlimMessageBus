@@ -5,7 +5,7 @@ public class RedisTopicConsumer : AbstractConsumer, IRedisConsumer
     private readonly ISubscriber _subscriber;
     private readonly IMessageSerializer _envelopeSerializer;
     private ChannelMessageQueue _channelMessageQueue;
-    private IMessageProcessor<MessageWithHeaders> _messageProcessor;
+    private readonly IMessageProcessor<MessageWithHeaders> _messageProcessor;
 
     public string Path { get; }
 
@@ -20,7 +20,9 @@ public class RedisTopicConsumer : AbstractConsumer, IRedisConsumer
 
     protected override async Task OnStart()
     {
-        _channelMessageQueue = await _subscriber.SubscribeAsync(Path).ConfigureAwait(false);
+        // detect if wildcard is used
+        var channel = RedisUtils.ToRedisChannel(Path);
+        _channelMessageQueue = await _subscriber.SubscribeAsync(channel).ConfigureAwait(false);
         _channelMessageQueue.OnMessage(OnMessage);
     }
 

@@ -5,7 +5,9 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 - [Configuration](#configuration)
 - [Producing Messages](#producing-messages)
   - [Message modifier](#message-modifier)
+    - [Global message modifier](#global-message-modifier)
 - [Consuming Messages](#consuming-messages)
+  - [Default Subscription Name](#default-subscription-name)
   - [Consumer context](#consumer-context)
   - [Exception Handling for Consumers](#exception-handling-for-consumers)
   - [Transport Specific Settings](#transport-specific-settings)
@@ -45,7 +47,7 @@ To produce a given `TMessage` to a Azure Serivce Bus queue (or topic) use:
 
 ```cs
 // send TMessage to Azure SB queues
-mbb.Produce<TMessage>(x => x.UseQueue()); 
+mbb.Produce<TMessage>(x => x.UseQueue());
 
 // OR
 
@@ -74,7 +76,7 @@ The second (`path`) parameter indicates a queue or topic name - depending on the
 When the default queue (or topic) path is configured for a message type:
 
 ```cs
-mbb.Produce<TMessage>(x => x.DefaultQueue("some-queue"));    
+mbb.Produce<TMessage>(x => x.DefaultQueue("some-queue"));
 
 // OR
 
@@ -113,6 +115,23 @@ mbb.Produce<PingMessage>(x =>
 
 > Since version 1.15.5 the Azure SB client was updated, so the native message type is now `Azure.Messaging.ServiceBus.ServiceBusMessage` (it used to be `Azure.ServiceBus.Message`).
 
+#### Global message modifier
+
+The message modifier can also be applied for all ASB producers:
+
+```cs
+mbb.WithProviderServiceBus(cfg =>
+{
+   // producers will inherit this
+   cfg.WithModifier((message, sbMessage) =>
+   {
+      sbMessage.ApplicationProperties["Source"] = "customer-service";
+   });
+});
+```
+
+> The global message modifier will be executed first, then the producer specific modifier next.
+
 ## Consuming Messages
 
 To consume `TMessage` by `TConsumer` from `some-topic` Azure Service Bus topic use:
@@ -120,7 +139,7 @@ To consume `TMessage` by `TConsumer` from `some-topic` Azure Service Bus topic u
 ```cs
 mbb.Consume<TMessage>(x => x
    .Topic("some-topic")
-   .SubscriptionName("subscriber-name")   
+   .SubscriptionName("subscriber-name")
    .WithConsumer<TConsumer>()
    .Instances(1));
 ```
@@ -135,6 +154,20 @@ mbb.Consume<TMessage>(x => x
    .WithConsumer<TConsumer>()
    .Instances(1));
 ```
+
+### Default Subscription Name
+
+A default subscription name can be provided that will be applied for all ASB topic consumers (subscribers):
+
+```cs
+mbb.WithProviderServiceBus(cfg =>
+{
+   // consumers will inherit this
+   cfg.SubscriptionName("customer-service");
+});
+```
+
+That way, the subscription name does not have to be repeated on each topic consumer (if it were to be the same).
 
 ### Consumer context
 

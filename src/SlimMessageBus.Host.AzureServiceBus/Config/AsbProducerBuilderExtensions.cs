@@ -1,6 +1,5 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus;
 
-using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
 
 public static class AsbProducerBuilderExtensions
@@ -44,21 +43,18 @@ public static class AsbProducerBuilderExtensions
     }
 
     /// <summary>
-    /// Allows to set additional properties to the native <see cref="Message"/> when producing the <see cref="T"/> message.
+    /// Allows to set additional properties to the native <see cref="ServiceBusMessage"/> when producing the <see cref="T"/> message.
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <param name="producerBuilder"></param>
-    /// <param name="modifierAction"></param>
+    /// <param name="modifier"></param>
     /// <returns></returns>
-    public static ProducerBuilder<T> WithModifier<T>(this ProducerBuilder<T> producerBuilder, Action<T, ServiceBusMessage> modifierAction)
+    public static ProducerBuilder<T> WithModifier<T>(this ProducerBuilder<T> producerBuilder, AsbMessageModifier<T> modifier)
     {
         if (producerBuilder is null) throw new ArgumentNullException(nameof(producerBuilder));
-        if (modifierAction is null) throw new ArgumentNullException(nameof(modifierAction));
+        if (modifier is null) throw new ArgumentNullException(nameof(modifier));
 
-        producerBuilder.Settings.SetMessageModifier((e, m) =>
-        {
-            modifierAction((T)e, m);
-        });
+        producerBuilder.Settings.SetMessageModifier((e, m) => modifier((T)e, m));
         return producerBuilder;
     }
 

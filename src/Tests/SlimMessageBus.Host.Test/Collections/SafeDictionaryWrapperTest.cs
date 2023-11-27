@@ -43,7 +43,7 @@ public class SafeDictionaryWrapperTest
     }
 
     [Fact]
-    public void CheckThreadSafety()
+    public async Task CheckThreadSafetyAsync()
     {
         // arrange
         var w = new SafeDictionaryWrapper<string, string>();
@@ -74,7 +74,7 @@ public class SafeDictionaryWrapperTest
                 w.GetOrAdd($"c_{i}", k => $"v_{i}");
             }
         }, CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Default);
-        Task.WaitAll(task1, task2, task3);
+        await Task.WhenAll(task1, task2, task3);
 
         // assert
         w.Dictionary.Count.Should().Be(3 * count);

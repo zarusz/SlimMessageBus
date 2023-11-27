@@ -264,26 +264,37 @@ public class MessageBusBuilder
     public MessageBusBuilder WithMessageTypeResolver<T>() => WithMessageTypeResolver(typeof(T));
 
     /// <summary>
-    /// Hook called whenver message is being produced. Can be used to add (or mutate) message headers.
+    /// Hook called whenver message is being produced. Can be used to change message headers.
     /// </summary>
-    public MessageBusBuilder WithHeaderModifier(MessageHeaderModifier<object> headerModifier) => WithHeaderModifier<object>(headerModifier);
-
-    /// <summary>
-    /// Hook called whenver message is being produced. Can be used to add (or mutate) message headers.
-    /// </summary>
-    public MessageBusBuilder WithHeaderModifier<T>(MessageHeaderModifier<T> headerModifier)
+    /// <param name="executePrevious">Should the previously set modifier be executed as well?</param>
+    public MessageBusBuilder WithHeaderModifier(MessageHeaderModifier<object> headerModifier, bool executePrevious = true)
     {
         if (headerModifier == null) throw new ArgumentNullException(nameof(headerModifier));
 
-        Settings.HeaderModifier = (headers, message) =>
-        {
-            if (message is T typedMessage)
-            {
-                headerModifier(headers, typedMessage);
-            }
-        };
+        var previousHeaderModifier = executePrevious ? Settings.HeaderModifier : null;
+        Settings.HeaderModifier = previousHeaderModifier == null
+            ? headerModifier
+            : (headers, message) =>
+                {
+                    previousHeaderModifier(headers, message);
+                    headerModifier(headers, message);
+                };
         return this;
     }
+
+    /// <summary>
+    /// Hook called whenver message is being produced. Can be used to change message headers.
+    /// </summary>
+    /// <param name="executePrevious">Should the previously set modifier be executed as well?</param>
+    public MessageBusBuilder WithHeaderModifier<T>(MessageHeaderModifier<T> headerModifier, bool executePrevious = true)
+        => WithHeaderModifier((headers, message) =>
+            {
+                if (message is T typedMessage)
+                {
+                    headerModifier(headers, typedMessage);
+                }
+            },
+            executePrevious);
 
     /// <summary>
     /// Enables or disabled the auto statrt of message consumption upon bus creation. If false, then you need to call the .Start() on the bus to start consuming messages.

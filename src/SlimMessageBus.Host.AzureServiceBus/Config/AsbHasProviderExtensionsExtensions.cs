@@ -1,19 +1,18 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus;
 
-using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
 
 static internal class AsbHasProviderExtensionsExtensions
 {
-    static internal HasProviderExtensions SetMessageModifier(this HasProviderExtensions producerSettings, Action<object, ServiceBusMessage> messageModifierAction)
+    static internal HasProviderExtensions SetMessageModifier(this HasProviderExtensions producerSettings, AsbMessageModifier<object> messageModifierAction)
     {
         producerSettings.Properties[nameof(SetMessageModifier)] = messageModifierAction;
         return producerSettings;
     }
 
-    static internal Action<object, ServiceBusMessage> GetMessageModifier(this HasProviderExtensions producerSettings)
+    static internal AsbMessageModifier<object> GetMessageModifier(this HasProviderExtensions producerSettings)
     {
-        return producerSettings.GetOrDefault<Action<object, ServiceBusMessage>>(nameof(SetMessageModifier), null);
+        return producerSettings.GetOrDefault<AsbMessageModifier<object>>(nameof(SetMessageModifier), null);
     }
 
     static internal HasProviderExtensions SetQueueOptions(this HasProviderExtensions producerSettings, Action<CreateQueueOptions> optionsAction)

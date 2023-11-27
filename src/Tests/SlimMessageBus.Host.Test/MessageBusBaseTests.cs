@@ -399,8 +399,8 @@ public class MessageBusBaseTests : IDisposable
         Bus.Dispose();
 
         // act
-        Func<Task> act = async () => await Bus.Publish(new SomeMessage()).ConfigureAwait(false);
-        Func<Task> actWithTopic = async () => await Bus.Publish(new SomeMessage(), "some-topic").ConfigureAwait(false);
+        Func<Task> act = async () => await Bus.Publish(new SomeMessage());
+        Func<Task> actWithTopic = async () => await Bus.Publish(new SomeMessage(), "some-topic");
 
         // assert
         await act.Should().ThrowAsync<MessageBusException>();
@@ -414,8 +414,8 @@ public class MessageBusBaseTests : IDisposable
         Bus.Dispose();
 
         // act
-        Func<Task> act = async () => await Bus.Send(new SomeRequest()).ConfigureAwait(false);
-        Func<Task> actWithTopic = async () => await Bus.Send(new SomeRequest(), "some-topic").ConfigureAwait(false);
+        Func<Task> act = async () => await Bus.Send(new SomeRequest());
+        Func<Task> actWithTopic = async () => await Bus.Send(new SomeRequest(), "some-topic");
 
         // assert
         await act.Should().ThrowAsync<MessageBusException>();

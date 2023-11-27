@@ -173,7 +173,7 @@ public class ServiceBusTopologyService
                     if ((topicStatus & TopologyCreationStatus.Exists) != 0)
                     {
                         var consumerSettingsBySubscription = consumerSettingsList
-                            .Select(x => (ConsumerSettings: x, SubscriptionName: x.GetSubscriptionName(required: false)))
+                            .Select(x => (ConsumerSettings: x, SubscriptionName: x.GetSubscriptionName(providerSettings)))
                             .Where(x => x.SubscriptionName != null)
                             .ToDictionary(x => x.SubscriptionName, x => x.ConsumerSettings);
 

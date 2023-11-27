@@ -26,6 +26,7 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
         await provisioningService.ProvisionTopology(); // provisining happens asynchronously
     }
 
+
     #region Overrides of MessageBusBase
 
     protected override void Build()
@@ -62,7 +63,9 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
 
         static void InitConsumerContext(ServiceBusReceivedMessage m, ConsumerContext ctx) => ctx.SetTransportMessage(m);
 
-        foreach (var ((path, subscriptionName), consumerSettings) in Settings.Consumers.GroupBy(x => (x.Path, SubscriptionName: x.GetSubscriptionName(required: false))).ToDictionary(x => x.Key, x => x.ToList()))
+        foreach (var ((path, subscriptionName), consumerSettings) in Settings.Consumers
+                .GroupBy(x => (x.Path, SubscriptionName: x.GetSubscriptionName(ProviderSettings)))
+                .ToDictionary(x => x.Key, x => x.ToList()))
         {
             var topicSubscription = new TopicSubscriptionParams(path: path, subscriptionName: subscriptionName);
             var messageProcessor = new MessageProcessor<ServiceBusReceivedMessage>(
@@ -78,7 +81,7 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
 
         if (Settings.RequestResponse != null)
         {
-            var topicSubscription = new TopicSubscriptionParams(Settings.RequestResponse.Path, Settings.RequestResponse.GetSubscriptionName(required: false));
+            var topicSubscription = new TopicSubscriptionParams(Settings.RequestResponse.Path, Settings.RequestResponse.GetSubscriptionName(ProviderSettings));
             var messageProcessor = new ResponseMessageProcessor<ServiceBusReceivedMessage>(
                 LoggerFactory,
                 Settings.RequestResponse,
@@ -130,18 +133,13 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
             }
         }
 
+        // global modifier first
+        InvokeMessageModifier(message, messageType, m, ProviderSettings);
         if (messageType != null)
         {
+            // local producer modifier second
             var producerSettings = GetProducerSettings(messageType);
-            try
-            {
-                var messageModifier = producerSettings.GetMessageModifier();
-                messageModifier?.Invoke(message, m);
-            }
-            catch (Exception e)
-            {
-                _logger.LogWarning(e, "The configured message modifier failed for message type {MessageType} and message {Message}", messageType, message);
-            }
+            InvokeMessageModifier(message, messageType, m, producerSettings);
         }
 
         var senderClient = _producerByPath.GetOrAdd(path);
@@ -158,6 +156,19 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
         {
             _logger.LogDebug(ex, "Producing message {Message} of type {MessageType} to path {Path} resulted in error {Error}", message, messageType?.Name, path, ex.Message);
             throw new ProducerMessageBusException($"Producing message {message} of type {messageType?.Name} to path {path} resulted in error: {ex.Message}", ex);
+        }
+    }
+
+    private void InvokeMessageModifier(object message, Type messageType, ServiceBusMessage m, HasProviderExtensions settings)
+    {
+        try
+        {
+            var messageModifier = settings.GetMessageModifier();
+            messageModifier?.Invoke(message, m);
+        }
+        catch (Exception e)
+        {
+            _logger.LogWarning(e, "The configured message modifier failed for message type {MessageType} and message {Message}", messageType, message);
         }
     }
 
