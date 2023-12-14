@@ -170,7 +170,7 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
         {
             _consumerTask = null;
 
-            _consumerCts.DisposeSilently();
+            _consumerCts.Dispose();
             _consumerCts = null;
         }
     }
