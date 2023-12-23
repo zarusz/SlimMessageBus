@@ -58,7 +58,7 @@ builder.Services.AddSlimMessageBus(mbb =>
     mbb.AddOutboxUsingSql(opts => { opts.PollBatchSize = 100; });
 });
 
-// Register in the the container the SqlConnection
+// SMB requires the SqlConnection to be registered in the container
 builder.Services.AddTransient(svp =>
 {
     var configuration = svp.GetRequiredService<IConfiguration>();

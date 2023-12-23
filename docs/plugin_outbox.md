@@ -19,7 +19,7 @@ The [`Host.Outbox`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox) i
 - [`Host.Outbox.Sql`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql) as integration with the System.Data.Sql client
 - [`Host.Outbox.DbContext`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.DbContext) as integration with Entity Framework Core
 
-Outbox plugin can work with any transport provider.
+Outbox plugin can work with in combination with any transport provider.
 
 ## Configuration
 
@@ -109,7 +109,7 @@ builder.Services.AddSlimMessageBus(mbb =>
     mbb.AddOutboxUsingSql(opts => { opts.PollBatchSize = 100; });
 });
 
-// Register in the the container the SqlConnection
+// SMB requires the SqlConnection to be registered in the container
 builder.Services.AddTransient(svp =>
 {
     var configuration = svp.GetRequiredService<IConfiguration>();
