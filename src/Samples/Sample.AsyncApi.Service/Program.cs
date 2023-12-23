@@ -4,7 +4,6 @@ using Sample.AsyncApi.Service.Messages;
 
 using Saunter;
 using Saunter.AsyncApiSchema.v2;
-using Saunter.Generation;
 
 using SecretStore;
 
@@ -25,10 +24,10 @@ builder.Services.AddControllers();
 //builder.Services.AddSwaggerGen();
 builder.Services.AddSwaggerDocument();
 
+var configuration = builder.Configuration;
+
 builder.Services.AddSlimMessageBus(mbb =>
 {
-    var configuration = builder.Configuration;
-
     mbb
         .AddChildBus("Memory", mbb =>
         {
@@ -56,6 +55,7 @@ builder.Services.AddSlimMessageBus(mbb =>
         .AddAsyncApiDocumentGenerator();
 });
 
+// doc:fragment:ExampleStartup2
 // Add Saunter to the application services. 
 builder.Services.AddAsyncApiSchemaGeneration(options =>
 {
@@ -71,6 +71,7 @@ builder.Services.AddAsyncApiSchemaGeneration(options =>
         }
     };
 });
+// doc:fragment:ExampleStartup2
 
 var app = builder.Build();
 

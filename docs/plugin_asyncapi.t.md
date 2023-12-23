@@ -25,23 +25,7 @@ services.AddSlimMessageBus(mbb =>
 
 Then register the Saunter services (in that order):
 
-```cs
-// Add Saunter to the application services.
-builder.Services.AddAsyncApiSchemaGeneration(options =>
-{
-    options.AsyncApi = new AsyncApiDocument
-    {
-        Info = new Info("SlimMessageBus AsyncAPI Sample API", "1.0.0")
-        {
-            Description = "This is a sample of the SlimMessageBus AsyncAPI plugin",
-            License = new License("Apache 2.0")
-            {
-                Url = "https://www.apache.org/licenses/LICENSE-2.0"
-            }
-        }
-    };
-});
-```
+@[:cs](../src/Samples/Sample.AsyncApi.Service/Program.cs,ExampleStartup2)
 
 Saunter also requires to add the following endpoints (consult the Saunter docs):
 

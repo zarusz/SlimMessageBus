@@ -8,7 +8,6 @@ using Sample.OutboxWebApi.DataAccess;
 
 using SecretStore;
 
-using SlimMessageBus;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.Memory;
@@ -29,42 +28,43 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddHttpContextAccessor();
 
-builder.Services
-    .AddSlimMessageBus(mbb =>
-    {
-        var configuration = builder.Configuration;
+var configuration = builder.Configuration;
 
-        mbb
-            .AddChildBus("Memory", mbb =>
-            {
-                mbb.WithProviderMemory()
-                   .AutoDeclareFrom(Assembly.GetExecutingAssembly(), consumerTypeFilter: t => t.Name.Contains("Command"))
-                   //.UseTransactionScope(); // Consumers/Handlers will be wrapped in a TransactionScope
-                   .UseSqlTransaction(); // Consumers/Handlers will be wrapped in a SqlTransaction
-            })
-            .AddChildBus("AzureSB", mbb =>
-            {
-                mbb.WithProviderServiceBus(cfg => cfg.ConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]))
-                   .Produce<CustomerCreatedEvent>(x =>
-                   {
-                       x.DefaultTopic("samples.outbox/customer-events");
-                       // OR if you want just this producer to sent via outbox
-                       // x.UseOutbox();
-                   })
-                   .UseOutbox(); // All outgoing messages from this bus will go out via an outbox
-            })
-            .AddServicesFromAssembly(Assembly.GetExecutingAssembly())
-            .AddJsonSerializer()
-            .AddAspNet()
-            .AddOutboxUsingDbContext<CustomerContext>(opts =>
-            {
-                opts.PollBatchSize = 100;
-                opts.MessageCleanup.Interval = TimeSpan.FromSeconds(10);
-                opts.MessageCleanup.Age = TimeSpan.FromMinutes(1);
-                //opts.TransactionIsolationLevel = System.Data.IsolationLevel.RepeatableRead;
-                //opts.Dialect = SqlDialect.SqlServer;
-            });
-    });
+// doc:fragment:ExampleStartup
+builder.Services.AddSlimMessageBus(mbb =>
+{
+    mbb
+        .AddChildBus("Memory", mbb =>
+        {
+            mbb.WithProviderMemory()
+                .AutoDeclareFrom(Assembly.GetExecutingAssembly(), consumerTypeFilter: t => t.Name.Contains("Command"))
+                //.UseTransactionScope(); // Consumers/Handlers will be wrapped in a TransactionScope
+                .UseSqlTransaction(); // Consumers/Handlers will be wrapped in a SqlTransaction
+        })
+        .AddChildBus("AzureSB", mbb =>
+        {
+            mbb.WithProviderServiceBus(cfg => cfg.ConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]))
+                .Produce<CustomerCreatedEvent>(x =>
+                {
+                    x.DefaultTopic("samples.outbox/customer-events");
+                    // OR if you want just this producer to sent via outbox
+                    // x.UseOutbox();
+                })
+                .UseOutbox(); // All outgoing messages from this bus will go out via an outbox
+        })
+        .AddServicesFromAssembly(Assembly.GetExecutingAssembly())
+        .AddJsonSerializer()
+        .AddAspNet()
+        .AddOutboxUsingDbContext<CustomerContext>(opts =>
+        {
+            opts.PollBatchSize = 100;
+            opts.MessageCleanup.Interval = TimeSpan.FromSeconds(10);
+            opts.MessageCleanup.Age = TimeSpan.FromMinutes(1);
+            //opts.TransactionIsolationLevel = System.Data.IsolationLevel.RepeatableRead;
+            //opts.Dialect = SqlDialect.SqlServer;
+        });
+});
+// doc:fragment:ExampleStartup
 
 /*
 // Alternatively, if we were not using EF, we could use a SqlConnection
