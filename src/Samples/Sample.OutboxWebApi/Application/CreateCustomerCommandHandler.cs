@@ -4,12 +4,13 @@ using Sample.OutboxWebApi.DataAccess;
 
 using SlimMessageBus;
 
+// doc:fragment:Handler
 public record CreateCustomerCommandHandler(IMessageBus Bus, CustomerContext CustomerContext) : IRequestHandler<CreateCustomerCommand, Guid>
 {
     public async Task<Guid> OnHandle(CreateCustomerCommand request)
     {
         // Note: This handler will be already wrapped in a transaction: see Program.cs and .UseTransactionScope() / .UseSqlTransaction() 
-        
+
         var customer = new Customer(request.Firstname, request.Lastname);
         await CustomerContext.Customers.AddAsync(customer);
         await CustomerContext.SaveChangesAsync();
@@ -20,3 +21,4 @@ public record CreateCustomerCommandHandler(IMessageBus Bus, CustomerContext Cust
         return customer.Id;
     }
 }
+// doc:fragment:Handler

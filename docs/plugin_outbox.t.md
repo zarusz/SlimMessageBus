@@ -19,7 +19,7 @@ The [`Host.Outbox`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox) i
 - [`Host.Outbox.Sql`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql) as integration with the System.Data.Sql client
 - [`Host.Outbox.DbContext`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.DbContext) as integration with Entity Framework Core
 
-Outbox plugin can work with any transport provider.
+Outbox plugin can work with in combination with any transport provider.
 
 ## Configuration
 
@@ -36,62 +36,11 @@ Consider the following example (from [Samples](../src/Samples/Sample.OutboxWebAp
 
 Startup setup:
 
-```cs
-builder.Services.AddSlimMessageBus(mbb =>
-{
-    mbb
-        .AddChildBus("Memory", mbb =>
-        {
-            mbb.WithProviderMemory()
-                .AutoDeclareFrom(Assembly.GetExecutingAssembly(), consumerTypeFilter: t => t.Name.Contains("Command"))
-                //.UseTransactionScope(); // Consumers/Handlers will be wrapped in a TransactionScope
-                .UseSqlTransaction(); // Consumers/Handlers will be wrapped in a SqlTransaction
-        })
-        .AddChildBus("AzureSB", mbb =>
-        {
-            mbb.WithProviderServiceBus(cfg => cfg.ConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]))
-                .Produce<CustomerCreatedEvent>(x =>
-                {
-                    x.DefaultTopic("samples.outbox/customer-events");
-                    // OR if you want just this producer to sent via outbox
-                    // x.UseOutbox();
-                })
-                .UseOutbox(); // All outgoing messages from this bus will go out via an outbox
-        })
-        .AddServicesFromAssembly(Assembly.GetExecutingAssembly())
-        .AddJsonSerializer()
-        .AddAspNet()
-        .AddOutboxUsingDbContext<CustomerContext>(opts =>
-        {
-            opts.PollBatchSize = 100;
-            opts.MessageCleanup.Interval = TimeSpan.FromSeconds(10);
-            opts.MessageCleanup.Age = TimeSpan.FromMinutes(1);
-            //opts.TransactionIsolationLevel = System.Data.IsolationLevel.RepeatableRead;
-            //opts.Dialect = SqlDialect.SqlServer;
-        });
-});
-```
+@[:cs](../src/Samples/Sample.OutboxWebApi/Program.cs,ExampleStartup)
 
 Command handler:
 
-```cs
-public record CreateCustomerCommandHandler(IMessageBus Bus, CustomerContext CustomerContext) : IRequestHandler<CreateCustomerCommand, Guid>
-{
-    public async Task<Guid> OnHandle(CreateCustomerCommand request)
-    {
-        // Note: This handler will be already wrapped in a transaction: see Program.cs and .UseTransactionScope() / .UseSqlTransaction() 
-
-        var customer = new Customer(request.Firstname, request.Lastname);
-        await CustomerContext.Customers.AddAsync(customer);
-        await CustomerContext.SaveChangesAsync();
-
-        // Announce to anyone outside of this micro-service that a customer has been created (this will go out via an transactional outbox)
-        await Bus.Publish(new CustomerCreatedEvent(customer.Id, customer.Firstname, customer.Lastname));
-
-        return customer.Id;
-    }
-}
-```
+@[:cs](../src/Samples/Sample.OutboxWebApi/Application/CreateCustomerCommandHandler.cs,Handler)
 
 ### SQL Connection
 
