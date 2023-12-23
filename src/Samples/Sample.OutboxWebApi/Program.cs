@@ -8,7 +8,6 @@ using Sample.OutboxWebApi.DataAccess;
 
 using SecretStore;
 
-using SlimMessageBus;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.Memory;

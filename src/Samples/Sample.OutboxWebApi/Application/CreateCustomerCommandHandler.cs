@@ -2,8 +2,6 @@
 
 using Sample.OutboxWebApi.DataAccess;
 
-using SlimMessageBus;
-
 // doc:fragment:Handler
 public record CreateCustomerCommandHandler(IMessageBus Bus, CustomerContext CustomerContext) : IRequestHandler<CreateCustomerCommand, Guid>
 {
@@ -21,4 +19,3 @@ public record CreateCustomerCommandHandler(IMessageBus Bus, CustomerContext Cust
         return customer.Id;
     }
 }
-// doc:fragment:Handler
