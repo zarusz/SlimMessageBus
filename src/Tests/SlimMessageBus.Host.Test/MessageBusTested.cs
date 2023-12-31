@@ -35,7 +35,7 @@ public class MessageBusTested : MessageBusBase
         return base.OnStop();
     }
 
-    protected override async Task<object> ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken = default)
+    protected override async Task<object> ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
     {
         var messageType = message.GetType();
         OnProduced(messageType, path, message);

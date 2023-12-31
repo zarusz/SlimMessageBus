@@ -171,16 +171,11 @@ public class PingMessage
     #endregion
 }
 
-public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
+public class PingConsumer(ILogger<PingConsumer> logger, ConcurrentBag<PingMessage> messages)
+    : IConsumer<PingMessage>, IConsumerWithContext
 {
-    private readonly ILogger _logger;
-    private readonly ConcurrentBag<PingMessage> _messages;
-
-    public PingConsumer(ILogger logger, ConcurrentBag<PingMessage> messages)
-    {
-        _logger = logger;
-        _messages = messages;
-    }
+    private readonly ILogger _logger = logger;
+    private readonly ConcurrentBag<PingMessage> _messages = messages;
 
     public IConsumerContext Context { get; set; }
 

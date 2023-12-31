@@ -82,8 +82,8 @@ public class ServiceBusMessageBusTests : IDisposable
         var m2 = new SomeMessage { Id = "2", Value = 3 };
 
         // act
-        await ProviderBus.Value.Publish(m1);
-        await ProviderBus.Value.Publish(m2);
+        await ProviderBus.Value.ProducePublish(m1);
+        await ProviderBus.Value.ProducePublish(m2);
 
         // assert
         var topicClient = SenderMockByPath["default-topic"];
@@ -104,7 +104,7 @@ public class ServiceBusMessageBusTests : IDisposable
         var m = new SomeMessage { Id = "1", Value = 10 };
 
         // act
-        await ProviderBus.Value.Publish(m);
+        await ProviderBus.Value.ProducePublish(m);
 
         // assert
         SenderMockByPath["default-topic"].Verify(x => x.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -118,7 +118,7 @@ public class ServiceBusMessageBusTests : IDisposable
         BusBuilder.Produce<SomeMessage>(x => x.ToQueue());
 
         // act
-        Func<IMessageBus> creation = () => BusBuilder.Build();
+        Func<IMessageBusProvider> creation = () => BusBuilder.Build();
 
         // assert
         creation.Should().Throw<ConfigurationMessageBusException>()
@@ -134,7 +134,7 @@ public class ServiceBusMessageBusTests : IDisposable
         BusBuilder.Produce<OtherMessage>(x => x.DefaultQueue(path));
 
         // act
-        Func<IMessageBus> creation = () => BusBuilder.Build();
+        Func<IMessageBusProvider> creation = () => BusBuilder.Build();
 
         // assert
         creation.Should().Throw<ConfigurationMessageBusException>()
@@ -154,10 +154,10 @@ public class ServiceBusMessageBusTests : IDisposable
         var om2 = new OtherMessage { Id = "2" };
 
         // act
-        await ProviderBus.Value.Publish(sm1, "some-topic");
-        await ProviderBus.Value.Publish(sm2, "some-topic");
-        await ProviderBus.Value.Publish(om1, "some-queue");
-        await ProviderBus.Value.Publish(om2, "some-queue");
+        await ProviderBus.Value.ProducePublish(sm1, "some-topic");
+        await ProviderBus.Value.ProducePublish(sm2, "some-topic");
+        await ProviderBus.Value.ProducePublish(om1, "some-queue");
+        await ProviderBus.Value.ProducePublish(om2, "some-queue");
 
         // assert
         SenderMockByPath.Should().HaveCount(2);
@@ -166,12 +166,11 @@ public class ServiceBusMessageBusTests : IDisposable
     }
 }
 
-public class WrappedProviderMessageBus : ServiceBusMessageBus
+public class WrappedProviderMessageBus(
+    MessageBusSettings settings,
+    ServiceBusMessageBusSettings serviceBusSettings)
+    : ServiceBusMessageBus(settings, serviceBusSettings)
 {
-    public WrappedProviderMessageBus(MessageBusSettings settings, ServiceBusMessageBusSettings serviceBusSettings)
-        : base(settings, serviceBusSettings)
-    {
-    }
 }
 
 public class SomeMessage

@@ -241,16 +241,11 @@ public class RedisMessageBusIt : BaseIntegrationTest<RedisMessageBusIt>
 
     private record PingMessage(int Counter, Guid Value);
 
-    private class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
+    private class PingConsumer(ILogger<PingConsumer> logger, TestEventCollector<PingMessage> messages)
+        : IConsumer<PingMessage>, IConsumerWithContext
     {
-        private readonly ILogger _logger;
-        private readonly TestEventCollector<PingMessage> _messages;
-
-        public PingConsumer(ILogger logger, TestEventCollector<PingMessage> messages)
-        {
-            _logger = logger;
-            _messages = messages;
-        }
+        private readonly ILogger _logger = logger;
+        private readonly TestEventCollector<PingMessage> _messages = messages;
 
         public IConsumerContext Context { get; set; }
 

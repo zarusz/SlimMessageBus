@@ -50,8 +50,8 @@ public class HybridMessageBusTest
                 _bus1Mock = new Mock<MessageBusBase>(new[] { mbs });
                 _bus1Mock.SetupGet(x => x.Settings).Returns(mbs);
 
-                _bus1Mock.Setup(x => x.Publish(It.IsAny<SomeMessage>(), It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-                _bus1Mock.Setup(x => x.Publish(It.IsAny<AnotherMessage>(), It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+                _bus1Mock.Setup(x => x.ProducePublish(It.IsAny<SomeMessage>(), It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IMessageBusTarget>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+                _bus1Mock.Setup(x => x.ProducePublish(It.IsAny<AnotherMessage>(), It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IMessageBusTarget>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
                 return _bus1Mock.Object;
             });
@@ -65,8 +65,8 @@ public class HybridMessageBusTest
                 _bus2Mock = new Mock<MessageBusBase>(new[] { mbs });
                 _bus2Mock.SetupGet(x => x.Settings).Returns(mbs);
 
-                _bus2Mock.Setup(x => x.Publish(It.IsAny<SomeMessage>(), It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-                _bus2Mock.Setup(x => x.Send(It.IsAny<SomeRequest>(), It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<TimeSpan?>(), default)).Returns(Task.FromResult(new SomeResponse()));
+                _bus2Mock.Setup(x => x.ProducePublish(It.IsAny<SomeMessage>(), It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IMessageBusTarget>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+                _bus2Mock.Setup(x => x.ProduceSend<SomeResponse>(It.IsAny<SomeRequest>(), It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<TimeSpan?>(), It.IsAny<IMessageBusTarget>(), default)).Returns(Task.FromResult(new SomeResponse()));
 
                 return _bus2Mock.Object;
             });
@@ -160,7 +160,7 @@ public class HybridMessageBusTest
         var message = new object();
 
         // act
-        Func<Task> act = () => _subject.Value.Publish(message);
+        Func<Task> act = () => _subject.Value.ProducePublish(message);
 
         // assert
         if (mode == UndeclaredMessageTypeMode.RaiseException)
@@ -198,7 +198,7 @@ public class HybridMessageBusTest
         var message = new SomeUndeclaredRequest();
 
         // act
-        Func<Task<SomeResponse>> act = () => _subject.Value.Send(message);
+        Func<Task<SomeResponse>> act = () => _subject.Value.ProduceSend<SomeResponse>(message);
 
         // assert
         if (mode == UndeclaredMessageTypeMode.RaiseException)
@@ -237,7 +237,7 @@ public class HybridMessageBusTest
         var message = new SomeUndeclaredRequestWithoutResponse();
 
         // act
-        Func<Task> act = () => _subject.Value.Send(message);
+        Func<Task> act = () => _subject.Value.ProduceSend<object>(message);
 
         // assert
         if (mode == UndeclaredMessageTypeMode.RaiseException)
@@ -270,16 +270,16 @@ public class HybridMessageBusTest
         var someMessage = new SomeMessage();
 
         // act
-        await _subject.Value.Publish(someMessage);
+        await _subject.Value.ProducePublish(someMessage);
 
         // assert
 
         _bus1Mock.VerifyGet(x => x.Settings);
-        _bus1Mock.Verify(x => x.Publish(someMessage, null, null, It.IsAny<CancellationToken>()));
+        _bus1Mock.Verify(x => x.ProducePublish(someMessage, null, null, null, It.IsAny<CancellationToken>()));
         _bus1Mock.VerifyNoOtherCalls();
 
         _bus2Mock.VerifyGet(x => x.Settings);
-        _bus2Mock.Verify(x => x.Publish(someMessage, null, null, It.IsAny<CancellationToken>()));
+        _bus2Mock.Verify(x => x.ProducePublish(someMessage, null, null, null, It.IsAny<CancellationToken>()));
         _bus2Mock.VerifyNoOtherCalls();
     }
 
@@ -290,12 +290,12 @@ public class HybridMessageBusTest
         var anotherMessage = new AnotherMessage();
 
         // act
-        await _subject.Value.Publish(anotherMessage);
+        await _subject.Value.ProducePublish(anotherMessage);
 
         // assert
 
         _bus1Mock.VerifyGet(x => x.Settings);
-        _bus1Mock.Verify(x => x.Publish(anotherMessage, null, null, It.IsAny<CancellationToken>()));
+        _bus1Mock.Verify(x => x.ProducePublish(anotherMessage, null, null, null, It.IsAny<CancellationToken>()));
         _bus1Mock.VerifyNoOtherCalls();
 
         _bus2Mock.VerifyGet(x => x.Settings);
@@ -311,26 +311,18 @@ public class HybridMessageBusTest
         var someDerivedOfDerivedMessage = new SomeDerivedOfDerivedMessage();
 
         // act
-        await _subject.Value.Publish(someMessage);
-        await _subject.Value.Publish(someDerivedMessage);
-        await _subject.Value.Publish<SomeMessage>(someDerivedMessage);
-        await _subject.Value.Publish<ISomeMessageMarkerInterface>(someDerivedMessage);
-        await _subject.Value.Publish(someDerivedOfDerivedMessage);
-        await _subject.Value.Publish<SomeMessage>(someDerivedOfDerivedMessage);
-        await _subject.Value.Publish<ISomeMessageMarkerInterface>(someDerivedOfDerivedMessage);
+        await _subject.Value.ProducePublish(someMessage);
+        await _subject.Value.ProducePublish(someDerivedMessage);
+        await _subject.Value.ProducePublish(someDerivedOfDerivedMessage);
 
         // assert
 
         // note: Moq does not match exact generic types but with match with assignment compatibility
         // - cannot count the exact times a specific generic method ws executed
         // see https://stackoverflow.com/a/54721582
-        _bus1Mock.Verify(x => x.Publish(someMessage, null, null, It.IsAny<CancellationToken>()));
-        _bus1Mock.Verify(x => x.Publish(someDerivedMessage, null, null, It.IsAny<CancellationToken>()));
-        _bus1Mock.Verify(x => x.Publish<SomeMessage>(someDerivedMessage, null, null, It.IsAny<CancellationToken>()));
-        _bus1Mock.Verify(x => x.Publish<ISomeMessageMarkerInterface>(someDerivedMessage, null, null, It.IsAny<CancellationToken>()));
-        _bus1Mock.Verify(x => x.Publish(someDerivedOfDerivedMessage, null, null, It.IsAny<CancellationToken>()));
-        _bus1Mock.Verify(x => x.Publish<SomeMessage>(someDerivedOfDerivedMessage, null, null, It.IsAny<CancellationToken>()));
-        _bus1Mock.Verify(x => x.Publish<ISomeMessageMarkerInterface>(someDerivedOfDerivedMessage, null, null, It.IsAny<CancellationToken>()));
+        _bus1Mock.Verify(x => x.ProducePublish(someMessage, null, null, null, It.IsAny<CancellationToken>()));
+        _bus1Mock.Verify(x => x.ProducePublish(someDerivedMessage, null, null, null, It.IsAny<CancellationToken>()));
+        _bus1Mock.Verify(x => x.ProducePublish(someDerivedOfDerivedMessage, null, null, null, It.IsAny<CancellationToken>()));
         _bus1Mock.VerifyGet(x => x.Settings);
         _bus1Mock.VerifyNoOtherCalls();
     }
@@ -343,12 +335,12 @@ public class HybridMessageBusTest
         var someDerivedRequest = new SomeDerivedRequest();
 
         // act
-        await _subject.Value.Send(someRequest);
-        await _subject.Value.Send(someDerivedRequest);
+        await _subject.Value.ProduceSend<SomeResponse>(someRequest);
+        await _subject.Value.ProduceSend<SomeResponse>(someDerivedRequest);
 
         // assert
-        _bus2Mock.Verify(x => x.Send(someRequest, null, null, null, default), Times.Once);
-        _bus2Mock.Verify(x => x.Send(someDerivedRequest, null, null, null, default), Times.Once);
+        _bus2Mock.Verify(x => x.ProduceSend<SomeResponse>(someRequest, null, null, null, null, default), Times.Once);
+        _bus2Mock.Verify(x => x.ProduceSend<SomeResponse>(someDerivedRequest, null, null, null, null, default), Times.Once);
     }
 
     [Fact]

@@ -4,7 +4,10 @@ using System.Diagnostics;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
+
+using Serilog;
+using Serilog.Extensions.Logging;
 
 using SlimMessageBus.Host;
 
@@ -20,31 +23,37 @@ using Xunit;
 /// <typeparam name="T"></typeparam>
 public abstract class BaseIntegrationTest<T> : IAsyncLifetime
 {
-    private Lazy<ServiceProvider> _serviceProvider;
+    private readonly Lazy<ServiceProvider> _serviceProvider;
     private Action<MessageBusBuilder> messageBusBuilderAction = (mbb) => { };
 
-    protected ILoggerFactory LoggerFactory { get; }
-    protected ILogger<T> Logger { get; }
+    private ILogger<T>? _logger;
+    protected ILogger<T> Logger => _logger ??= ServiceProvider.GetRequiredService<ILogger<T>>();
+
     protected IConfigurationRoot Configuration { get; }
     protected ServiceProvider ServiceProvider => _serviceProvider.Value;
 
     protected BaseIntegrationTest(ITestOutputHelper testOutputHelper)
     {
-        LoggerFactory = new XunitLoggerFactory(testOutputHelper);
-        Logger = LoggerFactory.CreateLogger<T>();
+        // Creating a `LoggerProviderCollection` lets Serilog optionally write
+        // events through other dynamically-added MEL ILoggerProviders.
+        var providers = new LoggerProviderCollection();
 
         Configuration = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
+
+        Log.Logger = new LoggerConfiguration()
+            //.WriteTo.Providers(providers)
+            .WriteTo.TestOutput(testOutputHelper, outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}")
+            .ReadFrom.Configuration(Configuration)
+            .CreateLogger();
 
         Secrets.Load(@"..\..\..\..\..\secrets.txt");
 
         _serviceProvider = new Lazy<ServiceProvider>(() =>
         {
             var services = new ServiceCollection();
-            services.AddSingleton<IConfiguration>(Configuration);
 
-            services.AddSingleton(LoggerFactory);
-            services.Add(ServiceDescriptor.Singleton(typeof(ILogger<>), typeof(XunitLogger<>)));
-            services.Add(ServiceDescriptor.Singleton(typeof(ILogger), typeof(XunitLogger)));
+            services.AddSingleton<IConfiguration>(Configuration);
+            services.AddLogging(loggingBuilder => loggingBuilder.AddSerilog(dispose: true));
 
             services.AddSingleton<TestMetric>();
 

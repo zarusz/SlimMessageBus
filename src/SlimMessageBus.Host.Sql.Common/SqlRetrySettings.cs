@@ -1,4 +1,4 @@
-﻿namespace SlimMessageBus.Host.Outbox.Sql;
+﻿namespace SlimMessageBus.Host.Sql.Common;
 
 public class SqlRetrySettings
 {

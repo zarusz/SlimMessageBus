@@ -147,22 +147,15 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
 
     #region Overrides of MessageBusBase
 
-    protected override Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null, CancellationToken cancellationToken = default)
+    protected override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
     {
+        if (message is null) throw new ArgumentNullException(nameof(message));
+        if (messagePayload is null) throw new ArgumentNullException(nameof(messagePayload));
+
         var messageType = message.GetType();
 
         // determine the SMB topic name if its a Azure SB queue or topic
         var kind = _kindMapping.GetKind(messageType, path);
-
-        return ProduceToTransport(messageType, message, path, messagePayload, messageHeaders, cancellationToken, kind);
-    }
-
-    #endregion
-
-    protected async virtual Task ProduceToTransport(Type messageType, object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken, PathKind kind)
-    {
-        if (messageType is null) throw new ArgumentNullException(nameof(messageType));
-        if (messagePayload is null) throw new ArgumentNullException(nameof(messagePayload));
 
         AssertActive();
 
@@ -181,4 +174,6 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
             "Produced message {Message} of type {MessageType} to redis channel {PathKind} {Path} with result {RedisResult}",
             message, messageType, GetPathKindString(kind), path, result);
     }
+
+    #endregion
 }

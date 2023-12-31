@@ -12,4 +12,10 @@ public static class IConsumerContextExtensions
         }
         return default;
     }
+
+    public static IMasterMessageBus GetMasterMessageBus(this IConsumerContext context)
+    {
+        var busTarget = context.Bus as IMessageBusTarget;
+        return busTarget?.Target as IMasterMessageBus ?? context.Bus as IMasterMessageBus;
+    }
 }

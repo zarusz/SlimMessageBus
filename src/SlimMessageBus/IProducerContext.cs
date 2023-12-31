@@ -15,9 +15,10 @@ public interface IProducerContext
     /// </summary>
     CancellationToken CancellationToken { get; }
     /// <summary>
-    /// The bus on which the producer was executed.
+    /// The bus that was used to produce the message.
+    /// For hybrid bus this will the child bus that was identified as the one to handle the message.
     /// </summary>
-    IMessageBus Bus { get; }
+    public IMessageBus Bus { get; set; }
     /// <summary>
     /// Additional transport provider specific features or user custom data.
     /// </summary>

@@ -89,6 +89,8 @@ public class MessageHandler : IMessageHandler
                 }
             }
 
+            var messageBusTarget = new MessageBusProxy(MessageBus, messageScope.ServiceProvider);
+
             Type consumerType = null;
             object consumerInstance = null;
 
@@ -98,7 +100,7 @@ public class MessageHandler : IMessageHandler
                 consumerInstance = messageScope.ServiceProvider.GetService(consumerType)
                     ?? throw new ConfigurationMessageBusException($"Could not resolve consumer/handler type {consumerType} from the DI container. Please check that the configured type {consumerType} is registered within the DI container.");
 
-                var consumerContext = CreateConsumerContext(messageHeaders, consumerInvoker, transportMessage, consumerInstance, consumerContextProperties, cancellationToken);
+                var consumerContext = CreateConsumerContext(messageHeaders, consumerInvoker, transportMessage, consumerInstance, messageBusTarget, consumerContextProperties, cancellationToken);
                 try
                 {
                     response = await DoHandleInternal(message, consumerInvoker, messageType, hasResponse, responseType, messageScope, consumerContext).ConfigureAwait(false);
@@ -180,11 +182,12 @@ public class MessageHandler : IMessageHandler
         return messageScope.GetService(consumerErrorHandlerType);
     }
 
-    protected virtual ConsumerContext CreateConsumerContext(IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, object transportMessage, object consumerInstance, IDictionary<string, object> consumerContextProperties, CancellationToken cancellationToken)
+    protected virtual ConsumerContext CreateConsumerContext(IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, object transportMessage, object consumerInstance, IMessageBus messageBus, IDictionary<string, object> consumerContextProperties, CancellationToken cancellationToken)
         => new(consumerContextProperties)
         {
             Path = Path,
             Headers = messageHeaders,
+            Bus = messageBus,
             CancellationToken = cancellationToken,
             Consumer = consumerInstance,
             ConsumerInvoker = consumerInvoker

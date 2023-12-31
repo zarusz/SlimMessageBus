@@ -13,7 +13,7 @@ public static class RabbitMqRequestResponseBuilderExtensions
     /// <param name="autoDelete"></param>
     /// <param name="arguments"></param>
     /// <returns></returns>
-    public static RequestResponseBuilder ReplyToExchange(this RequestResponseBuilder builder, string exchangeName, ExchangeType? exchangeType = null, bool? durable = null, bool? autoDelete = null, IDictionary<string, object>? arguments = null)
+    public static RequestResponseBuilder ReplyToExchange(this RequestResponseBuilder builder, string exchangeName, ExchangeType? exchangeType = null, bool? durable = null, bool? autoDelete = null, IDictionary<string, object> arguments = null)
     {
         if (string.IsNullOrEmpty(exchangeName)) throw new ArgumentNullException(nameof(exchangeName));
 

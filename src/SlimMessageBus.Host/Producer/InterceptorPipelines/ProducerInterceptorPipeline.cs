@@ -6,7 +6,7 @@ abstract internal class ProducerInterceptorPipeline<TContext> where TContext : P
 
     protected readonly object _message;
     protected readonly ProducerSettings _producerSettings;
-    protected readonly IServiceProvider _currentServiceProvider;
+    protected readonly IMessageBusTarget _targetBus;
     protected readonly TContext _context;
 
     protected readonly IEnumerable<object> _producerInterceptors;
@@ -16,13 +16,13 @@ abstract internal class ProducerInterceptorPipeline<TContext> where TContext : P
 
     protected bool _targetVisited;
 
-    protected ProducerInterceptorPipeline(MessageBusBase bus, object message, ProducerSettings producerSettings, IServiceProvider currentServiceProvider, TContext context, IEnumerable<object> producerInterceptors)
+    protected ProducerInterceptorPipeline(MessageBusBase bus, object message, ProducerSettings producerSettings, IMessageBusTarget targetBus, TContext context, IEnumerable<object> producerInterceptors)
     {
         _bus = bus;
 
         _message = message;
         _producerSettings = producerSettings;
-        _currentServiceProvider = currentServiceProvider;
+        _targetBus = targetBus;
         _context = context;
 
         _producerInterceptors = producerInterceptors;

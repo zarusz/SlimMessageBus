@@ -86,7 +86,7 @@ public class MessageBusBuilderTests
     {
         // arrange
         var subject = MessageBusBuilder.Create();
-        subject.WithProvider(Mock.Of<Func<MessageBusSettings, IMessageBus>>());
+        subject.WithProvider(Mock.Of<Func<MessageBusSettings, IMessageBusProvider>>());
         subject.AddChildBus("Bus1", mbb => { });
 
         // act

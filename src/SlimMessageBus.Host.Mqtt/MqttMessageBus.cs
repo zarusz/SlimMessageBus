@@ -99,7 +99,7 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
         return Task.CompletedTask;
     }
 
-    protected override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null, CancellationToken cancellationToken = default)
+    protected override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
     {
         var m = new MqttApplicationMessage
         {

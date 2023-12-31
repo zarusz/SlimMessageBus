@@ -116,8 +116,8 @@ public class MessageBusBaseTests : IDisposable
         var rb = new RequestB();
 
         // act
-        var raTask = Bus.Send(ra);
-        var rbTask = Bus.Send(rb);
+        var raTask = Bus.ProduceSend<ResponseA>(ra);
+        var rbTask = Bus.ProduceSend<ResponseB>(rb);
 
         // after 10 seconds
         _timeNow = _timeZero.AddSeconds(TimeoutFor5 + 1);
@@ -156,13 +156,14 @@ public class MessageBusBaseTests : IDisposable
         };
 
         // act
-        var rTask = Bus.Send(r);
+        var rTask = Bus.ProduceSend<ResponseA>(r);
         await WaitForTasks(2000, rTask);
         Bus.TriggerPendingRequestCleanup();
 
         // assert
         rTask.IsCompleted.Should().BeTrue("Response should be completed");
-        r.Id.Should().Be(rTask.Result.Id);
+        var response = await rTask;
+        response.Id.Should().Be(r.Id);
 
         Bus.PendingRequestsCount.Should().Be(0, "There should be no pending requests");
     }
@@ -190,9 +191,9 @@ public class MessageBusBaseTests : IDisposable
         };
 
         // act
-        var r1Task = Bus.Send(r1);
-        var r2Task = Bus.Send(r2, timeout: TimeSpan.FromSeconds(1));
-        var r3Task = Bus.Send(r3);
+        var r1Task = Bus.ProduceSend<ResponseA>(r1);
+        var r2Task = Bus.ProduceSend<ResponseA>(r2, timeout: TimeSpan.FromSeconds(1));
+        var r3Task = Bus.ProduceSend<ResponseA>(r3);
 
         // 2 seconds later
         _timeNow = _timeZero.AddSeconds(2);
@@ -218,8 +219,8 @@ public class MessageBusBaseTests : IDisposable
         using var cts2 = new CancellationTokenSource();
 
         cts2.Cancel();
-        var r1Task = Bus.Send(r1, cancellationToken: cts1.Token);
-        var r2Task = Bus.Send(r2, cancellationToken: cts2.Token);
+        var r1Task = Bus.ProduceSend<ResponseA>(r1, cancellationToken: cts1.Token);
+        var r2Task = Bus.ProduceSend<ResponseA>(r2, cancellationToken: cts2.Token);
 
         // act
         Bus.TriggerPendingRequestCleanup();
@@ -249,7 +250,7 @@ public class MessageBusBaseTests : IDisposable
     {
         // arrange
         var messageSerializerMock = new Mock<IMessageSerializer>();
-        messageSerializerMock.Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<object>())).Returns(Array.Empty<byte>());
+        messageSerializerMock.Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<object>())).Returns([]);
 
         var someMessageTopic = "some-messages";
 
@@ -263,9 +264,9 @@ public class MessageBusBaseTests : IDisposable
         var m3 = new SomeDerived2Message();
 
         // act
-        await Bus.Publish(m1);
-        await Bus.Publish(m2);
-        await Bus.Publish(m3);
+        await Bus.ProducePublish(m1);
+        await Bus.ProducePublish(m2);
+        await Bus.ProducePublish(m3);
 
         // assert
         _producedMessages.Count.Should().Be(3);
@@ -292,7 +293,7 @@ public class MessageBusBaseTests : IDisposable
         var m = new SomeDerivedMessage();
 
         // act
-        await Bus.Publish(m);
+        await Bus.ProducePublish(m);
 
         // assert
         _producedMessages.Count.Should().Be(1);
@@ -319,20 +320,20 @@ public class MessageBusBaseTests : IDisposable
         if (caseId == 1)
         {
             // act
-            await Bus.Publish(m);
+            await Bus.ProducePublish(m);
 
         }
 
         if (caseId == 2)
         {
             // act
-            await Bus.Publish<SomeMessage>(m);
+            await Bus.ProducePublish(m);
         }
 
         if (caseId == 3)
         {
             // act
-            await Bus.Publish<ISomeMessageMarkerInterface>(m);
+            await Bus.ProducePublish(m);
         }
 
         // assert
@@ -398,8 +399,8 @@ public class MessageBusBaseTests : IDisposable
         Bus.Dispose();
 
         // act
-        Func<Task> act = async () => await Bus.Publish(new SomeMessage());
-        Func<Task> actWithTopic = async () => await Bus.Publish(new SomeMessage(), "some-topic");
+        Func<Task> act = async () => await Bus.ProducePublish(new SomeMessage());
+        Func<Task> actWithTopic = async () => await Bus.ProducePublish(new SomeMessage(), "some-topic");
 
         // assert
         await act.Should().ThrowAsync<MessageBusException>();
@@ -413,8 +414,8 @@ public class MessageBusBaseTests : IDisposable
         Bus.Dispose();
 
         // act
-        Func<Task> act = async () => await Bus.Send(new SomeRequest());
-        Func<Task> actWithTopic = async () => await Bus.Send(new SomeRequest(), "some-topic");
+        Func<Task> act = async () => await Bus.ProduceSend<SomeResponse>(new SomeRequest());
+        Func<Task> actWithTopic = async () => await Bus.ProduceSend<SomeResponse>(new SomeRequest(), "some-topic");
 
         // assert
         await act.Should().ThrowAsync<MessageBusException>();
@@ -465,7 +466,7 @@ public class MessageBusBaseTests : IDisposable
         }
 
         // act
-        await Bus.Publish(m);
+        await Bus.ProducePublish(m);
 
         // assert
 
@@ -556,7 +557,7 @@ public class MessageBusBaseTests : IDisposable
         }
 
         // act
-        var response = await Bus.Send(request);
+        var response = await Bus.ProduceSend<ResponseA>(request);
 
         // assert
 

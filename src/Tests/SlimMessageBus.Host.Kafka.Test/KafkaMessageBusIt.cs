@@ -229,16 +229,11 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
 
     record struct ConsumedMessage(PingMessage Message, int Partition);
 
-    private class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
+    private class PingConsumer(ILogger<PingConsumer> logger, TestEventCollector<ConsumedMessage> messages)
+        : IConsumer<PingMessage>, IConsumerWithContext
     {
-        private readonly ILogger _logger;
-        private readonly TestEventCollector<ConsumedMessage> _messages;
-
-        public PingConsumer(ILogger logger, TestEventCollector<ConsumedMessage> messages)
-        {
-            _logger = logger;
-            _messages = messages;
-        }
+        private readonly ILogger _logger = logger;
+        private readonly TestEventCollector<ConsumedMessage> _messages = messages;
 
         public IConsumerContext Context { get; set; }
 

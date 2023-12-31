@@ -22,7 +22,7 @@ public class DbContextOutboxRepository<TDbContext> : SqlOutboxRepository where T
     public override async ValueTask BeginTransaction()
     {
         ValidateNoTransactionStarted();
-        await DbContext.Database.BeginTransactionAsync(Settings.TransactionIsolationLevel);
+        await DbContext.Database.BeginTransactionAsync(Settings.SqlSettings.TransactionIsolationLevel);
     }
 
     public override ValueTask CommitTransaction()

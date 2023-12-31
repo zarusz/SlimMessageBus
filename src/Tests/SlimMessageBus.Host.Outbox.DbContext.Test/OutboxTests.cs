@@ -7,6 +7,7 @@ using Confluent.Kafka;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 using SecretStore;
 
@@ -20,19 +21,15 @@ using SlimMessageBus.Host.Serialization.SystemTextJson;
 using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
 [Trait("Category", "Integration")]
-public class OutboxTests : BaseIntegrationTest<OutboxTests>
+public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<OutboxTests>(testOutputHelper)
 {
     private TransactionType _testParamTransactionType;
     private BusType _testParamBusType;
 
-    public OutboxTests(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
-    {
-    }
-
     public enum TransactionType
     {
         SqlTransaction,
-        TrnasactionScope
+        TarnsactionScope
     }
 
     public enum BusType
@@ -54,7 +51,7 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
                 {
                     mbb.UseSqlTransaction(); // Consumers/Handlers will be wrapped in a SqlTransaction
                 }
-                if (_testParamTransactionType == TransactionType.TrnasactionScope)
+                if (_testParamTransactionType == TransactionType.TarnsactionScope)
                 {
                     mbb.UseTransactionScope(); // Consumers/Handlers will be wrapped in a TransactionScope
                 }
@@ -98,7 +95,8 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
                     topic = "tests.outbox/customer-events";
                 }
 
-                mbb.Produce<CustomerCreatedEvent>(x => x.DefaultTopic(topic))
+                mbb
+                    .Produce<CustomerCreatedEvent>(x => x.DefaultTopic(topic))
                     .Consume<CustomerCreatedEvent>(x => x
                         .Topic(topic)
                         .WithConsumer<CustomerCreatedEventConsumer>()
@@ -114,7 +112,7 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
                 opts.PollIdleSleep = TimeSpan.FromSeconds(0.5);
                 opts.MessageCleanup.Interval = TimeSpan.FromSeconds(10);
                 opts.MessageCleanup.Age = TimeSpan.FromMinutes(1);
-                opts.DatabaseTableName = "IntTest_Outbox";
+                opts.SqlSettings.DatabaseTableName = "IntTest_Outbox";
             });
         });
 
@@ -134,9 +132,9 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
     public const string InvalidLastname = "Exception";
 
     [Theory]
-    [InlineData(new object[] { TransactionType.SqlTransaction, BusType.AzureSB })]
-    [InlineData(new object[] { TransactionType.TrnasactionScope, BusType.AzureSB })]
-    [InlineData(new object[] { TransactionType.SqlTransaction, BusType.Kafka })]
+    [InlineData([TransactionType.SqlTransaction, BusType.AzureSB])]
+    [InlineData([TransactionType.TarnsactionScope, BusType.AzureSB])]
+    [InlineData([TransactionType.SqlTransaction, BusType.Kafka])]
     public async Task Given_CommandHandlerInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoDataSaved_And_NoEventRaised(TransactionType transactionType, BusType busType)
     {
         // arrange
@@ -180,8 +178,9 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
                 {
                     var res = await bus.Send(cmd);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Logger.LogInformation("Exception occured while handling cmd {Command}: {Message}", cmd, ex.Message);
                 }
             }
         }
@@ -217,7 +216,7 @@ public class OutboxTests : BaseIntegrationTest<OutboxTests>
 
 public record CreateCustomerCommand(string Firstname, string Lastname) : IRequest<Guid>;
 
-public record CreateCustomerCommandHandler(IMessageBus Bus, CustomerContext CustomerContext) : IRequestHandler<CreateCustomerCommand, Guid>
+public class CreateCustomerCommandHandler(IMessageBus Bus, CustomerContext CustomerContext) : IRequestHandler<CreateCustomerCommand, Guid>
 {
     public async Task<Guid> OnHandle(CreateCustomerCommand request)
     {
@@ -231,7 +230,7 @@ public record CreateCustomerCommandHandler(IMessageBus Bus, CustomerContext Cust
         await Bus.Publish(new CustomerCreatedEvent(customer.Id, customer.Firstname, customer.Lastname), headers: new Dictionary<string, object> { ["CustomerId"] = customer.Id });
 
         // Simulate some variable processing time
-        await Task.Delay(Random.Shared.Next(10, 500));
+        await Task.Delay(Random.Shared.Next(10, 250));
 
         if (request.Lastname == OutboxTests.InvalidLastname)
         {
@@ -245,7 +244,7 @@ public record CreateCustomerCommandHandler(IMessageBus Bus, CustomerContext Cust
 
 public record CustomerCreatedEvent(Guid Id, string Firstname, string Lastname);
 
-public record CustomerCreatedEventConsumer(TestEventCollector<CustomerCreatedEvent> Store) : IConsumer<CustomerCreatedEvent>, IConsumerWithContext
+public class CustomerCreatedEventConsumer(TestEventCollector<CustomerCreatedEvent> Store) : IConsumer<CustomerCreatedEvent>, IConsumerWithContext
 {
     public IConsumerContext Context { get; set; }
 
@@ -257,7 +256,6 @@ public record CustomerCreatedEventConsumer(TestEventCollector<CustomerCreatedEve
             {
                 Store.Add(message);
             }
-
         }
         return Task.CompletedTask;
     }

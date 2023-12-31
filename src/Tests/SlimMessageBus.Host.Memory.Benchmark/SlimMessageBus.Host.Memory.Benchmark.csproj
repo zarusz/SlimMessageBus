@@ -4,6 +4,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <StartupObject>SlimMessageBus.Host.Memory.Benchmark.Program</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,11 +14,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\SlimMessageBus.Host.Memory\SlimMessageBus.Host.Memory.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Update="FluentAssertions" Version="6.12.0" />
-    <PackageReference Update="Moq" Version="4.20.70" />
   </ItemGroup>
 
 </Project>
