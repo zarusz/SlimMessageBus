@@ -99,7 +99,7 @@ public class MemoryMessageBusTests
         var m = new SomeMessageA(Guid.NewGuid());
 
         // act
-        await _subject.Value.Publish(m);
+        await _subject.Value.ProducePublish(m);
 
         // assert
         if (enableMessageSerialization)
@@ -148,7 +148,7 @@ public class MemoryMessageBusTests
         _providerSettings.EnableMessageSerialization = false;
 
         // act
-        await _subject.Value.Publish(m);
+        await _subject.Value.ProducePublish(m);
 
         // assert
         _serviceProviderMock.ScopeFactoryMock.Verify(x => x.CreateScope(), Times.Once);
@@ -196,7 +196,7 @@ public class MemoryMessageBusTests
         var m = new SomeMessageA(Guid.NewGuid());
 
         // act
-        await _subject.Value.Publish(m);
+        await _subject.Value.ProducePublish(m);
 
         // assert
         _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(ILoggerFactory)), Times.Once);
@@ -216,8 +216,8 @@ public class MemoryMessageBusTests
     }
 
     [Theory]
-    [InlineData(new object[] { true })]
-    [InlineData(new object[] { false })]
+    [InlineData([true])]
+    [InlineData([false])]
     public async Task When_ProducePublish_Given_PerMessageScopeDisabledOrEnabled_And_OutterBusCreatedMesssageScope_Then_TheScopeIsNotCreated_And_ConsumerObtainedFromCurrentMessageScope(bool isMessageScopeEnabled)
     {
         // arrange
@@ -248,7 +248,7 @@ public class MemoryMessageBusTests
         MessageScope.Current = null;
 
         // act
-        await _subject.Value.ProducePublish(m, path: null, headers: null, currentServiceProvider: currentServiceProviderMock.ProviderMock.Object, default);
+        await _subject.Value.ProducePublish(m, path: null, headers: null, new MessageBusProxy(_subject.Value, currentServiceProviderMock.ProviderMock.Object), default);
 
         // assert
 
@@ -302,7 +302,7 @@ public class MemoryMessageBusTests
         var m = new SomeMessageA(Guid.NewGuid());
 
         // act
-        await _subject.Value.Publish(m);
+        await _subject.Value.ProducePublish(m);
 
         // assert
 
@@ -348,7 +348,7 @@ public class MemoryMessageBusTests
         _builder.Handle<SomeRequest, SomeResponse>(x => x.Topic(topic).WithHandler<SomeRequestHandler>());
 
         // act
-        var response = await _subject.Value.Send(m);
+        var response = await _subject.Value.ProduceSend<SomeResponse>(m);
 
         // assert
         response.Should().NotBeNull();
@@ -409,7 +409,7 @@ public class MemoryMessageBusTests
         _builder.Consume<SomeRequest>(x => x.Topic(topic));
 
         // act
-        var act = () => _subject.Value.Publish(m);
+        var act = () => _subject.Value.ProducePublish(m);
 
         // assert
         if (errorHandlerRegistered && errorHandlerHandlesError)
@@ -457,7 +457,7 @@ public class MemoryMessageBusTests
         _builder.Handle<SomeRequest, SomeResponse>(x => x.Topic(topic));
 
         // act
-        var act = () => _subject.Value.Send(m);
+        var act = () => _subject.Value.ProduceSend<SomeResponse>(m);
 
         // assert
         if (errorHandlerRegistered && errorHandlerHandlesError)
@@ -480,6 +480,7 @@ public class SomeMessageAConsumer : IConsumer<SomeMessageA>, IDisposable
     public virtual void Dispose()
     {
         // Needed to check disposing
+        GC.SuppressFinalize(this);
     }
 
     public virtual Task OnHandle(SomeMessageA messageA) => Task.CompletedTask;

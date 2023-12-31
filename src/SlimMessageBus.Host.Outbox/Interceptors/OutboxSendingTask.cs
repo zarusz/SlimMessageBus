@@ -1,25 +1,22 @@
 ﻿namespace SlimMessageBus.Host.Outbox;
 
-public class OutboxSendingTask : IMessageBusLifecycleInterceptor, IAsyncDisposable
+public class OutboxSendingTask(
+    ILoggerFactory loggerFactory,
+    OutboxSettings outboxSettings,
+    IServiceProvider serviceProvider,
+    IInstanceIdProvider instanceIdProvider)
+    : IMessageBusLifecycleInterceptor, IAsyncDisposable
 {
-    private readonly ILogger<OutboxSendingTask> _logger;
-    private readonly OutboxSettings _outboxSettings;
-    private readonly IServiceProvider _serviceProvider;
-    private readonly IInstanceIdProvider _instanceIdProvider;
+    private readonly ILogger<OutboxSendingTask> _logger = loggerFactory.CreateLogger<OutboxSendingTask>();
+    private readonly OutboxSettings _outboxSettings = outboxSettings;
+    private readonly IServiceProvider _serviceProvider = serviceProvider;
+    private readonly IInstanceIdProvider _instanceIdProvider = instanceIdProvider;
 
     private CancellationTokenSource _loopCts;
     private Task _loopTask;
     private int _busStartCount;
 
     private DateTime? _cleanupNextRun;
-
-    public OutboxSendingTask(ILoggerFactory loggerFactory, OutboxSettings outboxSettings, IServiceProvider serviceProvider, IInstanceIdProvider instanceIdProvider)
-    {
-        _logger = loggerFactory.CreateLogger<OutboxSendingTask>();
-        _outboxSettings = outboxSettings;
-        _serviceProvider = serviceProvider;
-        _instanceIdProvider = instanceIdProvider;
-    }
 
     private bool ShouldRunCleanup()
     {
@@ -105,9 +102,10 @@ public class OutboxSendingTask : IMessageBusLifecycleInterceptor, IAsyncDisposab
             var scope = _serviceProvider.CreateScope();
             try
             {
-                var outboxRepository = scope.ServiceProvider.GetRequiredService<IOutboxRepository>();
+                var outboxMigrationService = scope.ServiceProvider.GetRequiredService<IOutboxMigrationService>();
+                await outboxMigrationService.Migrate(_loopCts.Token);
 
-                await outboxRepository.Initialize(_loopCts.Token);
+                var outboxRepository = scope.ServiceProvider.GetRequiredService<IOutboxRepository>();
 
                 var processedIds = new List<Guid>(_outboxSettings.PollBatchSize);
 
@@ -164,6 +162,7 @@ public class OutboxSendingTask : IMessageBusLifecycleInterceptor, IAsyncDisposab
     {
         var messageBus = serviceProvider.GetRequiredService<IMessageBus>();
         var compositeMessageBus = messageBus as ICompositeMessageBus;
+        var messageBusTarget = messageBus as IMessageBusTarget;
 
         var idleRun = true;
 
@@ -189,7 +188,12 @@ public class OutboxSendingTask : IMessageBusLifecycleInterceptor, IAsyncDisposab
                         break;
                     }
 
-                    var bus = (MessageBusBase)GetBus(compositeMessageBus, messageBus, outboxMessage.BusName);
+                    var bus = GetBus(compositeMessageBus, messageBusTarget, outboxMessage.BusName);
+                    if (bus == null)
+                    {
+                        _logger.LogWarning("Not able to find matching bus provider for the outbox message with Id {MessageId} of type {MessageType} to path {Path} using {BusName} bus. The message will be skipped.", outboxMessage.Id, outboxMessage.MessageType.Name, outboxMessage.Path, outboxMessage.BusName);
+                        continue;
+                    }
 
                     _logger.LogDebug("Sending outbox message with Id {MessageId} of type {MessageType} to path {Path} using {BusName} bus", outboxMessage.Id, outboxMessage.MessageType.Name, outboxMessage.Path, outboxMessage.BusName);
                     var message = bus.Serializer.Deserialize(outboxMessage.MessageType, outboxMessage.MessagePayload);
@@ -200,7 +204,7 @@ public class OutboxSendingTask : IMessageBusLifecycleInterceptor, IAsyncDisposab
 
                     if (!ct.IsCancellationRequested)
                     {
-                        await bus.ProducePublish(message, path: outboxMessage.Path, headers: headers, cancellationToken: ct, currentServiceProvider: serviceProvider);
+                        await bus.ProducePublish(message, path: outboxMessage.Path, headers: headers, messageBusTarget, cancellationToken: ct);
 
                         processedIds.Add(outboxMessage.Id);
                     }
@@ -223,12 +227,16 @@ public class OutboxSendingTask : IMessageBusLifecycleInterceptor, IAsyncDisposab
         return idleRun;
     }
 
-    private static IMessageBus GetBus(ICompositeMessageBus compositeMessageBus, IMessageBus messageBus, string name)
+    private static IMasterMessageBus GetBus(ICompositeMessageBus compositeMessageBus, IMessageBusTarget messageBusTarget, string name)
     {
         if (name != null && compositeMessageBus != null)
         {
             return compositeMessageBus.GetChildBus(name);
         }
-        return messageBus;
+        if (messageBusTarget != null)
+        {
+            return messageBusTarget.Target as IMasterMessageBus;
+        }
+        return null;
     }
 }

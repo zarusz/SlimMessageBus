@@ -1,4 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Sql;
+
 public class SqlOutboxTemplate
 {
     public string TableNameQualified { get; }
@@ -11,8 +12,8 @@ public class SqlOutboxTemplate
 
     public SqlOutboxTemplate(SqlOutboxSettings settings)
     {
-        TableNameQualified = $"[{settings.DatabaseSchemaName}].[{settings.DatabaseTableName}]";
-        MigrationsTableNameQualified = $"[{settings.DatabaseSchemaName}].[{settings.DatabaseMigrationsTableName}]";
+        TableNameQualified = $"[{settings.SqlSettings.DatabaseSchemaName}].[{settings.SqlSettings.DatabaseTableName}]";
+        MigrationsTableNameQualified = $"[{settings.SqlSettings.DatabaseSchemaName}].[{settings.SqlSettings.DatabaseMigrationsTableName}]";
 
         SqlOutboxMessageInsert = @$"INSERT INTO {TableNameQualified}
                 ([Id], [Timestamp], [BusName], [MessageType], [MessagePayload], [Headers], [Path], [InstanceId], [LockInstanceId], [LockExpiresOn], [DeliveryAttempt], [DeliveryComplete])

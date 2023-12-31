@@ -86,8 +86,8 @@ public class RedisMessageBusTest
         var payloadB = _messageSerializerMock.Object.Serialize(typeof(SomeMessageB), mB);
 
         // act
-        await _subject.Value.Publish(mA);
-        await _subject.Value.Publish(mB);
+        await _subject.Value.ProducePublish(mA);
+        await _subject.Value.ProducePublish(mB);
 
         // assert
         _databaseMock.Verify(x => x.PublishAsync(It.Is<RedisChannel>(channel => channel == topicA), It.Is<RedisValue>(x => StructuralComparisons.StructuralEqualityComparer.Equals(UnwrapPayload(x).Payload, payloadA)), It.IsAny<CommandFlags>()), Times.Once);
@@ -120,7 +120,7 @@ public class SomeMessageA
 
     public override bool Equals(object obj)
     {
-        if (ReferenceEquals(null, obj)) return false;
+        if (obj is null) return false;
         if (ReferenceEquals(this, obj)) return true;
         if (obj.GetType() != GetType()) return false;
         return Equals((SomeMessageA)obj);
@@ -147,7 +147,7 @@ public class SomeMessageB
 
     public override bool Equals(object obj)
     {
-        if (ReferenceEquals(null, obj)) return false;
+        if (obj is null) return false;
         if (ReferenceEquals(this, obj)) return true;
         if (obj.GetType() != GetType()) return false;
         return Equals((SomeMessageB)obj);
@@ -166,6 +166,7 @@ public class SomeMessageAConsumer : IConsumer<SomeMessageA>, IDisposable
     public virtual void Dispose()
     {
         // Needed to check disposing
+        GC.SuppressFinalize(this);
     }
 
     #region Implementation of IConsumer<in SomeMessageA>

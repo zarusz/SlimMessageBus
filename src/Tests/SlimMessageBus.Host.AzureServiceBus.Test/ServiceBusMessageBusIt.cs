@@ -254,13 +254,14 @@ public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt
 
         AddBusConfiguration(mbb =>
         {
-            mbb.Produce<PingMessage>(x => x.DefaultQueue(queue).WithModifier(MessageModifierWithSession))
-            .Consume<PingMessage>(x => x
-                    .Queue(queue)
-                    .WithConsumer<PingConsumer>()
-                    .WithConsumer<PingDerivedConsumer, PingDerivedMessage>()
-                    .Instances(concurrency)
-                    .EnableSession(x => x.MaxConcurrentSessions(10).SessionIdleTimeout(TimeSpan.FromSeconds(5))));
+            mbb
+                .Produce<PingMessage>(x => x.DefaultQueue(queue).WithModifier(MessageModifierWithSession))
+                .Consume<PingMessage>(x => x
+                        .Queue(queue)
+                        .WithConsumer<PingConsumer>()
+                        .WithConsumer<PingDerivedConsumer, PingDerivedMessage>()
+                        .Instances(concurrency)
+                        .EnableSession(x => x.MaxConcurrentSessions(10).SessionIdleTimeout(TimeSpan.FromSeconds(5))));
         });
         await BasicPubSub(concurrency, 1, 1, CheckMessagesWithinSameSessionAreInOrder);
     }
@@ -317,7 +318,7 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
     private readonly ILogger _logger;
     private readonly TestEventCollector<TestEvent> _messages;
 
-    public PingConsumer(ILogger logger, TestEventCollector<TestEvent> messages, TestMetric testMetric)
+    public PingConsumer(ILogger<PingConsumer> logger, TestEventCollector<TestEvent> messages, TestMetric testMetric)
     {
         _logger = logger;
         _messages = messages;
@@ -346,7 +347,7 @@ public class PingDerivedConsumer : IConsumer<PingDerivedMessage>, IConsumerWithC
     private readonly ILogger _logger;
     private readonly TestEventCollector<TestEvent> _messages;
 
-    public PingDerivedConsumer(ILogger logger, TestEventCollector<TestEvent> messages, TestMetric testMetric)
+    public PingDerivedConsumer(ILogger<PingDerivedConsumer> logger, TestEventCollector<TestEvent> messages, TestMetric testMetric)
     {
         _logger = logger;
         _messages = messages;

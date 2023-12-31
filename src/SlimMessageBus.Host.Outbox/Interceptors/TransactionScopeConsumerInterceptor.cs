@@ -10,16 +10,13 @@ public abstract class TransactionScopeConsumerInterceptor
 /// Wraps the consumer in an <see cref="TransactionScope"/> (conditionally).
 /// </summary>
 /// <typeparam name="T"></typeparam>
-public class TransactionScopeConsumerInterceptor<T> : TransactionScopeConsumerInterceptor, IConsumerInterceptor<T> where T : class
+public class TransactionScopeConsumerInterceptor<T>(
+    ILogger<TransactionScopeConsumerInterceptor> logger,
+    OutboxSettings settings)
+    : TransactionScopeConsumerInterceptor, IConsumerInterceptor<T> where T : class
 {
-    private readonly ILogger _logger;
-    private readonly OutboxSettings _settings;
-
-    public TransactionScopeConsumerInterceptor(ILogger<TransactionScopeConsumerInterceptor> logger, OutboxSettings settings)
-    {
-        _logger = logger;
-        _settings = settings;
-    }
+    private readonly ILogger _logger = logger;
+    private readonly OutboxSettings _settings = settings;
 
     public async Task<object> OnHandle(T message, Func<Task<object>> next, IConsumerContext context)
     {

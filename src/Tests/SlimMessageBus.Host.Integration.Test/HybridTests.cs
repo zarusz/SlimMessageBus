@@ -76,13 +76,18 @@ public class HybridTests : IDisposable
         mbb.AddChildBus("AzureSB", (mbb) =>
         {
             var topic = "integration-external-message";
-            mbb.Produce<ExternalMessage>(x => x.DefaultTopic(topic));
-            mbb.Consume<ExternalMessage>(x => x.Topic(topic).SubscriptionName("test").WithConsumer<ExternalMessageConsumer>());
-            mbb.WithProviderServiceBus(cfg => cfg.ConnectionString = Secrets.Service.PopulateSecrets(_configuration["Azure:ServiceBus"]));
+            mbb
+                .Produce<ExternalMessage>(x => x.DefaultTopic(topic))
+                .Consume<ExternalMessage>(x => x.Topic(topic))
+                .WithProviderServiceBus(cfg =>
+                {
+                    cfg.SubscriptionName("test");
+                    cfg.ConnectionString = Secrets.Service.PopulateSecrets(_configuration["Azure:ServiceBus"]);
+                });
         });
     }
 
-    public record EventMark(Guid CorrelationId, string Name);
+    public record EventMark(Guid CorrelationId, string Name, Type ContextMessageBusType);
 
     /// <summary>
     /// This test ensures that in a hybris bus setup External (Azure Service Bus) and Internal (Memory) the external message scope is carried over to memory bus, 
@@ -127,10 +132,22 @@ public class HybridTests : IDisposable
         await store.WaitUntilArriving(newMessagesTimeout: 5, expectedCount: expectedStoreCount);
 
         store.Count.Should().Be(expectedStoreCount);
+
         var grouping = store.GroupBy(x => x.CorrelationId, x => x.Name).ToDictionary(x => x.Key, x => x.ToList());
 
         // all of the invocations should happen within the context of one unitOfWork = One CorrelationId = One Message Scope
         grouping.Count.Should().Be(2);
+
+
+        // all the internal messages should be processed by Memory bus
+        store
+            .Where(x => x.Name == nameof(InternalMessageConsumer) || x.Name == nameof(InternalMessageConsumerInterceptor) || x.Name == nameof(InternalMessageProducerInterceptor) || x.Name == nameof(InternalMessagePublishInterceptor))
+            .Should().AllSatisfy(x => x.ContextMessageBusType.Should().Be(typeof(MemoryMessageBus)));
+
+        // all the external messages should be processed by Azure Service Bus
+        store
+            .Where(x => x.Name == nameof(ExternalMessageConsumer) || x.Name == nameof(ExternalMessageConsumerInterceptor))
+            .Should().AllSatisfy(x => x.ContextMessageBusType.Should().Be(typeof(ServiceBusMessageBus)));
 
         // in this order
         var eventsThatHappenedWhenExternalWasPublished = grouping.Values.SingleOrDefault(x => x.Count == 2);
@@ -166,24 +183,15 @@ public class HybridTests : IDisposable
         public Task Commit() => Task.CompletedTask;
     }
 
-    public class ExternalMessageConsumer : IConsumer<ExternalMessage>
+    public class ExternalMessageConsumer(IMessageBus bus, UnitOfWork unitOfWork, List<EventMark> store) : IConsumer<ExternalMessage>, IConsumerWithContext
     {
-        private readonly IMessageBus bus;
-        private readonly UnitOfWork unitOfWork;
-        private readonly List<EventMark> store;
-
-        public ExternalMessageConsumer(IMessageBus bus, UnitOfWork unitOfWork, List<EventMark> store)
-        {
-            this.bus = bus;
-            this.unitOfWork = unitOfWork;
-            this.store = store;
-        }
+        public IConsumerContext Context { get; set; }
 
         public async Task OnHandle(ExternalMessage message)
         {
             lock (store)
             {
-                store.Add(new(unitOfWork.CorrelationId, nameof(ExternalMessageConsumer)));
+                store.Add(new(unitOfWork.CorrelationId, nameof(ExternalMessageConsumer), GetMessageBusTarget(Context)));
             }
             // some processing
 
@@ -195,25 +203,17 @@ public class HybridTests : IDisposable
         }
     }
 
-    public class InternalMessageConsumer : IConsumer<InternalMessage>
+    public class InternalMessageConsumer(UnitOfWork unitOfWork, List<EventMark> store) : IConsumer<InternalMessage>, IConsumerWithContext
     {
-        private readonly UnitOfWork unitOfWork;
-        private readonly List<EventMark> store;
-
-        public InternalMessageConsumer(UnitOfWork unitOfWork, List<EventMark> store)
-        {
-            this.unitOfWork = unitOfWork;
-            this.store = store;
-        }
+        public IConsumerContext Context { get; set; }
 
         public Task OnHandle(InternalMessage message)
         {
             lock (store)
             {
-                store.Add(new(unitOfWork.CorrelationId, nameof(InternalMessageConsumer)));
+                store.Add(new(unitOfWork.CorrelationId, nameof(InternalMessageConsumer), GetMessageBusTarget(Context)));
             }
             // some processing
-
             return Task.CompletedTask;
         }
     }
@@ -222,129 +222,92 @@ public class HybridTests : IDisposable
 
     public record InternalMessage(Guid CustomerId);
 
-    public class InternalMessageProducerInterceptor : IProducerInterceptor<InternalMessage>
+    public class InternalMessageProducerInterceptor(UnitOfWork unitOfWork, List<EventMark> store) : IProducerInterceptor<InternalMessage>
     {
-        private readonly UnitOfWork unitOfWork;
-        private readonly List<EventMark> store;
-
-        public InternalMessageProducerInterceptor(UnitOfWork unitOfWork, List<EventMark> store)
-        {
-            this.unitOfWork = unitOfWork;
-            this.store = store;
-        }
-
         public Task<object> OnHandle(InternalMessage message, Func<Task<object>> next, IProducerContext context)
         {
             lock (store)
             {
-                store.Add(new(unitOfWork.CorrelationId, nameof(InternalMessageProducerInterceptor)));
+                store.Add(new(unitOfWork.CorrelationId, nameof(InternalMessageProducerInterceptor), GetMessageBusTarget(context)));
             }
             return next();
         }
     }
 
-    public class InternalMessagePublishInterceptor : IPublishInterceptor<InternalMessage>
+    private static Type GetMessageBusTarget(IConsumerContext context)
     {
-        private readonly UnitOfWork unitOfWork;
-        private readonly List<EventMark> store;
+        var messageBusTarget = context.Bus is IMessageBusTarget busTarget
+            ? busTarget.Target
+            : null;
 
-        public InternalMessagePublishInterceptor(UnitOfWork unitOfWork, List<EventMark> store)
-        {
-            this.unitOfWork = unitOfWork;
-            this.store = store;
-        }
+        return messageBusTarget?.GetType();
+    }
 
+    private static Type GetMessageBusTarget(IProducerContext context)
+    {
+        var messageBusTarget = context.Bus is IMessageBusTarget busTarget
+            ? busTarget.Target
+            : null;
+
+        return messageBusTarget?.GetType();
+    }
+
+    public class InternalMessagePublishInterceptor(UnitOfWork unitOfWork, List<EventMark> store) : IPublishInterceptor<InternalMessage>
+    {
         public Task OnHandle(InternalMessage message, Func<Task> next, IProducerContext context)
         {
             lock (store)
             {
-                store.Add(new(unitOfWork.CorrelationId, nameof(InternalMessagePublishInterceptor)));
+                store.Add(new(unitOfWork.CorrelationId, nameof(InternalMessagePublishInterceptor), GetMessageBusTarget(context)));
             }
             return next();
         }
     }
 
-    public class ExternalMessageProducerInterceptor : IProducerInterceptor<ExternalMessage>
+    public class ExternalMessageProducerInterceptor(UnitOfWork unitOfWork, List<EventMark> store) : IProducerInterceptor<ExternalMessage>
     {
-        private readonly UnitOfWork unitOfWork;
-        private readonly List<EventMark> store;
-
-        public ExternalMessageProducerInterceptor(UnitOfWork unitOfWork, List<EventMark> store)
-        {
-            this.unitOfWork = unitOfWork;
-            this.store = store;
-        }
-
         public Task<object> OnHandle(ExternalMessage message, Func<Task<object>> next, IProducerContext context)
         {
             lock (store)
             {
-                store.Add(new(unitOfWork.CorrelationId, nameof(ExternalMessageProducerInterceptor)));
+                store.Add(new(unitOfWork.CorrelationId, nameof(ExternalMessageProducerInterceptor), GetMessageBusTarget(context)));
             }
-
             return next();
         }
     }
 
-    public class ExternalMessagePublishInterceptor : IPublishInterceptor<ExternalMessage>
+    public class ExternalMessagePublishInterceptor(UnitOfWork unitOfWork, List<EventMark> store) : IPublishInterceptor<ExternalMessage>
     {
-        private readonly UnitOfWork unitOfWork;
-        private readonly List<EventMark> store;
-
-        public ExternalMessagePublishInterceptor(UnitOfWork unitOfWork, List<EventMark> store)
-        {
-            this.unitOfWork = unitOfWork;
-            this.store = store;
-        }
-
         public Task OnHandle(ExternalMessage message, Func<Task> next, IProducerContext context)
         {
             lock (store)
             {
-                store.Add(new(unitOfWork.CorrelationId, nameof(ExternalMessagePublishInterceptor)));
+                store.Add(new(unitOfWork.CorrelationId, nameof(ExternalMessagePublishInterceptor), GetMessageBusTarget(context)));
             }
 
             return next();
         }
     }
 
-    public class InternalMessageConsumerInterceptor : IConsumerInterceptor<InternalMessage>
+    public class InternalMessageConsumerInterceptor(UnitOfWork unitOfWork, List<EventMark> store) : IConsumerInterceptor<InternalMessage>
     {
-        private readonly UnitOfWork unitOfWork;
-        private readonly List<EventMark> store;
-
-        public InternalMessageConsumerInterceptor(UnitOfWork unitOfWork, List<EventMark> store)
-        {
-            this.unitOfWork = unitOfWork;
-            this.store = store;
-        }
-
         public Task<object> OnHandle(InternalMessage message, Func<Task<object>> next, IConsumerContext context)
         {
             lock (store)
             {
-                store.Add(new(unitOfWork.CorrelationId, nameof(InternalMessageConsumerInterceptor)));
+                store.Add(new(unitOfWork.CorrelationId, nameof(InternalMessageConsumerInterceptor), GetMessageBusTarget(context)));
             }
             return next();
         }
     }
 
-    public class ExternalMessageConsumerInterceptor : IConsumerInterceptor<ExternalMessage>
+    public class ExternalMessageConsumerInterceptor(UnitOfWork unitOfWork, List<EventMark> store) : IConsumerInterceptor<ExternalMessage>
     {
-        private readonly UnitOfWork unitOfWork;
-        private readonly List<EventMark> store;
-
-        public ExternalMessageConsumerInterceptor(UnitOfWork unitOfWork, List<EventMark> store)
-        {
-            this.unitOfWork = unitOfWork;
-            this.store = store;
-        }
-
         public Task<object> OnHandle(ExternalMessage message, Func<Task<object>> next, IConsumerContext context)
         {
             lock (store)
             {
-                store.Add(new(unitOfWork.CorrelationId, nameof(ExternalMessageConsumerInterceptor)));
+                store.Add(new(unitOfWork.CorrelationId, nameof(ExternalMessageConsumerInterceptor), GetMessageBusTarget(context)));
             }
             return next();
         }

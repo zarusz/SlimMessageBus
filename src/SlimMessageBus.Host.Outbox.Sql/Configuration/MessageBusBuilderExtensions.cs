@@ -26,6 +26,7 @@ public static class MessageBusBuilderExtensions
             services.Replace(ServiceDescriptor.Scoped<IOutboxRepository>(svp => svp.GetRequiredService<TOutboxRepository>()));
 
             services.TryAddSingleton<SqlOutboxTemplate>();
+            services.TryAddSingleton<IOutboxMigrationService, SqlOutboxMigrationService>();
         });
         return mbb;
     }

@@ -1,12 +1,10 @@
 ﻿namespace SlimMessageBus.Host.Test.Common;
 
-public class XunitLoggerFactory : ILoggerFactory
+public class XunitLoggerFactory(ITestOutputHelper output) : ILoggerFactory
 {
-    private readonly ITestOutputHelper _output;
+    private readonly ITestOutputHelper _output = output;
 
     public ITestOutputHelper Output => _output;
-
-    public XunitLoggerFactory(ITestOutputHelper output) => _output = output;
 
     public void AddProvider(ILoggerProvider provider)
     {

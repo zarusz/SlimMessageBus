@@ -7,11 +7,11 @@ public interface ICompositeMessageBus
     /// </summary>
     /// <param name="name"></param>
     /// <returns></returns>
-    IMessageBus GetChildBus(string name);
+    IMasterMessageBus GetChildBus(string name);
 
     /// <summary>
     /// Get child buses
     /// </summary>
     /// <returns></returns>
-    IEnumerable<IMessageBus> GetChildBuses();
+    IEnumerable<IMasterMessageBus> GetChildBuses();
 }

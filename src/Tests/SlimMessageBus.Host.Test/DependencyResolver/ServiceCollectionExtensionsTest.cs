@@ -16,7 +16,7 @@ public class ServiceCollectionExtensionsTest
     public void When_AddSlimMessageBus_Given_ModularizedSettingsWhichAddTheSameChildBus_Then_ChildBusSettingIsContinued()
     {
         // arrange
-        var mockBus = new Mock<IMessageBus>();
+        var mockBus = new Mock<IMessageBusProvider>();
 
         _services.AddSlimMessageBus(mbb =>
         {
@@ -54,7 +54,7 @@ public class ServiceCollectionExtensionsTest
     public void When_AddSlimMessageBus_Given_ModularizedSettings_Then_AllOfTheModulesAreConcatenated()
     {
         // arrange
-        var mockBus = new Mock<IMessageBus>();
+        var mockBus = new Mock<IMessageBusProvider>();
 
         _services.AddSlimMessageBus();
 

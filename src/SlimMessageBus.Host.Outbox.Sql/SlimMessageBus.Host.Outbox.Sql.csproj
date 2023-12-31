@@ -9,10 +9,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SlimMessageBus.Host.Outbox\SlimMessageBus.Host.Outbox.csproj" />
+    <ProjectReference Include="..\SlimMessageBus.Host.Sql.Common\SlimMessageBus.Host.Sql.Common.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="3.1.0" />
   </ItemGroup>
 

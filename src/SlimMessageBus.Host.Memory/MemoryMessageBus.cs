@@ -123,21 +123,21 @@ public class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
             : new MessageProcessorQueue(messageProcessor, LoggerFactory.CreateLogger<MessageProcessorQueue>(), CancellationToken);
     }
 
-    protected override Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null, CancellationToken cancellationToken = default)
+    protected override Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
         => Task.CompletedTask; // Not used
 
     public override Task ProduceResponse(string requestId, object request, IReadOnlyDictionary<string, object> requestHeaders, object response, Exception responseException, IMessageTypeConsumerInvokerSettings consumerInvoker)
         => Task.CompletedTask; // Not used to responses
 
-    protected override Task PublishInternal(object message, string path, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken, ProducerSettings producerSettings, IServiceProvider currentServiceProvider)
-        => ProduceInternal<object>(message, path, messageHeaders, currentServiceProvider, isPublish: true, cancellationToken);
+    protected override Task PublishInternal(object message, string path, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken, ProducerSettings producerSettings, IMessageBusTarget targetBus)
+        => ProduceInternal<object>(message, path, messageHeaders, targetBus, isPublish: true, cancellationToken);
 
-    protected override Task<TResponseMessage> SendInternal<TResponseMessage>(object request, string path, Type requestType, Type responseType, ProducerSettings producerSettings, DateTimeOffset created, DateTimeOffset expires, string requestId, IDictionary<string, object> requestHeaders, IServiceProvider currentServiceProvider, CancellationToken cancellationToken)
-        => ProduceInternal<TResponseMessage>(request, path, requestHeaders, currentServiceProvider, isPublish: false, cancellationToken);
+    protected override Task<TResponseMessage> SendInternal<TResponseMessage>(object request, string path, Type requestType, Type responseType, ProducerSettings producerSettings, DateTimeOffset created, DateTimeOffset expires, string requestId, IDictionary<string, object> requestHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken)
+        => ProduceInternal<TResponseMessage>(request, path, requestHeaders, targetBus, isPublish: false, cancellationToken);
 
     #endregion
 
-    private async Task<TResponseMessage> ProduceInternal<TResponseMessage>(object message, string path, IDictionary<string, object> requestHeaders, IServiceProvider currentServiceProvider, bool isPublish, CancellationToken cancellationToken)
+    private async Task<TResponseMessage> ProduceInternal<TResponseMessage>(object message, string path, IDictionary<string, object> requestHeaders, IMessageBusTarget targetBus, bool isPublish, CancellationToken cancellationToken)
     {
         var messageType = message.GetType();
         var producerSettings = GetProducerSettings(messageType);
@@ -166,8 +166,9 @@ public class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
             return default;
         }
 
+        var serviceProvider = targetBus?.ServiceProvider ?? Settings.ServiceProvider;
         // Execute the message processor in synchronous manner
-        var r = await messageProcessor.ProcessMessage(transportMessage, messageHeadersReadOnly, currentServiceProvider: currentServiceProvider, cancellationToken: cancellationToken);
+        var r = await messageProcessor.ProcessMessage(transportMessage, messageHeadersReadOnly, currentServiceProvider: serviceProvider, cancellationToken: cancellationToken);
         if (r.Exception != null)
         {
             // We want to pass the same exception to the sender as it happened in the handler/consumer

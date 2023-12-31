@@ -9,19 +9,16 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
-    <PackageReference Include="xunit" Version="2.7.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="8.0.0" />
+    <PackageReference Include="Serilog.Settings.Configuration" Version="8.0.0" />
+    <PackageReference Include="Serilog.Sinks.XUnit" Version="3.0.5" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
     <ProjectReference Include="..\..\Tools\SecretStore\SecretStore.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Update="FluentAssertions" Version="6.12.0" />
-    <PackageReference Update="Moq" Version="4.20.70" />
   </ItemGroup>
 
 </Project>

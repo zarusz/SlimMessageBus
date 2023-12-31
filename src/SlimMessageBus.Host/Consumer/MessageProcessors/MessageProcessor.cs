@@ -54,10 +54,9 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
         _shouldLogWhenUnrecognizedMessageType = consumerSettings.OfType<ConsumerSettings>().Any(x => x.UndeclaredMessageType.Log);
     }
 
-    protected override ConsumerContext CreateConsumerContext(IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, object transportMessage, object consumerInstance, IDictionary<string, object> consumerContextProperties, CancellationToken cancellationToken)
+    protected override ConsumerContext CreateConsumerContext(IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, object transportMessage, object consumerInstance, IMessageBus messageBus, IDictionary<string, object> consumerContextProperties, CancellationToken cancellationToken)
     {
-        var context = base.CreateConsumerContext(messageHeaders, consumerInvoker, transportMessage, consumerInstance, consumerContextProperties, cancellationToken);
-        context.Bus = MessageBus;
+        var context = base.CreateConsumerContext(messageHeaders, consumerInvoker, transportMessage, consumerInstance, messageBus, consumerContextProperties, cancellationToken);
 
         _consumerContextInitializer?.Invoke((TTransportMessage)transportMessage, context);
 

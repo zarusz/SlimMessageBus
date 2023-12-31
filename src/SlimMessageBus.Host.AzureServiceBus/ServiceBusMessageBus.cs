@@ -16,6 +16,28 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
         OnBuildProvider();
     }
 
+    protected override async ValueTask DisposeAsyncCore()
+    {
+        await base.DisposeAsyncCore().ConfigureAwait(false);
+
+        var producers = _producerByPath.ClearAndSnapshot();
+        if (producers.Count > 0)
+        {
+            var producerCloseTasks = producers.Select(x =>
+            {
+                _logger.LogDebug("Closing sender client for path {Path}", x.EntityPath);
+                return x.CloseAsync();
+            });
+            await Task.WhenAll(producerCloseTasks).ConfigureAwait(false);
+        }
+
+        if (_client != null)
+        {
+            await _client.DisposeAsync().ConfigureAwait(false);
+            _client = null;
+        }
+    }
+
     protected override IMessageBusSettingsValidationService ValidationService => new ServiceBusMessageBusSettingsValidationService(Settings, ProviderSettings);
 
     public override async Task ProvisionTopology()
@@ -25,7 +47,6 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
         var provisioningService = new ServiceBusTopologyService(LoggerFactory.CreateLogger<ServiceBusTopologyService>(), Settings, ProviderSettings);
         await provisioningService.ProvisionTopology(); // provisining happens asynchronously
     }
-
 
     #region Overrides of MessageBusBase
 
@@ -92,29 +113,7 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
         }
     }
 
-    protected override async ValueTask DisposeAsyncCore()
-    {
-        await base.DisposeAsyncCore().ConfigureAwait(false);
-
-        var producers = _producerByPath.ClearAndSnapshot();
-        if (producers.Count > 0)
-        {
-            var producerCloseTasks = producers.Select(x =>
-            {
-                _logger.LogDebug("Closing sender client for path {Path}", x.EntityPath);
-                return x.CloseAsync();
-            });
-            await Task.WhenAll(producerCloseTasks).ConfigureAwait(false);
-        }
-
-        if (_client != null)
-        {
-            await _client.DisposeAsync().ConfigureAwait(false);
-            _client = null;
-        }
-    }
-
-    protected override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders = null, CancellationToken cancellationToken = default)
+    protected override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
     {
         var messageType = message?.GetType();
 
@@ -170,13 +169,6 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
         {
             _logger.LogWarning(e, "The configured message modifier failed for message type {MessageType} and message {Message}", messageType, message);
         }
-    }
-
-    public override Task ProduceRequest(object request, IDictionary<string, object> requestHeaders, string path, ProducerSettings producerSettings)
-    {
-        if (requestHeaders is null) throw new ArgumentNullException(nameof(requestHeaders));
-
-        return base.ProduceRequest(request, requestHeaders, path, producerSettings);
     }
 
     #endregion

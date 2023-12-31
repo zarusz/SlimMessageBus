@@ -272,7 +272,7 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
     private readonly ILogger _logger;
     private readonly TestEventCollector<TestEvent> _messages;
 
-    public PingConsumer(ILogger logger, TestEventCollector<TestEvent> messages, TestMetric testMetric)
+    public PingConsumer(ILogger<PingConsumer> logger, TestEventCollector<TestEvent> messages, TestMetric testMetric)
     {
         _logger = logger;
         _messages = messages;
@@ -298,7 +298,7 @@ public class PingDerivedConsumer : IConsumer<PingDerivedMessage>, IConsumerWithC
     private readonly ILogger _logger;
     private readonly TestEventCollector<TestEvent> _messages;
 
-    public PingDerivedConsumer(ILogger logger, TestEventCollector<TestEvent> messages, TestMetric testMetric)
+    public PingDerivedConsumer(ILogger<PingDerivedConsumer> logger, TestEventCollector<TestEvent> messages, TestMetric testMetric)
     {
         _logger = logger;
         _messages = messages;

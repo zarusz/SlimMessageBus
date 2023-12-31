@@ -14,7 +14,7 @@ public static class RabbitMqProducerBuilderExtensions
     /// <param name="autoDelete"></param>
     /// <param name="arguments"></param>
     /// <returns></returns>
-    public static ProducerBuilder<T> Exchange<T>(this ProducerBuilder<T> builder, string exchangeName, ExchangeType? exchangeType = null, bool? durable = null, bool? autoDelete = null, IDictionary<string, object>? arguments = null)
+    public static ProducerBuilder<T> Exchange<T>(this ProducerBuilder<T> builder, string exchangeName, ExchangeType? exchangeType = null, bool? durable = null, bool? autoDelete = null, IDictionary<string, object> arguments = null)
     {
         if (string.IsNullOrEmpty(exchangeName)) throw new ArgumentNullException(nameof(exchangeName));
 
@@ -23,7 +23,7 @@ public static class RabbitMqProducerBuilderExtensions
         return builder;
     }
 
-    static internal void SetExchangeProperties(this HasProviderExtensions settings, ExchangeType? exchangeType = null, bool? durable = null, bool? autoDelete = null, IDictionary<string, object>? arguments = null)
+    static internal void SetExchangeProperties(this HasProviderExtensions settings, ExchangeType? exchangeType = null, bool? durable = null, bool? autoDelete = null, IDictionary<string, object> arguments = null)
     {
         if (exchangeType != null)
         {

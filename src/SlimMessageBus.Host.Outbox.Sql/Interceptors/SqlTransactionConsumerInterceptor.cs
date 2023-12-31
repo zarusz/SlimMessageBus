@@ -13,16 +13,13 @@ public abstract class SqlTransactionConsumerInterceptor
 /// Wraps the consumer in an <see cref="TransactionScope"/> (conditionally).
 /// </summary>
 /// <typeparam name="T"></typeparam>
-public class SqlTransactionConsumerInterceptor<T> : SqlTransactionConsumerInterceptor, IConsumerInterceptor<T> where T : class
+public class SqlTransactionConsumerInterceptor<T>(
+    ILogger<SqlTransactionConsumerInterceptor> logger,
+    ISqlOutboxRepository outboxRepository)
+    : SqlTransactionConsumerInterceptor, IConsumerInterceptor<T> where T : class
 {
-    private readonly ILogger _logger;
-    private readonly ISqlOutboxRepository _outboxRepository;
-
-    public SqlTransactionConsumerInterceptor(ILogger<SqlTransactionConsumerInterceptor> logger, ISqlOutboxRepository outboxRepository)
-    {
-        _logger = logger;
-        _outboxRepository = outboxRepository;
-    }
+    private readonly ILogger _logger = logger;
+    private readonly ISqlOutboxRepository _outboxRepository = outboxRepository;
 
     public async Task<object> OnHandle(T message, Func<Task<object>> next, IConsumerContext context)
     {
@@ -58,8 +55,8 @@ public class SqlTransactionConsumerInterceptor<T> : SqlTransactionConsumerInterc
 
     private static bool IsSqlTransactionEnabled(IConsumerContext context)
     {
-        var bus = context.Bus as MessageBusBase;
-        if (bus is null || context is not ConsumerContext consumerContext)
+        var bus = context.GetMasterMessageBus();
+        if (bus == null || context is not ConsumerContext consumerContext)
         {
             return false;
         }

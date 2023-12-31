@@ -6,28 +6,25 @@ public abstract class OutboxForwardingPublishInterceptor
 {
 }
 
-public class OutboxForwardingPublishInterceptor<T> : OutboxForwardingPublishInterceptor, IPublishInterceptor<T> where T : class
+public class OutboxForwardingPublishInterceptor<T>(
+    ILogger<OutboxForwardingPublishInterceptor> logger,
+    IOutboxRepository outboxRepository,
+    IInstanceIdProvider instanceIdProvider,
+    OutboxSettings outboxSettings)
+    : OutboxForwardingPublishInterceptor, IPublishInterceptor<T> where T : class
 {
     static readonly internal string SkipOutboxHeader = "__SkipOutbox";
 
-    private readonly ILogger _logger;
-    private readonly IOutboxRepository _outboxRepository;
-    private readonly IInstanceIdProvider _instanceIdProvider;
-    private readonly OutboxSettings _outboxSettings;
-
-    public OutboxForwardingPublishInterceptor(ILogger<OutboxForwardingPublishInterceptor> logger, IOutboxRepository outboxRepository, IInstanceIdProvider instanceIdProvider, OutboxSettings outboxSettings)
-    {
-        _logger = logger;
-        _outboxRepository = outboxRepository;
-        _instanceIdProvider = instanceIdProvider;
-        _outboxSettings = outboxSettings;
-    }
+    private readonly ILogger _logger = logger;
+    private readonly IOutboxRepository _outboxRepository = outboxRepository;
+    private readonly IInstanceIdProvider _instanceIdProvider = instanceIdProvider;
+    private readonly OutboxSettings _outboxSettings = outboxSettings;
 
     public async Task OnHandle(T message, Func<Task> next, IProducerContext context)
     {
-        var bus = context.Bus as MessageBusBase;
         var skipOutbox = context.Headers != null && context.Headers.ContainsKey(SkipOutboxHeader);
-        if (bus is null || skipOutbox)
+        var busMaster = context.GetMasterMessageBus();
+        if (busMaster == null || skipOutbox)
         {
             if (skipOutbox)
             {
@@ -45,13 +42,13 @@ public class OutboxForwardingPublishInterceptor<T> : OutboxForwardingPublishInte
         _logger.LogDebug("Forwarding published message of type {MessageType} to the outbox", messageType.Name);
 
         // Take the proper serializer (meant for the bus)
-        var messagePayload = bus.Serializer?.Serialize(messageType, message)
-            ?? throw new PublishMessageBusException($"The {bus.Settings.Name} bus has no configured serializer, so it cannot be used with the outbox plugin");
+        var messagePayload = busMaster.Serializer?.Serialize(messageType, message)
+            ?? throw new PublishMessageBusException($"The {busMaster.Name} bus has no configured serializer, so it cannot be used with the outbox plugin");
 
         // Add message to the database, do not call next()
         var outboxMessage = new OutboxMessage
         {
-            BusName = bus.Settings.Name,
+            BusName = busMaster.Name,
             Headers = context.Headers,
             Path = context.Path,
             MessageType = messageType,

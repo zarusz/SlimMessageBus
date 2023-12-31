@@ -20,7 +20,7 @@ public class MessageBusBuilder
     /// <summary>
     /// The bus factory method.
     /// </summary>
-    public Func<MessageBusSettings, IMessageBus> BusFactory { get; private set; }
+    public Func<MessageBusSettings, IMessageBusProvider> BusFactory { get; private set; }
 
     public IList<Action<IServiceCollection>> PostConfigurationActions { get; } = new List<Action<IServiceCollection>>();
 
@@ -230,7 +230,7 @@ public class MessageBusBuilder
         return this;
     }
 
-    public MessageBusBuilder WithProvider(Func<MessageBusSettings, IMessageBus> provider)
+    public MessageBusBuilder WithProvider(Func<MessageBusSettings, IMessageBusProvider> provider)
     {
         BusFactory = provider ?? throw new ArgumentNullException(nameof(provider));
         return this;
@@ -330,7 +330,7 @@ public class MessageBusBuilder
         return this;
     }
 
-    public IMessageBus Build()
+    public IMessageBusProvider Build()
     {
         if (BusFactory is null)
         {

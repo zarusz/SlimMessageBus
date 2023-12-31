@@ -1,9 +1,10 @@
-﻿namespace SlimMessageBus.Host.Outbox.Sql;
+﻿namespace SlimMessageBus.Host.Sql.Common;
 
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
 public static class SqlHelper
+
 {
     private static readonly HashSet<int> TransientErrorNumbers = new()
     {

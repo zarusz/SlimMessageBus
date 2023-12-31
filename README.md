@@ -47,14 +47,15 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 
 - [Introduction](docs/intro.md)
 - Providers:
+  - [Apache Kafka](docs/provider_kafka.md)
   - [Azure EventHubs](docs/provider_azure_eventhubs.md)
   - [Azure ServiceBus](docs/provider_azure_servicebus.md)
-  - [Apache Kafka](docs/provider_kafka.md)
   - [Hybrid](docs/provider_hybrid.md)
-  - [Memory](docs/provider_memory.md)
   - [MQTT](docs/provider_mqtt.md)
+  - [Memory](docs/provider_memory.md)
   - [RabbitMQ](docs/provider_rabbitmq.md)
   - [Redis](docs/provider_redis.md)
+  - [SQL](docs/provider_sql.md)
 - Plugins:
   - [Serialization](docs/serialization.md)
   - [Transactional Outbox](docs/plugin_outbox.md)
@@ -74,6 +75,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 | `.Host.MQTT`                         | Transport provider for MQTT                                                                                         | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.MQTT.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.MQTT)                                                 |
 | `.Host.RabbitMQ`                     | Transport provider for RabbitMQ                                                                                     | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.RabbitMQ.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.RabbitMQ)                                         |
 | `.Host.Redis`                        | Transport provider for Redis                                                                                        | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Redis.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Redis)                                               |
+| `.Host.Sql`                          | Transport provider implementation for SQL database message passing                                                  | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Sql.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Sql)                                                   |
 | **Serialization**                    |                                                                                                                     |                                                                                                                                                                                  |
 | `.Host.Serialization.Json`           | Serialization plugin for JSON (Newtonsoft.Json library)                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Serialization.Json.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json)                     |
 | `.Host.Serialization.SystemTextJson` | Serialization plugin for JSON (System.Text.Json library)                                                            | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Serialization.SystemTextJson.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.SystemTextJson) |
