@@ -7,7 +7,7 @@ public static class RabbitMqMessageBusSettingsExtensions
     /// </summary>
     /// <param name="settings"></param>
     /// <param name="action">Action to be executed, the first param is the RabbitMQ <see cref="IModel"/> from the underlying client, and second parameter represents the SMB exchange, queue and binding setup</param>
-    public static RabbitMqMessageBusSettings UseTopologyInitalizer(this RabbitMqMessageBusSettings settings, RabbitMqTopologyInitializer action)
+    public static RabbitMqMessageBusSettings UseTopologyInitializer(this RabbitMqMessageBusSettings settings, RabbitMqTopologyInitializer action)
     {
         if (action == null) throw new ArgumentNullException(nameof(action));
 
