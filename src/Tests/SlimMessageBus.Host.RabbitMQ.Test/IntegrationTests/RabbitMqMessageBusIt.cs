@@ -43,7 +43,7 @@ public class RabbitMqMessageBusIt : BaseIntegrationTest<RabbitMqMessageBusIt>
                 cfg.UseExchangeDefaults(durable: false);
                 cfg.UseDeadLetterExchangeDefaults(durable: false, autoDelete: false, exchangeType: ExchangeType.Direct, routingKey: string.Empty);
                 cfg.UseQueueDefaults(durable: false);
-                cfg.UseTopologyInitalizer((channel, applyDefaultTopology) =>
+                cfg.UseTopologyInitializer((channel, applyDefaultTopology) =>
                 {
                     // before test clean up
                     channel.QueueDelete("subscriber-0", ifUnused: true, ifEmpty: false);
