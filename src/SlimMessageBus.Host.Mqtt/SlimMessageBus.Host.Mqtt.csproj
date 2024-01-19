@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <Import Project="../Host.Plugin.Properties.xml" />
 
@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="MQTTnet " Version="4.1.4.563" />
-    <PackageReference Include="MQTTnet.Extensions.ManagedClient" Version="4.3.1.873" />
+    <PackageReference Include="MQTTnet.Extensions.ManagedClient" Version="4.3.3.952" />
   </ItemGroup>
 
   <ItemGroup>
@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Update="MQTTnet" Version="4.3.1.873" />
+    <PackageReference Update="MQTTnet" Version="4.3.3.952" />
   </ItemGroup>
 
 </Project>

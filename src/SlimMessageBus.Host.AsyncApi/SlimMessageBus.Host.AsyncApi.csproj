@@ -1,17 +1,17 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <Import Project="../Host.Plugin.Properties.xml" />
 
   <PropertyGroup>
-    <TargetFrameworks>net6</TargetFrameworks>
+    <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
     <Description>Extension for SlimMessageBus that adds AsyncAPI specification generator for the Saunter library</Description>
     <PackageTags>SlimMessageBus MessageBus AsyncAPI Specification Saunter</PackageTags>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Namotion.Reflection" Version="3.0.0" />
-    <PackageReference Include="Saunter" Version="0.12.0" />
+    <PackageReference Include="Namotion.Reflection" Version="3.1.1" />
+    <PackageReference Include="Saunter" Version="0.13.0" />
   </ItemGroup>
 
   <ItemGroup>
