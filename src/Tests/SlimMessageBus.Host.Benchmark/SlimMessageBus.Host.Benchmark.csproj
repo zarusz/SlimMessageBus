@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <Import Project="../Host.Test.Properties.xml" />
 
@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BenchmarkDotNet" Version="0.13.9" />
+    <PackageReference Include="BenchmarkDotNet" Version="0.13.12" />
   </ItemGroup>
 
   <ItemGroup>
@@ -16,7 +16,7 @@
 
   <ItemGroup>
     <PackageReference Update="FluentAssertions" Version="6.12.0" />
-    <PackageReference Update="Moq" Version="4.20.69" />
+    <PackageReference Update="Moq" Version="4.20.70" />
   </ItemGroup>
 
 </Project>

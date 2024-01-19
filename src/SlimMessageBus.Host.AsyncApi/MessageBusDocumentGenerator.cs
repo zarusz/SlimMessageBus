@@ -21,14 +21,9 @@ public record NamedServer(string Name, Server Server);
 /// <summary>
 /// <see cref="IDocumentGenerator"/> implementation for SlimMessageBus that populates the AsynAPI document from the SlimMessageBus configuration.
 /// </summary>
-public class MessageBusDocumentGenerator : IDocumentGenerator
+public class MessageBusDocumentGenerator(MessageBusSettings busSettings) : IDocumentGenerator
 {
-    private readonly MessageBusSettings _busSettings;
-
-    public MessageBusDocumentGenerator(MessageBusSettings busSettings)
-    {
-        _busSettings = busSettings;
-    }
+    private readonly MessageBusSettings _busSettings = busSettings;
 
     public AsyncApiDocument GenerateDocument(TypeInfo[] asyncApiTypes, AsyncApiOptions options, AsyncApiDocument prototype, IServiceProvider serviceProvider)
     {
