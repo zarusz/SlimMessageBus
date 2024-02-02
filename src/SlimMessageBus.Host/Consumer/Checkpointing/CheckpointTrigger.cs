@@ -12,29 +12,27 @@ public class CheckpointTrigger : ICheckpointTrigger
     private int _lastCheckpointCount;
     private readonly Stopwatch _lastCheckpointDuration;
 
-    public CheckpointTrigger(int countLimit, TimeSpan durationlimit, ILoggerFactory loggerFactory)
+    public CheckpointTrigger(CheckpointValue checkpointValue, ILoggerFactory loggerFactory)
     {
         _logger = loggerFactory.CreateLogger<CheckpointTrigger>();
 
-        _checkpointCount = countLimit;
-        _checkpointDuration = (int)durationlimit.TotalMilliseconds;
+        _checkpointCount = checkpointValue.CheckpointCount;
+        _checkpointDuration = (int)checkpointValue.CheckpointDuration.TotalMilliseconds;
 
         _lastCheckpointCount = 0;
         _lastCheckpointDuration = new Stopwatch();
     }
 
     public CheckpointTrigger(HasProviderExtensions settings, ILoggerFactory loggerFactory)
-        : this(settings.GetOrDefault(CheckpointSettings.CheckpointCount, CheckpointSettings.CheckpointCountDefault),
-               settings.GetOrDefault(CheckpointSettings.CheckpointDuration, CheckpointSettings.CheckpointDurationDefault),
-               loggerFactory)
+        : this(GetCheckpointValue(settings), loggerFactory)
     {
     }
 
     public static bool IsConfigured(HasProviderExtensions settings)
         => settings.GetOrDefault<int?>(CheckpointSettings.CheckpointCount, null) != null || settings.GetOrDefault<TimeSpan?>(CheckpointSettings.CheckpointDuration, null) != null;
 
-    public static (int CheckpontCount, TimeSpan CheckpointDuration) GetConfiguration(HasProviderExtensions settings)
-        => (settings.GetOrDefault(CheckpointSettings.CheckpointCount, CheckpointSettings.CheckpointCountDefault),
+    public static CheckpointValue GetCheckpointValue(HasProviderExtensions settings)
+        => new(settings.GetOrDefault(CheckpointSettings.CheckpointCount, CheckpointSettings.CheckpointCountDefault),
             settings.GetOrDefault(CheckpointSettings.CheckpointDuration, CheckpointSettings.CheckpointDurationDefault));
 
 

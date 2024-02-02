@@ -3,6 +3,7 @@
   <Import Project="Common.Properties.xml" />
 
   <PropertyGroup>
+    <TargetFrameworks>net8.0;net6.0;netstandard2.0</TargetFrameworks>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageReadmeFile>NuGet.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>

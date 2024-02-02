@@ -1,7 +1,5 @@
 namespace SlimMessageBus.Host.Kafka;
 
-using System.Diagnostics.CodeAnalysis;
-
 using IProducer = Confluent.Kafka.IProducer<byte[], byte[]>;
 using Message = Confluent.Kafka.Message<byte[], byte[]>;
 
@@ -156,7 +154,7 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
         var deliveryResult = await task.ConfigureAwait(false);
         if (deliveryResult.Status == PersistenceStatus.NotPersisted)
         {
-            throw new ProducerMessageBusException($"Error while publish message {message} of type {messageType.Name} to topic {path}. Kafka persistence status: {deliveryResult.Status}");
+            throw new ProducerMessageBusException($"Error while publish message {message} of type {messageType?.Name} to topic {path}. Kafka persistence status: {deliveryResult.Status}");
         }
 
         // log some debug information
@@ -164,7 +162,7 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
             message, messageType?.Name, deliveryResult.Topic, deliveryResult.Partition, deliveryResult.Offset);
     }
 
-    protected byte[] GetMessageKey(ProducerSettings producerSettings, [NotNull] Type messageType, object message, string topic)
+    protected byte[] GetMessageKey(ProducerSettings producerSettings, Type messageType, object message, string topic)
     {
         var keyProvider = producerSettings?.GetKeyProvider();
         if (keyProvider != null)
@@ -173,27 +171,24 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
 
             if (_logger.IsEnabled(LogLevel.Debug))
             {
-                _logger.LogDebug("The message {Message} type {MessageType} calculated key is {Key} (Base64)", message, messageType.Name, Convert.ToBase64String(key));
+                _logger.LogDebug("The message {Message} type {MessageType} calculated key is {Key} (Base64)", message, messageType?.Name, Convert.ToBase64String(key));
             }
 
             return key;
         }
-        return Array.Empty<byte>();
+        return [];
     }
 
     private const int NoPartition = -1;
 
-    protected int GetMessagePartition(ProducerSettings producerSettings, [NotNull] Type messageType, object message, string topic)
+    protected int GetMessagePartition(ProducerSettings producerSettings, Type messageType, object message, string topic)
     {
         var partitionProvider = producerSettings.GetPartitionProvider();
         if (partitionProvider != null)
         {
             var partition = partitionProvider(message, topic);
 
-            if (_logger.IsEnabled(LogLevel.Debug))
-            {
-                _logger.LogDebug("The Message {Message} type {MessageType} calculated partition is {Partition}", message, messageType.Name, partition);
-            }
+            _logger.LogDebug("The Message {Message} type {MessageType} calculated partition is {Partition}", message, messageType?.Name, partition);
 
             return partition;
         }

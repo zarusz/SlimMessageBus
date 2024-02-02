@@ -1,10 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Kafka;
-
-using System.Diagnostics.CodeAnalysis;
-
 public static class KafkaExtensions
 {
-    public static TopicPartitionOffset AddOffset([NotNull] this TopicPartitionOffset topicPartitionOffset, int addOffset)
+    public static TopicPartitionOffset AddOffset(this TopicPartitionOffset topicPartitionOffset, int addOffset)
         => new(topicPartitionOffset.TopicPartition, topicPartitionOffset.Offset + addOffset);
 
     public static IReadOnlyDictionary<string, object> ToHeaders(this ConsumeResult<Ignore, byte[]> consumeResult, IMessageSerializer headerSerializer)

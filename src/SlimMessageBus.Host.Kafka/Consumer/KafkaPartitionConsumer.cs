@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Kafka;
 
-using System.Diagnostics.CodeAnalysis;
-
 using ConsumeResult = ConsumeResult<Ignore, byte[]>;
 
 public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
@@ -30,7 +28,7 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
         _logger = loggerFactory.CreateLogger<KafkaPartitionConsumer>();
 
         _logger.LogInformation("Creating consumer for Group: {Group}, Topic: {Topic}, Partition: {Partition}", group, topicPartition.Topic, topicPartition.Partition);
-        
+
         ConsumerSettings = consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings));
         Group = group;
         TopicPartition = topicPartition;
@@ -76,7 +74,7 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
 
     #region Implementation of IKafkaTopicPartitionProcessor
 
-    public void OnPartitionAssigned([NotNull] TopicPartition partition)
+    public void OnPartitionAssigned(TopicPartition partition)
     {
         _lastCheckpointOffset = null;
         _lastOffset = null;
@@ -91,7 +89,7 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
         }
     }
 
-    public async Task OnMessage([NotNull] ConsumeResult message)
+    public async Task OnMessage(ConsumeResult message)
     {
         if (_cancellationTokenSource.IsCancellationRequested)
         {

@@ -3,9 +3,9 @@
 public class CheckpointTriggerFactory : ICheckpointTriggerFactory
 {
     private readonly ILoggerFactory _loggerFactory;
-    private readonly Func<IReadOnlyCollection<(int, TimeSpan)>, string> _exceptionMessageFactory;
+    private readonly Func<IReadOnlyCollection<CheckpointValue>, string> _exceptionMessageFactory;
 
-    public CheckpointTriggerFactory(ILoggerFactory loggerFactory, Func<IReadOnlyCollection<(int, TimeSpan)>, string> exceptionMessageFactory)
+    public CheckpointTriggerFactory(ILoggerFactory loggerFactory, Func<IReadOnlyCollection<CheckpointValue>, string> exceptionMessageFactory)
     {
         _loggerFactory = loggerFactory;
         _exceptionMessageFactory = exceptionMessageFactory;
@@ -21,7 +21,7 @@ public class CheckpointTriggerFactory : ICheckpointTriggerFactory
         if (consumerSettingsWithConfiguredCheckpoints.Count > 1)
         {
             // Check if checkpoint settings across all the configured consumers is all the same.
-            var configuredCheckpoints = consumerSettingsWithConfiguredCheckpoints.Select(x => CheckpointTrigger.GetConfiguration(x)).ToHashSet();
+            var configuredCheckpoints = consumerSettingsWithConfiguredCheckpoints.Select(CheckpointTrigger.GetCheckpointValue).ToHashSet();
             if (configuredCheckpoints.Count > 1)
             {
                 var msg = _exceptionMessageFactory(configuredCheckpoints);

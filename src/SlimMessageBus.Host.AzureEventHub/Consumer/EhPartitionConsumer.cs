@@ -1,7 +1,5 @@
 namespace SlimMessageBus.Host.AzureEventHub;
 
-using System.Diagnostics.CodeAnalysis;
-
 using Azure.Messaging.EventHubs;
 using Azure.Messaging.EventHubs.Processor;
 
@@ -85,7 +83,7 @@ public abstract class EhPartitionConsumer
     public Task TryCheckpoint()
         => Checkpoint(_lastMessage);
 
-    protected static IReadOnlyDictionary<string, object> GetHeadersFromTransportMessage([NotNull] EventData e)
+    protected static IReadOnlyDictionary<string, object> GetHeadersFromTransportMessage(EventData e)
         // Note: Try to see if the Properties are already IReadOnlyDictionary or Dictionary prior allocating a new collection
         => e.Properties as IReadOnlyDictionary<string, object> ?? new Dictionary<string, object>(e.Properties);
 }

@@ -1,6 +1,7 @@
 namespace SlimMessageBus.Host;
 
 using System.Text;
+
 using SlimMessageBus.Host.Serialization;
 
 public class MessageWithHeadersSerializer : IMessageSerializer
@@ -104,7 +105,13 @@ public class MessageWithHeadersSerializer : IMessageSerializer
         var count = encoding.GetBytes(s, 0, s.Length, payload, index + StringLengthFieldSize);
 
         // Write string length (byte length)
-        BitConverter.TryWriteBytes(payload.AsSpan(index), (short)count);
+
+        var targetSpan = payload.AsSpan(index);
+#if NETSTANDARD2_0
+        BitConverter.GetBytes((short)count).CopyTo(targetSpan);
+#else
+        BitConverter.TryWriteBytes(targetSpan, (short)count);
+#endif
 
         return count + StringLengthFieldSize;
     }
@@ -117,19 +124,34 @@ public class MessageWithHeadersSerializer : IMessageSerializer
 
     private static int WriteInt(byte[] payload, int index, int v)
     {
-        BitConverter.TryWriteBytes(payload.AsSpan(index), v);
+        var targetSpan = payload.AsSpan(index);
+#if NETSTANDARD2_0
+        BitConverter.GetBytes(v).CopyTo(targetSpan);        
+#else
+        BitConverter.TryWriteBytes(targetSpan, v);
+#endif
         return sizeof(int);
     }
 
     private static int WriteLong(byte[] payload, int index, long v)
     {
-        BitConverter.TryWriteBytes(payload.AsSpan(index), v);
+        var targetSpan = payload.AsSpan(index);
+#if NETSTANDARD2_0
+        BitConverter.GetBytes(v).CopyTo(targetSpan);        
+#else
+        BitConverter.TryWriteBytes(targetSpan, v);
+#endif
         return sizeof(long);
     }
 
     private static int WriteGuid(byte[] payload, int index, Guid v)
     {
-        v.TryWriteBytes(payload.AsSpan(index));
+        var targetSpan = payload.AsSpan(index);
+#if NETSTANDARD2_0
+        v.ToByteArray().CopyTo(targetSpan);
+#else
+        v.TryWriteBytes(targetSpan);
+#endif
         return 16;
     }
 
@@ -198,7 +220,7 @@ public class MessageWithHeadersSerializer : IMessageSerializer
 
     private static int ReadGuid(byte[] payload, int index, out Guid v)
     {
-        v = new Guid(payload.AsSpan(index, 16));
+        v = new Guid(payload.AsSpan(index, 16).ToArray());
         return 16;
     }
 

@@ -1,6 +1,6 @@
 namespace SlimMessageBus.Host;
 
-public struct MessageWithHeaders : IEquatable<MessageWithHeaders>
+public readonly struct MessageWithHeaders
 {
     // ToDo: Change to ReadOnlyMemory<byte>
     public byte[] Payload { get; }
@@ -23,19 +23,4 @@ public struct MessageWithHeaders : IEquatable<MessageWithHeaders>
         Payload = payload;
         Headers = headers;
     }
-
-    public override bool Equals(object obj) =>
-        obj is MessageWithHeaders headers &&
-               EqualityComparer<byte[]>.Default.Equals(Payload, headers.Payload) &&
-               EqualityComparer<IReadOnlyDictionary<string, object>>.Default.Equals(Headers, headers.Headers);
-
-    public override int GetHashCode() => HashCode.Combine(Payload, Headers);
-
-    public static bool operator ==(MessageWithHeaders left, MessageWithHeaders right) => left.Equals(right);
-
-    public static bool operator !=(MessageWithHeaders left, MessageWithHeaders right) => !(left == right);
-
-    public bool Equals(MessageWithHeaders other) =>
-        EqualityComparer<byte[]>.Default.Equals(Payload, other.Payload) &&
-        EqualityComparer<IReadOnlyDictionary<string, object>>.Default.Equals(Headers, other.Headers);
 }
