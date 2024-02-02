@@ -1,7 +1,5 @@
 namespace SlimMessageBus.Host.Kafka;
 
-using System.Diagnostics.CodeAnalysis;
-
 using ConsumeResult = ConsumeResult<Ignore, byte[]>;
 using IConsumer = IConsumer<Ignore, byte[]>;
 
@@ -175,7 +173,7 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
         }
     }
 
-    protected virtual void OnPartitionAssigned([NotNull] ICollection<TopicPartition> partitions)
+    protected virtual void OnPartitionAssigned(ICollection<TopicPartition> partitions)
     {
         // Ensure processors exist for each assigned topic-partition
         foreach (var partition in partitions)
@@ -187,7 +185,7 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
         }
     }
 
-    protected virtual void OnPartitionRevoked([NotNull] ICollection<TopicPartitionOffset> partitions)
+    protected virtual void OnPartitionRevoked(ICollection<TopicPartitionOffset> partitions)
     {
         foreach (var partition in partitions)
         {
@@ -198,7 +196,7 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
         }
     }
 
-    protected virtual void OnPartitionEndReached([NotNull] TopicPartitionOffset offset)
+    protected virtual void OnPartitionEndReached(TopicPartitionOffset offset)
     {
         Logger.LogDebug("Group [{Group}]: Reached end of partition, Topic: {Topic}, Partition: {Partition}, Offset: {Offset}", Group, offset.Topic, offset.Partition, offset.Offset);
 
@@ -206,7 +204,7 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
         processor.OnPartitionEndReached(offset);
     }
 
-    protected async virtual ValueTask OnMessage([NotNull] ConsumeResult message)
+    protected async virtual ValueTask OnMessage(ConsumeResult message)
     {
         Logger.LogDebug("Group [{Group}]: Received message with Topic: {Topic}, Partition: {Partition}, Offset: {Offset}, payload size: {MessageSize}", Group, message.Topic, message.Partition, message.Offset, message.Message.Value?.Length ?? 0);
 
@@ -214,7 +212,7 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
         await processor.OnMessage(message).ConfigureAwait(false);
     }
 
-    protected virtual void OnOffsetsCommitted([NotNull] CommittedOffsets e)
+    protected virtual void OnOffsetsCommitted(CommittedOffsets e)
     {
         if (e.Error.IsError || e.Error.IsFatal)
         {

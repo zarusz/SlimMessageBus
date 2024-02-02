@@ -3,8 +3,7 @@
   <Import Project="../Common.NuGet.Properties.xml" />
 
   <PropertyGroup>
-    <TargetFramework>netstandard1.3</TargetFramework>
-    <Version>2.0.1</Version>
+    <Version>2.0.2</Version>
     <Description>Core interceptor interfaces of SlimMessageBus</Description>
     <PackageTags>SlimMessageBus</PackageTags>
   </PropertyGroup>

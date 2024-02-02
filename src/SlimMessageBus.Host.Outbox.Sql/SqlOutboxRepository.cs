@@ -49,20 +49,30 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
         return cmd;
     }
 
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
     public virtual SqlTransaction CurrentTransaction => _transaction;
 
     public async virtual ValueTask BeginTransaction()
     {
         ValidateNoTransactionStarted();
+#if NETSTANDARD2_0
+        _transaction = Connection.BeginTransaction(Settings.TransactionIsolationLevel);
+#else
         _transaction = (SqlTransaction)await Connection.BeginTransactionAsync(Settings.TransactionIsolationLevel);
+#endif
     }
 
     public async virtual ValueTask CommitTransaction()
     {
         ValidateTransactionStarted();
 
+#if NETSTANDARD2_0
+        _transaction.Commit();
+        _transaction.Dispose();
+#else
         await _transaction.CommitAsync();
         await _transaction.DisposeAsync();
+#endif
         _transaction = null;
     }
 
@@ -70,10 +80,16 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
     {
         ValidateTransactionStarted();
 
+#if NETSTANDARD2_0
+        _transaction.Rollback();
+        _transaction.Dispose();
+#else
         await _transaction.RollbackAsync();
         await _transaction.DisposeAsync();
+#endif
         _transaction = null;
     }
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
 
     protected void ValidateNoTransactionStarted()
     {
@@ -186,7 +202,7 @@ public class SqlOutboxRepository : ISqlOutboxRepository, IAsyncDisposable
             BEGIN 
                 CREATE NONCLUSTERED INDEX [{indexName}] ON {_sqlTemplate.TableNameQualified}
                 (
-                    {string.Join(',', columns.Select(c => $"{c} ASC"))}
+                    {string.Join(",", columns.Select(c => $"{c} ASC"))}
                 )
             END", token: token);
     }

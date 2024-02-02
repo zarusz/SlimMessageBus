@@ -1,6 +1,5 @@
 namespace SlimMessageBus.Host.Kafka;
 
-using System.Diagnostics.CodeAnalysis;
 using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
 
 /// <summary>
@@ -10,9 +9,9 @@ public interface IKafkaPartitionConsumer : IDisposable
 {
     TopicPartition TopicPartition { get; }
 
-    void OnPartitionAssigned([NotNull] TopicPartition partition);
-    Task OnMessage([NotNull] ConsumeResult message);
-    void OnPartitionEndReached([NotNull] TopicPartitionOffset offset);
+    void OnPartitionAssigned(TopicPartition partition);
+    Task OnMessage(ConsumeResult message);
+    void OnPartitionEndReached(TopicPartitionOffset offset);
     void OnPartitionRevoked();
 
     void OnClose();

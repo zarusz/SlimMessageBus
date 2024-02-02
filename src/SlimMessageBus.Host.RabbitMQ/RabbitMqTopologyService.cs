@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.RabbitMQ;
 
-using System.Runtime;
-
 using global::RabbitMQ.Client;
 
 public class RabbitMqTopologyService
@@ -117,8 +115,14 @@ public class RabbitMqTopologyService
         _logger.LogInformation("Declaring queue {QueueName}, Durable: {Durable}, AutoDelete: {AutoDelete}, Exclusive: {Exclusive}", queueName, queueDurable, queueAutoDelete, queueExclusive);
         try
         {
-            var arguments = new Dictionary<string, object>(queueArguments ?? Enumerable.Empty<KeyValuePair<string, object>>());
-            argumentModifier?.Invoke(arguments);
+            var arguments = queueArguments;
+            if (argumentModifier != null)
+            {
+                arguments = arguments != null
+                    ? new Dictionary<string, object>(queueArguments) // make a copy of the arguments for the modifier to mutate
+                    : [];
+                argumentModifier(arguments);
+            }
 
             _channel.QueueDeclare(queueName, durable: queueDurable, exclusive: queueExclusive, autoDelete: queueAutoDelete, arguments: arguments);
         }

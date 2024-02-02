@@ -104,7 +104,7 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
     {
         var m = new MqttApplicationMessage
         {
-            PayloadSegment = messagePayload,
+            PayloadSegment = new ArraySegment<byte>(messagePayload),
             Topic = path
         };
 
