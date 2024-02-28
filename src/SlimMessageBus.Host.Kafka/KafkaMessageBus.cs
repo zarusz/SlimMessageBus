@@ -29,7 +29,7 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
     {
         base.Build();
 
-        _logger.LogInformation("Creating producers");
+        _logger.LogInformation("Creating producers for {BusName} bus...", Name);
         _producer = CreateProducerInternal();
     }
 
@@ -42,7 +42,7 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
     public IProducer CreateProducerInternal()
     {
         _logger.LogTrace("Creating producer settings");
-        var config = new ProducerConfig()
+        var config = new ProducerConfig
         {
             BootstrapServers = ProviderSettings.BrokerList
         };
@@ -127,7 +127,7 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
 
         if (messageHeaders != null && messageHeaders.Count > 0)
         {
-            kafkaMessage.Headers = new Headers();
+            kafkaMessage.Headers = [];
 
             foreach (var keyValue in messageHeaders)
             {

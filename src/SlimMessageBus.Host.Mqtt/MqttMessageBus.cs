@@ -54,7 +54,6 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
             AddConsumer(consumer);
         }
 
-        _logger.LogInformation("Creating consumers");
         foreach (var (path, consumerSettings) in Settings.Consumers.GroupBy(x => x.Path).ToDictionary(x => x.Key, x => x.ToList()))
         {
             var processor = new MessageProcessor<MqttApplicationMessage>(consumerSettings, this, MessageProvider, path, responseProducer: this);
