@@ -45,7 +45,7 @@ public class MessageBusBaseTests : IDisposable
         _serviceProviderMock = new Mock<IServiceProvider>();
         _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(new JsonMessageSerializer());
         _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
-        _serviceProviderMock.Setup(x => x.GetService(It.Is<Type>(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)))).Returns(Enumerable.Empty<object>());
+        _serviceProviderMock.Setup(x => x.GetService(It.Is<Type>(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)))).Returns((Type t) => Array.CreateInstance(t.GetGenericArguments()[0], 0));
 
         BusBuilder = MessageBusBuilder.Create()
             .Produce<RequestA>(x =>
@@ -65,13 +65,12 @@ public class MessageBusBaseTests : IDisposable
             .WithDependencyResolver(_serviceProviderMock.Object)
             .WithProvider(s =>
             {
-                var bus = new MessageBusTested(s)
+                return new MessageBusTested(s)
                 {
                     // provide current time
                     CurrentTimeProvider = () => _timeNow,
                     OnProduced = (mt, n, m) => _producedMessages.Add(new(mt, n, m))
                 };
-                return bus;
             });
 
         _busLazy = new Lazy<MessageBusTested>(() => (MessageBusTested)BusBuilder.Build());
@@ -597,5 +596,51 @@ public class MessageBusBaseTests : IDisposable
             }
         }
         sendInterceptorMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task When_Start_Given_ConcurrentCalls_Then_ItOnlyStartsConsumersOnce()
+    {
+        ThreadPool.SetMinThreads(100, 100);
+
+        // arrange
+        BusBuilder
+            .Consume<SomeMessage>(x => x.Topic("topic"));
+
+        // trigger lazy bus creation here ahead of the Tasks
+        var bus = Bus;
+
+        // act
+        for (var i = 0; i < 10; i++)
+        {
+            await Task.WhenAll(Enumerable.Range(0, 1000).Select(x => bus.Start()).ToList());
+        }
+
+        // assert
+        bus._startedCount.Should().Be(1);
+        bus._stoppedCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task When_Stop_Given_ConcurrentCalls_Then_ItOnlyStopsConsumersOnce()
+    {
+        // arrange
+        BusBuilder
+            .Consume<SomeMessage>(x => x.Topic("topic"));
+
+        // trigger lazy bus creation here ahead of the Tasks
+        var bus = Bus;
+
+        await bus.Start();
+
+        // act
+        for (var i = 0; i < 10; i++)
+        {
+            await Task.WhenAll(Enumerable.Range(0, 10000).Select(x => bus.Stop()).AsParallel());
+        }
+
+        // assert
+        bus._startedCount.Should().Be(1);
+        bus._stoppedCount.Should().Be(1);
     }
 }

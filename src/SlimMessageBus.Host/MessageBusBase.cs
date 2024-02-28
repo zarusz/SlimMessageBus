@@ -21,7 +21,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     private CancellationTokenSource _cancellationTokenSource = new();
     private IMessageSerializer _serializer;
     private readonly MessageHeaderService _headerService;
-    private readonly List<AbstractConsumer> _consumers = new();
+    private readonly List<AbstractConsumer> _consumers = [];
 
     /// <summary>
     /// Special market reference that signifies a dummy producer settings for response types.
@@ -60,10 +60,11 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     #endregion
 
     private readonly object _initTaskLock = new();
-
     private Task _initTask = null;
 
     #region Start & Stop
+
+    private readonly object _startLock = new();
 
     public bool IsStarted { get; private set; }
 
@@ -202,26 +203,37 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     public async Task Start()
     {
-        if (!IsStarted && !IsStarting)
+        lock (_startLock)
         {
-            IsStarting = true;
-            try
+            if (IsStarting || IsStarted)
             {
-                await EnsureInitFinished();
+                return;
+            }
+            IsStarting = true;
+        }
 
-                _logger.LogInformation("Starting consumers for {BusName} bus...", Name);
-                await OnBusLifecycle(MessageBusLifecycleEventType.Starting).ConfigureAwait(false);
+        try
+        {
+            await EnsureInitFinished();
 
-                await CreateConsumers();
-                await OnStart().ConfigureAwait(false);
-                await Task.WhenAll(_consumers.Select(x => x.Start())).ConfigureAwait(false);
+            _logger.LogInformation("Starting consumers for {BusName} bus...", Name);
+            await OnBusLifecycle(MessageBusLifecycleEventType.Starting).ConfigureAwait(false);
 
-                await OnBusLifecycle(MessageBusLifecycleEventType.Started).ConfigureAwait(false);
-                _logger.LogInformation("Started consumers for {BusName} bus", Name);
+            await CreateConsumers();
+            await OnStart().ConfigureAwait(false);
+            await Task.WhenAll(_consumers.Select(x => x.Start())).ConfigureAwait(false);
 
+            await OnBusLifecycle(MessageBusLifecycleEventType.Started).ConfigureAwait(false);
+            _logger.LogInformation("Started consumers for {BusName} bus", Name);
+
+            lock (_startLock)
+            {
                 IsStarted = true;
             }
-            finally
+        }
+        finally
+        {
+            lock (_startLock)
             {
                 IsStarting = false;
             }
@@ -230,26 +242,37 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     public async Task Stop()
     {
-        if (IsStarted && !IsStopping)
+        lock (_startLock)
         {
-            IsStopping = true;
-            try
+            if (IsStopping || !IsStarted)
             {
-                await EnsureInitFinished();
+                return;
+            }
+            IsStopping = true;
+        }
 
-                _logger.LogInformation("Stopping consumers for {BusName} bus...", Name);
-                await OnBusLifecycle(MessageBusLifecycleEventType.Stopping).ConfigureAwait(false);
+        try
+        {
+            await EnsureInitFinished();
 
-                await Task.WhenAll(_consumers.Select(x => x.Stop())).ConfigureAwait(false);
-                await OnStop().ConfigureAwait(false);
-                await DestroyConsumers().ConfigureAwait(false);
+            _logger.LogInformation("Stopping consumers for {BusName} bus...", Name);
+            await OnBusLifecycle(MessageBusLifecycleEventType.Stopping).ConfigureAwait(false);
 
-                await OnBusLifecycle(MessageBusLifecycleEventType.Stopped).ConfigureAwait(false);
-                _logger.LogInformation("Stopped consumers for {BusName} bus", Name);
+            await Task.WhenAll(_consumers.Select(x => x.Stop())).ConfigureAwait(false);
+            await OnStop().ConfigureAwait(false);
+            await DestroyConsumers().ConfigureAwait(false);
 
+            await OnBusLifecycle(MessageBusLifecycleEventType.Stopped).ConfigureAwait(false);
+            _logger.LogInformation("Stopped consumers for {BusName} bus", Name);
+
+            lock (_startLock)
+            {
                 IsStarted = false;
             }
-            finally
+        }
+        finally
+        {
+            lock (_startLock)
             {
                 IsStopping = false;
             }
@@ -338,13 +361,13 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     protected virtual Task CreateConsumers()
     {
-        _logger.LogInformation("Creating consumers");
+        _logger.LogInformation("Creating consumers for {BusName} bus...", Name);
         return Task.CompletedTask;
     }
 
     protected async virtual Task DestroyConsumers()
     {
-        _logger.LogInformation("Destroying consumers");
+        _logger.LogInformation("Destroying consumers for {BusName} bus...", Name);
 
         foreach (var consumer in _consumers)
         {

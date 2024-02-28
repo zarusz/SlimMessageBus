@@ -4,11 +4,8 @@ using SlimMessageBus.Host.Serialization.Json;
 
 public class MessageBusBuilderTests
 {
-    internal class DerivedMessageBusBuilder : MessageBusBuilder
+    internal class DerivedMessageBusBuilder(MessageBusBuilder other) : MessageBusBuilder(other)
     {
-        public DerivedMessageBusBuilder(MessageBusBuilder other) : base(other)
-        {
-        }
     }
 
     [Fact]
@@ -90,14 +87,14 @@ public class MessageBusBuilderTests
         // arrange
         var subject = MessageBusBuilder.Create();
         subject.WithProvider(Mock.Of<Func<MessageBusSettings, IMessageBus>>());
-        subject.AddChildBus("Bus1", mbb => { });        
+        subject.AddChildBus("Bus1", mbb => { });
 
         // act
         var copy = new DerivedMessageBusBuilder(subject);
 
         // assert
         copy.Settings.Should().BeSameAs(subject.Settings);
-        copy.Settings.Name.Should().BeSameAs(subject.Settings.Name);        
+        copy.Settings.Name.Should().BeSameAs(subject.Settings.Name);
         copy.Children.Should().BeSameAs(subject.Children);
         copy.BusFactory.Should().BeSameAs(subject.BusFactory);
         copy.PostConfigurationActions.Should().BeSameAs(subject.PostConfigurationActions);

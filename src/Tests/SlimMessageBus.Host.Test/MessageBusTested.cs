@@ -2,6 +2,9 @@
 
 public class MessageBusTested : MessageBusBase
 {
+    internal int _startedCount;
+    internal int _stoppedCount;
+
     public MessageBusTested(MessageBusSettings settings)
         : base(settings)
     {
@@ -19,6 +22,18 @@ public class MessageBusTested : MessageBusBase
     public Action<Type, string, object> OnProduced { get; set; }
 
     #region Overrides of MessageBusBase
+
+    protected internal override Task OnStart()
+    {
+        Interlocked.Increment(ref _startedCount);
+        return base.OnStart();
+    }
+
+    protected internal override Task OnStop()
+    {
+        Interlocked.Increment(ref _stoppedCount);
+        return base.OnStop();
+    }
 
     protected override async Task<object> ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken = default)
     {
