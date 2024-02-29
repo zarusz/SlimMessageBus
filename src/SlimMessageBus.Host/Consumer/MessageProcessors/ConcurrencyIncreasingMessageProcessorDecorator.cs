@@ -43,10 +43,10 @@ public sealed class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : I
 
     #endregion
 
-    public async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response, object Message)> ProcessMessage(TMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken, IServiceProvider currentServiceProvider = null)
+    public async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response, object Message)> ProcessMessage(TMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, IDictionary<string, object> consumerContextProperties = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
     {
         // Ensure only desired number of messages are being processed concurrently
-        await _concurrentSemaphore.WaitAsync().ConfigureAwait(false);
+        await _concurrentSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
 
         // Check if there was an exception from and earlier transportMessage processing
         var e = _lastException;
@@ -60,7 +60,7 @@ public sealed class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : I
         Interlocked.Increment(ref _pendingCount);
 
         // Fire and forget
-        _ = ProcessInBackground(transportMessage, messageHeaders, currentServiceProvider, cancellationToken);
+        _ = ProcessInBackground(transportMessage, messageHeaders, currentServiceProvider, consumerContextProperties, cancellationToken);
 
         // Not exception - we don't know yet
         return (null, null, null, null);
@@ -84,12 +84,12 @@ public sealed class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : I
         }
     }
 
-    private async Task ProcessInBackground(TMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, IServiceProvider currentServiceProvider, CancellationToken cancellationToken)
+    private async Task ProcessInBackground(TMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, IServiceProvider currentServiceProvider, IDictionary<string, object> consumerContextProperties, CancellationToken cancellationToken)
     {
         try
         {
             _logger.LogDebug("Entering ProcessMessages for message {MessageType}", typeof(TMessage));
-            var (exception, consumerSettings, response, _) = await _target.ProcessMessage(transportMessage, messageHeaders, cancellationToken, currentServiceProvider).ConfigureAwait(false);
+            var (exception, consumerSettings, response, _) = await _target.ProcessMessage(transportMessage, messageHeaders, consumerContextProperties, currentServiceProvider, cancellationToken).ConfigureAwait(false);
             if (exception != null)
             {
                 lock (_lastExceptionLock)

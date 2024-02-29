@@ -5,7 +5,7 @@ public class MessageHandler : IMessageHandler
     private readonly ILogger _logger;
     private readonly IMessageScopeFactory _messageScopeFactory;
     private readonly ICurrentTimeProvider _currentTimeProvider;
-    
+
     protected RuntimeTypeCache RuntimeTypeCache { get; }
     protected IMessageTypeResolver MessageTypeResolver { get; }
     protected IMessageHeadersFactory MessageHeadersFactory { get; }
@@ -16,7 +16,7 @@ public class MessageHandler : IMessageHandler
     /// <summary>
     /// Represents a response that has been discarded (it expired)
     /// </summary>
-    protected static readonly object ResponseForExpiredRequest = new ();
+    protected static readonly object ResponseForExpiredRequest = new();
 
     public MessageHandler(MessageBusBase messageBus, IMessageScopeFactory messageScopeFactory, IMessageTypeResolver messageTypeResolver, IMessageHeadersFactory messageHeadersFactory, RuntimeTypeCache runtimeTypeCache, ICurrentTimeProvider currentTimeProvider, string path)
     {
@@ -33,7 +33,7 @@ public class MessageHandler : IMessageHandler
         Path = path ?? throw new ArgumentNullException(nameof(path));
     }
 
-    public async Task<(object Response, Exception ResponseException, string RequestId)> DoHandle(object message, IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, CancellationToken cancellationToken, object nativeMessage = null, IServiceProvider currentServiceProvider = null)
+    public async Task<(object Response, Exception ResponseException, string RequestId)> DoHandle(object message, IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, object nativeMessage = null, IDictionary<string, object> consumerContextProperties = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
     {
         var messageType = message.GetType();
 
@@ -71,7 +71,7 @@ public class MessageHandler : IMessageHandler
 
             try
             {
-                var context = CreateConsumerContext(messageHeaders, consumerInvoker, nativeMessage, consumerInstance, cancellationToken);
+                var context = CreateConsumerContext(messageHeaders, consumerInvoker, nativeMessage, consumerInstance, consumerContextProperties, cancellationToken);
 
                 var consumerInterceptors = RuntimeTypeCache.ConsumerInterceptorType.ResolveAll(messageScope.ServiceProvider, messageType);
                 var handlerInterceptors = hasResponse ? RuntimeTypeCache.HandlerInterceptorType.ResolveAll(messageScope.ServiceProvider, (messageType, responseType)) : null;
@@ -103,8 +103,8 @@ public class MessageHandler : IMessageHandler
         return (response, responseException, requestId);
     }
 
-    protected virtual ConsumerContext CreateConsumerContext(IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, object transportMessage, object consumerInstance, CancellationToken cancellationToken)
-        => new()
+    protected virtual ConsumerContext CreateConsumerContext(IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, object transportMessage, object consumerInstance, IDictionary<string, object> consumerContextProperties, CancellationToken cancellationToken)
+        => new(consumerContextProperties)
         {
             Path = Path,
             Headers = messageHeaders,

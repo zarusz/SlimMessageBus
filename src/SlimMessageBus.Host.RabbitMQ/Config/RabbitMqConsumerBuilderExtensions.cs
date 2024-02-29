@@ -104,5 +104,19 @@ public static class RabbitMqConsumerBuilderExtensions
 
         return builder;
     }
+
+    /// <summary>
+    /// Sets the message Acknowledgement Mode for the consumer.
+    /// </summary>
+    /// <typeparam name="TConsumerBuilder"></typeparam>
+    /// <param name="builder"></param>
+    /// <param name="mode"></param>
+    /// <returns></returns>
+    public static TConsumerBuilder AcknowledgementMode<TConsumerBuilder>(this TConsumerBuilder builder, RabbitMqMessageAcknowledgementMode mode)
+       where TConsumerBuilder : AbstractConsumerBuilder
+    {
+        builder.ConsumerSettings.Properties[RabbitMqProperties.MessageAcknowledgementMode] = mode;
+        return builder;
+    }
 }
 

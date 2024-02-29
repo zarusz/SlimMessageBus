@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.RabbitMQ;
 
+using System;
+
 public static class RabbitMqMessageBusSettingsExtensions
 {
     /// <summary>
@@ -9,7 +11,13 @@ public static class RabbitMqMessageBusSettingsExtensions
     /// <param name="action">Action to be executed, the first param is the RabbitMQ <see cref="IModel"/> from the underlying client, and second parameter represents the SMB exchange, queue and binding setup</param>
     public static RabbitMqMessageBusSettings UseTopologyInitializer(this RabbitMqMessageBusSettings settings, RabbitMqTopologyInitializer action)
     {
-        if (action == null) throw new ArgumentNullException(nameof(action));
+#if NETSTANDARD2_0
+        if (settings is null) throw new ArgumentNullException(nameof(settings));
+        if (action is null) throw new ArgumentNullException(nameof(action));
+#else
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(action);
+#endif
 
         settings.Properties[RabbitMqProperties.TopologyInitializer] = action;
         return settings;
@@ -18,7 +26,6 @@ public static class RabbitMqMessageBusSettingsExtensions
     /// <summary>
     /// Sets the default settings for exchanges on the bus level. This default will be taken unless it is overriden at the relevant producer level.
     /// </summary>
-    /// <typeparam name="T"></typeparam>
     /// <param name="settings"></param>
     /// <param name="durable"></param>
     /// <param name="autoDelete"></param>
@@ -39,14 +46,13 @@ public static class RabbitMqMessageBusSettingsExtensions
     /// <summary>
     /// Sets the default settings for dead letter exchanges on the bus level. This default will be taken unless it is overriden at the relevant producer level.
     /// </summary>
-    /// <typeparam name="T"></typeparam>
     /// <param name="settings"></param>
     /// <param name="exchangeType"></param>
     /// <param name="durable"></param>
     /// <param name="autoDelete"></param>
     /// <param name="routingKey"></param>
     /// <returns></returns>
-    public static RabbitMqMessageBusSettings UseDeadLetterExchangeDefaults(this RabbitMqMessageBusSettings settings, ExchangeType? exchangeType = null, bool ? durable = null, bool? autoDelete = null, string routingKey = null)
+    public static RabbitMqMessageBusSettings UseDeadLetterExchangeDefaults(this RabbitMqMessageBusSettings settings, ExchangeType? exchangeType = null, bool? durable = null, bool? autoDelete = null, string routingKey = null)
     {
         if (exchangeType != null)
         {
@@ -70,13 +76,18 @@ public static class RabbitMqMessageBusSettingsExtensions
     /// <summary>
     /// Sets the default settings for queues on the bus level. This default will be taken unless it is overriden at the relevant consumer level.
     /// </summary>
-    /// <typeparam name="T"></typeparam>
     /// <param name="settings"></param>
     /// <param name="durable"></param>
     /// <param name="autoDelete"></param>
     /// <returns></returns>
     public static RabbitMqMessageBusSettings UseQueueDefaults(this RabbitMqMessageBusSettings settings, bool? durable = null, bool? autoDelete = null)
     {
+#if NETSTANDARD2_0
+        if (settings is null) throw new ArgumentNullException(nameof(settings));
+#else
+        ArgumentNullException.ThrowIfNull(settings);
+#endif
+
         if (durable != null)
         {
             settings.Properties[RabbitMqProperties.QueueDurable] = durable.Value;
@@ -96,7 +107,13 @@ public static class RabbitMqMessageBusSettingsExtensions
     /// <returns></returns>
     public static RabbitMqMessageBusSettings UseMessagePropertiesModifier(this RabbitMqMessageBusSettings settings, RabbitMqMessagePropertiesModifier<object> messagePropertiesModifier)
     {
-        if (messagePropertiesModifier == null) throw new ArgumentNullException(nameof(messagePropertiesModifier));
+#if NETSTANDARD2_0
+        if (settings is null) throw new ArgumentNullException(nameof(settings));
+        if (messagePropertiesModifier is null) throw new ArgumentNullException(nameof(messagePropertiesModifier));
+#else
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(messagePropertiesModifier);
+#endif
 
         settings.Properties[RabbitMqProperties.MessagePropertiesModifier] = messagePropertiesModifier;
         return settings;
@@ -105,15 +122,38 @@ public static class RabbitMqMessageBusSettingsExtensions
     /// <summary>
     /// Sets the provider for the Routing Key for a message on the bus level
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="builder"></param>
+    /// <param name="settings"></param>
     /// <param name="routingKeyProvider"></param>
     /// <returns></returns>
     public static RabbitMqMessageBusSettings UseRoutingKeyProvider(this RabbitMqMessageBusSettings settings, RabbitMqMessageRoutingKeyProvider<object> routingKeyProvider)
     {
-        if (routingKeyProvider == null) throw new ArgumentNullException(nameof(routingKeyProvider));
+#if NETSTANDARD2_0
+        if (settings is null) throw new ArgumentNullException(nameof(settings));
+        if (routingKeyProvider is null) throw new ArgumentNullException(nameof(routingKeyProvider));
+#else
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(routingKeyProvider);
+#endif
 
         settings.Properties[RabbitMqProperties.MessageRoutingKeyProvider] = routingKeyProvider;
+        return settings;
+    }
+
+    /// <summary>
+    /// Sets the default message Acknowledgement Mode for the message on the bus level.
+    /// </summary>
+    /// <param name="settings"></param>
+    /// <param name="mode"></param>
+    /// <returns></returns>
+    public static RabbitMqMessageBusSettings AcknowledgementMode(this RabbitMqMessageBusSettings settings, RabbitMqMessageAcknowledgementMode mode)
+    {
+#if NETSTANDARD2_0
+        if (settings is null) throw new ArgumentNullException(nameof(settings));
+#else
+        ArgumentNullException.ThrowIfNull(settings);
+#endif
+
+        settings.Properties[RabbitMqProperties.MessageAcknowledgementMode] = mode;
         return settings;
     }
 }

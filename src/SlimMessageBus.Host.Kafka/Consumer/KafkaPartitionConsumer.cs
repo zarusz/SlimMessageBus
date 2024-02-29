@@ -101,7 +101,7 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
             _lastOffset = message.TopicPartitionOffset;
 
             var messageHeaders = message.ToHeaders(_headerSerializer);
-            var (lastException, consumerSettings, response, _) = await _messageProcessor.ProcessMessage(message, messageHeaders, _cancellationTokenSource.Token).ConfigureAwait(false);
+            var (lastException, consumerSettings, response, _) = await _messageProcessor.ProcessMessage(message, messageHeaders, cancellationToken: _cancellationTokenSource.Token).ConfigureAwait(false);
             if (lastException != null)
             {
                 // ToDo: Retry logic

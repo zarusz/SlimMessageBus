@@ -94,7 +94,7 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
                     headers[prop.Name] = prop.Value;
                 }
             }
-            return consumer.MessageProcessor.ProcessMessage(arg.ApplicationMessage, headers, CancellationToken);
+            return consumer.MessageProcessor.ProcessMessage(arg.ApplicationMessage, headers, cancellationToken: CancellationToken);
         }
         return Task.CompletedTask;
     }
