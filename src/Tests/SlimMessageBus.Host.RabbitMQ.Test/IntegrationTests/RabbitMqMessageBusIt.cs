@@ -70,8 +70,11 @@ public class RabbitMqMessageBusIt : BaseIntegrationTest<RabbitMqMessageBusIt>
 
     public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
 
-    [Fact]
-    public async Task PubSubOnFanoutExchange()
+    [Theory]
+    [InlineData(RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade)]
+    [InlineData(RabbitMqMessageAcknowledgementMode.AckAutomaticByRabbit)]
+    [InlineData(RabbitMqMessageAcknowledgementMode.AckMessageBeforeProcessing)]
+    public async Task PubSubOnFanoutExchange(RabbitMqMessageAcknowledgementMode acknowledgementMode)
     {
         var subscribers = 2;
         var topic = "test-ping";
@@ -99,6 +102,7 @@ public class RabbitMqMessageBusIt : BaseIntegrationTest<RabbitMqMessageBusIt>
                         .Queue($"subscriber-{i}", autoDelete: false)
                         .ExchangeBinding(topic)
                         .DeadLetterExchange("subscriber-dlq")
+                        .AcknowledgementMode(acknowledgementMode)
                         .WithConsumer<PingConsumer>()
                         .WithConsumer<PingDerivedConsumer, PingDerivedMessage>());
                 }));
@@ -173,8 +177,11 @@ public class RabbitMqMessageBusIt : BaseIntegrationTest<RabbitMqMessageBusIt>
         additionalAssertion?.Invoke(new TestData { ProducedMessages = producedMessages, ConsumedMessages = consumedMessages.Snapshot() });
     }
 
-    [Fact]
-    public async Task BasicReqRespOnTopic()
+    [Theory]
+    [InlineData(RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade)]
+    [InlineData(RabbitMqMessageAcknowledgementMode.AckAutomaticByRabbit)]
+    [InlineData(RabbitMqMessageAcknowledgementMode.AckMessageBeforeProcessing)]
+    public async Task BasicReqRespOnTopic(RabbitMqMessageAcknowledgementMode acknowledgementMode)
     {
         var topic = "test-echo";
 
@@ -199,6 +206,7 @@ public class RabbitMqMessageBusIt : BaseIntegrationTest<RabbitMqMessageBusIt>
                 .ExchangeBinding("test-echo")
                 // If the request handling fails, the failed messages will be routed to the DLQ exchange
                 .DeadLetterExchange("echo-request-handler-dlq")
+                .AcknowledgementMode(acknowledgementMode)
                 .WithHandler<EchoRequestHandler>())
             .ExpectRequestResponses(x =>
             {

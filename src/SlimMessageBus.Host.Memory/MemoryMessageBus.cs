@@ -108,10 +108,10 @@ public class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
             ? requestHeaders as IReadOnlyDictionary<string, object> ?? new Dictionary<string, object>(requestHeaders)
             : null;
 
-        var (exception, _, response, _) = await messageProcessor.ProcessMessage(transportMessage, messageHeadersReadOnly, cancellationToken, currentServiceProvider);
+        var (exception, _, response, _) = await messageProcessor.ProcessMessage(transportMessage, messageHeadersReadOnly, currentServiceProvider: currentServiceProvider, cancellationToken: cancellationToken);
         if (exception != null)
         {
-            
+
             // We want to pass the same exception to the sender as it happened in the handler/consumer
             ExceptionDispatchInfo.Capture(exception).Throw();
         }

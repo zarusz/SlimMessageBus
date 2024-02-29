@@ -26,7 +26,7 @@ public class ConcurrencyIncreasingMessageProcessorDecoratorTest
         var messageCount = 0;
 
         _messageProcessorMock
-            .Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<CancellationToken>(), It.IsAny<IServiceProvider>()))
+            .Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IServiceProvider>(), It.IsAny<CancellationToken>()))
             .Returns(async () =>
             {
                 // Entering critical section

@@ -52,9 +52,9 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
         _shouldLogWhenUnrecognizedMessageType = consumerSettings.OfType<ConsumerSettings>().Any(x => x.UndeclaredMessageType.Log);
     }
 
-    protected override ConsumerContext CreateConsumerContext(IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, object transportMessage, object consumerInstance, CancellationToken cancellationToken)
+    protected override ConsumerContext CreateConsumerContext(IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, object transportMessage, object consumerInstance, IDictionary<string, object> consumerContextProperties, CancellationToken cancellationToken)
     {
-        var context = base.CreateConsumerContext(messageHeaders, consumerInvoker, transportMessage, consumerInstance, cancellationToken);
+        var context = base.CreateConsumerContext(messageHeaders, consumerInvoker, transportMessage, consumerInstance, consumerContextProperties, cancellationToken);
         context.Bus = MessageBus;
 
         _consumerContextInitializer?.Invoke((TTransportMessage)transportMessage, context);
@@ -62,7 +62,7 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
         return context;
     }
 
-    public async virtual Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response, object Message)> ProcessMessage(TTransportMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, CancellationToken cancellationToken, IServiceProvider currentServiceProvider = null)
+    public async virtual Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response, object Message)> ProcessMessage(TTransportMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, IDictionary<string, object> consumerContextProperties = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
     {
         IMessageTypeConsumerInvokerSettings lastConsumerInvoker = null;
         Exception lastException = null;
@@ -93,7 +93,7 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
                             break;
                         }
 
-                        (lastResponse, lastException, var requestId) = await DoHandle(message, messageHeaders, consumerInvoker, cancellationToken, transportMessage, currentServiceProvider).ConfigureAwait(false);
+                        (lastResponse, lastException, var requestId) = await DoHandle(message, messageHeaders, consumerInvoker, transportMessage, consumerContextProperties, currentServiceProvider, cancellationToken).ConfigureAwait(false);
 
                         if (consumerInvoker.ParentSettings.ConsumerMode == ConsumerMode.RequestResponse && _responseProducer != null)
                         {

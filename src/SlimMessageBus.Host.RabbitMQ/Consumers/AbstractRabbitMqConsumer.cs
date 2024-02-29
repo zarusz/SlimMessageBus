@@ -11,6 +11,7 @@ public abstract class AbstractRabbitMqConsumer : AbstractConsumer
     private string _consumerTag;
 
     protected string QueueName { get; }
+    protected abstract RabbitMqMessageAcknowledgementMode AcknowledgementMode { get; }
 
     protected AbstractRabbitMqConsumer(ILogger logger, IRabbitMqChannel channel, string queueName, IHeaderValueConverter headerValueConverter)
         : base(logger)
@@ -27,7 +28,7 @@ public abstract class AbstractRabbitMqConsumer : AbstractConsumer
 
         lock (_channel.ChannelLock)
         {
-            _consumerTag = _channel.Channel.BasicConsume(QueueName, autoAck: false, _consumer);
+            _consumerTag = _channel.Channel.BasicConsume(QueueName, autoAck: AcknowledgementMode == RabbitMqMessageAcknowledgementMode.AckAutomaticByRabbit, _consumer);
         }
 
         return Task.CompletedTask;

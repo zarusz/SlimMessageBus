@@ -7,10 +7,11 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 - [Configuration](#configuration)
   - [Producers](#producers)
   - [Consumers](#consumers)
-  - [Consumer Error Handling](#consumer-error-handling)
-    - [Dead Letter Exchange](#dead-letter-exchange)
-    - [Custom Consumer Error Handler](#custom-consumer-error-handler)
-  - [Consumer Concurrency Level](#consumer-concurrency-level)
+    - [Acknowledgment Mode](#acknowledgment-mode)
+    - [Consumer Error Handling](#consumer-error-handling)
+      - [Dead Letter Exchange](#dead-letter-exchange)
+      - [Custom Consumer Error Handler](#custom-consumer-error-handler)
+    - [Consumer Concurrency Level](#consumer-concurrency-level)
   - [Request-Response](#request-response)
 - [Topology Provisioning](#topology-provisioning)
 - [Not Supported](#not-supported)
@@ -113,7 +114,7 @@ services.AddSlimMessageBus((mbb) =>
 
 ### Consumers
 
-Consumers need to specify the queue name from which the consumer should be reading from. SMB will provison the specified queue.
+Consumers need to specify the queue name from which the consumer should be reading from. SMB will provision the specified queue.
 Additionally,
 
 - when the exchange name binding is specified then SMB will provision that binding with the broker,
@@ -143,7 +144,46 @@ We can specify defaults for all consumers on the bus level:
 });
 ```
 
-### Consumer Error Handling
+#### Acknowledgment Mode
+
+When a consumer processes a message from a RabbitMQ queue, it needs to acknowledge that the message was processed. RabbitMQ supports three types of acknowledgments out which two are available in SMB:
+
+- Ack - to indicate the message was successfully processed and it should be removed from the queue.
+- Nack (negative ack) - when the message was processed but resulted in an error, while still it needs to be removed from the queue or retried (depending what the user chooses in the given use case).
+
+In SMB we can set the acknowledgment mode for each consumer:
+
+```cs
+builder.Consume<PingMessage>(x => x
+    .Queue("subscriber", autoDelete: false)
+    .ExchangeBinding(topic)
+    // Set the acknowledgement mode, the ConfirmAfterMessageProcessingWhenNoManualConfirmMade is the default
+    .AcknowledgementMode(RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade)
+    .WithConsumer<PingConsumer>());
+```
+
+Alternatively, a bus wide default can be specified for all consumers:
+
+```cs
+services.AddSlimMessageBus((mbb) =>
+{
+    mbb.WithProviderRabbitMQ(cfg =>
+    {
+        // Set the acknowledgement mode, the ConfirmAfterMessageProcessingWhenNoManualConfirmMade is the default
+        cfg.AcknowledgementMode(RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade);
+    });
+});
+```
+
+See the [RabbitMqMessageAcknowledgementMode](../src/SlimMessageBus.Host.RabbitMQ/Config/RabbitMqMessageAcknowledgementMode.cs) has the available options.
+
+By default (`ConfirmAfterMessageProcessingWhenNoManualConfirmMade`), messages are acknowledge (Ack) after the message processing finish with success.
+If an exception where to happen the message is rejected (Nack) (or else whatever the [custom error handler](#consumer-error-handling) logic does).
+In that default mode, the user can still Ack or Nack the message depending on the need inside of the consumer or interceptor using the Ack() / Nack() methods exposed on the [ConsumerContext](intro.md#consumer-context-additional-message-information) - this allows for manual acknowledgements. The default setting is optimal and safe. However, message retries could happen (at-least-once delivery).
+
+The other acknowledgement modes will ack the message before processing, but are less safe as it will lead to at-most-once delivery.
+
+#### Consumer Error Handling
 
 By default the the transport implementation performs a negative ack (nack) in the AMQP protocol for any message that failed in the consumer. As a result the message will be marked as failed and routed to an dead letter exchange or discarded by the RabbitMQ broker.
 
@@ -152,7 +192,7 @@ The recommendation here is to either:
 - configure a [dead letter exchange](#dead-letter-exchange) configured on the consumer queue,
 - or provide a [custom error handler](#custom-consumer-error-handler) (retry the message couple of times, if failed send to a dead letter exchange).
 
-#### Dead Letter Exchange
+##### Dead Letter Exchange
 
 The [Dead Letter Exchanges](https://www.rabbitmq.com/dlx.html) is a feature of RabbitMQ that will forward failed messages from a particular queue to a special exchange.
 
@@ -192,7 +232,7 @@ services.AddSlimMessageBus((mbb) =>
 });
 ```
 
-#### Custom Consumer Error Handler
+##### Custom Consumer Error Handler
 
 Define a custom consumer error handler implementation of `RabbitMqConsumerErrorHandler<>`:
 
@@ -234,7 +274,7 @@ services.AddTransient(typeof(RabbitMqConsumerErrorHandler<>), typeof(CustomRabbi
 
 > When error handler is not found in the DI or it returns `false` then default error handling will be applied.
 
-### Consumer Concurrency Level
+#### Consumer Concurrency Level
 
 By default each consumer in the service process will handle one message at the same time.
 In order to increase the desired concurrency, set the [`ConsumerDispatchConcurrency`](https://www.rabbitmq.com/dotnet-api-guide.html#consumer-callbacks-and-ordering) to a value greater than 1.

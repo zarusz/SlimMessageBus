@@ -315,7 +315,7 @@ public class ConsumerInstanceMessageProcessorTest
         var p = new MessageProcessor<byte[]>(new[] { consumerSettings }, _busMock.Bus, _messageProviderMock.Object, _topic, responseProducer: _busMock.Bus);
 
         // act
-        await p.ProcessMessage(_transportMessage, headers, cancellationToken);
+        await p.ProcessMessage(_transportMessage, headers, cancellationToken: cancellationToken);
 
         // assert
         consumerMock.Verify(x => x.OnHandle(message), Times.Once); // handler called once

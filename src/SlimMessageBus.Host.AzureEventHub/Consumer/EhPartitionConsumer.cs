@@ -41,7 +41,7 @@ public abstract class EhPartitionConsumer
         _lastMessage = args;
 
         var headers = GetHeadersFromTransportMessage(args.Data);
-        var (lastException, _, _, _) = await MessageProcessor.ProcessMessage(args.Data, headers, args.CancellationToken).ConfigureAwait(false);
+        var (lastException, _, _, _) = await MessageProcessor.ProcessMessage(args.Data, headers, cancellationToken: args.CancellationToken).ConfigureAwait(false);
         if (lastException != null)
         {
             // Note: The OnMessageFaulted was called at this point by the MessageProcessor.

@@ -25,3 +25,8 @@ public delegate string RabbitMqMessageRoutingKeyProvider<T>(T message, IBasicPro
 /// <returns></returns>
 public delegate void RabbitMqMessagePropertiesModifier<T>(T message, IBasicProperties messageProperties);
 
+/// <summary>
+/// Represents an action to confirm the message.
+/// </summary>
+/// <param name="option"></param>
+public delegate void RabbitMqMessageConfirmAction(RabbitMqMessageConfirmOption option);
