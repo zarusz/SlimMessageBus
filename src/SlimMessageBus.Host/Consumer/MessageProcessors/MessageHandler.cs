@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host;
 
+using SlimMessageBus.Host.Consumer;
+
 public class MessageHandler : IMessageHandler
 {
     private readonly ILogger _logger;
@@ -9,6 +11,7 @@ public class MessageHandler : IMessageHandler
     protected RuntimeTypeCache RuntimeTypeCache { get; }
     protected IMessageTypeResolver MessageTypeResolver { get; }
     protected IMessageHeadersFactory MessageHeadersFactory { get; }
+    protected Type ConsumerErrorHandlerOpenGenericType { get; }
 
     public MessageBusBase MessageBus { get; }
     public string Path { get; }
@@ -18,9 +21,21 @@ public class MessageHandler : IMessageHandler
     /// </summary>
     protected static readonly object ResponseForExpiredRequest = new();
 
-    public MessageHandler(MessageBusBase messageBus, IMessageScopeFactory messageScopeFactory, IMessageTypeResolver messageTypeResolver, IMessageHeadersFactory messageHeadersFactory, RuntimeTypeCache runtimeTypeCache, ICurrentTimeProvider currentTimeProvider, string path)
+    public MessageHandler(
+        MessageBusBase messageBus,
+        IMessageScopeFactory messageScopeFactory,
+        IMessageTypeResolver messageTypeResolver,
+        IMessageHeadersFactory messageHeadersFactory,
+        RuntimeTypeCache runtimeTypeCache,
+        ICurrentTimeProvider currentTimeProvider,
+        string path,
+        Type consumerErrorHandlerOpenGenericType = null)
     {
+#if NETSTANDARD2_0
         if (messageBus is null) throw new ArgumentNullException(nameof(messageBus));
+#else
+        ArgumentNullException.ThrowIfNull(messageBus);
+#endif
 
         _logger = messageBus.LoggerFactory.CreateLogger<MessageHandler>();
         _messageScopeFactory = messageScopeFactory;
@@ -31,9 +46,19 @@ public class MessageHandler : IMessageHandler
         MessageHeadersFactory = messageHeadersFactory;
         MessageBus = messageBus;
         Path = path ?? throw new ArgumentNullException(nameof(path));
+
+        if (consumerErrorHandlerOpenGenericType is not null)
+        {
+            // Validate that the type is an open generic type of IConsumerErrorHandler<> (e.g. IMemoryConsumerErrorHandler<> which derives from IConsumerErrorHandler<>).
+            if (!consumerErrorHandlerOpenGenericType.IsGenericTypeDefinition || !typeof(IConsumerErrorHandler<object>).IsAssignableFrom(consumerErrorHandlerOpenGenericType.MakeGenericType(typeof(object))))
+            {
+                throw new ArgumentException($"The type {consumerErrorHandlerOpenGenericType} needs to be an open generic type of {typeof(IConsumerErrorHandler<>)}", paramName: nameof(consumerErrorHandlerOpenGenericType));
+            }
+            ConsumerErrorHandlerOpenGenericType = consumerErrorHandlerOpenGenericType;
+        }
     }
 
-    public async Task<(object Response, Exception ResponseException, string RequestId)> DoHandle(object message, IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, object nativeMessage = null, IDictionary<string, object> consumerContextProperties = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
+    public async Task<(object Response, Exception ResponseException, string RequestId)> DoHandle(object message, IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, object transportMessage = null, IDictionary<string, object> consumerContextProperties = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
     {
         var messageType = message.GetType();
 
@@ -49,7 +74,7 @@ public class MessageHandler : IMessageHandler
             messageHeaders.TryGetHeader(ReqRespMessageHeaders.RequestId, out requestId);
         }
 
-        await using (var messageScope = _messageScopeFactory.CreateMessageScope(consumerInvoker.ParentSettings, message, currentServiceProvider))
+        await using (var messageScope = _messageScopeFactory.CreateMessageScope(consumerInvoker.ParentSettings, message, consumerContextProperties, currentServiceProvider))
         {
             if (messageHeaders != null && messageHeaders.TryGetHeader(ReqRespMessageHeaders.Expires, out DateTimeOffset? expires) && expires != null)
             {
@@ -64,26 +89,32 @@ public class MessageHandler : IMessageHandler
                 }
             }
 
-            var consumerType = consumerInvoker.ConsumerType;
-            // ToDo: Introduce lazy resolution
-            var consumerInstance = messageScope.ServiceProvider.GetService(consumerType)
-                ?? throw new ConfigurationMessageBusException($"Could not resolve consumer/handler type {consumerType} from the DI container. Please check that the configured type {consumerType} is registered within the DI container.");
+            Type consumerType = null;
+            object consumerInstance = null;
 
             try
             {
-                var context = CreateConsumerContext(messageHeaders, consumerInvoker, nativeMessage, consumerInstance, consumerContextProperties, cancellationToken);
+                consumerType = consumerInvoker.ConsumerType;
+                consumerInstance = messageScope.ServiceProvider.GetService(consumerType)
+                    ?? throw new ConfigurationMessageBusException($"Could not resolve consumer/handler type {consumerType} from the DI container. Please check that the configured type {consumerType} is registered within the DI container.");
 
-                var consumerInterceptors = RuntimeTypeCache.ConsumerInterceptorType.ResolveAll(messageScope.ServiceProvider, messageType);
-                var handlerInterceptors = hasResponse ? RuntimeTypeCache.HandlerInterceptorType.ResolveAll(messageScope.ServiceProvider, (messageType, responseType)) : null;
-                if (consumerInterceptors != null || handlerInterceptors != null)
+                var consumerContext = CreateConsumerContext(messageHeaders, consumerInvoker, transportMessage, consumerInstance, consumerContextProperties, cancellationToken);
+                try
                 {
-                    var pipeline = new ConsumerInterceptorPipeline(RuntimeTypeCache, this, message, responseType, context, consumerInvoker, consumerInterceptors: consumerInterceptors, handlerInterceptors: handlerInterceptors);
-                    response = await pipeline.Next();
+                    response = await DoHandleInternal(message, consumerInvoker, messageType, hasResponse, responseType, messageScope, consumerContext).ConfigureAwait(false);
                 }
-                else
+                catch (Exception ex)
                 {
-                    // call without interceptors
-                    response = await ExecuteConsumer(message, context, consumerInvoker, responseType).ConfigureAwait(false);
+                    // Give a chance to the consumer error handler to take action
+                    var handleErrorResult = await DoHandleError(message, consumerInvoker, messageType, hasResponse, responseType, messageScope, consumerContext, ex).ConfigureAwait(false);
+                    if (!handleErrorResult.Handled)
+                    {
+                        responseException = ex;
+                    }
+                    if (handleErrorResult.HasResponse)
+                    {
+                        response = handleErrorResult.Response;
+                    }
                 }
             }
             catch (Exception e)
@@ -101,6 +132,52 @@ public class MessageHandler : IMessageHandler
         }
 
         return (response, responseException, requestId);
+    }
+
+    private async Task<object> DoHandleInternal(object message, IMessageTypeConsumerInvokerSettings consumerInvoker, Type messageType, bool hasResponse, Type responseType, IMessageScope messageScope, IConsumerContext consumerContext)
+    {
+        var consumerInterceptors = RuntimeTypeCache.ConsumerInterceptorType.ResolveAll(messageScope.ServiceProvider, messageType);
+        var handlerInterceptors = hasResponse ? RuntimeTypeCache.HandlerInterceptorType.ResolveAll(messageScope.ServiceProvider, (messageType, responseType)) : null;
+        if (consumerInterceptors != null || handlerInterceptors != null)
+        {
+            var pipeline = new ConsumerInterceptorPipeline(RuntimeTypeCache, this, message, responseType, consumerContext, consumerInvoker, consumerInterceptors: consumerInterceptors, handlerInterceptors: handlerInterceptors);
+            return await pipeline.Next().ConfigureAwait(false);
+        }
+
+        // call without interceptors
+        return await ExecuteConsumer(message, consumerContext, consumerInvoker, responseType).ConfigureAwait(false);
+    }
+
+    private async Task<ConsumerErrorHandlerResult> DoHandleError(object message, IMessageTypeConsumerInvokerSettings consumerInvoker, Type messageType, bool hasResponse, Type responseType, IMessageScope messageScope, IConsumerContext consumerContext, Exception ex)
+    {
+        var errorHandlerResult = ConsumerErrorHandlerResult.Failure;
+
+        // Use the bus provider specific error handler type first (if provided)
+        var consumerErrorHandler = ConsumerErrorHandlerOpenGenericType is not null
+            ? GetConsumerErrorHandler(messageType, ConsumerErrorHandlerOpenGenericType, messageScope.ServiceProvider)
+            : null;
+
+        // Use the default error handler type as the last resort
+        consumerErrorHandler ??= GetConsumerErrorHandler(messageType, typeof(IConsumerErrorHandler<>), messageScope.ServiceProvider);
+
+        if (consumerErrorHandler != null)
+        {
+            _logger.LogDebug(ex, "Consumer error handler of type {ConsumerErrorHandlerType} will be used to handle the exception during processing of message of type {MessageType}", consumerErrorHandler.GetType(), messageType);
+
+            // Give a chance to the consumer error handler to take action
+            Task<object> retry() => DoHandleInternal(message, consumerInvoker, messageType, hasResponse, responseType, messageScope, consumerContext);
+
+            var consumerErrorHandlerMethod = RuntimeTypeCache.ConsumerErrorHandlerType[messageType];
+            errorHandlerResult = await consumerErrorHandlerMethod(consumerErrorHandler, message, retry, consumerContext, ex).ConfigureAwait(false);
+        }
+
+        return errorHandlerResult;
+    }
+
+    private object GetConsumerErrorHandler(Type messageType, Type consumerErrorHandlerOpenGenericType, IServiceProvider messageScope)
+    {
+        var consumerErrorHandlerType = RuntimeTypeCache.GetClosedGenericType(consumerErrorHandlerOpenGenericType, messageType);
+        return messageScope.GetService(consumerErrorHandlerType);
     }
 
     protected virtual ConsumerContext CreateConsumerContext(IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, object transportMessage, object consumerInstance, IDictionary<string, object> consumerContextProperties, CancellationToken cancellationToken)

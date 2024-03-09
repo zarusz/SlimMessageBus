@@ -11,39 +11,45 @@ using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
 [Trait("Category", "Integration")]
-public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
+public class MemoryMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<MemoryMessageBusIt>(testOutputHelper)
 {
-    private const int NumberOfMessages = 77;
+    private const int NumberOfMessages = 1023;
 
     private bool _enableSerialization = false;
-
-    public MemoryMessageBusIt(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
-    {
-    }
+    private bool _enableBlockingPublish = true;
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
+        // doc:fragment:ExampleSetup
         services.AddSlimMessageBus(mbb =>
         {
             mbb
-                .WithProviderMemory(cfg => cfg.EnableMessageSerialization = _enableSerialization)
+                .WithProviderMemory(cfg =>
+                {
+                    cfg.EnableMessageSerialization = _enableSerialization;
+                    cfg.EnableBlockingPublish = _enableBlockingPublish;
+                })
                 .AddServicesFromAssemblyContaining<PingConsumer>()
                 .AddJsonSerializer();
-
-            ApplyBusConfiguration(mbb);
         });
+        // doc:fragment:ExampleSetup
+
+        services.AddSlimMessageBus(ApplyBusConfiguration);
 
         services.AddSingleton<TestEventCollector<PingMessage>>();
+        services.AddScoped<SafeCounter>();
     }
 
     public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task BasicPubSubOnTopic(bool enableSerialization)
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    public async Task BasicPubSubOnTopic(bool enableSerialization, bool enableBlockingPublish)
     {
         _enableSerialization = enableSerialization;
+        _enableBlockingPublish = enableBlockingPublish;
 
         var subscribers = 2;
         var topic = "test-ping";
@@ -79,28 +85,50 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
 
         var messageTasks = producedMessages.Select(m => messageBus.Publish(m));
         // wait until all messages are sent
-        await Task.WhenAll(messageTasks).ConfigureAwait(false);
+        await Task.WhenAll(messageTasks);
 
         stopwatch.Stop();
-        Logger.LogInformation("Published {0} messages in {1}", producedMessages.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Published {MessageCount} messages in {ElapsedTime}", producedMessages.Count, stopwatch.Elapsed);
 
         // consume
         stopwatch.Restart();
         await consumedMessages.WaitUntilArriving(expectedCount: subscribers * producedMessages.Count);
         stopwatch.Stop();
 
-        Logger.LogInformation("Consumed {0} messages in {1}", consumedMessages.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Consumed {MessageCount} messages in {ElapsedTime}", consumedMessages.Count, stopwatch.Elapsed);
 
         // assert
 
         // ensure all messages arrived 
         // ... the count should match
-        consumedMessages.Count.Should().Be(subscribers * producedMessages.Count);
+
+        var consumedMessagesSnapshot = consumedMessages.Snapshot();
+
+        consumedMessagesSnapshot
+            .Should().HaveCount(subscribers * producedMessages.Count);
+
+        if (_enableBlockingPublish)
+        {
+            // When blocking publish is enabled, the message will be process in the same DI scope as the publish, hence the counter will run be only created once
+            // This checks that the per message scope is not created when publish is blocking
+            consumedMessagesSnapshot
+                .OrderBy(x => x.ConsumerCounter).Skip(1) // the first element will be 1
+                .Should().AllSatisfy(x => x.ConsumerCounter.Should().BeGreaterThan(1));
+        }
+        else
+        {
+            // When blocking publish is disabled, each message will be executed in its own DI scope hence the counter instance will start from 0
+            // This checks that the per message scope is created when publish is not blocking
+            consumedMessagesSnapshot
+                .Should().AllSatisfy(x => x.ConsumerCounter.Should().Be(1));
+        }
+
         // ... the content should match
         foreach (var producedMessage in producedMessages)
         {
-            var messageCopies = consumedMessages.Snapshot().Count(x => x.Counter == producedMessage.Counter && x.Value == producedMessage.Value);
-            messageCopies.Should().Be(subscribers);
+            consumedMessagesSnapshot
+                .Count(x => x.Counter == producedMessage.Counter && x.Value == producedMessage.Value)
+                .Should().Be(subscribers);
         }
     }
 
@@ -164,7 +192,7 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
         await Task.WhenAll(responseTasks).ConfigureAwait(false);
 
         stopwatch.Stop();
-        Logger.LogInformation("Published and received {0} messages in {1}", responses.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Published and received {MessageCount} messages in {ElapsedTime}", responses.Count, stopwatch.Elapsed);
 
         // assert
 
@@ -197,7 +225,7 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
         await Task.WhenAll(responseTasks).ConfigureAwait(false);
 
         stopwatch.Stop();
-        Logger.LogInformation("Published and received {0} messages in {1}", responses.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Published and received {MessageCount} messages in {ElapsedTime}", responses.Count, stopwatch.Elapsed);
 
         // assert
 
@@ -209,12 +237,14 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
     {
         public int Counter { get; init; }
         public Guid Value { get; init; }
+        public int ConsumerCounter { get; set; }
     }
 
-    internal record PingConsumer(TestEventCollector<PingMessage> Messages) : IConsumer<PingMessage>
+    internal record PingConsumer(TestEventCollector<PingMessage> Messages, SafeCounter SafeCounter) : IConsumer<PingMessage>
     {
         public Task OnHandle(PingMessage message)
         {
+            message.ConsumerCounter = SafeCounter.NextValue();
             Messages.Add(message);
 
             Console.WriteLine("Got message {0}.", message.Counter);
@@ -238,4 +268,12 @@ public class MemoryMessageBusIt : BaseIntegrationTest<MemoryMessageBusIt>
         public Task<EchoResponse> OnHandle(EchoRequest request) =>
             Task.FromResult(new EchoResponse { Message = request.Message });
     }
+}
+
+public class SafeCounter
+{
+    private int _value;
+
+    public int NextValue()
+        => Interlocked.Increment(ref _value);
 }

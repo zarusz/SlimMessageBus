@@ -374,48 +374,100 @@ public class MemoryMessageBusTests
         consumer1Mock.VerifyNoOtherCalls();
     }
 
-    [Fact]
-    public async Task When_Publish_Given_AConsumersThatThrowsException_Then_ExceptionIsBubblingToPublisher()
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    public async Task When_Publish_Given_AConsumersThatThrowsException_Then_ExceptionIsBubblingToPublisher(bool errorHandlerRegistered, bool errorHandlerHandlesError)
     {
         const string topic = "topic-a";
 
         var m = new SomeRequest(Guid.NewGuid());
 
-        var consumerMock = new Mock<SomeRequestConsumer>();
-        consumerMock.Setup(x => x.OnHandle(m)).ThrowsAsync(new ApplicationException("Bad Request"));
+        var consumerMock = new Mock<IConsumer<SomeRequest>>();
+        consumerMock
+            .Setup(x => x.OnHandle(m))
+            .ThrowsAsync(new ApplicationException("Bad Request"));
 
-        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeRequestConsumer))).Returns(() => consumerMock.Object);
+        var consumerErrorHandlerMock = new Mock<IMemoryConsumerErrorHandler<SomeRequest>>();
+        consumerErrorHandlerMock
+            .Setup(x => x.OnHandleError(It.IsAny<SomeRequest>(), It.IsAny<Func<Task<object>>>(), It.IsAny<IConsumerContext>(), It.IsAny<Exception>()))
+            .ReturnsAsync(() => errorHandlerHandlesError ? ConsumerErrorHandlerResult.Success : ConsumerErrorHandlerResult.Failure);
+
+        _serviceProviderMock.ProviderMock
+            .Setup(x => x.GetService(typeof(IConsumer<SomeRequest>)))
+            .Returns(() => consumerMock.Object);
+
+        if (errorHandlerRegistered)
+        {
+            _serviceProviderMock.ProviderMock
+                .Setup(x => x.GetService(typeof(IMemoryConsumerErrorHandler<SomeRequest>)))
+                .Returns(() => consumerErrorHandlerMock.Object);
+        }
 
         _builder.Produce<SomeRequest>(x => x.DefaultTopic(topic));
-        _builder.Consume<SomeRequest>(x => x.Topic(topic).WithConsumer<SomeRequestConsumer>());
+        _builder.Consume<SomeRequest>(x => x.Topic(topic));
 
         // act
         var act = () => _subject.Value.Publish(m);
 
         // assert
-        await act.Should().ThrowAsync<ApplicationException>();
+        if (errorHandlerRegistered && errorHandlerHandlesError)
+        {
+            await act.Should().NotThrowAsync();
+        }
+        else
+        {
+            await act.Should().ThrowAsync<ApplicationException>();
+        }
     }
 
-    [Fact]
-    public async Task When_Send_Given_AHandlerThatThrowsException_Then_ExceptionIsBubblingToSender()
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    public async Task When_Send_Given_AHandlerThatThrowsException_Then_ExceptionIsBubblingToSender(bool errorHandlerRegistered, bool errorHandlerHandlesError)
     {
         const string topic = "topic-a";
 
         var m = new SomeRequest(Guid.NewGuid());
 
-        var consumerMock = new Mock<SomeRequestHandler>();
-        consumerMock.Setup(x => x.OnHandle(m)).ThrowsAsync(new ApplicationException("Bad Request"));
+        var consumerMock = new Mock<IRequestHandler<SomeRequest, SomeResponse>>();
+        consumerMock
+            .Setup(x => x.OnHandle(m))
+            .ThrowsAsync(new ApplicationException("Bad Request"));
 
-        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeRequestHandler))).Returns(() => consumerMock.Object);
+        var consumerErrorHandlerMock = new Mock<IMemoryConsumerErrorHandler<SomeRequest>>();
+        consumerErrorHandlerMock
+            .Setup(x => x.OnHandleError(It.IsAny<SomeRequest>(), It.IsAny<Func<Task<object>>>(), It.IsAny<IConsumerContext>(), It.IsAny<Exception>()))
+            .ReturnsAsync(() => errorHandlerHandlesError ? ConsumerErrorHandlerResult.SuccessWithResponse(null) : ConsumerErrorHandlerResult.Failure);
+
+        _serviceProviderMock.ProviderMock
+            .Setup(x => x.GetService(typeof(IRequestHandler<SomeRequest, SomeResponse>)))
+            .Returns(() => consumerMock.Object);
+
+        if (errorHandlerRegistered)
+        {
+            _serviceProviderMock.ProviderMock
+                .Setup(x => x.GetService(typeof(IMemoryConsumerErrorHandler<SomeRequest>)))
+                .Returns(() => consumerErrorHandlerMock.Object);
+        }
 
         _builder.Produce<SomeRequest>(x => x.DefaultTopic(topic));
-        _builder.Handle<SomeRequest, SomeResponse>(x => x.Topic(topic).WithHandler<SomeRequestHandler>());
+        _builder.Handle<SomeRequest, SomeResponse>(x => x.Topic(topic));
 
         // act
         var act = () => _subject.Value.Send(m);
 
         // assert
-        await act.Should().ThrowAsync<ApplicationException>();
+        if (errorHandlerRegistered && errorHandlerHandlesError)
+        {
+            await act.Should().NotThrowAsync();
+        }
+        else
+        {
+            await act.Should().ThrowAsync<ApplicationException>();
+        }
     }
 }
 

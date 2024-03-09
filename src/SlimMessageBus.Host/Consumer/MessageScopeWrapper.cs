@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Consumer;
 
-public sealed class MessageScopeWrapper : IAsyncDisposable
+public sealed class MessageScopeWrapper : IMessageScope
 {
     private readonly ILogger _logger;
     private readonly IServiceProvider _messageScope;

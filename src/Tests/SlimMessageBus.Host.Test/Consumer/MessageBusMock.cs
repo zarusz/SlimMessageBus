@@ -7,7 +7,7 @@ using SlimMessageBus.Host.Serialization;
 
 public class MessageBusMock
 {
-    public Mock<IServiceProvider> DependencyResolverMock { get; }
+    public Mock<IServiceProvider> ServiceProviderMock { get; }
     public IList<Mock<IServiceScope>> ChildDependencyResolverMocks { get; }
     public Action<Mock<IServiceScope>, Mock<IServiceProvider>> OnChildDependencyResolverCreated { get; set; }
     public Mock<IMessageSerializer> SerializerMock { get; }
@@ -17,14 +17,14 @@ public class MessageBusMock
     public Mock<MessageBusBase> BusMock { get; }
     public MessageBusBase Bus => BusMock.Object;
 
-    private static readonly Type[] InterceptorTypes = new[] { typeof(IConsumerInterceptor<>), typeof(IRequestHandlerInterceptor<,>) };
+    private static readonly Type[] InterceptorTypes = [typeof(IConsumerInterceptor<>), typeof(IRequestHandlerInterceptor<,>)];
 
     public MessageBusMock()
     {
         ConsumerMock = new Mock<IConsumer<SomeMessage>>();
         HandlerMock = new Mock<IRequestHandler<SomeRequest, SomeResponse>>();
 
-        ChildDependencyResolverMocks = new List<Mock<IServiceScope>>();
+        ChildDependencyResolverMocks = [];
 
         void SetupDependencyResolver<T>(Mock<T> mock) where T : class, IServiceProvider
         {
@@ -35,8 +35,8 @@ public class MessageBusMock
                 .Returns(Enumerable.Empty<object>());
         }
 
-        DependencyResolverMock = new Mock<IServiceProvider>();
-        SetupDependencyResolver(DependencyResolverMock);
+        ServiceProviderMock = new Mock<IServiceProvider>();
+        SetupDependencyResolver(ServiceProviderMock);
 
         var serviceScopeFactoryMock = new Mock<IServiceScopeFactory>();
         serviceScopeFactoryMock.Setup(x => x.CreateScope()).Returns(() =>
@@ -61,12 +61,12 @@ public class MessageBusMock
 
         SerializerMock = new Mock<IMessageSerializer>();
 
-        DependencyResolverMock.Setup(x => x.GetService(typeof(IServiceScopeFactory))).Returns(serviceScopeFactoryMock.Object);
-        DependencyResolverMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(SerializerMock.Object);
+        ServiceProviderMock.Setup(x => x.GetService(typeof(IServiceScopeFactory))).Returns(serviceScopeFactoryMock.Object);
+        ServiceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(SerializerMock.Object);
 
         var mbSettings = new MessageBusSettings
         {
-            ServiceProvider = DependencyResolverMock.Object
+            ServiceProvider = ServiceProviderMock.Object
         };
 
         CurrentTime = DateTimeOffset.UtcNow;
@@ -76,6 +76,6 @@ public class MessageBusMock
         BusMock.SetupGet(x => x.Serializer).CallBase();
         BusMock.SetupGet(x => x.CurrentTime).Returns(() => CurrentTime);
         BusMock.Setup(x => x.CreateHeaders()).CallBase();
-        BusMock.Setup(x => x.CreateMessageScope(It.IsAny<ConsumerSettings>(), It.IsAny<object>(), It.IsAny<IServiceProvider>())).CallBase();
+        BusMock.Setup(x => x.CreateMessageScope(It.IsAny<ConsumerSettings>(), It.IsAny<object>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IServiceProvider>())).CallBase();
     }
 }

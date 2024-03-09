@@ -9,4 +9,11 @@ public class MemoryMessageBusSettings
     /// Disabling serialization might be useful if your domain events have references to domain objects that you would want to preserve and not create deep copies of.
     /// </summary>
     public bool EnableMessageSerialization { get; set; } = false;
+
+    /// <summary>
+    /// The default behavior is to have Publish operations blocking (synchronous) and to wait for the message processing (handling) to finish.
+    /// This is useful to ensure side effect within the unit of work (web request, external message handling) are completed.
+    /// However, if you prefer to have Publish operaions non-blocking (asynchronous), you can disable this setting.
+    /// </summary>
+    public bool EnableBlockingPublish { get; set; } = true;
 }

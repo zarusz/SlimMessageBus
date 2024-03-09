@@ -1,8 +1,11 @@
 ﻿namespace SlimMessageBus.Host.Test;
 
+using SlimMessageBus.Host.Consumer;
+
 public class MessageHandlerTest
 {
     private readonly MessageBusMock busMock;
+    private readonly Mock<IMessageScope> messageScopeMock;
     private readonly Mock<IMessageScopeFactory> messageScopeFactoryMock;
     private readonly Mock<IMessageTypeResolver> messageTypeResolverMock;
     private readonly Mock<IMessageHeadersFactory> messageHeaderFactoryMock;
@@ -10,11 +13,18 @@ public class MessageHandlerTest
     private readonly Mock<IMessageTypeConsumerInvokerSettings> consumerInvokerMock;
     private readonly Mock<Func<object, object, Task>> consumerMethodMock;
     private readonly MessageHandler subject;
+    private readonly Fixture fixture = new();
 
     public MessageHandlerTest()
     {
         busMock = new();
+
+        messageScopeMock = new Mock<IMessageScope>();
         messageScopeFactoryMock = new Mock<IMessageScopeFactory>();
+        messageScopeFactoryMock
+            .Setup(x => x.CreateMessageScope(It.IsAny<ConsumerSettings>(), It.IsAny<object>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IServiceProvider>()))
+            .Returns(messageScopeMock.Object);
+
         messageTypeResolverMock = new Mock<IMessageTypeResolver>();
         messageHeaderFactoryMock = new Mock<IMessageHeadersFactory>();
         consumerContextMock = new Mock<IConsumerContext>();
@@ -23,7 +33,14 @@ public class MessageHandlerTest
         consumerMethodMock = new Mock<Func<object, object, Task>>();
         consumerInvokerMock.SetupGet(x => x.ConsumerMethod).Returns(consumerMethodMock.Object);
 
-        subject = new MessageHandler(busMock.Bus, messageScopeFactoryMock.Object, messageTypeResolverMock.Object, messageHeaderFactoryMock.Object, new Host.Collections.RuntimeTypeCache(), busMock.Bus, "topic1");
+        subject = new MessageHandler(
+            messageBus: busMock.Bus,
+            messageScopeFactory: messageScopeFactoryMock.Object,
+            messageTypeResolver: messageTypeResolverMock.Object,
+            messageHeadersFactory: messageHeaderFactoryMock.Object,
+            runtimeTypeCache: new Host.Collections.RuntimeTypeCache(),
+            currentTimeProvider: busMock.Bus,
+            path: "topic1");
     }
 
     [Fact]
@@ -64,6 +81,85 @@ public class MessageHandlerTest
         // assert
         consumerMock.VerifySet(x => { x.Context = consumerContextMock.Object; }, Times.Once());
         consumerMock.VerifyNoOtherCalls();
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    public async Task When_DoHandle_Given_ConsumerThatThrowsExceptionAndErrorHandlerRegisteredAndIsAbleToHandleException_Then_ErrorHandlerIsInvoked(bool errorHandlerRegistered, bool errorHandlerWasAbleToHandle)
+    {
+        // arrange
+        var someMessage = new SomeMessage();
+        var someException = fixture.Create<Exception>();
+        var messageHeaders = fixture.Create<Dictionary<string, object>>();
+
+        var consumerMock = new Mock<IConsumer<SomeMessage>>();
+
+        var consumerErrorHandlerMock = new Mock<IConsumerErrorHandler<SomeMessage>>();
+
+        consumerErrorHandlerMock
+            .Setup(x => x.OnHandleError(someMessage, It.IsAny<Func<Task<object>>>(), It.IsAny<IConsumerContext>(), someException))
+            .ReturnsAsync(() => errorHandlerWasAbleToHandle ? ConsumerErrorHandlerResult.Success : ConsumerErrorHandlerResult.Failure);
+
+        if (errorHandlerRegistered)
+        {
+            busMock.ServiceProviderMock
+                .Setup(x => x.GetService(typeof(IConsumerErrorHandler<SomeMessage>)))
+                .Returns(consumerErrorHandlerMock.Object);
+        }
+
+        busMock.ServiceProviderMock
+            .Setup(x => x.GetService(typeof(IConsumer<SomeMessage>)))
+            .Returns(consumerMock.Object);
+
+        consumerMethodMock
+            .Setup(x => x(consumerMock.Object, someMessage))
+            .ThrowsAsync(someException);
+
+        consumerInvokerMock
+            .SetupGet(x => x.ParentSettings)
+            .Returns(new ConsumerSettings());
+        consumerInvokerMock
+            .SetupGet(x => x.ConsumerType)
+            .Returns(typeof(IConsumer<SomeMessage>));
+
+        messageScopeMock
+            .SetupGet(x => x.ServiceProvider)
+            .Returns(busMock.ServiceProviderMock.Object);
+
+        // act
+        var result = await subject.DoHandle(someMessage, messageHeaders, consumerInvoker: consumerInvokerMock.Object, currentServiceProvider: busMock.ServiceProviderMock.Object);
+
+        // assert
+
+        result.RequestId.Should().BeNull();
+        result.Response.Should().BeNull();
+
+        if (errorHandlerRegistered && errorHandlerWasAbleToHandle)
+        {
+            result.ResponseException.Should().BeNull();
+        }
+        else
+        {
+            result.ResponseException.Should().BeSameAs(someException);
+        }
+
+        consumerMethodMock
+            .Verify(x => x(consumerMock.Object, someMessage), Times.Once());
+        consumerMethodMock
+            .VerifyNoOtherCalls();
+
+        if (errorHandlerRegistered)
+        {
+            consumerErrorHandlerMock
+                .Verify(
+                    x => x.OnHandleError(someMessage, It.IsAny<Func<Task<object>>>(), It.IsAny<IConsumerContext>(), someException),
+                    Times.Once());
+
+            consumerErrorHandlerMock
+                .VerifyNoOtherCalls();
+        }
     }
 
     [Fact]

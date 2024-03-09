@@ -234,14 +234,14 @@ services.AddSlimMessageBus((mbb) =>
 
 ##### Custom Consumer Error Handler
 
-Define a custom consumer error handler implementation of `RabbitMqConsumerErrorHandler<>`:
+Define a custom class implementation of `IRabbitMqConsumerErrorHandler<>`:
 
 ```cs
-public class CustomRabbitMqConsumerErrorHandler<T> : RabbitMqConsumerErrorHandler<T>
+public class CustomRabbitMqConsumerErrorHandler<T> : IRabbitMqConsumerErrorHandler<T>
 {
     // Inject needed dependencies via construction
 
-    public override async Task<bool> OnHandleError(T message, IConsumerContext consumerContext, Exception exception)
+    public async Task<bool> OnHandleError(T message, Func<Task> retry, IConsumerContext consumerContext, Exception exception)
     {
         // Check if this is consumer context for RabbitMQ
         var isRabbitMqContext = consumerContext.GetTransportMessage() != null;
@@ -269,10 +269,12 @@ Then register the implementation in MSDI for all (or specified) message types.
 
 ```cs
 // Register error handler in MSDI for any message type
-services.AddTransient(typeof(RabbitMqConsumerErrorHandler<>), typeof(CustomRabbitMqConsumerErrorHandler<>));
+services.AddTransient(typeof(IRabbitMqConsumerErrorHandler<>), typeof(CustomRabbitMqConsumerErrorHandler<>));
 ```
 
-> When error handler is not found in the DI or it returns `false` then default error handling will be applied.
+> When error handler is not found in the DI for the given message type, or it returns `false`, then default error handling will be applied.
+
+See also the common [error handling](intro.md#error-handling).
 
 #### Consumer Concurrency Level
 

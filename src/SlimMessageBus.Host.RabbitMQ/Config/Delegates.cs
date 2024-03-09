@@ -29,4 +29,4 @@ public delegate void RabbitMqMessagePropertiesModifier<T>(T message, IBasicPrope
 /// Represents an action to confirm the message.
 /// </summary>
 /// <param name="option"></param>
-public delegate void RabbitMqMessageConfirmAction(RabbitMqMessageConfirmOption option);
+public delegate void RabbitMqMessageConfirmAction(RabbitMqMessageConfirmOptions option);

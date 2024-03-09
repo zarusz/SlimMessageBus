@@ -41,11 +41,11 @@ public abstract class EhPartitionConsumer
         _lastMessage = args;
 
         var headers = GetHeadersFromTransportMessage(args.Data);
-        var (lastException, _, _, _) = await MessageProcessor.ProcessMessage(args.Data, headers, cancellationToken: args.CancellationToken).ConfigureAwait(false);
-        if (lastException != null)
+        var r = await MessageProcessor.ProcessMessage(args.Data, headers, cancellationToken: args.CancellationToken).ConfigureAwait(false);
+        if (r.Exception != null)
         {
             // Note: The OnMessageFaulted was called at this point by the MessageProcessor.
-            _logger.LogError(lastException, "Message error - Group: {Group}, Path: {Path}, PartitionId: {PartitionId}, Offset: {Offset}", GroupPathPartition.Group, GroupPathPartition.Path, GroupPathPartition.PartitionId, args.Data.Offset);
+            _logger.LogError(r.Exception, "Message error - Group: {Group}, Path: {Path}, PartitionId: {PartitionId}, Offset: {Offset}", GroupPathPartition.Group, GroupPathPartition.Path, GroupPathPartition.PartitionId, args.Data.Offset);
 
             // ToDo: Retry logic in the future
         }
