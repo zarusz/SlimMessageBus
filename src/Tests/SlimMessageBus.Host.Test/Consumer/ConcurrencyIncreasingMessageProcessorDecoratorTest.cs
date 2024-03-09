@@ -50,7 +50,7 @@ public class ConcurrencyIncreasingMessageProcessorDecoratorTest
 
                 // Leaving critical section
                 Interlocked.Decrement(ref currentSectionCount);
-                return (null, null, null, null);
+                return new(null, null, null, null);
             });
 
         // act

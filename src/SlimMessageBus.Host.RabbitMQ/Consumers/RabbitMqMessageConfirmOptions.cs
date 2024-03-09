@@ -1,7 +1,7 @@
 ﻿namespace SlimMessageBus.Host.RabbitMQ;
 
 [Flags]
-public enum RabbitMqMessageConfirmOption
+public enum RabbitMqMessageConfirmOptions
 {
     Ack = 1,
     Nack = 2,

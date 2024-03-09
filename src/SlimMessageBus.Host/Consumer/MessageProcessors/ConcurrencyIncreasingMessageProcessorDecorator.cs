@@ -32,7 +32,6 @@ public sealed class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : I
         _target = target;
     }
 
-
     #region IDisposable
 
     public void Dispose()
@@ -43,7 +42,7 @@ public sealed class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : I
 
     #endregion
 
-    public async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response, object Message)> ProcessMessage(TMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, IDictionary<string, object> consumerContextProperties = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
+    public async Task<ProcessMessageResult> ProcessMessage(TMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, IDictionary<string, object> consumerContextProperties = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
     {
         // Ensure only desired number of messages are being processed concurrently
         await _concurrentSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -54,7 +53,7 @@ public sealed class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : I
         {
             // report the last exception
             _lastException = null;
-            return (e, _lastExceptionSettings, null, _lastExceptionMessage);
+            return new(e, _lastExceptionSettings, null, _lastExceptionMessage);
         }
 
         Interlocked.Increment(ref _pendingCount);
@@ -63,7 +62,7 @@ public sealed class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : I
         _ = ProcessInBackground(transportMessage, messageHeaders, currentServiceProvider, consumerContextProperties, cancellationToken);
 
         // Not exception - we don't know yet
-        return (null, null, null, null);
+        return new(null, null, null, null);
     }
 
     public TMessage GetMessageWithException()
@@ -89,17 +88,17 @@ public sealed class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : I
         try
         {
             _logger.LogDebug("Entering ProcessMessages for message {MessageType}", typeof(TMessage));
-            var (exception, consumerSettings, response, _) = await _target.ProcessMessage(transportMessage, messageHeaders, consumerContextProperties, currentServiceProvider, cancellationToken).ConfigureAwait(false);
-            if (exception != null)
+            var r = await _target.ProcessMessage(transportMessage, messageHeaders, consumerContextProperties, currentServiceProvider, cancellationToken).ConfigureAwait(false);
+            if (r.Exception != null)
             {
                 lock (_lastExceptionLock)
                 {
                     // ensure there was no error before this one, in which case forget about this error (the whole event stream will be rewind back).
                     if (_lastException == null && _lastExceptionMessage == null)
                     {
-                        _lastException = exception;
+                        _lastException = r.Exception;
                         _lastExceptionMessage = transportMessage;
-                        _lastExceptionSettings = consumerSettings;
+                        _lastExceptionSettings = r.ConsumerSettings;
                     }
                 }
             }

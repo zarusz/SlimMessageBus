@@ -11,13 +11,9 @@ using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
 [Trait("Category", "Integration")]
-public class RabbitMqMessageBusIt : BaseIntegrationTest<RabbitMqMessageBusIt>
+public class RabbitMqMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<RabbitMqMessageBusIt>(testOutputHelper)
 {
     private const int NumberOfMessages = 144;
-
-    public RabbitMqMessageBusIt(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
-    {
-    }
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
@@ -63,7 +59,7 @@ public class RabbitMqMessageBusIt : BaseIntegrationTest<RabbitMqMessageBusIt>
         });
 
         // Custom error handler
-        services.AddTransient(typeof(RabbitMqConsumerErrorHandler<>), typeof(CustomRabbitMqConsumerErrorHandler<>));
+        services.AddTransient(typeof(IRabbitMqConsumerErrorHandler<>), typeof(CustomRabbitMqConsumerErrorHandler<>));
 
         services.AddSingleton<TestEventCollector<TestEvent>>();
     }
@@ -368,9 +364,9 @@ public static class FakeExceptionUtil
 /// Custom Rabbit MQ consumer error handler that acks if the exception is a <see cref="FakeErrorException"/>.
 /// </summary>
 /// <typeparam name="T"></typeparam>
-public class CustomRabbitMqConsumerErrorHandler<T> : RabbitMqConsumerErrorHandler<T>
+public class CustomRabbitMqConsumerErrorHandler<T> : IRabbitMqConsumerErrorHandler<T>
 {
-    public override Task<bool> OnHandleError(T message, IConsumerContext consumerContext, Exception exception)
+    public Task<bool> OnHandleError(T message, Func<Task> next, IConsumerContext consumerContext, Exception exception)
     {
         // Check if this is consumer context for RabbitMQ
         var isRabbitMqContext = consumerContext.GetTransportMessage() != null;

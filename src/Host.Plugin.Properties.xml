@@ -5,7 +5,7 @@
 
 	<PropertyGroup>
     <TargetFrameworks>netstandard2.0;net6.0;net8.0</TargetFrameworks>
-    <Version>2.3.0-rc1</Version>
+    <Version>2.3.0-rc2</Version>
   </PropertyGroup>
 
 </Project>

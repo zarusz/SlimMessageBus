@@ -22,11 +22,11 @@ public class RabbitMqConsumerContextExtensionsTests
     }
 
     [Theory]
-    [InlineData(false, RabbitMqMessageConfirmOption.Ack)]
-    [InlineData(true, RabbitMqMessageConfirmOption.Ack)]
-    [InlineData(true, RabbitMqMessageConfirmOption.Nack)]
-    [InlineData(true, RabbitMqMessageConfirmOption.Nack | RabbitMqMessageConfirmOption.Requeue)]
-    internal void When_ConfirmAction_Then_CallsConfrirmMessageAction_Given_SetConfirmActionWasCalled(bool setConfirmActionMade, RabbitMqMessageConfirmOption confirmOption)
+    [InlineData(false, RabbitMqMessageConfirmOptions.Ack)]
+    [InlineData(true, RabbitMqMessageConfirmOptions.Ack)]
+    [InlineData(true, RabbitMqMessageConfirmOptions.Nack)]
+    [InlineData(true, RabbitMqMessageConfirmOptions.Nack | RabbitMqMessageConfirmOptions.Requeue)]
+    internal void When_ConfirmAction_Then_CallsConfrirmMessageAction_Given_SetConfirmActionWasCalled(bool setConfirmActionMade, RabbitMqMessageConfirmOptions confirmOption)
     {
         // arrange
         var confirmActionMock = new Mock<RabbitMqMessageConfirmAction>();
@@ -39,15 +39,15 @@ public class RabbitMqConsumerContextExtensionsTests
         // act
         var act = () =>
         {
-            if ((confirmOption & RabbitMqMessageConfirmOption.Ack) != 0)
+            if ((confirmOption & RabbitMqMessageConfirmOptions.Ack) != 0)
             {
                 _consumerContext.Ack();
             }
-            if ((confirmOption & RabbitMqMessageConfirmOption.Nack) != 0)
+            if ((confirmOption & RabbitMqMessageConfirmOptions.Nack) != 0)
             {
                 _consumerContext.Nack();
             }
-            if ((confirmOption & RabbitMqMessageConfirmOption.Nack) != 0 && (confirmOption & RabbitMqMessageConfirmOption.Requeue) != 0)
+            if ((confirmOption & RabbitMqMessageConfirmOptions.Nack) != 0 && (confirmOption & RabbitMqMessageConfirmOptions.Requeue) != 0)
             {
                 _consumerContext.NackWithRequeue();
             }

@@ -43,7 +43,9 @@ public class RedisTopicConsumer : AbstractConsumer, IRedisConsumer
         try
         {
             var messageWithHeaders = (MessageWithHeaders)_envelopeSerializer.Deserialize(typeof(MessageWithHeaders), m.Message);
-            (exception, var exceptionConsumerSettings, _, _) = await _messageProcessor.ProcessMessage(messageWithHeaders, messageWithHeaders.Headers, cancellationToken: CancellationToken);
+
+            var r = await _messageProcessor.ProcessMessage(messageWithHeaders, messageWithHeaders.Headers, cancellationToken: CancellationToken);
+            exception = r.Exception;
         }
         catch (Exception e)
         {

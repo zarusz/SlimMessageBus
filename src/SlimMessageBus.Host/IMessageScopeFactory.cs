@@ -4,5 +4,5 @@ using SlimMessageBus.Host.Consumer;
 
 public interface IMessageScopeFactory
 {
-    MessageScopeWrapper CreateMessageScope(ConsumerSettings consumerSettings, object message, IServiceProvider currentServiceProvider);
+    IMessageScope CreateMessageScope(ConsumerSettings consumerSettings, object message, IDictionary<string, object> consumerContextProperties, IServiceProvider currentServiceProvider);
 }

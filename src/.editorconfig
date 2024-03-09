@@ -102,6 +102,7 @@ csharp_style_prefer_readonly_struct = true:suggestion
 csharp_style_allow_embedded_statements_on_same_line_experimental = true:silent
 csharp_style_allow_blank_lines_between_consecutive_braces_experimental = true:silent
 csharp_style_allow_blank_line_after_colon_in_constructor_initializer_experimental = true:silent
+csharp_style_prefer_primary_constructors = true:suggestion
 
 [*.{cs,vb}]
 #### Naming styles ####
@@ -175,3 +176,5 @@ dotnet_style_predefined_type_for_member_access = true:silent
 dotnet_style_require_accessibility_modifiers = for_non_interface_members:silent
 dotnet_style_allow_multiple_blank_lines_experimental = true:silent
 dotnet_style_allow_statement_immediately_after_block_experimental = true:silent
+dotnet_style_prefer_collection_expression = when_types_loosely_match:suggestion
+dotnet_diagnostic.CA1859.severity = silent

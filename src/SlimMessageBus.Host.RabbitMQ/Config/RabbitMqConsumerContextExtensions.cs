@@ -31,7 +31,7 @@ public static class RabbitMqConsumerContextExtensions
     static internal void SetConfirmAction(this IConsumerContext consumerContext, RabbitMqMessageConfirmAction messageConfirmAction)
         => consumerContext.Properties[Key] = messageConfirmAction;
 
-    static internal void ConfirmAction(this IConsumerContext consumerContext, RabbitMqMessageConfirmOption option)
+    static internal void ConfirmAction(this IConsumerContext consumerContext, RabbitMqMessageConfirmOptions option)
     {
         var messageConfirmAction = consumerContext.GetPropertyOrDefault<RabbitMqMessageConfirmAction>(Key)
             ?? throw new ConsumerMessageBusException("Cannnot perform RabbitMq message confirmation at this point");
@@ -44,19 +44,19 @@ public static class RabbitMqConsumerContextExtensions
     /// </summary>
     /// <param name="consumerContext"></param>
     public static void Ack(this IConsumerContext consumerContext)
-        => ConfirmAction(consumerContext, RabbitMqMessageConfirmOption.Ack);
+        => ConfirmAction(consumerContext, RabbitMqMessageConfirmOptions.Ack);
 
     /// <summary>
     /// Sends an Nack (negative ack) for the processed message with the setting to NOT redeliver it.
     /// </summary>
     /// <param name="consumerContext"></param>
     public static void Nack(this IConsumerContext consumerContext)
-        => ConfirmAction(consumerContext, RabbitMqMessageConfirmOption.Nack);
+        => ConfirmAction(consumerContext, RabbitMqMessageConfirmOptions.Nack);
 
     /// <summary>
     /// Sends an Nack (negative ack) for the processed message with the setting to requeue it.
     /// </summary>
     /// <param name="consumerContext"></param>
     public static void NackWithRequeue(this IConsumerContext consumerContext)
-        => ConfirmAction(consumerContext, RabbitMqMessageConfirmOption.Nack | RabbitMqMessageConfirmOption.Requeue);
+        => ConfirmAction(consumerContext, RabbitMqMessageConfirmOptions.Nack | RabbitMqMessageConfirmOptions.Requeue);
 }

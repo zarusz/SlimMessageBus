@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Collections;
 
-using Microsoft.Extensions.DependencyInjection;
-
 using SlimMessageBus.Host.Interceptor;
 
 public interface IGenericTypeCache<TFunc> : IReadOnlyCache<Type, TFunc>
