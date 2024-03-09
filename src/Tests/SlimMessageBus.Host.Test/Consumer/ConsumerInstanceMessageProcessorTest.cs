@@ -164,7 +164,7 @@ public class ConsumerInstanceMessageProcessorTest
             .Setup(x => x.OnHandle(message, It.IsAny<Func<Task<object>>>(), It.IsAny<IConsumerContext>()))
             .Returns((SomeMessage message, Func<Task<object>> next, IConsumerContext context) => next());
 
-        _busMock.DependencyResolverMock
+        _busMock.ServiceProviderMock
             .Setup(x => x.GetService(typeof(IEnumerable<IConsumerInterceptor<SomeMessage>>)))
             .Returns(new[] { messageConsumerInterceptor.Object });
 
@@ -205,11 +205,11 @@ public class ConsumerInstanceMessageProcessorTest
             .Setup(x => x.OnHandle(request, It.IsAny<Func<Task<SomeResponse>>>(), It.IsAny<IConsumerContext>()))
             .Returns((SomeRequest message, Func<Task<SomeResponse>> next, IConsumerContext context) => next?.Invoke());
 
-        _busMock.DependencyResolverMock
+        _busMock.ServiceProviderMock
             .Setup(x => x.GetService(typeof(IRequestHandler<SomeRequest, SomeResponse>)))
             .Returns(handlerMock.Object);
 
-        _busMock.DependencyResolverMock
+        _busMock.ServiceProviderMock
             .Setup(x => x.GetService(typeof(IEnumerable<IRequestHandlerInterceptor<SomeRequest, SomeResponse>>)))
             .Returns(new[] { requestHandlerInterceptor.Object });
 
@@ -252,11 +252,11 @@ public class ConsumerInstanceMessageProcessorTest
             .Setup(x => x.OnHandle(request, It.IsAny<Func<Task<Void>>>(), It.IsAny<IConsumerContext>()))
             .Returns((SomeRequestWithoutResponse message, Func<Task<Void>> next, IConsumerContext context) => next?.Invoke());
 
-        _busMock.DependencyResolverMock
+        _busMock.ServiceProviderMock
             .Setup(x => x.GetService(typeof(IRequestHandler<SomeRequestWithoutResponse>)))
             .Returns(handlerMock.Object);
 
-        _busMock.DependencyResolverMock
+        _busMock.ServiceProviderMock
             .Setup(x => x.GetService(typeof(IEnumerable<IRequestHandlerInterceptor<SomeRequestWithoutResponse, Void>>)))
             .Returns(new[] { requestHandlerInterceptor.Object });
 
@@ -306,7 +306,7 @@ public class ConsumerInstanceMessageProcessorTest
             .Callback<IConsumerContext>(p => context = p)
             .Verifiable();
 
-        _busMock.DependencyResolverMock.Setup(x => x.GetService(typeof(SomeMessageConsumerWithContext))).Returns(consumerMock.Object);
+        _busMock.ServiceProviderMock.Setup(x => x.GetService(typeof(SomeMessageConsumerWithContext))).Returns(consumerMock.Object);
 
         var consumerSettings = new ConsumerBuilder<SomeMessage>(_busMock.Bus.Settings).Topic(_topic).WithConsumer<SomeMessageConsumerWithContext>().ConsumerSettings;
 
@@ -334,7 +334,7 @@ public class ConsumerInstanceMessageProcessorTest
     {
         // arrange
         var consumerSettings = new ConsumerBuilder<SomeMessage>(_busMock.Bus.Settings).Topic(_topic).WithConsumer<IConsumer<SomeMessage>>().PerMessageScopeEnabled(true).ConsumerSettings;
-        _busMock.BusMock.Setup(x => x.IsMessageScopeEnabled(consumerSettings)).Returns(true);
+        _busMock.BusMock.Setup(x => x.IsMessageScopeEnabled(consumerSettings, It.IsAny<IDictionary<string, object>>())).Returns(true);
 
         var message = new SomeMessage();
 
@@ -355,21 +355,21 @@ public class ConsumerInstanceMessageProcessorTest
 
         // assert
         _busMock.ConsumerMock.Verify(x => x.OnHandle(message), Times.Once); // handler called once
-        _busMock.DependencyResolverMock.Verify(x => x.GetService(typeof(IServiceScopeFactory)), Times.Once);
+        _busMock.ServiceProviderMock.Verify(x => x.GetService(typeof(IServiceScopeFactory)), Times.Once);
         _busMock.ChildDependencyResolverMocks.Count.Should().Be(0); // it has been disposed
         childScopeMock.Should().NotBeNull();
         childScopeMock.Verify(x => x.GetService(typeof(IConsumer<SomeMessage>)), Times.Once);
     }
 
-    public static IEnumerable<object[]> Data => new List<object[]>
-    {
-        new object[] { new SomeMessage(), false, false },
-        new object[] { new SomeDerivedMessage(), false, false },
-        new object[] { new SomeRequest(), false, false },
-        new object[] { new SomeDerived2Message(), false, false },
-        new object[] { new object(), true, true, },
-        new object[] { new object(), true, false },
-    };
+    public static IEnumerable<object[]> Data =>
+    [
+        [new SomeMessage(), false, false],
+        [new SomeDerivedMessage(), false, false],
+        [new SomeRequest(), false, false],
+        [new SomeDerived2Message(), false, false],
+        [new object(), true, true,],
+        [new object(), true, false],
+    ];
 
     [Theory]
     [MemberData(nameof(Data))]
@@ -418,10 +418,10 @@ public class ConsumerInstanceMessageProcessorTest
         var someDerivedMessageConsumerMock = new Mock<IConsumer<SomeDerivedMessage>>();
         var someRequestMessageHandlerMock = new Mock<IRequestHandler<SomeRequest, SomeResponse>>();
 
-        _busMock.DependencyResolverMock.Setup(x => x.GetService(typeof(IConsumer<SomeMessage>))).Returns(someMessageConsumerMock.Object);
-        _busMock.DependencyResolverMock.Setup(x => x.GetService(typeof(IConsumer<ISomeMessageMarkerInterface>))).Returns(someMessageInterfaceConsumerMock.Object);
-        _busMock.DependencyResolverMock.Setup(x => x.GetService(typeof(IConsumer<SomeDerivedMessage>))).Returns(someDerivedMessageConsumerMock.Object);
-        _busMock.DependencyResolverMock.Setup(x => x.GetService(typeof(IRequestHandler<SomeRequest, SomeResponse>))).Returns(someRequestMessageHandlerMock.Object);
+        _busMock.ServiceProviderMock.Setup(x => x.GetService(typeof(IConsumer<SomeMessage>))).Returns(someMessageConsumerMock.Object);
+        _busMock.ServiceProviderMock.Setup(x => x.GetService(typeof(IConsumer<ISomeMessageMarkerInterface>))).Returns(someMessageInterfaceConsumerMock.Object);
+        _busMock.ServiceProviderMock.Setup(x => x.GetService(typeof(IConsumer<SomeDerivedMessage>))).Returns(someDerivedMessageConsumerMock.Object);
+        _busMock.ServiceProviderMock.Setup(x => x.GetService(typeof(IRequestHandler<SomeRequest, SomeResponse>))).Returns(someRequestMessageHandlerMock.Object);
 
         someMessageConsumerMock.Setup(x => x.OnHandle(It.IsAny<SomeMessage>())).Returns(Task.CompletedTask);
         someMessageInterfaceConsumerMock.Setup(x => x.OnHandle(It.IsAny<ISomeMessageMarkerInterface>())).Returns(Task.CompletedTask);

@@ -696,11 +696,11 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     /// <returns></returns>
     protected virtual string GenerateRequestId() => Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
 
-    public virtual bool IsMessageScopeEnabled(ConsumerSettings consumerSettings) => consumerSettings.IsMessageScopeEnabled ?? Settings.IsMessageScopeEnabled ?? true;
+    public virtual bool IsMessageScopeEnabled(ConsumerSettings consumerSettings, IDictionary<string, object> consumerContextProperties) => consumerSettings.IsMessageScopeEnabled ?? Settings.IsMessageScopeEnabled ?? true;
 
-    public virtual MessageScopeWrapper CreateMessageScope(ConsumerSettings consumerSettings, object message, IServiceProvider currentServiceProvider = null)
+    public virtual IMessageScope CreateMessageScope(ConsumerSettings consumerSettings, object message, IDictionary<string, object> consumerContextProperties, IServiceProvider currentServiceProvider = null)
     {
-        var createMessageScope = IsMessageScopeEnabled(consumerSettings);
+        var createMessageScope = IsMessageScopeEnabled(consumerSettings, consumerContextProperties);
         return new MessageScopeWrapper(_logger, currentServiceProvider ?? Settings.ServiceProvider, createMessageScope, message);
     }
 

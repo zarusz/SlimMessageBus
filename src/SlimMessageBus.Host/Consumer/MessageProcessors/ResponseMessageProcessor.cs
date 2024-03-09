@@ -25,20 +25,20 @@ public class ResponseMessageProcessor<TMessage> : IMessageProcessor<TMessage>
 
     public IReadOnlyCollection<AbstractConsumerSettings> ConsumerSettings => _consumerSettings;
 
-    public async Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response, object Message)> ProcessMessage(TMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, IDictionary<string, object> consumerContextProperties = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
+    public async Task<ProcessMessageResult> ProcessMessage(TMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, IDictionary<string, object> consumerContextProperties = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
     {
         try
         {
             var messagePayload = _messagePayloadProvider(transportMessage);
             var exception = await _responseConsumer.OnResponseArrived(messagePayload, _requestResponseSettings.Path, messageHeaders);
-            return (exception, _requestResponseSettings, null, transportMessage);
+            return new(exception, _requestResponseSettings, null, transportMessage);
         }
         catch (Exception e)
         {
             _logger.LogError(e, "Error occured while consuming response message, {Message}", transportMessage);
 
             // We can only continue and process all messages in the lease    
-            return (e, _requestResponseSettings, null, transportMessage);
+            return new(e, _requestResponseSettings, null, transportMessage);
         }
     }
 }

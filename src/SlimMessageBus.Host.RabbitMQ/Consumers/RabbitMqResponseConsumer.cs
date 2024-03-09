@@ -14,8 +14,8 @@ public class RabbitMqResponseConsumer : AbstractRabbitMqConsumer
 
     protected override async Task<Exception> OnMessageRecieved(Dictionary<string, object> messageHeaders, BasicDeliverEventArgs transportMessage)
     {
-        var (exception, _, _, _) = await _messageProcessor.ProcessMessage(transportMessage, messageHeaders: messageHeaders, cancellationToken: CancellationToken);
-        if (exception == null)
+        var r = await _messageProcessor.ProcessMessage(transportMessage, messageHeaders: messageHeaders, cancellationToken: CancellationToken);
+        if (r.Exception == null)
         {
             AckMessage(transportMessage);
         }
@@ -23,6 +23,6 @@ public class RabbitMqResponseConsumer : AbstractRabbitMqConsumer
         {
             NackMessage(transportMessage, requeue: false);
         }
-        return exception;
+        return r.Exception;
     }
 }

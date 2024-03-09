@@ -168,19 +168,7 @@ That behavior is optimized for domain-events where the side effects are to be ex
 
 To use non-blocking publish use the `EnableBlockingPublish` property setting:
 
-```cs
-services.AddSlimMessageBus(mbb =>
-{
-    mbb
-        .WithProviderMemory(cfg =>
-        {
-            cfg.EnableMessageSerialization = _enableSerialization;
-            cfg.EnableBlockingPublish = _enableBlockingPublish;
-        })
-        .AddServicesFromAssemblyContaining<PingConsumer>()
-        .AddJsonSerializer();
-});
-```
+@[:cs](../src/Tests/SlimMessageBus.Host.Memory.Test/MemoryMessageBusIt.cs,ExampleSetup)
 
 When the `.Publish<T>()` is invoked in the non-blocking mode:
 

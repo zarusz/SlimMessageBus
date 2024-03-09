@@ -26,7 +26,7 @@ services.AddSlimMessageBus(mbb =>
 Then register the Saunter services (in that order):
 
 ```cs
-// Add Saunter to the application services.
+// Add Saunter to the application services. 
 builder.Services.AddAsyncApiSchemaGeneration(options =>
 {
     options.AsyncApi = new AsyncApiDocument

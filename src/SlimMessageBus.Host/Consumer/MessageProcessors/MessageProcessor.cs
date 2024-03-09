@@ -27,7 +27,8 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
         string path,
         IResponseProducer responseProducer,
         ConsumerContextInitializer<TTransportMessage> consumerContextInitializer = null,
-        MessageTypeProvider<TTransportMessage> messageTypeProvider = null)
+        MessageTypeProvider<TTransportMessage> messageTypeProvider = null,
+        Type consumerErrorHandlerOpenGenericType = null)
     : base(
         messageBus ?? throw new ArgumentNullException(nameof(messageBus)),
         messageScopeFactory: messageBus,
@@ -35,7 +36,8 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
         messageHeadersFactory: messageBus,
         runtimeTypeCache: messageBus.RuntimeTypeCache,
         currentTimeProvider: messageBus,
-        path: path)
+        path: path,
+        consumerErrorHandlerOpenGenericType)
     {
         _logger = messageBus.LoggerFactory.CreateLogger<MessageProcessor<TTransportMessage>>();
         _messageProvider = messageProvider ?? throw new ArgumentNullException(nameof(messageProvider));
@@ -62,7 +64,7 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
         return context;
     }
 
-    public async virtual Task<(Exception Exception, AbstractConsumerSettings ConsumerSettings, object Response, object Message)> ProcessMessage(TTransportMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, IDictionary<string, object> consumerContextProperties = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
+    public async virtual Task<ProcessMessageResult> ProcessMessage(TTransportMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, IDictionary<string, object> consumerContextProperties = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
     {
         IMessageTypeConsumerInvokerSettings lastConsumerInvoker = null;
         Exception lastException = null;
@@ -123,7 +125,7 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
             _logger.LogDebug(e, "Processing of the message {TransportMessage} failed", transportMessage);
             lastException = e;
         }
-        return (lastException, lastException != null ? lastConsumerInvoker?.ParentSettings : null, lastResponse, message);
+        return new(lastException, lastException != null ? lastConsumerInvoker?.ParentSettings : null, lastResponse, message);
     }
 
     protected Type GetMessageType(IReadOnlyDictionary<string, object> headers)

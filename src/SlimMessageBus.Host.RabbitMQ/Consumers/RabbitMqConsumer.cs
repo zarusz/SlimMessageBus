@@ -1,10 +1,11 @@
 ﻿namespace SlimMessageBus.Host.RabbitMQ;
 
+using Microsoft.Extensions.Logging;
+
 public class RabbitMqConsumer : AbstractRabbitMqConsumer
 {
     public static readonly string ContextProperty_MessageConfirmed = "RabbitMq_MessageConfirmed";
 
-    private readonly MessageBusBase _messageBus;
     private readonly RabbitMqMessageAcknowledgementMode _acknowledgementMode;
     private readonly IMessageProcessor<BasicDeliverEventArgs> _messageProcessor;
 
@@ -13,7 +14,6 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer
     public RabbitMqConsumer(ILoggerFactory loggerFactory, IRabbitMqChannel channel, string queueName, IList<ConsumerSettings> consumers, IMessageSerializer serializer, MessageBusBase messageBus, IHeaderValueConverter headerValueConverter)
         : base(loggerFactory.CreateLogger<RabbitMqConsumer>(), channel, queueName, headerValueConverter)
     {
-        _messageBus = messageBus;
         _acknowledgementMode = consumers.Select(x => x.GetOrDefault<RabbitMqMessageAcknowledgementMode?>(RabbitMqProperties.MessageAcknowledgementMode, messageBus.Settings)).FirstOrDefault(x => x != null)
             ?? RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade; // be default choose the safer acknowledgement mode
         _messageProcessor = new MessageProcessor<BasicDeliverEventArgs>(
@@ -22,7 +22,8 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer
             path: queueName,
             responseProducer: messageBus,
             messageProvider: (messageType, m) => serializer.Deserialize(messageType, m.Body.ToArray()),
-            consumerContextInitializer: InitializeConsumerContext);
+            consumerContextInitializer: InitializeConsumerContext,
+            consumerErrorHandlerOpenGenericType: typeof(IRabbitMqConsumerErrorHandler<>));
     }
 
     private void InitializeConsumerContext(BasicDeliverEventArgs transportMessage, ConsumerContext consumerContext)
@@ -39,7 +40,7 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer
         consumerContext.SetConfirmAction(option => ConfirmMessage(transportMessage, option, consumerContext.Properties, warnIfAlreadyConfirmed: true));
     }
 
-    private void ConfirmMessage(BasicDeliverEventArgs transportMessage, RabbitMqMessageConfirmOption option, IDictionary<string, object> properties, bool warnIfAlreadyConfirmed = false)
+    private void ConfirmMessage(BasicDeliverEventArgs transportMessage, RabbitMqMessageConfirmOptions option, IDictionary<string, object> properties, bool warnIfAlreadyConfirmed = false)
     {
         if (properties.TryGetValue(ContextProperty_MessageConfirmed, out var confirmed) && confirmed is true)
         {
@@ -51,14 +52,14 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer
             return;
         }
 
-        if ((option & RabbitMqMessageConfirmOption.Ack) != 0)
+        if ((option & RabbitMqMessageConfirmOptions.Ack) != 0)
         {
             AckMessage(transportMessage);
             confirmed = true;
         }
-        else if ((option & RabbitMqMessageConfirmOption.Nack) != 0)
+        else if ((option & RabbitMqMessageConfirmOptions.Nack) != 0)
         {
-            NackMessage(transportMessage, requeue: (option & RabbitMqMessageConfirmOption.Requeue) != 0);
+            NackMessage(transportMessage, requeue: (option & RabbitMqMessageConfirmOptions.Requeue) != 0);
             confirmed = true;
         }
 
@@ -76,64 +77,26 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer
         if (_acknowledgementMode == RabbitMqMessageAcknowledgementMode.AckMessageBeforeProcessing)
         {
             // Acknowledge before processing
-            ConfirmMessage(transportMessage, RabbitMqMessageConfirmOption.Ack, consumerContextProperties);
+            ConfirmMessage(transportMessage, RabbitMqMessageConfirmOptions.Ack, consumerContextProperties);
         }
 
-        var (exception, _, _, message) = await _messageProcessor.ProcessMessage(transportMessage, messageHeaders: messageHeaders, consumerContextProperties: consumerContextProperties, cancellationToken: CancellationToken);
-        if (exception == null)
-        {
-            if (_acknowledgementMode == RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade)
-            {
-                // Acknowledge after processing
-                ConfirmMessage(transportMessage, RabbitMqMessageConfirmOption.Ack, consumerContextProperties);
-            }
-        }
-        else
-        {
-            await OnMessageError(transportMessage, messageHeaders, message, exception, consumerContextProperties);
-        }
-        return null;
-    }
-
-    private async Task OnMessageError(BasicDeliverEventArgs transportMessage, Dictionary<string, object> messageHeaders, object message, Exception exception, Dictionary<string, object> consumerContextProperties)
-    {
-        var consumerContext = CreateErrorConsumerContext(transportMessage, messageHeaders, consumerContextProperties);
-
-        // Obtain from cache closed generic type IConsumerErrorHandler<TMessage> of the message type
-        var consumerErrorHandlerType = _messageBus.RuntimeTypeCache.GetClosedGenericType(typeof(RabbitMqConsumerErrorHandler<>), message.GetType());
-        // Resolve IConsumerErrorHandler<> of the message type
-        var consumerErrorHandler = _messageBus.Settings.ServiceProvider.GetService(consumerErrorHandlerType) as IConsumerErrorHandlerUntyped;
-        if (consumerErrorHandler != null)
-        {
-            var handled = await consumerErrorHandler.OnHandleError(message, consumerContext, exception);
-            if (handled)
-            {
-                Logger.LogDebug("Error handling was performed by {ConsumerErrorHandlerType}", consumerErrorHandler.GetType().Name);
-                return;
-            }
-        }
+        var r = await _messageProcessor.ProcessMessage(transportMessage, messageHeaders: messageHeaders, consumerContextProperties: consumerContextProperties, cancellationToken: CancellationToken);
 
         if (_acknowledgementMode == RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade)
         {
-            // NAck after processing when message fails (unless the user already acknowledged in any way).
-            ConfirmMessage(transportMessage, RabbitMqMessageConfirmOption.Nack, consumerContextProperties);
+            // Acknowledge after processing
+            var confirmOption = r.Exception != null
+                ? RabbitMqMessageConfirmOptions.Nack // NAck after processing when message fails (unless the user already acknowledged in any way).
+                : RabbitMqMessageConfirmOptions.Ack; // Acknowledge after processing
+            ConfirmMessage(transportMessage, confirmOption, consumerContextProperties);
         }
-    }
 
-    private ConsumerContext CreateErrorConsumerContext(BasicDeliverEventArgs @event, Dictionary<string, object> messageHeaders, Dictionary<string, object> consumerContextProperties)
-    {
-        var consumerContext = new ConsumerContext(consumerContextProperties)
+        if (r.Exception != null)
         {
-            Path = QueueName,
-            CancellationToken = CancellationToken,
-            Bus = _messageBus,
-            Headers = messageHeaders,
-            ConsumerInvoker = null,
-            Consumer = null,
-        };
+            // We rely on the IMessageProcessor to execute the ConsumerErrorHandler<T>, but if it's not registered in the DI, it fails, or there is another fatal error then the message will be lost.
+            Logger.LogError(r.Exception, "Error processing message {Message} from exchange {Exchange}, delivery tag {DeliveryTag}", transportMessage, transportMessage.Exchange, transportMessage.DeliveryTag);
+        }
 
-        InitializeConsumerContext(@event, consumerContext);
-
-        return consumerContext;
+        return null;
     }
 }

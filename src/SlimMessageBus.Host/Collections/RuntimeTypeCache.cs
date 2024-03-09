@@ -15,6 +15,8 @@ public class RuntimeTypeCache : IRuntimeTypeCache
     public IGenericTypeCache<Func<object, object, Func<Task<object>>, IConsumerContext, Task<object>>> ConsumerInterceptorType { get; }
     public IGenericTypeCache2<Func<object, object, object, IConsumerContext, Task>> HandlerInterceptorType { get; }
 
+    public IGenericTypeCache<Func<object, object, Func<Task<object>>, IConsumerContext, Exception, Task<ConsumerErrorHandlerResult>>> ConsumerErrorHandlerType { get; }
+
     public RuntimeTypeCache()
     {
         static Type ReturnTypeFunc(Type responseType) => typeof(Task<>).MakeGenericType(responseType);
@@ -30,38 +32,44 @@ public class RuntimeTypeCache : IRuntimeTypeCache
                 .GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
                 .Single(x => x.ContainsGenericParameters && x.IsGenericMethodDefinition && x.GetGenericArguments().Length == 1 && x.Name == key.MethodName);
 
-            return ReflectionUtils.GenerateGenericMethodCallToFunc<Func<object, object>>(genericMethod, new[] { key.GenericArgument }, key.ClassType, typeof(Task<object>));
+            return ReflectionUtils.GenerateGenericMethodCallToFunc<Func<object, object>>(genericMethod, [key.GenericArgument], key.ClassType, typeof(Task<object>));
         });
 
         ProducerInterceptorType = new GenericTypeCache<Func<object, object, Func<Task<object>>, IProducerContext, Task<object>>>(
             typeof(IProducerInterceptor<>),
             nameof(IProducerInterceptor<object>.OnHandle),
             messageType => typeof(Task<object>),
-            messageType => new[] { typeof(Func<Task<object>>), typeof(IProducerContext) });
+            messageType => [typeof(Func<Task<object>>), typeof(IProducerContext)]);
 
         PublishInterceptorType = new GenericTypeCache<Func<object, object, Func<Task>, IProducerContext, Task>>(
             typeof(IPublishInterceptor<>),
             nameof(IPublishInterceptor<object>.OnHandle),
             messageType => typeof(Task),
-            messageType => new[] { typeof(Func<Task>), typeof(IProducerContext) });
+            messageType => [typeof(Func<Task>), typeof(IProducerContext)]);
 
         SendInterceptorType = new GenericTypeCache2<Func<object, object, object, IProducerContext, Task>>(
             typeof(ISendInterceptor<,>),
             nameof(ISendInterceptor<object, object>.OnHandle),
             ReturnTypeFunc,
-            responseType => new[] { FuncTypeFunc(responseType), typeof(IProducerContext) });
+            responseType => [FuncTypeFunc(responseType), typeof(IProducerContext)]);
 
         ConsumerInterceptorType = new GenericTypeCache<Func<object, object, Func<Task<object>>, IConsumerContext, Task<object>>>(
             typeof(IConsumerInterceptor<>),
             nameof(IConsumerInterceptor<object>.OnHandle),
             messageType => typeof(Task<object>),
-            messageType => new[] { typeof(Func<Task<object>>), typeof(IConsumerContext) });
+            messageType => [typeof(Func<Task<object>>), typeof(IConsumerContext)]);
 
         HandlerInterceptorType = new GenericTypeCache2<Func<object, object, object, IConsumerContext, Task>>(
             typeof(IRequestHandlerInterceptor<,>),
             nameof(IRequestHandlerInterceptor<object, object>.OnHandle),
             ReturnTypeFunc,
-            responseType => new[] { FuncTypeFunc(responseType), typeof(IConsumerContext) });
+            responseType => [FuncTypeFunc(responseType), typeof(IConsumerContext)]);
+
+        ConsumerErrorHandlerType = new GenericTypeCache<Func<object, object, Func<Task<object>>, IConsumerContext, Exception, Task<ConsumerErrorHandlerResult>>>(
+            typeof(IConsumerErrorHandler<>),
+            nameof(IConsumerErrorHandler<object>.OnHandleError),
+            messageType => typeof(Task<ConsumerErrorHandlerResult>),
+            messageType => [typeof(Func<Task<object>>), typeof(IConsumerContext), typeof(Exception)]);
     }
 
     public bool IsAssignableFrom(Type from, Type to)
