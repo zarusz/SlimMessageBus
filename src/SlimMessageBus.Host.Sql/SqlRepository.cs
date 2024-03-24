@@ -2,8 +2,8 @@
 
 public class SqlRepository : CommonSqlRepository, ISqlRepository
 {
-    public SqlRepository(ILogger<SqlRepository> logger, SqlMessageBusSettings settings, SqlConnection connection)
-        : base(logger, settings, connection)
+    public SqlRepository(ILogger<SqlRepository> logger, SqlMessageBusSettings settings, SqlConnection connection, ISqlTransactionService transactionService)
+        : base(logger, settings, connection, transactionService)
     {
     }
 }

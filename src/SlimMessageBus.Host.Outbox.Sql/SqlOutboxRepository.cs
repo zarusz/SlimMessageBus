@@ -7,8 +7,8 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
 
     protected SqlOutboxSettings Settings { get; }
 
-    public SqlOutboxRepository(ILogger<SqlOutboxRepository> logger, SqlOutboxSettings settings, SqlOutboxTemplate sqlOutboxTemplate, SqlConnection connection)
-        : base(logger, settings.SqlSettings, connection)
+    public SqlOutboxRepository(ILogger<SqlOutboxRepository> logger, SqlOutboxSettings settings, SqlOutboxTemplate sqlOutboxTemplate, SqlConnection connection, ISqlTransactionService transactionService)
+        : base(logger, settings.SqlSettings, connection, transactionService)
     {
         _sqlTemplate = sqlOutboxTemplate;
         _jsonOptions = new();

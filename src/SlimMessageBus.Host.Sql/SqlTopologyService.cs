@@ -2,8 +2,8 @@
 
 public class SqlTopologyService : CommonSqlMigrationService<SqlRepository, SqlMessageBusSettings>
 {
-    public SqlTopologyService(ILogger<SqlTopologyService> logger, SqlRepository repository, SqlMessageBusSettings settings)
-        : base(logger, repository, settings)
+    public SqlTopologyService(ILogger<SqlTopologyService> logger, SqlRepository repository, ISqlTransactionService transactionService, SqlMessageBusSettings settings)
+        : base(logger, repository, transactionService, settings)
     {
     }
 

@@ -7,17 +7,19 @@ using Microsoft.Extensions.Logging;
 
 public abstract class CommonSqlMigrationService<TRepository, TSettings>
     where TRepository : CommonSqlRepository
-    where TSettings : ICommonSqlSettings
+    where TSettings : ISqlSettings
 {
     protected ILogger Logger { get; }
     protected TSettings Settings { get; }
     protected TRepository Repository { get; }
+    public ISqlTransactionService TransactionService { get; }
 
-    public CommonSqlMigrationService(ILogger logger, TRepository repository, TSettings settings)
+    public CommonSqlMigrationService(ILogger logger, TRepository repository, ISqlTransactionService transactionService, TSettings settings)
     {
         Logger = logger;
         Settings = settings;
         Repository = repository;
+        TransactionService = transactionService;
     }
 
     protected async Task<bool> TryApplyMigration(string migrationId, string migrationSql, CancellationToken token)
@@ -85,7 +87,7 @@ public abstract class CommonSqlMigrationService<TRepository, TSettings>
             // Retry few times to create the schema - perhaps there are concurrently running other service process-es that attempt to do the same (distributed micro-service).
             await SqlHelper.RetryIfError(Logger, Settings.SchemaCreationRetry, _ => true, async () =>
             {
-                await Repository.BeginTransaction();
+                await TransactionService.BeginTransaction();
                 try
                 {
                     await CreateTable(Settings.DatabaseMigrationsTableName, new[] {
@@ -97,12 +99,12 @@ public abstract class CommonSqlMigrationService<TRepository, TSettings>
 
                     await OnMigrate(token);
 
-                    await Repository.CommitTransaction();
+                    await TransactionService.CommitTransaction();
                     return true;
                 }
                 catch (Exception)
                 {
-                    await Repository.RollbackTransaction();
+                    await TransactionService.RollbackTransaction();
                     throw;
                 }
             }, token);

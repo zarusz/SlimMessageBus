@@ -60,8 +60,8 @@ builder.Services.AddSlimMessageBus(mbb =>
             opts.PollBatchSize = 100;
             opts.MessageCleanup.Interval = TimeSpan.FromSeconds(10);
             opts.MessageCleanup.Age = TimeSpan.FromMinutes(1);
-            //opts.TransactionIsolationLevel = System.Data.IsolationLevel.RepeatableRead;
-            //opts.Dialect = SqlDialect.SqlServer;
+            //opts.SqlSettings.TransactionIsolationLevel = System.Data.IsolationLevel.RepeatableRead;
+            //opts.SqlSettings.Dialect = SqlDialect.SqlServer;
         });
 });
 // doc:fragment:ExampleStartup

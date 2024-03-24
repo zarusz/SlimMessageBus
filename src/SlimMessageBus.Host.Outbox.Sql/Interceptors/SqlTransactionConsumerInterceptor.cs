@@ -15,36 +15,32 @@ public abstract class SqlTransactionConsumerInterceptor
 /// <typeparam name="T"></typeparam>
 public class SqlTransactionConsumerInterceptor<T>(
     ILogger<SqlTransactionConsumerInterceptor> logger,
-    ISqlOutboxRepository outboxRepository)
+    ISqlTransactionService transactionService)
     : SqlTransactionConsumerInterceptor, IConsumerInterceptor<T> where T : class
 {
-    private readonly ILogger _logger = logger;
-    private readonly ISqlOutboxRepository _outboxRepository = outboxRepository;
-
     public async Task<object> OnHandle(T message, Func<Task<object>> next, IConsumerContext context)
     {
         var sqlTransactionEnabled = IsSqlTransactionEnabled(context);
         if (sqlTransactionEnabled)
         {
-            _logger.LogTrace("SqlTransaction - creating...");
-            await _outboxRepository.BeginTransaction();
+            logger.LogTrace("SqlTransaction - creating...");
+            await transactionService.BeginTransaction();
             try
             {
-                _logger.LogDebug("SqlTransaction - created");
+                logger.LogDebug("SqlTransaction - created");
 
                 var result = await next();
 
-                _logger.LogTrace("SqlTransaction - committing...");
-                await _outboxRepository.CommitTransaction();
-                _logger.LogDebug("SqlTransaction - commited");
-
+                logger.LogTrace("SqlTransaction - committing...");
+                await transactionService.CommitTransaction();
+                logger.LogDebug("SqlTransaction - commited");
                 return result;
             }
             catch
             {
-                _logger.LogTrace("SqlTransaction - rolling back...");
-                await _outboxRepository.RollbackTransaction();
-                _logger.LogDebug("SqlTransaction - rolled back");
+                logger.LogTrace("SqlTransaction - rolling back...");
+                await transactionService.RollbackTransaction();
+                logger.LogDebug("SqlTransaction - rolled back");
 
                 throw;
             }

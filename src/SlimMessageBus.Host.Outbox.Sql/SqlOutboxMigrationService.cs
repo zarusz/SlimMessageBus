@@ -1,9 +1,9 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Sql;
 
-public class SqlOutboxMigrationService : CommonSqlMigrationService<CommonSqlRepository, CommonSqlSettings>, IOutboxMigrationService
+public class SqlOutboxMigrationService : CommonSqlMigrationService<CommonSqlRepository, SqlSettings>, IOutboxMigrationService
 {
-    public SqlOutboxMigrationService(ILogger<SqlOutboxMigrationService> logger, ISqlOutboxRepository repository, SqlOutboxSettings settings)
-        : base(logger, (CommonSqlRepository)repository, settings.SqlSettings)
+    public SqlOutboxMigrationService(ILogger<SqlOutboxMigrationService> logger, ISqlOutboxRepository repository, ISqlTransactionService transactionService, SqlOutboxSettings settings)
+        : base(logger, (CommonSqlRepository)repository, transactionService, settings.SqlSettings)
     {
     }
 
