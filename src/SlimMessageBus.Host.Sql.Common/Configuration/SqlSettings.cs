@@ -2,7 +2,7 @@
 
 using System.Data;
 
-public class CommonSqlSettings : ICommonSqlSettings
+public class SqlSettings : ISqlSettings
 {
     public string DatabaseSchemaName { get; set; } = "dbo";
     public string DatabaseTableName { get; set; } = "Outbox";
@@ -17,7 +17,7 @@ public class CommonSqlSettings : ICommonSqlSettings
     /// <summary>
     /// Desired <see cref="TransactionIsolationLevel"/> of the transaction scope created by the consumers (when <see cref="BuilderExtensions.UseTransactionScope(MessageBusBuilder, bool)"/> is enabled).
     /// </summary>
-    public IsolationLevel TransactionIsolationLevel { get; set; } = IsolationLevel.RepeatableRead;
+    public IsolationLevel TransactionIsolationLevel { get; set; } = IsolationLevel.ReadCommitted;
 
     public SqlRetrySettings SchemaCreationRetry { get; set; } = new()
     {

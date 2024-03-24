@@ -4,12 +4,11 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
 public static class SqlHelper
-
 {
-    private static readonly HashSet<int> TransientErrorNumbers = new()
-    {
+    private static readonly HashSet<int> TransientErrorNumbers =
+    [
         4060, 40197, 40501, 40613, 49918, 49919, 49920, 11001
-    };
+    ];
 
     public static async Task<TResult> RetryIfError<TResult>(ILogger logger, SqlRetrySettings retrySettings, Func<SqlException, bool> shouldRetry, Func<Task<TResult>> operation, CancellationToken token)
     {

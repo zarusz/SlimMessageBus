@@ -222,7 +222,9 @@ public class CreateCustomerCommandHandler(IMessageBus Bus, CustomerContext Custo
     {
         // Note: This handler will be already wrapped in a transaction: see Program.cs and .UseTransactionScope() / .UseSqlTransaction() 
 
-        var customer = new Customer(request.Firstname, request.Lastname);
+        var uniqueId = await Bus.Send(new GenerateCustomerIdCommand(request.Firstname, request.Lastname));
+
+        var customer = new Customer(request.Firstname, request.Lastname, uniqueId);
         await CustomerContext.Customers.AddAsync(customer);
         await CustomerContext.SaveChangesAsync();
 
@@ -239,6 +241,24 @@ public class CreateCustomerCommandHandler(IMessageBus Bus, CustomerContext Custo
         }
 
         return customer.Id;
+    }
+}
+
+public record GenerateCustomerIdCommand(string Firstname, string Lastname) : IRequest<string>;
+
+public class GenerateCustomerIdCommandHandler : IRequestHandler<GenerateCustomerIdCommand, string>
+{
+    public async Task<string> OnHandle(GenerateCustomerIdCommand request)
+    {
+        // Note: This handler will be already wrapped in a transaction: see Program.cs and .UseTransactionScope() / .UseSqlTransaction() 
+
+        if (request.Lastname == OutboxTests.InvalidLastname)
+        {
+            throw new ApplicationException("Invalid last name");
+        }
+
+        // generate a dummy customer id
+        return $"{request.Firstname.ToUpperInvariant()[..3]}-{request.Lastname.ToUpperInvariant()[..3]}-{Guid.NewGuid()}";
     }
 }
 

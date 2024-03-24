@@ -2,5 +2,5 @@
 
 public class SqlOutboxSettings : OutboxSettings
 {
-    public CommonSqlSettings SqlSettings { get; set; } = new();
+    public SqlSettings SqlSettings { get; set; } = new();
 }

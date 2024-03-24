@@ -2,7 +2,7 @@
 
 using System.Data;
 
-public interface ICommonSqlSettings
+public interface ISqlSettings
 {
     string DatabaseSchemaName { get; }
     string DatabaseMigrationsTableName { get; }

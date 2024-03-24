@@ -34,7 +34,7 @@ public class CustomerContext : DbContext
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {        
+    {
         modelBuilder.Entity<Customer>(x => x.ToTable("IntTest_Customer"));
     }
 }

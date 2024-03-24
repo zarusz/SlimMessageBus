@@ -122,6 +122,10 @@ public class OutboxSendingTask(
                             idleRun = await SendMessages(scope.ServiceProvider, outboxRepository, processedIds, ct).ConfigureAwait(false);
                         }
                     }
+                    catch (TaskCanceledException)
+                    {
+                        throw;
+                    }
                     catch (Exception e)
                     {
                         _logger.LogError(e, "Error while processing outbox messages");
@@ -138,6 +142,10 @@ public class OutboxSendingTask(
                         await Task.Delay(_outboxSettings.PollIdleSleep).ConfigureAwait(false);
                     }
                 }
+            }
+            catch (TaskCanceledException)
+            {
+                // do nothing
             }
             finally
             {

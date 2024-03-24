@@ -7,25 +7,31 @@ Please read the [Introduction](intro.md) before reading this provider documentat
   - [Entity Framework](#entity-framework)
   - [SQL Connection](#sql-connection)
 - [Options](#options)
-  - [UseOutbox](#useoutbox)
-  - [UseTransactionScope](#usetransactionscope)
-  - [UseSqlTransaction](#usesqltransaction)
+  - [UseOutbox for Producers](#useoutbox-for-producers)
+  - [Transactions for Consumers](#transactions-for-consumers)
+    - [UseTransactionScope](#usetransactionscope)
+    - [UseSqlTransaction](#usesqltransaction)
 - [How it works](#how-it-works)
 
 ## Introduction
 
-The [`Host.Outbox`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox) introduces [Transactional Outbox](https://microservices.io/patterns/data/transactional-outbox.html) pattern to the SlimMessageBus. It comes in two flavors:
+The [`Host.Outbox`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox) introduces [Transactional Outbox](https://microservices.io/patterns/data/transactional-outbox.html) pattern to the SlimMessageBus.
+It comes in two flavors:
 
 - [`Host.Outbox.Sql`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql) as integration with the System.Data.Sql client
 - [`Host.Outbox.DbContext`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.DbContext) as integration with Entity Framework Core
 
-Outbox plugin can work with in combination with any transport provider.
+Outbox plugin can work in combination with any transport provider.
 
 ## Configuration
 
 ### Entity Framework
 
 > Required: [`SlimMessageBus.Host.Outbox.DbContext`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.DbContext)
+
+```cs
+using SlimMessageBus.Host.Outbox.DbContext;
+```
 
 Consider the following example (from [Samples](../src/Samples/Sample.OutboxWebApi/Program.cs)):
 
@@ -66,8 +72,8 @@ builder.Services.AddSlimMessageBus(mbb =>
             opts.PollBatchSize = 100;
             opts.MessageCleanup.Interval = TimeSpan.FromSeconds(10);
             opts.MessageCleanup.Age = TimeSpan.FromMinutes(1);
-            //opts.TransactionIsolationLevel = System.Data.IsolationLevel.RepeatableRead;
-            //opts.Dialect = SqlDialect.SqlServer;
+            //opts.SqlSettings.TransactionIsolationLevel = System.Data.IsolationLevel.RepeatableRead;
+            //opts.SqlSettings.Dialect = SqlDialect.SqlServer;
         });
 });
 ```
@@ -97,6 +103,10 @@ public record CreateCustomerCommandHandler(IMessageBus Bus, CustomerContext Cust
 
 > Required: [`SlimMessageBus.Host.Outbox.Sql`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql)
 
+```cs
+using SlimMessageBus.Host.Outbox.Sql;
+```
+
 Consider the following example:
 
 - `services.AddMessageBusOutboxUsingSql(...)` is used to add the [Outbox.Sql](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql) plugin to the container.
@@ -120,24 +130,44 @@ builder.Services.AddTransient(svp =>
 
 ## Options
 
-### UseOutbox
+### UseOutbox for Producers
 
 > Required: [`SlimMessageBus.Host.Outbox`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox)
+
+```cs
+using SlimMessageBus.Host.Outbox;
+```
 
 `.UseOutbox()` can be used on producer declaration to require outgoing messages to use the outbox.
 When applied on the (child) bus level then all the producers will inherit that option.
 
-### UseTransactionScope
+### Transactions for Consumers
+
+Each consumer (or handler) can be placed inside of an SQL transaction. What that means is that when a consumer processes a message, an transaction will be started automatically by SMB, then if processing is successful that transaction will get committed. In the case of an error it will be rolled back.
+
+The transactions can be nested. For example a consumer (e.g. Azure SB) invokes a command handler (e.g. Memory) and they both have transactions enabled, then the underlying transaction is committed when both consumers finish with success.
+
+There are two types of transaction support:
+
+#### UseTransactionScope
 
 > Required: [`Host.Outbox`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox)
+
+```cs
+using SlimMessageBus.Host.Outbox.Sql;
+```
 
 `.UseTransactionScope()` can be used on consumers (or handlers) declaration to force the consumer to start a `TransactionScope` prior the message `OnHandle` and to complete that transaction after it. Any exception raised by the consumer would cause the transaction to be rolled back.
 
 When applied on the (child) bus level then all consumers (or handlers) will inherit that option.
 
-### UseSqlTransaction
+#### UseSqlTransaction
 
 > Required: [`SlimMessageBus.Host.Outbox.Sql`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql) or [`SlimMessageBus.Host.Outbox.DbContext`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.DbContext)
+
+```cs
+using SlimMessageBus.Host.Outbox.Sql;
+```
 
 `.UseSqlTransaction()` can be used on consumers (or handlers) declaration to force the consumer to start a `SqlTransaction` prior the message `OnHandle` and to complete that transaction after it. Any exception raised by the consumer would cause the transaction to be rolled back.
 
@@ -151,7 +181,7 @@ When applied on the (child) bus level then all consumers (or handlers) will inhe
 
 - Upon bus start the `Outbox` SQL table is created (if does not exist). The name of the table can be adjusted via settings.
 
-- When a message is sent via a bus or producer maked with `.UseOutbox()` then such message will be inserted into the `Outbox` table.
+- When a message is sent via a bus or producer marked with `.UseOutbox()` then such message will be inserted into the `Outbox` table.
   It is important that message publish happens in the context of an transaction to ensure consistency.
 
 - When the message publication happens in the context of a consumer (or handler) of another message, the `.UseTransactionScope()`, `.UseSqlTransaction()` can be used to start a transaction.
@@ -160,10 +190,10 @@ When applied on the (child) bus level then all consumers (or handlers) will inhe
 
 - The plugin accounts for distributed service running in multiple instances (concurrently).
 
-- Message added to the `Outbox` table are initially owned by the respective service instance that created it, the message has a lock that expires at some point in time (driven by settings). Every service instance task attempts to publish their owned messages which happens in order of creaton (this ensures order of delivery within the same process).
+- Message added to the `Outbox` table are initially owned by the respective service instance that created it, the message has a lock that expires at some point in time (driven by settings). Every service instance task attempts to publish their owned messages which happens in order of creation (this ensures order of delivery within the same process).
 
 - If a service instance where to crash or restart, the undelivered messages will be picked and locked by another instance.
 
-- Once a message is picked from outbox and succesfully delivered then it is marked as sent in the outbox table.
+- Once a message is picked from outbox and successfully delivered then it is marked as sent in the outbox table.
 
 - At configured intervals and after a certain time span the sent messages are removed from the outbox table.
