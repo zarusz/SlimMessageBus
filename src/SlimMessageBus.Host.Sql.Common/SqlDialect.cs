@@ -3,5 +3,5 @@
 public enum SqlDialect
 {
     SqlServer = 1
-    // ToDo: More to come
+    // More to come
 }

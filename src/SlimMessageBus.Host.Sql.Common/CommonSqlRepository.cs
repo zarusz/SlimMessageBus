@@ -1,40 +1,21 @@
 ﻿namespace SlimMessageBus.Host.Sql.Common;
 
-public abstract class CommonSqlRepository : IAsyncDisposable
+public abstract class CommonSqlRepository : ISqlConnectionProvider
 {
-    private readonly ICommonSqlSettings _settings;
-    private SqlTransaction _transaction;
+    private readonly ISqlSettings _settings;
 
     protected ILogger Logger { get; }
-    protected SqlConnection Connection { get; }
+    protected ISqlTransactionService TransactionService { get; }
 
-    public virtual SqlTransaction CurrentTransaction => _transaction;
+    public SqlConnection Connection { get; }
 
-    protected CommonSqlRepository(ILogger logger, ICommonSqlSettings settings, SqlConnection connection)
+    protected CommonSqlRepository(ILogger logger, ISqlSettings settings, SqlConnection connection, ISqlTransactionService transactionService)
     {
         _settings = settings;
         Logger = logger;
         Connection = connection;
+        TransactionService = transactionService;
     }
-
-    #region IAsyncDisposable
-
-    public async ValueTask DisposeAsync()
-    {
-        await DisposeAsyncCore();
-
-        GC.SuppressFinalize(this);
-    }
-
-    protected async virtual ValueTask DisposeAsyncCore()
-    {
-        if (_transaction != null)
-        {
-            await RollbackTransaction();
-        }
-    }
-
-    #endregion
 
     public async Task EnsureConnection()
     {
@@ -47,7 +28,7 @@ public abstract class CommonSqlRepository : IAsyncDisposable
     protected virtual SqlCommand CreateCommand()
     {
         var cmd = Connection.CreateCommand();
-        cmd.Transaction = CurrentTransaction;
+        cmd.Transaction = TransactionService.CurrentTransaction;
 
         if (_settings.CommandTimeout != null)
         {
@@ -67,60 +48,4 @@ public abstract class CommonSqlRepository : IAsyncDisposable
             setParameters?.Invoke(cmd);
             return await cmd.ExecuteNonQueryAsync();
         }, token);
-
-    public async virtual ValueTask BeginTransaction()
-    {
-        ValidateNoTransactionStarted();
-#if NETSTANDARD2_0
-        _transaction = Connection.BeginTransaction(_settings.TransactionIsolationLevel);
-#else
-        _transaction = (SqlTransaction)await Connection.BeginTransactionAsync(_settings.TransactionIsolationLevel);
-#endif
-    }
-
-    public async virtual ValueTask CommitTransaction()
-    {
-        ValidateTransactionStarted();
-
-#if NETSTANDARD2_0
-        _transaction.Commit();
-        _transaction.Dispose();
-#else
-        await _transaction.CommitAsync();
-        await _transaction.DisposeAsync();
-#endif
-
-        _transaction = null;
-    }
-
-    public async virtual ValueTask RollbackTransaction()
-    {
-        ValidateTransactionStarted();
-
-#if NETSTANDARD2_0
-        _transaction.Rollback();
-        _transaction.Dispose();
-#else
-        await _transaction.RollbackAsync();
-        await _transaction.DisposeAsync();
-#endif
-
-        _transaction = null;
-    }
-
-    protected void ValidateNoTransactionStarted()
-    {
-        if (CurrentTransaction != null)
-        {
-            throw new MessageBusException("Transaction is already in progress");
-        }
-    }
-
-    protected void ValidateTransactionStarted()
-    {
-        if (CurrentTransaction == null)
-        {
-            throw new MessageBusException("Transaction has not been started");
-        }
-    }
 }

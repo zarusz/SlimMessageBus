@@ -22,7 +22,8 @@ public class SqlMessageBus : MessageBusBase<SqlMessageBusSettings>
 
         using var scope = Settings.ServiceProvider.CreateScope();
         var sqlRepository = scope.ServiceProvider.GetService<ISqlRepository>();
-        var provisioningService = new SqlTopologyService(LoggerFactory.CreateLogger<SqlTopologyService>(), (SqlRepository)sqlRepository, ProviderSettings);
+        var sqlTransactionService = scope.ServiceProvider.GetService<ISqlTransactionService>();
+        var provisioningService = new SqlTopologyService(LoggerFactory.CreateLogger<SqlTopologyService>(), (SqlRepository)sqlRepository, sqlTransactionService, ProviderSettings);
         await provisioningService.Migrate(CancellationToken); // provisining happens asynchronously
     }
 
