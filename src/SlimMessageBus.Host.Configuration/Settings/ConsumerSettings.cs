@@ -28,7 +28,7 @@ public class ConsumerSettings : AbstractConsumerSettings, IMessageTypeConsumerIn
     /// <inheritdoc/>
     public Type ConsumerType { get; set; }
     /// <inheritdoc/>
-    public Func<object, object, Task> ConsumerMethod { get; set; }
+    public Func<object, object, IConsumerContext, CancellationToken, Task> ConsumerMethod { get; set; }
     /// <inheritdoc/>
     public MethodInfo ConsumerMethodInfo { get; set; }
     /// <summary>

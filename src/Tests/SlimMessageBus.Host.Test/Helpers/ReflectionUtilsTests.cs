@@ -80,4 +80,96 @@ public class ReflectionUtilsTests
 
         result.Should().Be(10);
     }
+
+    [Fact]
+    public async Task When_GenerateMethodCallToFunc_Given_Delegate_Then_InstanceTypeIsInferred()
+    {
+        var message = new SomeMessage();
+
+        var instanceType = typeof(IConsumer<SomeMessage>);
+        var consumerOnHandleMethodInfo = instanceType.GetMethod(nameof(IConsumer<SomeMessage>.OnHandle), [typeof(SomeMessage)]);
+
+        var consumerMock = new Mock<IConsumer<SomeMessage>>();
+        consumerMock.Setup(x => x.OnHandle(message)).Returns(Task.CompletedTask);
+
+        // act (positive)
+        var callAsyncMethodFunc = ReflectionUtils.GenerateMethodCallToFunc<Func<object, object, Task>>(consumerOnHandleMethodInfo, typeof(SomeMessage));
+        await callAsyncMethodFunc(consumerMock.Object, message);
+
+        // assert (positive)
+        consumerMock.Verify(x => x.OnHandle(message), Times.Once);
+        consumerMock.VerifyNoOtherCalls();
+
+        // act (negative)
+        var act = async () => await callAsyncMethodFunc(1, message);
+
+        // assertion (negative)
+        await act.Should().ThrowAsync<InvalidCastException>();
+    }
+
+    [Fact]
+    public async Task When_GenerateMethodCallToFunc_Given_AllOptionalParametersAreParametersOfInvocationMethod_Then_MapToInvocation()
+    {
+        var message = new SomeMessage();
+
+        var instanceType = typeof(ICustomConsumer<SomeMessage>);
+        var consumerHandleAMessageMethodInfo = instanceType.GetMethod(nameof(ICustomConsumer<SomeMessage>.HandleAMessageWithAContext), [typeof(SomeMessage), typeof(IConsumerContext), typeof(CancellationToken)]);
+
+        var consumerContextMock = new Mock<IConsumerContext>();
+        consumerContextMock.SetupGet(x => x.CancellationToken).Returns(new CancellationToken());
+
+        var consumerMock = new Mock<ICustomConsumer<SomeMessage>>();
+        consumerMock.Setup(x => x.HandleAMessageWithAContext(message, consumerContextMock.Object, consumerContextMock.Object.CancellationToken)).Returns(Task.CompletedTask);
+
+        // act
+        var callAsyncMethodFunc = ReflectionUtils.GenerateMethodCallToFunc<Func<object, object, IConsumerContext, CancellationToken, Task>>(consumerHandleAMessageMethodInfo, typeof(SomeMessage));
+
+        await callAsyncMethodFunc(consumerMock.Object, message, consumerContextMock.Object, consumerContextMock.Object.CancellationToken);
+
+        // assert
+        consumerMock.Verify(x => x.HandleAMessageWithAContext(message, consumerContextMock.Object, consumerContextMock.Object.CancellationToken), Times.Once);
+        consumerMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task When_GenerateMethodCallToFunc_Given_SomeOptionalParametersAreParametersOfInvocationMethod_Then_MapToInvocation()
+    {
+        var message = new SomeMessage();
+
+        var instanceType = typeof(ICustomConsumer<SomeMessage>);
+        var consumerHandleAMessageMethodInfo = instanceType.GetMethod(nameof(ICustomConsumer<SomeMessage>.HandleAMessage), [typeof(SomeMessage), typeof(CancellationToken)]);
+
+        var consumerContextMock = new Mock<IConsumerContext>();
+        consumerContextMock.SetupGet(x => x.CancellationToken).Returns(new CancellationToken());
+
+        var consumerMock = new Mock<ICustomConsumer<SomeMessage>>();
+        consumerMock.Setup(x => x.HandleAMessage(message, consumerContextMock.Object.CancellationToken)).Returns(Task.CompletedTask);
+
+        // act
+        var callAsyncMethodFunc = ReflectionUtils.GenerateMethodCallToFunc<Func<object, object, IConsumerContext, CancellationToken, Task>>(consumerHandleAMessageMethodInfo, typeof(SomeMessage));
+
+        await callAsyncMethodFunc(consumerMock.Object, message, consumerContextMock.Object, consumerContextMock.Object.CancellationToken);
+
+        // assert
+        consumerMock.Verify(x => x.HandleAMessage(message, consumerContextMock.Object.CancellationToken), Times.Once);
+        consumerMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public void When_GenerateMethodCallToFunc_Given_InvocationMethodCannotBeSatisfied_Then_ThrowException()
+    {
+        var message = new SomeMessage();
+
+        var instanceType = typeof(ICustomConsumer<SomeMessage>);
+        var consumerHandleAMessageMethodInfo = instanceType.GetMethod(nameof(ICustomConsumer<SomeMessage>.MethodThatHasParamatersThatCannotBeSatisfied));
+
+        var consumerContextMock = new Mock<IConsumerContext>();
+        consumerContextMock.SetupGet(x => x.CancellationToken).Returns(new CancellationToken());
+
+        // act
+        var act = () => ReflectionUtils.GenerateMethodCallToFunc<Func<object, object, IConsumerContext, CancellationToken, Task>>(consumerHandleAMessageMethodInfo, typeof(SomeMessage));
+
+        // assert
+        act.Should().Throw<ArgumentException>();
+    }
 }

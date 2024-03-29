@@ -14,7 +14,7 @@ public interface IMessageTypeConsumerInvokerSettings
     /// <summary>
     /// The delegate to the consumer method responsible for accepting messages.
     /// </summary>
-    Func<object, object, Task> ConsumerMethod { get; set; }
+    Func<object, object, IConsumerContext, CancellationToken, Task> ConsumerMethod { get; set; }
     /// <summary>
     /// The consumer method.
     /// </summary>

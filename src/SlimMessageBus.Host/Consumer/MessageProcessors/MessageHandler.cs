@@ -202,7 +202,7 @@ public class MessageHandler : IMessageHandler
         }
 
         // the consumer just subscribes to the message
-        var task = consumerInvoker.ConsumerMethod(consumerContext.Consumer, message);
+        var task = consumerInvoker.ConsumerMethod(consumerContext.Consumer, message, consumerContext, consumerContext.CancellationToken);
         await task.ConfigureAwait(false);
 
         if (responseType != null && responseType != typeof(Void))

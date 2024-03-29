@@ -8,7 +8,7 @@ public class ConsumerMethodPostProcessor : IMessageBusSettingsPostProcessor
             .SelectMany(x => x.Invokers).ToList();
         foreach (var consumerInvoker in consumerInvokers.Where(x => x.ConsumerMethod == null && x.ConsumerMethodInfo != null))
         {
-            consumerInvoker.ConsumerMethod = ReflectionUtils.GenerateMethodCallToFunc<Func<object, object, Task>>(consumerInvoker.ConsumerMethodInfo, consumerInvoker.ConsumerType, typeof(Task), consumerInvoker.MessageType);
+            consumerInvoker.ConsumerMethod = ReflectionUtils.GenerateMethodCallToFunc<Func<object, object, IConsumerContext, CancellationToken, Task>>(consumerInvoker.ConsumerMethodInfo, consumerInvoker.MessageType);
         }
     }
 }

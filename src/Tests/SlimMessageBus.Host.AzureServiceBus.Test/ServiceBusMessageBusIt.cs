@@ -34,6 +34,7 @@ public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt
         });
 
         services.AddSingleton<TestEventCollector<TestEvent>>();
+        services.AddTransient<CustomPingConsumer>();
     }
 
     public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
@@ -92,6 +93,25 @@ public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt
                     .Queue(queue)
                     .WithConsumer<PingConsumer>()
                     .WithConsumer<PingDerivedConsumer, PingDerivedMessage>()
+                    .Instances(concurrency));
+        });
+        await BasicPubSub(concurrency, 1, 1);
+    }
+
+    [Fact]
+    public async Task BasicPubSubWithCustomConsumerOnQueue()
+    {
+        var concurrency = 2;
+        var queue = "test-ping-queue";
+
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+            .Produce<PingMessage>(x => x.DefaultQueue(queue).WithModifier(MessageModifier))
+            .Consume<PingMessage>(x => x
+                    .Queue(queue)
+                    .WithConsumer(typeof(CustomPingConsumer), nameof(CustomPingConsumer.Handle))
+                    .WithConsumer(typeof(CustomPingConsumer), typeof(PingDerivedMessage), nameof(CustomPingConsumer.Handle))
                     .Instances(concurrency));
         });
         await BasicPubSub(concurrency, 1, 1);
@@ -369,6 +389,43 @@ public class PingDerivedConsumer : IConsumer<PingDerivedMessage>, IConsumerWithC
     }
 
     #endregion
+}
+
+public class CustomPingConsumer
+{
+    private readonly ILogger _logger;
+    private readonly TestEventCollector<TestEvent> _messages;
+
+    public CustomPingConsumer(ILogger<PingConsumer> logger, TestEventCollector<TestEvent> messages, TestMetric testMetric)
+    {
+        _logger = logger;
+        _messages = messages;
+        testMetric.OnCreatedConsumer();
+    }
+
+    public Task Handle(PingMessage message, IConsumerContext context, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var sbMessage = context.GetTransportMessage();
+
+        _messages.Add(new(message, sbMessage.MessageId, sbMessage.SessionId));
+
+        _logger.LogInformation("Got message {Counter:000} on path {Path}.", message.Counter, context.Path);
+        return Task.CompletedTask;
+    }
+
+    public Task Handle(PingDerivedMessage message, IConsumerContext context, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var sbMessage = context.GetTransportMessage();
+
+        _messages.Add(new(message, sbMessage.MessageId, sbMessage.SessionId));
+
+        _logger.LogInformation("Got message {Counter:000} on path {Path}.", message.Counter, context.Path);
+        return Task.CompletedTask;
+    }
 }
 
 public record EchoRequest : IRequest<EchoResponse>
