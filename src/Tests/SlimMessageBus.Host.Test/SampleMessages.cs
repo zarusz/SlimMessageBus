@@ -51,3 +51,12 @@ public record Envelope<T>
 {
     public T Body { get; set; }
 }
+
+public interface ICustomConsumer<T>
+{
+    Task HandleAMessage(T message, CancellationToken cancellationToken);
+
+    Task HandleAMessageWithAContext(T message, IConsumerContext consumerContext, CancellationToken cancellationToken);
+
+    Task MethodThatHasParamatersThatCannotBeSatisfied(T message, DateTimeOffset dateTimeOffset, CancellationToken cancellationToken);
+}

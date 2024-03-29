@@ -11,7 +11,7 @@ public class MessageHandlerTest
     private readonly Mock<IMessageHeadersFactory> messageHeaderFactoryMock;
     private readonly Mock<IConsumerContext> consumerContextMock;
     private readonly Mock<IMessageTypeConsumerInvokerSettings> consumerInvokerMock;
-    private readonly Mock<Func<object, object, Task>> consumerMethodMock;
+    private readonly Mock<Func<object, object, IConsumerContext, CancellationToken, Task>> consumerMethodMock;
     private readonly MessageHandler subject;
     private readonly Fixture fixture = new();
 
@@ -30,7 +30,7 @@ public class MessageHandlerTest
         consumerContextMock = new Mock<IConsumerContext>();
         consumerInvokerMock = new Mock<IMessageTypeConsumerInvokerSettings>();
 
-        consumerMethodMock = new Mock<Func<object, object, Task>>();
+        consumerMethodMock = new Mock<Func<object, object, IConsumerContext, CancellationToken, Task>>();
         consumerInvokerMock.SetupGet(x => x.ConsumerMethod).Returns(consumerMethodMock.Object);
 
         subject = new MessageHandler(
@@ -52,7 +52,8 @@ public class MessageHandlerTest
         var someMessage = new SomeMessage();
 
         consumerContextMock.SetupGet(x => x.Consumer).Returns(consumerMock.Object);
-        consumerMethodMock.Setup(x => x(consumerMock.Object, someMessage)).Returns(Task.CompletedTask);
+        consumerContextMock.SetupGet(x => x.CancellationToken).Returns(CancellationToken.None);
+        consumerMethodMock.Setup(x => x(consumerMock.Object, someMessage, consumerContextMock.Object, consumerContextMock.Object.CancellationToken)).Returns(Task.CompletedTask);
 
         // act
         var result = await subject.ExecuteConsumer(someMessage, consumerContextMock.Object, consumerInvokerMock.Object, null);
@@ -60,7 +61,7 @@ public class MessageHandlerTest
         // assert
         result.Should().BeNull();
 
-        consumerMethodMock.Verify(x => x(consumerMock.Object, someMessage), Times.Once());
+        consumerMethodMock.Verify(x => x(consumerMock.Object, someMessage, consumerContextMock.Object, consumerContextMock.Object.CancellationToken), Times.Once());
         consumerMethodMock.VerifyNoOtherCalls();
     }
 
@@ -73,7 +74,8 @@ public class MessageHandlerTest
         var someMessage = new SomeMessage();
 
         consumerContextMock.SetupGet(x => x.Consumer).Returns(consumerMock.Object);
-        consumerMethodMock.Setup(x => x(consumerMock.Object, someMessage)).Returns(Task.CompletedTask);
+        consumerContextMock.SetupGet(x => x.CancellationToken).Returns(CancellationToken.None);
+        consumerMethodMock.Setup(x => x(consumerMock.Object, someMessage, consumerContextMock.Object, consumerContextMock.Object.CancellationToken)).Returns(Task.CompletedTask);
 
         // act
         var result = await subject.ExecuteConsumer(someMessage, consumerContextMock.Object, consumerInvokerMock.Object, null);
@@ -114,7 +116,7 @@ public class MessageHandlerTest
             .Returns(consumerMock.Object);
 
         consumerMethodMock
-            .Setup(x => x(consumerMock.Object, someMessage))
+            .Setup(x => x(consumerMock.Object, someMessage, It.IsAny<IConsumerContext>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(someException);
 
         consumerInvokerMock
@@ -146,7 +148,7 @@ public class MessageHandlerTest
         }
 
         consumerMethodMock
-            .Verify(x => x(consumerMock.Object, someMessage), Times.Once());
+            .Verify(x => x(consumerMock.Object, someMessage, It.IsAny<IConsumerContext>(), It.IsAny<CancellationToken>()), Times.Once());
         consumerMethodMock
             .VerifyNoOtherCalls();
 
@@ -172,7 +174,8 @@ public class MessageHandlerTest
         var someResponse = new SomeResponse();
 
         consumerContextMock.SetupGet(x => x.Consumer).Returns(handlerMock.Object);
-        consumerMethodMock.Setup(x => x(handlerMock.Object, someRequest)).Returns(Task.FromResult(someResponse));
+        consumerContextMock.SetupGet(x => x.CancellationToken).Returns(CancellationToken.None);
+        consumerMethodMock.Setup(x => x(handlerMock.Object, someRequest, consumerContextMock.Object, consumerContextMock.Object.CancellationToken)).Returns(Task.FromResult(someResponse));
 
         // act
         var result = await subject.ExecuteConsumer(someRequest, consumerContextMock.Object, consumerInvokerMock.Object, typeof(SomeResponse));
@@ -180,7 +183,7 @@ public class MessageHandlerTest
         // assert
         result.Should().BeSameAs(someResponse);
 
-        consumerMethodMock.Verify(x => x(handlerMock.Object, someRequest), Times.Once());
+        consumerMethodMock.Verify(x => x(handlerMock.Object, someRequest, consumerContextMock.Object, consumerContextMock.Object.CancellationToken), Times.Once());
         consumerMethodMock.VerifyNoOtherCalls();
     }
 
@@ -193,7 +196,8 @@ public class MessageHandlerTest
         var someRequestWithoutResponse = new SomeRequestWithoutResponse();
 
         consumerContextMock.SetupGet(x => x.Consumer).Returns(handlerMock.Object);
-        consumerMethodMock.Setup(x => x(handlerMock.Object, someRequestWithoutResponse)).Returns(Task.CompletedTask);
+        consumerContextMock.SetupGet(x => x.CancellationToken).Returns(CancellationToken.None);
+        consumerMethodMock.Setup(x => x(handlerMock.Object, someRequestWithoutResponse, consumerContextMock.Object, consumerContextMock.Object.CancellationToken)).Returns(Task.CompletedTask);
 
         // act
         var result = await subject.ExecuteConsumer(someRequestWithoutResponse, consumerContextMock.Object, consumerInvokerMock.Object, typeof(Void));
@@ -201,7 +205,7 @@ public class MessageHandlerTest
         // assert
         result.Should().BeNull();
 
-        consumerMethodMock.Verify(x => x(handlerMock.Object, someRequestWithoutResponse), Times.Once());
+        consumerMethodMock.Verify(x => x(handlerMock.Object, someRequestWithoutResponse, consumerContextMock.Object, consumerContextMock.Object.CancellationToken), Times.Once());
         consumerMethodMock.VerifyNoOtherCalls();
     }
 }

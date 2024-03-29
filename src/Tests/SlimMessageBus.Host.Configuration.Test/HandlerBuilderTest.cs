@@ -45,6 +45,9 @@ public class HandlerBuilderTest
         // arrange
         var path = "topic";
 
+        var consumerContextMock = new Mock<IConsumerContext>();
+        consumerContextMock.SetupGet(x => x.CancellationToken).Returns(new CancellationToken());
+
         // act
         var subject = new HandlerBuilder<SomeRequest, SomeResponse>(messageBusSettings)
             .Topic(path)
@@ -66,7 +69,7 @@ public class HandlerBuilderTest
         var consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(SomeRequest));
         consumerInvokerSettings.MessageType.Should().Be(typeof(SomeRequest));
         consumerInvokerSettings.ConsumerType.Should().Be(typeof(SomeRequestMessageHandler));
-        Func<Task> call = () => consumerInvokerSettings.ConsumerMethod(new SomeRequestMessageHandler(), new SomeRequest());
+        Func<Task> call = () => consumerInvokerSettings.ConsumerMethod(new SomeRequestMessageHandler(), new SomeRequest(), consumerContextMock.Object, consumerContextMock.Object.CancellationToken);
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(SomeRequest));
     }
 
@@ -75,6 +78,9 @@ public class HandlerBuilderTest
     {
         // arrange
         var path = "topic";
+
+        var consumerContextMock = new Mock<IConsumerContext>();
+        consumerContextMock.SetupGet(x => x.CancellationToken).Returns(new CancellationToken());
 
         // act
         var subject = new HandlerBuilder<SomeRequestWithoutResponse>(messageBusSettings)
@@ -97,7 +103,7 @@ public class HandlerBuilderTest
         var consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(SomeRequestWithoutResponse));
         consumerInvokerSettings.MessageType.Should().Be(typeof(SomeRequestWithoutResponse));
         consumerInvokerSettings.ConsumerType.Should().Be(typeof(SomeRequestWithoutResponseHandler));
-        Func<Task> call = () => consumerInvokerSettings.ConsumerMethod(new SomeRequestWithoutResponseHandler(), new SomeRequestWithoutResponse());
+        Func<Task> call = () => consumerInvokerSettings.ConsumerMethod(new SomeRequestWithoutResponseHandler(), new SomeRequestWithoutResponse(), consumerContextMock.Object, consumerContextMock.Object.CancellationToken);
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(SomeRequestWithoutResponse));
     }
 }

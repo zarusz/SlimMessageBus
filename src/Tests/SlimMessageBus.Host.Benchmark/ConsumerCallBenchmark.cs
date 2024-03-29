@@ -33,7 +33,12 @@ public class CallConsumerBenchmark
                 new Scenario("CompiledExpression",
                     message,
                     consumer,
-                    ReflectionUtils.GenerateMethodCallToFunc<Func<object, object, Task>>(onHandleMethodInfo, typeof(SomeMessageConsumer), typeof(Task), typeof(SomeMessage)))
+                    ReflectionUtils.GenerateMethodCallToFunc<Func<object, object, Task>>(onHandleMethodInfo, typeof(SomeMessageConsumer), typeof(Task), typeof(SomeMessage))),
+
+                new Scenario("CompiledExpressionWithOptional",
+                    message,
+                    consumer,
+                    ReflectionUtils.GenerateMethodCallToFunc<Func<object, object, Task>>(onHandleMethodInfo, [typeof(SomeMessage)]))
             };
         }
     }

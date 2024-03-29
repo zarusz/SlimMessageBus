@@ -130,7 +130,7 @@ public class HandlerBuilder<TRequest, TResponse> : AbstractHandlerBuilder<TReque
         where THandler : IRequestHandler<TRequest, TResponse>
     {
         ConsumerSettings.ConsumerType = typeof(THandler);
-        ConsumerSettings.ConsumerMethod = (consumer, message) => ((THandler)consumer).OnHandle((TRequest)message);
+        ConsumerSettings.ConsumerMethod = (consumer, message, _, _) => ((THandler)consumer).OnHandle((TRequest)message);
 
         ConsumerSettings.Invokers.Add(ConsumerSettings);
 
@@ -152,7 +152,7 @@ public class HandlerBuilder<TRequest, TResponse> : AbstractHandlerBuilder<TReque
 
         var invoker = new MessageTypeConsumerInvokerSettings(ConsumerSettings, messageType: typeof(TDerivedRequest), consumerType: typeof(THandler))
         {
-            ConsumerMethod = (consumer, message) => ((IRequestHandler<TDerivedRequest, TResponse>)consumer).OnHandle((TDerivedRequest)message)
+            ConsumerMethod = (consumer, message, _, _) => ((IRequestHandler<TDerivedRequest, TResponse>)consumer).OnHandle((TDerivedRequest)message)
         };
         ConsumerSettings.Invokers.Add(invoker);
 
@@ -178,7 +178,7 @@ public class HandlerBuilder<TRequest> : AbstractHandlerBuilder<TRequest, Handler
         where THandler : IRequestHandler<TRequest>
     {
         ConsumerSettings.ConsumerType = typeof(THandler);
-        ConsumerSettings.ConsumerMethod = (consumer, message) => ((THandler)consumer).OnHandle((TRequest)message);
+        ConsumerSettings.ConsumerMethod = (consumer, message, _, _) => ((THandler)consumer).OnHandle((TRequest)message);
 
         ConsumerSettings.Invokers.Add(ConsumerSettings);
 
@@ -200,7 +200,7 @@ public class HandlerBuilder<TRequest> : AbstractHandlerBuilder<TRequest, Handler
 
         var invoker = new MessageTypeConsumerInvokerSettings(ConsumerSettings, messageType: typeof(TDerivedRequest), consumerType: typeof(THandler))
         {
-            ConsumerMethod = (consumer, message) => ((IRequestHandler<TDerivedRequest>)consumer).OnHandle((TDerivedRequest)message)
+            ConsumerMethod = (consumer, message, _, _) => ((IRequestHandler<TDerivedRequest>)consumer).OnHandle((TDerivedRequest)message)
         };
         ConsumerSettings.Invokers.Add(invoker);
 

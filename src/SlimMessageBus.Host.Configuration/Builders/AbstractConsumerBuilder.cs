@@ -31,22 +31,53 @@ public abstract class AbstractConsumerBuilder : IAbstractConsumerBuilder
 
     static internal void SetupConsumerOnHandleMethod(IMessageTypeConsumerInvokerSettings invoker, string methodName = null)
     {
+        static bool ParameterMatch(IMessageTypeConsumerInvokerSettings invoker, MethodInfo methodInfo)
+        {
+            var parameters = new List<Type>(methodInfo.GetParameters().Select(x => x.ParameterType));
+
+            var requiredParameters = new[] { invoker.MessageType };
+            foreach (var parameter in requiredParameters)
+            {
+                if (!parameters.Remove(parameter))
+                {
+                    return false;
+                }
+            }
+
+            var allowedParameters = new[] { typeof(IConsumerContext), typeof(CancellationToken) };
+            foreach (var parameter in allowedParameters)
+            {
+                parameters.Remove(parameter);
+            }
+
+            if (parameters.Count != 0)
+            {
+                return false;
+            }
+
+            // ensure the method returns a Task or Task<T>
+            if (!typeof(Task).IsAssignableFrom(methodInfo.ReturnType))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
         if (invoker == null) throw new ArgumentNullException(nameof(invoker));
 
         methodName ??= nameof(IConsumer<object>.OnHandle);
 
         /// See <see cref="IConsumer{TMessage}.OnHandle(TMessage)"/> and <see cref="IRequestHandler{TRequest, TResponse}.OnHandle(TRequest)"/> 
 
-        var consumerOnHandleMethod = invoker.ConsumerType.GetMethod(methodName, new[] { invoker.MessageType });
+        var consumerOnHandleMethod = invoker.ConsumerType.GetMethods(BindingFlags.Public | BindingFlags.Instance)
+            .Where(x => x.Name.Equals(methodName, StringComparison.OrdinalIgnoreCase) && ParameterMatch(invoker, x))
+            .OrderByDescending(x => x.GetParameters().Length)
+            .FirstOrDefault();
+
         if (consumerOnHandleMethod == null)
         {
-            throw new ConfigurationMessageBusException($"Consumer type {invoker.ConsumerType} validation error: the method {methodName} with parameters of type {invoker.MessageType} was not found.");
-        }
-
-        // ensure the method returns a Task or Task<T>
-        if (!typeof(Task).IsAssignableFrom(consumerOnHandleMethod.ReturnType))
-        {
-            throw new ConfigurationMessageBusException($"Consumer type {invoker.ConsumerType} validation error: the response type of method {methodName} must return {typeof(Task)}");
+            throw new ConfigurationMessageBusException($"Consumer type {invoker.ConsumerType} validation error: no suitable method candidate with name {methodName} can be found");
         }
 
         invoker.ConsumerMethodInfo = consumerOnHandleMethod;

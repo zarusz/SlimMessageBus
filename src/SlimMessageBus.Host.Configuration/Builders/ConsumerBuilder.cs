@@ -37,7 +37,7 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
         where TConsumer : class, IConsumer<T>
     {
         ConsumerSettings.ConsumerType = typeof(TConsumer);
-        ConsumerSettings.ConsumerMethod = (consumer, message) => ((IConsumer<T>)consumer).OnHandle((T)message);
+        ConsumerSettings.ConsumerMethod = (consumer, message, _, _) => ((IConsumer<T>)consumer).OnHandle((T)message);
 
         ConsumerSettings.Invokers.Add(ConsumerSettings);
 
@@ -58,7 +58,7 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
 
         var invoker = new MessageTypeConsumerInvokerSettings(ConsumerSettings, messageType: typeof(TMessage), consumerType: typeof(TConsumer))
         {
-            ConsumerMethod = (consumer, message) => ((IConsumer<TMessage>)consumer).OnHandle((TMessage)message)
+            ConsumerMethod = (consumer, message, _, _) => ((IConsumer<TMessage>)consumer).OnHandle((TMessage)message)
         };
         ConsumerSettings.Invokers.Add(invoker);
 
@@ -71,7 +71,7 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
     /// </summary>
     /// <typeparam name="TConsumer"></typeparam>
     /// <returns></returns>
-    public ConsumerBuilder<T> WithConsumer(Type derivedConsumerType, Type derivedMessageType)
+    public ConsumerBuilder<T> WithConsumer(Type derivedConsumerType, Type derivedMessageType, string methodName = null)
     {
         AssertInvokerUnique(derivedConsumerType, derivedMessageType);
 
@@ -81,7 +81,7 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
         }
 
         var invoker = new MessageTypeConsumerInvokerSettings(ConsumerSettings, messageType: derivedMessageType, consumerType: derivedConsumerType);
-        SetupConsumerOnHandleMethod(invoker);
+        SetupConsumerOnHandleMethod(invoker, methodName);
         ConsumerSettings.Invokers.Add(invoker);
 
         return this;
@@ -99,7 +99,7 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
         if (consumerMethod == null) throw new ArgumentNullException(nameof(consumerMethod));
 
         ConsumerSettings.ConsumerType = typeof(TConsumer);
-        ConsumerSettings.ConsumerMethod = (consumer, message) => consumerMethod((TConsumer)consumer, (T)message);
+        ConsumerSettings.ConsumerMethod = (consumer, message, _, _) => consumerMethod((TConsumer)consumer, (T)message);
 
         ConsumerSettings.Invokers.Add(ConsumerSettings);
 

@@ -8,7 +8,7 @@ public class ConsumerContext(IDictionary<string, object> properties = null) : IC
 
     public IReadOnlyDictionary<string, object> Headers { get; set; }
 
-    public CancellationToken CancellationToken { get; set; }
+    public CancellationToken CancellationToken { get; set; } = default;
 
     public IMessageBus Bus { get; set; }
 
