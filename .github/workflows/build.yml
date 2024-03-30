@@ -6,10 +6,13 @@ name: build
 on:
   push:
     branches: ["master", "release/*", "feature/*"]
-  pull_request:
+  pull_request_target:
     branches: ["master"]
   workflow_dispatch:
     branches: ["master", "release/*", "feature/*"]
+
+permissions:
+  contents: read
 
 env:
   SOLUTION_NAME: SlimMessageBus.sln
@@ -66,7 +69,7 @@ jobs:
       # Run integration tests against the test infrastructure if secrets are provided
 
       - name: Integrations Tests
-        if: "${{ env.azure_servicebus_key != '' }}"
+        #if: "${{ env.azure_servicebus_key != '' }}"
         run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --collect:"XPlat Code Coverage;Format=opencover" --filter Category=Integration
         working-directory: ./src
         env:
