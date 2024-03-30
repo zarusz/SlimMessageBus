@@ -33,6 +33,7 @@ $projects = @(
 	"SlimMessageBus.Host.Mqtt",
 	"SlimMessageBus.Host.RabbitMQ",
 	"SlimMessageBus.Host.Sql",
+	"SlimMessageBus.Host.Sql.Common",
 	
 	"SlimMessageBus.Host.FluentValidation",
 
