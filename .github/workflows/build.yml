@@ -29,11 +29,20 @@ jobs:
       #     GITHUB_CONTEXT: ${{ toJson(github) }}
       #   run: echo "$GITHUB_CONTEXT"
 
-      - name: Checkout
+      - name: PR - Checkout
         if: github.event_name == 'pull_request_target'
         uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: PR - Create Branch
+        if: github.event_name == 'pull_request_target'
+        env:
+          GITHUB_REF: ${{ secrets.GITHUB_REF }}
+        run: |
+          git branch new-branch
+          git push origin new-branch -f
+          echo ${GITHUB_REF}
 
       - name: Checkout
         if: github.event_name != 'pull_request_target'
