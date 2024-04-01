@@ -5,7 +5,7 @@ public class OutboxMessageCleanupSettings
     /// <summary>
     /// Should the message cleanup be enabled?
     /// </summary>
-    public bool Enabled { get; set; } = true;
+    public bool Enabled { get; set; } = true; ddd
     /// <summary>
     /// Interval at which the sent message cleanup is performed.
     /// </summary>
