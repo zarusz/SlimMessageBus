@@ -65,18 +65,18 @@ jobs:
         working-directory: ./src
 
       - name: SonarCloud - Setup Java17
-        if: github.event_name == 'pull_request_target'
+        #if: github.event_name == 'pull_request_target'
         uses: actions/setup-java@v3
         with:
           distribution: "zulu"
           java-version: "17"
 
       - name: SonarCloud - Install SonarCloud scanner
-        if: github.event_name == 'pull_request_target'
+        #if: github.event_name == 'pull_request_target'
         run: dotnet tool update dotnet-sonarscanner --tool-path ./.sonar/scanner
 
       - name: SonarCloud - SonarScanner Begin
-        if: github.event_name == 'pull_request_target'
+        #if: github.event_name == 'pull_request_target'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -108,7 +108,7 @@ jobs:
           rabbitmq_password: ${{ secrets.rabbitmq_password }}
 
       - name: SonarCloud - SonarScanner End
-        if: github.event_name == 'pull_request_target'
+        #if: github.event_name == 'pull_request_target'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
