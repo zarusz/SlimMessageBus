@@ -7,12 +7,12 @@ on:
   push:
     branches: ["master", "release/*", "feature/*"]
   pull_request_target:
-    branches: ["master"]
+    branches: ["master", "devops/*"]
   workflow_dispatch:
     branches: ["master", "release/*", "feature/*"]
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   SOLUTION_NAME: SlimMessageBus.sln
@@ -29,20 +29,32 @@ jobs:
       #     GITHUB_CONTEXT: ${{ toJson(github) }}
       #   run: echo "$GITHUB_CONTEXT"
 
-      - name: Checkout
+      - name: PR - Checkout
         if: github.event_name == 'pull_request_target'
         uses: actions/checkout@v3
         with:
+          fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
+
+      # - name: PR - Create Branch
+      #   if: github.event_name == 'pull_request_target'
+      #   env:
+      #     GITHUB_REF: ${{ secrets.GITHUB_REF }}
+      #   run: |
+      #     git branch new-branch
+      #     git push origin new-branch -f
+      #     echo GITHUB_REF: ${GITHUB_REF}
 
       - name: Checkout
         if: github.event_name != 'pull_request_target'
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: 7.0.x
+          dotnet-version: 8.0.x
 
       - name: Restore dependencies
         run: dotnet restore $SOLUTION_NAME
@@ -53,31 +65,35 @@ jobs:
         working-directory: ./src
 
       - name: SonarCloud - Setup Java17
+        if: github.event_name == 'pull_request_target'
         uses: actions/setup-java@v3
         with:
           distribution: "zulu"
           java-version: "17"
 
       - name: SonarCloud - Install SonarCloud scanner
+        if: github.event_name == 'pull_request_target'
         run: dotnet tool update dotnet-sonarscanner --tool-path ./.sonar/scanner
 
       - name: SonarCloud - SonarScanner Begin
+        if: github.event_name == 'pull_request_target'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: ../.sonar/scanner/dotnet-sonarscanner begin /k:"zarusz_SlimMessageBus" /o:"zarusz" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.exclusions="Samples/**/*,Tests/**/*"
+        run: ../.sonar/scanner/dotnet-sonarscanner begin /k:"zarusz_SlimMessageBus" /o:"zarusz" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.exclusions="Samples/**/*,Tests/**/*" /d:sonar.pullrequest.key="${{ github.event.pull_request.number }}"
+        #run: ../.sonar/scanner/dotnet-sonarscanner begin /k:"zarusz_SlimMessageBus" /o:"zarusz" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.exclusions="Samples/**/*,Tests/**/*" /d:sonar.pullrequest.key="${{ github.event.pull_request.number }}" /d:sonar.pullrequest.branch="new-branch"
         working-directory: ./src
 
       - name: Build
         run: dotnet build $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-restore
         working-directory: ./src
+
       - name: Unit Tests
         run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --collect:"XPlat Code Coverage;Format=opencover" --filter Category!=Integration
         working-directory: ./src
 
       - name: Integrations Tests
         # Run integration tests against the test infrastructure if secrets are provided
-        #if: "${{ env.azure_servicebus_key != '' }}"
         run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --collect:"XPlat Code Coverage;Format=opencover" --filter Category=Integration
         working-directory: ./src
         env:
@@ -92,6 +108,7 @@ jobs:
           rabbitmq_password: ${{ secrets.rabbitmq_password }}
 
       - name: SonarCloud - SonarScanner End
+        if: github.event_name == 'pull_request_target'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

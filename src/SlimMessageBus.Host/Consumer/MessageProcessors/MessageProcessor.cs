@@ -6,7 +6,7 @@
 /// <typeparam name="TTransportMessage"></typeparam>
 public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProcessor<TTransportMessage>
 {
-    private readonly ILogger _logger;
+    private ILogger _logger;
     private readonly MessageProvider<TTransportMessage> _messageProvider;
     private readonly MessageTypeProvider<TTransportMessage> _messageTypeProvider;
     private readonly bool _shouldFailWhenUnrecognizedMessageType;
