@@ -80,7 +80,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: ../.sonar/scanner/dotnet-sonarscanner begin /k:"zarusz_SlimMessageBus" /o:"zarusz" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.exclusions="Samples/**/*,Tests/**/*" /d:sonar.pullrequest.key="${{ github.event.pull_request.number }}"
+        run: |
+          params=""
+          pr_number="${{ github.event.pull_request.number }}"
+          if [[ -n "$pr_number" ]]; then
+              params="/d:sonar.pullrequest.key=${pr_number}"
+          fi
+          ../.sonar/scanner/dotnet-sonarscanner begin /k:"zarusz_SlimMessageBus" /o:"zarusz" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.exclusions="Samples/**/*,Tests/**/*" $params
         #run: ../.sonar/scanner/dotnet-sonarscanner begin /k:"zarusz_SlimMessageBus" /o:"zarusz" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.exclusions="Samples/**/*,Tests/**/*" /d:sonar.pullrequest.key="${{ github.event.pull_request.number }}" /d:sonar.pullrequest.branch="new-branch"
         working-directory: ./src
 
