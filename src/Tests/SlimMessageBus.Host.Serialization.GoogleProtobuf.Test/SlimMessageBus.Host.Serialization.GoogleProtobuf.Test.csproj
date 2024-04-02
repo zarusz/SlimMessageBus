@@ -3,13 +3,16 @@
   <Import Project="../Host.Test.Properties.xml" />
 
   <ItemGroup>
-        <PackageReference Include="Google.Protobuf" Version="3.25.3" />
-        <PackageReference Include="Grpc.AspNetCore" Version="2.61.0" />
-        <PackageReference Include="Grpc.Tools" Version="2.62.0">
+    <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.GoogleProtobuf\SlimMessageBus.Host.Serialization.GoogleProtobuf.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" Version="2.62.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.62.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-        <PackageReference Include="Grpc.Net.Client" Version="2.61.0" />
+    <PackageReference Include="Grpc.Net.Client" Version="2.62.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -17,7 +20,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.GoogleProtobuf\SlimMessageBus.Host.Serialization.GoogleProtobuf.csproj" />
+    <PackageReference Update="Microsoft.NET.Test.Sdk" Version="17.9.0" />
+    <PackageReference Update="xunit" Version="2.7.0" />
+    <PackageReference Update="xunit.runner.visualstudio" Version="2.5.7">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
 </Project>
