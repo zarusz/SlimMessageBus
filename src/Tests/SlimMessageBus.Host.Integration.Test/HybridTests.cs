@@ -61,11 +61,11 @@ public class HybridTests : IDisposable
 
         if (serializerType == SerializerType.NewtonsoftJson)
         {
-            Serialization.Json.MessageBusBuilderExtensions.AddJsonSerializer(mbb);
+            Serialization.Json.SerializationBuilderExtensions.AddJsonSerializer(mbb);
         }
         if (serializerType == SerializerType.SystemTextJson)
         {
-            Serialization.SystemTextJson.MessageBusBuilderExtensions.AddJsonSerializer(mbb);
+            Serialization.SystemTextJson.SerializationBuilderExtensions.AddJsonSerializer(mbb);
         }
 
         mbb.AddChildBus("Memory", (mbb) =>

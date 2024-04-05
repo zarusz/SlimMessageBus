@@ -1,4 +1,4 @@
-global using FluentAssertions;
+﻿global using FluentAssertions;
 
 global using Microsoft.Extensions.DependencyInjection;
 
