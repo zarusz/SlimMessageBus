@@ -6,38 +6,40 @@ using Microsoft.Extensions.Logging;
 
 using SlimMessageBus.Host;
 
-public static class MessageBusBuilderExtensions
+public static class SerializationBuilderExtensions
 {
     /// <summary>
     /// Registers the <see cref="IMessageSerializer"/> with implementation as <see cref="AvroMessageSerializer"/>.
     /// </summary>
-    /// <param name="mbb"></param>
+    /// <param name="builder"></param>
     /// <param name="messageCreationStrategy"></param>
     /// <param name="schemaLookupStrategy"></param>
     /// <returns></returns>
-    public static MessageBusBuilder AddAvroSerializer(this MessageBusBuilder mbb, IMessageCreationStrategy messageCreationStrategy, ISchemaLookupStrategy schemaLookupStrategy)
+    public static TBuilder AddAvroSerializer<TBuilder>(this TBuilder builder, IMessageCreationStrategy messageCreationStrategy, ISchemaLookupStrategy schemaLookupStrategy)
+        where TBuilder : ISerializationBuilder
     {
-        mbb.PostConfigurationActions.Add(services =>
+        builder.PostConfigurationActions.Add(services =>
         {
             services.TryAddSingleton(svp => new AvroMessageSerializer(svp.GetRequiredService<ILoggerFactory>(), messageCreationStrategy, schemaLookupStrategy));
             services.TryAddSingleton<IMessageSerializer>(svp => svp.GetRequiredService<AvroMessageSerializer>());
         });
-        return mbb;
+        return builder;
     }
 
     /// <summary>
     /// Registers the <see cref="IMessageSerializer"/> with implementation as <see cref="AvroMessageSerializer"/>.
     /// Uses <see cref="ReflectionSchemaLookupStrategy"/> and <see cref="ReflectionMessageCreationStategy"/> strategies.
     /// </summary>
-    /// <param name="mbb"></param>
+    /// <param name="builder"></param>
     /// <returns></returns>
-    public static MessageBusBuilder AddAvroSerializer(this MessageBusBuilder mbb)
+    public static TBuilder AddAvroSerializer<TBuilder>(this TBuilder builder)
+        where TBuilder : ISerializationBuilder
     {
-        mbb.PostConfigurationActions.Add(services =>
+        builder.PostConfigurationActions.Add(services =>
         {
             services.TryAddSingleton(svp => new AvroMessageSerializer(svp.GetRequiredService<ILoggerFactory>()));
             services.TryAddSingleton<IMessageSerializer>(svp => svp.GetRequiredService<AvroMessageSerializer>());
         });
-        return mbb;
+        return builder;
     }
 }

@@ -7,20 +7,21 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using SlimMessageBus.Host;
 
-public static class MessageBusBuilderExtensions
+public static class SerializationBuilderExtensions
 {
     /// <summary>
     /// Registers the <see cref="IMessageSerializer"/> with implementation as <see cref="JsonMessageSerializer"/>.
     /// </summary>
-    /// <param name="mbb"></param>
+    /// <param name="builder"></param>
     /// <returns></returns>
-    public static MessageBusBuilder AddJsonSerializer(this MessageBusBuilder mbb, JsonSerializerOptions options = null)
+    public static TBuilder AddJsonSerializer<TBuilder>(this TBuilder builder, JsonSerializerOptions options = null)
+        where TBuilder : ISerializationBuilder
     {
-        mbb.PostConfigurationActions.Add(services =>
+        builder.PostConfigurationActions.Add(services =>
         {
             services.TryAddSingleton(svp => new JsonMessageSerializer(options ?? svp.GetService<JsonSerializerOptions>()));
             services.TryAddSingleton<IMessageSerializer>(svp => svp.GetRequiredService<JsonMessageSerializer>());
         });
-        return mbb;
+        return builder;
     }
 }

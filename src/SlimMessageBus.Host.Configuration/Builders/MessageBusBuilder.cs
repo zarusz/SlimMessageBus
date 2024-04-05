@@ -1,6 +1,6 @@
 namespace SlimMessageBus.Host;
 
-public class MessageBusBuilder
+public class MessageBusBuilder : ISerializationBuilder
 {
     /// <summary>
     /// Parent bus builder.
@@ -22,7 +22,7 @@ public class MessageBusBuilder
     /// </summary>
     public Func<MessageBusSettings, IMessageBusProvider> BusFactory { get; private set; }
 
-    public IList<Action<IServiceCollection>> PostConfigurationActions { get; } = new List<Action<IServiceCollection>>();
+    public IList<Action<IServiceCollection>> PostConfigurationActions { get; } = [];
 
     protected MessageBusBuilder()
     {

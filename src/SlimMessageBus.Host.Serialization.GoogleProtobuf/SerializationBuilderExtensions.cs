@@ -6,21 +6,22 @@ using Microsoft.Extensions.Logging;
 
 using SlimMessageBus.Host;
 
-public static class MessageBusBuilderExtensions
+public static class SerializationBuilderExtensions
 {
     /// <summary>
     /// Registers the <see cref="IMessageSerializer"/> with implementation as <see cref="GoogleProtobufMessageSerializer"/>.
     /// </summary>
-    /// <param name="mbb"></param>
+    /// <param name="builder"></param>
     /// <param name="messageParserFactory"></param>
     /// <returns></returns>
-    public static MessageBusBuilder AddGoogleProtobufSerializer(this MessageBusBuilder mbb, IMessageParserFactory messageParserFactory = null)
+    public static TBuilder AddGoogleProtobufSerializer<TBuilder>(this TBuilder builder, IMessageParserFactory messageParserFactory = null)
+        where TBuilder : ISerializationBuilder
     {
-        mbb.PostConfigurationActions.Add(services =>
+        builder.PostConfigurationActions.Add(services =>
         {
             services.TryAddSingleton(svp => new GoogleProtobufMessageSerializer(svp.GetRequiredService<ILoggerFactory>(), messageParserFactory));
             services.TryAddSingleton<IMessageSerializer>(svp => svp.GetRequiredService<GoogleProtobufMessageSerializer>());
         });
-        return mbb;
+        return builder;
     }
 }
