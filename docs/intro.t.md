@@ -219,12 +219,13 @@ The `SomeConsumer` needs to be registered in the DI container. The SMB runtime w
 
 > When `.WithConsumer<TConsumer>()` is not declared, then a default consumer of type `IConsumer<TMessage>` will be assumed (since v2.0.0).
 
-Alternatively, if you do not want to implement the `IConsumer<SomeMessage>`, then you can provide the method name (2) or a delegate that calls the consumer method (3):
+Alternatively, if you do not want to implement the `IConsumer<SomeMessage>`, then you can provide the method name (2) or a delegate that calls the consumer method (3).
+`IConsumerContext` and/or `CancellationToken` can optionally be included as parameters to be populated on invocation when taking this approach:
 
 ```cs
 public class SomeConsumer
 {
-  public async Task MyHandleMethod(SomeMessage msg)
+  public async Task MyHandleMethod(SomeMessage msg, IConsumerContext consumerContext, CancellationToken cancellationToken)
   {
     // handle the msg
   }
