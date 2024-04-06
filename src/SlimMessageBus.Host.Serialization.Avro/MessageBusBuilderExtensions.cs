@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
 using SlimMessageBus.Host;
+using SlimMessageBus.Host.Builders;
 
 public static class MessageBusBuilderExtensions
 {
@@ -39,5 +40,31 @@ public static class MessageBusBuilderExtensions
             services.TryAddSingleton<IMessageSerializer>(svp => svp.GetRequiredService<AvroMessageSerializer>());
         });
         return mbb;
+    }
+
+    /// <summary>
+    /// Registers the <see cref="IMessageSerializer"/> with implementation as <see cref="AvroMessageSerializer"/>.
+    /// </summary>
+    /// <param name="builder"></param>
+    /// <returns></returns>
+    public static IHybridSerializerBuilderOptions AddAvroSerializer(this IHybridSerializationBuilder builder, IMessageCreationStrategy messageCreationStrategy, ISchemaLookupStrategy schemaLookupStrategy)
+    {
+        return builder.RegisterSerializer<AvroMessageSerializer>(services =>
+        {
+            services.TryAddSingleton(svp => new AvroMessageSerializer(svp.GetRequiredService<ILoggerFactory>(), messageCreationStrategy, schemaLookupStrategy));
+        });
+    }
+
+    /// <summary>
+    /// Registers the <see cref="IMessageSerializer"/> with implementation as <see cref="AvroMessageSerializer"/>.
+    /// </summary>
+    /// <param name="builder"></param>
+    /// <returns></returns>
+    public static IHybridSerializerBuilderOptions AddAvroSerializer(this IHybridSerializationBuilder builder)
+    {
+        return builder.RegisterSerializer<AvroMessageSerializer>(services =>
+        {
+            services.TryAddSingleton(svp => new AvroMessageSerializer(svp.GetRequiredService<ILoggerFactory>()));
+        });
     }
 }

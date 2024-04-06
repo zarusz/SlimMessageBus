@@ -16,4 +16,8 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.1.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="SlimMessageBus.Host.Serialization.Hybrid.Test" />
+  </ItemGroup>
+
 </Project>

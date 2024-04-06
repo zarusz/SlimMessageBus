@@ -1,5 +1,6 @@
 ﻿namespace Sample.Serialization.ConsoleApp;
 
+using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -11,7 +12,6 @@ using SlimMessageBus;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.Memory;
 using SlimMessageBus.Host.Redis;
-using SlimMessageBus.Host.Serialization;
 using SlimMessageBus.Host.Serialization.Avro;
 using SlimMessageBus.Host.Serialization.Hybrid;
 using SlimMessageBus.Host.Serialization.Json;
@@ -27,7 +27,7 @@ enum Provider
 
 /// <summary>
 /// This sample shows:
-/// 1. How tu use the Avro serializer (for contract Avro IDL first apprach to generate C# code)
+/// 1. How tu use the Avro serializer (for contract Avro IDL first approach to generate C# code)
 /// 2. How to combine two serializer approaches in one app (using the Hybrid serializer).
 /// </summary>
 class Program
@@ -40,17 +40,11 @@ class Program
 
             services.AddHostedService<MainProgram>();
 
-            // alternatively a simpler approach, but using the slower ReflectionMessageCreationStategy and ReflectionSchemaLookupStrategy
-            var avroSerializer = new AvroMessageSerializer();
-
-            // Avro serialized using the AvroConvert library - no schema generation neeeded upfront.
-            var jsonSerializer = new JsonMessageSerializer();
-
             services
                 .AddSlimMessageBus(mbb =>
                 {
                     // Note: remember that Memory provider does not support req-resp yet.
-                    var provider = Provider.Redis;
+                    var provider = Provider.Memory;
 
                     /*
                     var sl = new DictionarySchemaLookupStrategy();
@@ -59,7 +53,7 @@ class Program
                     sl.Add(typeof(MultiplyRequest), MultiplyRequest._SCHEMA);
                     sl.Add(typeof(MultiplyResponse), MultiplyResponse._SCHEMA);
 
-                    var mf = new DictionaryMessageCreationStategy();
+                    var mf = new DictionaryMessageCreationStrategy();
                     /// register all your types
                     mf.Add(typeof(AddCommand), () => new AddCommand());
                     mf.Add(typeof(MultiplyRequest), () => new MultiplyRequest());
@@ -71,13 +65,14 @@ class Program
 
                     mbb
                         .AddServicesFromAssemblyContaining<AddCommandConsumer>()
-                        // Note: Certain messages will be serialized by one Avro serializer, other using the Json serializer
-                        .AddHybridSerializer(new Dictionary<IMessageSerializer, Type[]>
+                        .AddHybridSerializer(builder =>
                         {
-                            [jsonSerializer] = new[] { typeof(SubtractCommand) }, // the first one will be the default serializer, no need to declare types here
-                            [avroSerializer] = new[] { typeof(AddCommand), typeof(MultiplyRequest), typeof(MultiplyResponse) },
-                        }, defaultMessageSerializer: jsonSerializer)
+                            builder.AddJsonSerializer()
+                                .AsDefault();
 
+                            builder.AddAvroSerializer()
+                                .For(typeof(AddCommand), typeof(MultiplyRequest), typeof(MultiplyResponse));
+                        })
                         .Produce<AddCommand>(x => x.DefaultTopic("AddCommand"))
                         .Consume<AddCommand>(x => x.Topic("AddCommand").WithConsumer<AddCommandConsumer>())
 
@@ -221,7 +216,7 @@ public class SubtractCommandConsumer : IConsumer<SubtractCommand>
 {
     public async Task OnHandle(SubtractCommand message)
     {
-        Console.WriteLine("Consumer: Subracting {0} and {1} gives {2}", message.Left, message.Right, message.Left - message.Right);
+        Console.WriteLine("Consumer: Subtracting {0} and {1} gives {2}", message.Left, message.Right, message.Left - message.Right);
         await Task.Delay(50); // Simulate some work
     }
 }

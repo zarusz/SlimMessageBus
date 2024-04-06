@@ -1,9 +1,8 @@
 ﻿namespace SlimMessageBus.Host.Serialization.GoogleProtobuf.Test;
 
-using FluentAssertions;
-using Microsoft.Extensions.Logging.Abstractions;
 using global::Test;
-using Xunit;
+
+using Microsoft.Extensions.Logging.Abstractions;
 
 public class GoogleProtobufMessageSerializerTest
 {
