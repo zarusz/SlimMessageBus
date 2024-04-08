@@ -1,19 +1,23 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="../Host.Plugin.Properties.xml" />
+	<Import Project="../Host.Plugin.Properties.xml" />
 
-  <PropertyGroup>
-    <Description>Extension to SlimMessageBus that delegates serialization to the respective serialization plugin based on message type.</Description>
-    <PackageTags>SlimMessageBus Serialization messaging</PackageTags>
-  </PropertyGroup>
+	<PropertyGroup>
+		<Description>Extension to SlimMessageBus that delegates serialization to the respective serialization plugin based on message type.</Description>
+		<PackageTags>SlimMessageBus Serialization messaging</PackageTags>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\SlimMessageBus.Host.Configuration\SlimMessageBus.Host.Configuration.csproj" />
-    <ProjectReference Include="..\SlimMessageBus.Host.Serialization\SlimMessageBus.Host.Serialization.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\SlimMessageBus.Host.Configuration\SlimMessageBus.Host.Configuration.csproj" />
+		<ProjectReference Include="..\SlimMessageBus.Host.Serialization\SlimMessageBus.Host.Serialization.csproj" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.1.0" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.1.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="SlimMessageBus.Host.Serialization.Hybrid.Test" />
+	</ItemGroup>
 
 </Project>

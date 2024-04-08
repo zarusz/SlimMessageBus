@@ -39,44 +39,26 @@ class Program
             Secrets.Load(@"..\..\..\..\..\secrets.txt");
 
             services.AddHostedService<MainProgram>();
-
-            // alternatively a simpler approach, but using the slower ReflectionMessageCreationStategy and ReflectionSchemaLookupStrategy
-            var avroSerializer = new AvroMessageSerializer();
-
-            // Avro serialized using the AvroConvert library - no schema generation neeeded upfront.
-            var jsonSerializer = new JsonMessageSerializer();
-
             services
                 .AddSlimMessageBus(mbb =>
                 {
                     // Note: remember that Memory provider does not support req-resp yet.
-                    var provider = Provider.Redis;
-
-                    /*
-                    var sl = new DictionarySchemaLookupStrategy();
-                    /// register all your types
-                    sl.Add(typeof(AddCommand), AddCommand._SCHEMA);
-                    sl.Add(typeof(MultiplyRequest), MultiplyRequest._SCHEMA);
-                    sl.Add(typeof(MultiplyResponse), MultiplyResponse._SCHEMA);
-
-                    var mf = new DictionaryMessageCreationStategy();
-                    /// register all your types
-                    mf.Add(typeof(AddCommand), () => new AddCommand());
-                    mf.Add(typeof(MultiplyRequest), () => new MultiplyRequest());
-                    mf.Add(typeof(MultiplyResponse), () => new MultiplyResponse());
-
-                    // longer approach, but should be faster as it's not using reflection
-                    var avroSerializer = new AvroMessageSerializer(mf, sl);
-                    */
+                    var provider = Provider.Memory;
 
                     mbb
                         .AddServicesFromAssemblyContaining<AddCommandConsumer>()
-                        // Note: Certain messages will be serialized by one Avro serializer, other using the Json serializer
-                        .AddHybridSerializer(new Dictionary<IMessageSerializer, Type[]>
+
+                        // Note: Certain messages will be serialized by the Avro serializer, others will fall back to the Json serializer (the default)
+                        .AddHybridSerializer(builder =>
                         {
-                            [jsonSerializer] = new[] { typeof(SubtractCommand) }, // the first one will be the default serializer, no need to declare types here
-                            [avroSerializer] = new[] { typeof(AddCommand), typeof(MultiplyRequest), typeof(MultiplyResponse) },
-                        }, defaultMessageSerializer: jsonSerializer)
+                            builder
+                                .AsDefault()
+                                .AddJsonSerializer();
+                            
+                            builder
+                                .For(typeof(AddCommand), typeof(MultiplyRequest), typeof(MultiplyResponse))
+                                .AddAvroSerializer();
+                        })
 
                         .Produce<AddCommand>(x => x.DefaultTopic("AddCommand"))
                         .Consume<AddCommand>(x => x.Topic("AddCommand").WithConsumer<AddCommandConsumer>())

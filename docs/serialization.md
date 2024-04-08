@@ -175,21 +175,27 @@ The Hybrid plugin allows to have multiple serialization formats on one message b
 To use it install the nuget package `SlimMessageBus.Host.Serialization.Hybrid` and then configure the bus:
 
 ```cs
-services.AddSlimMessageBus(mbb => 
-{
-   // serializer 1
-   var avroSerializer = new AvroMessageSerializer();
+    services
+       .AddSlimMessageBus(mbb =>
+        {
+            mbb
+                .AddHybridSerializer(
+                    builder => {
+                        builder
+                            .AsDefault()
+                            .AddJsonSerializer();
 
-   // serializer 2
-   var jsonSerializer = new JsonMessageSerializer();
+                        builder
+                            .For(typeof(Message1), typeof(Message2))
+                            .AddAvroSerializer();
 
-   // Note: Certain messages will be serialized by the Avro serializer, other using the Json serializer
-   mbb.AddHybridSerializer(new Dictionary<IMessageSerializer, Type[]>
-   {
-      [jsonSerializer] = new[] { typeof(SubtractCommand) }, // the first one will be the default serializer, no need to declare types here
-      [avroSerializer] = new[] { typeof(AddCommand), typeof(MultiplyRequest), typeof(MultiplyResponse) },
-   }, defaultMessageSerializer: jsonSerializer);
-});
+                        builder
+                            .For(typeof(Message3))
+                            .AddGoogleProtobufSerializer();
+                    })
+                ...
+        } 
 ```
 
+The routing to the proper serializer happens based on message type. When a type cannot be matched the default serializer will be used.
 The routing to the proper serializer happens based on message type. When a type cannot be matched the default serializer will be used.

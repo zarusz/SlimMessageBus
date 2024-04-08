@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="../Host.Test.Properties.xml" />
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Hybrid\SlimMessageBus.Host.Serialization.Hybrid.csproj" />
+    <ProjectReference Include="..\..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
+  </ItemGroup>
+
+</Project>

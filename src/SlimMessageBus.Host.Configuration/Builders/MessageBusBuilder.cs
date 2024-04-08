@@ -1,6 +1,8 @@
 namespace SlimMessageBus.Host;
 
-public class MessageBusBuilder : ISerializationBuilder
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
+public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBuilder
 {
     /// <summary>
     /// Parent bus builder.
@@ -224,6 +226,13 @@ public class MessageBusBuilder : ISerializationBuilder
         return this;
     }
 
+    public void RegisterSerializer<TMessageSerializer>(Action<IServiceCollection> services)
+        where TMessageSerializer : class, IMessageSerializer
+    {
+        PostConfigurationActions.Add(services);
+        PostConfigurationActions.Add(services => services.TryAddSingleton<IMessageSerializer>(sp => sp.GetRequiredService<TMessageSerializer>()));
+    }
+
     public MessageBusBuilder WithDependencyResolver(IServiceProvider serviceProvider)
     {
         Settings.ServiceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
@@ -264,7 +273,7 @@ public class MessageBusBuilder : ISerializationBuilder
     public MessageBusBuilder WithMessageTypeResolver<T>() => WithMessageTypeResolver(typeof(T));
 
     /// <summary>
-    /// Hook called whenver message is being produced. Can be used to change message headers.
+    /// Hook called whenever message is being produced. Can be used to change message headers.
     /// </summary>
     /// <param name="executePrevious">Should the previously set modifier be executed as well?</param>
     public MessageBusBuilder WithHeaderModifier(MessageHeaderModifier<object> headerModifier, bool executePrevious = true)
