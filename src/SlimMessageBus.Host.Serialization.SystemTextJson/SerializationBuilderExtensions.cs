@@ -17,10 +17,8 @@ public static class SerializationBuilderExtensions
     public static TBuilder AddJsonSerializer<TBuilder>(this TBuilder builder, JsonSerializerOptions options = null)
         where TBuilder : ISerializationBuilder
     {
-        builder.PostConfigurationActions.Add(services =>
-        {
+        builder.RegisterSerializer<JsonMessageSerializer>(services => {
             services.TryAddSingleton(svp => new JsonMessageSerializer(options ?? svp.GetService<JsonSerializerOptions>()));
-            services.TryAddSingleton<IMessageSerializer>(svp => svp.GetRequiredService<JsonMessageSerializer>());
         });
         return builder;
     }

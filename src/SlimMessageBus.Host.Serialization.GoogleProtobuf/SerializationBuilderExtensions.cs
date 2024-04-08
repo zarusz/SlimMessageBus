@@ -17,10 +17,9 @@ public static class SerializationBuilderExtensions
     public static TBuilder AddGoogleProtobufSerializer<TBuilder>(this TBuilder builder, IMessageParserFactory messageParserFactory = null)
         where TBuilder : ISerializationBuilder
     {
-        builder.PostConfigurationActions.Add(services =>
+        builder.RegisterSerializer<GoogleProtobufMessageSerializer>(services =>
         {
             services.TryAddSingleton(svp => new GoogleProtobufMessageSerializer(svp.GetRequiredService<ILoggerFactory>(), messageParserFactory));
-            services.TryAddSingleton<IMessageSerializer>(svp => svp.GetRequiredService<GoogleProtobufMessageSerializer>());
         });
         return builder;
     }

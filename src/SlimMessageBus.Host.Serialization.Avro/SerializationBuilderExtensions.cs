@@ -18,10 +18,9 @@ public static class SerializationBuilderExtensions
     public static TBuilder AddAvroSerializer<TBuilder>(this TBuilder builder, IMessageCreationStrategy messageCreationStrategy, ISchemaLookupStrategy schemaLookupStrategy)
         where TBuilder : ISerializationBuilder
     {
-        builder.PostConfigurationActions.Add(services =>
+        builder.RegisterSerializer<AvroMessageSerializer>(services =>
         {
             services.TryAddSingleton(svp => new AvroMessageSerializer(svp.GetRequiredService<ILoggerFactory>(), messageCreationStrategy, schemaLookupStrategy));
-            services.TryAddSingleton<IMessageSerializer>(svp => svp.GetRequiredService<AvroMessageSerializer>());
         });
         return builder;
     }
@@ -35,10 +34,9 @@ public static class SerializationBuilderExtensions
     public static TBuilder AddAvroSerializer<TBuilder>(this TBuilder builder)
         where TBuilder : ISerializationBuilder
     {
-        builder.PostConfigurationActions.Add(services =>
+        builder.RegisterSerializer<AvroMessageSerializer>(services =>
         {
             services.TryAddSingleton(svp => new AvroMessageSerializer(svp.GetRequiredService<ILoggerFactory>()));
-            services.TryAddSingleton<IMessageSerializer>(svp => svp.GetRequiredService<AvroMessageSerializer>());
         });
         return builder;
     }

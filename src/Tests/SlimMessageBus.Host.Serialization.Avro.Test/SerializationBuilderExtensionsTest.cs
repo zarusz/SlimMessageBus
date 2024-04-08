@@ -3,7 +3,7 @@
 public class SerializationBuilderExtensionsTest
 {
     [Fact]
-    public void When_AddJsonSerializer_Given_Builder_Then_ServicesRegistered()
+    public void When_AddAvroSerializer_Given_Builder_Then_ServicesRegistered()
     {
         // arrange
         var services = new ServiceCollection();

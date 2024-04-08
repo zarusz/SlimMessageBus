@@ -8,9 +8,11 @@ using Microsoft.Extensions.Logging;
 public class HybridMessageSerializer : IMessageSerializer
 {
     private readonly ILogger _logger;
-    private readonly IList<IMessageSerializer> _serializers = new List<IMessageSerializer>();
-    private readonly IDictionary<Type, IMessageSerializer> _serializerByType = new Dictionary<Type, IMessageSerializer>();
+    private readonly Dictionary<Type, IMessageSerializer> _serializerByType = [];
+
     public IMessageSerializer DefaultSerializer { get; set; }
+
+    internal IReadOnlyDictionary<Type, IMessageSerializer> SerializerByType => _serializerByType;
 
     public HybridMessageSerializer(ILogger<HybridMessageSerializer> logger, IDictionary<IMessageSerializer, Type[]> registration, IMessageSerializer defaultMessageSerializer = null)
     {
@@ -24,12 +26,14 @@ public class HybridMessageSerializer : IMessageSerializer
 
     public void Add(IMessageSerializer serializer, params Type[] supportedTypes)
     {
-        if (_serializers.Count == 0 && DefaultSerializer == null)
-        {
-            DefaultSerializer = serializer;
-        }
+#if NETSTANDARD2_0
+        if (serializer is null) throw new ArgumentNullException(nameof(serializer));
+#else
+        ArgumentNullException.ThrowIfNull(serializer);
+#endif
 
-        _serializers.Add(serializer);
+        DefaultSerializer ??= serializer;
+
         foreach (var type in supportedTypes)
         {
             _serializerByType.Add(type, serializer);
@@ -38,19 +42,19 @@ public class HybridMessageSerializer : IMessageSerializer
 
     protected virtual IMessageSerializer MatchSerializer(Type t)
     {
-        if (_serializers.Count == 0)
-        {
-            throw new InvalidOperationException("No serializers registered.");
-        }
-
         if (!_serializerByType.TryGetValue(t, out var serializer))
         {
-            // use first as default
-            _logger.LogTrace("Serializer for type {0} not registered, will use default serializer", t);
+            _logger.LogTrace("Serializer for type {MessageType} not registered, will use default serializer", t);
+
+            if (DefaultSerializer == null)
+            {
+                throw new InvalidOperationException("No serializers registered.");
+            }
+
             serializer = DefaultSerializer;
         }
 
-        _logger.LogDebug("Serializer for type {0} will be {1}", t, serializer);
+        _logger.LogDebug("Serializer for type {MessageType} will be {Serializer}", t, serializer);
         return serializer;
     }
 
