@@ -36,7 +36,7 @@ public static class SerializationBuilderExtensions
         var builder = new HybridSerializerOptionsBuilder();
         registration(builder);
 
-        foreach (var action in builder.ServiceRegistrations)
+        foreach (var action in builder.GetServiceRegistrations())
         {
             mbb.PostConfigurationActions.Add(action);
         }
@@ -50,8 +50,9 @@ public static class SerializationBuilderExtensions
                     throw new NotSupportedException($"Registering instances of {nameof(IMessageSerializer)} outside of {nameof(AddHybridSerializer)} is not supported.");
                 }
 
-                var defaultMessageSerializer = builder.DefaultSerializer != null ? (IMessageSerializer)svp.GetRequiredService(builder.DefaultSerializer) : null;
-                var typeRegistrations = builder.TypeRegistrations.ToDictionary(x => (IMessageSerializer)svp.GetRequiredService(x.Key), x => x.Value);
+                var defaultMessageSerializerType = builder.GetDefaultSerializer();
+                var defaultMessageSerializer = defaultMessageSerializerType != null ? (IMessageSerializer)svp.GetRequiredService(builder.GetDefaultSerializer()) : null;
+                var typeRegistrations = builder.GetTypeRegistrations().ToDictionary(x => (IMessageSerializer)svp.GetRequiredService(x.Key), x => x.Value);
                 return new HybridMessageSerializer(svp.GetRequiredService<ILogger<HybridMessageSerializer>>(), typeRegistrations, defaultMessageSerializer);
             });
 
@@ -63,39 +64,6 @@ public static class SerializationBuilderExtensions
     public sealed class HybridSerializerOptionsBuilder
     {
         private readonly List<SerializerConfiguration> _configurations = [];
-
-        public Type DefaultSerializer
-        {
-            get
-            {
-                return _configurations
-                    .OfType<DefaultSerializerConfiguration>()
-                    .LastOrDefault(x => x.IsValid)
-                    .Type;
-            }
-        }
-
-        public IReadOnlyList<Action<IServiceCollection>> ServiceRegistrations
-        {
-            get
-            {
-                return _configurations
-                    .Where(x => x.IsValid)
-                    .Select(x => x.Action)
-                    .ToList();
-            }
-        }
-
-        public IReadOnlyDictionary<Type, Type[]> TypeRegistrations
-        {
-            get
-            {
-                return _configurations
-                    .OfType<ForSerializerConfiguration>()
-                    .Where(x => x.IsValid)
-                    .ToDictionary(x => x.Type, x => x.Types);
-            }
-        }
 
         public ISerializationBuilder AsDefault()
         {
@@ -109,6 +77,30 @@ public static class SerializationBuilderExtensions
             var configuration = new ForSerializerConfiguration(types);
             this._configurations.Add(configuration);
             return configuration;
+        }
+
+        public Type GetDefaultSerializer()
+        {
+            return _configurations
+                .OfType<DefaultSerializerConfiguration>()
+                .LastOrDefault(x => x.IsValid)?
+                .Type;
+        }
+
+        public IReadOnlyList<Action<IServiceCollection>> GetServiceRegistrations()
+        {
+            return _configurations
+                .Where(x => x.IsValid)
+                .Select(x => x.Action)
+                .ToList();
+        }
+
+        public IReadOnlyDictionary<Type, Type[]> GetTypeRegistrations()
+        {
+            return _configurations
+                .OfType<ForSerializerConfiguration>()
+                .Where(x => x.IsValid)
+                .ToDictionary(x => x.Type, x => x.Types);
         }
 
         public abstract class SerializerConfiguration : ISerializationBuilder
@@ -125,12 +117,12 @@ public static class SerializationBuilderExtensions
             }
         }
 
-        public class ForSerializerConfiguration(Type[] types) : SerializerConfiguration, ISerializationBuilder
+        public class ForSerializerConfiguration(Type[] types) : SerializerConfiguration
         {
             public Type[] Types { get; } = types;
         }
 
-        public class DefaultSerializerConfiguration : SerializerConfiguration, ISerializationBuilder
+        public class DefaultSerializerConfiguration : SerializerConfiguration
         {
         }
     }
