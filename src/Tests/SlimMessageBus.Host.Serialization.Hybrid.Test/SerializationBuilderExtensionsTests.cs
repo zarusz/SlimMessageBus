@@ -1,5 +1,7 @@
 namespace SlimMessageBus.Host.Serialization.Hybrid.Test;
 
+using System;
+
 using Microsoft.Extensions.DependencyInjection;
 
 public class SerializationBuilderExtensionsTests
@@ -8,13 +10,16 @@ public class SerializationBuilderExtensionsTests
 
     public SerializationBuilderExtensionsTests()
     {
-        // arrange
         var mockLogger = new Mock<ILogger<HybridMessageSerializer>>();
 
         _services = new ServiceCollection();
         _services.AddSingleton(mockLogger.Object);
+    }
 
-        // act
+    [Fact]
+    public void When_HybridMessageSerializerIsAdded_Then_RegisterAsIMessageSerializer()
+    {
+        // arrange
         _services.AddSlimMessageBus(cfg =>
         {
             cfg.AddHybridSerializer(builder =>
@@ -32,20 +37,10 @@ public class SerializationBuilderExtensionsTests
                     .RegisterSerializer<SerializerThree>(services => services.AddSingleton<SerializerThree>());
             });
         });
-    }
 
-    [Fact]
-    public void When_IMessageSerializerRegistrationsAlreadyExist_Then_RemovePreviousRegistrations()
-    {
-        // assert
-        _services.Count(x => x.ServiceType == typeof(IMessageSerializer)).Should().Be(1);
-    }
-
-    [Fact]
-    public void When_HybridMessageSerializerIsAdded_Then_RegisterAsIMessageSerializer()
-    {
-        // act
         var serviceProvider = _services.BuildServiceProvider();
+
+        // act
         var target = serviceProvider.GetServices<IMessageSerializer>().ToList();
 
         // assert
@@ -56,8 +51,28 @@ public class SerializationBuilderExtensionsTests
     [Fact]
     public void When_HybridMessageSerializerIsAdded_Then_SerializersAndTypesShouldConfigured()
     {
-        // act
+        // arrange
+        _services.AddSlimMessageBus(cfg =>
+        {
+            cfg.AddHybridSerializer(builder =>
+            {
+                builder
+                    .AsDefault()
+                    .RegisterSerializer<SerializerOne>(services => services.AddSingleton<SerializerOne>());
+
+                builder
+                    .For(typeof(SampleTwo))
+                    .RegisterSerializer<SerializerTwo>(services => services.AddSingleton<SerializerTwo>());
+
+                builder
+                    .For(typeof(SampleThree))
+                    .RegisterSerializer<SerializerThree>(services => services.AddSingleton<SerializerThree>());
+            });
+        });
+
         var serviceProvider = _services.BuildServiceProvider();
+
+        // act
         var target = serviceProvider.GetService<HybridMessageSerializer>();
 
         // assert
@@ -65,6 +80,32 @@ public class SerializationBuilderExtensionsTests
         target.SerializerByType.Count.Should().Be(2);
         target.SerializerByType.Should().ContainKey(typeof(SampleTwo)).WhoseValue.Should().BeOfType<SerializerTwo>();
         target.SerializerByType.Should().ContainKey(typeof(SampleThree)).WhoseValue.Should().BeOfType<SerializerThree>();
+    }
+
+    [Fact]
+    public void When_IMessageSerializerRegistrationsAlreadyExist_Then_ThrowException()
+    {
+        // arrange
+        _services.AddSlimMessageBus(cfg =>
+        {
+            cfg.RegisterSerializer<SerializerOne>(services => services.AddSingleton<SerializerOne>());
+
+            cfg.AddHybridSerializer(builder =>
+            {
+                builder
+                    .AsDefault()
+                    .RegisterSerializer<SerializerTwo>(services => services.AddSingleton<SerializerTwo>());
+            });
+        });
+
+        var serviceProvider = _services.BuildServiceProvider();
+
+        // act
+        var act = () => serviceProvider.GetService<HybridMessageSerializer>();
+
+
+        // arrange
+        act.Should().Throw<NotSupportedException>();
     }
 
     public abstract class AbstractSerializer : IMessageSerializer
