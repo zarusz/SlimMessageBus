@@ -3,7 +3,7 @@
 public class ServiceBusTopologySettings
 {
     /// <summary>
-    /// Indicates wheather topology provisioning is enabled. Default is true.
+    /// Indicates whether topology provisioning is enabled. Default is true.
     /// </summary>
     public bool Enabled { get; set; } = true;
     /// <summary>
@@ -34,6 +34,10 @@ public class ServiceBusTopologySettings
     /// A filter that allows (or not) for declared consumers to replace already defined filters. False by default.
     /// </summary>
     public bool CanConsumerReplaceSubscriptionFilters { get; set; } = false;
+    /// <summary>
+    /// A filter that allows (or not) for declared consumers to validate that filters match expectations. True by default.
+    /// </summary>
+    public bool CanConsumerValidateSubscriptionFilters { get; set; } = true;
     /// <summary>
     /// Default configuration to be applied when a queue needs to be created (<see cref="CreateQueueOptions"/>).
     /// </summary>
