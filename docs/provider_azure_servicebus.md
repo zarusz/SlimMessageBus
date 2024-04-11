@@ -444,6 +444,28 @@ This allows to establish ownership between services as to which one owns the top
 
 By default, all the flags are enabled (set to `true`). This is for convenience.
 
+In the case where multiple consumers share the same subscription name and topology provisioning is required, all `CreateConsumerOptions` must contain the same values for the same subscription. Filters are merged but must be equal if they use the same name.
+
+### Validation of Topology
+
+Where it is preferred to log any deviations from the expected topology without making any changes, the setting 'CanConsumerValidateSubscriptionFilters` can be applied.
+
+```cs
+mbb.WithProviderServiceBus(cfg =>
+{
+   cfg.TopologyProvisioning = new ServiceBusTopologySettings
+   {
+      Enabled = true,
+      CanConsumerCreateTopic = false, // the consumers will not be able to provision a missing topic
+      CanConsumerCreateSubscription = true, // the consumers will not be able to add a missing subscription if needed
+      CanConsumerCreateSubscriptionFilter = true, // the consumers will not be able to add a missing filter on subscription       
+      CanConsumerValidateSubscriptionFilters = true, // any deviations from the expected will be logged
+   };
+
+   ...
+});
+```
+
 ### Triger Topology Provisioning
 
 > Since 1.19.3
