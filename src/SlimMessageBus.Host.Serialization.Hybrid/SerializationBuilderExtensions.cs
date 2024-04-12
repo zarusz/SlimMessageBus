@@ -68,14 +68,14 @@ public static class SerializationBuilderExtensions
         public ISerializationBuilder AsDefault()
         {
             var configuration = new DefaultSerializerConfiguration();
-            this._configurations.Add(configuration);
+            _configurations.Add(configuration);
             return configuration;
         }
 
         public ISerializationBuilder For(params Type[] types)
         {
             var configuration = new ForSerializerConfiguration(types);
-            this._configurations.Add(configuration);
+            _configurations.Add(configuration);
             return configuration;
         }
 
