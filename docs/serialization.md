@@ -17,7 +17,7 @@ There are few plugins to choose from.
 We register the serializer service in the DI:
 
 ```cs
-services.AddSlimMessageBus(mbb => 
+services.AddSlimMessageBus(mbb =>
 {
    // Use JSON for message serialization
    mbb.AddJsonSerializer(); // requires SlimMessageBus.Host.Json or SlimMessageBus.Host.SystemTextJson package
@@ -28,7 +28,7 @@ If the bus is a Hybrid bus composed of other child buses, then we can register m
 Consider the following example:
 
 ```cs
-services.AddSlimMessageBus(mbb => 
+services.AddSlimMessageBus(mbb =>
 {
    // Use JSON for message serialization
    mbb.AddJsonSerializer(); // requires SlimMessageBus.Host.Serialization.Json or SlimMessageBus.Host.Serialization.SystemTextJson package
@@ -96,15 +96,15 @@ One can customize or override the `JsonSerializerOptions`:
 services.AddTransient(new JsonSerializerOptions { /* ... */ })
 
 // Then
-services.AddSlimMessageBus(mbb => 
+services.AddSlimMessageBus(mbb =>
 {
-   mbb.AddJsonSerializer();   
+   mbb.AddJsonSerializer();
 });
 
 // Or provide an JSON options directly
-services.AddSlimMessageBus(mbb => 
+services.AddSlimMessageBus(mbb =>
 {
-   mbb.AddJsonSerializer(new JsonSerializerOptions());   
+   mbb.AddJsonSerializer(new JsonSerializerOptions());
 });
 ```
 
@@ -145,7 +145,7 @@ var mf = new DictionaryMessageCreationStategy();
 mf.Add(typeof(AddCommand), () => new AddCommand());
 mf.Add(typeof(MultiplyRequest), () => new MultiplyRequest());
 mf.Add(typeof(MultiplyResponse), () => new MultiplyResponse());
-   
+
 // longer approach, but should be faster as it's not using reflection
 mbb.AddAvroSerializer(mf, sl);
 ```
@@ -175,27 +175,23 @@ The Hybrid plugin allows to have multiple serialization formats on one message b
 To use it install the nuget package `SlimMessageBus.Host.Serialization.Hybrid` and then configure the bus:
 
 ```cs
-    services
-       .AddSlimMessageBus(mbb =>
-        {
-            mbb
-                .AddHybridSerializer(
-                    builder => {
-                        builder
-                            .AsDefault()
-                            .AddJsonSerializer();
+services.AddSlimMessageBus(mbb =>
+{
+   mbb.AddHybridSerializer(builder =>
+   {
+      builder
+         .AsDefault()
+         .AddJsonSerializer();
 
-                        builder
-                            .For(typeof(Message1), typeof(Message2))
-                            .AddAvroSerializer();
+      builder
+         .For(typeof(Message1), typeof(Message2))
+         .AddAvroSerializer();
 
-                        builder
-                            .For(typeof(Message3))
-                            .AddGoogleProtobufSerializer();
-                    })
-                ...
-        } 
+      builder
+         .For(typeof(Message3))
+         .AddGoogleProtobufSerializer();
+   });
+});
 ```
 
-The routing to the proper serializer happens based on message type. When a type cannot be matched the default serializer will be used.
 The routing to the proper serializer happens based on message type. When a type cannot be matched the default serializer will be used.
