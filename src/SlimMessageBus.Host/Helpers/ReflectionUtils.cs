@@ -81,7 +81,7 @@ public static class ReflectionUtils
 #endif
 
         var delegateSignature = typeof(TDelegate).GetMethod("Invoke")!;
-        Debug.Assert(delegateSignature.ReturnType == methodInfo.ReturnType);
+        Debug.Assert(delegateSignature.ReturnType.IsAssignableFrom(methodInfo.ReturnType));
 
         var instanceParameter = Expression.Parameter(typeof(object), "instance");
         var optionalTypes = delegateSignature.GetParameters()
