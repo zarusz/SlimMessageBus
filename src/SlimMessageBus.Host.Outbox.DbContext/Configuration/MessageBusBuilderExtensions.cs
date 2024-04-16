@@ -15,7 +15,6 @@ public static class MessageBusBuilderExtensions
         {
             services.TryAddScoped<ISqlTransactionService, DbContextTransactionService<TDbContext>>();
         });
-        mbb.AddOutboxUsingSql<DbContextOutboxRepository<TDbContext>>(configure);
-        return mbb;
+        return mbb.AddOutboxUsingSql<DbContextOutboxRepository<TDbContext>>(configure);
     }
 }
