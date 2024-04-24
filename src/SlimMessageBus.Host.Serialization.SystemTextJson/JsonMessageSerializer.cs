@@ -15,13 +15,19 @@ public class JsonMessageSerializer : IMessageSerializer
 
     public JsonMessageSerializer(JsonSerializerOptions options = null)
     {
-        Options = options ?? new(JsonSerializerDefaults.Web)
+        Options = options ?? CreateDefaultOptions();
+    }
+
+    public virtual JsonSerializerOptions CreateDefaultOptions()
+    {
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
         {
             WriteIndented = false,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             AllowTrailingCommas = true
         };
-        Options.Converters.Add(new ObjectToInferredTypesConverter());
+        options.Converters.Add(new ObjectToInferredTypesConverter());
+        return options;
     }
 
     public byte[] Serialize(Type t, object message) =>
