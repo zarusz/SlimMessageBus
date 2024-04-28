@@ -20,7 +20,7 @@ public class ConcurrentMessageProcessorQueueTests
         static async Task<ProcessMessageResult> ProcessMessageFake(object transportMessage, IReadOnlyDictionary<string, object> messageHeaders, IDictionary<string, object> consumerContextProperties, IServiceProvider currentServiceProvider, CancellationToken cancellationToken)
         {
             await Task.Delay(500, cancellationToken);
-            return new ProcessMessageResult(null, null, null, null);
+            return new ProcessMessageResult(null, null, null);
         }
 
         messageProcessor

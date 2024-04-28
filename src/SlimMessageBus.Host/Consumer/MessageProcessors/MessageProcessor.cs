@@ -1,7 +1,9 @@
 ﻿namespace SlimMessageBus.Host;
 
+using System;
+
 /// <summary>
-/// Implementation of <see cref="IMessageProcessor{TMessage}"/> that peforms orchestration around processing of a new message using an instance of the declared consumer (<see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/> interface).
+/// Implementation of <see cref="IMessageProcessor{TMessage}"/> that performs orchestration around processing of a new message using an instance of the declared consumer (<see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/> interface).
 /// </summary>
 /// <typeparam name="TTransportMessage"></typeparam>
 public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProcessor<TTransportMessage>
@@ -68,7 +70,6 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
         IMessageTypeConsumerInvokerSettings lastConsumerInvoker = null;
         Exception lastException = null;
         object lastResponse = null;
-        object message = null;
 
         try
         {
@@ -80,35 +81,48 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
             {
                 try
                 {
-                    message = _messageProvider(messageType, transportMessage);
-
-                    var consumerInvokers = TryMatchConsumerInvoker(messageType);
-
-                    foreach (var consumerInvoker in consumerInvokers)
+                    var message = _messageProvider(messageType, transportMessage);
+                    try
                     {
-                        lastConsumerInvoker = consumerInvoker;
+                        var consumerInvokers = TryMatchConsumerInvoker(messageType);
 
-                        // Skip the loop if it was cancelled
-                        if (cancellationToken.IsCancellationRequested)
+                        foreach (var consumerInvoker in consumerInvokers)
                         {
-                            break;
-                        }
+                            lastConsumerInvoker = consumerInvoker;
 
-                        (lastResponse, lastException, var requestId) = await DoHandle(message, messageHeaders, consumerInvoker, transportMessage, consumerContextProperties, currentServiceProvider, cancellationToken).ConfigureAwait(false);
-
-                        if (consumerInvoker.ParentSettings.ConsumerMode == ConsumerMode.RequestResponse && _responseProducer != null)
-                        {
-                            if (!ReferenceEquals(ResponseForExpiredRequest, lastResponse))
+                            // Skip the loop if it was cancelled
+                            if (cancellationToken.IsCancellationRequested)
                             {
-                                // We discard expired requests, so there is no reponse to provide
-                                await _responseProducer.ProduceResponse(requestId, message, messageHeaders, lastResponse, lastException, consumerInvoker).ConfigureAwait(false);
+                                break;
                             }
-                            // Clear the exception as it will be returned to the sender.
-                            lastException = null;
+
+                            (lastResponse, lastException, var requestId) = await DoHandle(message, messageHeaders, consumerInvoker, transportMessage, consumerContextProperties, currentServiceProvider, cancellationToken).ConfigureAwait(false);
+
+                            if (consumerInvoker.ParentSettings.ConsumerMode == ConsumerMode.RequestResponse && _responseProducer != null)
+                            {
+                                if (!ReferenceEquals(ResponseForExpiredRequest, lastResponse))
+                                {
+                                    // We discard expired requests, so there is no response to provide
+                                    await _responseProducer.ProduceResponse(requestId, message, messageHeaders, lastResponse, lastException, consumerInvoker).ConfigureAwait(false);
+                                }
+                                // Clear the exception as it will be returned to the sender.
+                                lastException = null;
+                            }
+                            else if (lastException != null)
+                            {
+                                break;
+                            }
                         }
-                        else if (lastException != null)
+                    }
+                    finally
+                    {
+                        if (message is IAsyncDisposable asyncDisposable)
                         {
-                            break;
+                            await asyncDisposable.DisposeAsync();
+                        }
+                        else if (message is IDisposable disposable)
+                        {
+                            disposable.Dispose();
                         }
                     }
                 }
@@ -124,7 +138,7 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
             _logger.LogDebug(e, "Processing of the message {TransportMessage} failed", transportMessage);
             lastException = e;
         }
-        return new(lastException, lastException != null ? lastConsumerInvoker?.ParentSettings : null, lastResponse, message);
+        return new(lastException, lastException != null ? lastConsumerInvoker?.ParentSettings : null, lastResponse);
     }
 
     protected Type GetMessageType(IReadOnlyDictionary<string, object> headers)
@@ -155,7 +169,7 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
 
         if (_shouldFailWhenUnrecognizedMessageType)
         {
-            throw new MessageBusException($"The message arrived without {MessageHeaders.MessageType} header on path {Path}, so it is imposible to match one of the known consumer types {string.Join(",", _invokers.Select(x => x.ConsumerType.Name))}");
+            throw new MessageBusException($"The message arrived without {MessageHeaders.MessageType} header on path {Path}, so it is impossible to match one of the known consumer types {string.Join(",", _invokers.Select(x => x.ConsumerType.Name))}");
         }
 
         return null;

@@ -31,14 +31,14 @@ public class ResponseMessageProcessor<TMessage> : IMessageProcessor<TMessage>
         {
             var messagePayload = _messagePayloadProvider(transportMessage);
             var exception = await _responseConsumer.OnResponseArrived(messagePayload, _requestResponseSettings.Path, messageHeaders);
-            return new(exception, _requestResponseSettings, null, transportMessage);
+            return new(exception, _requestResponseSettings, null);
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "Error occured while consuming response message, {Message}", transportMessage);
+            _logger.LogError(e, "Error occurred while consuming response message, {Message}", transportMessage);
 
             // We can only continue and process all messages in the lease    
-            return new(e, _requestResponseSettings, null, transportMessage);
+            return new(e, _requestResponseSettings, null);
         }
     }
 }

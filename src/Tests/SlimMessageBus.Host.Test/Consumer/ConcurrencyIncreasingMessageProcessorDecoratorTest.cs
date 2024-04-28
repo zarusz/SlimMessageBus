@@ -15,7 +15,7 @@ public class ConcurrencyIncreasingMessageProcessorDecoratorTest
     [Theory]
     [InlineData(10, 40)]
     [InlineData(2, 40)]
-    public async Task When_ProcessMessage_Given_NMessagesAndConcurrencySetToC_Then_NMethodInvokationsHappenOnTargetWithCConcurrently(int concurrency, int expectedMessageCount)
+    public async Task When_ProcessMessage_Given_NMessagesAndConcurrencySetToC_Then_NMethodInvocationsHappenOnTargetWithCConcurrently(int concurrency, int expectedMessageCount)
     {
         // arrange
         _subject = new ConcurrencyIncreasingMessageProcessorDecorator<SomeMessage>(concurrency, _busMock.Bus, _messageProcessorMock.Object);
@@ -50,7 +50,7 @@ public class ConcurrencyIncreasingMessageProcessorDecoratorTest
 
                 // Leaving critical section
                 Interlocked.Decrement(ref currentSectionCount);
-                return new(null, null, null, null);
+                return new(null, null, null);
             });
 
         // act

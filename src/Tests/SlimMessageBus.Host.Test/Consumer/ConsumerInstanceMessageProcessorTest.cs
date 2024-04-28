@@ -21,6 +21,68 @@ public class ConsumerInstanceMessageProcessorTest
     }
 
     [Fact]
+    public async Task When_ProcessMessage_ProcessesAsyncDisposableMessage_Then_MessageIsDisposed()
+    {
+        // arrange
+        var mockMessage = new Mock<IAsyncDisposable>();
+        mockMessage.Setup(x => x.DisposeAsync()).Verifiable();
+
+        object MessageProvider(Type messageType, byte[] payload) => mockMessage.Object;
+
+        var p = new MessageProcessor<byte[]>(new[] { _handlerSettings }, _busMock.Bus, MessageProvider, "path", responseProducer: _busMock.Bus);
+
+        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<byte[]>())).Returns(mockMessage.Object);
+
+        // act
+        await p.ProcessMessage(_transportMessage, new Dictionary<string, object>(), default);
+
+        // assert
+        mockMessage.Verify(x => x.DisposeAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task When_ProcessMessage_ProcessesMessageThatExposesBothIDisposableAndIAsyncDisposable_Then_OnlyAsyncDisposableIsDisposed()
+    {
+        // arrange
+        var mockMessage = new Mock<IDisposableAndIAsyncDisposable>();
+        mockMessage.Setup(x => x.DisposeAsync()).Verifiable();
+        mockMessage.Setup(x => x.Dispose()).Verifiable();
+
+        object MessageProvider(Type messageType, byte[] payload) => mockMessage.Object;
+
+        var p = new MessageProcessor<byte[]>(new[] { _handlerSettings }, _busMock.Bus, MessageProvider, "path", responseProducer: _busMock.Bus);
+
+        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<byte[]>())).Returns(mockMessage.Object);
+
+        // act
+        await p.ProcessMessage(_transportMessage, new Dictionary<string, object>(), default);
+
+        // assert
+        mockMessage.Verify(x => x.DisposeAsync(), Times.Once);
+        mockMessage.Verify(x => x.Dispose(), Times.Never);
+    }
+
+    [Fact]
+    public async Task When_ProcessMessage_ProcessesDisposableMessage_Then_MessageIsDisposed()
+    {
+        // arrange
+        var mockMessage = new Mock<IDisposable>();
+        mockMessage.Setup(x => x.Dispose()).Verifiable();
+
+        object MessageProvider(Type messageType, byte[] payload) => mockMessage.Object;
+
+        var p = new MessageProcessor<byte[]>(new[] { _handlerSettings }, _busMock.Bus, MessageProvider, "path", responseProducer: _busMock.Bus);
+
+        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<byte[]>())).Returns(mockMessage.Object);
+
+        // act
+        await p.ProcessMessage(_transportMessage, new Dictionary<string, object>(), default);
+
+        // assert
+        mockMessage.Verify(x => x.Dispose(), Times.Once);
+    }
+
+    [Fact]
     public async Task When_ProcessMessage_Given_ExpiredRequest_Then_HandlerNeverCalled_Nor_ProduceResponseCalled()
     {
         // arrange
@@ -70,7 +132,6 @@ public class ConsumerInstanceMessageProcessorTest
         var result = await p.ProcessMessage(_transportMessage, headers, default);
 
         // assert
-        result.Message.Should().BeSameAs(request);
         result.Exception.Should().BeNull();
         result.Response.Should().BeNull();
 
@@ -104,7 +165,6 @@ public class ConsumerInstanceMessageProcessorTest
         var result = await p.ProcessMessage(_transportMessage, messageHeaders, default);
 
         // assert
-        result.Message.Should().BeSameAs(message);
         result.Response.Should().BeNull();
 
         result.Exception.Should().BeSameAs(ex);
@@ -143,7 +203,6 @@ public class ConsumerInstanceMessageProcessorTest
         var result = await p.ProcessMessage(_transportMessage, new Dictionary<string, object>(), default);
 
         // assert
-        result.Message.Should().BeSameAs(message);
         result.Exception.Should().BeNull();
         result.Response.Should().BeNull();
 
@@ -472,5 +531,9 @@ public class ConsumerInstanceMessageProcessorTest
             someRequestMessageHandlerMock.Verify(x => x.OnHandle(someRequest), Times.Once);
         }
         someRequestMessageHandlerMock.VerifyNoOtherCalls();
+    }
+
+    public interface IDisposableAndIAsyncDisposable : IAsyncDisposable, IDisposable
+    {
     }
 }

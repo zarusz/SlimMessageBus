@@ -53,7 +53,7 @@ public sealed class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : I
         {
             // report the last exception
             _lastException = null;
-            return new(e, _lastExceptionSettings, null, _lastExceptionMessage);
+            return new(e, _lastExceptionSettings, null);
         }
 
         Interlocked.Increment(ref _pendingCount);
@@ -62,7 +62,7 @@ public sealed class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : I
         _ = ProcessInBackground(transportMessage, messageHeaders, currentServiceProvider, consumerContextProperties, cancellationToken);
 
         // Not exception - we don't know yet
-        return new(null, null, null, null);
+        return new(null, null, null);
     }
 
     public TMessage GetMessageWithException()
