@@ -54,4 +54,16 @@ public class ServiceBusTopologySettings
     /// Default configuration to be applied when a rule needs to be created (<see cref="CreateSubscriptionFilterOptions"/>).
     /// </summary>
     public Action<CreateRuleOptions> CreateSubscriptionFilterOptions { get; set; }
+    /// <summary>
+    /// Interceptor that allows to intercept the topology provisioning process.
+    /// </summary>
+    public ServiceBusTopologyInterceptor OnProvisionTopology { get; set; } = (client, provision) => provision();
 }
+
+/// <summary>
+/// Interceptor that allows to intercept the topology provisioning process and to apply custom logic before and after the provisioning process. 
+/// </summary>
+/// <param name="client">Service Bus admin client</param>
+/// <param name="provision">Delegate allowing to perform topology provisioning</param>
+/// <returns></returns>
+public delegate Task ServiceBusTopologyInterceptor(ServiceBusAdministrationClient client, Func<Task> provision);
