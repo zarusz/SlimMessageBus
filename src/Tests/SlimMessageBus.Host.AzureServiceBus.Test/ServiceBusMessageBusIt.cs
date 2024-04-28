@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Globalization;
 
 using Azure.Messaging.ServiceBus;
+using Azure.Messaging.ServiceBus.Administration;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,19 +16,28 @@ using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
 [Trait("Category", "Integration")]
-public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt>
+public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<ServiceBusMessageBusIt>(testOutputHelper)
 {
     private const int NumberOfMessages = 77;
 
-    public ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
-    {
-    }
+    private Func<ServiceBusAdministrationClient, Task> CleanTopology { get; set; }
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
         services.AddSlimMessageBus((mbb) =>
         {
-            mbb.WithProviderServiceBus(cfg => cfg.ConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]));
+            mbb.WithProviderServiceBus(cfg =>
+            {
+                cfg.ConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
+                cfg.TopologyProvisioning.OnProvisionTopology = async (client, next) =>
+                {
+                    if (CleanTopology != null)
+                    {
+                        await CleanTopology(client);
+                    }
+                    await next();
+                };
+            });
             mbb.AddServicesFromAssemblyContaining<PingConsumer>();
             mbb.AddJsonSerializer();
             ApplyBusConfiguration(mbb);
@@ -76,6 +86,11 @@ public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt
                 }));
         });
 
+        CleanTopology = async client =>
+        {
+            await client.DeleteTopicAsync(topic);
+        };
+
         await BasicPubSub(concurrency, subscribers, subscribers);
     }
 
@@ -95,6 +110,12 @@ public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt
                     .WithConsumer<PingDerivedConsumer, PingDerivedMessage>()
                     .Instances(concurrency));
         });
+
+        CleanTopology = async client =>
+        {
+            await client.DeleteQueueAsync(queue);
+        };
+
         await BasicPubSub(concurrency, 1, 1);
     }
 
@@ -114,6 +135,12 @@ public class ServiceBusMessageBusIt : BaseIntegrationTest<ServiceBusMessageBusIt
                     .WithConsumer(typeof(CustomPingConsumer), typeof(PingDerivedMessage), nameof(CustomPingConsumer.Handle))
                     .Instances(concurrency));
         });
+
+        CleanTopology = async client =>
+        {
+            await client.DeleteQueueAsync(queue);
+        };
+
         await BasicPubSub(concurrency, 1, 1);
     }
 

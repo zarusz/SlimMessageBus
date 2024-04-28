@@ -156,7 +156,7 @@
             }
 
             [Fact]
-            public async Task When_SubscriptionIsCreated_AndCanCreateSubscriptionFilter_Then_DeleteDefaultRule()
+            public async Task When_SubscriptionIsCreated_AndCanCreateSubscriptionFilter_AndNoOtherRulesDeclared_Then_NeverDeleteDefaultRule()
             {
                 // arrange
                 ProviderBusSettings.TopologyProvisioning.CanConsumerCreateSubscription = true;
@@ -165,14 +165,13 @@
                 _mockAdminClient.Setup(x => x.TopicExistsAsync(_topicName, It.IsAny<CancellationToken>())).Returns(ResponseTask(true));
                 _mockAdminClient.Setup(x => x.SubscriptionExistsAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).Returns(ResponseTask(false));
                 _mockAdminClient.Setup(x => x.CreateSubscriptionAsync(It.IsAny<CreateSubscriptionOptions>(), It.IsAny<CancellationToken>()));
-                _mockAdminClient.Setup(x => x.DeleteRuleAsync(_topicName, _subscriptionName, RuleProperties.DefaultRuleName, It.IsAny<CancellationToken>())).Verifiable();
 
                 // act
                 await _target.ProvisionTopology();
 
                 // assert
                 _mockAdminClient.Verify(x => x.CreateSubscriptionAsync(It.IsAny<CreateSubscriptionOptions>(), It.IsAny<CancellationToken>()), Times.Once);
-                _mockAdminClient.Verify(x => x.DeleteRuleAsync(_topicName, _subscriptionName, RuleProperties.DefaultRuleName, It.IsAny<CancellationToken>()), Times.Once);
+                _mockAdminClient.Verify(x => x.DeleteRuleAsync(_topicName, _subscriptionName, RuleProperties.DefaultRuleName, It.IsAny<CancellationToken>()), Times.Never);
             }
 
             [Fact]

@@ -12,10 +12,10 @@ public class ServiceBusTopologyService
 
     public ServiceBusTopologyService(ILogger<ServiceBusTopologyService> logger, MessageBusSettings settings, ServiceBusMessageBusSettings providerSettings)
     {
-        this._logger = logger;
-        this._settings = settings;
-        this._providerSettings = providerSettings;
-        this._adminClient = providerSettings.AdminClientFactory();
+        _logger = logger;
+        _settings = settings;
+        _providerSettings = providerSettings;
+        _adminClient = providerSettings.AdminClientFactory();
     }
 
     [Flags]
@@ -153,7 +153,9 @@ public class ServiceBusTopologyService
         return TopologyCreationStatus.Exists | TopologyCreationStatus.Updated;
     });
 
-    public async Task ProvisionTopology()
+    public Task ProvisionTopology() => _providerSettings.TopologyProvisioning.OnProvisionTopology(_adminClient, DoProvisionTopology);
+
+    protected async Task DoProvisionTopology()
     {
         try
         {
@@ -244,47 +246,51 @@ public class ServiceBusTopologyService
                                 return options;
                             });
 
-                            if ((subscriptionStatus & TopologyCreationStatus.Exists) != 0)
+                            if ((subscriptionStatus & TopologyCreationStatus.Exists) != 0 && (topologyProvisioning.CanConsumerValidateSubscriptionFilters || topologyProvisioning.CanConsumerCreateSubscriptionFilter || topologyProvisioning.CanConsumerReplaceSubscriptionFilters))
                             {
-                                if ((subscriptionStatus & TopologyCreationStatus.Created) != 0 && topologyProvisioning.CanConsumerCreateSubscriptionFilter)
-                                {
-                                    // Note: for a newly created subscription, ASB creates a default filter automatically, we need to remove it and let the user defined rules take over
-                                    await _adminClient.DeleteRuleAsync(path, subscriptionName, RuleProperties.DefaultRuleName);
-                                }
-
                                 var tasks = new List<Task>();
-                                if (topologyProvisioning.CanConsumerValidateSubscriptionFilters || topologyProvisioning.CanConsumerCreateSubscriptionFilter || topologyProvisioning.CanConsumerReplaceSubscriptionFilters)
+                                var rules = MergeFilters(path, subscriptionName, consumerSettingsGroup).ToDictionary(x => x.Name, x => x);
+
+                                await foreach (var page in _adminClient.GetRulesAsync(path, subscriptionName).AsPages())
                                 {
-                                    var rules = MergeFilters(path, subscriptionName, consumerSettingsGroup).ToDictionary(x => x.Name, x => x);
-
-                                    await foreach (var page in _adminClient.GetRulesAsync(path, subscriptionName).AsPages())
+                                    foreach (var serviceRule in page.Values)
                                     {
-                                        foreach (var serviceRule in page.Values)
+                                        if (!rules.TryGetValue(serviceRule.Name, out var rule))
                                         {
-                                            if (!rules.TryGetValue(serviceRule.Name, out var rule))
+                                            // server rule was not defined in SMB
+                                            if ((rules.Count > 0 || serviceRule.Name != RuleProperties.DefaultRuleName) && ((subscriptionStatus & TopologyCreationStatus.Created) != 0 || topologyProvisioning.CanConsumerReplaceSubscriptionFilters))
                                             {
+                                                // Note: for a newly created subscription, ASB creates a $Default filter automatically
+                                                // We need to remove the filter if its not matching what is declared in SMB and let the user defined rules take over
+                                                // On the other hand if there are no user defined rules, we need to preserve the $Default filter
                                                 tasks.Add(TryDeleteRule(path, subscriptionName, serviceRule.Name));
-                                                continue;
                                             }
+                                            continue;
+                                        }
 
-                                            if (rule.Filter.Equals(serviceRule.Filter)
-                                                && ((rule.Action == null && serviceRule.Action == null) || (rule.Action.Equals(serviceRule.Action))))
-                                            {
-                                                // is as expected / nothing to do
-                                                rules.Remove(serviceRule.Name);
-                                                continue;
-                                            }
+                                        if (rule.Filter.Equals(serviceRule.Filter) && ((rule.Action == null && serviceRule.Action == null) || (rule.Action.Equals(serviceRule.Action))))
+                                        {
+                                            // server rule matched what is defined in SMB
+                                            rules.Remove(serviceRule.Name);
+                                            continue;
+                                        }
 
+                                        if (topologyProvisioning.CanConsumerReplaceSubscriptionFilters)
+                                        {
+                                            // update existing rule
                                             serviceRule.Filter = rule.Filter;
                                             serviceRule.Action = rule.Action;
                                             tasks.Add(TryUpdateRule(path, subscriptionName, serviceRule));
                                             rules.Remove(serviceRule.Name);
                                         }
+                                    }
 
+                                    if (topologyProvisioning.CanConsumerCreateSubscriptionFilter)
+                                    {
                                         tasks.AddRange(rules.Values.Select(options => TryCreateRule(path, subscriptionName, options)));
-                                        await Task.WhenAll(tasks);
                                     }
                                 }
+                                await Task.WhenAll(tasks);
                             }
                         }
                     }
