@@ -246,7 +246,9 @@ public class ServiceBusTopologyService
 
                             if ((subscriptionStatus & TopologyCreationStatus.Exists) != 0)
                             {
-                                if ((subscriptionStatus & TopologyCreationStatus.Created) != 0 && topologyProvisioning.CanConsumerCreateSubscriptionFilter)
+                                if ((subscriptionStatus & TopologyCreationStatus.Created) != 0 
+                                    && topologyProvisioning.CanConsumerCreateSubscriptionFilter 
+                                    && consumerSettingsGroup.Any(x => x.GetRules()?.Count > 0))
                                 {
                                     // Note: for a newly created subscription, ASB creates a default filter automatically, we need to remove it and let the user defined rules take over
                                     await _adminClient.DeleteRuleAsync(path, subscriptionName, RuleProperties.DefaultRuleName);
