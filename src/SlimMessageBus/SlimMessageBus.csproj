@@ -3,7 +3,7 @@
   <Import Project="../Common.NuGet.Properties.xml" />
 
   <PropertyGroup>
-    <Version>2.0.4</Version>
+    <Version>3.0.0-rc6</Version>
     <Description>
       This library provides a lightweight, easy-to-use message bus interface for .NET, offering a simplified facade for working with messaging brokers.
       It supports multiple transport providers for popular messaging systems, as well as in-memory (in-process) messaging for efficient local communication.

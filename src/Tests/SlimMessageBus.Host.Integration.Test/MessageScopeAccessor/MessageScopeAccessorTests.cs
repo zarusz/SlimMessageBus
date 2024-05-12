@@ -49,7 +49,7 @@ public class MessageScopeAccessorTests(ITestOutputHelper testOutputHelper)
 
     public class TestMessageConsumer(TestValueHolder holder, IServiceProvider serviceProvider, IMessageScopeAccessor messageScopeAccessor) : IRequestHandler<TestMessage>
     {
-        public Task OnHandle(TestMessage request)
+        public Task OnHandle(TestMessage request, CancellationToken cancellationToken)
         {
             holder.ServiceProvider = serviceProvider;
             holder.MessageScopeAccessorServiceProvider = messageScopeAccessor.Current;

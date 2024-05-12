@@ -111,7 +111,7 @@ Another service (or application layer) handles the message:
 ```cs
 public class SomeMessageConsumer : IConsumer<SomeMessage>
 {
-   public async Task OnHandle(SomeMessage message)
+   public async Task OnHandle(SomeMessage message, CancellationToken cancellationToken)
    {
        // handle the message
    }
@@ -134,7 +134,7 @@ The receiving side handles the request and replies:
 ```cs
 public class SomeRequestHandler : IRequestHandler<SomeRequest, SomeResponse>
 {
-   public async Task<SomeResponse> OnHandle(SomeRequest request)
+   public async Task<SomeResponse> OnHandle(SomeRequest request, CancellationToken cancellationToken)
    {
       // handle the request message and return a response
       return new SomeResponse { /* ... */ };
@@ -213,7 +213,7 @@ The domain event handler implements the `IConsumer<T>` interface:
 // domain event handler
 public class OrderSubmittedHandler : IConsumer<OrderSubmittedEvent>
 {
-   public Task OnHandle(OrderSubmittedEvent e)
+   public Task OnHandle(OrderSubmittedEvent e, CancellationToken cancellationToken)
    {
       // ...
    }

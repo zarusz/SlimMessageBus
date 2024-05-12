@@ -18,7 +18,7 @@ public interface IProducerContext
     /// The bus that was used to produce the message.
     /// For hybrid bus this will the child bus that was identified as the one to handle the message.
     /// </summary>
-    public IMessageBus Bus { get; set; }
+    IMessageBus Bus { get; set; }
     /// <summary>
     /// Additional transport provider specific features or user custom data.
     /// </summary>

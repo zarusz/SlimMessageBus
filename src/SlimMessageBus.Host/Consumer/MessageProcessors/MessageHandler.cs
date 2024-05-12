@@ -107,7 +107,7 @@ public class MessageHandler : IMessageHandler
                 }
                 catch (Exception ex)
                 {
-                    // Give a chance to the consumer error handler to take action
+                    // Give the consumer error handler a chance to take action
                     var handleErrorResult = await DoHandleError(message, consumerInvoker, messageType, hasResponse, responseType, messageScope, consumerContext, ex).ConfigureAwait(false);
                     if (!handleErrorResult.Handled)
                     {

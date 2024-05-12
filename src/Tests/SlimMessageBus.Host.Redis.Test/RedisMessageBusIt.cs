@@ -249,7 +249,7 @@ public class RedisMessageBusIt(ITestOutputHelper testOutputHelper)
 
         #region Implementation of IConsumer<in PingMessage>
 
-        public Task OnHandle(PingMessage message)
+        public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
         {
             _messages.Add(message);
 
@@ -275,7 +275,7 @@ public class RedisMessageBusIt(ITestOutputHelper testOutputHelper)
 
     private class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
     {
-        public Task<EchoResponse> OnHandle(EchoRequest request)
+        public Task<EchoResponse> OnHandle(EchoRequest request, CancellationToken cancellationToken)
         {
             return Task.FromResult(new EchoResponse { Message = request.Message });
         }

@@ -35,19 +35,15 @@ public class GenericTypeCache2<TFunc> : IGenericTypeCache2<TFunc>
 {
     private readonly Type _openGenericType;
     private readonly string _methodName;
-    private readonly Func<Type, Type> _returnTypeFunc;
-    private readonly Func<Type, Type[]> _argumentTypesFunc;
     private readonly IReadOnlyCache<(Type RequestType, Type ResponseType), IGenericTypeCache2<TFunc>.GenericInterfaceType> _messageTypeToGenericInterfaceType;
     private readonly SafeDictionaryWrapper<(Type RequestType, Type ResponseType), GenericTypeResolveCache> _messageTypeToResolveCache;
 
     public TFunc this[(Type RequestType, Type ResponseType) key] => _messageTypeToGenericInterfaceType[key].Func;
 
-    public GenericTypeCache2(Type openGenericType, string methodName, Func<Type, Type> returnTypeFunc, Func<Type, Type[]> argumentTypesFunc)
+    public GenericTypeCache2(Type openGenericType, string methodName)
     {
         _openGenericType = openGenericType;
         _methodName = methodName;
-        _returnTypeFunc = returnTypeFunc;
-        _argumentTypesFunc = argumentTypesFunc;
         _messageTypeToGenericInterfaceType = new SafeDictionaryWrapper<(Type RequestType, Type ResponseType), IGenericTypeCache2<TFunc>.GenericInterfaceType>(CreateType);
         _messageTypeToResolveCache = new SafeDictionaryWrapper<(Type RequestType, Type ResponseType), GenericTypeResolveCache>();
     }
@@ -56,12 +52,9 @@ public class GenericTypeCache2<TFunc> : IGenericTypeCache2<TFunc>
     {
         var genericType = _openGenericType.MakeGenericType(p.RequestType, p.ResponseType);
         var method = genericType.GetMethod(_methodName) ?? throw new InvalidOperationException($"The method {_methodName} was not found on type {genericType}");
-        var methodArguments = new[] { p.RequestType }.Concat(_argumentTypesFunc(p.ResponseType)).ToArray();
-        var returnType = _returnTypeFunc(p.ResponseType);
-        var func = ReflectionUtils.GenerateMethodCallToFunc<TFunc>(method, genericType, returnType, methodArguments);
+        var func = ReflectionUtils.GenerateMethodCallToFunc<TFunc>(method);
         return new IGenericTypeCache2<TFunc>.GenericInterfaceType(p.RequestType, p.ResponseType, genericType, method, func);
     }
-
 
     /// <summary>
     /// Returns the resolved instances, or null if none are registered.
