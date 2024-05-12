@@ -2,6 +2,7 @@
 
 using Sample.Hybrid.ConsoleApp.Domain;
 using Sample.Hybrid.ConsoleApp.EmailService.Contract;
+
 using SlimMessageBus;
 
 public class CustomerChangedEventHandler : IConsumer<CustomerEmailChangedEvent>
@@ -10,7 +11,7 @@ public class CustomerChangedEventHandler : IConsumer<CustomerEmailChangedEvent>
 
     public CustomerChangedEventHandler(IMessageBus bus) => this.bus = bus;
 
-    public async Task OnHandle(CustomerEmailChangedEvent message)
+    public async Task OnHandle(CustomerEmailChangedEvent message, CancellationToken cancellationToken)
     {
         // Send confirmation email
 

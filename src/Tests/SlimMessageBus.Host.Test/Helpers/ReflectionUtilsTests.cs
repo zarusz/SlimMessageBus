@@ -23,21 +23,67 @@ public class ReflectionUtilsTests
     {
         // arrange
         var message = new SomeMessage();
+        var cancellationToken = new CancellationToken();
 
         var instanceType = typeof(IConsumer<SomeMessage>);
-        var consumerOnHandleMethodInfo = instanceType.GetMethod(nameof(IConsumer<SomeMessage>.OnHandle), new[] { typeof(SomeMessage) });
+        var consumerOnHandleMethodInfo = instanceType.GetMethod(nameof(IConsumer<SomeMessage>.OnHandle), [typeof(SomeMessage), typeof(CancellationToken)]);
 
         var consumerMock = new Mock<IConsumer<SomeMessage>>();
-        consumerMock.Setup(x => x.OnHandle(message)).Returns(Task.CompletedTask);
+        consumerMock.Setup(x => x.OnHandle(message, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         // act
-        var callAsyncMethodFunc = ReflectionUtils.GenerateMethodCallToFunc<Func<object, object, Task>>(consumerOnHandleMethodInfo, instanceType, typeof(Task), typeof(SomeMessage));
+        var callAsyncMethodFunc = ReflectionUtils.GenerateMethodCallToFunc<Func<object, object, CancellationToken, Task>>(consumerOnHandleMethodInfo);
 
-        await callAsyncMethodFunc(consumerMock.Object, message);
+        await callAsyncMethodFunc(consumerMock.Object, message, cancellationToken);
 
         // assert
-        consumerMock.Verify(x => x.OnHandle(message), Times.Once);
+        consumerMock.Verify(x => x.OnHandle(message, cancellationToken), Times.Once);
         consumerMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public void When_GenerateMethodCallToFunc_Given_DelegateLessThanOneException_Then_ThrowException()
+    {
+        var instanceType = typeof(ICustomConsumer<SomeMessage>);
+        var consumerHandleAMessageMethodInfo = instanceType.GetMethod(nameof(ICustomConsumer<SomeMessage>.MethodThatHasParamatersThatCannotBeSatisfied));
+
+        // act
+        var act = () => ReflectionUtils.GenerateMethodCallToFunc<Action>(consumerHandleAMessageMethodInfo);
+
+        // assert
+        act.Should()
+            .Throw<ConfigurationMessageBusException>()
+            .WithMessage("Delegate * must have at least one argument");
+    }
+
+    [Fact]
+    public void When_GenerateMethodCallToFunc_Given_MethodReturnTypeNotConvertableToDelegateReturnType_Then_ThrowException()
+    {
+        var instanceType = typeof(ICustomConsumer<SomeMessage>);
+        var consumerHandleAMessageMethodInfo = instanceType.GetMethod(nameof(ICustomConsumer<SomeMessage>.MethodThatHasParamatersThatCannotBeSatisfied));
+
+        // act
+        var act = () => ReflectionUtils.GenerateMethodCallToFunc<Func<object, SomeMessage, bool>>(consumerHandleAMessageMethodInfo);
+
+        // assert
+        act.Should()
+            .Throw<ConfigurationMessageBusException>()
+            .WithMessage("Return type mismatch for method * and delegate *");
+    }
+
+    [Fact]
+    public void When_GenerateMethodCallToFunc_Given_MethodAndDelegateParamCountMismatch_Then_ThrowException()
+    {
+        var instanceType = typeof(ICustomConsumer<SomeMessage>);
+        var consumerHandleAMessageMethodInfo = instanceType.GetMethod(nameof(ICustomConsumer<SomeMessage>.MethodThatHasParamatersThatCannotBeSatisfied));
+
+        // act
+        var act = () => ReflectionUtils.GenerateMethodCallToFunc<Func<object, SomeMessage, Task>>(consumerHandleAMessageMethodInfo);
+
+        // assert
+        act.Should()
+            .Throw<ConfigurationMessageBusException>()
+            .WithMessage("Argument count mismatch between method * and delegate *");
     }
 
     internal record ClassWithGenericMethod(object Value)
@@ -53,11 +99,15 @@ public class ReflectionUtilsTests
         var genericMethod = typeof(ClassWithGenericMethod).GetMethods().FirstOrDefault(x => x.Name == nameof(ClassWithGenericMethod.GenericMethod));
 
         // act
-        var methodOfTypeBoolFunc = ReflectionUtils.GenerateGenericMethodCallToFunc<Func<object, object>>(genericMethod, new[] { typeof(bool) }, obj.GetType(), typeof(object));
-        var result = methodOfTypeBoolFunc(obj);
+        var methodOfTypeObjectFunc = ReflectionUtils.GenerateGenericMethodCallToFunc<Func<object, object>>(genericMethod, [typeof(bool)]);
+        var methodOfTypeBoolFunc = ReflectionUtils.GenerateGenericMethodCallToFunc<Func<object, bool>>(genericMethod, [typeof(bool)]);
+
+        var resultObject = methodOfTypeObjectFunc(obj);
+        var resultBool = methodOfTypeBoolFunc(obj);
 
         // assert
-        result.Should().Be(true);
+        resultObject.Should().Be(true);
+        resultBool.Should().Be(true);
     }
 
     [Fact]
@@ -85,23 +135,24 @@ public class ReflectionUtilsTests
     public async Task When_GenerateMethodCallToFunc_Given_Delegate_Then_InstanceTypeIsInferred()
     {
         var message = new SomeMessage();
+        var cancellationToken = new CancellationToken();
 
         var instanceType = typeof(IConsumer<SomeMessage>);
-        var consumerOnHandleMethodInfo = instanceType.GetMethod(nameof(IConsumer<SomeMessage>.OnHandle), [typeof(SomeMessage)]);
+        var consumerOnHandleMethodInfo = instanceType.GetMethod(nameof(IConsumer<SomeMessage>.OnHandle), [typeof(SomeMessage), typeof(CancellationToken)]);
 
         var consumerMock = new Mock<IConsumer<SomeMessage>>();
-        consumerMock.Setup(x => x.OnHandle(message)).Returns(Task.CompletedTask);
+        consumerMock.Setup(x => x.OnHandle(message, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         // act (positive)
-        var callAsyncMethodFunc = ReflectionUtils.GenerateMethodCallToFunc<Func<object, object, Task>>(consumerOnHandleMethodInfo, typeof(SomeMessage));
-        await callAsyncMethodFunc(consumerMock.Object, message);
+        var callAsyncMethodFunc = ReflectionUtils.GenerateMethodCallToFunc<Func<object, object, CancellationToken, Task>>(consumerOnHandleMethodInfo, typeof(SomeMessage));
+        await callAsyncMethodFunc(consumerMock.Object, message, cancellationToken);
 
         // assert (positive)
-        consumerMock.Verify(x => x.OnHandle(message), Times.Once);
+        consumerMock.Verify(x => x.OnHandle(message, It.IsAny<CancellationToken>()), Times.Once);
         consumerMock.VerifyNoOtherCalls();
 
         // act (negative)
-        var act = async () => await callAsyncMethodFunc(1, message);
+        var act = async () => await callAsyncMethodFunc(1, message, cancellationToken);
 
         // assertion (negative)
         await act.Should().ThrowAsync<InvalidCastException>();

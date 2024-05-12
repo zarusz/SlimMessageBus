@@ -1,7 +1,9 @@
 ﻿namespace SlimMessageBus.Host.Memory.Benchmark;
 
 using BenchmarkDotNet.Attributes;
+
 using Microsoft.Extensions.DependencyInjection;
+
 using SlimMessageBus.Host.Interceptor;
 
 public abstract class PubSubBaseBenchmark : AbstractMemoryBenchmark
@@ -89,7 +91,7 @@ public record SomeEvent(DateTimeOffset Timestamp, long Id);
 
 public record SomeEventConsumer(TestResult TestResult) : IConsumer<SomeEvent>
 {
-    public Task OnHandle(SomeEvent message)
+    public Task OnHandle(SomeEvent message, CancellationToken cancellationToken)
     {
         TestResult.OnArrived();
         return Task.CompletedTask;

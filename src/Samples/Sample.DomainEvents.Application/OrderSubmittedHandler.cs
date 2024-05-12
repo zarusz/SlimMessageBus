@@ -15,7 +15,7 @@ public class OrderSubmittedHandler : IConsumer<OrderSubmittedEvent>
 
     public OrderSubmittedHandler(ILogger<OrderSubmittedHandler> logger) => _logger = logger;
 
-    public Task OnHandle(OrderSubmittedEvent e)
+    public Task OnHandle(OrderSubmittedEvent e, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Customer {Firstname} {Lastname} just placed an order for:", e.Order.Customer.Firstname, e.Order.Customer.Lastname);
         foreach (var orderLine in e.Order.Lines)
