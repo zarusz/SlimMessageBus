@@ -39,7 +39,7 @@ services.AddSlimMessageBus(mbb =>
       {
          // adjust the producer config
       };
-      cfg.ConsumerConfig = (config) => 
+      cfg.ConsumerConfig = (config) =>
       {
          // adjust the consumer config
       };
@@ -63,7 +63,7 @@ services.AddSlimMessageBus(mbb =>
          config.LingerMs = 5; // 5ms
          config.SocketNagleDisable = true;
       };
-      cfg.ConsumerConfig = (config) => 
+      cfg.ConsumerConfig = (config) =>
       {
          config.FetchErrorBackoffMs = 1;
          config.SocketNagleDisable = true;
@@ -94,7 +94,7 @@ services.AddSlimMessageBus(mbb =>
       {
          AddSsl(kafkaUsername, kafkaPassword, config);
       };
-      cfg.ConsumerConfig = (config) => 
+      cfg.ConsumerConfig = (config) =>
       {
          AddSsl(kafkaUsername, kafkaPassword, config);
       };
@@ -132,8 +132,8 @@ SMB Kafka allows to set a provider (selector) that will assign the message key f
 
 ```cs
 // MessageBusBuilder mbb;
-mbb    
-   .Produce<MultiplyRequest>(x => 
+mbb
+   .Produce<MultiplyRequest>(x =>
    {
       x.DefaultTopic("topic1");
       // Message key could be set for the message
@@ -150,7 +150,7 @@ SMB Kafka allows to set a provider (selector) that will assign the partition num
 
 ```cs
 // MessageBusBuilder mbb;
-mbb    
+mbb
    .Produce<PingMessage>(x =>
    {
       x.DefaultTopic("topic1");
@@ -172,7 +172,7 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
 {
    public IConsumerContext Context { get; set; }
 
-   public Task OnHandle(PingMessage message)
+   public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
    {
       // SMB Kafka transport specific extension:
       var transportMessage = Context.GetTransportMessage();
@@ -193,7 +193,7 @@ If you need to specify a different serializer provide a specfic `IMessageSeriali
 
 ```cs
 // MessageBusBuilder mbb;
-mbb    
+mbb
    .WithProviderKafka(cfg =>
    {
       cfg.BrokerList = kafkaBrokers;

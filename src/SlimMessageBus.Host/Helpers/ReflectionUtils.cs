@@ -2,20 +2,10 @@
 
 using System.Diagnostics;
 using System.Linq.Expressions;
+using System.Reflection;
 
 public static class ReflectionUtils
 {
-    public static Func<object, object> GenerateGetterExpr(PropertyInfo property)
-    {
-        var objInstanceExpr = Expression.Parameter(typeof(object), "instance");
-        var typedInstanceExpr = Expression.TypeAs(objInstanceExpr, property.DeclaringType);
-
-        var propertyExpr = Expression.Property(typedInstanceExpr, property);
-        var propertyObjExpr = Expression.Convert(propertyExpr, typeof(object));
-
-        return Expression.Lambda<Func<object, object>>(propertyObjExpr, objInstanceExpr).Compile();
-    }
-
     public static Func<object, object> GenerateGetterFunc(PropertyInfo property)
     {
         var objInstanceExpr = Expression.Parameter(typeof(object), "instance");
@@ -27,18 +17,54 @@ public static class ReflectionUtils
         return Expression.Lambda<Func<object, object>>(propertyObjExpr, objInstanceExpr).Compile();
     }
 
-    public static T GenerateMethodCallToFunc<T>(MethodInfo method, Type instanceType, Type returnType, params Type[] argumentTypes)
+    /// <summary>
+    /// Compiles a delegate that invokes the specified method. The delegate paremeters must match the method signature in the following way:
+    /// - first parameter is the instance of the object containing the method
+    /// - next purameters have to be convertable (or be same type) to the method parameter
+    /// For example `Func<object, SomeMessage, CancellationToken, Task>` for method `Task OnHandle(SomeMessage message, CancellationToken ct)`
+    /// </summary>
+    /// <typeparam name="TDelegate"></typeparam>
+    /// <param name="method"></param>
+    /// <returns></returns>
+    public static TDelegate GenerateMethodCallToFunc<TDelegate>(MethodInfo method) where TDelegate : Delegate
     {
-        var objInstanceExpr = Expression.Parameter(typeof(object), "instance");
-        var typedInstanceExpr = Expression.Convert(objInstanceExpr, instanceType);
+        static Expression ConvertIfNecessary(Expression expr, Type targetType) => expr.Type == targetType ? expr : Expression.Convert(expr, targetType);
 
-        var objArguments = argumentTypes.Select((x, i) => Expression.Parameter(typeof(object), $"arg{i + 1}")).ToArray();
-        var typedArguments = argumentTypes.Select((x, i) => Expression.Convert(objArguments[i], x)).ToArray();
+        var delegateSignature = typeof(TDelegate).GetMethod("Invoke")!;
+        var delegateReturnType = delegateSignature.ReturnType;
+        var delegateArgumentTypes = delegateSignature.GetParameters().Select(x => x.ParameterType).ToArray();
 
-        var methodResultExpr = Expression.Call(typedInstanceExpr, method, typedArguments);
-        var typedMethodResultExpr = Expression.Convert(methodResultExpr, returnType);
+        var methodArgumentTypes = method.GetParameters().Select(x => x.ParameterType).ToArray();
 
-        return Expression.Lambda<T>(typedMethodResultExpr, new[] { objInstanceExpr }.Concat(objArguments)).Compile();
+        if (delegateArgumentTypes.Length < 1)
+        {
+            throw new ConfigurationMessageBusException($"Delegate {typeof(TDelegate)} must have at least one argument");
+        }
+        if (!delegateReturnType.IsAssignableFrom(method.ReturnType))
+        {
+            throw new ConfigurationMessageBusException($"Return type mismatch for method {method.Name} and delegate {typeof(TDelegate)}");
+        }
+
+        // first argument of the delegate is the instance of the object containing the methid, need to skip it
+        var inputInstanceType = delegateArgumentTypes[0];
+        var inputArgumentTypes = delegateArgumentTypes.Skip(1).ToArray();
+
+        if (methodArgumentTypes.Length != inputArgumentTypes.Length)
+        {
+            throw new ConfigurationMessageBusException($"Argument count mismatch between method {method.Name} and delegate {typeof(TDelegate)}");
+        }
+
+        var inputInstanceExpr = Expression.Parameter(inputInstanceType, "instance");
+        var targetInstanceExpr = ConvertIfNecessary(inputInstanceExpr, method.DeclaringType);
+
+        var inputArguments = inputArgumentTypes.Select((argType, i) => Expression.Parameter(argType, $"arg{i + 1}")).ToArray();
+        var methodArguments = methodArgumentTypes.Select((argType, i) => ConvertIfNecessary(inputArguments[i], argType)).ToArray();
+
+        var targetMethodResultExpr = Expression.Call(targetInstanceExpr, method, methodArguments);
+        var targetMethodResultWithConvertExpr = ConvertIfNecessary(targetMethodResultExpr, delegateReturnType);
+
+        var targetArguments = new[] { inputInstanceExpr }.Concat(inputArguments);
+        return Expression.Lambda<TDelegate>(targetMethodResultWithConvertExpr, targetArguments).Compile();
     }
 
     /// <summary>
@@ -136,10 +162,10 @@ public static class ReflectionUtils
         return lambda.Compile();
     }
 
-    public static T GenerateGenericMethodCallToFunc<T>(MethodInfo genericMethod, Type[] genericTypeArguments, Type instanceType, Type returnType, params Type[] argumentTypes)
+    public static T GenerateGenericMethodCallToFunc<T>(MethodInfo genericMethod, Type[] genericTypeArguments) where T : Delegate
     {
         var method = genericMethod.MakeGenericMethod(genericTypeArguments);
-        return GenerateMethodCallToFunc<T>(method, instanceType, returnType, argumentTypes);
+        return GenerateMethodCallToFunc<T>(method);
     }
 
     private static readonly Type taskOfObject = typeof(Task<object>);

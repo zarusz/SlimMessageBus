@@ -49,7 +49,7 @@ To produce a given `TMessage` to Redis pub/sub topic (or queue implemented as a 
 
 ```cs
 // send TMessage to Redis queues (lists)
-mbb.Produce<TMessage>(x => x.UseQueue()); 
+mbb.Produce<TMessage>(x => x.UseQueue());
 
 // send TMessage to Redis pub/sub topics
 mbb.Produce<TMessage>(x => x.UseTopic());
@@ -78,7 +78,7 @@ If you configure the default queue (or default topic) for a message type:
 ```cs
 mbb.Produce<TMessage>(x => x.DefaultTopic("some-topic"));
 // OR
-mbb.Produce<TMessage>(x => x.DefaultQueue("some-queue"));    
+mbb.Produce<TMessage>(x => x.DefaultQueue("some-queue"));
 ```
 
 and skip the second (name) parameter in `bus.Publish()`, then that default queue (or default topic) name is going to be used:
@@ -139,7 +139,7 @@ The queue (FIFO) is emulated using a [Redis list type](https://redis.io/docs/dat
 - the key represents the queue name,
 - the value is a Redis list type and stores messages (in FIFO order).
 
-Internally the queue is implemetned in the following way:
+Internally the queue is implemented in the following way:
 
 - producer will use the [`RPUSH`](https://redis.io/commands/rpush) to add the message at the tail of the list with a redis key (queue name),
 - consumer will use the [`LPOP`](https://redis.io/commands/lpop) to remove the massage from the head of the list with a redis key (queue name).
@@ -147,18 +147,18 @@ Internally the queue is implemetned in the following way:
 > The implementation provides at-most-once delivery guarantee.
 
 There is a chance that the consumer process dies after it performs `LPOP` and before it fully processes the message.
-Another implementation was also considered using [`RPOPLPUSH`](https://redis.io/commands/rpoplpush) that would allow for at-least-once quarantee.
-However, that would require to manage individual per process instance local queues making tha runtime and configuration not practical.
+Another implementation was also considered using [`RPOPLPUSH`](https://redis.io/commands/rpoplpush) that would allow for at-least-once guarantee.
+However, that would require to manage individual per process instance local queues - making that runtime and configuration not practical.
 
 ### Message Headers
 
 SMB uses headers to pass additional metadata information with the message. This includes the `MessageType` (of type `string`) or in the case of request/response messages the `RequestId` (of type `string`), `ReplyTo` (of type `string`) and `Expires` (of type `long`).
 Redis does not support headers natively hence SMB Redis transport emulates them.
-The emulation works by using a message wrapper envelope (`MessageWithHeader`) that during serialization puts the headers first and then the actual message content after that. If you want to override that behaviour, you could provide another serializer as long as it is able to serialize the wrapper `MessageWithHeaders` type:
+The emulation works by using a message wrapper envelope (`MessageWithHeader`) that during serialization puts the headers first and then the actual message content after that. If you want to override that behavior, you could provide another serializer as long as it is able to serialize the wrapper `MessageWithHeaders` type:
 
 ```cs
-mbb.WithProviderRedis(cfg => 
-{ 
+mbb.WithProviderRedis(cfg =>
+{
     cfg.EnvelopeSerializer = new MessageWithHeadersSerializer();
 });
 ```

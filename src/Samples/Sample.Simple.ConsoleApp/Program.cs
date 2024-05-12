@@ -68,8 +68,8 @@ static internal class Program
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            var addTask = Task.Factory.StartNew(AddLoop, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
-            var multiplyTask = Task.Factory.StartNew(MultiplyLoop, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            var addTask = Task.Factory.StartNew(AddLoop, cancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            var multiplyTask = Task.Factory.StartNew(MultiplyLoop, cancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
             return Task.CompletedTask;
         }
 
@@ -170,7 +170,7 @@ static internal class Program
             .Produce<AddCommand>(x => x.DefaultTopic(topicForAddCommand)
                                        .WithModifier((msg, nativeMsg) => nativeMsg.PartitionKey = msg.Left.ToString())) // By default AddCommand messages will go to event-hub/topic named 'add-command'
             .Consume<AddCommand>(x => x.Topic(topicForAddCommand)
-                                       .WithConsumer<AddCommandConsumer>()
+                                       .WithConsumerOfContext<AddCommandConsumer>()
                                        //.WithConsumer<AddCommandConsumer>(nameof(AddCommandConsumer.OnHandle))
                                        //.WithConsumer<AddCommandConsumer>((consumer, message, name) => consumer.OnHandle(message, name))
                                        .KafkaGroup(consumerGroup) // for Apache Kafka
@@ -340,15 +340,13 @@ public class AddCommand
     public int Right { get; set; }
 }
 
-public class AddCommandConsumer : IConsumer<AddCommand>, IConsumerWithContext
+public class AddCommandConsumer : IConsumer<IConsumerContext<AddCommand>>
 {
-    public IConsumerContext Context { get; set; }
-
-    public async Task OnHandle(AddCommand message)
+    public async Task OnHandle(IConsumerContext<AddCommand> message, CancellationToken cancellationToken)
     {
-        Console.WriteLine("Consumer: Adding {0} and {1} gives {2}", message.Left, message.Right, message.Left + message.Right);
+        Console.WriteLine("Consumer: Adding {0} and {1} gives {2}", message.Message.Left, message.Message.Right, message.Message.Left + message.Message.Right);
         // Context.Headers -> has the headers
-        await Task.Delay(50); // Simulate some work
+        await Task.Delay(50, cancellationToken); // Simulate some work
     }
 }
 
@@ -365,9 +363,9 @@ public class MultiplyResponse
 
 public class MultiplyRequestHandler : IRequestHandler<MultiplyRequest, MultiplyResponse>
 {
-    public async Task<MultiplyResponse> OnHandle(MultiplyRequest request)
+    public async Task<MultiplyResponse> OnHandle(MultiplyRequest request, CancellationToken cancellationToken)
     {
-        await Task.Delay(50); // Simulate some work
+        await Task.Delay(50, cancellationToken); // Simulate some work
         return new MultiplyResponse { Result = request.Left * request.Right };
     }
 }

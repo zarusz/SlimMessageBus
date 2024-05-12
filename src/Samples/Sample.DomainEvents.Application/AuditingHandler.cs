@@ -14,5 +14,5 @@ public class AuditingHandler : IConsumer<OrderSubmittedEvent>
 
     public AuditingHandler(IAuditService auditService) => _auditService = auditService;
 
-    public Task OnHandle(OrderSubmittedEvent e) => _auditService.Append(e.Order.Id, "The Order was submitted");
+    public Task OnHandle(OrderSubmittedEvent e, CancellationToken cancellationToken) => _auditService.Append(e.Order.Id, "The Order was submitted");
 }

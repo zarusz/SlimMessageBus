@@ -11,7 +11,7 @@ public class MessageHandlerTest
     private readonly Mock<IMessageHeadersFactory> messageHeaderFactoryMock;
     private readonly Mock<IConsumerContext> consumerContextMock;
     private readonly Mock<IMessageTypeConsumerInvokerSettings> consumerInvokerMock;
-    private readonly Mock<Func<object, object, IConsumerContext, CancellationToken, Task>> consumerMethodMock;
+    private readonly Mock<ConsumerMethod> consumerMethodMock;
     private readonly MessageHandler subject;
     private readonly Fixture fixture = new();
 
@@ -30,7 +30,7 @@ public class MessageHandlerTest
         consumerContextMock = new Mock<IConsumerContext>();
         consumerInvokerMock = new Mock<IMessageTypeConsumerInvokerSettings>();
 
-        consumerMethodMock = new Mock<Func<object, object, IConsumerContext, CancellationToken, Task>>();
+        consumerMethodMock = new Mock<ConsumerMethod>();
         consumerInvokerMock.SetupGet(x => x.ConsumerMethod).Returns(consumerMethodMock.Object);
 
         subject = new MessageHandler(

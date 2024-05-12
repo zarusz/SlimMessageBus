@@ -11,7 +11,6 @@ using SlimMessageBus;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.Memory;
 using SlimMessageBus.Host.Redis;
-using SlimMessageBus.Host.Serialization;
 using SlimMessageBus.Host.Serialization.Avro;
 using SlimMessageBus.Host.Serialization.Hybrid;
 using SlimMessageBus.Host.Serialization.Json;
@@ -54,7 +53,7 @@ class Program
                             builder
                                 .AsDefault()
                                 .AddJsonSerializer();
-                            
+
                             builder
                                 .For(typeof(AddCommand), typeof(MultiplyRequest), typeof(MultiplyResponse))
                                 .AddAvroSerializer();
@@ -192,7 +191,7 @@ public class MainProgram : IHostedService
 
 public class AddCommandConsumer : IConsumer<AddCommand>
 {
-    public async Task OnHandle(AddCommand message)
+    public async Task OnHandle(AddCommand message, CancellationToken cancellationToken)
     {
         Console.WriteLine("Consumer: Adding {0} and {1} gives {2}", message.Left, message.Right, message.Left + message.Right);
         await Task.Delay(50); // Simulate some work
@@ -201,7 +200,7 @@ public class AddCommandConsumer : IConsumer<AddCommand>
 
 public class SubtractCommandConsumer : IConsumer<SubtractCommand>
 {
-    public async Task OnHandle(SubtractCommand message)
+    public async Task OnHandle(SubtractCommand message, CancellationToken cancellationToken)
     {
         Console.WriteLine("Consumer: Subracting {0} and {1} gives {2}", message.Left, message.Right, message.Left - message.Right);
         await Task.Delay(50); // Simulate some work
@@ -210,7 +209,7 @@ public class SubtractCommandConsumer : IConsumer<SubtractCommand>
 
 public class MultiplyRequestHandler : IRequestHandler<MultiplyRequest, MultiplyResponse>
 {
-    public async Task<MultiplyResponse> OnHandle(MultiplyRequest request)
+    public async Task<MultiplyResponse> OnHandle(MultiplyRequest request, CancellationToken cancellationToken)
     {
         await Task.Delay(50); // Simulate some work
         return new MultiplyResponse { Result = request.Left * request.Right, OperationId = request.OperationId };

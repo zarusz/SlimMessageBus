@@ -218,21 +218,21 @@ public record CreateCustomerCommand(string Firstname, string Lastname) : IReques
 
 public class CreateCustomerCommandHandler(IMessageBus Bus, CustomerContext CustomerContext) : IRequestHandler<CreateCustomerCommand, Guid>
 {
-    public async Task<Guid> OnHandle(CreateCustomerCommand request)
+    public async Task<Guid> OnHandle(CreateCustomerCommand request, CancellationToken cancellationToken)
     {
         // Note: This handler will be already wrapped in a transaction: see Program.cs and .UseTransactionScope() / .UseSqlTransaction() 
 
-        var uniqueId = await Bus.Send(new GenerateCustomerIdCommand(request.Firstname, request.Lastname));
+        var uniqueId = await Bus.Send(new GenerateCustomerIdCommand(request.Firstname, request.Lastname), cancellationToken: cancellationToken);
 
         var customer = new Customer(request.Firstname, request.Lastname, uniqueId);
-        await CustomerContext.Customers.AddAsync(customer);
-        await CustomerContext.SaveChangesAsync();
+        await CustomerContext.Customers.AddAsync(customer, cancellationToken);
+        await CustomerContext.SaveChangesAsync(cancellationToken);
 
         // Announce to anyone outside of this micro-service that a customer has been created (this will go out via an transactional outbox)
-        await Bus.Publish(new CustomerCreatedEvent(customer.Id, customer.Firstname, customer.Lastname), headers: new Dictionary<string, object> { ["CustomerId"] = customer.Id });
+        await Bus.Publish(new CustomerCreatedEvent(customer.Id, customer.Firstname, customer.Lastname), headers: new Dictionary<string, object> { ["CustomerId"] = customer.Id }, cancellationToken: cancellationToken);
 
         // Simulate some variable processing time
-        await Task.Delay(Random.Shared.Next(10, 250));
+        await Task.Delay(Random.Shared.Next(10, 250), cancellationToken);
 
         if (request.Lastname == OutboxTests.InvalidLastname)
         {
@@ -248,7 +248,7 @@ public record GenerateCustomerIdCommand(string Firstname, string Lastname) : IRe
 
 public class GenerateCustomerIdCommandHandler : IRequestHandler<GenerateCustomerIdCommand, string>
 {
-    public async Task<string> OnHandle(GenerateCustomerIdCommand request)
+    public async Task<string> OnHandle(GenerateCustomerIdCommand request, CancellationToken cancellationToken)
     {
         // Note: This handler will be already wrapped in a transaction: see Program.cs and .UseTransactionScope() / .UseSqlTransaction() 
 
@@ -268,7 +268,7 @@ public class CustomerCreatedEventConsumer(TestEventCollector<CustomerCreatedEven
 {
     public IConsumerContext Context { get; set; }
 
-    public Task OnHandle(CustomerCreatedEvent message)
+    public Task OnHandle(CustomerCreatedEvent message, CancellationToken cancellationToken)
     {
         if (Context != null && Context.Headers.TryGetValue("CustomerId", out var customerId))
         {
