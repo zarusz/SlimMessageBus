@@ -6,7 +6,7 @@
     <Description>Core configuration interfaces of SlimMessageBus</Description>
     <PackageTags>SlimMessageBus</PackageTags>
     <RootNamespace>SlimMessageBus.Host</RootNamespace>
-    <Version>2.0.7</Version>
+    <Version>3.0.0-rc1</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,6 +17,12 @@
     <ProjectReference Include="..\SlimMessageBus.Host.Interceptor\SlimMessageBus.Host.Interceptor.csproj" />
     <ProjectReference Include="..\SlimMessageBus.Host.Serialization\SlimMessageBus.Host.Serialization.csproj" />
     <ProjectReference Include="..\SlimMessageBus\SlimMessageBus.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>SlimMessageBus.Host.Configuration.Test</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
 
 </Project>

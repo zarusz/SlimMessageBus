@@ -104,18 +104,18 @@ public class MemoryMessageBusTests
         // assert
         if (enableMessageSerialization)
         {
-            aConsumerMock.Verify(x => x.OnHandle(It.Is<SomeMessageA>(a => a.Equals(m))), Times.Once);
+            aConsumerMock.Verify(x => x.OnHandle(It.Is<SomeMessageA>(a => a.Equals(m)), It.IsAny<CancellationToken>()), Times.Once);
         }
         else
         {
-            aConsumerMock.Verify(x => x.OnHandle(m), Times.Once);
+            aConsumerMock.Verify(x => x.OnHandle(m, It.IsAny<CancellationToken>()), Times.Once);
         }
         aConsumerMock.VerifyNoOtherCalls();
 
-        aConsumer2Mock.Verify(x => x.OnHandle(It.IsAny<SomeMessageA>()), Times.Never);
+        aConsumer2Mock.Verify(x => x.OnHandle(It.IsAny<SomeMessageA>(), It.IsAny<CancellationToken>()), Times.Never);
         aConsumer2Mock.VerifyNoOtherCalls();
 
-        bConsumerMock.Verify(x => x.OnHandle(It.IsAny<SomeMessageB>()), Times.Never);
+        bConsumerMock.Verify(x => x.OnHandle(It.IsAny<SomeMessageB>(), It.IsAny<CancellationToken>()), Times.Never);
         bConsumerMock.VerifyNoOtherCalls();
     }
 
@@ -126,7 +126,7 @@ public class MemoryMessageBusTests
         var m = new SomeMessageA(Guid.NewGuid());
 
         var consumerMock = new Mock<SomeMessageAConsumer>();
-        consumerMock.Setup(x => x.OnHandle(m)).Returns(() => Task.CompletedTask);
+        consumerMock.Setup(x => x.OnHandle(m, It.IsAny<CancellationToken>())).Returns(() => Task.CompletedTask);
 
         Mock<IServiceProvider> scopeProviderMock = null;
         Mock<IServiceScope> scopeMock = null;
@@ -172,7 +172,7 @@ public class MemoryMessageBusTests
         scopeProviderMock.Verify(x => x.GetService(typeof(SomeMessageAConsumer)), Times.Once);
         scopeProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IConsumerInterceptor<SomeMessageA>>)), Times.Once);
 
-        consumerMock.Verify(x => x.OnHandle(m), Times.Once);
+        consumerMock.Verify(x => x.OnHandle(m, It.IsAny<CancellationToken>()), Times.Once);
         consumerMock.Verify(x => x.Dispose(), Times.Never);
         consumerMock.VerifyNoOtherCalls();
     }
@@ -210,7 +210,7 @@ public class MemoryMessageBusTests
         _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IMessageTypeResolver)), Times.Once);
         _serviceProviderMock.ProviderMock.VerifyNoOtherCalls();
 
-        consumerMock.Verify(x => x.OnHandle(m), Times.Once);
+        consumerMock.Verify(x => x.OnHandle(m, It.IsAny<CancellationToken>()), Times.Once);
         consumerMock.Verify(x => x.Dispose(), Times.Once);
         consumerMock.VerifyNoOtherCalls();
     }
@@ -255,7 +255,7 @@ public class MemoryMessageBusTests
         // current scope is not changed
         MessageScope.Current.Should().BeNull();
 
-        consumerMock.Verify(x => x.OnHandle(m), Times.Once);
+        consumerMock.Verify(x => x.OnHandle(m, It.IsAny<CancellationToken>()), Times.Once);
         consumerMock.Verify(x => x.Dispose(), Times.Once);
         consumerMock.VerifyNoOtherCalls();
 
@@ -318,10 +318,10 @@ public class MemoryMessageBusTests
         _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IMessageTypeResolver)), Times.Once);
         _serviceProviderMock.ProviderMock.VerifyNoOtherCalls();
 
-        consumer1Mock.Verify(x => x.OnHandle(m), Times.Once);
+        consumer1Mock.Verify(x => x.OnHandle(m, It.IsAny<CancellationToken>()), Times.Once);
         consumer1Mock.VerifyNoOtherCalls();
 
-        consumer2Mock.Verify(x => x.OnHandle(m), Times.Once);
+        consumer2Mock.Verify(x => x.OnHandle(m, It.IsAny<CancellationToken>()), Times.Once);
         consumer2Mock.VerifyNoOtherCalls();
     }
 
@@ -335,10 +335,10 @@ public class MemoryMessageBusTests
         var sequenceOfConsumption = new MockSequence();
 
         var consumer1Mock = new Mock<SomeRequestConsumer>(MockBehavior.Strict);
-        consumer1Mock.InSequence(sequenceOfConsumption).Setup(x => x.OnHandle(m)).CallBase();
+        consumer1Mock.InSequence(sequenceOfConsumption).Setup(x => x.OnHandle(m, It.IsAny<CancellationToken>())).CallBase();
 
         var consumer2Mock = new Mock<SomeRequestHandler>(MockBehavior.Strict);
-        consumer2Mock.InSequence(sequenceOfConsumption).Setup(x => x.OnHandle(m)).CallBase();
+        consumer2Mock.InSequence(sequenceOfConsumption).Setup(x => x.OnHandle(m, It.IsAny<CancellationToken>())).CallBase();
 
         _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeRequestConsumer))).Returns(() => consumer1Mock.Object);
         _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeRequestHandler))).Returns(() => consumer2Mock.Object);
@@ -367,10 +367,10 @@ public class MemoryMessageBusTests
         _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IMessageTypeResolver)), Times.Once);
         _serviceProviderMock.ProviderMock.VerifyNoOtherCalls();
 
-        consumer2Mock.Verify(x => x.OnHandle(m), Times.Once);
+        consumer2Mock.Verify(x => x.OnHandle(m, It.IsAny<CancellationToken>()), Times.Once);
         consumer2Mock.VerifyNoOtherCalls();
 
-        consumer1Mock.Verify(x => x.OnHandle(m), Times.Once);
+        consumer1Mock.Verify(x => x.OnHandle(m, It.IsAny<CancellationToken>()), Times.Once);
         consumer1Mock.VerifyNoOtherCalls();
     }
 
@@ -386,7 +386,7 @@ public class MemoryMessageBusTests
 
         var consumerMock = new Mock<IConsumer<SomeRequest>>();
         consumerMock
-            .Setup(x => x.OnHandle(m))
+            .Setup(x => x.OnHandle(m, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new ApplicationException("Bad Request"));
 
         var consumerErrorHandlerMock = new Mock<IMemoryConsumerErrorHandler<SomeRequest>>();
@@ -434,7 +434,7 @@ public class MemoryMessageBusTests
 
         var consumerMock = new Mock<IRequestHandler<SomeRequest, SomeResponse>>();
         consumerMock
-            .Setup(x => x.OnHandle(m))
+            .Setup(x => x.OnHandle(m, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new ApplicationException("Bad Request"));
 
         var consumerErrorHandlerMock = new Mock<IMemoryConsumerErrorHandler<SomeRequest>>();
@@ -483,22 +483,22 @@ public class SomeMessageAConsumer : IConsumer<SomeMessageA>, IDisposable
         GC.SuppressFinalize(this);
     }
 
-    public virtual Task OnHandle(SomeMessageA messageA) => Task.CompletedTask;
+    public virtual Task OnHandle(SomeMessageA messageA, CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
 public class GenericConsumer<T> : IConsumer<T>
 {
-    public Task OnHandle(T message) => Task.CompletedTask;
+    public Task OnHandle(T message, CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
 public class SomeMessageAConsumer2 : IConsumer<SomeMessageA>
 {
-    public virtual Task OnHandle(SomeMessageA messageA) => Task.CompletedTask;
+    public virtual Task OnHandle(SomeMessageA messageA, CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
 public class SomeMessageBConsumer : IConsumer<SomeMessageB>
 {
-    public virtual Task OnHandle(SomeMessageB message) => Task.CompletedTask;
+    public virtual Task OnHandle(SomeMessageB message, CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
 public record SomeRequest(Guid Id) : IRequest<SomeResponse>;
@@ -507,17 +507,17 @@ public record SomeResponse(Guid Id);
 
 public class SomeRequestHandler : IRequestHandler<SomeRequest, SomeResponse>
 {
-    public virtual Task<SomeResponse> OnHandle(SomeRequest request) => Task.FromResult(new SomeResponse(request.Id));
+    public virtual Task<SomeResponse> OnHandle(SomeRequest request, CancellationToken cancellationToken) => Task.FromResult(new SomeResponse(request.Id));
 }
 
 public class SomeRequestConsumer : IConsumer<SomeRequest>
 {
-    public virtual Task OnHandle(SomeRequest message) => Task.CompletedTask;
+    public virtual Task OnHandle(SomeRequest message, CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
 public record SomeRequestWithoutResponse(Guid Id) : IRequest;
 
 public class SomeRequestWithoutResponseHandler : IRequestHandler<SomeRequestWithoutResponse>
 {
-    public virtual Task OnHandle(SomeRequestWithoutResponse request) => Task.CompletedTask;
+    public virtual Task OnHandle(SomeRequestWithoutResponse request, CancellationToken cancellationToken) => Task.CompletedTask;
 }

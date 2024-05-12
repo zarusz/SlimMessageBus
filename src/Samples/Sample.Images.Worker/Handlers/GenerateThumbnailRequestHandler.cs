@@ -4,8 +4,10 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
+
 using Sample.Images.FileStore;
 using Sample.Images.Messages;
+
 using SlimMessageBus;
 
 public class GenerateThumbnailRequestHandler : IRequestHandler<GenerateThumbnailRequest, GenerateThumbnailResponse>
@@ -21,7 +23,7 @@ public class GenerateThumbnailRequestHandler : IRequestHandler<GenerateThumbnail
 
     #region Implementation of IRequestHandler<in GenerateThumbnailRequest,GenerateThumbnailResponse>
 
-    public async Task<GenerateThumbnailResponse> OnHandle(GenerateThumbnailRequest request)
+    public async Task<GenerateThumbnailResponse> OnHandle(GenerateThumbnailRequest request, CancellationToken cancellationToken)
     {
         var image = await LoadImage(request.FileId).ConfigureAwait(false);
         if (image == null)

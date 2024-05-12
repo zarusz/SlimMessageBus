@@ -24,28 +24,20 @@ If you see an issue, please raise an github issue.
 
 ToDo: Finish
 
-The configuration is arranged via the `.WithProviderMqtt(cfg => {})` method on the message bus builder.
+The configuration is arranged via the `.WithProviderSql(cfg => {})` method on the message bus builder.
 
 ```cs
 services.AddSlimMessageBus(mbb =>
 {
-    mbb.WithProviderMqtt(cfg =>
+    mbb.WithProviderSql(cfg =>
     {
-        cfg.ClientBuilder
-            .WithTcpServer(configuration["Mqtt:Server"], int.Parse(configuration["Mqtt:Port"]))
-            .WithTls()
-            .WithCredentials(configuration["Mqtt:Username"], configuration["Mqtt:Password"])
-            // Use MQTTv5 to use message headers (if the broker supports it)
-            .WithProtocolVersion(MQTTnet.Formatter.MqttProtocolVersion.V500);
+       // ToDo
     });
 
     mbb.AddServicesFromAssemblyContaining<PingConsumer>();
     mbb.AddJsonSerializer();
 });
 ```
-
-The `ClientBuilder` property (of type `MqttClientOptionsBuilder`) is used to configure the underlying [MQTTnet library client](https://github.com/dotnet/MQTTnet/wiki/Client).
-Please consult the MQTTnet library docs for more configuration options.
 
 ## How it works
 

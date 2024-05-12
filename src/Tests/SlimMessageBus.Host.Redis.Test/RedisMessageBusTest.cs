@@ -171,7 +171,7 @@ public class SomeMessageAConsumer : IConsumer<SomeMessageA>, IDisposable
 
     #region Implementation of IConsumer<in SomeMessageA>
 
-    public virtual Task OnHandle(SomeMessageA messageA)
+    public virtual Task OnHandle(SomeMessageA messageA, CancellationToken cancellationToken)
     {
         return Task.CompletedTask;
     }
@@ -183,7 +183,7 @@ public class SomeMessageAConsumer2 : IConsumer<SomeMessageA>
 {
     #region Implementation of IConsumer<in SomeMessageA>
 
-    public virtual Task OnHandle(SomeMessageA messageA)
+    public virtual Task OnHandle(SomeMessageA messageA, CancellationToken cancellationToken)
     {
         return Task.CompletedTask;
     }
@@ -195,7 +195,7 @@ public class SomeMessageBConsumer : IConsumer<SomeMessageB>
 {
     #region Implementation of IConsumer<in SomeMessageB>
 
-    public virtual Task OnHandle(SomeMessageB message)
+    public virtual Task OnHandle(SomeMessageB message, CancellationToken cancellationToken)
     {
         return Task.CompletedTask;
     }

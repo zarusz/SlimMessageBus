@@ -18,38 +18,38 @@ public class CallConsumerBenchmark
     {
         get
         {
-            var onHandleMethodInfo = typeof(SomeMessageConsumer).GetMethod(nameof(SomeMessageConsumer.OnHandle), new[] { typeof(SomeMessage) });
+            var onHandleMethodInfo = typeof(SomeMessageConsumer).GetMethod(nameof(SomeMessageConsumer.OnHandle), [typeof(SomeMessage), typeof(CancellationToken)]);
 
             var message = new SomeMessage();
             var consumer = new SomeMessageConsumer();
 
-            return new[]
-            {
+            return
+            [
                 new Scenario("Reflection",
                     message,
                     consumer,
-                    (target, message) => (Task)onHandleMethodInfo.Invoke(target, new[]{ message })),
+                    (target, message, ct) => (Task)onHandleMethodInfo.Invoke(target, [message, ct])),
 
                 new Scenario("CompiledExpression",
                     message,
                     consumer,
-                    ReflectionUtils.GenerateMethodCallToFunc<Func<object, object, Task>>(onHandleMethodInfo, typeof(SomeMessageConsumer), typeof(Task), typeof(SomeMessage))),
+                    ReflectionUtils.GenerateMethodCallToFunc<Func<object, object, CancellationToken, Task>>(onHandleMethodInfo)),
 
                 new Scenario("CompiledExpressionWithOptional",
                     message,
                     consumer,
-                    ReflectionUtils.GenerateMethodCallToFunc<Func<object, object, Task>>(onHandleMethodInfo, [typeof(SomeMessage)]))
-            };
+                    ReflectionUtils.GenerateMethodCallToFunc<Func<object, object, CancellationToken, Task>>(onHandleMethodInfo, [typeof(SomeMessage)]))
+            ];
         }
     }
 
     [Benchmark]
     public void CallConsumerOnHandle()
     {
-        _ = scenario.OnHandle(scenario.Consumer, scenario.Message);
+        _ = scenario.OnHandle(scenario.Consumer, scenario.Message, default);
     }
 
-    public record Scenario(string Name, SomeMessage Message, SomeMessageConsumer Consumer, Func<object, object, Task> OnHandle)
+    public record Scenario(string Name, SomeMessage Message, SomeMessageConsumer Consumer, Func<object, object, CancellationToken, Task> OnHandle)
     {
         public override string ToString() => Name;
     }
@@ -58,6 +58,6 @@ public class CallConsumerBenchmark
 
     public class SomeMessageConsumer : IConsumer<SomeMessage>
     {
-        public Task OnHandle(SomeMessage message) => Task.CompletedTask;
+        public Task OnHandle(SomeMessage message, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

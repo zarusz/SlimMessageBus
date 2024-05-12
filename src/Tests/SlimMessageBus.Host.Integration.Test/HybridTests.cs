@@ -187,7 +187,7 @@ public class HybridTests : IDisposable
     {
         public IConsumerContext Context { get; set; }
 
-        public async Task OnHandle(ExternalMessage message)
+        public async Task OnHandle(ExternalMessage message, CancellationToken cancellationToken)
         {
             lock (store)
             {
@@ -195,7 +195,7 @@ public class HybridTests : IDisposable
             }
             // some processing
 
-            await bus.Publish(new InternalMessage(message.CustomerId));
+            await bus.Publish(new InternalMessage(message.CustomerId), cancellationToken: cancellationToken);
 
             // some processing
 
@@ -207,7 +207,7 @@ public class HybridTests : IDisposable
     {
         public IConsumerContext Context { get; set; }
 
-        public Task OnHandle(InternalMessage message)
+        public Task OnHandle(InternalMessage message, CancellationToken cancellationToken)
         {
             lock (store)
             {
