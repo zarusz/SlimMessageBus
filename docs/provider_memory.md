@@ -110,7 +110,7 @@ For example, assuming this is the discovered handler type:
 ```cs
 public class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
 {
-   public Task<EchoResponse> OnHandle(EchoRequest request) { /* ... */ }
+   public Task<EchoResponse> OnHandle(EchoRequest request, CancellationToken cancellationToken) { /* ... */ }
 }
 ```
 

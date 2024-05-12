@@ -16,7 +16,8 @@ Please read the [Introduction](intro.md) before reading this provider documentat
   - [Handle Request Messages](#handle-request-messages)
 - [ASB Sessions](#asb-sessions)
 - [Topology Provisioning](#topology-provisioning)
-  - [Triger Topology Provisioning](#triger-topology-provisioning)
+  - [Validation of Topology](#validation-of-topology)
+  - [Trigger Topology Provisioning](#trigger-topology-provisioning)
 
 ## Configuration
 
@@ -178,7 +179,7 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
 {
    public IConsumerContext Context { get; set; }
 
-   public Task OnHandle(PingMessage message)
+   public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
    {
       // Azure SB transport specific extension:
       var transportMessage = Context.GetTransportMessage(); // Of type Azure.Messaging.ServiceBus.ServiceBusReceivedMessage
@@ -458,7 +459,7 @@ mbb.WithProviderServiceBus(cfg =>
       Enabled = true,
       CanConsumerCreateTopic = false, // the consumers will not be able to provision a missing topic
       CanConsumerCreateSubscription = true, // the consumers will not be able to add a missing subscription if needed
-      CanConsumerCreateSubscriptionFilter = true, // the consumers will not be able to add a missing filter on subscription       
+      CanConsumerCreateSubscriptionFilter = true, // the consumers will not be able to add a missing filter on subscription
       CanConsumerValidateSubscriptionFilters = true, // any deviations from the expected will be logged
    };
 
@@ -466,7 +467,7 @@ mbb.WithProviderServiceBus(cfg =>
 });
 ```
 
-### Triger Topology Provisioning
+### Trigger Topology Provisioning
 
 > Since 1.19.3
 

@@ -189,7 +189,7 @@ public class MqttMessageBusIt : BaseIntegrationTest<MqttMessageBusIt>
 
         #region Implementation of IConsumer<in PingMessage>
 
-        public Task OnHandle(PingMessage message)
+        public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
         {
             _messages.Add(message);
 
@@ -206,7 +206,7 @@ public class MqttMessageBusIt : BaseIntegrationTest<MqttMessageBusIt>
 
     private class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
     {
-        public Task<EchoResponse> OnHandle(EchoRequest request)
+        public Task<EchoResponse> OnHandle(EchoRequest request, CancellationToken cancellationToken)
         {
             return Task.FromResult(new EchoResponse(request.Message));
         }

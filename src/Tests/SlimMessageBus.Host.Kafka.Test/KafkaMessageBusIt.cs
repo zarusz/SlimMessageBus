@@ -246,7 +246,7 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
 
         #region Implementation of IConsumer<in PingMessage>
 
-        public Task OnHandle(PingMessage message)
+        public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
         {
             var transportMessage = Context.GetTransportMessage();
             var partition = transportMessage.TopicPartition.Partition;
@@ -285,7 +285,7 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
 
     private class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
     {
-        public Task<EchoResponse> OnHandle(EchoRequest request)
+        public Task<EchoResponse> OnHandle(EchoRequest request, CancellationToken cancellationToken)
         {
             return Task.FromResult(new EchoResponse { Message = request.Message });
         }

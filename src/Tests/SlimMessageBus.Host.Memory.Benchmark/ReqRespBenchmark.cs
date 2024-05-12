@@ -1,7 +1,9 @@
 ﻿namespace SlimMessageBus.Host.Memory.Benchmark;
 
 using BenchmarkDotNet.Attributes;
+
 using Microsoft.Extensions.DependencyInjection;
+
 using SlimMessageBus.Host.Interceptor;
 
 public abstract class ReqRespBaseBenchmark : AbstractMemoryBenchmark
@@ -106,7 +108,7 @@ public record SomeResponse(DateTimeOffset Timestamp, long Id);
 
 public record SomeRequestHandler(TestResult TestResult) : IRequestHandler<SomeRequest, SomeResponse>
 {
-    public Task<SomeResponse> OnHandle(SomeRequest request)
+    public Task<SomeResponse> OnHandle(SomeRequest request, CancellationToken cancellationToken)
     {
         TestResult.OnArrived();
         return Task.FromResult(new SomeResponse(DateTimeOffset.Now, request.Id));

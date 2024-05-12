@@ -382,7 +382,7 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
 
     #region Implementation of IConsumer<in PingMessage>
 
-    public Task OnHandle(PingMessage message)
+    public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
     {
         var sbMessage = Context.GetTransportMessage();
 
@@ -411,7 +411,7 @@ public class PingDerivedConsumer : IConsumer<PingDerivedMessage>, IConsumerWithC
 
     #region Implementation of IConsumer<in PingMessage>
 
-    public Task OnHandle(PingDerivedMessage message)
+    public Task OnHandle(PingDerivedMessage message, CancellationToken cancellationToken)
     {
         var sbMessage = Context.GetTransportMessage();
 
@@ -476,7 +476,7 @@ public class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
         testMetric.OnCreatedConsumer();
     }
 
-    public Task<EchoResponse> OnHandle(EchoRequest request)
+    public Task<EchoResponse> OnHandle(EchoRequest request, CancellationToken cancellationToken)
     {
         return Task.FromResult(new EchoResponse(request.Message));
     }

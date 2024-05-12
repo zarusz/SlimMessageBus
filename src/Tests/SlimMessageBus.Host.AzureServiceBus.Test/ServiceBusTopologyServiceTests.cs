@@ -411,7 +411,7 @@
 
         private class SampleConsumer<T> : IConsumer<T>
         {
-            public Task OnHandle(T message)
+            public Task OnHandle(T message, CancellationToken cancellationToken)
             {
                 throw new NotImplementedException();
             }
