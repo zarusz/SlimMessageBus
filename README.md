@@ -11,8 +11,8 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=vulnerabilities)](https://sonarcloud.io/summary/overall?id=zarusz_SlimMessageBus)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=alert_status)](https://sonarcloud.io/summary/overall?id=zarusz_SlimMessageBus)
 
-> The 2.x.x major release is available.
-> Please review the [migration guide](https://github.com/zarusz/SlimMessageBus/releases/tag/Host.Transport-2.0.0).
+> The v2 release is available (see [migration guide](https://github.com/zarusz/SlimMessageBus/releases/tag/Host.Transport-2.0.0)).
+> The v3 release is [under construction](https://github.com/zarusz/SlimMessageBus/tree/release/v3).
 
 - [Key elements of SlimMessageBus](#key-elements-of-slimmessagebus)
 - [Docs](#docs)
