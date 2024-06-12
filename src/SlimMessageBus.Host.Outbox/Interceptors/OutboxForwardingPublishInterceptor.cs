@@ -9,16 +9,16 @@ public abstract class OutboxForwardingPublishInterceptor
 public class OutboxForwardingPublishInterceptor<T>(
     ILogger<OutboxForwardingPublishInterceptor> logger,
     IOutboxRepository outboxRepository,
-    IInstanceIdProvider instanceIdProvider,
-    OutboxSettings outboxSettings)
-    : OutboxForwardingPublishInterceptor, IPublishInterceptor<T> where T : class
+    IInstanceIdProvider instanceIdProvider)
+    : OutboxForwardingPublishInterceptor, IInterceptorWithOrder, IPublishInterceptor<T> where T : class
 {
     static readonly internal string SkipOutboxHeader = "__SkipOutbox";
 
     private readonly ILogger _logger = logger;
     private readonly IOutboxRepository _outboxRepository = outboxRepository;
     private readonly IInstanceIdProvider _instanceIdProvider = instanceIdProvider;
-    private readonly OutboxSettings _outboxSettings = outboxSettings;
+
+    public int Order => int.MaxValue;
 
     public async Task OnHandle(T message, Func<Task> next, IProducerContext context)
     {
@@ -53,9 +53,7 @@ public class OutboxForwardingPublishInterceptor<T>(
             Path = context.Path,
             MessageType = messageType,
             MessagePayload = messagePayload,
-            InstanceId = _instanceIdProvider.GetInstanceId(),
-            LockInstanceId = _instanceIdProvider.GetInstanceId(),
-            LockExpiresOn = DateTime.UtcNow.Add(_outboxSettings.LockExpiration)
+            InstanceId = _instanceIdProvider.GetInstanceId()
         };
         await _outboxRepository.Save(outboxMessage, context.CancellationToken);
     }

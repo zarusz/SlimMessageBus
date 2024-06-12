@@ -75,7 +75,7 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTe
                         cfg.PrefetchCount = 100;
                         cfg.TopologyProvisioning.CreateTopicOptions = o => o.AutoDeleteOnIdle = TimeSpan.FromMinutes(5);
                     });
-                    topic = $"smb-tests/outbox/{Guid.NewGuid():N}/customer-events";
+                    topic = $"smb-tests/outbox/{DateTimeOffset.UtcNow.Ticks}/customer-events";
                 }
 
                 mbb
@@ -93,7 +93,7 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTe
             mbb.AddOutboxUsingDbContext<CustomerContext>(opts =>
             {
                 opts.PollBatchSize = 100;
-                opts.PollIdleSleep = TimeSpan.FromSeconds(0.5);
+                opts.PollIdleSleep = TimeSpan.FromSeconds(1);
                 opts.MessageCleanup.Interval = TimeSpan.FromSeconds(10);
                 opts.MessageCleanup.Age = TimeSpan.FromMinutes(1);
                 opts.SqlSettings.DatabaseSchemaName = CustomerContext.Schema;
@@ -105,7 +105,7 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTe
         // Entity Framework setup - application specific EF DbContext
         services.AddDbContext<CustomerContext>(
             options => options.UseSqlServer(
-                Secrets.Service.PopulateSecrets(Configuration.GetConnectionString("DefaultConnection")), 
+                Secrets.Service.PopulateSecrets(Configuration.GetConnectionString("DefaultConnection")),
                 x => x.MigrationsHistoryTable(HistoryRepository.DefaultTableName, CustomerContext.Schema)));
     }
 

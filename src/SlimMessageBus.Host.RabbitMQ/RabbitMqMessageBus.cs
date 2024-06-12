@@ -128,7 +128,7 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
         }
     }
 
-    protected override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
+    protected override async Task<(IReadOnlyCollection<T> Dispatched, Exception Exception)> ProduceToTransport<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
     {
         await EnsureInitFinished();
 
@@ -137,35 +137,50 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
             throw new ProducerMessageBusException("The Channel is not available at this time");
         }
 
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var producer = GetProducerSettings(message.GetType());
-
-        lock (_channelLock)
+        var dispatched = new List<T>(envelopes.Count);
+        try
         {
-            var messageProperties = _channel.CreateBasicProperties();
-            if (messageHeaders != null)
+            foreach (var envelope in envelopes)
             {
-                messageProperties.Headers ??= new Dictionary<string, object>();
-                foreach (var header in messageHeaders)
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var producer = GetProducerSettings(envelope.Message.GetType());
+                var messagePayload = Serializer.Serialize(envelope.MessageType, envelope.Message);
+
+                lock (_channelLock)
                 {
-                    messageProperties.Headers[header.Key] = ProviderSettings.HeaderValueConverter.ConvertTo(header.Value);
+                    var messageProperties = _channel.CreateBasicProperties();
+                    if (envelope.Headers != null)
+                    {
+                        messageProperties.Headers ??= new Dictionary<string, object>();
+                        foreach (var header in envelope.Headers)
+                        {
+                            messageProperties.Headers[header.Key] = ProviderSettings.HeaderValueConverter.ConvertTo(header.Value);
+                        }
+                    }
+
+                    // Calculate the routing key for the message (if provider set)
+                    var routingKeyProvider = producer.GetMessageRoutingKeyProvider(ProviderSettings);
+                    var routingKey = routingKeyProvider?.Invoke(envelope.Message, messageProperties) ?? string.Empty;
+
+                    // Invoke the bus level modifier
+                    var messagePropertiesModifier = ProviderSettings.GetMessagePropertiesModifier();
+                    messagePropertiesModifier?.Invoke(envelope.Message, messageProperties);
+
+                    // Invoke the producer level modifier
+                    messagePropertiesModifier = producer.GetMessagePropertiesModifier();
+                    messagePropertiesModifier?.Invoke(envelope.Message, messageProperties);
+
+                    _channel.BasicPublish(path, routingKey: routingKey, mandatory: false, basicProperties: messageProperties, body: messagePayload);
+                    dispatched.Add(envelope);
                 }
             }
-
-            // Calculate the routing key for the message (if provider set)
-            var routingKeyProvider = producer.GetMessageRoutingKeyProvider(ProviderSettings);
-            var routingKey = routingKeyProvider?.Invoke(message, messageProperties) ?? string.Empty;
-
-            // Invoke the bus level modifier
-            var messagePropertiesModifier = ProviderSettings.GetMessagePropertiesModifier();
-            messagePropertiesModifier?.Invoke(message, messageProperties);
-
-            // Invoke the producer level modifier
-            messagePropertiesModifier = producer.GetMessagePropertiesModifier();
-            messagePropertiesModifier?.Invoke(message, messageProperties);
-
-            _channel.BasicPublish(path, routingKey: routingKey, mandatory: false, basicProperties: messageProperties, body: messagePayload);
         }
+        catch (Exception ex)
+        {
+            return (dispatched, ex);
+        }
+
+        return (dispatched, null);
     }
 }

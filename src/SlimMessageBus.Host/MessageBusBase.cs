@@ -15,7 +15,7 @@ public abstract class MessageBusBase<TProviderSettings> : MessageBusBase where T
     }
 }
 
-public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMessageBus, IMessageScopeFactory, IMessageHeadersFactory, ICurrentTimeProvider, IResponseProducer, IResponseConsumer
+public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMessageBus, IMessageScopeFactory, IMessageHeadersFactory, ICurrentTimeProvider, IResponseProducer, IResponseConsumer, IMessageBusBulkProducer
 {
     private readonly ILogger _logger;
     private CancellationTokenSource _cancellationTokenSource = new();
@@ -395,6 +395,8 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     public virtual DateTimeOffset CurrentTime => DateTimeOffset.UtcNow;
 
+    public virtual int? MaxMessagesPerTransaction => null;
+
     protected ProducerSettings GetProducerSettings(Type messageType)
     {
         var producerSettings = ProducerSettingsByMessageType[messageType];
@@ -416,7 +418,22 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         return path;
     }
 
-    protected abstract Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken = default);
+    protected async Task ProduceToTransport(object message, Type messageType, string path, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
+    {
+        var envelope = new Envelope(message, messageType, messageHeaders);
+        var result = await ProduceToTransport([envelope], path, targetBus, cancellationToken);
+        if (result.Exception != null)
+        {
+            if (result.Exception is ProducerMessageBusException)
+            {
+                throw (result.Exception);
+            }
+
+            throw new ProducerMessageBusException($"Producing message {message} of type {messageType?.Name} to path {path} resulted in error: {result.Exception.Message}", result.Exception);
+        }
+    }
+
+    protected abstract Task<(IReadOnlyCollection<T> Dispatched, Exception Exception)> ProduceToTransport<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken = default) where T : Envelope;
 
     public virtual Task ProducePublish(object message, string path = null, IDictionary<string, object> headers = null, IMessageBusTarget targetBus = null, CancellationToken cancellationToken = default)
     {
@@ -464,10 +481,8 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     protected internal virtual Task PublishInternal(object message, string path, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken, ProducerSettings producerSettings, IMessageBusTarget targetBus)
     {
-        var payload = Serializer.Serialize(producerSettings.MessageType, message);
-
         _logger.LogDebug("Producing message {Message} of type {MessageType} to path {Path}", message, producerSettings.MessageType, path);
-        return ProduceToTransport(message, path, payload, messageHeaders, targetBus, cancellationToken);
+        return ProduceToTransport(message, producerSettings.MessageType, path, messageHeaders, targetBus, cancellationToken);
     }
 
     /// <summary>
@@ -580,15 +595,13 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         if (request == null) throw new ArgumentNullException(nameof(request));
         if (producerSettings == null) throw new ArgumentNullException(nameof(producerSettings));
 
-        var requestPayload = Serializer.Serialize(producerSettings.MessageType, request);
-
         if (requestHeaders != null)
         {
             requestHeaders.SetHeader(ReqRespMessageHeaders.ReplyTo, Settings.RequestResponse.Path);
             _headerService.AddMessageTypeHeader(request, requestHeaders);
         }
 
-        return ProduceToTransport(request, path, requestPayload, requestHeaders, targetBus);
+        return ProduceToTransport(request, producerSettings.MessageType, path, requestHeaders, targetBus);
     }
 
     public virtual Task ProduceResponse(string requestId, object request, IReadOnlyDictionary<string, object> requestHeaders, object response, Exception responseException, IMessageTypeConsumerInvokerSettings consumerInvoker)
@@ -613,11 +626,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
         _headerService.AddMessageTypeHeader(response, responseHeaders);
 
-        var responsePayload = response != null
-            ? Serializer.Serialize(responseType, response)
-            : null;
-
-        return ProduceToTransport(response, (string)replyTo, responsePayload, responseHeaders, null);
+        return ProduceToTransport(response, responseType, (string)replyTo, responseHeaders, null);
     }
 
     /// <summary>
@@ -718,4 +727,13 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     }
 
     public virtual Task ProvisionTopology() => Task.CompletedTask;
+
+    Task<(IReadOnlyCollection<T> Dispatched, Exception Exception)> IMessageBusBulkProducer.ProduceToTransport<T>(
+        IReadOnlyCollection<T> envelopes,
+        string path,
+        IMessageBusTarget targetBus,
+        CancellationToken cancellationToken)
+    {
+        return ProduceToTransport(envelopes, path, targetBus, cancellationToken);
+    }
 }

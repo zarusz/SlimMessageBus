@@ -146,3 +146,17 @@ When applied on the (child) bus level then all consumers (or handlers) will inhe
 - Once a message is picked from outbox and successfully delivered then it is marked as sent in the outbox table.
 
 - At configured intervals and after a certain time span the sent messages are removed from the outbox table.
+
+## Interceptors/Batch processing
+
+While all transports (apart from memory) can make use of the [Transactional Outbox](https://microservices.io/patterns/data/transactional-outbox.html) pattern, not all transports are able to process messages in bulk. Those that do, may have varying levels of support (no batching). If the transport provider implements the `IMessageBusBulkProducer` interface, messages that read from outbox __will not be reprocessed through the interceptor pipeline__. Providers that do not implement `IMessageBusBulkProducer` however, will run through the pipeline a second time but under a different execution context from the first.
+
+| Transport         | First Pass Interceptors  | Second Pass Interceptors  | Batches   |
+|--------------------------------------------------------------------------------------|
+| Azure Event Hub   | Yes                      | No                        | Yes       |
+| Azure Service Bus | Yes                      | No                        | Yes       |
+| Hybrid            | Yes                      | Yes                       | No        |
+| Kafka             | Yes                      | No                        | No        |
+| Memory            | Yes                      | n/a                       | n/a       |
+| Mqtt              | Yes                      | No                        | No        |
+| Redis             | Yes                      | No                        | No        |

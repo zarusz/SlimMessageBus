@@ -21,6 +21,8 @@ public class EventHubMessageBus : MessageBusBase<EventHubMessageBusSettings>
         OnBuildProvider();
     }
 
+    public override int? MaxMessagesPerTransaction => 100;
+
     protected override IMessageBusSettingsValidationService ValidationService => new EventHubMessageBusSettingsValidationService(Settings, ProviderSettings);
 
     #region Overrides of MessageBusBase
@@ -102,41 +104,100 @@ public class EventHubMessageBus : MessageBusBase<EventHubMessageBusSettings>
         }
     }
 
-    protected override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
+    protected override async Task<(IReadOnlyCollection<T> Dispatched, Exception Exception)> ProduceToTransport<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
     {
         AssertActive();
 
-        var messageType = message?.GetType();
-
-        _logger.LogDebug("Producing message {Message} of Type {MessageType} on Path {Path} with Size {MessageSize}", message, messageType?.Name, path, messagePayload?.Length ?? 0);
-
-        var ev = messagePayload != null ? new EventData(messagePayload) : new EventData();
-
-        if (messageHeaders != null)
+        var dispatched = new List<T>(envelopes.Count);
+        try
         {
-            foreach (var header in messageHeaders)
+            var messages = envelopes
+                .Where(x => x.Message != null)
+                .Select(
+                    envelope =>
+                    {
+                        var messageType = envelope.Message?.GetType();
+                        var messagePayload = Serializer.Serialize(envelope.MessageType, envelope.Message);
+
+                        _logger.LogDebug("Producing message {Message} of Type {MessageType} on Path {Path} with Size {MessageSize}", envelope.Message, messageType?.Name, path, messagePayload?.Length ?? 0);
+
+                        var ev = envelope.Message != null ? new EventData(messagePayload) : new EventData();
+
+                        if (envelope.Headers != null)
+                        {
+                            foreach (var header in envelope.Headers)
+                            {
+                                ev.Properties.Add(header.Key, header.Value);
+                            }
+                        }
+
+                        var partitionKey = messageType != null
+                            ? GetPartitionKey(messageType, envelope.Message)
+                            : null;
+
+                        return (Envelope: envelope, Message: ev, PartitionKey: partitionKey);
+                    })
+                    .GroupBy(x => x.PartitionKey);
+
+            var producer = _producerByPath[path];
+            foreach (var partition in messages)
             {
-                ev.Properties.Add(header.Key, header.Value);
+                EventDataBatch batch = null;
+                try
+                {
+                    var items = partition.ToList();
+                    if (items.Count == 1)
+                    {
+                        // only one item - quicker to send on its own
+                        var item = items.Single();
+                        await producer.SendAsync([item.Message], new SendEventOptions { PartitionKey = partition.Key }, cancellationToken);
+
+                        dispatched.Add(item.Envelope);
+                        continue;
+                    }
+
+                    // multiple items - send in batches
+                    var inBatch = new List<T>(items.Count);
+                    var i = 0;
+                    while (i < items.Count)
+                    {
+                        var item = items[i];
+                        batch ??= await producer.CreateBatchAsync(new CreateBatchOptions { PartitionKey = partition.Key }, cancellationToken);
+                        if (batch.TryAdd(item.Message))
+                        {
+                            inBatch.Add(item.Envelope);
+                            if (++i < items.Count)
+                            {
+                                continue;
+                            }
+                        }
+
+                        if (batch.Count == 0)
+                        {
+                            throw new ProducerMessageBusException($"Failed to add message {item.Envelope.Message} of Type {item.Envelope.MessageType?.Name} on Path {path} to an empty batch");
+                        }
+
+                        await producer.SendAsync(batch, cancellationToken).ConfigureAwait(false);
+                        dispatched.AddRange(inBatch);
+                        inBatch.Clear();
+                        batch.Dispose();
+                        batch = null;
+                    }
+
+                    return (dispatched, null);
+                }
+                finally
+                {
+                    batch?.Dispose();
+                }
             }
         }
-
-        var partitionKey = messageType != null
-            ? GetPartitionKey(messageType, message)
-            : null;
-
-        var producer = _producerByPath[path];
-
-        // ToDo: Introduce some micro batching of events (store them between invocations and send when time span elapsed)
-        using var eventBatch = await producer.CreateBatchAsync(new CreateBatchOptions { PartitionKey = partitionKey }, cancellationToken);
-
-        if (!eventBatch.TryAdd(ev))
+        catch (Exception ex)
         {
-            throw new ProducerMessageBusException($"Could not add message {message} of Type {messageType?.Name} on Path {path} to the send batch");
+            return (dispatched, ex);
         }
 
-        await producer.SendAsync(eventBatch, cancellationToken).ConfigureAwait(false);
-
-        _logger.LogDebug("Delivered message {Message} of Type {MessageType} on Path {Path} with PartitionKey {PartitionKey}", message, messageType?.Name, path, partitionKey);
+        return (dispatched, null);
     }
 
     #endregion

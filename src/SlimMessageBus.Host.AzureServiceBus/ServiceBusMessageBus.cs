@@ -5,6 +5,7 @@ using SlimMessageBus.Host.AzureServiceBus.Consumer;
 public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
 {
     private readonly ILogger _logger;
+    private readonly Random _random;
     private ServiceBusClient _client;
     private SafeDictionaryWrapper<string, ServiceBusSender> _producerByPath;
 
@@ -12,9 +13,13 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
         : base(settings, providerSettings)
     {
         _logger = LoggerFactory.CreateLogger<ServiceBusMessageBus>();
+        _random = new Random();
 
         OnBuildProvider();
     }
+
+    // Maximum number of messages per transaction (https://learn.microsoft.com/en-us/azure/service-bus-messaging/service-bus-quotas)
+    public override int? MaxMessagesPerTransaction => 100;
 
     protected override async ValueTask DisposeAsyncCore()
     {
@@ -45,7 +50,7 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
         await base.ProvisionTopology();
 
         var provisioningService = new ServiceBusTopologyService(LoggerFactory.CreateLogger<ServiceBusTopologyService>(), Settings, ProviderSettings);
-        await provisioningService.ProvisionTopology(); // provisining happens asynchronously
+        await provisioningService.ProvisionTopology(); // provisioning happens asynchronously
     }
 
     #region Overrides of MessageBusBase
@@ -113,48 +118,133 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
         }
     }
 
-    protected override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
+    protected override async Task<(IReadOnlyCollection<T> Dispatched, Exception Exception)> ProduceToTransport<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
     {
-        var messageType = message?.GetType();
+        async Task SendBatchAsync(ServiceBusSender senderClient, ServiceBusMessageBatch batch, CancellationToken cancellationToken)
+        {
+            await Retry.WithDelay(
+                async cancellationToken =>
+                {
+                    await senderClient.SendMessagesAsync(batch, cancellationToken).ConfigureAwait(false);
+                    _logger.LogDebug("Batch of {BatchSize} message(s) dispatched to {path} ({SizeInBytes} bytes)", batch.Count, path, batch.SizeInBytes);
+                },
+                (exception, attempt) =>
+                {
+                    if (attempt < 3
+                        && exception is ServiceBusException ex
+                        && ex.Reason == ServiceBusFailureReason.ServiceBusy)
+                    {
+                        _logger.LogWarning("Service bus throttled. Backing off (Attempt: {Attempt}).", attempt);
+                        return true;
+                    }
+
+                    return false;
+                },
+                TimeSpan.FromSeconds(2),
+                TimeSpan.FromSeconds(1),
+                cancellationToken);
+        }
 
         AssertActive();
 
-        _logger.LogDebug("Producing message {Message} of type {MessageType} to path {Path} with size {MessageSize}", message, messageType?.Name, path, messagePayload?.Length ?? 0);
-
-        var m = messagePayload != null ? new ServiceBusMessage(messagePayload) : new ServiceBusMessage();
-
-        // add headers
-        if (messageHeaders != null)
-        {
-            foreach (var header in messageHeaders)
+        var messages = envelopes.Select(
+            envelope =>
             {
-                m.ApplicationProperties.Add(header.Key, header.Value);
-            }
-        }
+                var messageType = envelope.Message?.GetType();
+                var messagePayload = Serializer.Serialize(envelope.MessageType, envelope.Message);
 
-        // global modifier first
-        InvokeMessageModifier(message, messageType, m, ProviderSettings);
-        if (messageType != null)
-        {
-            // local producer modifier second
-            var producerSettings = GetProducerSettings(messageType);
-            InvokeMessageModifier(message, messageType, m, producerSettings);
-        }
+                _logger.LogDebug("Producing item {Message} of type {MessageType} to path {Path} with size {MessageSize}", envelope.Message, messageType?.Name, path, messagePayload?.Length ?? 0);
+
+                var m = messagePayload != null ? new ServiceBusMessage(messagePayload) : new ServiceBusMessage();
+
+                // add headers
+                if (envelope.Headers != null)
+                {
+                    foreach (var header in envelope.Headers)
+                    {
+                        m.ApplicationProperties.Add(header.Key, header.Value);
+                    }
+                }
+
+                // global modifier first
+                InvokeMessageModifier(envelope.Message, messageType, m, ProviderSettings);
+                if (messageType != null)
+                {
+                    // local producer modifier second
+                    var producerSettings = GetProducerSettings(messageType);
+                    InvokeMessageModifier(envelope.Message, messageType, m, producerSettings);
+                }
+
+                return (Envelope: envelope, ServiceBusMessage: m);
+            })
+            .ToList();
 
         var senderClient = _producerByPath.GetOrAdd(path);
 
+        await EnsureInitFinished();
+
+        if (messages.Count == 1)
+        {
+            // only one item - quicker to send on its own
+            var item = messages.Single();
+            try
+            {
+                await senderClient.SendMessageAsync(item.ServiceBusMessage, cancellationToken: cancellationToken).ConfigureAwait(false);
+                _logger.LogDebug("Delivered item {Message} of type {MessageType} to {Path}", item.Envelope.Message, item.Envelope.MessageType?.Name, path);
+
+                return ([item.Envelope], null);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Producing message {Message} of type {MessageType} to path {Path} resulted in error {Error}", item.Envelope.Message, item.Envelope.MessageType?.Name, path, ex.Message);
+                return ([], ex);
+            }
+        }
+
+        // multiple items - send in batches
+        var dispatched = new List<T>(envelopes.Count);
+        ServiceBusMessageBatch batch = null;
         try
         {
-            await EnsureInitFinished();
+            // multiple items - send in batches
+            var inBatch = new List<T>(envelopes.Count);
+            var i = 0;
+            while (i < messages.Count)
+            {
+                var item = messages[i];
+                batch ??= await senderClient.CreateMessageBatchAsync(cancellationToken);
+                if (batch.TryAddMessage(item.ServiceBusMessage))
+                {
+                    inBatch.Add(item.Envelope);
+                    if (++i < messages.Count)
+                    {
+                        continue;
+                    }
+                }
 
-            await senderClient.SendMessageAsync(m, cancellationToken: cancellationToken).ConfigureAwait(false);
+                if (batch.Count == 0)
+                {
+                    throw new ProducerMessageBusException($"Failed to add message {item.Envelope.Message} of Type {item.Envelope.MessageType?.Name} on Path {path} to an empty batch");
+                }
 
-            _logger.LogDebug("Delivered message {Message} of type {MessageType} to {Path}", message, messageType?.Name, path);
+                await SendBatchAsync(senderClient, batch, cancellationToken).ConfigureAwait(false);
+
+                dispatched.AddRange(inBatch);
+                inBatch.Clear();
+                batch.Dispose();
+                batch = null;
+            }
+
+            return (dispatched, null);
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Producing message {Message} of type {MessageType} to path {Path} resulted in error {Error}", message, messageType?.Name, path, ex.Message);
-            throw new ProducerMessageBusException($"Producing message {message} of type {messageType?.Name} to path {path} resulted in error: {ex.Message}", ex);
+            _logger.LogError(ex, "Producing message batch to path {Path} resulted in error {Error}", path, ex.Message);
+            return (dispatched, ex);
+        }
+        finally
+        {
+            batch?.Dispose();
         }
     }
 

@@ -38,7 +38,7 @@ public abstract class CommonSqlRepository : ISqlConnectionProvider
         return cmd;
     }
 
-    public string GetTableName(string tableName) => $"[{_settings.DatabaseSchemaName}].[{tableName}]";
+    public string GetQualifiedName(string tableName) => $"[{_settings.DatabaseSchemaName}].[{tableName}]";
 
     public Task<int> ExecuteNonQuery(SqlRetrySettings retrySettings, string sql, Action<SqlCommand> setParameters = null, CancellationToken token = default) =>
         SqlHelper.RetryIfTransientError(Logger, retrySettings, async () =>

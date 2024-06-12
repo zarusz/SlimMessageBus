@@ -10,8 +10,9 @@ public class OutboxMessage
     public string Path { get; set; }
     public IDictionary<string, object> Headers { get; set; }
     public string InstanceId { get; set; }
-    public string LockInstanceId { get; set; }
-    public DateTime? LockExpiresOn { get; set; }
-    public int DeliveryAttempt { get; set; }
-    public bool DeliveryComplete { get; set; }
+    public string LockInstanceId { get; set; } = string.Empty;
+    public DateTime? LockExpiresOn { get; set; } = null;
+    public int DeliveryAttempt { get; set; } = 0;
+    public bool DeliveryComplete { get; set; } = false;
+    public bool DeliveryAborted { get; set; } = false;
 }

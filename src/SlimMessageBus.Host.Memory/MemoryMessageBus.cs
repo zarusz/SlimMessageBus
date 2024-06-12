@@ -123,8 +123,8 @@ public class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
             : new MessageProcessorQueue(messageProcessor, LoggerFactory.CreateLogger<MessageProcessorQueue>(), CancellationToken);
     }
 
-    protected override Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
-        => Task.CompletedTask; // Not used
+    protected override Task<(IReadOnlyCollection<T> Dispatched, Exception Exception)> ProduceToTransport<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
+        => Task.FromResult<(IReadOnlyCollection<T> Dispatched, Exception Exception)>(([], null)); // Not used
 
     public override Task ProduceResponse(string requestId, object request, IReadOnlyDictionary<string, object> requestHeaders, object response, Exception responseException, IMessageTypeConsumerInvokerSettings consumerInvoker)
         => Task.CompletedTask; // Not used to responses
