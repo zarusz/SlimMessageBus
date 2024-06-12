@@ -293,42 +293,6 @@ public class MessageBusBaseTests : IDisposable
     }
 
     [Fact]
-    public async Task When_Produce_DerivedMessage_Given_OnlyBaseMessageConfigured_Then_BaseMessageTypeIsSentToSerializer()
-    {
-        // arrange
-        var messageSerializerMock = new Mock<IMessageSerializer>();
-        messageSerializerMock.Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<object>())).Returns([]);
-
-        var someMessageTopic = "some-messages";
-
-        BusBuilder
-            .Produce<SomeMessage>(x => x.DefaultTopic(someMessageTopic));
-
-        _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(messageSerializerMock.Object);
-
-        var m1 = new SomeMessage();
-        var m2 = new SomeDerivedMessage();
-        var m3 = new SomeDerived2Message();
-
-        // act
-        await Bus.ProducePublish(m1);
-        await Bus.ProducePublish(m2);
-        await Bus.ProducePublish(m3);
-
-        // assert
-        _producedMessages.Count.Should().Be(3);
-
-        _producedMessages.Should().ContainSingle(x => x.MessageType == typeof(SomeMessage) && ReferenceEquals(x.Message, m1) && x.Path == someMessageTopic);
-        _producedMessages.Should().ContainSingle(x => x.MessageType == typeof(SomeDerivedMessage) && ReferenceEquals(x.Message, m2) && x.Path == someMessageTopic);
-        _producedMessages.Should().ContainSingle(x => x.MessageType == typeof(SomeDerived2Message) && ReferenceEquals(x.Message, m3) && x.Path == someMessageTopic);
-
-        messageSerializerMock.Verify(x => x.Serialize(typeof(SomeMessage), m1), Times.Once);
-        messageSerializerMock.Verify(x => x.Serialize(typeof(SomeMessage), m2), Times.Once);
-        messageSerializerMock.Verify(x => x.Serialize(typeof(SomeMessage), m3), Times.Once);
-        messageSerializerMock.VerifyNoOtherCalls();
-    }
-
-    [Fact]
     public async Task When_Produce_DerivedMessage_Given_OnlyBaseMessageConfigured_Then_BaseMessageProducerConfigUsed()
     {
         // arrange

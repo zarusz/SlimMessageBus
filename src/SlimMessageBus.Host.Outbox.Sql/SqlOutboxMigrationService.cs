@@ -9,7 +9,8 @@ public class SqlOutboxMigrationService : CommonSqlMigrationService<CommonSqlRepo
 
     protected override async Task OnMigrate(CancellationToken token)
     {
-        var qualifiedTableName = Repository.GetTableName(Settings.DatabaseTableName);
+        var qualifiedTableName = Repository.GetQualifiedName(Settings.DatabaseTableName);
+        var qualifiedOutboxIdTypeName = Repository.GetQualifiedName(Settings.DatabaseOutboxTypeName);
 
 #pragma warning disable CA1861
         await CreateTable(Settings.DatabaseTableName, [
@@ -50,5 +51,33 @@ public class SqlOutboxMigrationService : CommonSqlMigrationService<CommonSqlRepo
 
         await TryApplyMigration("20230128225000_SMB_BusNameOptional",
             @$"ALTER TABLE {qualifiedTableName} ALTER COLUMN BusName nvarchar(64) NULL", token);
+
+        await TryApplyMigration("20240502000000_SMB_DeliveryAborted",
+            @$"ALTER TABLE {qualifiedTableName} ADD DeliveryAborted BIT NOT NULL DEFAULT 0", token);
+
+        await TryApplyMigration("20240503000000_SMB_Optimizations",
+            $"""
+            -- unique identifiers must not be clustered
+            ALTER TABLE {qualifiedTableName} DROP CONSTRAINT [PK_{Settings.DatabaseTableName}];
+            ALTER TABLE {qualifiedTableName} ADD CONSTRAINT [PK_{Settings.DatabaseTableName}] PRIMARY KEY NONCLUSTERED ([Id]);
+
+            -- drop old indexes
+            DROP INDEX IX_Outbox_InstanceId ON {qualifiedTableName};
+            DROP INDEX IX_Outbox_LockExpiresOn ON {qualifiedTableName};
+            DROP INDEX IX_Outbox_Timestamp_LockInstanceId ON {qualifiedTableName};
+
+            -- SqlOutboxTemplate.SqlOutboxMessageLockAndSelect
+            CREATE INDEX IX_Outbox_Timestamp_LockInstanceId_LockExpiresOn_DeliveryComplete_0_DeliveryAborted_0 ON {qualifiedTableName} (Timestamp, LockInstanceId, LockExpiresOn) WHERE (DeliveryComplete = 0 and DeliveryAborted = 0);
+
+            -- SqlOutboxTemplate.SqlOutboxMessageLockTableAndSelect
+            CREATE INDEX IX_Outbox_LockExpiresOn_LockInstanceId_DeliveryComplete_0_DeliveryAborted_0 ON {qualifiedTableName} (LockExpiresOn, LockInstanceId) WHERE (DeliveryComplete = 0 and DeliveryAborted = 0);
+            
+            -- SqlOutboxTemplate.SqlOutboxMessageDeleteSent
+            CREATE INDEX IX_Outbox_Timestamp_DeliveryComplete_1_DeliveryAborted_0 ON {qualifiedTableName} (Timestamp) WHERE (DeliveryComplete = 1 and DeliveryAborted = 0);
+
+            -- SqlOutboxTemplate.SqlOutboxMessageUpdateSent
+            CREATE TYPE {qualifiedOutboxIdTypeName} AS TABLE (Id uniqueidentifier);
+            """,
+            token);
     }
 }

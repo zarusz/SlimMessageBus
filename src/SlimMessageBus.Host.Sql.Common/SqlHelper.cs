@@ -36,7 +36,7 @@ public static class SqlHelper
                 }
                 // transient SQL error - continue trying
                 lastTransientException = sqlEx;
-                logger.LogDebug(sqlEx, "SQL error occured {SqlErrorCode}. Will retry operation", sqlEx.Number);
+                logger.LogDebug(sqlEx, "SQL error occurred {SqlErrorCode}. Will retry operation", sqlEx.Number);
             }
         }
         throw lastTransientException;

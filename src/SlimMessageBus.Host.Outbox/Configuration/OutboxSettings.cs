@@ -5,6 +5,10 @@ using System.Transactions;
 public class OutboxSettings
 {
     /// <summary>
+    /// Processing sequence of messages must be completed in first in, first out. Alternative allows for batch processing across multiple instances of the application.
+    /// </summary>
+    public bool MaintainSequence { get; set; } = true;
+    /// <summary>
     /// The maximum size of the outbox message batch for every database poll.
     /// </summary>
     public int PollBatchSize { get; set; } = 50;
@@ -13,11 +17,15 @@ public class OutboxSettings
     /// </summary>
     public TimeSpan PollIdleSleep { get; set; } = TimeSpan.FromSeconds(1);
     /// <summary>
-    /// Message lock expiration time. When a batch of messages for a bus instance is aquired, the messages will be locked (reserved) for that amount of time.
+    /// The maximum number of delivery attempts before delivery will not be attempted again.
+    /// </summary>
+    public int MaxDeliveryAttempts { get; set; } = 3;
+    /// <summary>
+    /// Message lock expiration time. When a batch of messages for a bus instance is acquired, the messages will be locked (reserved) for that amount of time.
     /// </summary>
     public TimeSpan LockExpiration { get; set; } = TimeSpan.FromSeconds(10);
     /// <summary>
-    /// Latest time before lock expiration where the outbox message will be dispatched to the message broker. This should be much shorter than <see cref="LockExpiration"/>.
+    /// How long before <see cref="LockExpiration"/> to request a lock renewal. This should be much shorter than <see cref="LockExpiration"/>.
     /// </summary>
     public TimeSpan LockExpirationBuffer { get; set; } = TimeSpan.FromSeconds(3);
     /// <summary>

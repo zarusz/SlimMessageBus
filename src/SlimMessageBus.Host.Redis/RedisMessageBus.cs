@@ -57,7 +57,7 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
 
     private void Connection_ErrorMessage(object sender, RedisErrorEventArgs e)
     {
-        _logger.LogError("Redis recieved error message: {ErrorMessage}", e.Message);
+        _logger.LogError("Redis received error message: {ErrorMessage}", e.Message);
     }
 
     private void Connection_ConfigurationChangedBroadcast(object sender, EndPointEventArgs e)
@@ -147,32 +147,47 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
 
     #region Overrides of MessageBusBase
 
-    protected override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
+    protected override async Task<(IReadOnlyCollection<T> Dispatched, Exception Exception)> ProduceToTransport<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
     {
-        if (message is null) throw new ArgumentNullException(nameof(message));
-        if (messagePayload is null) throw new ArgumentNullException(nameof(messagePayload));
-
-        var messageType = message.GetType();
-
-        // determine the SMB topic name if its a Azure SB queue or topic
-        var kind = _kindMapping.GetKind(messageType, path);
+        if (envelopes is null) throw new ArgumentNullException(nameof(envelopes));
 
         AssertActive();
 
-        var messageWithHeaders = new MessageWithHeaders(messagePayload, messageHeaders);
-        var messageWithHeadersBytes = ProviderSettings.EnvelopeSerializer.Serialize(typeof(MessageWithHeaders), messageWithHeaders);
+        var dispatched = new List<T>(envelopes.Count);
+        try
+        {
+            foreach (var envelope in envelopes)
+            {
+                var messageType = envelope.Message.GetType();
+                var messagePayload = Serializer.Serialize(envelope.MessageType, envelope.Message);
 
-        _logger.LogDebug(
-            "Producing message {Message} of type {MessageType} to redis {PathKind} {Path} with size {MessageSize}",
-            message, messageType.Name, GetPathKindString(kind), path, messageWithHeadersBytes.Length);
+                // determine the SMB topic name if its a Azure SB queue or topic
+                var kind = _kindMapping.GetKind(messageType, path);
 
-        var result = kind == PathKind.Topic
-            ? await Database.PublishAsync(RedisUtils.ToRedisChannel(path), messageWithHeadersBytes).ConfigureAwait(false) // Use Redis Pub/Sub
-            : await Database.ListRightPushAsync(path, messageWithHeadersBytes).ConfigureAwait(false); // Use Redis List Type (append on the right side/end of list)
+                var messageWithHeaders = new MessageWithHeaders(messagePayload, envelope.Headers);
+                var messageWithHeadersBytes = ProviderSettings.EnvelopeSerializer.Serialize(typeof(MessageWithHeaders), messageWithHeaders);
 
-        _logger.LogDebug(
-            "Produced message {Message} of type {MessageType} to redis channel {PathKind} {Path} with result {RedisResult}",
-            message, messageType, GetPathKindString(kind), path, result);
+                _logger.LogDebug(
+                    "Producing message {Message} of type {MessageType} to redis {PathKind} {Path} with size {MessageSize}",
+                    envelope.Message, messageType.Name, GetPathKindString(kind), path, messageWithHeadersBytes.Length);
+
+                var result = kind == PathKind.Topic
+                    ? await Database.PublishAsync(RedisUtils.ToRedisChannel(path), messageWithHeadersBytes).ConfigureAwait(false) // Use Redis Pub/Sub
+                    : await Database.ListRightPushAsync(path, messageWithHeadersBytes).ConfigureAwait(false); // Use Redis List Type (append on the right side/end of list)
+
+                dispatched.Add(envelope);
+
+                _logger.LogDebug(
+                    "Produced message {Message} of type {MessageType} to redis channel {PathKind} {Path} with result {RedisResult}",
+                    envelope.Message, messageType, GetPathKindString(kind), path, result);
+            }
+        }
+        catch (Exception ex)
+        {
+            return (dispatched, ex);
+        }
+
+        return (dispatched, null);
     }
 
     #endregion

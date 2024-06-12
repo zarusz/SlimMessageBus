@@ -108,7 +108,7 @@ public class OutboxBenchmarkTests(ITestOutputHelper testOutputHelper) : BaseInte
             mbb.AddOutboxUsingDbContext<CustomerContext>(opts =>
             {
                 opts.PollBatchSize = 500;
-                opts.LockExpiration = TimeSpan.FromMinutes(5);
+                opts.LockExpiration = TimeSpan.FromSeconds(5);
                 opts.PollIdleSleep = TimeSpan.FromDays(1);
                 opts.MessageCleanup.Interval = TimeSpan.FromSeconds(10);
                 opts.MessageCleanup.Age = TimeSpan.FromMinutes(1);

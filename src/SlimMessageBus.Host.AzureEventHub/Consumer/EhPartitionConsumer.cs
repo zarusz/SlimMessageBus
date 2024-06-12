@@ -59,7 +59,7 @@ public abstract class EhPartitionConsumer
     public Task ProcessErrorAsync(ProcessErrorEventArgs args)
     {
         // ToDo: add retry mechanism and dlq support
-        _logger.LogError(args.Exception, "Partition error - Group: {Group}, Path: {Path}, PartitionId: {PartitionId}, Operation: {Operation}", GroupPathPartition.Group, GroupPathPartition.Path, GroupPathPartition.PartitionId, args.Operation);
+        _logger.LogError(args.Exception, "Partition error - Group: {Group}, Path: {Path}, PartitionId: {PartitionId}, OperationDelegate: {OperationDelegate}", GroupPathPartition.Group, GroupPathPartition.Path, GroupPathPartition.PartitionId, args.Operation);
         return Task.CompletedTask;
     }
 

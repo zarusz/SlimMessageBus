@@ -25,7 +25,7 @@ public abstract class CommonSqlMigrationService<TRepository, TSettings>
     protected async Task<bool> TryApplyMigration(string migrationId, string migrationSql, CancellationToken token)
     {
         var versionId = Assembly.GetExecutingAssembly().GetName().Version.ToString();
-        var migrationsTableName = Repository.GetTableName(Settings.DatabaseMigrationsTableName);
+        var migrationsTableName = Repository.GetQualifiedName(Settings.DatabaseMigrationsTableName);
 
         Logger.LogTrace("Ensuring migration {MigrationId} is applied", migrationId);
         var affected = await Repository.ExecuteNonQuery(Settings.SchemaCreationRetry,
@@ -48,7 +48,7 @@ public abstract class CommonSqlMigrationService<TRepository, TSettings>
 
     protected async Task CreateTable(string tableName, IEnumerable<string> columns, CancellationToken token)
     {
-        var qualifiedTableName = Repository.GetTableName(tableName);
+        var qualifiedTableName = Repository.GetQualifiedName(tableName);
 
         Logger.LogDebug("Ensuring table {TableName} is created", tableName);
         await Repository.ExecuteNonQuery(Settings.SchemaCreationRetry,
@@ -63,7 +63,7 @@ public abstract class CommonSqlMigrationService<TRepository, TSettings>
 
     protected async Task CreateIndex(string indexName, string tableName, IEnumerable<string> columns, CancellationToken token)
     {
-        var qualifiedTableName = Repository.GetTableName(tableName);
+        var qualifiedTableName = Repository.GetQualifiedName(tableName);
 
         Logger.LogDebug("Ensuring index {IndexName} on table {TableName} is created", indexName, qualifiedTableName);
 
@@ -113,7 +113,7 @@ public abstract class CommonSqlMigrationService<TRepository, TSettings>
         }
         catch (SqlException e)
         {
-            Logger.LogError(e, "Database schema provisioning enocuntered a non-recoverable SQL error: {ErrorMessage}", e.Message);
+            Logger.LogError(e, "Database schema provisioning encountered a non-recoverable SQL error: {ErrorMessage}", e.Message);
             throw;
         }
     }

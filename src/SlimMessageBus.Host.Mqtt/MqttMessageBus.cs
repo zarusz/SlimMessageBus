@@ -1,5 +1,9 @@
 ﻿namespace SlimMessageBus.Host.Mqtt;
 
+using System.Security.Cryptography;
+
+using MQTTnet.Extensions.ManagedClient;
+
 public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
 {
     private readonly ILogger _logger;
@@ -99,41 +103,63 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
         return Task.CompletedTask;
     }
 
-    protected override async Task ProduceToTransport(object message, string path, byte[] messagePayload, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
+    protected override async Task<(IReadOnlyCollection<T> Dispatched, Exception Exception)> ProduceToTransport<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
     {
-        var m = new MqttApplicationMessage
-        {
-            PayloadSegment = new ArraySegment<byte>(messagePayload),
-            Topic = path
-        };
-
-        if (messageHeaders != null)
-        {
-            m.UserProperties = new List<MQTTnet.Packets.MqttUserProperty>(messageHeaders.Count);
-            foreach (var header in messageHeaders)
+        var messages = envelopes.Select(
+            envelope =>
             {
-                m.UserProperties.Add(new(header.Key, header.Value.ToString()));
+                var messagePayload = Serializer.Serialize(envelope.MessageType, envelope.Message);
+
+                var m = new MqttApplicationMessage
+                {
+                    PayloadSegment = new ArraySegment<byte>(messagePayload),
+                    Topic = path
+                };
+
+                if (envelope.Headers != null)
+                {
+                    m.UserProperties = new List<MQTTnet.Packets.MqttUserProperty>(envelope.Headers.Count);
+                    foreach (var header in envelope.Headers)
+                    {
+                        m.UserProperties.Add(new(header.Key, header.Value.ToString()));
+                    }
+                }
+
+                var messageType = envelope.Message?.GetType();
+                try
+                {
+                    var messageModifier = Settings.GetMessageModifier();
+                    messageModifier?.Invoke(envelope.Message, m);
+
+                    if (messageType != null)
+                    {
+                        var producerSettings = GetProducerSettings(messageType);
+                        messageModifier = producerSettings.GetMessageModifier();
+                        messageModifier?.Invoke(envelope.Message, m);
+                    }
+                }
+                catch (Exception e)
+                {
+                    _logger.LogWarning(e, "The configured message modifier failed for message type {MessageType} and message {Message}", messageType, envelope.Message);
+                }
+
+                return (Envelope: envelope, Message: m);
+            });
+
+        var dispatched = new List<T>(envelopes.Count);
+        foreach (var item in messages)
+        {
+            try
+            {
+                await _mqttClient.EnqueueAsync(item.Message);
+                dispatched.Add(item.Envelope);
+            }
+            catch (Exception ex)
+            {
+                return (dispatched, ex);
             }
         }
 
-        var messageType = message?.GetType();
-        try
-        {
-            var messageModifier = Settings.GetMessageModifier();
-            messageModifier?.Invoke(message, m);
-
-            if (messageType != null)
-            {
-                var producerSettings = GetProducerSettings(messageType);
-                messageModifier = producerSettings.GetMessageModifier();
-                messageModifier?.Invoke(message, m);
-            }
-        }
-        catch (Exception e)
-        {
-            _logger.LogWarning(e, "The configured message modifier failed for message type {MessageType} and message {Message}", messageType, message);
-        }
-
-        await _mqttClient.EnqueueAsync(m);
+        return (dispatched, null);
     }
 }

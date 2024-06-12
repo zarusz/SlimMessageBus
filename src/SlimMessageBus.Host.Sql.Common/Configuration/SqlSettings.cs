@@ -7,6 +7,7 @@ public class SqlSettings : ISqlSettings
     public string DatabaseSchemaName { get; set; } = "dbo";
     public string DatabaseTableName { get; set; } = "Outbox";
     public string DatabaseMigrationsTableName { get; set; } = "__EFMigrationsHistory";
+    public string DatabaseOutboxTypeName => $"{DatabaseTableName}Id";
     public SqlDialect Dialect { get; set; } = SqlDialect.SqlServer;
 
     /// <summary>

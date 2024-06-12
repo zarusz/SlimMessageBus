@@ -1,21 +1,27 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="../Host.Plugin.Properties.xml" />
+	<Import Project="../Host.Plugin.Properties.xml" />
 
-  <PropertyGroup>
-    <Description>Plugin for SlimMessageBus that adds Transactional Outbox pattern support</Description>
-    <PackageTags>SlimMessageBus MessageBus Transactional Outbox</PackageTags>
-  </PropertyGroup>
+	<PropertyGroup>
+		<Description>Plugin for SlimMessageBus that adds Transactional Outbox pattern support</Description>
+		<PackageTags>SlimMessageBus MessageBus Transactional Outbox</PackageTags>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\SlimMessageBus.Host.Interceptor\SlimMessageBus.Host.Interceptor.csproj" />
-    <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\SlimMessageBus.Host.Interceptor\SlimMessageBus.Host.Interceptor.csproj" />
+		<ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="3.1.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.1.0" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="3.1.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.1.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+			<_Parameter1>SlimMessageBus.Host.Outbox.Test</_Parameter1>
+		</AssemblyAttribute>
+	</ItemGroup>
 
   <ItemGroup>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">

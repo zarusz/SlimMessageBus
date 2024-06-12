@@ -100,7 +100,7 @@ public class EhGroupConsumer : AbstractConsumer
         }
         else
         {
-            Logger.LogError(args.Exception, "Group error - Group: {Group}, Path: {Path}, Operation: {Operation}", _groupPath.Group, _groupPath.Path, args.Operation);
+            Logger.LogError(args.Exception, "Group error - Group: {Group}, Path: {Path}, OperationDelegate: {OperationDelegate}", _groupPath.Group, _groupPath.Path, args.Operation);
         }
         return Task.CompletedTask;
     }

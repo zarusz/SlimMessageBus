@@ -1,0 +1,118 @@
+﻿namespace SlimMessageBus.Host.Outbox.Test.Interceptors;
+
+using SlimMessageBus.Host.Serialization;
+
+public static class OutboxForwardingPublishInterceptorTests
+{
+    public class OrderTests
+    {
+        [Fact]
+        public void OutboxForwardingPublisher_MustBeLastInPipeline()
+        {
+            // arrange
+            var expected = int.MaxValue;
+
+            var mockLogger = new Mock<ILogger<OutboxForwardingPublishInterceptor>>();
+            var mockOutboxRepository = new Mock<IOutboxRepository>();
+            var mockInstanceIdProvider = new Mock<IInstanceIdProvider>();
+
+            // act
+            var target = new OutboxForwardingPublishInterceptor<object>(mockLogger.Object, mockOutboxRepository.Object, mockInstanceIdProvider.Object);
+            var actual = target.Order;
+
+            // assert
+            actual.Should().Be(expected);
+        }
+
+        [Fact]
+        public void OutboxForwardingPublisher_MustImplement_IInterceptorWithOrder()
+        {
+            // act
+            var actual = typeof(OutboxForwardingPublishInterceptor<object>).IsAssignableTo(typeof(IInterceptorWithOrder));
+
+            // assert
+            actual.Should().BeTrue();
+        }
+    }
+
+    public class OnHandleTests
+    {
+        private readonly Mock<ILogger<OutboxForwardingPublishInterceptor>> _mockLogger;
+        private readonly Mock<IOutboxRepository> _mockOutboxRepository;
+        private readonly Mock<IInstanceIdProvider> _mockInstanceIdProvider;
+        private readonly Mock<IMessageSerializer> _mockSerializer;
+        private readonly Mock<IMasterMessageBus> _mockMasterMessageBus;
+        private Mock<IMessageBusTarget> _mockTargetBus;
+        private Mock<IProducerContext> _mockProducerContext;
+
+        public OnHandleTests()
+        {
+            _mockLogger = new Mock<ILogger<OutboxForwardingPublishInterceptor>>();
+            _mockOutboxRepository = new Mock<IOutboxRepository>();
+            _mockInstanceIdProvider = new Mock<IInstanceIdProvider>();
+
+            _mockSerializer = new Mock<IMessageSerializer>();
+
+            _mockMasterMessageBus = new Mock<IMasterMessageBus>();
+            _mockMasterMessageBus.SetupGet(x => x.Serializer).Returns(_mockSerializer.Object).Verifiable();
+
+            _mockTargetBus = new Mock<IMessageBusTarget>();
+            _mockTargetBus.SetupGet(x => x.Target).Returns(_mockMasterMessageBus.Object);
+
+            _mockProducerContext = new Mock<IProducerContext>();
+            _mockProducerContext.SetupGet(x => x.Bus).Returns(_mockTargetBus.Object);
+        }
+
+
+        [Fact]
+        public async Task SkipOutboxHeader_IsPresent_PromoteToNext()
+        {
+            // arrange
+            _mockProducerContext.SetupGet(x => x.Headers).Returns(new Dictionary<string, object> { { OutboxForwardingPublishInterceptor<object>.SkipOutboxHeader, true } });
+            _mockOutboxRepository.Setup(x => x.Save(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>())).Verifiable();
+
+            var nextCalled = 0;
+            var next = () =>
+            {
+                nextCalled++;
+                return Task.CompletedTask;
+            };
+
+            // act
+            var target = new OutboxForwardingPublishInterceptor<object>(_mockLogger.Object, _mockOutboxRepository.Object, _mockInstanceIdProvider.Object);
+            await target.OnHandle(new object(), next, _mockProducerContext.Object);
+
+            // assert
+            _mockProducerContext.VerifyGet(x => x.Bus, Times.AtLeastOnce);
+            _mockProducerContext.VerifyGet(x => x.Headers, Times.AtLeastOnce);
+            _mockOutboxRepository.Verify(x => x.Save(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()), Times.Never);
+
+            nextCalled.Should().Be(1);
+        }
+
+        [Fact]
+        public async Task SkipOutboxHeader_IsNotPresent_DoNotPromoteToNext()
+        {
+            // arrange
+            var message = new object();
+
+            _mockSerializer.Setup(x => x.Serialize(typeof(object), message)).Verifiable();
+            _mockOutboxRepository.Setup(x => x.Save(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>())).Verifiable();
+
+            var nextCalled = 0;
+            var next = () =>
+            {
+                nextCalled++;
+                return Task.CompletedTask;
+            };
+
+            // act
+            var target = new OutboxForwardingPublishInterceptor<object>(_mockLogger.Object, _mockOutboxRepository.Object, _mockInstanceIdProvider.Object);
+            await target.OnHandle(new object(), next, _mockProducerContext.Object);
+
+            // assert
+            nextCalled.Should().Be(0);
+            _mockOutboxRepository.Verify(x => x.Save(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+    }
+}
