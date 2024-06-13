@@ -1,0 +1,77 @@
+version: '3.4'
+
+services:
+  zookeeper:
+    image: wurstmeister/zookeeper
+    ports:
+      - "2181:2181"
+    networks:
+      - slim
+
+  kafka:
+    image: wurstmeister/kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: localhost
+      KAFKA_CREATE_TOPICS: "user-test-ping:2:1,user-test-echo:2:1"
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    networks:
+      - slim
+      
+  mqtt:
+    container_name: slim.mqtt
+    image: eclipse-mosquitto
+    ports:
+      - "1883:1883" #default mqtt port
+      - "9001:9001" #default mqtt port for websockets
+    
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    networks:
+      - slim
+
+  rabbitmq:
+    container_name: slim.rabbitmq
+    image: rabbitmq:3
+    ports:
+      - 5672:5672
+      - 15672:15672
+    networks:
+      - slim
+
+  redis:
+    container_name: slim.redis
+    image: redis:7
+    ports:
+      - 6379:6379
+    networks:
+      - slim
+
+  sqldb:
+    container_name: slim.sql
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=SuperSecretP@55word
+    ports:
+      - 1433:1433
+    networks:
+      - slim
+
+  storage:
+    container_name: slim.storage
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    command: "azurite --blobHost 0.0.0.0 --blobPort 11000 --queueHost 0.0.0.0 --queuePort 11001 --tableHost 0.0.0.0 --tablePort 11002 --location /data"
+    environment:
+      - AZURITE_ACCOUNTS=devstoreaccount1:Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;
+    ports:
+      - "11000:11000"
+      - "11001:11001"
+      - "11002:11002"
+    networks:
+      - slim
+
+networks:
+  slim: {}
+ 

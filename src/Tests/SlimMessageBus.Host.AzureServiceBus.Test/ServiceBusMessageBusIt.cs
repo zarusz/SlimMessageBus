@@ -88,7 +88,10 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
 
         CleanTopology = async client =>
         {
-            await client.DeleteTopicAsync(topic);
+            if (await client.TopicExistsAsync(topic))
+            {
+                await client.DeleteTopicAsync(topic);
+            }
         };
 
         await BasicPubSub(concurrency, subscribers, subscribers);
@@ -113,7 +116,10 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
 
         CleanTopology = async client =>
         {
-            await client.DeleteQueueAsync(queue);
+            if (await client.QueueExistsAsync(queue))
+            {
+                await client.DeleteQueueAsync(queue);
+            }
         };
 
         await BasicPubSub(concurrency, 1, 1);
@@ -138,7 +144,10 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
 
         CleanTopology = async client =>
         {
-            await client.DeleteQueueAsync(queue);
+            if (await client.QueueExistsAsync(queue))
+            {
+                await client.DeleteQueueAsync(queue);
+            }
         };
 
         await BasicPubSub(concurrency, 1, 1);

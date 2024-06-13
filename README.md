@@ -354,7 +354,7 @@ NuGet packages end up in `dist` folder
 
 ## Testing
 
-To run tests you need to update the respective `appsettings.json` to match your cloud infrastructure or local infrastructure.
+To run tests you need to update the `secrets.txt` to match your cloud infrastructure or [local infrastructure](src/Infrastructure/README.md).
 SMB has some message brokers set up on Azure for integration tests (secrets not shared).
 
 Run all tests:

@@ -274,7 +274,7 @@ static internal class Program
                         // Provide connection string to your event hub namespace
                         var eventHubConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub:ConnectionString"]);
                         var storageConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub:Storage"]);
-                        var storageContainerName = configuration["Azure:EventHub:ContainerName"];
+                        var storageContainerName = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub:ContainerName"]);
 
                         // Use Azure Event Hub as provider
                         builder.WithProviderEventHub(cfg =>
@@ -288,7 +288,8 @@ static internal class Program
 
                     case Provider.Kafka:
                         // Ensure your Kafka broker is running
-                        var kafkaBrokers = configuration["Kafka:Brokers"];
+                        var kafkaBrokers = Secrets.Service.PopulateSecrets(configuration["Kafka:Brokers"]);
+                        var kafkaSecure = Convert.ToBoolean(Secrets.Service.PopulateSecrets(configuration["Kafka:Secure"]));
 
                         // If your cluster requires SSL
                         void AddSsl(ClientConfig c)
@@ -308,12 +309,18 @@ static internal class Program
                             //HeaderSerializer = new JsonMessageSerializer(),
                             cfg.ProducerConfig = (config) =>
                             {
-                                AddSsl(config);
+                                if (kafkaSecure)
+                                {
+                                    AddSsl(config);
+                                }
                             };
                             cfg.ConsumerConfig = (config) =>
                             {
                                 config.AutoOffsetReset = AutoOffsetReset.Earliest;
-                                AddSsl(config);
+                                if (kafkaSecure)
+                                {
+                                    AddSsl(config);
+                                }
                             };
 
                         });

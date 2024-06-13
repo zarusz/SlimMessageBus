@@ -26,7 +26,7 @@ public class SecretService
                     value = value.Replace(match.Value, secretValue, StringComparison.InvariantCulture);
                     index = match.Index + 1;
                 }
-            } while (match.Success);
+            } while (match.Success && value.Length >= index);
         }
         return value;
     }

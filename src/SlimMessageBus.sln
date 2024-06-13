@@ -234,9 +234,17 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Sql", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Sql.Common", "SlimMessageBus.Host.Sql.Common\SlimMessageBus.Host.Sql.Common.csproj", "{F19B7A21-7749-465A-8810-4C274A9E8956}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.Serialization.Avro.Test", "Tests\SlimMessageBus.Host.Serialization.Avro.Test\SlimMessageBus.Host.Serialization.Avro.Test.csproj", "{8507237C-68C3-46AD-B7DA-800791C6FDDB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Serialization.Avro.Test", "Tests\SlimMessageBus.Host.Serialization.Avro.Test\SlimMessageBus.Host.Serialization.Avro.Test.csproj", "{8507237C-68C3-46AD-B7DA-800791C6FDDB}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Serialization.Hybrid.Test", "Tests\SlimMessageBus.Host.Serialization.Hybrid.Test\SlimMessageBus.Host.Serialization.Hybrid.Test.csproj", "{DB624D5F-CB7C-4E16-B1E2-3B368FCB5A46}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Infrastructure", "Infrastructure", "{137BFD32-CD0A-47CA-8884-209CD49DEE8C}"
+	ProjectSection(SolutionItems) = preProject
+		Infrastructure\docker-compose.yml = Infrastructure\docker-compose.yml
+		..\infrastructure.sh = ..\infrastructure.sh
+		Infrastructure\mosquitto.conf = Infrastructure\mosquitto.conf
+		Infrastructure\README.md = Infrastructure\README.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -823,8 +831,8 @@ Global
 		{F5373E1D-A2B4-46CC-9B07-94F6655C8E29} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
 		{5EED0E89-2475-40E0-81EF-0F05C9326612} = {9291D340-B4FA-44A3-8060-C14743FB1712}
 		{F19B7A21-7749-465A-8810-4C274A9E8956} = {9291D340-B4FA-44A3-8060-C14743FB1712}
-		{DB624D5F-CB7C-4E16-B1E2-3B368FCB5A46} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
 		{8507237C-68C3-46AD-B7DA-800791C6FDDB} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
+		{DB624D5F-CB7C-4E16-B1E2-3B368FCB5A46} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {435A0D65-610C-4B84-B1AA-2C7FBE72DB80}

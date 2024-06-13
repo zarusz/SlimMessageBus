@@ -14,8 +14,9 @@ public class FileSecretStore : ISecretStore
 
         var lines = File.ReadAllLines(path);
         _secrets = lines
+            .Where(x => !string.IsNullOrWhiteSpace(x) || x!.TrimStart().StartsWith('#'))
             .Select(x => x.Split('=', 2, StringSplitOptions.RemoveEmptyEntries))
-            .ToDictionary(x => x[0], x => x[1]);
+            .ToDictionary(x => x[0], x => x.Length == 2 ? x[1] : string.Empty);
     }
 
     public string GetSecret(string name)
