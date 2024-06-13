@@ -43,9 +43,10 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
-        var kafkaBrokers = configuration["Kafka:Brokers"];
+        var kafkaBrokers = Secrets.Service.PopulateSecrets(configuration["Kafka:Brokers"]);
         var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
         var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
+        var kafkaSecure = Convert.ToBoolean(Secrets.Service.PopulateSecrets(configuration["Kafka:Secure"]));
 
         // Topics on cloudkarafka.com are prefixed with username
         TopicPrefix = $"{kafkaUsername}-";
@@ -58,14 +59,20 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
                     cfg.BrokerList = kafkaBrokers;
                     cfg.ProducerConfig = (config) =>
                     {
-                        AddSsl(kafkaUsername, kafkaPassword, config);
+                        if (kafkaSecure)
+                        {
+                            AddSsl(kafkaUsername, kafkaPassword, config);
+                        }
 
                         config.LingerMs = 5; // 5ms
                         config.SocketNagleDisable = true;
                     };
                     cfg.ConsumerConfig = (config) =>
                     {
-                        AddSsl(kafkaUsername, kafkaPassword, config);
+                        if (kafkaSecure)
+                        {
+                            AddSsl(kafkaUsername, kafkaPassword, config);
+                        }
 
                         config.FetchErrorBackoffMs = 1;
                         config.SocketNagleDisable = true;

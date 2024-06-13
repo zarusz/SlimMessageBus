@@ -61,23 +61,30 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTe
                 var topic = "";
                 if (_testParamBusType == BusType.Kafka)
                 {
-                    var kafkaBrokers = configuration["Kafka:Brokers"];
+                    var kafkaBrokers = Secrets.Service.PopulateSecrets(configuration["Kafka:Brokers"]);
                     var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
                     var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
+                    var kafkaSecure = bool.TryParse(Secrets.Service.PopulateSecrets(configuration["Kafka:Secure"]), out var secure) && secure;
 
                     mbb.WithProviderKafka(cfg =>
                     {
                         cfg.BrokerList = kafkaBrokers;
                         cfg.ProducerConfig = (config) =>
                         {
-                            AddKafkaSsl(kafkaUsername, kafkaPassword, config);
+                            if (kafkaSecure)
+                            {
+                                AddKafkaSsl(kafkaUsername, kafkaPassword, config);
+                            }
 
                             config.LingerMs = 5; // 5ms
                             config.SocketNagleDisable = true;
                         };
                         cfg.ConsumerConfig = (config) =>
                         {
-                            AddKafkaSsl(kafkaUsername, kafkaPassword, config);
+                            if (kafkaSecure)
+                            {
+                                AddKafkaSsl(kafkaUsername, kafkaPassword, config);
+                            }
 
                             config.FetchErrorBackoffMs = 1;
                             config.SocketNagleDisable = true;
@@ -143,11 +150,17 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTe
 
         await PerformDbOperation(async context =>
         {
-            // clean outbox from previous test run
-            await context.Database.ExecuteSqlRawAsync("delete from dbo.IntTest_Outbox");
-
             // migrate db
             await context.Database.MigrateAsync();
+
+            //// clean outbox from previous test run
+            await context.Database.ExecuteSqlRawAsync(
+                """
+                IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = 'IntTest_Outbox')
+                BEGIN
+                    DELETE FROM dbo.IntTest_Outbox;
+                END
+                """);
 
             // clean the customers table
             var cust = await context.Customers.ToListAsync();
@@ -180,7 +193,7 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTe
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogInformation("Exception occured while handling cmd {Command}: {Message}", cmd, ex.Message);
+                    Logger.LogInformation("Exception occurred while handling cmd {Command}: {Message}", cmd, ex.Message);
                 }
             }
         }

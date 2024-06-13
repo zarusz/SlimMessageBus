@@ -98,9 +98,10 @@ class Program
 
                                 //case Provider.Kafka:
                                 //    // Ensure your Kafka broker is running
-                                //    var kafkaBrokers = configuration["Kafka:Brokers"];
+                                //    var kafkaBrokers = Secrets.Service.PopulateSecrets(configurationconfiguration["Kafka:Brokers"]);
                                 //    var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
                                 //    var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
+                                //    var kafkaSecure = Secrets.Service.PopulateSecrets(configuration["Kafka:Secure"]);
 
                                 //    builder.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)); // Or use Apache Kafka as provider
                                 //    break;

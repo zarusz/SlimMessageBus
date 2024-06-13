@@ -19,11 +19,12 @@ public class MqttMessageBusIt : BaseIntegrationTest<MqttMessageBusIt>
             mbb.WithProviderMqtt(cfg =>
             {
                 cfg.ClientBuilder
-                    .WithTcpServer(configuration["Mqtt:Server"], int.Parse(configuration["Mqtt:Port"]))
+                    .WithTcpServer(Secrets.Service.PopulateSecrets(configuration["Mqtt:Server"]), int.Parse(Secrets.Service.PopulateSecrets(configuration["Mqtt:Port"])))
                     .WithTlsOptions(opts =>
                     {
+                        opts.UseTls(bool.TryParse(Secrets.Service.PopulateSecrets(configuration["Mqtt:Secure"]), out var secure) && secure);
                     })
-                    .WithCredentials(configuration["Mqtt:Username"], Secrets.Service.PopulateSecrets(configuration["Mqtt:Password"]))
+                    .WithCredentials(Secrets.Service.PopulateSecrets(configuration["Mqtt:Username"]), Secrets.Service.PopulateSecrets(configuration["Mqtt:Password"]))
                     // We want to use message headers as part of the tests
                     .WithProtocolVersion(MQTTnet.Formatter.MqttProtocolVersion.V500);
             });
