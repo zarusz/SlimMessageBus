@@ -103,14 +103,33 @@ jobs:
         run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --collect:"XPlat Code Coverage;Format=opencover" --filter Category=Integration
         working-directory: ./src
         env:
+          azure_servicebus_connectionstring: ${{ secrets.azure_servicebus_connectionstring }}
+
+          azure_eventhub_connectionstring: ${{ secrets.azure_eventhub_connectionstring }}
+          azure_storagecontainer_connectionstring: ${{ secrets.azure_storagecontainer_connectionstring }}
+
+          kafka_brokers: ${{ secrets.kafka_brokers }}
+          kafka_username: ${{ secrets.kafka_username }}
+          kafka_password: ${{ secrets.kafka_password }}
+          kafka_secure: ${{ secrets.kafka_secure }}
+
+          mqtt_server: ${{ secrets.mqtt_server }}
+          mqtt_port: ${{ secrets.mqtt_port }}
+          mqtt_username: ${{ secrets.mqtt_username }}
+          mqtt_password: ${{ secrets.mqtt_password }}
+          mqtt_secure: ${{ secrets.mqtt_secure }}
+
+          sqlserver_connectionstring: ${{ secrets.sqlserver_connectionstring }}
+
+          rabbitmq_connectionstring: ${{ secrets.rabbitmq_connectionstring }}
+
+          redis_connectionstring: ${{ secrets.redis_connectionstring }}
+
           azure_servicebus_key: ${{ secrets.azure_servicebus_key }}
           azure_eventhub_key: ${{ secrets.azure_eventhub_key }}
           azure_eventhub_storage_key: ${{ secrets.azure_eventhub_storage_key }}
           azure_sql_password: ${{ secrets.azure_sql_password }}
-          kafka_username: ${{ secrets.kafka_username }}
-          kafka_password: ${{ secrets.kafka_password }}
           redis_password: ${{ secrets.redis_password }}
-          mqtt_password: ${{ secrets.mqtt_password }}
           rabbitmq_password: ${{ secrets.rabbitmq_password }}
 
       - name: SonarCloud - SonarScanner End
