@@ -8,10 +8,16 @@ No volumes have been configured so as to provide clean instances on each run.
 src/Infrastructure> docker compose up --force-recreate -V
 ```
 
-or
+or Unix
 
 ```
 > ./infrastructure.sh
+```
+
+or Windows
+
+```
+> .\infrastructure.ps1
 ```
 
 ## Configuration
@@ -26,7 +32,7 @@ Personal instances of Azure resources are required as containers are not availab
 
 ### Azure Event Hub
 
-The transport/plug-in does not provide topology provisioning (just yet).
+The transport/plug-in does not provide topology provisioning ([just yet](https://github.com/zarusz/SlimMessageBus/issues/111)).
 The below event hubs and consumer groups will need to be manually added to the Azure Event Hub instance for the integration tests to run.
 
 | Event Hub      | Consumer Group  |

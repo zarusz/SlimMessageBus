@@ -109,7 +109,7 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
                 responseConsumer: this,
                 messagePayloadProvider: m => m.Body.ToArray());
 
-            AddConsumerFrom(topicSubscription, messageProcessor, new[] { Settings.RequestResponse });
+            AddConsumerFrom(topicSubscription, messageProcessor, [Settings.RequestResponse]);
         }
     }
 

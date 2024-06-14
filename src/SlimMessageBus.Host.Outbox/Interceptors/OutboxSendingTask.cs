@@ -14,6 +14,12 @@ public class OutboxSendingTask(
 
     private CancellationTokenSource _loopCts;
     private Task _loopTask;
+
+    private readonly object _migrateSchemaTaskLock = new();
+    private Task _migrateSchemaTask;
+    private Task _startBusTask;
+    private Task _stopBusTask;
+
     private int _busStartCount;
 
     private DateTime? _cleanupNextRun;
@@ -75,23 +81,51 @@ public class OutboxSendingTask(
 
     public Task OnBusLifecycle(MessageBusLifecycleEventType eventType, IMessageBus bus)
     {
+        if (eventType == MessageBusLifecycleEventType.Created)
+        {
+            return EnsureMigrateSchema(_serviceProvider, default);
+        }
         if (eventType == MessageBusLifecycleEventType.Started)
         {
             // The first started bus starts this outbox task
             if (Interlocked.Increment(ref _busStartCount) == 1)
             {
-                return Start();
+                _startBusTask = Start();
             }
+            return _startBusTask;
         }
         if (eventType == MessageBusLifecycleEventType.Stopping)
         {
             // The last stopped bus stops this outbox task
             if (Interlocked.Decrement(ref _busStartCount) == 0)
             {
-                return Stop();
+                _stopBusTask = Stop();
             }
+            return _stopBusTask;
         }
         return Task.CompletedTask;
+    }
+
+    private static async Task MigrateSchema(IServiceProvider serviceProvider, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var outboxMigrationService = serviceProvider.GetRequiredService<IOutboxMigrationService>();
+            await outboxMigrationService.Migrate(cancellationToken);
+        }
+        catch (Exception e)
+        {
+            throw new MessageBusException("Outbox schema migration failed", e);
+        }
+    }
+
+    private Task EnsureMigrateSchema(IServiceProvider serviceProvider, CancellationToken cancellationToken)
+    {
+        lock (_migrateSchemaTaskLock)
+        {
+            // We optimize to ever only run once the schema migration, regardless if it was triggered from 1) bus created lifecycle or 2) outbox sending loop.
+            return _migrateSchemaTask ??= MigrateSchema(serviceProvider, cancellationToken);
+        }
     }
 
     private async Task Run()
@@ -100,10 +134,10 @@ public class OutboxSendingTask(
         {
             _logger.LogInformation("Outbox loop started");
             var scope = _serviceProvider.CreateScope();
+
             try
             {
-                var outboxMigrationService = scope.ServiceProvider.GetRequiredService<IOutboxMigrationService>();
-                await outboxMigrationService.Migrate(_loopCts.Token);
+                await EnsureMigrateSchema(scope.ServiceProvider, _loopCts.Token);
 
                 var outboxRepository = scope.ServiceProvider.GetRequiredService<IOutboxRepository>();
 

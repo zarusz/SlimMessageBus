@@ -1,42 +1,13 @@
 ﻿namespace SlimMessageBus.Host.Outbox.DbContext.Test;
 
-using System.Reflection;
-
-using Confluent.Kafka;
-
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-
-using SecretStore;
-
-using SlimMessageBus.Host;
-using SlimMessageBus.Host.AzureServiceBus;
-using SlimMessageBus.Host.Kafka;
-using SlimMessageBus.Host.Memory;
-using SlimMessageBus.Host.Outbox.DbContext.Test.DataAccess;
-using SlimMessageBus.Host.Outbox.Sql;
-using SlimMessageBus.Host.Serialization.SystemTextJson;
-using SlimMessageBus.Host.Test.Common.IntegrationTest;
-
 [Trait("Category", "Integration")]
 public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<OutboxTests>(testOutputHelper)
 {
     private TransactionType _testParamTransactionType;
     private BusType _testParamBusType;
 
-    public enum TransactionType
-    {
-        SqlTransaction,
-        TarnsactionScope
-    }
-
-    public enum BusType
-    {
-        AzureSB,
-        Kafka,
-    }
+    private static readonly string OutboxTableName = "IntTest_Outbox";
+    private static readonly string MigrationsTableName = "IntTest_Migrations";
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
@@ -98,7 +69,11 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTe
                 }
                 if (_testParamBusType == BusType.AzureSB)
                 {
-                    mbb.WithProviderServiceBus(cfg => cfg.ConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]));
+                    mbb.WithProviderServiceBus(cfg =>
+                    {
+                        cfg.ConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
+                        cfg.PrefetchCount = 100;
+                    });
                     topic = "tests.outbox/customer-events";
                 }
 
@@ -107,6 +82,7 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTe
                     .Consume<CustomerCreatedEvent>(x => x
                         .Topic(topic)
                         .WithConsumer<CustomerCreatedEventConsumer>()
+                        .Instances(20) // process messages in parallel
                         .SubscriptionName(nameof(OutboxTests)) // for AzureSB
                         .KafkaGroup("subscriber")) // for Kafka
                     .UseOutbox(); // All outgoing messages from this bus will go out via an outbox
@@ -119,7 +95,8 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTe
                 opts.PollIdleSleep = TimeSpan.FromSeconds(0.5);
                 opts.MessageCleanup.Interval = TimeSpan.FromSeconds(10);
                 opts.MessageCleanup.Age = TimeSpan.FromMinutes(1);
-                opts.SqlSettings.DatabaseTableName = "IntTest_Outbox";
+                opts.SqlSettings.DatabaseTableName = OutboxTableName;
+                opts.SqlSettings.DatabaseMigrationsTableName = MigrationsTableName;
             });
         });
 
@@ -139,10 +116,10 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTe
     public const string InvalidLastname = "Exception";
 
     [Theory]
-    [InlineData([TransactionType.SqlTransaction, BusType.AzureSB])]
-    [InlineData([TransactionType.TarnsactionScope, BusType.AzureSB])]
-    [InlineData([TransactionType.SqlTransaction, BusType.Kafka])]
-    public async Task Given_CommandHandlerInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoDataSaved_And_NoEventRaised(TransactionType transactionType, BusType busType)
+    [InlineData([TransactionType.SqlTransaction, BusType.AzureSB, 100])]
+    [InlineData([TransactionType.TarnsactionScope, BusType.AzureSB, 100])]
+    [InlineData([TransactionType.SqlTransaction, BusType.Kafka, 100])]
+    public async Task Given_CommandHandlerInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoDataSaved_And_NoEventRaised(TransactionType transactionType, BusType busType, int messageCount)
     {
         // arrange
         _testParamTransactionType = transactionType;
@@ -153,14 +130,9 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTe
             // migrate db
             await context.Database.MigrateAsync();
 
-            //// clean outbox from previous test run
-            await context.Database.ExecuteSqlRawAsync(
-                """
-                IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = 'IntTest_Outbox')
-                BEGIN
-                    DELETE FROM dbo.IntTest_Outbox;
-                END
-                """);
+            // clean outbox from previous test run
+            await context.Database.EraseTableIfExists(OutboxTableName);
+            await context.Database.EraseTableIfExists(MigrationsTableName);
 
             // clean the customers table
             var cust = await context.Customers.ToListAsync();
@@ -169,7 +141,7 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTe
         });
 
         var surnames = new[] { "Doe", "Smith", InvalidLastname };
-        var commands = Enumerable.Range(0, 100).Select(x => new CreateCustomerCommand($"John {x:000}", surnames[x % surnames.Length]));
+        var commands = Enumerable.Range(0, messageCount).Select(x => new CreateCustomerCommand($"John {x:000}", surnames[x % surnames.Length]));
         var validCommands = commands.Where(x => !string.Equals(x.Lastname, InvalidLastname, StringComparison.InvariantCulture)).ToList();
         var store = ServiceProvider!.GetRequiredService<TestEventCollector<CustomerCreatedEvent>>();
 
@@ -180,23 +152,27 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTe
         store.Clear();
 
         // act
-        foreach (var cmd in commands)
-        {
-            var unitOfWorkScope = ServiceProvider!.CreateScope();
-            await using (unitOfWorkScope as IAsyncDisposable)
+        var sendTasks = commands
+            .Select(async cmd =>
             {
-                var bus = unitOfWorkScope.ServiceProvider.GetRequiredService<IMessageBus>();
+                var unitOfWorkScope = ServiceProvider!.CreateScope();
+                await using (unitOfWorkScope as IAsyncDisposable)
+                {
+                    var bus = unitOfWorkScope.ServiceProvider.GetRequiredService<IMessageBus>();
 
-                try
-                {
-                    var res = await bus.Send(cmd);
+                    try
+                    {
+                        var res = await bus.Send(cmd);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogInformation("Exception occurred while handling cmd {Command}: {Message}", cmd, ex.Message);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    Logger.LogInformation("Exception occurred while handling cmd {Command}: {Message}", cmd, ex.Message);
-                }
-            }
-        }
+            })
+            .ToArray();
+
+        await Task.WhenAll(sendTasks);
 
         await store.WaitUntilArriving(newMessagesTimeout: 5, expectedCount: validCommands.Count);
 

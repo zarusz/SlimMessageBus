@@ -37,6 +37,8 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
                     }
                     await next();
                 };
+                cfg.PrefetchCount = 100;
+                cfg.MaxConcurrentSessions = 20;
             });
             mbb.AddServicesFromAssemblyContaining<PingConsumer>();
             mbb.AddJsonSerializer();
@@ -68,7 +70,6 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
     [Fact]
     public async Task BasicPubSubOnTopic()
     {
-        var concurrency = 2;
         var subscribers = 2;
         var topic = "test-ping";
 
@@ -82,7 +83,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
                         .SubscriptionName($"subscriber-{i}") // ensure subscription exists on the ServiceBus topic
                         .WithConsumer<PingConsumer>()
                         .WithConsumer<PingDerivedConsumer, PingDerivedMessage>()
-                        .Instances(concurrency));
+                        .Instances(20));
                 }));
         });
 
@@ -94,13 +95,12 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
             }
         };
 
-        await BasicPubSub(concurrency, subscribers, subscribers);
+        await BasicPubSub(subscribers);
     }
 
     [Fact]
     public async Task BasicPubSubOnQueue()
     {
-        var concurrency = 2;
         var queue = "test-ping-queue";
 
         AddBusConfiguration(mbb =>
@@ -111,7 +111,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
                     .Queue(queue)
                     .WithConsumer<PingConsumer>()
                     .WithConsumer<PingDerivedConsumer, PingDerivedMessage>()
-                    .Instances(concurrency));
+                    .Instances(20));
         });
 
         CleanTopology = async client =>
@@ -122,13 +122,12 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
             }
         };
 
-        await BasicPubSub(concurrency, 1, 1);
+        await BasicPubSub(1);
     }
 
     [Fact]
     public async Task BasicPubSubWithCustomConsumerOnQueue()
     {
-        var concurrency = 2;
         var queue = "test-ping-queue";
 
         AddBusConfiguration(mbb =>
@@ -139,7 +138,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
                     .Queue(queue)
                     .WithConsumer(typeof(CustomPingConsumer), nameof(CustomPingConsumer.Handle))
                     .WithConsumer(typeof(CustomPingConsumer), typeof(PingDerivedMessage), nameof(CustomPingConsumer.Handle))
-                    .Instances(concurrency));
+                    .Instances(20));
         });
 
         CleanTopology = async client =>
@@ -150,7 +149,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
             }
         };
 
-        await BasicPubSub(concurrency, 1, 1);
+        await BasicPubSub(1);
     }
 
     private static string GetMessageId(PingMessage message) => $"ID_{message.Counter}";
@@ -161,7 +160,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
         public IReadOnlyCollection<TestEvent> ConsumedMessages { get; set; }
     }
 
-    private async Task BasicPubSub(int concurrency, int subscribers, int expectedMessageCopies, Action<TestData> additionalAssertion = null)
+    private async Task BasicPubSub(int expectedMessageCopies, Action<TestData> additionalAssertion = null)
     {
         // arrange
         var testMetric = ServiceProvider.GetRequiredService<TestMetric>();
@@ -186,7 +185,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
         }
 
         stopwatch.Stop();
-        Logger.LogInformation("Published {0} messages in {1}", producedMessages.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Published {Count} messages in {Elapsed}", producedMessages.Count, stopwatch.Elapsed);
 
         // consume
         stopwatch.Restart();
@@ -234,7 +233,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
             .Handle<EchoRequest, EchoResponse>(x => x.Topic(topic)
                 .SubscriptionName("handler")
                 .WithHandler<EchoRequestHandler>()
-                .Instances(2))
+                .Instances(20))
             .ExpectRequestResponses(x =>
             {
                 x.ReplyToTopic("test-echo-resp");
@@ -259,7 +258,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
             })
             .Handle<EchoRequest, EchoResponse>(x => x.Queue(queue)
                 .WithHandler<EchoRequestHandler>()
-                .Instances(2))
+                .Instances(20))
             .ExpectRequestResponses(x =>
             {
                 x.ReplyToQueue("test-echo-queue-resp");
@@ -293,7 +292,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
         await Task.WhenAll(responseTasks).ConfigureAwait(false);
 
         stopwatch.Stop();
-        Logger.LogInformation("Published and received {0} messages in {1}", responses.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Published and received {Count} messages in {Elapsed}", responses.Count, stopwatch.Elapsed);
 
         // assert
 
@@ -305,7 +304,6 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
     [Fact]
     public async Task FIFOUsingSessionsOnQueue()
     {
-        var concurrency = 1;
         var queue = "test-session-queue";
 
         AddBusConfiguration(mbb =>
@@ -316,10 +314,10 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
                         .Queue(queue)
                         .WithConsumer<PingConsumer>()
                         .WithConsumer<PingDerivedConsumer, PingDerivedMessage>()
-                        .Instances(concurrency)
+                        .Instances(1)
                         .EnableSession(x => x.MaxConcurrentSessions(10).SessionIdleTimeout(TimeSpan.FromSeconds(5))));
         });
-        await BasicPubSub(concurrency, 1, 1, CheckMessagesWithinSameSessionAreInOrder);
+        await BasicPubSub(1, CheckMessagesWithinSameSessionAreInOrder);
     }
 
     private static void CheckMessagesWithinSameSessionAreInOrder(TestData testData)
@@ -337,7 +335,6 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
     [Fact]
     public async Task FIFOUsingSessionsOnTopic()
     {
-        var concurrency = 1;
         var queue = "test-session-topic";
 
         AddBusConfiguration(mbb =>
@@ -347,12 +344,12 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
                     .Topic(queue)
                     .WithConsumer<PingConsumer>()
                     .WithConsumer<PingDerivedConsumer, PingDerivedMessage>()
-                    .Instances(concurrency)
+                    .Instances(1)
                     .SubscriptionName($"subscriber") // ensure subscription exists on the ServiceBus topic
                     .EnableSession(x => x.MaxConcurrentSessions(10).SessionIdleTimeout(TimeSpan.FromSeconds(5))));
         });
 
-        await BasicPubSub(concurrency, 1, 1, CheckMessagesWithinSameSessionAreInOrder);
+        await BasicPubSub(1, CheckMessagesWithinSameSessionAreInOrder);
     }
 }
 

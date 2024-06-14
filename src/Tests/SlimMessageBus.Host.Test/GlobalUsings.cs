@@ -10,5 +10,6 @@ global using Moq;
 
 global using SlimMessageBus.Host.Interceptor;
 global using SlimMessageBus.Host.Serialization;
+global using SlimMessageBus.Host.Serialization.Json;
 
 global using Xunit;
