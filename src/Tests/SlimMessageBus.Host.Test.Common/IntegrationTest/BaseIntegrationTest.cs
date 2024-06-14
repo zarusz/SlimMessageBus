@@ -83,7 +83,7 @@ public abstract class BaseIntegrationTest<T> : IAsyncLifetime
         var consumerControl = ServiceProvider.GetRequiredService<IConsumerControl>();
 
         // ensure the consumers are warm
-        while (!consumerControl.IsStarted && timeout.ElapsedMilliseconds < 5000) await Task.Delay(200);
+        while (!consumerControl.IsStarted && timeout.ElapsedMilliseconds < 5000) await Task.Delay(100);
     }
 
     public Task InitializeAsync()

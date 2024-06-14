@@ -146,6 +146,10 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
         Build();
 
+        // Notify the bus has been created - before any message can be produced
+        AddInit(OnBusLifecycle(MessageBusLifecycleEventType.Created));
+
+        // Auto start consumers if enabled
         if (Settings.AutoStartConsumers)
         {
             // Fire and forget start
@@ -196,7 +200,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     private async Task OnBusLifecycle(MessageBusLifecycleEventType eventType)
     {
-        _lifecycleInterceptors ??= Settings.ServiceProvider?.GetService<IEnumerable<IMessageBusLifecycleInterceptor>>();
+        _lifecycleInterceptors ??= Settings.ServiceProvider?.GetServices<IMessageBusLifecycleInterceptor>();
         if (_lifecycleInterceptors != null)
         {
             foreach (var i in _lifecycleInterceptors)

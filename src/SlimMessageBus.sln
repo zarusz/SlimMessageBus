@@ -241,9 +241,19 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Infrastructure", "Infrastructure", "{137BFD32-CD0A-47CA-8884-209CD49DEE8C}"
 	ProjectSection(SolutionItems) = preProject
 		Infrastructure\docker-compose.yml = Infrastructure\docker-compose.yml
+		..\infrastructure.ps1 = ..\infrastructure.ps1
 		..\infrastructure.sh = ..\infrastructure.sh
 		Infrastructure\mosquitto.conf = Infrastructure\mosquitto.conf
 		Infrastructure\README.md = Infrastructure\README.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Build", "Build", "{1A71BB05-58ED-4B27-B4A4-A03D9E608C1C}"
+	ProjectSection(SolutionItems) = preProject
+		..\build\do_build.ps1 = ..\build\do_build.ps1
+		..\build\do_package.ps1 = ..\build\do_package.ps1
+		..\build\do_test.ps1 = ..\build\do_test.ps1
+		..\build\do_test_ci.ps1 = ..\build\do_test_ci.ps1
+		..\build\tasks.ps1 = ..\build\tasks.ps1
 	EndProjectSection
 EndProject
 Global

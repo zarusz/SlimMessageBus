@@ -1,23 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Test;
-
-using SlimMessageBus.Host;
-using SlimMessageBus.Host.Interceptor;
-using SlimMessageBus.Host.Serialization;
-using SlimMessageBus.Host.Serialization.Json;
-
-public class RequestA : IRequest<ResponseA>
-{
-    public string Id { get; set; } = Guid.NewGuid().ToString();
-}
-
-public class ResponseA
-{
-    public string Id { get; set; }
-}
-
-public class RequestB : IRequest<ResponseB> { }
-
-public class ResponseB { }
+using SlimMessageBus.Host.Test.Common;
 
 public class MessageBusBaseTests : IDisposable
 {
@@ -40,7 +22,7 @@ public class MessageBusBaseTests : IDisposable
         _timeZero = DateTimeOffset.Now;
         _timeNow = _timeZero;
 
-        _producedMessages = new List<ProducedMessage>();
+        _producedMessages = [];
 
         _serviceProviderMock = new Mock<IServiceProvider>();
         _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(new JsonMessageSerializer());
@@ -106,6 +88,71 @@ public class MessageBusBaseTests : IDisposable
         // assert
         busCreation.Should().Throw<ConfigurationMessageBusException>()
             .WithMessage("*was declared more than once*");
+    }
+
+    [Fact]
+    public async Task When_Create_Then_BusLifecycleCreatedIsSentToRegisteredInterceptors()
+    {
+        // arrange
+        var busLifecycleInterceptorMock = new Mock<IMessageBusLifecycleInterceptor>();
+
+        _serviceProviderMock
+            .Setup(x => x.GetService(typeof(IEnumerable<IMessageBusLifecycleInterceptor>)))
+            .Returns(new IMessageBusLifecycleInterceptor[] { busLifecycleInterceptorMock.Object });
+
+        // act
+        BusBuilder.Build();
+
+        // assert
+        await busLifecycleInterceptorMock
+            .VerifyWithRetry(
+                // give some time for the fire & forget task to complete
+                TimeSpan.FromSeconds(2),
+                x => x.OnBusLifecycle(MessageBusLifecycleEventType.Created, It.IsAny<IMessageBus>()),
+                Times.Once());
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task When_Produce_Given_LongRunningCreateInterceptor_Then_ProduceWaitsUntilInterceptorFinishes(bool isPublish)
+    {
+        // arrange
+        var longRunnitIntitTask = Task.Delay(4000);
+
+        var busLifecycleInterceptorMock = new Mock<IMessageBusLifecycleInterceptor>();
+        busLifecycleInterceptorMock
+            .Setup(x => x.OnBusLifecycle(MessageBusLifecycleEventType.Created, It.IsAny<IMessageBus>()))
+            .Returns(() => longRunnitIntitTask);
+
+        _serviceProviderMock
+            .Setup(x => x.GetService(typeof(IEnumerable<IMessageBusLifecycleInterceptor>)))
+            .Returns(new IMessageBusLifecycleInterceptor[] { busLifecycleInterceptorMock.Object });
+
+        // setup responses for requests
+        Bus.OnReply = (type, topic, request) =>
+        {
+            if (request is RequestA req)
+            {
+                return new ResponseA { Id = req.Id };
+            }
+            return null;
+        };
+
+        BusBuilder.Build();
+
+        // act
+        if (isPublish)
+        {
+            await Bus.ProducePublish(new RequestA());
+        }
+        else
+        {
+            await Bus.ProduceSend<ResponseA>(new RequestA());
+        }
+
+        // assert
+        longRunnitIntitTask.IsCompletedSuccessfully.Should().BeTrue();
     }
 
     [Fact]

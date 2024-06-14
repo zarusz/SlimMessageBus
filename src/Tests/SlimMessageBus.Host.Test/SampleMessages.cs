@@ -60,3 +60,17 @@ public interface ICustomConsumer<T>
 
     Task MethodThatHasParamatersThatCannotBeSatisfied(T message, DateTimeOffset dateTimeOffset, CancellationToken cancellationToken);
 }
+
+public class RequestA : IRequest<ResponseA>
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+}
+
+public class ResponseA
+{
+    public string Id { get; set; }
+}
+
+public class RequestB : IRequest<ResponseB> { }
+
+public class ResponseB { }

@@ -38,6 +38,7 @@ public class HybridMessageBusTest
         _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(_messageSerializerMock.Object);
         _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
         _serviceProviderMock.Setup(x => x.GetService(typeof(ILoggerFactory))).Returns(_loggerFactoryMock.Object);
+        _serviceProviderMock.Setup(x => x.GetService(typeof(IEnumerable<IMessageBusLifecycleInterceptor>))).Returns(Array.Empty<IMessageBusLifecycleInterceptor>());
 
         _loggerFactoryMock.Setup(x => x.CreateLogger(It.IsAny<string>())).Returns(_loggerMock.Object);
 
@@ -47,7 +48,7 @@ public class HybridMessageBusTest
             mbb.Produce<AnotherMessage>(x => x.DefaultTopic("topic2"));
             mbb.WithProvider(mbs =>
             {
-                _bus1Mock = new Mock<MessageBusBase>(new[] { mbs });
+                _bus1Mock = new Mock<MessageBusBase>([mbs]);
                 _bus1Mock.SetupGet(x => x.Settings).Returns(mbs);
 
                 _bus1Mock.Setup(x => x.ProducePublish(It.IsAny<SomeMessage>(), It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IMessageBusTarget>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);

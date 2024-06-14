@@ -13,7 +13,7 @@ public class ConsumerInstanceMessageProcessorTest
     {
         _busMock = new MessageBusMock();
         _messageProviderMock = new Mock<MessageProvider<byte[]>>();
-        _transportMessage = Array.Empty<byte>();
+        _transportMessage = [];
         _topic = "topic";
         var messageBusSettings = new MessageBusSettings();
         _handlerSettings = new HandlerBuilder<SomeRequest, SomeResponse>(messageBusSettings).Topic(_topic).WithHandler<IRequestHandler<SomeRequest, SomeResponse>>().ConsumerSettings;
