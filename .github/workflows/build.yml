@@ -152,6 +152,7 @@ jobs:
         run: |
           mkdir ./dist
           find -name "*.nupkg" -exec cp {} ./dist \;
+          find -name "*.snupkg" -exec cp {} ./dist \;
           find ./dist
       - name: Archive NuGet packages
         uses: actions/upload-artifact@v3

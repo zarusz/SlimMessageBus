@@ -9,6 +9,17 @@
     <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
 
+  <!-- Source Link - Start -->
+  <PropertyGroup>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>    
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
+  </ItemGroup>
+  <!-- Source Link - Finish -->
+
   <ItemGroup>
     <None Include="..\..\docs\NuGet.md" Pack="true" PackagePath="\"/>
     <None Include="..\..\icon.png">

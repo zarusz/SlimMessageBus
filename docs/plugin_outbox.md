@@ -55,7 +55,22 @@ builder.Services.AddSlimMessageBus(mbb =>
         })
         .AddChildBus("AzureSB", mbb =>
         {
-            mbb.WithProviderServiceBus(cfg => cfg.ConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]))
+            mbb
+                .Handle<CreateCustomerCommand, Guid>(s =>
+                {
+                    s.Topic("samples.outbox/customer-events", t =>
+                    {
+                        t.WithHandler<CreateCustomerCommandHandler, CreateCustomerCommand>()
+                            .SubscriptionName("CreateCustomer");
+                    });
+                })
+                .WithProviderServiceBus(cfg =>
+                {
+                    cfg.ConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
+                    cfg.TopologyProvisioning.CanProducerCreateTopic = true;
+                    cfg.TopologyProvisioning.CanConsumerCreateQueue = true;
+                    cfg.TopologyProvisioning.CanConsumerReplaceSubscriptionFilters = true;
+                })
                 .Produce<CustomerCreatedEvent>(x =>
                 {
                     x.DefaultTopic("samples.outbox/customer-events");

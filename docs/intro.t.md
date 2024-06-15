@@ -37,6 +37,7 @@
   - [Generic interceptors](#generic-interceptors)
 - [Error Handling](#error-handling)
 - [Logging](#logging)
+- [Debugging](#debugging)
 - [Provider specific functionality](#provider-specific-functionality)
 
 ## Configuration
@@ -1020,11 +1021,26 @@ This allows to specialize and prioritize error handlers by transport.
 
 ## Logging
 
-SlimMessageBus uses [Microsoft.Extensions.Logging.Abstractions](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Abstractions).
+SlimMessageBus uses [Microsoft.Extensions.Logging.Abstractions](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Abstractions):
 
-The `ILoggerFactory` will be resolved from the dependency injection container.
+- The `ILoggerFactory` will be resolved from the dependency injection container.
+- When the `ILoggerFactory` is not configured nor available in the DI container SMB will use `NullLoggerFactory.Instance`.
 
-When the `ILoggerFactory` is not configured nor available in the DI container SMB will use `NullLoggerFactory.Instance`.
+## Debugging
+
+To help with debugging SlimMessageBus:
+
+- is integrated with [SourceLink](https://github.com/dotnet/sourcelink),
+- publishes symbol packages (`*.pdb` inside `*.snupkg`) into [NuGet.org](https://www.nuget.org/packages?q=SlimMessageBus).
+
+While in debugging mode, this should allow to step into code of the library, and see the source code tied to the library version that is being used. See here a [demo with Visual Studio](https://learn.microsoft.com/en-us/dotnet/standard/library-guidance/sourcelink).
+
+Ensure [Visual Studio is configured](https://learn.microsoft.com/en-us/visualstudio/debugger/specify-symbol-dot-pdb-and-source-files-in-the-visual-studio-debugger?view=vs-2022) to make this work:
+
+- `Options > Debugging > General > Enable Just My Code` is unchecked
+- `Options > Debugging > Symbols > NuGet.org Symbol Server` is checked
+
+> Since v2.4.0
 
 ## Provider specific functionality
 

@@ -270,13 +270,13 @@ The `SlimMessageBus` configuration for the in-memory provider looks like this:
 ```cs
 //IServiceCollection services;
 
-// Cofigure the message bus
+// Configure the message bus
 services.AddSlimMessageBus(mbb =>
 {
    mbb.WithProviderMemory();
    // Find types that implement IConsumer<T> and IRequestHandler<T, R> and declare producers and consumers on the mbb
    mbb.AutoDeclareFrom(Assembly.GetExecutingAssembly());
-   // Scan assembly for consumers, handlers, interceptors and configurators and register into MSDI
+   // Scan assembly for consumers, handlers, interceptors, and register into MSDI
    mbb.AddServicesFromAssemblyContaining<OrderSubmittedHandler>();
 });
 ```
@@ -318,10 +318,11 @@ See [sample](/src/Samples/README.md#sampleimages).
   - A hybrid of the above (e.g. Kafka with multiple topic consumers in one group)
 - Modern async/await syntax and TPL
 - Fluent configuration
-- Because SlimMessageBus is a facade, you can swap broker implementations
+- [SourceLink](docs/intro.md#debugging) support
+- Because SlimMessageBus is a facade, messaging transports can be change
   - Using NuGet pull another broker provider
   - Reconfigure SlimMessageBus and retest your app
-  - Try out the messaging middleware that works best for your app (Kafka vs. Redis) without having to rewrite your app.
+  - Try out the messaging system that works best for the use case (Kafka vs. Redis) without having to rewrite the app.
 
 ## Principles
 

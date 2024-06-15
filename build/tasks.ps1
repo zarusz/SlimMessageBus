@@ -98,13 +98,14 @@ function TestCi() {
 function NuPack() {
 	foreach ($project in $projects) {
 		_Step "Package project $project"
-		& dotnet pack "$root\src\$project\$project.csproj" --output $dist_folder --configuration $config
+		& dotnet pack "$root\src\$project\$project.csproj" --output $dist_folder --configuration $config -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg
 		_AssertExec
 	}
 }
 
 function NuPush($nuget_source) {
-	foreach ($package in Get-ChildItem $dist_folder -filter "*.nupkg" -name) {
+	# find both *.nupkg and *.snupkg files
+	foreach ($package in Get-ChildItem $dist_folder -filter "*.nupkg" -name) {		
 		_Step "Push $package to $nuget_source"
 		& dotnet nuget push "$dist_folder\$package" --source $nuget_source
 		_AssertExec
