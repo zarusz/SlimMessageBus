@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Outbox;
 
-public class OutboxSendingTask(
+internal class OutboxSendingTask(
     ILoggerFactory loggerFactory,
     OutboxSettings outboxSettings,
     IServiceProvider serviceProvider,
@@ -141,31 +141,10 @@ public class OutboxSendingTask(
 
                 var outboxRepository = scope.ServiceProvider.GetRequiredService<IOutboxRepository>();
 
-                var processedIds = new List<Guid>(_outboxSettings.PollBatchSize);
-
                 for (var ct = _loopCts.Token; !ct.IsCancellationRequested;)
                 {
-                    var idleRun = true;
-                    try
-                    {
-                        var lockExpiresOn = DateTime.UtcNow.Add(_outboxSettings.LockExpiration);
-                        var lockedCount = await outboxRepository.TryToLock(_instanceIdProvider.GetInstanceId(), lockExpiresOn, ct).ConfigureAwait(false);
-                        // Check if some messages where locked
-                        if (lockedCount > 0)
-                        {
-                            idleRun = await SendMessages(scope.ServiceProvider, outboxRepository, processedIds, ct).ConfigureAwait(false);
-                        }
-                    }
-                    catch (TaskCanceledException)
-                    {
-                        throw;
-                    }
-                    catch (Exception e)
-                    {
-                        _logger.LogError(e, "Error while processing outbox messages");
-                    }
-
-                    if (idleRun)
+                    await SendMessages(scope.ServiceProvider, outboxRepository, ct).ConfigureAwait(false);
+                    if (!ct.IsCancellationRequested)
                     {
                         if (ShouldRunCleanup())
                         {
@@ -173,7 +152,7 @@ public class OutboxSendingTask(
                             await outboxRepository.DeleteSent(DateTime.UtcNow.Add(-_outboxSettings.MessageCleanup.Age), ct).ConfigureAwait(false);
                         }
 
-                        await Task.Delay(_outboxSettings.PollIdleSleep).ConfigureAwait(false);
+                        await Task.Delay(_outboxSettings.PollIdleSleep, ct).ConfigureAwait(false);
                     }
                 }
             }
@@ -200,73 +179,97 @@ public class OutboxSendingTask(
         }
     }
 
-    private async Task<bool> SendMessages(IServiceProvider serviceProvider, IOutboxRepository outboxRepository, List<Guid> processedIds, CancellationToken ct)
+    public async Task<int> SendMessages(IServiceProvider serviceProvider, IOutboxRepository outboxRepository, CancellationToken ct)
     {
         var messageBus = serviceProvider.GetRequiredService<IMessageBus>();
         var compositeMessageBus = messageBus as ICompositeMessageBus;
         var messageBusTarget = messageBus as IMessageBusTarget;
 
-        var idleRun = true;
-
-        for (var hasMore = true; hasMore && !ct.IsCancellationRequested;)
+        var processedIds = new List<Guid>(_outboxSettings.PollBatchSize);
+        bool idleRun;
+        var count = 0;
+        do
         {
-            var outboxMessages = await outboxRepository.FindNextToSend(_instanceIdProvider.GetInstanceId(), ct);
-            if (outboxMessages.Count == 0)
-            {
-                break;
-            }
-
+            idleRun = true;
             try
             {
-                for (var i = 0; i < outboxMessages.Count && !ct.IsCancellationRequested; i++)
+                var lockExpiresOn = DateTime.UtcNow.Add(_outboxSettings.LockExpiration);
+                var lockedCount = await outboxRepository.TryToLock(_instanceIdProvider.GetInstanceId(), lockExpiresOn, ct).ConfigureAwait(false);
+                // Check if some messages where locked
+                if (lockedCount > 0)
                 {
-                    var outboxMessage = outboxMessages[i];
-
-                    var now = DateTime.UtcNow;
-                    if (now.Add(_outboxSettings.LockExpirationBuffer) > outboxMessage.LockExpiresOn)
+                    for (var hasMore = true; hasMore && !ct.IsCancellationRequested;)
                     {
-                        _logger.LogDebug("Stopping the outbox message processing after {MessageCount} (out of {BatchCount}) because the message lock was close to expiration {LockBuffer}", i, _outboxSettings.PollBatchSize, _outboxSettings.LockExpirationBuffer);
-                        hasMore = false;
-                        break;
-                    }
+                        var outboxMessages = await outboxRepository.FindNextToSend(_instanceIdProvider.GetInstanceId(), ct);
+                        if (outboxMessages.Count == 0)
+                        {
+                            break;
+                        }
 
-                    var bus = GetBus(compositeMessageBus, messageBusTarget, outboxMessage.BusName);
-                    if (bus == null)
-                    {
-                        _logger.LogWarning("Not able to find matching bus provider for the outbox message with Id {MessageId} of type {MessageType} to path {Path} using {BusName} bus. The message will be skipped.", outboxMessage.Id, outboxMessage.MessageType.Name, outboxMessage.Path, outboxMessage.BusName);
-                        continue;
-                    }
+                        try
+                        {
+                            for (var i = 0; i < outboxMessages.Count && !ct.IsCancellationRequested; i++)
+                            {
+                                var outboxMessage = outboxMessages[i];
 
-                    _logger.LogDebug("Sending outbox message with Id {MessageId} of type {MessageType} to path {Path} using {BusName} bus", outboxMessage.Id, outboxMessage.MessageType.Name, outboxMessage.Path, outboxMessage.BusName);
-                    var message = bus.Serializer.Deserialize(outboxMessage.MessageType, outboxMessage.MessagePayload);
+                                var now = DateTime.UtcNow;
+                                if (now.Add(_outboxSettings.LockExpirationBuffer) > outboxMessage.LockExpiresOn)
+                                {
+                                    _logger.LogDebug("Stopping the outbox message processing after {MessageCount} (out of {BatchCount}) because the message lock was close to expiration {LockBuffer}", i, _outboxSettings.PollBatchSize, _outboxSettings.LockExpirationBuffer);
+                                    hasMore = false;
+                                    break;
+                                }
 
-                    // Add special header to supress from forwarding the message againt to outbox
-                    var headers = outboxMessage.Headers ?? new Dictionary<string, object>();
-                    headers.Add(OutboxForwardingPublishInterceptor<object>.SkipOutboxHeader, string.Empty);
+                                var bus = GetBus(compositeMessageBus, messageBusTarget, outboxMessage.BusName);
+                                if (bus == null)
+                                {
+                                    _logger.LogWarning("Not able to find matching bus provider for the outbox message with Id {MessageId} of type {MessageType} to path {Path} using {BusName} bus. The message will be skipped.", outboxMessage.Id, outboxMessage.MessageType.Name, outboxMessage.Path, outboxMessage.BusName);
+                                    continue;
+                                }
 
-                    if (!ct.IsCancellationRequested)
-                    {
-                        await bus.ProducePublish(message, path: outboxMessage.Path, headers: headers, messageBusTarget, cancellationToken: ct);
+                                _logger.LogDebug("Sending outbox message with Id {MessageId} of type {MessageType} to path {Path} using {BusName} bus", outboxMessage.Id, outboxMessage.MessageType.Name, outboxMessage.Path, outboxMessage.BusName);
+                                var message = bus.Serializer.Deserialize(outboxMessage.MessageType, outboxMessage.MessagePayload);
 
-                        processedIds.Add(outboxMessage.Id);
+                                // Add special header to supress from forwarding the message againt to outbox
+                                var headers = outboxMessage.Headers ?? new Dictionary<string, object>();
+                                headers.Add(OutboxForwardingPublishInterceptor<object>.SkipOutboxHeader, string.Empty);
+
+                                if (!ct.IsCancellationRequested)
+                                {
+                                    await bus.ProducePublish(message, path: outboxMessage.Path, headers: headers, messageBusTarget, cancellationToken: ct);
+
+                                    processedIds.Add(outboxMessage.Id);
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            // confirm what messages were processed 
+                            if (processedIds.Count > 0)
+                            {
+                                _logger.LogDebug("Updating {MessageCount} outbox messages as sent", processedIds.Count);
+                                await outboxRepository.UpdateToSent(processedIds, ct);
+
+                                idleRun = false;
+
+                                count += processedIds.Count;
+                                processedIds.Clear();
+                            }
+                        }
                     }
                 }
             }
-            finally
+            catch (TaskCanceledException)
             {
-                // confirm what messages were processed 
-                if (processedIds.Count > 0)
-                {
-                    _logger.LogDebug("Updating {MessageCount} outbox messages as sent", processedIds.Count);
-                    await outboxRepository.UpdateToSent(processedIds, ct);
-
-                    idleRun = false;
-
-                    processedIds.Clear();
-                }
+                throw;
             }
-        }
-        return idleRun;
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error while processing outbox messages");
+            }
+        } while (!idleRun && !ct.IsCancellationRequested);
+
+        return count;
     }
 
     private static IMasterMessageBus GetBus(ICompositeMessageBus compositeMessageBus, IMessageBusTarget messageBusTarget, string name)

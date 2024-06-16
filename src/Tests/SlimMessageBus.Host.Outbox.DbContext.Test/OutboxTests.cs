@@ -1,13 +1,13 @@
 ﻿namespace SlimMessageBus.Host.Outbox.DbContext.Test;
 
+using Microsoft.EntityFrameworkCore.Migrations;
+
 [Trait("Category", "Integration")]
+[Collection(CustomerContext.Schema)]
 public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<OutboxTests>(testOutputHelper)
 {
     private TransactionType _testParamTransactionType;
     private BusType _testParamBusType;
-
-    private static readonly string OutboxTableName = "IntTest_Outbox";
-    private static readonly string MigrationsTableName = "IntTest_Migrations";
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
@@ -73,8 +73,9 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTe
                     {
                         cfg.ConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
                         cfg.PrefetchCount = 100;
+                        cfg.TopologyProvisioning.CreateTopicOptions = o => o.AutoDeleteOnIdle = TimeSpan.FromMinutes(5);
                     });
-                    topic = "tests.outbox/customer-events";
+                    topic = $"smb-tests/outbox/{Guid.NewGuid():N}/customer-events";
                 }
 
                 mbb
@@ -95,22 +96,31 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTe
                 opts.PollIdleSleep = TimeSpan.FromSeconds(0.5);
                 opts.MessageCleanup.Interval = TimeSpan.FromSeconds(10);
                 opts.MessageCleanup.Age = TimeSpan.FromMinutes(1);
-                opts.SqlSettings.DatabaseTableName = OutboxTableName;
-                opts.SqlSettings.DatabaseMigrationsTableName = MigrationsTableName;
+                opts.SqlSettings.DatabaseSchemaName = CustomerContext.Schema;
             });
         });
 
         services.AddSingleton<TestEventCollector<CustomerCreatedEvent>>();
 
         // Entity Framework setup - application specific EF DbContext
-        services.AddDbContext<CustomerContext>(options => options.UseSqlServer(Secrets.Service.PopulateSecrets(Configuration.GetConnectionString("DefaultConnection"))));
+        services.AddDbContext<CustomerContext>(
+            options => options.UseSqlServer(
+                Secrets.Service.PopulateSecrets(Configuration.GetConnectionString("DefaultConnection")), 
+                x => x.MigrationsHistoryTable(HistoryRepository.DefaultTableName, CustomerContext.Schema)));
     }
 
     private async Task PerformDbOperation(Func<CustomerContext, Task> action)
     {
-        using var scope = ServiceProvider!.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<CustomerContext>();
-        await action(context);
+        var scope = ServiceProvider!.CreateScope();
+        try
+        {
+            var context = scope.ServiceProvider.GetRequiredService<CustomerContext>();
+            await action(context);
+        }
+        finally
+        {
+            await ((IAsyncDisposable)scope).DisposeAsync();
+        }
     }
 
     public const string InvalidLastname = "Exception";
@@ -125,19 +135,11 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTe
         _testParamTransactionType = transactionType;
         _testParamBusType = busType;
 
-        await PerformDbOperation(async context =>
+        await PerformDbOperation(async (context) =>
         {
             // migrate db
+            await context.Database.DropSchemaIfExistsAsync(context.Model.GetDefaultSchema());
             await context.Database.MigrateAsync();
-
-            // clean outbox from previous test run
-            await context.Database.EraseTableIfExists(OutboxTableName);
-            await context.Database.EraseTableIfExists(MigrationsTableName);
-
-            // clean the customers table
-            var cust = await context.Customers.ToListAsync();
-            context.Customers.RemoveRange(cust);
-            await context.SaveChangesAsync();
         });
 
         var surnames = new[] { "Doe", "Smith", InvalidLastname };

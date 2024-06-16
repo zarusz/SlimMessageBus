@@ -2,6 +2,7 @@ version: '3.4'
 
 services:
   zookeeper:
+    container_name: slim.zookeeper
     image: wurstmeister/zookeeper
     ports:
       - "2181:2181"
@@ -9,6 +10,7 @@ services:
       - slim
 
   kafka:
+    container_name: slim.kafka
     image: wurstmeister/kafka
     ports:
       - "9092:9092"

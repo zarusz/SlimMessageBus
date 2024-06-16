@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 
 public class CustomerContext : DbContext
 {
+    public const string Schema = "Outbox";
+
     public DbSet<Customer> Customers { get; set; }
 
     #region EF migrations
@@ -35,6 +37,7 @@ public class CustomerContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Customer>(x => x.ToTable("IntTest_Customer"));
+        modelBuilder.HasDefaultSchema(Schema);
+        modelBuilder.Entity<Customer>();
     }
 }

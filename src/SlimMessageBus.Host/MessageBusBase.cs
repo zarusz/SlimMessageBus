@@ -205,7 +205,11 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         {
             foreach (var i in _lifecycleInterceptors)
             {
-                await i.OnBusLifecycle(eventType, MessageBusTarget);
+                var task = i.OnBusLifecycle(eventType, MessageBusTarget);
+                if (task != null)
+                {
+                    await task;
+                }
             }
         }
     }
