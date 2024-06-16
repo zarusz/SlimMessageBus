@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Outbox;
 
+using Microsoft.Extensions.DependencyInjection;
+
 public static class MessageBusBuilderExtensions
 {
     public static MessageBusBuilder AddOutbox(this MessageBusBuilder mbb, Action<OutboxSettings> configure = null)
@@ -30,7 +32,9 @@ public static class MessageBusBuilderExtensions
             }
             // Without optimization: services.TryAddEnumerable(ServiceDescriptor.Transient(typeof(IConsumerInterceptor<>), typeof(TransactionScopeConsumerInterceptor<>)));
 
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageBusLifecycleInterceptor, OutboxSendingTask>());
+            services.AddSingleton<OutboxSendingTask>();
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageBusLifecycleInterceptor, OutboxSendingTask>(sp => sp.GetRequiredService<OutboxSendingTask>()));
+
             services.TryAddSingleton<IInstanceIdProvider, DefaultInstanceIdProvider>();
 
             services.TryAddSingleton(svp =>

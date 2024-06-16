@@ -17,7 +17,8 @@ namespace SlimMessageBus.Host.Outbox.DbContext.Test.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.1")
+                .HasDefaultSchema("Outbox")
+                .HasAnnotation("ProductVersion", "8.0.3")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -39,7 +40,7 @@ namespace SlimMessageBus.Host.Outbox.DbContext.Test.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("IntTest_Customer", (string)null);
+                    b.ToTable("Customers", "Outbox");
                 });
 #pragma warning restore 612, 618
         }

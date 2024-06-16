@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Outbox.DbContext.Test;
 
+using Microsoft.EntityFrameworkCore.Migrations;
+
 /// <summary>
 /// This test should help to understand the runtime performance and overhead of the outbox feature.
 /// It will generate the time measurements for a given transport (Azure DB + Azure SQL instance) as the baseline, 
@@ -8,25 +10,26 @@
 /// </summary>
 /// <param name="testOutputHelper"></param>
 [Trait("Category", "Integration")] // for benchmarks
+[Collection(CustomerContext.Schema)]
 public class OutboxBenchmarkTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<OutboxBenchmarkTests>(testOutputHelper)
 {
-    private static readonly string OutboxTableName = "IntTest_Benchmark_Outbox";
-    private static readonly string MigrationsTableName = "IntTest_Benchmark_Migrations";
-
     private bool _useOutbox;
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
         services.AddSlimMessageBus(mbb =>
         {
+            mbb.AutoStartConsumersEnabled(false);
+
             mbb.AddChildBus("ExternalBus", mbb =>
             {
-                var topic = "tests.outbox-benchmark/customer-events";
+                var topic = $"smb-tests/outbox-benchmark/{Guid.NewGuid():N}/customer-events";
                 mbb
                     .WithProviderServiceBus(cfg =>
                     {
                         cfg.ConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
                         cfg.PrefetchCount = 100; // fetch 100 messages at a time
+                        cfg.TopologyProvisioning.CreateTopicOptions = o => o.AutoDeleteOnIdle = TimeSpan.FromMinutes(5);
                     })
                     .Produce<CustomerCreatedEvent>(x => x.DefaultTopic(topic))
                     .Consume<CustomerCreatedEvent>(x => x
@@ -46,26 +49,36 @@ public class OutboxBenchmarkTests(ITestOutputHelper testOutputHelper) : BaseInte
             mbb.AddOutboxUsingDbContext<CustomerContext>(opts =>
             {
                 opts.PollBatchSize = 100;
-                opts.PollIdleSleep = TimeSpan.FromSeconds(0.5);
+                opts.LockExpiration = TimeSpan.FromMinutes(5);
+                opts.PollIdleSleep = TimeSpan.FromDays(1);
                 opts.MessageCleanup.Interval = TimeSpan.FromSeconds(10);
                 opts.MessageCleanup.Age = TimeSpan.FromMinutes(1);
-                opts.SqlSettings.DatabaseTableName = OutboxTableName;
-                opts.SqlSettings.DatabaseMigrationsTableName = MigrationsTableName;
+                opts.SqlSettings.DatabaseSchemaName = CustomerContext.Schema;
             });
-            mbb.AutoStartConsumersEnabled(false);
         });
 
         services.AddSingleton<TestEventCollector<CustomerCreatedEvent>>();
 
         // Entity Framework setup - application specific EF DbContext
-        services.AddDbContext<CustomerContext>(options => options.UseSqlServer(Secrets.Service.PopulateSecrets(Configuration.GetConnectionString("DefaultConnection"))));
+        services.AddDbContext<CustomerContext>(
+            options => options.UseSqlServer(
+                Secrets.Service.PopulateSecrets(Configuration.GetConnectionString("DefaultConnection")),
+                x => x.MigrationsHistoryTable(HistoryRepository.DefaultTableName, CustomerContext.Schema)));
     }
 
-    private async Task PerformDbOperation(Func<CustomerContext, Task> action)
+    private async Task PerformDbOperation(Func<CustomerContext, IOutboxMigrationService, Task> action)
     {
-        using var scope = ServiceProvider!.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<CustomerContext>();
-        await action(context);
+        var scope = ServiceProvider!.CreateScope();
+        try
+        {
+            var context = scope.ServiceProvider.GetRequiredService<CustomerContext>();
+            var outboxMigrationService = scope.ServiceProvider.GetRequiredService<IOutboxMigrationService>();
+            await action(context, outboxMigrationService);
+        }
+        finally
+        {
+            await ((IAsyncDisposable)scope).DisposeAsync();
+        }
     }
 
     [Theory]
@@ -76,14 +89,14 @@ public class OutboxBenchmarkTests(ITestOutputHelper testOutputHelper) : BaseInte
         // arrange
         _useOutbox = useOutbox;
 
-        await PerformDbOperation(async context =>
+        await PerformDbOperation(async (context, outboxMigrationService) =>
         {
             // migrate db
+            await context.Database.DropSchemaIfExistsAsync(context.Model.GetDefaultSchema());
             await context.Database.MigrateAsync();
 
-            // clean outbox from previous test run
-            await context.Database.EraseTableIfExists(OutboxTableName);
-            await context.Database.EraseTableIfExists(MigrationsTableName);
+            // migrate outbox sql
+            await outboxMigrationService.Migrate(CancellationToken.None);
         });
 
         var surnames = new[] { "Doe", "Smith", "Kowalsky" };
@@ -118,6 +131,22 @@ public class OutboxBenchmarkTests(ITestOutputHelper testOutputHelper) : BaseInte
 
         var publishTimerElapsed = publishTimer.Elapsed;
 
+        // publish messages
+        var outboxPublishTimerElapsed = TimeSpan.Zero;
+        if (_useOutbox)
+        {
+            var outboxSendingTask = ServiceProvider.GetRequiredService<OutboxSendingTask>();
+            var outputRepository = ServiceProvider.GetRequiredService<IOutboxRepository>();
+
+            var outboxTimer = Stopwatch.StartNew();
+            var publishCount = await outboxSendingTask.SendMessages(ServiceProvider, outputRepository, CancellationToken.None);
+            outboxPublishTimerElapsed = outboxTimer.Elapsed;
+
+            publishCount.Should().Be(messageCount);
+        }
+
+        store.Clear();
+
         // start consumers
         await EnsureConsumersStarted();
 
@@ -126,12 +155,12 @@ public class OutboxBenchmarkTests(ITestOutputHelper testOutputHelper) : BaseInte
         await store.WaitUntilArriving(newMessagesTimeout: 5, expectedCount: events.Count);
 
         // assert
-
         var consumeTimerElapsed = consumptionTimer.Elapsed;
 
         // Log the measured times
-        Logger.LogInformation("Message Publish took: {Elapsed}", publishTimerElapsed);
-        Logger.LogInformation("Message Consume took: {Elapsed}", consumeTimerElapsed);
+        Logger.LogInformation("Message Publish took       : {Elapsed}", publishTimerElapsed);
+        Logger.LogInformation("Outbox publish took        : {Elapsed}", outboxPublishTimerElapsed);
+        Logger.LogInformation("Message Consume took       : {Elapsed}", consumeTimerElapsed);
 
         // Ensure the expected number of events was actually published to ASB and delivered via that channel.
         store.Count.Should().Be(events.Count);
