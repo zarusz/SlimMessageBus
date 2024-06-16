@@ -319,10 +319,7 @@ See [sample](/src/Samples/README.md#sampleimages).
 - Modern async/await syntax and TPL
 - Fluent configuration
 - [SourceLink](docs/intro.md#debugging) support
-- Because SlimMessageBus is a facade, messaging transports can be change
-  - Using NuGet pull another broker provider
-  - Reconfigure SlimMessageBus and retest your app
-  - Try out the messaging system that works best for the use case (Kafka vs. Redis) without having to rewrite the app.
+- Because SlimMessageBus is a facade, chosen messaging transports can be swapped without impacting the overall application architecture.
 
 ## Principles
 
