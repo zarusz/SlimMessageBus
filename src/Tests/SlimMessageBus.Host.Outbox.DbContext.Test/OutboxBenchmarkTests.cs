@@ -159,7 +159,7 @@ public class OutboxBenchmarkTests(ITestOutputHelper testOutputHelper) : BaseInte
 
         // Log the measured times
         Logger.LogInformation("Message Publish took       : {Elapsed}", publishTimerElapsed);
-        Logger.LogInformation("Outbox publish took        : {Elapsed}", outboxPublishTimerElapsed);
+        Logger.LogInformation("Outbox Publish took        : {Elapsed}", outboxPublishTimerElapsed);
         Logger.LogInformation("Message Consume took       : {Elapsed}", consumeTimerElapsed);
 
         // Ensure the expected number of events was actually published to ASB and delivered via that channel.

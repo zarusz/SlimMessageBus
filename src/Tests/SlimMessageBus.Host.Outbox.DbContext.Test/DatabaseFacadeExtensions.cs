@@ -22,12 +22,6 @@ public static class DatabaseFacadeExtensions
             END
             """;
 
-        var connection = database.GetDbConnection();
-        if (!connection.GetType().Name.Equals("SqlConnection"))
-        {
-            throw new InvalidOperationException($"'{nameof(EnsureSchemaIsEmptyAsync)}' supports SQL server only.");
-        }
-
         try
         {
             await database.EnsureSchemaIsEmptyAsync(schema, cancellationToken);
@@ -240,12 +234,6 @@ public static class DatabaseFacadeExtensions
                 PRINT 'Sequences dropped.';
             END
             """;
-
-        var connection = database.GetDbConnection();
-        if (!connection.GetType().Name.Equals("SqlConnection"))
-        {
-            throw new InvalidOperationException($"'{nameof(EnsureSchemaIsEmptyAsync)}' supports SQL server only.");
-        };
 
         await database.ExecuteSqlInterpolatedAsync(sql, cancellationToken);
     }
