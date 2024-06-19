@@ -22,7 +22,7 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTe
                 {
                     mbb.UseSqlTransaction(); // Consumers/Handlers will be wrapped in a SqlTransaction
                 }
-                if (_testParamTransactionType == TransactionType.TarnsactionScope)
+                if (_testParamTransactionType == TransactionType.TransactionScope)
                 {
                     mbb.UseTransactionScope(); // Consumers/Handlers will be wrapped in a TransactionScope
                 }
@@ -127,7 +127,7 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTe
 
     [Theory]
     [InlineData([TransactionType.SqlTransaction, BusType.AzureSB, 100])]
-    [InlineData([TransactionType.TarnsactionScope, BusType.AzureSB, 100])]
+    [InlineData([TransactionType.TransactionScope, BusType.AzureSB, 100])]
     [InlineData([TransactionType.SqlTransaction, BusType.Kafka, 100])]
     public async Task Given_CommandHandlerInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoDataSaved_And_NoEventRaised(TransactionType transactionType, BusType busType, int messageCount)
     {

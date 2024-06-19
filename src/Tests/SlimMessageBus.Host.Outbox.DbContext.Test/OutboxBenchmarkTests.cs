@@ -1,6 +1,10 @@
 ﻿namespace SlimMessageBus.Host.Outbox.DbContext.Test;
 
+using System.Net.Mime;
+
 using Microsoft.EntityFrameworkCore.Migrations;
+
+using SlimMessageBus.Host.RabbitMQ;
 
 /// <summary>
 /// This test should help to understand the runtime performance and overhead of the outbox feature.
@@ -14,6 +18,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 public class OutboxBenchmarkTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<OutboxBenchmarkTests>(testOutputHelper)
 {
     private bool _useOutbox;
+    private BusType _testParamBusType;
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
@@ -21,34 +26,88 @@ public class OutboxBenchmarkTests(ITestOutputHelper testOutputHelper) : BaseInte
         {
             mbb.AutoStartConsumersEnabled(false);
 
-            mbb.AddChildBus("ExternalBus", mbb =>
+            switch (_testParamBusType)
             {
-                var topic = $"smb-tests/outbox-benchmark/{Guid.NewGuid():N}/customer-events";
-                mbb
-                    .WithProviderServiceBus(cfg =>
+                case BusType.AzureSB:
+                    mbb.AddChildBus("Azure", mbb =>
                     {
-                        cfg.ConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
-                        cfg.PrefetchCount = 100; // fetch 100 messages at a time
-                        cfg.TopologyProvisioning.CreateTopicOptions = o => o.AutoDeleteOnIdle = TimeSpan.FromMinutes(5);
-                    })
-                    .Produce<CustomerCreatedEvent>(x => x.DefaultTopic(topic))
-                    .Consume<CustomerCreatedEvent>(x => x
-                        .Topic(topic)
-                        .WithConsumer<CustomerCreatedEventConsumer>()
-                        .Instances(20) // process messages in parallel
-                        .SubscriptionName(nameof(OutboxBenchmarkTests))); // for AzureSB
+                        var topic = $"smb-tests/outbox-benchmark/{DateTimeOffset.UtcNow.Ticks}/customer-events";
+                        mbb
+                            .WithProviderServiceBus(cfg =>
+                            {
+                                cfg.ConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
+                                cfg.PrefetchCount = 100; // fetch 100 messages at a time
+                                cfg.TopologyProvisioning.CreateTopicOptions = o => o.AutoDeleteOnIdle = TimeSpan.FromMinutes(5);
+                            })
+                            .Produce<CustomerCreatedEvent>(x => x.DefaultTopic(topic))
+                            .Consume<CustomerCreatedEvent>(x => x
+                                .Topic(topic)
+                                .WithConsumer<CustomerCreatedEventConsumer>()
+                                .Instances(20) // process messages in parallel
+                                .SubscriptionName(nameof(OutboxBenchmarkTests))); // for AzureSB
 
-                if (_useOutbox)
-                {
-                    mbb
-                        .UseOutbox(); // All outgoing messages from this bus will go out via an outbox
-                }
-            });
+                        if (_useOutbox)
+                        {
+                            mbb
+                                .UseOutbox(); // All outgoing messages from this bus will go out via an outbox
+                        }
+                    });
+                    break;
+
+                case BusType.RabbitMQ:
+                    mbb.AddChildBus("Rabbit", mbb =>
+                    {
+                        var topic = $"{nameof(OutboxBenchmarkTests)}-{DateTimeOffset.UtcNow.Ticks}";
+                        var queue = nameof(CustomerCreatedEvent);
+
+                        mbb.WithProviderRabbitMQ(cfg =>
+                        {
+                            cfg.ConnectionString = Secrets.Service.PopulateSecrets(configuration["RabbitMQ:ConnectionString"]);
+                            cfg.ConnectionFactory.ClientProvidedName = $"{nameof(OutboxBenchmarkTests)}_{Environment.MachineName}";
+
+                            cfg.UseMessagePropertiesModifier((m, p) =>
+                            {
+                                p.ContentType = MediaTypeNames.Application.Json;
+                            });
+                            cfg.UseExchangeDefaults(durable: false);
+                            cfg.UseQueueDefaults(durable: false);
+                            cfg.UseTopologyInitializer((channel, applyDefaultTopology) =>
+                            {
+                                // before test clean up
+                                channel.QueueDelete(queue, ifUnused: true, ifEmpty: false);
+                                channel.ExchangeDelete(topic, ifUnused: true);
+
+                                // apply default SMB inferred topology
+                                applyDefaultTopology();
+
+                                // after
+                            });
+                        })
+                        .Produce<CustomerCreatedEvent>(x => x
+                            .Exchange(topic, exchangeType: ExchangeType.Fanout, autoDelete: true)
+                            .RoutingKeyProvider((m, p) => Guid.NewGuid().ToString()))
+                        .Consume<CustomerCreatedEvent>(x => x
+                            .Queue(queue, autoDelete: true)
+                            .ExchangeBinding(topic)
+                            .AcknowledgementMode(RabbitMqMessageAcknowledgementMode.AckAutomaticByRabbit)
+                            .WithConsumer<CustomerCreatedEventConsumer>());
+
+                        if (_useOutbox)
+                        {
+                            mbb
+                                .UseOutbox(); // All outgoing messages from this bus will go out via an outbox
+                        }
+                    });
+                    break;
+                default:
+                    throw new NotSupportedException($"Bus {_testParamBusType} is not configured");
+            }
+
             mbb.AddServicesFromAssembly(Assembly.GetExecutingAssembly());
             mbb.AddJsonSerializer();
             mbb.AddOutboxUsingDbContext<CustomerContext>(opts =>
             {
-                opts.PollBatchSize = 100;
+                opts.PollBatchSize = 500;
                 opts.LockExpiration = TimeSpan.FromMinutes(5);
                 opts.PollIdleSleep = TimeSpan.FromDays(1);
                 opts.MessageCleanup.Interval = TimeSpan.FromSeconds(10);
@@ -82,10 +141,14 @@ public class OutboxBenchmarkTests(ITestOutputHelper testOutputHelper) : BaseInte
     }
 
     [Theory]
-    [InlineData([true, 1000])] // compare with outbox
-    [InlineData([false, 1000])] // vs. without outbox
-    public async Task Given_EventPublisherAndConsumerUsingOutbox_When_BurstOfEventsIsSent_Then_EventsAreConsumedProperly(bool useOutbox, int messageCount)
+    [InlineData([BusType.AzureSB, true, 1000])]     // compare with outbox
+    [InlineData([BusType.RabbitMQ, true, 1000])]
+    [InlineData([BusType.AzureSB, false, 1000])]    // vs. without outbox
+    [InlineData([BusType.RabbitMQ, false, 1000])]
+    public async Task Given_EventPublisherAndConsumerUsingOutbox_When_BurstOfEventsIsSent_Then_EventsAreConsumedProperly(BusType busType, bool useOutbox, int messageCount)
     {
+        _testParamBusType = busType;
+
         // arrange
         _useOutbox = useOutbox;
 
@@ -117,7 +180,7 @@ public class OutboxBenchmarkTests(ITestOutputHelper testOutputHelper) : BaseInte
                     var bus = unitOfWorkScope.ServiceProvider.GetRequiredService<IMessageBus>();
                     try
                     {
-                        await bus.Publish(ev, headers: new Dictionary<string, object> { ["CustomerId"] = ev.Id });
+                        await bus.Publish(ev, headers: new Dictionary<string, object> { ["CustomerId"] = ev.Id.ToString() });
                     }
                     catch (Exception ex)
                     {
