@@ -4,4 +4,5 @@ public enum BusType
 {
     AzureSB,
     Kafka,
+    RabbitMQ
 }
