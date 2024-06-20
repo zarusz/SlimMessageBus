@@ -5,7 +5,6 @@ using SlimMessageBus.Host.AzureServiceBus.Consumer;
 public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
 {
     private readonly ILogger _logger;
-    private readonly Random _random;
     private ServiceBusClient _client;
     private SafeDictionaryWrapper<string, ServiceBusSender> _producerByPath;
 
@@ -13,7 +12,6 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
         : base(settings, providerSettings)
     {
         _logger = LoggerFactory.CreateLogger<ServiceBusMessageBus>();
-        _random = new Random();
 
         OnBuildProvider();
     }
