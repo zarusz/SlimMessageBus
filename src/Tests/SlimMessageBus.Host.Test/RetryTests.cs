@@ -63,7 +63,7 @@ public static class RetryTests
         public void ShouldThrowArgumentNullException_WhenShouldRetryIsNull()
         {
             // Arrange
-            Func<CancellationToken, Task> operation = async (ct) => { };
+            Func<CancellationToken, Task> operation = (ct) => Task.CompletedTask;
             Func<Exception, int, bool> shouldRetry = null;
             var delay = TimeSpan.FromMilliseconds(10);
 

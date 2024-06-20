@@ -96,7 +96,7 @@ public class OutboxLockRenewalTimerTests
             lockLostAction ?? _lockLostAction);
     }
 
-    private async Task InvokeCallbackAsync(OutboxLockRenewalTimer timer)
+    private static async Task InvokeCallbackAsync(OutboxLockRenewalTimer timer)
     {
         var callbackMethod = typeof(OutboxLockRenewalTimer).GetMethod("CallbackAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         await (Task)callbackMethod.Invoke(timer, null);
