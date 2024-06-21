@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="MQTTnet " Version="4.1.4.563" />
-    <PackageReference Include="MQTTnet.Extensions.ManagedClient" Version="4.3.3.952" />
+    <PackageReference Include="MQTTnet.Extensions.ManagedClient" Version="4.3.6.1152" />
   </ItemGroup>
 
   <ItemGroup>
@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Update="MQTTnet" Version="4.3.3.952" />
+    <PackageReference Update="MQTTnet" Version="4.3.6.1152" />
   </ItemGroup>
 
 </Project>
