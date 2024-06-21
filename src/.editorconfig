@@ -179,6 +179,6 @@ dotnet_style_allow_statement_immediately_after_block_experimental = true:silent
 dotnet_style_prefer_collection_expression = when_types_loosely_match:suggestion
 dotnet_diagnostic.CA1859.severity = silent
 
-[*.csproj]
+[*.{csproj,xml}]
 indent_style = space
 indent_size = 2
