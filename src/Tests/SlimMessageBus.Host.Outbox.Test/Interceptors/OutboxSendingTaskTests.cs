@@ -29,15 +29,15 @@ public class OutboxSendingTaskTests
     [Fact]
     public async Task DispatchBatchAsync_ShouldReturnSuccess_WhenAllMessagesArePublished()
     {
-        var batch = new List<EnvelopeWithId>
+        var batch = new List<OutboxBulkMessage>
         {
-            new EnvelopeWithId(Guid.NewGuid(), "Message1", typeof(string), new Dictionary<string, object>()),
-            new EnvelopeWithId(Guid.NewGuid(), "Message2", typeof(string), new Dictionary<string, object>())
+            new(Guid.NewGuid(), "Message1", typeof(string), new Dictionary<string, object>()),
+            new(Guid.NewGuid(), "Message2", typeof(string), new Dictionary<string, object>())
         }.AsReadOnly();
 
-        var results = (Dispatched: batch, Exception: (Exception)null);
+        var results = new ProduceToTransportBulkResult<OutboxBulkMessage>(batch, null);
 
-        _producerMock.Setup(x => x.ProduceToTransport(batch, It.IsAny<string>(), It.IsAny<IMessageBusTarget>(), It.IsAny<CancellationToken>()))
+        _producerMock.Setup(x => x.ProduceToTransportBulk(batch, It.IsAny<string>(), It.IsAny<IMessageBusTarget>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(results);
 
         var (success, published) = await _sut.DispatchBatchAsync(_outboxRepositoryMock.Object, _producerMock.Object, _messageBusTargetMock.Object, batch, "busName", "path", CancellationToken.None);
@@ -49,15 +49,15 @@ public class OutboxSendingTaskTests
     [Fact]
     public async Task DispatchBatchAsync_ShouldReturnFailure_WhenNotAllMessagesArePublished()
     {
-        var batch = new List<EnvelopeWithId>
+        var batch = new List<OutboxBulkMessage>
         {
-            new EnvelopeWithId(Guid.NewGuid(), "Message1", typeof(string), new Dictionary<string, object>()),
-            new EnvelopeWithId(Guid.NewGuid(), "Message2", typeof(string), new Dictionary<string, object>())
+            new(Guid.NewGuid(), "Message1", typeof(string), new Dictionary<string, object>()),
+            new(Guid.NewGuid(), "Message2", typeof(string), new Dictionary<string, object>())
         }.AsReadOnly();
 
-        var results = (Dispatched: new List<EnvelopeWithId> { batch.First() }, Exception: (Exception)null);
+        var results = new ProduceToTransportBulkResult<OutboxBulkMessage>([batch.First()], null);
 
-        _producerMock.Setup(x => x.ProduceToTransport(batch, It.IsAny<string>(), It.IsAny<IMessageBusTarget>(), It.IsAny<CancellationToken>()))
+        _producerMock.Setup(x => x.ProduceToTransportBulk(batch, It.IsAny<string>(), It.IsAny<IMessageBusTarget>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(results);
 
         var (success, published) = await _sut.DispatchBatchAsync(_outboxRepositoryMock.Object, _producerMock.Object, _messageBusTargetMock.Object, batch, "busName", "path", CancellationToken.None);
@@ -69,15 +69,15 @@ public class OutboxSendingTaskTests
     [Fact]
     public async Task DispatchBatchAsync_ShouldIncrementDeliveryAttempts_WhenNotAllMessagesArePublished()
     {
-        var batch = new List<EnvelopeWithId>
+        var batch = new List<OutboxBulkMessage>
         {
-            new EnvelopeWithId(Guid.NewGuid(), "Message1", typeof(string), new Dictionary<string, object>()),
-            new EnvelopeWithId(Guid.NewGuid(), "Message2", typeof(string), new Dictionary<string, object>())
+            new(Guid.NewGuid(), "Message1", typeof(string), new Dictionary<string, object>()),
+            new(Guid.NewGuid(), "Message2", typeof(string), new Dictionary<string, object>())
         }.AsReadOnly();
 
-        var results = (Dispatched: new List<EnvelopeWithId> { batch.First() }, Exception: (Exception)null);
+        var results = new ProduceToTransportBulkResult<OutboxBulkMessage>([batch.First()], null);
 
-        _producerMock.Setup(x => x.ProduceToTransport(batch, It.IsAny<string>(), It.IsAny<IMessageBusTarget>(), It.IsAny<CancellationToken>()))
+        _producerMock.Setup(x => x.ProduceToTransportBulk(batch, It.IsAny<string>(), It.IsAny<IMessageBusTarget>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(results);
 
         await _sut.DispatchBatchAsync(_outboxRepositoryMock.Object, _producerMock.Object, _messageBusTargetMock.Object, batch, "busName", "path", CancellationToken.None);

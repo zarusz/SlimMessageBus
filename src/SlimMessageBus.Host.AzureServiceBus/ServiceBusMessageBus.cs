@@ -116,15 +116,14 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
         }
     }
 
-    protected override async Task<(IReadOnlyCollection<T> Dispatched, Exception Exception)> ProduceToTransport<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
+    protected override async Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
-        async Task SendBatchAsync(ServiceBusSender senderClient, ServiceBusMessageBatch batch, CancellationToken cancellationToken)
-        {
-            await Retry.WithDelay(
+        Task SendBatchAsync(ServiceBusSender senderClient, ServiceBusMessageBatch batch, CancellationToken cancellationToken) =>
+            Retry.WithDelay(
                 async cancellationToken =>
                 {
                     await senderClient.SendMessagesAsync(batch, cancellationToken).ConfigureAwait(false);
-                    _logger.LogDebug("Batch of {BatchSize} message(s) dispatched to {path} ({SizeInBytes} bytes)", batch.Count, path, batch.SizeInBytes);
+                    _logger.LogDebug("Batch of {BatchSize} message(s) dispatched to {Path} ({SizeInBytes} bytes)", batch.Count, path, batch.SizeInBytes);
                 },
                 (exception, attempt) =>
                 {
@@ -135,18 +134,16 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
                         _logger.LogWarning("Service bus throttled. Backing off (Attempt: {Attempt}).", attempt);
                         return true;
                     }
-
                     return false;
                 },
-                TimeSpan.FromSeconds(2),
-                TimeSpan.FromSeconds(1),
+                delay: TimeSpan.FromSeconds(2),
+                jitter: TimeSpan.FromSeconds(1),
                 cancellationToken);
-        }
 
         AssertActive();
 
-        var messages = envelopes.Select(
-            envelope =>
+        var messages = envelopes
+            .Select(envelope =>
             {
                 var messageType = envelope.Message?.GetType();
                 var messagePayload = Serializer.Serialize(envelope.MessageType, envelope.Message);
@@ -190,12 +187,12 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
                 await senderClient.SendMessageAsync(item.ServiceBusMessage, cancellationToken: cancellationToken).ConfigureAwait(false);
                 _logger.LogDebug("Delivered item {Message} of type {MessageType} to {Path}", item.Envelope.Message, item.Envelope.MessageType?.Name, path);
 
-                return ([item.Envelope], null);
+                return new([item.Envelope], null);
             }
             catch (Exception ex)
             {
                 _logger.LogDebug(ex, "Producing message {Message} of type {MessageType} to path {Path} resulted in error {Error}", item.Envelope.Message, item.Envelope.MessageType?.Name, path, ex.Message);
-                return ([], ex);
+                return new([], ex);
             }
         }
 
@@ -233,12 +230,12 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
                 batch = null;
             }
 
-            return (dispatched, null);
+            return new(dispatched, null);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Producing message batch to path {Path} resulted in error {Error}", path, ex.Message);
-            return (dispatched, ex);
+            return new(dispatched, ex);
         }
         finally
         {

@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Sql;
 
-using Microsoft.Extensions.DependencyInjection;
-
 public class SqlMessageBus : MessageBusBase<SqlMessageBusSettings>
 {
     public SqlMessageBus(MessageBusSettings settings, SqlMessageBusSettings providerSettings)
@@ -27,12 +25,12 @@ public class SqlMessageBus : MessageBusBase<SqlMessageBusSettings>
         await provisioningService.Migrate(CancellationToken); // provisining happens asynchronously
     }
 
-    protected override async Task<(IReadOnlyCollection<T> Dispatched, Exception Exception)> ProduceToTransport<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
+    protected override Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
         var sqlRepository = targetBus.ServiceProvider.GetService<ISqlRepository>();
 
         // ToDo: Save to table
 
-        return ([], new NotImplementedException());
+        return Task.FromResult(new ProduceToTransportBulkResult<T>([], new NotImplementedException()));
     }
 }

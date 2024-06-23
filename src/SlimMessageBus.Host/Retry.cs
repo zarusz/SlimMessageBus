@@ -2,21 +2,23 @@
 
 public static class Retry
 {
-    private static Random _random = new(); // NOSONAR
+    private static readonly Random _random = new(); // NOSONAR
 
     public static async Task WithDelay(Func<CancellationToken, Task> operation, Func<Exception, int, bool> shouldRetry, TimeSpan? delay, TimeSpan? jitter = default, CancellationToken cancellationToken = default)
     {
-        if (operation is null)
-        {
-            throw new ArgumentNullException(nameof(operation));
-        }
+#if NETSTANDARD2_0
+        if (operation is null) throw new ArgumentNullException(nameof(operation));
+#else
+        ArgumentNullException.ThrowIfNull(operation);
+#endif
 
-        if (shouldRetry is null)
-        {
-            throw new ArgumentNullException(nameof(shouldRetry));
-        }
+#if NETSTANDARD2_0
+        if (shouldRetry is null) throw new ArgumentNullException(nameof(shouldRetry));
+#else
+        ArgumentNullException.ThrowIfNull(shouldRetry);
+#endif
 
-        var pass = 0;
+        var attempt = 0;
         do
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -32,7 +34,7 @@ public static class Retry
             }
             catch (Exception e)
             {
-                if (!shouldRetry(e, pass++))
+                if (!shouldRetry(e, attempt++))
                 {
                     throw;
                 }
