@@ -252,7 +252,7 @@ internal class OutboxSendingTask(
                         outboxMessage =>
                         {
                             var message = bus.Serializer.Deserialize(outboxMessage.MessageType, outboxMessage.MessagePayload);
-                            return new EnvelopeWithId(outboxMessage.Id, message, outboxMessage.MessageType, outboxMessage.Headers ?? new Dictionary<string, object>());
+                            return new OutboxBulkMessage(outboxMessage.Id, message, outboxMessage.MessageType, outboxMessage.Headers ?? new Dictionary<string, object>());
                         })
                         .Batch(bulkProducer.MaxMessagesPerTransaction ?? defaultBatchSize);
 
@@ -271,12 +271,12 @@ internal class OutboxSendingTask(
         return count;
     }
 
-    internal async Task<(bool Success, int Published)> DispatchBatchAsync(IOutboxRepository outboxRepository, IMessageBusBulkProducer producer, IMessageBusTarget messageBusTarget, IReadOnlyCollection<EnvelopeWithId> batch, string busName, string path, CancellationToken cancellationToken)
+    internal async Task<(bool Success, int Published)> DispatchBatchAsync(IOutboxRepository outboxRepository, IMessageBusBulkProducer producer, IMessageBusTarget messageBusTarget, IReadOnlyCollection<OutboxBulkMessage> batch, string busName, string path, CancellationToken cancellationToken)
     {
         _logger.LogDebug("Publishing batch of {MessageCount} messages to pathGroup {Path} on {BusName} bus", batch.Count, path, busName);
 
         // TOOD: Enclose in a transaction
-        var results = await producer.ProduceToTransport(batch, path, messageBusTarget, cancellationToken).ConfigureAwait(false);
+        var results = await producer.ProduceToTransportBulk(batch, path, messageBusTarget, cancellationToken).ConfigureAwait(false);
         if (cancellationToken.IsCancellationRequested && results.Dispatched.Count == 0)
         {
             // if cancellation has been requested, only return if no messages were published
@@ -311,14 +311,14 @@ internal class OutboxSendingTask(
         return null;
     }
 
-    public record EnvelopeWithId : Envelope
+    public record OutboxBulkMessage : BulkMessageEnvelope
     {
-        public EnvelopeWithId(Guid id, object Message, Type MessageType, IDictionary<string, object> Headers)
-            : base(Message, MessageType, Headers)
+        public Guid Id { get; }
+
+        public OutboxBulkMessage(Guid id, object message, Type messageType, IDictionary<string, object> headers)
+            : base(message, messageType, headers)
         {
             Id = id;
         }
-
-        public Guid Id { get; }
     }
 }

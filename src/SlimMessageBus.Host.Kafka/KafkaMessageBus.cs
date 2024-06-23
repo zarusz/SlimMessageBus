@@ -114,7 +114,7 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
         }
     }
 
-    protected override async Task<(IReadOnlyCollection<T> Dispatched, Exception Exception)> ProduceToTransport<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
+    protected override async Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
         AssertActive();
 
@@ -172,10 +172,10 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
         }
         catch (Exception ex)
         {
-            return (dispatched, ex);
+            return new(dispatched, ex);
         }
 
-        return (dispatched, null);
+        return new(dispatched, null);
     }
 
     protected byte[] GetMessageKey(ProducerSettings producerSettings, Type messageType, object message, string topic)

@@ -128,7 +128,7 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
         }
     }
 
-    protected override async Task<(IReadOnlyCollection<T> Dispatched, Exception Exception)> ProduceToTransport<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
+    protected override async Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
         await EnsureInitFinished();
 
@@ -178,9 +178,9 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
         }
         catch (Exception ex)
         {
-            return (dispatched, ex);
+            return new(dispatched, ex);
         }
 
-        return (dispatched, null);
+        return new(dispatched, null);
     }
 }

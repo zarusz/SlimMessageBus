@@ -420,8 +420,8 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     protected async Task ProduceToTransport(object message, Type messageType, string path, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
     {
-        var envelope = new Envelope(message, messageType, messageHeaders);
-        var result = await ProduceToTransport([envelope], path, targetBus, cancellationToken);
+        var envelope = new BulkMessageEnvelope(message, messageType, messageHeaders);
+        var result = await ProduceToTransportBulk([envelope], path, targetBus, cancellationToken);
         if (result.Exception != null)
         {
             if (result.Exception is ProducerMessageBusException)
@@ -433,7 +433,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         }
     }
 
-    protected abstract Task<(IReadOnlyCollection<T> Dispatched, Exception Exception)> ProduceToTransport<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken = default) where T : Envelope;
+    protected abstract Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken) where T : BulkMessageEnvelope;
 
     public virtual Task ProducePublish(object message, string path = null, IDictionary<string, object> headers = null, IMessageBusTarget targetBus = null, CancellationToken cancellationToken = default)
     {
@@ -718,7 +718,8 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     /// <returns></returns>
     protected virtual string GenerateRequestId() => Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
 
-    public virtual bool IsMessageScopeEnabled(ConsumerSettings consumerSettings, IDictionary<string, object> consumerContextProperties) => consumerSettings.IsMessageScopeEnabled ?? Settings.IsMessageScopeEnabled ?? true;
+    public virtual bool IsMessageScopeEnabled(ConsumerSettings consumerSettings, IDictionary<string, object> consumerContextProperties)
+        => consumerSettings.IsMessageScopeEnabled ?? Settings.IsMessageScopeEnabled ?? true;
 
     public virtual IMessageScope CreateMessageScope(ConsumerSettings consumerSettings, object message, IDictionary<string, object> consumerContextProperties, IServiceProvider currentServiceProvider = null)
     {
@@ -728,12 +729,6 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     public virtual Task ProvisionTopology() => Task.CompletedTask;
 
-    Task<(IReadOnlyCollection<T> Dispatched, Exception Exception)> IMessageBusBulkProducer.ProduceToTransport<T>(
-        IReadOnlyCollection<T> envelopes,
-        string path,
-        IMessageBusTarget targetBus,
-        CancellationToken cancellationToken)
-    {
-        return ProduceToTransport(envelopes, path, targetBus, cancellationToken);
-    }
+    Task<ProduceToTransportBulkResult<T>> IMessageBusBulkProducer.ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
+        => ProduceToTransportBulk(envelopes, path, targetBus, cancellationToken);
 }

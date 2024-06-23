@@ -35,7 +35,7 @@ public class MessageBusTested : MessageBusBase
         return base.OnStop();
     }
 
-    protected override async Task<(IReadOnlyCollection<T> Dispatched, Exception Exception)> ProduceToTransport<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
+    protected override async Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
     {
         await EnsureInitFinished();
 
@@ -72,10 +72,10 @@ public class MessageBusTested : MessageBusBase
         }
         catch (Exception ex)
         {
-            return (dispatched, ex);
+            return new(dispatched, ex);
         }
 
-        return (dispatched, null);
+        return new(dispatched, null);
     }
 
     public override DateTimeOffset CurrentTime => CurrentTimeProvider();

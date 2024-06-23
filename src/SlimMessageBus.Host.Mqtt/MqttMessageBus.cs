@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Mqtt;
 
-using System.Security.Cryptography;
-
 using MQTTnet.Extensions.ManagedClient;
 
 public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
@@ -103,10 +101,10 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
         return Task.CompletedTask;
     }
 
-    protected override async Task<(IReadOnlyCollection<T> Dispatched, Exception Exception)> ProduceToTransport<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
+    protected override async Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
-        var messages = envelopes.Select(
-            envelope =>
+        var messages = envelopes
+            .Select(envelope =>
             {
                 var messagePayload = Serializer.Serialize(envelope.MessageType, envelope.Message);
 
@@ -156,10 +154,10 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
             }
             catch (Exception ex)
             {
-                return (dispatched, ex);
+                return new(dispatched, ex);
             }
         }
 
-        return (dispatched, null);
+        return new(dispatched, null);
     }
 }

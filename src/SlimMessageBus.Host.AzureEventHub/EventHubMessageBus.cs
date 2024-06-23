@@ -104,43 +104,42 @@ public class EventHubMessageBus : MessageBusBase<EventHubMessageBusSettings>
         }
     }
 
-    protected override async Task<(IReadOnlyCollection<T> Dispatched, Exception Exception)> ProduceToTransport<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
+    protected override async Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
         AssertActive();
 
         var dispatched = new List<T>(envelopes.Count);
         try
         {
-            var messages = envelopes
+            var messagesByPartition = envelopes
                 .Where(x => x.Message != null)
-                .Select(
-                    envelope =>
+                .Select(envelope =>
+                {
+                    var messageType = envelope.Message?.GetType();
+                    var messagePayload = Serializer.Serialize(envelope.MessageType, envelope.Message);
+
+                    _logger.LogDebug("Producing message {Message} of Type {MessageType} on Path {Path} with Size {MessageSize}", envelope.Message, messageType?.Name, path, messagePayload?.Length ?? 0);
+
+                    var ev = envelope.Message != null ? new EventData(messagePayload) : new EventData();
+
+                    if (envelope.Headers != null)
                     {
-                        var messageType = envelope.Message?.GetType();
-                        var messagePayload = Serializer.Serialize(envelope.MessageType, envelope.Message);
-
-                        _logger.LogDebug("Producing message {Message} of Type {MessageType} on Path {Path} with Size {MessageSize}", envelope.Message, messageType?.Name, path, messagePayload?.Length ?? 0);
-
-                        var ev = envelope.Message != null ? new EventData(messagePayload) : new EventData();
-
-                        if (envelope.Headers != null)
+                        foreach (var header in envelope.Headers)
                         {
-                            foreach (var header in envelope.Headers)
-                            {
-                                ev.Properties.Add(header.Key, header.Value);
-                            }
+                            ev.Properties.Add(header.Key, header.Value);
                         }
+                    }
 
-                        var partitionKey = messageType != null
-                            ? GetPartitionKey(messageType, envelope.Message)
-                            : null;
+                    var partitionKey = messageType != null
+                        ? GetPartitionKey(messageType, envelope.Message)
+                        : null;
 
-                        return (Envelope: envelope, Message: ev, PartitionKey: partitionKey);
-                    })
-                    .GroupBy(x => x.PartitionKey);
+                    return (Envelope: envelope, Message: ev, PartitionKey: partitionKey);
+                })
+                .GroupBy(x => x.PartitionKey);
 
             var producer = _producerByPath[path];
-            foreach (var partition in messages)
+            foreach (var partition in messagesByPartition)
             {
                 EventDataBatch batch = null;
                 try
@@ -184,7 +183,7 @@ public class EventHubMessageBus : MessageBusBase<EventHubMessageBusSettings>
                         batch = null;
                     }
 
-                    return (dispatched, null);
+                    return new(dispatched, null);
                 }
                 finally
                 {
@@ -194,10 +193,10 @@ public class EventHubMessageBus : MessageBusBase<EventHubMessageBusSettings>
         }
         catch (Exception ex)
         {
-            return (dispatched, ex);
+            return new(dispatched, ex);
         }
 
-        return (dispatched, null);
+        return new(dispatched, null);
     }
 
     #endregion

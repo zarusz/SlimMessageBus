@@ -147,9 +147,13 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
 
     #region Overrides of MessageBusBase
 
-    protected override async Task<(IReadOnlyCollection<T> Dispatched, Exception Exception)> ProduceToTransport<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
+    protected override async Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
+#if NETSTANDARD2_0
         if (envelopes is null) throw new ArgumentNullException(nameof(envelopes));
+#else
+        ArgumentNullException.ThrowIfNull(envelopes);
+#endif
 
         AssertActive();
 
@@ -184,10 +188,10 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
         }
         catch (Exception ex)
         {
-            return (dispatched, ex);
+            return new(dispatched, ex);
         }
 
-        return (dispatched, null);
+        return new(dispatched, null);
     }
 
     #endregion
