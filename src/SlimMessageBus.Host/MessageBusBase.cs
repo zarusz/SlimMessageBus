@@ -610,6 +610,12 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         if (consumerInvoker == null) throw new ArgumentNullException(nameof(consumerInvoker));
 
         var responseType = consumerInvoker.ParentSettings.ResponseType;
+        if (!requestHeaders.TryGetHeader(ReqRespMessageHeaders.ReplyTo, out object replyTo))
+        {
+            _logger.LogDebug($$"""Skipping sending response {Response} of type {MessageType} as the header {{ReqRespMessageHeaders.ReplyTo}} is missing for RequestId: {RequestId}""", response, responseType, requestId);
+            return Task.CompletedTask;
+        }
+
         _logger.LogDebug("Sending the response {Response} of type {MessageType} for RequestId: {RequestId}...", response, responseType, requestId);
 
         var responseHeaders = CreateHeaders();
@@ -617,11 +623,6 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         if (responseException != null)
         {
             responseHeaders.SetHeader(ReqRespMessageHeaders.Error, responseException.Message);
-        }
-
-        if (!requestHeaders.TryGetHeader(ReqRespMessageHeaders.ReplyTo, out object replyTo))
-        {
-            throw new MessageBusException($"The header {ReqRespMessageHeaders.ReplyTo} was missing on the message");
         }
 
         _headerService.AddMessageTypeHeader(response, responseHeaders);
