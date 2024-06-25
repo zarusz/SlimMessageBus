@@ -1,4 +1,9 @@
 ﻿namespace SlimMessageBus.Host.Test;
+
+using System.Threading;
+
+using Moq.Protected;
+
 using SlimMessageBus.Host.Test.Common;
 
 public class MessageBusBaseTests : IDisposable
@@ -654,5 +659,51 @@ public class MessageBusBaseTests : IDisposable
         // assert
         bus._startedCount.Should().Be(1);
         bus._stoppedCount.Should().Be(1);
+    }
+
+    public class ProduceResponseTests
+    {
+        [Fact]
+        public async Task When_Given_NoReplyToHeader_DoNothing()
+        {
+            // arrange
+            var requestId = "req-123";
+            var request = new object();
+            var response = new object();
+
+            object value;
+            var mockRequestHeaders = new Mock<IReadOnlyDictionary<string, object>>();
+            mockRequestHeaders.Setup(x => x.TryGetValue(ReqRespMessageHeaders.ReplyTo, out value)).Returns(false).Verifiable(Times.Once);
+
+            var mockMessageTypeResolver = new Mock<IMessageTypeResolver>();
+
+            var mockServiceProvider = new Mock<IServiceProvider>();
+            mockServiceProvider.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(mockMessageTypeResolver.Object);
+
+            var mockMessageTypeConsumerInvokerSettings = new Mock<IMessageTypeConsumerInvokerSettings>();
+            mockMessageTypeConsumerInvokerSettings.SetupGet(x => x.ParentSettings).Returns(() => new ConsumerSettings() { ResponseType = response.GetType() });
+
+            var settings = new MessageBusSettings { ServiceProvider = mockServiceProvider.Object };
+
+            var mockMessageBus = new Mock<MessageBusBase>(settings) { CallBase = true };
+            mockMessageBus.Protected().Setup<Task<ProduceToTransportBulkResult<BulkMessageEnvelope>>>(
+                "ProduceToTransportBulk",
+                [typeof(BulkMessageEnvelope)],
+                false,
+                ItExpr.IsAny<IReadOnlyCollection<BulkMessageEnvelope>>(),
+                ItExpr.IsAny<string>(),
+                ItExpr.IsAny<IMessageBusTarget>(),
+                ItExpr.IsAny<CancellationToken>())
+                .Verifiable(Times.Never);
+
+            var target = mockMessageBus.Object;
+
+            // act
+            await target.ProduceResponse(requestId, request, mockRequestHeaders.Object, response, null, mockMessageTypeConsumerInvokerSettings.Object);
+
+            // assert
+            mockRequestHeaders.VerifyAll();
+            mockMessageBus.VerifyAll();
+        }
     }
 }
