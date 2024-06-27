@@ -106,14 +106,19 @@ internal class OutboxSendingTask(
 
     private static async Task MigrateSchema(IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
+        var scope = serviceProvider.CreateScope();
         try
         {
-            var outboxMigrationService = serviceProvider.GetRequiredService<IOutboxMigrationService>();
+            var outboxMigrationService = scope.ServiceProvider.GetRequiredService<IOutboxMigrationService>();
             await outboxMigrationService.Migrate(cancellationToken);
         }
         catch (Exception e)
         {
             throw new MessageBusException("Outbox schema migration failed", e);
+        }
+        finally
+        {
+            await ((IAsyncDisposable)scope).DisposeAsync();
         }
     }
 
