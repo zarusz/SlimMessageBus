@@ -92,8 +92,8 @@ public class OutboxLockRenewalTimerTests
             _instanceIdProviderMock.Object,
             _lockDuration,
             _lockRenewalInterval,
-            _cancellationTokenSource.Token,
-            lockLostAction ?? _lockLostAction);
+            lockLostAction ?? _lockLostAction,
+            _cancellationTokenSource.Token);
     }
 
     private static async Task InvokeCallbackAsync(OutboxLockRenewalTimer timer)

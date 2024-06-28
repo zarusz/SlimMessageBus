@@ -2,6 +2,8 @@
 
 using Microsoft.Extensions.DependencyInjection;
 
+using SlimMessageBus.Host.Outbox.Services;
+
 public static class MessageBusBuilderExtensions
 {
     public static MessageBusBuilder AddOutbox(this MessageBusBuilder mbb, Action<OutboxSettings> configure = null)
@@ -34,6 +36,7 @@ public static class MessageBusBuilderExtensions
 
             services.AddSingleton<OutboxSendingTask>();
             services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageBusLifecycleInterceptor, OutboxSendingTask>(sp => sp.GetRequiredService<OutboxSendingTask>()));
+            services.TryAdd(ServiceDescriptor.Singleton<IOutboxNotificationService, OutboxSendingTask>(sp => sp.GetRequiredService<OutboxSendingTask>()));
 
             services.TryAddSingleton<IInstanceIdProvider, DefaultInstanceIdProvider>();
             services.TryAddSingleton<IOutboxLockRenewalTimerFactory, OutboxLockRenewalTimerFactory>();

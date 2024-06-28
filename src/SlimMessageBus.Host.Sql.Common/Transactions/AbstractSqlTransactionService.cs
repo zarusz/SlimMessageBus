@@ -36,7 +36,7 @@ public abstract class AbstractSqlTransactionService(SqlConnection connection) : 
             // Start transaction
             _transactionFailed = false;
             _transactionCompleted = false;
-            await OnBeginTransation();
+            await OnBeginTransaction();
         }
     }
 
@@ -62,7 +62,7 @@ public abstract class AbstractSqlTransactionService(SqlConnection connection) : 
         }
     }
 
-    protected abstract Task OnBeginTransation();
+    protected abstract Task OnBeginTransaction();
 
     protected abstract Task OnCompleteTransaction(bool transactionFailed);
 
