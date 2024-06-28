@@ -75,7 +75,7 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTe
                         cfg.PrefetchCount = 100;
                         cfg.TopologyProvisioning.CreateTopicOptions = o => o.AutoDeleteOnIdle = TimeSpan.FromMinutes(5);
                     });
-                    topic = $"smb-tests/outbox/{DateTimeOffset.UtcNow.Ticks}/customer-events";
+                    topic = $"smb-tests/{nameof(OutboxTests)}/outbox/{DateTimeOffset.UtcNow.Ticks}";
                 }
 
                 mbb

@@ -137,26 +137,12 @@ When applied on the (child) bus level then all consumers (or handlers) will inhe
 
 - The transaction can be managed by the application, starting it either explicitly using `DbContext.Database.BeginTransactionAsync()` or creating a `TransactionScope()`.
 
-- The plugin accounts for distributed service running in multiple instances (concurrently).
+- On the interceptor being disposed (at then end of a message lifecycle), the outbox service will be notified that a message is waiting to be published if at least one messages was placed in the outbox during the message processing lifetime. Alternatively, on expiry of the `PollIdleSleep` period following outbox processing, the same process will be initiated.
 
-- Message added to the `Outbox` table are initially owned by the respective service instance that created it, the message has a lock that expires at some point in time (driven by settings). Every service instance task attempts to publish their owned messages which happens in order of creation (this ensures order of delivery within the same process).
+- If the configuration setting `MaintainSequence` is set to `true`, only one application instance will be able to lock messages for delivery. This ensure messages are delivered in the original order to the service bus at the expense of delivery throughput. If `false`, each distributed instance will place an exclusive lock on `PollBatchSize` messages for concurrent distribution. This will greatly increase throughput at the expense of the FIFO sequence.
 
 - If a service instance where to crash or restart, the undelivered messages will be picked and locked by another instance.
 
 - Once a message is picked from outbox and successfully delivered then it is marked as sent in the outbox table.
 
-- At configured intervals and after a certain time span the sent messages are removed from the outbox table.
-
-## Interceptors/Batch processing
-
-While all transports (apart from memory) can make use of the [Transactional Outbox](https://microservices.io/patterns/data/transactional-outbox.html) pattern, not all transports are able to process messages in bulk. Those that do, may have varying levels of support (no batching). If the transport provider implements the `IMessageBusBulkProducer` interface, messages that read from outbox __will not be reprocessed through the interceptor pipeline__. Providers that do not implement `IMessageBusBulkProducer` however, will run through the pipeline a second time but under a different execution context from the first.
-
-| Transport         | First Pass Interceptors  | Second Pass Interceptors  | Batches   |
-|--------------------------------------------------------------------------------------|
-| Azure Event Hub   | Yes                      | No                        | Yes       |
-| Azure Service Bus | Yes                      | No                        | Yes       |
-| Hybrid            | Yes                      | Yes                       | No        |
-| Kafka             | Yes                      | No                        | No        |
-| Memory            | Yes                      | n/a                       | n/a       |
-| Mqtt              | Yes                      | No                        | No        |
-| Redis             | Yes                      | No                        | No        |
+- At configured intervals (`MessageCleanup.Interval`), and after a configured time span (`MessageCleanup.Age`), the sent messages are removed from the outbox table.

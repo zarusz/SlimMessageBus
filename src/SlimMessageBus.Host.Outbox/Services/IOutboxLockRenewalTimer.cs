@@ -1,4 +1,4 @@
-﻿namespace SlimMessageBus.Host.Outbox;
+﻿namespace SlimMessageBus.Host.Outbox.Services;
 
 public interface IOutboxLockRenewalTimer : IDisposable
 {
