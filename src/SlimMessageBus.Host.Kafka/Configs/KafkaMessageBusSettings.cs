@@ -1,32 +1,44 @@
 namespace SlimMessageBus.Host.Kafka;
 
-using ConsumerBuilder = Confluent.Kafka.ConsumerBuilder<Confluent.Kafka.Ignore, byte[]>;
-using ProducerBuilder = Confluent.Kafka.ProducerBuilder<byte[], byte[]>;
-
 public class KafkaMessageBusSettings
 {
     /// <summary>
     /// The Kafka broker nodes. This corresponds to "bootstrap.servers" Kafka setting.
     /// </summary>
     public string BrokerList { get; set; }
+
     /// <summary>
-    /// Factory method that creates a <see cref="ProducerBuilder"/> based on the supplied settings.
+    /// Factory method that creates a <see cref="ProducerBuilder"/> based on the supplied config.
     /// </summary>
     public Func<ProducerConfig, ProducerBuilder> ProducerBuilderFactory { get; set; }
+
     /// <summary>
-    /// Factory method that created a <see cref="Producer"/>.
+    /// Delegate that configured the <see cref="ProducerConfig"/> object.
     /// See also: https://kafka.apache.org/documentation/#producerconfigs
     /// </summary>
     public Action<ProducerConfig> ProducerConfig { get; set; }
+
     /// <summary>
-    /// Factory method that creates a <see cref="ConsumerBuilder"/> based on the supplied settings and consumer GroupId. 
+    /// Factory method that creates a <see cref="ConsumerBuilder"/> based on the supplied config. 
     /// </summary>
     public Func<ConsumerConfig, ConsumerBuilder> ConsumerBuilderFactory { get; set; }
+
     /// <summary>
-    /// Factory method that creates settings based on the consumer GroupId.
+    /// Delegate that configured the <see cref="ConsumerConfig"/> object.
     /// See also: https://kafka.apache.org/documentation/#newconsumerconfigs
     /// </summary>
     public Action<ConsumerConfig> ConsumerConfig { get; set; }
+
+    /// <summary>
+    /// Factory method that creates a <see cref="AdminClientBuilder"/> based on the supplied config. 
+    /// </summary>
+    public Func<AdminClientConfig, AdminClientBuilder> AdminClientBuilderFactory { get; set; }
+
+    /// <summary>
+    /// Delegate that configured the <see cref="AdminClientConfig"/> object.
+    /// </summary>
+    public Action<AdminClientConfig> AdminClientConfig { get; set; }
+
     /// <summary>
     /// The timespan of the Poll retry when kafka consumer Poll operation errors out.
     /// </summary>
@@ -48,9 +60,15 @@ public class KafkaMessageBusSettings
     {
         ProducerConfig = (config) => { };
         ProducerBuilderFactory = (config) => new ProducerBuilder<byte[], byte[]>(config);
+
         ConsumerConfig = (config) => { };
         ConsumerBuilderFactory = (config) => new ConsumerBuilder<Ignore, byte[]>(config);
+
+        AdminClientConfig = (config) => { };
+        AdminClientBuilderFactory = (config) => new AdminClientBuilder(config);
+
         ConsumerPollRetryInterval = TimeSpan.FromSeconds(2);
+
         HeaderSerializer = new DefaultKafkaHeaderSerializer();
     }
 

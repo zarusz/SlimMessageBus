@@ -1,20 +1,12 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus;
 
-using System;
-using System.Data;
-
-public class ServiceBusTopologyService
+public class ServiceBusTopologyService : BusTopologyService<ServiceBusMessageBusSettings>
 {
-    private readonly ILogger<ServiceBusTopologyService> _logger;
-    private readonly MessageBusSettings _settings;
-    private readonly ServiceBusMessageBusSettings _providerSettings;
     private readonly ServiceBusAdministrationClient _adminClient;
 
     public ServiceBusTopologyService(ILogger<ServiceBusTopologyService> logger, MessageBusSettings settings, ServiceBusMessageBusSettings providerSettings)
+        : base(logger, settings, providerSettings)
     {
-        _logger = logger;
-        _settings = settings;
-        _providerSettings = providerSettings;
         _adminClient = providerSettings.AdminClientFactory();
     }
 
@@ -60,15 +52,15 @@ public class ServiceBusTopologyService
 
         if (!canCreate)
         {
-            _logger.LogWarning("Queue {Path} does not exist and queue creation was not allowed", path);
+            Logger.LogWarning("Queue {Path} does not exist and queue creation was not allowed", path);
             return TopologyCreationStatus.NotExists;
         }
 
         var options = new CreateQueueOptions(path);
-        _providerSettings.TopologyProvisioning?.CreateQueueOptions?.Invoke(options);
+        ProviderSettings.TopologyProvisioning?.CreateQueueOptions?.Invoke(options);
         action?.Invoke(options);
 
-        _logger.LogInformation("Creating queue: {Path} ...", path);
+        Logger.LogInformation("Creating queue: {Path} ...", path);
         await _adminClient.CreateQueueAsync(options);
 
         return TopologyCreationStatus.Exists | TopologyCreationStatus.Created;
@@ -80,15 +72,15 @@ public class ServiceBusTopologyService
 
         if (!canCreate)
         {
-            _logger.LogWarning("Topic {Path} does not exist and topic creation was not allowed", path);
+            Logger.LogWarning("Topic {Path} does not exist and topic creation was not allowed", path);
             return TopologyCreationStatus.NotExists;
         }
 
         var options = new CreateTopicOptions(path);
-        _providerSettings.TopologyProvisioning?.CreateTopicOptions?.Invoke(options);
+        ProviderSettings.TopologyProvisioning?.CreateTopicOptions?.Invoke(options);
         action?.Invoke(options);
 
-        _logger.LogInformation("Creating topic: {Path} ...", path);
+        Logger.LogInformation("Creating topic: {Path} ...", path);
         await _adminClient.CreateTopicAsync(options);
 
         return TopologyCreationStatus.Exists | TopologyCreationStatus.Created;
@@ -98,28 +90,28 @@ public class ServiceBusTopologyService
     {
         if (await _adminClient.SubscriptionExistsAsync(path, subscriptionName)) return TopologyCreationStatus.Exists;
 
-        if (!_providerSettings.TopologyProvisioning.CanConsumerCreateSubscription)
+        if (!ProviderSettings.TopologyProvisioning.CanConsumerCreateSubscription)
         {
-            _logger.LogWarning("Subscription {SubscriptionName} does not exist on topic {Path} and subscription creation was not allowed", subscriptionName, path);
+            Logger.LogWarning("Subscription {SubscriptionName} does not exist on topic {Path} and subscription creation was not allowed", subscriptionName, path);
             return TopologyCreationStatus.NotExists;
         }
 
         var options = optionsFactory();
 
-        _logger.LogInformation("Creating subscription: {SubscriptionName} on topic: {Path} ...", subscriptionName, path);
+        Logger.LogInformation("Creating subscription: {SubscriptionName} on topic: {Path} ...", subscriptionName, path);
         await _adminClient.CreateSubscriptionAsync(options);
         return TopologyCreationStatus.Exists | TopologyCreationStatus.Created;
     });
 
     private Task<TopologyCreationStatus> TryCreateRule(string path, string subscriptionName, CreateRuleOptions options) => SwallowExceptionIfEntityExists(async () =>
     {
-        if (!_providerSettings.TopologyProvisioning.CanConsumerCreateSubscriptionFilter)
+        if (!ProviderSettings.TopologyProvisioning.CanConsumerCreateSubscriptionFilter)
         {
-            _logger.LogWarning("Rule {RuleName} does not exist on subscription {SubscriptionName} on topic {Path} and options creation was not allowed", options.Name, subscriptionName, path);
+            Logger.LogWarning("Rule {RuleName} does not exist on subscription {SubscriptionName} on topic {Path} and options creation was not allowed", options.Name, subscriptionName, path);
             return TopologyCreationStatus.NotExists;
         }
 
-        _logger.LogInformation("Creating options: {RuleName} on subscription {SubscriptionName} on topic: {Path} ...", options.Name, subscriptionName, path);
+        Logger.LogInformation("Creating options: {RuleName} on subscription {SubscriptionName} on topic: {Path} ...", options.Name, subscriptionName, path);
         await _adminClient.CreateRuleAsync(path, subscriptionName, options);
 
         return TopologyCreationStatus.Exists | TopologyCreationStatus.Created;
@@ -127,13 +119,13 @@ public class ServiceBusTopologyService
 
     private Task<TopologyCreationStatus> TryDeleteRule(string path, string subscriptionName, string name) => SwallowExceptionIfMessagingEntityNotFound(async () =>
     {
-        if (!_providerSettings.TopologyProvisioning.CanConsumerReplaceSubscriptionFilters)
+        if (!ProviderSettings.TopologyProvisioning.CanConsumerReplaceSubscriptionFilters)
         {
-            _logger.LogWarning("Rule {RuleName} exists on subscription {SubscriptionName} on topic {Path} but should not. Updating options is not allowed.", name, subscriptionName, path);
+            Logger.LogWarning("Rule {RuleName} exists on subscription {SubscriptionName} on topic {Path} but should not. Updating options is not allowed.", name, subscriptionName, path);
             return TopologyCreationStatus.Exists;
         }
 
-        _logger.LogInformation("Replacing options: removing {RuleName} on subscription {SubscriptionName} on topic: {Path} ...", name, subscriptionName, path);
+        Logger.LogInformation("Replacing options: removing {RuleName} on subscription {SubscriptionName} on topic: {Path} ...", name, subscriptionName, path);
         await _adminClient.DeleteRuleAsync(path, subscriptionName, name);
 
         return TopologyCreationStatus.Exists | TopologyCreationStatus.Created;
@@ -141,30 +133,31 @@ public class ServiceBusTopologyService
 
     private Task<TopologyCreationStatus> TryUpdateRule(string path, string subscriptionName, RuleProperties options) => SwallowExceptionIfEntityExists(async () =>
     {
-        if (!_providerSettings.TopologyProvisioning.CanConsumerReplaceSubscriptionFilters)
+        if (!ProviderSettings.TopologyProvisioning.CanConsumerReplaceSubscriptionFilters)
         {
-            _logger.LogWarning("Rule {RuleName} exists on subscription {SubscriptionName} on topic {Path} but does not match the expected configuration. Updating options is not allowed.", options.Name, subscriptionName, path);
+            Logger.LogWarning("Rule {RuleName} exists on subscription {SubscriptionName} on topic {Path} but does not match the expected configuration. Updating options is not allowed.", options.Name, subscriptionName, path);
             return TopologyCreationStatus.NotExists;
         }
 
-        _logger.LogInformation("Updating options: {RuleName} on subscription {SubscriptionName} on topic: {Path} ...", options.Name, subscriptionName, path);
+        Logger.LogInformation("Updating options: {RuleName} on subscription {SubscriptionName} on topic: {Path} ...", options.Name, subscriptionName, path);
         await _adminClient.UpdateRuleAsync(path, subscriptionName, options);
 
         return TopologyCreationStatus.Exists | TopologyCreationStatus.Updated;
     });
 
-    public Task ProvisionTopology() => _providerSettings.TopologyProvisioning.OnProvisionTopology(_adminClient, DoProvisionTopology);
+    protected override Task OnProvisionTopology()
+        => ProviderSettings.TopologyProvisioning.OnProvisionTopology(_adminClient, DoProvisionTopology);
 
     protected async Task DoProvisionTopology()
     {
         try
         {
-            _logger.LogInformation("Topology provisioning started...");
+            Logger.LogInformation("Topology provisioning started...");
 
-            var topologyProvisioning = _providerSettings.TopologyProvisioning;
+            var topologyProvisioning = ProviderSettings.TopologyProvisioning;
 
-            var consumersSettingsByPath = _settings.Consumers.OfType<AbstractConsumerSettings>()
-                .Concat(new[] { _settings.RequestResponse })
+            var consumersSettingsByPath = Settings.Consumers.OfType<AbstractConsumerSettings>()
+                .Concat([Settings.RequestResponse])
                 .Where(x => x != null)
                 .GroupBy(x => (x.Path, x.PathKind))
                 .ToDictionary(x => x.Key, x => x.ToList());
@@ -197,7 +190,7 @@ public class ServiceBusTopologyService
                     if ((topicStatus & TopologyCreationStatus.Exists) != 0)
                     {
                         var consumerSettingsBySubscription = consumerSettingsList
-                            .Select(x => (ConsumerSettings: x, SubscriptionName: x.GetSubscriptionName(_providerSettings)))
+                            .Select(x => (ConsumerSettings: x, SubscriptionName: x.GetSubscriptionName(ProviderSettings)))
                             .Where(x => x.SubscriptionName != null)
                             .GroupBy(x => x.SubscriptionName)
                             .ToDictionary(x => x.Key, x => x.Select(z => z.ConsumerSettings).ToList());
@@ -220,7 +213,7 @@ public class ServiceBusTopologyService
                                 var options = consumerSettingsGroup.Aggregate((CreateSubscriptionOptions)null, (acc, consumerSettings) =>
                                 {
                                     var options = new CreateSubscriptionOptions(path, subscriptionName);
-                                    _providerSettings.TopologyProvisioning?.CreateSubscriptionOptions?.Invoke(options);
+                                    ProviderSettings.TopologyProvisioning?.CreateSubscriptionOptions?.Invoke(options);
                                     options.RequiresSession = consumerSettings.GetEnableSession();
 
                                     consumerSettings.GetSubscriptionOptions()?.Invoke(options);
@@ -297,7 +290,7 @@ public class ServiceBusTopologyService
                 }
             }
 
-            foreach (var producerSettings in _settings.Producers)
+            foreach (var producerSettings in Settings.Producers)
             {
                 if (producerSettings.PathKind == PathKind.Queue)
                 {
@@ -311,11 +304,11 @@ public class ServiceBusTopologyService
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "Could not provision Azure Service Bus topology");
+            Logger.LogError(e, "Could not provision Azure Service Bus topology");
         }
         finally
         {
-            _logger.LogInformation("Topology provisioning finished");
+            Logger.LogInformation("Topology provisioning finished");
         }
     }
 
@@ -337,7 +330,7 @@ public class ServiceBusTopologyService
                 Action = !string.IsNullOrWhiteSpace(rule.SqlAction) ? new SqlRuleAction(rule.SqlAction) : null
             };
 
-            _providerSettings.TopologyProvisioning?.CreateSubscriptionFilterOptions?.Invoke(createRuleOptions);
+            ProviderSettings.TopologyProvisioning?.CreateSubscriptionFilterOptions?.Invoke(createRuleOptions);
 
             dict.Add(name, createRuleOptions);
         }

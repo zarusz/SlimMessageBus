@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Kafka;
 
-using SlimMessageBus.Host.Services;
-
 internal class KafkaMessageBusSettingsValidationService : DefaultMessageBusSettingsValidationService<KafkaMessageBusSettings>
 {
     public KafkaMessageBusSettingsValidationService(MessageBusSettings settings, KafkaMessageBusSettings providerSettings) : base(settings, providerSettings)

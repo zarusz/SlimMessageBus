@@ -11,7 +11,7 @@ public class KafkaPartitionConsumerForResponses : KafkaPartitionConsumer
     public KafkaPartitionConsumerForResponses(ILoggerFactory loggerFactory, RequestResponseSettings requestResponseSettings, string group, TopicPartition topicPartition, IKafkaCommitController commitController, IResponseConsumer responseConsumer, IMessageSerializer headerSerializer)
         : base(
             loggerFactory, 
-            new[] { requestResponseSettings }, 
+            [requestResponseSettings], 
             group, 
             topicPartition, 
             commitController, 
