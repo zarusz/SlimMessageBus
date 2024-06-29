@@ -1,8 +1,5 @@
 namespace SlimMessageBus.Host.Kafka;
 
-using IProducer = Confluent.Kafka.IProducer<byte[], byte[]>;
-using Message = Confluent.Kafka.Message<byte[], byte[]>;
-
 /// <summary>
 /// <see cref="IMessageBus"/> implementation for Apache Kafka.
 /// Note that internal driver Producer/Consumer are all thread-safe (see https://github.com/edenhill/librdkafka/issues/215)
@@ -37,6 +34,14 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
     {
         AssertActive();
         _producer.Flush();
+    }
+
+    public override async Task ProvisionTopology()
+    {
+        await base.ProvisionTopology();
+
+        var provisioningService = new KafkaBusTopologyService(LoggerFactory.CreateLogger<KafkaBusTopologyService>(), Settings, ProviderSettings);
+        await provisioningService.ProvisionTopology(); // provisioning happens asynchronously
     }
 
     public IProducer CreateProducerInternal()
@@ -95,7 +100,7 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
 
         if (Settings.RequestResponse != null && !responseConsumerCreated)
         {
-            AddGroupConsumer(Settings.RequestResponse.GetGroup(), new[] { Settings.RequestResponse.Path }, ResponseProcessorFactory);
+            AddGroupConsumer(Settings.RequestResponse.GetGroup(), [Settings.RequestResponse.Path], ResponseProcessorFactory);
         }
     }
 
