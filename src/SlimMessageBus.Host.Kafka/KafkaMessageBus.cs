@@ -26,6 +26,11 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
     {
         base.Build();
 
+        if (ProviderSettings.TopologyProvisioning?.Enabled ?? false)
+        {
+            AddInit(ProvisionTopology());
+        }
+
         _logger.LogInformation("Creating producers for {BusName} bus...", Name);
         _producer = CreateProducerInternal();
     }

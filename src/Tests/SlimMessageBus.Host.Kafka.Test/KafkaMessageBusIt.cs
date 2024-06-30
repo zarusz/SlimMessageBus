@@ -42,6 +42,8 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
     {
     }
 
+    private Action<KafkaMessageBusSettings> _providerSettingsAction = (cfg) => { };
+
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
         var kafkaBrokers = Secrets.Service.PopulateSecrets(configuration["Kafka:Brokers"]);
@@ -81,6 +83,8 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
                         config.StatisticsIntervalMs = 500000;
                         config.AutoOffsetReset = AutoOffsetReset.Latest;
                     };
+
+                    _providerSettingsAction(cfg);
                 });
                 mbb.AddServicesFromAssemblyContaining<PingConsumer>();
                 mbb.AddJsonSerializer();
@@ -92,6 +96,48 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
     }
 
     public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
+
+    [Fact(Skip = "In progress")]
+    public async Task CheckTopo()
+    {
+        // arrange
+        _providerSettingsAction = (cfg) =>
+        {
+            cfg.TopologyProvisioning.OnProvisionTopology = async (client, provision) =>
+            {
+                // Warning: The API for this functionality is subject to change.
+                var meta = client.GetMetadata(TimeSpan.FromSeconds(20));
+                Logger.LogInformation($"{meta.OriginatingBrokerId} {meta.OriginatingBrokerName}");
+                meta.Brokers.ForEach(broker =>
+                    Logger.LogInformation($"Broker: {broker.BrokerId} {broker.Host}:{broker.Port}"));
+
+                meta.Topics.ForEach(topic =>
+                {
+                    Logger.LogInformation($"Topic: {topic.Topic} {topic.Error}");
+                    topic.Partitions.ForEach(partition =>
+                    {
+                        Logger.LogInformation($"  Partition: {partition.PartitionId}");
+                        Logger.LogInformation($"    Replicas: {partition.Replicas}");
+                        Logger.LogInformation($"    InSyncReplicas: {partition.InSyncReplicas}");
+                    });
+                });
+            };
+        };
+
+        AddBusConfiguration(mbb =>
+        {
+        });
+
+        var consumedMessages = ServiceProvider.GetRequiredService<TestEventCollector<ConsumedMessage>>();
+        var messageBus = MessageBus;
+
+        // act
+
+        // assert
+
+        await Task.Delay(2000);
+    }
+
 
     [Fact]
     public async Task BasicPubSub()

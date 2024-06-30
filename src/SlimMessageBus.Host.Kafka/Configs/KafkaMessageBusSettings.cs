@@ -1,5 +1,7 @@
 namespace SlimMessageBus.Host.Kafka;
 
+using Confluent.Kafka;
+
 public class KafkaMessageBusSettings
 {
     /// <summary>
@@ -56,6 +58,11 @@ public class KafkaMessageBusSettings
     /// </summary>
     public bool EnableCommitOnBusStop { get; set; } = true;
 
+    /// <summary>
+    /// Settings for auto creation of topics.
+    /// </summary>
+    public KafkaBusTopologySettings TopologyProvisioning { get; set; }
+
     public KafkaMessageBusSettings()
     {
         ProducerConfig = (config) => { };
@@ -70,6 +77,8 @@ public class KafkaMessageBusSettings
         ConsumerPollRetryInterval = TimeSpan.FromSeconds(2);
 
         HeaderSerializer = new DefaultKafkaHeaderSerializer();
+
+        TopologyProvisioning = new KafkaBusTopologySettings();
     }
 
     public KafkaMessageBusSettings(string brokerList) : this()

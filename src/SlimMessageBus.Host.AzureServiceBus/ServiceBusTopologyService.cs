@@ -150,165 +150,152 @@ public class ServiceBusTopologyService : BusTopologyService<ServiceBusMessageBus
 
     protected async Task DoProvisionTopology()
     {
-        try
+        var topologyProvisioning = ProviderSettings.TopologyProvisioning;
+
+        var consumersSettingsByPath = Settings.Consumers.OfType<AbstractConsumerSettings>()
+            .Concat([Settings.RequestResponse])
+            .Where(x => x != null)
+            .GroupBy(x => (x.Path, x.PathKind))
+            .ToDictionary(x => x.Key, x => x.ToList());
+
+        foreach (var ((path, pathKind), consumerSettingsList) in consumersSettingsByPath)
         {
-            Logger.LogInformation("Topology provisioning started...");
-
-            var topologyProvisioning = ProviderSettings.TopologyProvisioning;
-
-            var consumersSettingsByPath = Settings.Consumers.OfType<AbstractConsumerSettings>()
-                .Concat([Settings.RequestResponse])
-                .Where(x => x != null)
-                .GroupBy(x => (x.Path, x.PathKind))
-                .ToDictionary(x => x.Key, x => x.ToList());
-
-            foreach (var ((path, pathKind), consumerSettingsList) in consumersSettingsByPath)
+            if (pathKind == PathKind.Queue)
             {
-                if (pathKind == PathKind.Queue)
+                await TryCreateQueue(path, topologyProvisioning.CanConsumerCreateQueue, options =>
                 {
-                    await TryCreateQueue(path, topologyProvisioning.CanConsumerCreateQueue, options =>
+                    foreach (var consumerSettings in consumerSettingsList)
                     {
-                        foreach (var consumerSettings in consumerSettingsList)
-                        {
-                            // Note: Populate the require session flag on the queue
-                            options.RequiresSession = consumerSettings.GetEnableSession();
+                        // Note: Populate the require session flag on the queue
+                        options.RequiresSession = consumerSettings.GetEnableSession();
 
-                            consumerSettings.GetQueueOptions()?.Invoke(options);
-                        }
-                    });
-                }
-                if (pathKind == PathKind.Topic)
+                        consumerSettings.GetQueueOptions()?.Invoke(options);
+                    }
+                });
+            }
+            if (pathKind == PathKind.Topic)
+            {
+                var topicStatus = await TryCreateTopic(path, topologyProvisioning.CanConsumerCreateTopic, options =>
                 {
-                    var topicStatus = await TryCreateTopic(path, topologyProvisioning.CanConsumerCreateTopic, options =>
+                    foreach (var consumerSettings in consumerSettingsList)
                     {
-                        foreach (var consumerSettings in consumerSettingsList)
-                        {
-                            consumerSettings.GetTopicOptions()?.Invoke(options);
-                        }
-                    });
+                        consumerSettings.GetTopicOptions()?.Invoke(options);
+                    }
+                });
 
-                    if ((topicStatus & TopologyCreationStatus.Exists) != 0)
+                if ((topicStatus & TopologyCreationStatus.Exists) != 0)
+                {
+                    var consumerSettingsBySubscription = consumerSettingsList
+                        .Select(x => (ConsumerSettings: x, SubscriptionName: x.GetSubscriptionName(ProviderSettings)))
+                        .Where(x => x.SubscriptionName != null)
+                        .GroupBy(x => x.SubscriptionName)
+                        .ToDictionary(x => x.Key, x => x.Select(z => z.ConsumerSettings).ToList());
+
+                    foreach (var (subscriptionName, consumerSettingsGroup) in consumerSettingsBySubscription)
                     {
-                        var consumerSettingsBySubscription = consumerSettingsList
-                            .Select(x => (ConsumerSettings: x, SubscriptionName: x.GetSubscriptionName(ProviderSettings)))
-                            .Where(x => x.SubscriptionName != null)
-                            .GroupBy(x => x.SubscriptionName)
-                            .ToDictionary(x => x.Key, x => x.Select(z => z.ConsumerSettings).ToList());
-
-                        foreach (var (subscriptionName, consumerSettingsGroup) in consumerSettingsBySubscription)
+                        var subscriptionStatus = await TryCreateSubscription(path, subscriptionName, () =>
                         {
-                            var subscriptionStatus = await TryCreateSubscription(path, subscriptionName, () =>
+                            void ThrowOnFalse(bool value, string settingName)
                             {
-                                void ThrowOnFalse(bool value, string settingName)
+                                if (value)
                                 {
-                                    if (value)
-                                    {
-                                        return;
-                                    }
-
-                                    var topicSubscription = new TopicSubscriptionParams(path, subscriptionName);
-                                    throw new ConfigurationMessageBusException($"All {nameof(CreateSubscriptionOptions)} instances across the same path/subscription {topicSubscription} must have the same {settingName} settings.");
+                                    return;
                                 }
 
-                                var options = consumerSettingsGroup.Aggregate((CreateSubscriptionOptions)null, (acc, consumerSettings) =>
+                                var topicSubscription = new TopicSubscriptionParams(path, subscriptionName);
+                                throw new ConfigurationMessageBusException($"All {nameof(CreateSubscriptionOptions)} instances across the same path/subscription {topicSubscription} must have the same {settingName} settings.");
+                            }
+
+                            var options = consumerSettingsGroup.Aggregate((CreateSubscriptionOptions)null, (acc, consumerSettings) =>
+                            {
+                                var options = new CreateSubscriptionOptions(path, subscriptionName);
+                                ProviderSettings.TopologyProvisioning?.CreateSubscriptionOptions?.Invoke(options);
+                                options.RequiresSession = consumerSettings.GetEnableSession();
+
+                                consumerSettings.GetSubscriptionOptions()?.Invoke(options);
+                                if (acc != null && !ReferenceEquals(acc, options))
                                 {
-                                    var options = new CreateSubscriptionOptions(path, subscriptionName);
-                                    ProviderSettings.TopologyProvisioning?.CreateSubscriptionOptions?.Invoke(options);
-                                    options.RequiresSession = consumerSettings.GetEnableSession();
-
-                                    consumerSettings.GetSubscriptionOptions()?.Invoke(options);
-                                    if (acc != null && !ReferenceEquals(acc, options))
-                                    {
-                                        ThrowOnFalse(acc.AutoDeleteOnIdle.Equals(options.AutoDeleteOnIdle), nameof(options.AutoDeleteOnIdle));
-                                        ThrowOnFalse(acc.DefaultMessageTimeToLive.Equals(options.DefaultMessageTimeToLive), nameof(options.DefaultMessageTimeToLive));
-                                        ThrowOnFalse(acc.EnableBatchedOperations == options.EnableBatchedOperations, nameof(options.EnableBatchedOperations));
-                                        ThrowOnFalse(acc.DeadLetteringOnMessageExpiration == options.DeadLetteringOnMessageExpiration, nameof(options.DeadLetteringOnMessageExpiration));
-                                        ThrowOnFalse(acc.EnableDeadLetteringOnFilterEvaluationExceptions == options.EnableDeadLetteringOnFilterEvaluationExceptions, nameof(options.EnableDeadLetteringOnFilterEvaluationExceptions));
-                                        ThrowOnFalse(string.Equals(acc.ForwardDeadLetteredMessagesTo, options.ForwardDeadLetteredMessagesTo, StringComparison.OrdinalIgnoreCase), nameof(options.ForwardDeadLetteredMessagesTo));
-                                        ThrowOnFalse(string.Equals(acc.ForwardTo, options.ForwardTo, StringComparison.OrdinalIgnoreCase), nameof(options.ForwardTo));
-                                        ThrowOnFalse(acc.LockDuration.Equals(options.LockDuration), nameof(options.LockDuration));
-                                        ThrowOnFalse(acc.MaxDeliveryCount == options.MaxDeliveryCount, nameof(options.MaxDeliveryCount));
-                                        ThrowOnFalse(acc.RequiresSession.Equals(options.RequiresSession), nameof(options.RequiresSession));
-                                        ThrowOnFalse(acc.Status.Equals(options.Status), nameof(options.Status));
-                                        ThrowOnFalse(string.Equals(acc.UserMetadata, options.UserMetadata, StringComparison.OrdinalIgnoreCase), nameof(options.UserMetadata));
-                                    }
-
-                                    return options;
-                                });
+                                    ThrowOnFalse(acc.AutoDeleteOnIdle.Equals(options.AutoDeleteOnIdle), nameof(options.AutoDeleteOnIdle));
+                                    ThrowOnFalse(acc.DefaultMessageTimeToLive.Equals(options.DefaultMessageTimeToLive), nameof(options.DefaultMessageTimeToLive));
+                                    ThrowOnFalse(acc.EnableBatchedOperations == options.EnableBatchedOperations, nameof(options.EnableBatchedOperations));
+                                    ThrowOnFalse(acc.DeadLetteringOnMessageExpiration == options.DeadLetteringOnMessageExpiration, nameof(options.DeadLetteringOnMessageExpiration));
+                                    ThrowOnFalse(acc.EnableDeadLetteringOnFilterEvaluationExceptions == options.EnableDeadLetteringOnFilterEvaluationExceptions, nameof(options.EnableDeadLetteringOnFilterEvaluationExceptions));
+                                    ThrowOnFalse(string.Equals(acc.ForwardDeadLetteredMessagesTo, options.ForwardDeadLetteredMessagesTo, StringComparison.OrdinalIgnoreCase), nameof(options.ForwardDeadLetteredMessagesTo));
+                                    ThrowOnFalse(string.Equals(acc.ForwardTo, options.ForwardTo, StringComparison.OrdinalIgnoreCase), nameof(options.ForwardTo));
+                                    ThrowOnFalse(acc.LockDuration.Equals(options.LockDuration), nameof(options.LockDuration));
+                                    ThrowOnFalse(acc.MaxDeliveryCount == options.MaxDeliveryCount, nameof(options.MaxDeliveryCount));
+                                    ThrowOnFalse(acc.RequiresSession.Equals(options.RequiresSession), nameof(options.RequiresSession));
+                                    ThrowOnFalse(acc.Status.Equals(options.Status), nameof(options.Status));
+                                    ThrowOnFalse(string.Equals(acc.UserMetadata, options.UserMetadata, StringComparison.OrdinalIgnoreCase), nameof(options.UserMetadata));
+                                }
 
                                 return options;
                             });
 
-                            if ((subscriptionStatus & TopologyCreationStatus.Exists) != 0 && (topologyProvisioning.CanConsumerValidateSubscriptionFilters || topologyProvisioning.CanConsumerCreateSubscriptionFilter || topologyProvisioning.CanConsumerReplaceSubscriptionFilters))
+                            return options;
+                        });
+
+                        if ((subscriptionStatus & TopologyCreationStatus.Exists) != 0 && (topologyProvisioning.CanConsumerValidateSubscriptionFilters || topologyProvisioning.CanConsumerCreateSubscriptionFilter || topologyProvisioning.CanConsumerReplaceSubscriptionFilters))
+                        {
+                            var tasks = new List<Task>();
+                            var rules = MergeFilters(path, subscriptionName, consumerSettingsGroup).ToDictionary(x => x.Name, x => x);
+
+                            await foreach (var page in _adminClient.GetRulesAsync(path, subscriptionName).AsPages())
                             {
-                                var tasks = new List<Task>();
-                                var rules = MergeFilters(path, subscriptionName, consumerSettingsGroup).ToDictionary(x => x.Name, x => x);
-
-                                await foreach (var page in _adminClient.GetRulesAsync(path, subscriptionName).AsPages())
+                                foreach (var serviceRule in page.Values)
                                 {
-                                    foreach (var serviceRule in page.Values)
+                                    if (!rules.TryGetValue(serviceRule.Name, out var rule))
                                     {
-                                        if (!rules.TryGetValue(serviceRule.Name, out var rule))
+                                        // server rule was not defined in SMB
+                                        if ((rules.Count > 0 || serviceRule.Name != RuleProperties.DefaultRuleName) && ((subscriptionStatus & TopologyCreationStatus.Created) != 0 || topologyProvisioning.CanConsumerReplaceSubscriptionFilters))
                                         {
-                                            // server rule was not defined in SMB
-                                            if ((rules.Count > 0 || serviceRule.Name != RuleProperties.DefaultRuleName) && ((subscriptionStatus & TopologyCreationStatus.Created) != 0 || topologyProvisioning.CanConsumerReplaceSubscriptionFilters))
-                                            {
-                                                // Note: for a newly created subscription, ASB creates a $Default filter automatically
-                                                // We need to remove the filter if its not matching what is declared in SMB and let the user defined rules take over
-                                                // On the other hand if there are no user defined rules, we need to preserve the $Default filter
-                                                tasks.Add(TryDeleteRule(path, subscriptionName, serviceRule.Name));
-                                            }
-                                            continue;
+                                            // Note: for a newly created subscription, ASB creates a $Default filter automatically
+                                            // We need to remove the filter if its not matching what is declared in SMB and let the user defined rules take over
+                                            // On the other hand if there are no user defined rules, we need to preserve the $Default filter
+                                            tasks.Add(TryDeleteRule(path, subscriptionName, serviceRule.Name));
                                         }
-
-                                        if (rule.Filter.Equals(serviceRule.Filter) && ((rule.Action == null && serviceRule.Action == null) || (rule.Action.Equals(serviceRule.Action))))
-                                        {
-                                            // server rule matched what is defined in SMB
-                                            rules.Remove(serviceRule.Name);
-                                            continue;
-                                        }
-
-                                        if (topologyProvisioning.CanConsumerReplaceSubscriptionFilters)
-                                        {
-                                            // update existing rule
-                                            serviceRule.Filter = rule.Filter;
-                                            serviceRule.Action = rule.Action;
-                                            tasks.Add(TryUpdateRule(path, subscriptionName, serviceRule));
-                                            rules.Remove(serviceRule.Name);
-                                        }
+                                        continue;
                                     }
 
-                                    if (topologyProvisioning.CanConsumerCreateSubscriptionFilter)
+                                    if (rule.Filter.Equals(serviceRule.Filter) && ((rule.Action == null && serviceRule.Action == null) || (rule.Action.Equals(serviceRule.Action))))
                                     {
-                                        tasks.AddRange(rules.Values.Select(options => TryCreateRule(path, subscriptionName, options)));
+                                        // server rule matched what is defined in SMB
+                                        rules.Remove(serviceRule.Name);
+                                        continue;
+                                    }
+
+                                    if (topologyProvisioning.CanConsumerReplaceSubscriptionFilters)
+                                    {
+                                        // update existing rule
+                                        serviceRule.Filter = rule.Filter;
+                                        serviceRule.Action = rule.Action;
+                                        tasks.Add(TryUpdateRule(path, subscriptionName, serviceRule));
+                                        rules.Remove(serviceRule.Name);
                                     }
                                 }
-                                await Task.WhenAll(tasks);
+
+                                if (topologyProvisioning.CanConsumerCreateSubscriptionFilter)
+                                {
+                                    tasks.AddRange(rules.Values.Select(options => TryCreateRule(path, subscriptionName, options)));
+                                }
                             }
+                            await Task.WhenAll(tasks);
                         }
                     }
                 }
             }
+        }
 
-            foreach (var producerSettings in Settings.Producers)
+        foreach (var producerSettings in Settings.Producers)
+        {
+            if (producerSettings.PathKind == PathKind.Queue)
             {
-                if (producerSettings.PathKind == PathKind.Queue)
-                {
-                    await TryCreateQueue(producerSettings.DefaultPath, topologyProvisioning.CanProducerCreateQueue, options => producerSettings.GetQueueOptions()?.Invoke(options));
-                }
-                if (producerSettings.PathKind == PathKind.Topic)
-                {
-                    await TryCreateTopic(producerSettings.DefaultPath, topologyProvisioning.CanProducerCreateTopic, options => producerSettings.GetTopicOptions()?.Invoke(options));
-                }
+                await TryCreateQueue(producerSettings.DefaultPath, topologyProvisioning.CanProducerCreateQueue, options => producerSettings.GetQueueOptions()?.Invoke(options));
             }
-        }
-        catch (Exception e)
-        {
-            Logger.LogError(e, "Could not provision Azure Service Bus topology");
-        }
-        finally
-        {
-            Logger.LogInformation("Topology provisioning finished");
+            if (producerSettings.PathKind == PathKind.Topic)
+            {
+                await TryCreateTopic(producerSettings.DefaultPath, topologyProvisioning.CanProducerCreateTopic, options => producerSettings.GetTopicOptions()?.Invoke(options));
+            }
         }
     }
 

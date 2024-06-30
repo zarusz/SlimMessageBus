@@ -20,33 +20,39 @@ internal class KafkaBusTopologyService : BusTopologyService<KafkaMessageBusSetti
 
         using var adminClient = ProviderSettings.AdminClientBuilderFactory(adminClientConfig).Build();
 
-        var topics = Settings.Consumers.Select(x => x.Path)
-            .Union(Settings.Producers.Select(x => x.DefaultPath))
-            .Distinct()
-            .ToList();
+        await ProviderSettings.TopologyProvisioning.OnProvisionTopology(adminClient, Provision);
 
-        Logger.LogInformation("Provisioning topics: {Topics}", string.Join(",", topics));
-
-        var topicSpecs = topics
-            .Select(x => new TopicSpecification
-            {
-                Name = x,
-                // ToDo: make configurable
-                //NumPartitions = ProviderSettings.DefaultNumPartitions,
-                //ReplicationFactor = ProviderSettings.DefaultReplicationFactor,
-            })
-            .ToList();
-
-        try
+        async Task Provision()
         {
-            await adminClient.CreateTopicsAsync(topicSpecs);
-        }
-        catch (CreateTopicsException e)
-        {
-            Logger.LogError(e, "An error occurred creating topics");
-            foreach (var result in e.Results)
+
+            var topics = Settings.Consumers.Select(x => x.Path)
+                .Union(Settings.Producers.Select(x => x.DefaultPath))
+                .Distinct()
+                .ToList();
+
+            Logger.LogInformation("Provisioning topics: {Topics}", string.Join(",", topics));
+
+            var topicSpecs = topics
+                .Select(x => new TopicSpecification
+                {
+                    Name = x,
+                    // ToDo: make configurable
+                    //NumPartitions = ProviderSettings.DefaultNumPartitions,
+                    //ReplicationFactor = ProviderSettings.DefaultReplicationFactor,
+                })
+                .ToList();
+
+            try
             {
-                Logger.LogError(e, "Topic {Topic} creation result: {Result}", result.Topic, result.Error.Reason);
+                await adminClient.CreateTopicsAsync(topicSpecs);
+            }
+            catch (CreateTopicsException e)
+            {
+                Logger.LogError(e, "An error occurred creating topics");
+                foreach (var result in e.Results)
+                {
+                    Logger.LogError(e, "Topic {Topic} creation result: {Result}", result.Topic, result.Error.Reason);
+                }
             }
         }
     }
