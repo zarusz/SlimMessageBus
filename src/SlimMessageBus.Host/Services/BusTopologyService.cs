@@ -23,6 +23,10 @@ public abstract class BusTopologyService<TProvider>
         {
             await OnProvisionTopology();
         }
+        catch (Exception e)
+        {
+            Logger.LogError(e, "Could not provision topology for {BusName}", Settings.Name);
+        }
         finally
         {
             Logger.LogInformation("Provisioning topology for {BusName} bus completed", Settings.Name);
