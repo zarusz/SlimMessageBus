@@ -1,5 +1,4 @@
-﻿namespace SlimMessageBus.Host.Outbox;
-
+﻿namespace SlimMessageBus.Host.Outbox.Services;
 public class OutboxLockRenewalTimerFactory : IOutboxLockRenewalTimerFactory, IAsyncDisposable
 {
     private readonly IServiceScope _scope;

@@ -3,9 +3,9 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 
 using Azure.Messaging.ServiceBus;
-using Azure.Messaging.ServiceBus.Administration;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,8 +20,6 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
 {
     private const int NumberOfMessages = 77;
 
-    private Func<ServiceBusAdministrationClient, Task> CleanTopology { get; set; }
-
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
         services.AddSlimMessageBus((mbb) =>
@@ -29,16 +27,10 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
             mbb.WithProviderServiceBus(cfg =>
             {
                 cfg.ConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
-                cfg.TopologyProvisioning.OnProvisionTopology = async (client, next) =>
-                {
-                    if (CleanTopology != null)
-                    {
-                        await CleanTopology(client);
-                    }
-                    await next();
-                };
                 cfg.PrefetchCount = 100;
                 cfg.MaxConcurrentSessions = 20;
+                cfg.TopologyProvisioning.CreateQueueOptions = o => o.AutoDeleteOnIdle = TimeSpan.FromMinutes(5);
+                cfg.TopologyProvisioning.CreateTopicOptions = o => o.AutoDeleteOnIdle = TimeSpan.FromMinutes(5);
             });
             mbb.AddServicesFromAssemblyContaining<PingConsumer>();
             mbb.AddJsonSerializer();
@@ -71,7 +63,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
     public async Task BasicPubSubOnTopic()
     {
         var subscribers = 2;
-        var topic = "test-ping";
+        var topic = TopicName();
 
         AddBusConfiguration(mbb =>
         {
@@ -87,21 +79,13 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
                 }));
         });
 
-        CleanTopology = async client =>
-        {
-            if (await client.TopicExistsAsync(topic))
-            {
-                await client.DeleteTopicAsync(topic);
-            }
-        };
-
         await BasicPubSub(subscribers);
     }
 
     [Fact]
     public async Task BasicPubSubOnQueue()
     {
-        var queue = "test-ping-queue";
+        var queue = QueueName();
 
         AddBusConfiguration(mbb =>
         {
@@ -114,21 +98,13 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
                     .Instances(20));
         });
 
-        CleanTopology = async client =>
-        {
-            if (await client.QueueExistsAsync(queue))
-            {
-                await client.DeleteQueueAsync(queue);
-            }
-        };
-
         await BasicPubSub(1);
     }
 
     [Fact]
     public async Task BasicPubSubWithCustomConsumerOnQueue()
     {
-        var queue = "test-ping-queue";
+        var queue = QueueName();
 
         AddBusConfiguration(mbb =>
         {
@@ -140,14 +116,6 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
                     .WithConsumer(typeof(CustomPingConsumer), typeof(PingDerivedMessage), nameof(CustomPingConsumer.Handle))
                     .Instances(20));
         });
-
-        CleanTopology = async client =>
-        {
-            if (await client.QueueExistsAsync(queue))
-            {
-                await client.DeleteQueueAsync(queue);
-            }
-        };
 
         await BasicPubSub(1);
     }
@@ -214,7 +182,8 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
     [Fact]
     public async Task BasicReqRespOnTopic()
     {
-        var topic = "test-echo";
+        var topic = TopicName();
+        var responseTopic = ($"{topic}-resp");
 
         AddBusConfiguration(mbb =>
         {
@@ -236,7 +205,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
                 .Instances(20))
             .ExpectRequestResponses(x =>
             {
-                x.ReplyToTopic("test-echo-resp");
+                x.ReplyToTopic(responseTopic);
                 x.SubscriptionName("response-consumer");
                 x.DefaultTimeout(TimeSpan.FromSeconds(60));
             });
@@ -248,7 +217,8 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
     [Fact]
     public async Task BasicReqRespOnQueue()
     {
-        var queue = "test-echo-queue";
+        var queue = QueueName();
+        var responseQueue = $"{queue}-resp";
 
         AddBusConfiguration(mbb =>
         {
@@ -261,7 +231,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
                 .Instances(20))
             .ExpectRequestResponses(x =>
             {
-                x.ReplyToQueue("test-echo-queue-resp");
+                x.ReplyToQueue(responseQueue);
                 x.DefaultTimeout(TimeSpan.FromSeconds(60));
             });
         });
@@ -304,7 +274,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
     [Fact]
     public async Task FIFOUsingSessionsOnQueue()
     {
-        var queue = "test-session-queue";
+        var queue = QueueName();
 
         AddBusConfiguration(mbb =>
         {
@@ -335,7 +305,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
     [Fact]
     public async Task FIFOUsingSessionsOnTopic()
     {
-        var queue = "test-session-topic";
+        var queue = QueueName();
 
         AddBusConfiguration(mbb =>
         {
@@ -350,6 +320,16 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
         });
 
         await BasicPubSub(1, CheckMessagesWithinSameSessionAreInOrder);
+    }
+
+    private static string QueueName([CallerMemberName] string testName = null)
+    {
+        return $"smb-tests/{nameof(ServiceBusMessageBusIt)}/{testName}/{DateTimeOffset.UtcNow.Ticks}";
+    }
+
+    private static string TopicName([CallerMemberName] string testName = null)
+    {
+        return QueueName(testName);
     }
 }
 

@@ -14,7 +14,7 @@ public class DbContextTransactionService<TDbContext>(TDbContext dbContext, ISqlS
 
     public override SqlTransaction CurrentTransaction => (SqlTransaction)DbContext.Database.CurrentTransaction?.GetDbTransaction();
 
-    protected override Task OnBeginTransation()
+    protected override Task OnBeginTransaction()
     {
         return DbContext.Database.BeginTransactionAsync(sqlSettings.TransactionIsolationLevel);
     }

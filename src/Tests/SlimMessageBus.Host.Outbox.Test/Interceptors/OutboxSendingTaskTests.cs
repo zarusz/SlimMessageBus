@@ -1,8 +1,9 @@
-﻿namespace SlimMessageBus.Host.Outbox.Test.Interceptors;
+﻿
+namespace SlimMessageBus.Host.Outbox.Test.Interceptors;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
-using static SlimMessageBus.Host.Outbox.OutboxSendingTask;
+using static SlimMessageBus.Host.Outbox.Services.OutboxSendingTask;
 
 public class OutboxSendingTaskTests
 {

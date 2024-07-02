@@ -3,8 +3,11 @@
   <Import Project="../Common.NuGet.Properties.xml" />
 
   <PropertyGroup>
-    <Version>3.0.0-rc2</Version>
-    <Description>A lightweight message bus interface for .NET. The goal of this library is to introduce a slim facade for messaging brokers. Use one of the transport providers for popular messaging systems or in-process (in-memory) messaging.</Description>
+    <Version>3.0.0-rc5</Version>
+    <Description>
+      This library offers a lightweight message bus interface for .NET, providing a streamlined facade for messaging brokers.
+      It supports various transport providers for popular messaging systems as well as in-process (in-memory) messaging.
+    </Description>
     <NeutralLanguage />
     <PackageTags>MessageBus facade EventBus broker events messages message bus DomainEvents domain DDD messaging EDA mediator</PackageTags>
   </PropertyGroup>

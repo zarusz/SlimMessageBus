@@ -4,6 +4,7 @@ using System.Net.Mime;
 
 using Microsoft.EntityFrameworkCore.Migrations;
 
+using SlimMessageBus.Host.Outbox.Services;
 using SlimMessageBus.Host.RabbitMQ;
 
 /// <summary>
@@ -31,7 +32,7 @@ public class OutboxBenchmarkTests(ITestOutputHelper testOutputHelper) : BaseInte
                 case BusType.AzureSB:
                     mbb.AddChildBus("Azure", mbb =>
                     {
-                        var topic = $"smb-tests/outbox-benchmark/{DateTimeOffset.UtcNow.Ticks}/customer-events";
+                        var topic = $"smb-tests/{nameof(OutboxBenchmarkTests)}/benchmark/{DateTimeOffset.UtcNow.Ticks}";
                         mbb
                             .WithProviderServiceBus(cfg =>
                             {
@@ -157,14 +158,25 @@ public class OutboxBenchmarkTests(ITestOutputHelper testOutputHelper) : BaseInte
             // migrate db
             await context.Database.DropSchemaIfExistsAsync(context.Model.GetDefaultSchema());
             await context.Database.MigrateAsync();
-
-            // migrate outbox sql
-            await outboxMigrationService.Migrate(CancellationToken.None);
         });
 
         var surnames = new[] { "Doe", "Smith", "Kowalsky" };
         var events = Enumerable.Range(0, messageCount).Select(x => new CustomerCreatedEvent(Guid.NewGuid(), $"John {x:000}", surnames[x % surnames.Length])).ToList();
         var store = ServiceProvider!.GetRequiredService<TestEventCollector<CustomerCreatedEvent>>();
+
+        OutboxSendingTask outboxSendingTask = null;
+        if (_useOutbox)
+        {
+            outboxSendingTask = ServiceProvider.GetRequiredService<OutboxSendingTask>();
+
+            // migrate data context
+            await outboxSendingTask.OnBusLifecycle(Interceptor.MessageBusLifecycleEventType.Created, null);
+
+            // place service into an impossible state (-1 instances) so that:
+            // * the service will not start when the bus starts
+            // * outbox notifications will not be acted upon
+            await (outboxSendingTask.OnBusLifecycle(Interceptor.MessageBusLifecycleEventType.Stopping, null) ?? Task.CompletedTask);
+        }
 
         // act
 
@@ -198,7 +210,6 @@ public class OutboxBenchmarkTests(ITestOutputHelper testOutputHelper) : BaseInte
         var outboxPublishTimerElapsed = TimeSpan.Zero;
         if (_useOutbox)
         {
-            var outboxSendingTask = ServiceProvider.GetRequiredService<OutboxSendingTask>();
             var outputRepository = ServiceProvider.GetRequiredService<IOutboxRepository>();
 
             var outboxTimer = Stopwatch.StartNew();

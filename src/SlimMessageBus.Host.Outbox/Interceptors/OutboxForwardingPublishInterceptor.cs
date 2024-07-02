@@ -2,23 +2,43 @@
 
 using Microsoft.Extensions.Logging;
 
+using SlimMessageBus.Host.Outbox.Services;
+
 public abstract class OutboxForwardingPublishInterceptor
 {
 }
 
-public class OutboxForwardingPublishInterceptor<T>(
+/// <remarks>
+/// Interceptor must be registered as a transient in order for outbox notifications to be raised.
+/// Notifications are raised on disposal (if required), to ensure they occur outside of a transaction scope.
+/// </remarks>
+public sealed class OutboxForwardingPublishInterceptor<T>(
     ILogger<OutboxForwardingPublishInterceptor> logger,
     IOutboxRepository outboxRepository,
-    IInstanceIdProvider instanceIdProvider)
-    : OutboxForwardingPublishInterceptor, IInterceptorWithOrder, IPublishInterceptor<T> where T : class
+    IInstanceIdProvider instanceIdProvider,
+    IOutboxNotificationService outboxNotificationService)
+    : OutboxForwardingPublishInterceptor, IInterceptorWithOrder, IPublishInterceptor<T>, IDisposable where T : class
 {
     static readonly internal string SkipOutboxHeader = "__SkipOutbox";
 
     private readonly ILogger _logger = logger;
     private readonly IOutboxRepository _outboxRepository = outboxRepository;
     private readonly IInstanceIdProvider _instanceIdProvider = instanceIdProvider;
+    private readonly IOutboxNotificationService _outboxNotificationService = outboxNotificationService;
+
+    private bool _notifyOutbox = false;
 
     public int Order => int.MaxValue;
+
+    public void Dispose()
+    {
+        if (_notifyOutbox)
+        {
+            _outboxNotificationService.Notify();
+        }
+
+        GC.SuppressFinalize(this);
+    }
 
     public async Task OnHandle(T message, Func<Task> next, IProducerContext context)
     {
@@ -56,5 +76,8 @@ public class OutboxForwardingPublishInterceptor<T>(
             InstanceId = _instanceIdProvider.GetInstanceId()
         };
         await _outboxRepository.Save(outboxMessage, context.CancellationToken);
+        
+        // a message was sent, notify outbox service to poll on dispose (post transaction)
+        _notifyOutbox = true;
     }
 }

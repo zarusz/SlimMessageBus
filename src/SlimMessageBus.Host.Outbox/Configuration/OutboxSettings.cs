@@ -15,7 +15,7 @@ public class OutboxSettings
     /// <summary>
     /// Sleep time of the outbox polling loop if there were no messages to process in previous database poll.
     /// </summary>
-    public TimeSpan PollIdleSleep { get; set; } = TimeSpan.FromSeconds(1);
+    public TimeSpan PollIdleSleep { get; set; } = TimeSpan.FromMinutes(1);
     /// <summary>
     /// The maximum number of delivery attempts before delivery will not be attempted again.
     /// </summary>

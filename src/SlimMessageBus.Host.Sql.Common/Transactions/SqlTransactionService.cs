@@ -6,7 +6,7 @@ public class SqlTransactionService(SqlConnection connection, ISqlSettings sqlSet
 
     public override SqlTransaction CurrentTransaction => _transaction;
 
-    protected override async Task OnBeginTransation()
+    protected override async Task OnBeginTransaction()
     {
 #if NETSTANDARD2_0
         _transaction = Connection.BeginTransaction(sqlSettings.TransactionIsolationLevel);

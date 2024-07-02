@@ -32,7 +32,7 @@ public static class BuilderExtensions
     }
 
     /// <summary>
-    /// Enables the cration of <see cref="TransactionScope"/> for every message consumed by this bus.
+    /// Enables the creation of <see cref="TransactionScope"/> for every message consumed by this bus.
     /// </summary>
     /// <param name="builder"></param>
     /// <param name="enabled"></param>
@@ -44,7 +44,7 @@ public static class BuilderExtensions
     }
 
     /// <summary>
-    /// Enables the cration of <see cref="TransactionScope"/> for every message on this consumer.
+    /// Enables the creation of <see cref="TransactionScope"/> for every message on this consumer.
     /// </summary>
     /// <param name="builder"></param>
     /// <param name="enabled"></param>
@@ -56,7 +56,7 @@ public static class BuilderExtensions
     }
 
     /// <summary>
-    /// Enables the cration of <see cref="TransactionScope"/> every messages on this handler.
+    /// Enables the creation of <see cref="TransactionScope"/> every messages on this handler.
     /// </summary>
     /// <param name="builder"></param>
     /// <param name="enabled"></param>

@@ -5,3 +5,4 @@ global using Xunit;
 global using Xunit.Abstractions;
 
 global using SlimMessageBus.Host.Interceptor;
+global using SlimMessageBus.Host.Outbox.Services;
