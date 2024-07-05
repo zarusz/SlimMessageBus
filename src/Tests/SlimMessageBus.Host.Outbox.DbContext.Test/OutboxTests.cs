@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 [Trait("Category", "Integration")]
 [Collection(CustomerContext.Schema)]
+[Trait("Transport", "Outbox")]
 public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<OutboxTests>(testOutputHelper)
 {
     private TransactionType _testParamTransactionType;

@@ -239,6 +239,7 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Serialization.Hybrid.Test", "Tests\SlimMessageBus.Host.Serialization.Hybrid.Test\SlimMessageBus.Host.Serialization.Hybrid.Test.csproj", "{DB624D5F-CB7C-4E16-B1E2-3B368FCB5A46}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Outbox.Test", "Tests\SlimMessageBus.Host.Outbox.Test\SlimMessageBus.Host.Outbox.Test.csproj", "{AD05234E-A925-44C0-977E-FEAC2A75B98C}"
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Infrastructure", "Infrastructure", "{137BFD32-CD0A-47CA-8884-209CD49DEE8C}"
 	ProjectSection(SolutionItems) = preProject
 		Infrastructure\docker-compose.yml = Infrastructure\docker-compose.yml
@@ -258,6 +259,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Build", "Build", "{1A71BB05
 		..\build\do_test_ci.ps1 = ..\build\do_test_ci.ps1
 		..\build\tasks.ps1 = ..\build\tasks.ps1
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecretStore.Test", "Tests\SecretStore.Test\SecretStore.Test.csproj", "{969AAB37-AEFC-40F9-9F89-B4B5E45E13C9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -779,6 +782,14 @@ Global
 		{AD05234E-A925-44C0-977E-FEAC2A75B98C}.Release|Any CPU.Build.0 = Release|Any CPU
 		{AD05234E-A925-44C0-977E-FEAC2A75B98C}.Release|x86.ActiveCfg = Release|Any CPU
 		{AD05234E-A925-44C0-977E-FEAC2A75B98C}.Release|x86.Build.0 = Release|Any CPU
+		{969AAB37-AEFC-40F9-9F89-B4B5E45E13C9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{969AAB37-AEFC-40F9-9F89-B4B5E45E13C9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{969AAB37-AEFC-40F9-9F89-B4B5E45E13C9}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{969AAB37-AEFC-40F9-9F89-B4B5E45E13C9}.Debug|x86.Build.0 = Debug|Any CPU
+		{969AAB37-AEFC-40F9-9F89-B4B5E45E13C9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{969AAB37-AEFC-40F9-9F89-B4B5E45E13C9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{969AAB37-AEFC-40F9-9F89-B4B5E45E13C9}.Release|x86.ActiveCfg = Release|Any CPU
+		{969AAB37-AEFC-40F9-9F89-B4B5E45E13C9}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -855,8 +866,7 @@ Global
 		{8507237C-68C3-46AD-B7DA-800791C6FDDB} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
 		{DB624D5F-CB7C-4E16-B1E2-3B368FCB5A46} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
 		{AD05234E-A925-44C0-977E-FEAC2A75B98C} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
-		{8507237C-68C3-46AD-B7DA-800791C6FDDB} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
-		{DB624D5F-CB7C-4E16-B1E2-3B368FCB5A46} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
+		{969AAB37-AEFC-40F9-9F89-B4B5E45E13C9} = {D3D6FD9A-968A-45BB-86C7-4527C72A057E}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {435A0D65-610C-4B84-B1AA-2C7FBE72DB80}

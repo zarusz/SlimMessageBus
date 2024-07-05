@@ -2,12 +2,13 @@
 
 public class EnvironmentVariableSecretStore : ISecretStore
 {
-    #region Implementation of ISecretStore
-
     public string GetSecret(string name)
     {
-        return Environment.GetEnvironmentVariable(name);
+        var value = Environment.GetEnvironmentVariable(name);
+        if (value == "(empty)")
+        {
+            return string.Empty;
+        }
+        return value;
     }
-
-    #endregion
 }

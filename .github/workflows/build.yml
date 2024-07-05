@@ -87,7 +87,6 @@ jobs:
               params="/d:sonar.pullrequest.key=${pr_number}"
           fi
           ../.sonar/scanner/dotnet-sonarscanner begin /k:"zarusz_SlimMessageBus" /o:"zarusz" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.exclusions="Samples/**/*,Tests/**/*" $params
-        #run: ../.sonar/scanner/dotnet-sonarscanner begin /k:"zarusz_SlimMessageBus" /o:"zarusz" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.exclusions="Samples/**/*,Tests/**/*" /d:sonar.pullrequest.key="${{ github.event.pull_request.number }}" /d:sonar.pullrequest.branch="new-branch"
         working-directory: ./src
 
       - name: Build
@@ -98,11 +97,16 @@ jobs:
         run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --collect:"XPlat Code Coverage;Format=opencover" --filter Category!=Integration
         working-directory: ./src
 
-      - name: Integrations Tests
+      - name: Integration Tests - Infrastructure
+        run: docker compose -f src/Infrastructure/docker-compose.yml up --detach --force-recreate -V
+
+      - name: Integration Tests
         # Run integration tests against the test infrastructure if secrets are provided
         run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --collect:"XPlat Code Coverage;Format=opencover" --filter Category=Integration
+        #run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --collect:"XPlat Code Coverage;Format=opencover" --filter "Category=Integration&Transport=Outbox"
         working-directory: ./src
         env:
+          # Connects to the Azure cloud
           azure_servicebus_connectionstring: ${{ secrets.azure_servicebus_connectionstring }}
 
           azure_eventhub_connectionstring: ${{ secrets.azure_eventhub_connectionstring }}
@@ -113,24 +117,37 @@ jobs:
           kafka_password: ${{ secrets.kafka_password }}
           kafka_secure: ${{ secrets.kafka_secure }}
 
-          mqtt_server: ${{ secrets.mqtt_server }}
-          mqtt_port: ${{ secrets.mqtt_port }}
-          mqtt_username: ${{ secrets.mqtt_username }}
-          mqtt_password: ${{ secrets.mqtt_password }}
-          mqtt_secure: ${{ secrets.mqtt_secure }}
+          _mqtt_server: ${{ secrets.mqtt_server }}
+          _mqtt_port: ${{ secrets.mqtt_port }}
+          _mqtt_username: ${{ secrets.mqtt_username }}
+          _mqtt_password: ${{ secrets.mqtt_password }}
+          _mqtt_secure: ${{ secrets.mqtt_secure }}
 
-          sqlserver_connectionstring: ${{ secrets.sqlserver_connectionstring }}
+          _rabbitmq_connectionstring: ${{ secrets.rabbitmq_connectionstring }}
 
-          rabbitmq_connectionstring: ${{ secrets.rabbitmq_connectionstring }}
+          _redis_connectionstring: ${{ secrets.redis_connectionstring }}
 
-          redis_connectionstring: ${{ secrets.redis_connectionstring }}
+          _sqlserver_connectionstring: ${{ secrets.sqlserver_connectionstring }}
 
-          azure_servicebus_key: ${{ secrets.azure_servicebus_key }}
-          azure_eventhub_key: ${{ secrets.azure_eventhub_key }}
-          azure_eventhub_storage_key: ${{ secrets.azure_eventhub_storage_key }}
-          azure_sql_password: ${{ secrets.azure_sql_password }}
-          redis_password: ${{ secrets.redis_password }}
-          rabbitmq_password: ${{ secrets.rabbitmq_password }}
+          # Connects to the local Test Containers
+
+          # need to postpone until feature https://github.com/zarusz/SlimMessageBus/issues/110 is implemented
+          _kafka_brokers: localhost:9092
+          _kafka_username: user
+          _kafka_password: password
+          _kafka_secure: false
+
+          mqtt_server: localhost
+          mqtt_port: 1883
+          mqtt_username: "(empty)"
+          mqtt_password: "(empty)"
+          mqtt_secure: false
+
+          rabbitmq_connectionstring: amqp://localhost
+
+          redis_connectionstring: localhost:6379
+
+          sqlserver_connectionstring: "Server=localhost;Initial Catalog=SlimMessageBus_Outbox;User ID=sa;Password=SuperSecretP@55word;TrustServerCertificate=true;MultipleActiveResultSets=true;"
 
       - name: SonarCloud - SonarScanner End
         #if: github.event_name == 'pull_request_target'
