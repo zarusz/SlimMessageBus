@@ -15,6 +15,7 @@ using SlimMessageBus.Host.RabbitMQ;
 /// </summary>
 /// <param name="testOutputHelper"></param>
 [Trait("Category", "Integration")] // for benchmarks
+[Trait("Transport", "Outbox")]
 [Collection(CustomerContext.Schema)]
 public class OutboxBenchmarkTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<OutboxBenchmarkTests>(testOutputHelper)
 {

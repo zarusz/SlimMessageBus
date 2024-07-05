@@ -22,6 +22,7 @@ using SlimMessageBus.Host.Test.Common.IntegrationTest;
 /// </remarks>
 /// </summary>
 [Trait("Category", "Integration")]
+[Trait("Transport", "Kafka")]
 public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
 {
     private const int NumberOfMessages = 77;

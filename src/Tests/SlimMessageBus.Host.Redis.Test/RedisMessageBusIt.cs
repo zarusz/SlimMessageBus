@@ -11,13 +11,11 @@ using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
 [Trait("Category", "Integration")]
-public class RedisMessageBusIt : BaseIntegrationTest<RedisMessageBusIt>
+[Trait("Transport", "Redis")]
+public class RedisMessageBusIt(ITestOutputHelper testOutputHelper)
+    : BaseIntegrationTest<RedisMessageBusIt>(testOutputHelper)
 {
     private const int NumberOfMessages = 77;
-
-    public RedisMessageBusIt(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
-    {
-    }
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {

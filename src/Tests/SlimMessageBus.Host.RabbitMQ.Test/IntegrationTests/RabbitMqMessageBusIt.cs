@@ -11,7 +11,9 @@ using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
 [Trait("Category", "Integration")]
-public class RabbitMqMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<RabbitMqMessageBusIt>(testOutputHelper)
+[Trait("Transport", "RabbitMQ")]
+public class RabbitMqMessageBusIt(ITestOutputHelper testOutputHelper)
+    : BaseIntegrationTest<RabbitMqMessageBusIt>(testOutputHelper)
 {
     private const int NumberOfMessages = 144;
 
