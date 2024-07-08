@@ -84,6 +84,33 @@ public class OutboxLockRenewalTimerTests
         lockLostActionMock.Verify(a => a(It.IsAny<Exception>()), Times.Once);
     }
 
+    [Fact]
+    public async Task CallbackAsync_ShouldReturnGracefullyIfTokenCancelled()
+    {
+        // Arrange
+        _outboxRepositoryMock.Setup(r => r.RenewLock(_instanceId, _lockDuration, _cancellationTokenSource.Token))
+                             .Returns(async () =>
+                             {
+                                 var tcs = new TaskCompletionSource<bool>();
+                                 _cancellationTokenSource.Token.Register(() => tcs.SetResult(false));
+                                 await tcs.Task;
+                                 return false;
+                             });
+
+
+        var lockLostActionMock = new Mock<Action<Exception>>();
+        var timer = CreateTimer(lockLostAction: lockLostActionMock.Object);
+        timer.Start();
+
+        // Act
+        var task = InvokeCallbackAsync(timer);
+        _cancellationTokenSource.Cancel();
+        await task;
+
+        // Assert
+        lockLostActionMock.Verify(a => a(It.IsAny<Exception>()), Times.Never);
+    }
+
     private OutboxLockRenewalTimer CreateTimer(Action<Exception> lockLostAction = null)
     {
         return new OutboxLockRenewalTimer(

@@ -81,13 +81,17 @@ public sealed class OutboxLockRenewalTimer : IOutboxLockRenewalTimer
 
         try
         {
-
             try
             {
                 try
                 {
                     if (!await _outboxRepository.RenewLock(InstanceId, LockDuration, _cancellationToken))
                     {
+                        if (_cancellationToken.IsCancellationRequested)
+                        {
+                            return;
+                        }
+
                         // NOTE: There is a small chance that renew will fire after all messages have
                         // been completed/aborted, but before the timer has been instructed to stop.
                         // This will lead to a false failure in the logs.
