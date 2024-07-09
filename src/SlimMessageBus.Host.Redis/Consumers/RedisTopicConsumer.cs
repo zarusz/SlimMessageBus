@@ -54,7 +54,7 @@ public class RedisTopicConsumer : AbstractConsumer, IRedisConsumer
         if (exception != null)
         {
             // In the future offer better error handling support - retries + option to put failed messages on a DLQ.
-            Logger.LogError(exception, "Error occured while processing the redis channel {Topic}", Path);
+            Logger.LogError(exception, "Error occurred while processing the redis channel {Topic}", Path);
         }
     }
 }

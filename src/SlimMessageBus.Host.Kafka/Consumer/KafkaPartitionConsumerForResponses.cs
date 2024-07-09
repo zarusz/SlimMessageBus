@@ -3,7 +3,7 @@ namespace SlimMessageBus.Host.Kafka;
 using ConsumeResult = ConsumeResult<Ignore, byte[]>;
 
 /// <summary>
-/// Processor for incomming response messages in the request-response patterns. 
+/// Processor for incoming response messages in the request-response patterns. 
 /// See also <see cref="IKafkaPartitionConsumer"/>.
 /// </summary>
 public class KafkaPartitionConsumerForResponses : KafkaPartitionConsumer

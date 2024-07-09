@@ -33,7 +33,7 @@ public class SqlTransactionConsumerInterceptor<T>(
 
                 logger.LogTrace("SqlTransaction - committing...");
                 await transactionService.CommitTransaction();
-                logger.LogDebug("SqlTransaction - commited");
+                logger.LogDebug("SqlTransaction - committed");
                 return result;
             }
             catch

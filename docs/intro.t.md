@@ -72,7 +72,7 @@ services.AddSlimMessageBus(mbb =>
 
   // Use Azure Service Bus transport provider (requires SlimMessageBus.Host.AzureServiceBus package)
   //.WithProviderServiceBus(...)
-  // Use Azure Azure Event Hub transport provider (requires SlimMessageBus.Host.AzureEventHub package)
+  // Use Azure Event Hub transport provider (requires SlimMessageBus.Host.AzureEventHub package)
   //.WithProviderEventHub(...)
   // Use Redis transport provider (requires SlimMessageBus.Host.Redis package)
   //.WithProviderRedis(...)
@@ -124,7 +124,7 @@ Having done the SMB setup, one can then inject [`IMessageBus`](../src/SlimMessag
 
 > The `IMessageBus` implementations are lightweight and thread-safe.
 
-For completness, please also see the [Hybrid provider configuration](provider_hybrid.md#configuration) which might be needed if the application needs to use more than one transport.
+For completeness, please also see the [Hybrid provider configuration](provider_hybrid.md#configuration) which might be needed if the application needs to use more than one transport.
 
 ## Pub/Sub communication
 
@@ -236,7 +236,7 @@ public class SomeConsumer
 #### Start or Stop message consumption
 
 By default message consumers are started as soon as the bus is created. This means that messages arriving on the given transport will be processed by the declared consumers.
-If you want to prevent this default use the follwing setting:
+If you want to prevent this default use the following setting:
 
 ```cs
 mbb.AutoStartConsumersEnabled(false); // default is true
@@ -599,7 +599,7 @@ There is also an option to provide a type filter predicate. This might be helpfu
 ```cs
 services.AddSlimMessageBus(mbb =>
 {
-  // Register the found types that contain DomainEventHandlers in the namespacce
+  // Register the found types that contain DomainEventHandlers in the namespace
   mbb.AddConsumersFromAssembly(Assembly.GetExecutingAssembly(), filter: (type) => type.Namespace.Contains("DomainEventHandlers"));
 };
 ```
@@ -614,7 +614,7 @@ services.AddHttpContextAccessor(); // This is required for the SlimMessageBus.Ho
 services.AddSlimMessageBus(mbb =>
 {
   // ...
-  mbb.AddAspNet(); // reqires SlimMessageBus.Host.AspNetCore
+  mbb.AddAspNet(); // requires SlimMessageBus.Host.AspNetCore
 };
 ```
 
@@ -663,7 +663,7 @@ The `mbb.AddServicesFromAssembly()` extension method performs search for any imp
 - consumers `IConsumer<T>`, `IRequestHandler<T, R>` or `IRequestHandler<T>`,
 - [interceptors](#interceptors)
 
-Found types are registered (by default as `Transient`) servcices with the MSDI container.
+Found types are registered (by default as `Transient`) services with the MSDI container.
 
 ```cs
 services.AddSlimMessageBus(mbb =>
@@ -686,7 +686,7 @@ The `MessageType` header will be set for every published (or produced) message t
 
 This approach allows SMB to send polymorphic message types (messages that share a common ancestry) and even send unrelated message types via the same topic/queue transport.
 
-This mechanism should work fine with serializers that support polimorphic serialization (e.g. Newtonsoft.Json) and have that feature enabled. In such case a message type discriminator (e.g. `$type` property for Newtonsoft.Json) will be added by the serializer to the message payload, so that the deserializer on the consumer end knows to what type to deserialize the message to.
+This mechanism should work fine with serializers that support polymorphic serialization (e.g. Newtonsoft.Json) and have that feature enabled. In such case a message type discriminator (e.g. `$type` property for Newtonsoft.Json) will be added by the serializer to the message payload, so that the deserializer on the consumer end knows to what type to deserialize the message to.
 However, the `MessageType` header takes precedence in SMB in matching the correct consumer.
 
 > For better interoperability, the `MessageType` header is optional. This is to support the scenario that other publishing system does not use SMB nor is able to set the header. However, in the absence of `MessageType` header the SMB consumer side, should expect only one type per topic/queue. If there were more than one message types on the same topic (or queue) SMB would not be able to infer what type actually arrived.
@@ -815,7 +815,7 @@ mbb.Consume<CustomerEvent>(x =>
 });
 ```
 
-All the arriving polymorphic message types will be matched agaist the declared consumers types that could accept the arrived message type and they will be activated.
+All the arriving polymorphic message types will be matched against the declared consumers types that could accept the arrived message type and they will be activated.
 
 In this example:
 

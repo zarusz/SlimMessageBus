@@ -42,7 +42,7 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
         catch (Exception e)
         {
             // Do nothing
-            _logger.LogWarning(e, "Error occured while executing hook {HookName}", nameof(RedisMessageBusSettings.OnDatabaseConnected));
+            _logger.LogWarning(e, "Error occurred while executing hook {HookName}", nameof(RedisMessageBusSettings.OnDatabaseConnected));
         }
     }
 

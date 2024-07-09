@@ -124,6 +124,10 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
 
         // act
 
+        // consume all messages that might be on the queue/subscription
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 5);
+        consumedMessages.Clear();
+
         // publish
         var stopwatch = Stopwatch.StartNew();
 

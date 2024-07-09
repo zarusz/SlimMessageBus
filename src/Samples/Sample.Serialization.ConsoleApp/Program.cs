@@ -27,7 +27,7 @@ enum Provider
 
 /// <summary>
 /// This sample shows:
-/// 1. How tu use the Avro serializer (for contract Avro IDL first apprach to generate C# code)
+/// 1. How to use the Avro serializer (for contract Avro IDL first approach to generate C# code)
 /// 2. How to combine two serializer approaches in one app (using the Hybrid serializer).
 /// </summary>
 class Program
@@ -98,7 +98,7 @@ class Program
 
                                 //case Provider.Kafka:
                                 //    // Ensure your Kafka broker is running
-                                //    var kafkaBrokers = Secrets.Service.PopulateSecrets(configurationconfiguration["Kafka:Brokers"]);
+                                //    var kafkaBrokers = Secrets.Service.PopulateSecrets(configuration["Kafka:Brokers"]);
                                 //    var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
                                 //    var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
                                 //    var kafkaSecure = Secrets.Service.PopulateSecrets(configuration["Kafka:Secure"]);
@@ -204,7 +204,7 @@ public class SubtractCommandConsumer : IConsumer<SubtractCommand>
 {
     public async Task OnHandle(SubtractCommand message)
     {
-        Console.WriteLine("Consumer: Subracting {0} and {1} gives {2}", message.Left, message.Right, message.Left - message.Right);
+        Console.WriteLine("Consumer: Subtracting {0} and {1} gives {2}", message.Left, message.Right, message.Left - message.Right);
         await Task.Delay(50); // Simulate some work
     }
 }

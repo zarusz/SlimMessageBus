@@ -181,7 +181,7 @@ public class MessageBusBaseTests : IDisposable
         raTask.IsCanceled.Should().BeTrue();
         rbTask.IsCanceled.Should().BeFalse();
 
-        // adter 20 seconds
+        // after 20 seconds
         _timeNow = _timeZero.AddSeconds(TimeoutDefault10 + 1);
         Bus.TriggerPendingRequestCleanup();
 

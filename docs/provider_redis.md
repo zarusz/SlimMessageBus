@@ -40,7 +40,7 @@ The `RedisMessageBusSettings` has additional settings that allow to override fac
 
 ### Connection string parameters
 
-The list of all configuration parameters for the connectiong string can be found here:
+The list of all configuration parameters for the connection string can be found here:
 https://stackexchange.github.io/StackExchange.Redis/Configuration
 
 ## Producer
@@ -119,7 +119,7 @@ await bus.Publish(new SomeMessage())
 Then all 3 service instances will have the message copy delivered to the `SomeConsumer` (even the service instance that published the message in question).
 This is because each service instance is an independent subscriber (independent Redis client).
 
-> In redis pub/sub the published messages are not durable. At the time of publish only connected consumers will recieve the message. If any of your service instances comes online after the publish (had a downtime, was restarted) the previously publishied messages will not be delivered.
+> In redis pub/sub the published messages are not durable. At the time of publish only connected consumers will receive the message. If any of your service instances comes online after the publish (had a downtime, was restarted) the previously published messages will not be delivered.
 
 ### Queues
 
@@ -139,7 +139,7 @@ The queue (FIFO) is emulated using a [Redis list type](https://redis.io/docs/dat
 - the key represents the queue name,
 - the value is a Redis list type and stores messages (in FIFO order).
 
-Internally the queue is implemetned in the following way:
+Internally the queue is implemented in the following way:
 
 - producer will use the [`RPUSH`](https://redis.io/commands/rpush) to add the message at the tail of the list with a redis key (queue name),
 - consumer will use the [`LPOP`](https://redis.io/commands/lpop) to remove the massage from the head of the list with a redis key (queue name).
@@ -147,8 +147,8 @@ Internally the queue is implemetned in the following way:
 > The implementation provides at-most-once delivery guarantee.
 
 There is a chance that the consumer process dies after it performs `LPOP` and before it fully processes the message.
-Another implementation was also considered using [`RPOPLPUSH`](https://redis.io/commands/rpoplpush) that would allow for at-least-once quarantee.
-However, that would require to manage individual per process instance local queues making tha runtime and configuration not practical.
+Another implementation was also considered using [`RPOPLPUSH`](https://redis.io/commands/rpoplpush) that would allow for at-least-once guarantee.
+However, that would require to manage individual per process instance local queues making the runtime and configuration not practical.
 
 ### Message Headers
 

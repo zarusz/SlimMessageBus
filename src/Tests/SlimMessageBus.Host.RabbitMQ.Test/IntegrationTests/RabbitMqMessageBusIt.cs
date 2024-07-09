@@ -49,7 +49,7 @@ public class RabbitMqMessageBusIt(ITestOutputHelper testOutputHelper)
                     channel.ExchangeDelete("test-ping", ifUnused: true);
                     channel.ExchangeDelete("subscriber-dlq", ifUnused: true);
 
-                    // apply default SMB infered topology
+                    // apply default SMB inferred topology
                     applyDefaultTopology();
 
                     // after

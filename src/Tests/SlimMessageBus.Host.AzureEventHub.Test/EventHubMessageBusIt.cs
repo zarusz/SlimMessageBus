@@ -68,10 +68,13 @@ public class EventHubMessageBusIt : BaseIntegrationTest<EventHubMessageBusIt>
         });
 
         var consumedMessages = ServiceProvider.GetRequiredService<ConcurrentBag<PingMessage>>();
-
         var messageBus = MessageBus;
 
         // act
+
+        // consume all messages that might be on the queue/subscription
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 5);
+        consumedMessages.Clear();
 
         // publish
         var stopwatch = Stopwatch.StartNew();

@@ -22,7 +22,7 @@ public class SqlMessageBus : MessageBusBase<SqlMessageBusSettings>
         var sqlRepository = scope.ServiceProvider.GetService<ISqlRepository>();
         var sqlTransactionService = scope.ServiceProvider.GetService<ISqlTransactionService>();
         var provisioningService = new SqlTopologyService(LoggerFactory.CreateLogger<SqlTopologyService>(), (SqlRepository)sqlRepository, sqlTransactionService, ProviderSettings);
-        await provisioningService.Migrate(CancellationToken); // provisining happens asynchronously
+        await provisioningService.Migrate(CancellationToken); // provisioning happens asynchronously
     }
 
     protected override Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)

@@ -86,7 +86,7 @@ public class SafeDictionaryWrapper<TKey, TValue> : IReadOnlyCache<TKey, TValue>
     {
         lock (_lock)
         {
-            // allocate a new dictonary to avoid mutation while reading in another thread
+            // allocate a new dictionary to avoid mutation while reading in another thread
             _mutableDict[key] = value;
             OnChanged();
         }

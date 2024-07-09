@@ -12,7 +12,7 @@ public class AssemblyQualifiedNameMessageTypeResolver : IMessageTypeResolver
     private static readonly Regex RedundantAssemblyTokens = new(@"\, (Version|Culture|PublicKeyToken)\=([\w\d.]+)", RegexOptions.None, TimeSpan.FromSeconds(2));
 
     /// <summary>
-    /// Determines wheather to emit the Version, Culture and PublicKeyToken along with the Assembly name (for strong assembly naming).
+    /// Determines whether to emit the Version, Culture and PublicKeyToken along with the Assembly name (for strong assembly naming).
     /// </summary>
     public bool EmitAssemblyStrongName { get; set; } = false;
 

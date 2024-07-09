@@ -1,6 +1,6 @@
 ### Pull requests are welcome
 
-Pull requests are welcome. Ideally first state the problem or feature you need and engage in a discusssion on gitter or github issues.
+Pull requests are welcome. Ideally first state the problem or feature you need and engage in a discussion on gitter or github issues.
 A high level design discussion will be needed for new features.
 
 ### Sign your work

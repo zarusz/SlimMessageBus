@@ -32,7 +32,7 @@ public class ProducerBuilder<T>
     }
 
     /// <summary>
-    /// Hook called whenver message is being produced. Can be used to add (or mutate) message headers.
+    /// Hook called whenever message is being produced. Can be used to add (or mutate) message headers.
     /// </summary>
     public ProducerBuilder<T> WithHeaderModifier(MessageHeaderModifier<T> headerModifier)
     {

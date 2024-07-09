@@ -198,12 +198,12 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
             {
                 if (_shouldLogWhenUnrecognizedMessageType)
                 {
-                    _logger.LogInformation("The message on path {Path} declared {HeaderName} header of type {MessageType}, but none of the the known consumer types {ConsumerTypes} was able to handle that", Path, MessageHeaders.MessageType, messageType, string.Join(",", _invokers.Select(x => x.ConsumerType.Name)));
+                    _logger.LogInformation("The message on path {Path} declared {HeaderName} header of type {MessageType}, but none of the known consumer types {ConsumerTypes} was able to handle it", Path, MessageHeaders.MessageType, messageType, string.Join(",", _invokers.Select(x => x.ConsumerType.Name)));
                 }
 
                 if (_shouldFailWhenUnrecognizedMessageType)
                 {
-                    throw new ConsumerMessageBusException($"The message on path {Path} declared {MessageHeaders.MessageType} header of type {messageType}, but none of the the known consumer types {string.Join(",", _invokers.Select(x => x.ConsumerType.Name))} was able to handle that");
+                    throw new ConsumerMessageBusException($"The message on path {Path} declared {MessageHeaders.MessageType} header of type {messageType}, but none of the known consumer types {string.Join(",", _invokers.Select(x => x.ConsumerType.Name))} was able to handle that");
                 }
             }
         }

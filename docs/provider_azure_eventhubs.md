@@ -67,7 +67,7 @@ services.AddSlimMessageBus(mbb =>
         cfg.StorageConnectionString = storageConnectionString;
         cfg.StorageBlobContainerName = storageContainerName;
 
-        // More advanced settings can be changed on the the underlying AEH client
+        // More advanced settings can be changed on the underlying AEH client
         cfg.EventHubProducerClientOptionsFactory = (path) => new Azure.Messaging.EventHubs.Producer.EventHubProducerClientOptions
         {
             Identifier = $"MyService_{Guid.NewGuid()}"

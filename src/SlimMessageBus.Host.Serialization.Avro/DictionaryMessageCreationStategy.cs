@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 
 /// <summary>
 /// Strategy to create message instances using a dictionary which holds registered factory methods.
-/// This should be faster than the <see cref="ReflectionMessageCreationStategy"/> strategy.
+/// This should be faster than the <see cref="ReflectionMessageCreationStrategy"/> strategy.
 /// </summary>
 public class DictionaryMessageCreationStategy : IMessageCreationStrategy
 {

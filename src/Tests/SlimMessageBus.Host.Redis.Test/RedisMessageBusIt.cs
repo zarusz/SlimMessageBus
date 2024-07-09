@@ -222,7 +222,7 @@ public class RedisMessageBusIt(ITestOutputHelper testOutputHelper)
         var responseTasks = requests.Select(async req =>
         {
             var resp = await messageBus.Send<EchoResponse, EchoRequest>(req).ConfigureAwait(false);
-            Logger.LogDebug("Recieved response for index {0:000}", req.Index);
+            Logger.LogDebug("Received response for index {0:000}", req.Index);
             responses.Add((req, resp));
         });
         await Task.WhenAll(responseTasks).ConfigureAwait(false);

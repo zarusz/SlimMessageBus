@@ -91,7 +91,7 @@ public class HybridTests : IDisposable
     public record EventMark(Guid CorrelationId, string Name, Type ContextMessageBusType);
 
     /// <summary>
-    /// This test ensures that in a hybris bus setup External (Azure Service Bus) and Internal (Memory) the external message scope is carried over to memory bus, 
+    /// This test ensures that in a hybrid bus setup External (Azure Service Bus) and Internal (Memory) the external message scope is carried over to memory bus, 
     /// and that the interceptors are invoked (and in the correct order).
     /// </summary>
     /// <returns></returns>
@@ -106,7 +106,7 @@ public class HybridTests : IDisposable
             servicesBuilder: services =>
             {
                 // Unit of work should be shared between InternalMessageConsumer and ExternalMessageConsumer.
-                // External consumer creates a message scope which continues to itnernal consumer.
+                // External consumer creates a message scope which continues to internal consumer.
                 services.AddScoped<UnitOfWork>();
 
                 // This is a singleton that will collect all the events that happened to verify later what actually happened.

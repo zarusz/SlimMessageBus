@@ -9,7 +9,7 @@ public class MemoryMessageBusBuilder : MessageBusBuilder
 {
     internal MemoryMessageBusBuilder(MessageBusBuilder other) : base(other)
     {
-        // If the user did not setup RequestResponse settings, apply a defult setting with long TimeOut
+        // If the user did not setup RequestResponse settings, apply a default setting with long TimeOut
         Settings.RequestResponse ??= new RequestResponseSettings
         {
             Timeout = TimeSpan.FromHours(1),
@@ -21,7 +21,7 @@ public class MemoryMessageBusBuilder : MessageBusBuilder
 
     /// <summary>
     /// Searches for any types that implement <see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/> in the specified assemblies. 
-    /// For every found type declares the produced and consumer/handler by applying the topic name that corresponds to the mesage name.
+    /// For every found type declares the produced and consumer/handler by applying the topic name that corresponds to the message name.
     /// </summary>
     /// <param name="assemblies"></param>
     /// <param name="consumerTypeFilter">Allows to apply a filter for the found consumer/handler types.</param>
@@ -166,7 +166,7 @@ public class MemoryMessageBusBuilder : MessageBusBuilder
 
     /// <summary>
     /// In the specified assemblies, searches for any types that implement <see cref="IConsumer{TMessage}"/>, <see cref="IRequestHandler{TRequest, TResponse}"/> or <see cref="IRequestHandler{TRequest}"/>. 
-    /// For every found type declares the producer and consumer/handler by applying the topic name that corresponds to the mesage name (provide custom converter to override this behavior).
+    /// For every found type declares the producer and consumer/handler by applying the topic name that corresponds to the message name (provide custom converter to override this behavior).
     /// </summary>
     /// <param name="assembly"></param>
     /// <param name="consumerTypeFilter">Allows to apply a filter for any found consumer/handler.</param>

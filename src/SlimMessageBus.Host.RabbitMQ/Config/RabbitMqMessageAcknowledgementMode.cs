@@ -14,14 +14,14 @@ public enum RabbitMqMessageAcknowledgementMode
     ConfirmAfterMessageProcessingWhenNoManualConfirmMade = 0,
 
     /// <summary>    
-    /// The message will already be considered as Ack upon recieve. See https://www.rabbitmq.com/docs/confirms#acknowledgement-modes for details.
+    /// The message will already be considered as Ack upon receive. See https://www.rabbitmq.com/docs/confirms#acknowledgement-modes for details.
     /// This results in at-most-once delivery guarantee (messages could be lost if processing would not fully finish).
     /// This is managed by the protocol and should give faster throughput than <see cref="RabbitMqMessageAcknowledgementMode.AckMessageBeforeProcessing"/> while leading to same delivery guarantees.
     /// </summary>
     AckAutomaticByRabbit = 1,
 
     /// <summary>
-    /// The message will be Ack-ed by SMB before the actuall message processing starts.
+    /// The message will be Ack-ed by SMB before the actual message processing starts.
     /// This results in at-most-once delivery guarantee (messages could be lost if processing would not fully finish).
     /// </summary>
     AckMessageBeforeProcessing = 2,

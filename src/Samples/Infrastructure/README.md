@@ -1,4 +1,4 @@
-## Sample Infastucture
+## Sample Infrastructure
 
 This folder contains some useful docker compose or kubernetes deployments assets that will help you run a simple test infrastructure.
 

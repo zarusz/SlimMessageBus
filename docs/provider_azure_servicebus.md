@@ -16,7 +16,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
   - [Handle Request Messages](#handle-request-messages)
 - [ASB Sessions](#asb-sessions)
 - [Topology Provisioning](#topology-provisioning)
-  - [Triger Topology Provisioning](#triger-topology-provisioning)
+  - [Trigger Topology Provisioning](#trigger-topology-provisioning)
 
 ## Configuration
 
@@ -43,7 +43,7 @@ This determination is set as part of the bus builder configuration.
 
 ## Producing Messages
 
-To produce a given `TMessage` to a Azure Serivce Bus queue (or topic) use:
+To produce a given `TMessage` to a Azure Service Bus queue (or topic) use:
 
 ```cs
 // send TMessage to Azure SB queues
@@ -312,7 +312,7 @@ The consumer side has to enable sessions:
 mbb.Consume<CustomerMessage>(x => x
    .Queue(queue)
    .WithConsumer<CustomerConsumer>()
-   // Defines how many concurrent message processings will be done within a single ongoing session
+   // Defines how many concurrent message processors will be instantiated within a single ongoing session
    // To achieve FIFO, this should be 1 (the default)
    .Instances(1)
    // Enables sessions, this process can handle up to 10 sessions concurrently, each session will expire after 5 seconds of inactivity
@@ -466,7 +466,7 @@ mbb.WithProviderServiceBus(cfg =>
 });
 ```
 
-### Triger Topology Provisioning
+### Trigger Topology Provisioning
 
 > Since 1.19.3
 

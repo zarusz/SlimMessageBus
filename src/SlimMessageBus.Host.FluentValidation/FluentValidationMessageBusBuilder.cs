@@ -108,7 +108,7 @@ public class FluentValidationMessageBusBuilder
     }
 
     /// <summary>
-    /// Registers an implemention of <see cref="IValidationErrorsHandler"/> that uses the supplied lambda. The scope is singleton.
+    /// Registers an implementation of <see cref="IValidationErrorsHandler"/> that uses the supplied lambda. The scope is singleton.
     /// </summary>
     /// <param name="services"></param>
     /// <param name="validationErrorsHandler"

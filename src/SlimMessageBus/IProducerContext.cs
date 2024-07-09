@@ -3,7 +3,7 @@
 public interface IProducerContext
 {
     /// <summary>
-    /// The path (topic or queue) the will be deliverd to.
+    /// The path (topic or queue) that the message will be delivered to.
     /// </summary>
     string Path { get; }
     /// <summary>

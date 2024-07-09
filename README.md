@@ -169,7 +169,7 @@ services.AddSlimMessageBus(mbb =>
             .WithProviderKafka(cfg => { cfg.BrokerList = "localhost:9092"; }); // requires SlimMessageBus.Host.Kafka package
             // Use Azure Service Bus transport provider
             //.WithProviderServiceBus(cfg => { ... }) // requires SlimMessageBus.Host.AzureServiceBus package
-            // Use Azure Azure Event Hub transport provider
+            // Use Azure Event Hub transport provider
             //.WithProviderEventHub(cfg => { ... }) // requires SlimMessageBus.Host.AzureEventHub package
             // Use Redis transport provider
             //.WithProviderRedis(cfg => { ... }) // requires SlimMessageBus.Host.Redis package

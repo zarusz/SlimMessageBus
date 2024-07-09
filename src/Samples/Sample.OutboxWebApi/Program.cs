@@ -87,7 +87,7 @@ builder.Services.AddSlimMessageBus(mbb =>
 // Alternatively, if we were not using EF, we could use a SqlConnection
 builder.Services.AddSlimMessageBusOutboxUsingSql(opts => { opts.PollBatchSize = 100; });
 
-// Register in the the container how to create SqlConnection
+// Register in the container how to create SqlConnection
 builder.Services.AddTransient(svp =>
     var configuration = svp.GetRequiredService<IConfiguration>();
     var connectionString = configuration.GetConnectionString("DefaultConnection");

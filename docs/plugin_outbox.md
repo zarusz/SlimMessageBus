@@ -45,6 +45,7 @@ Startup setup:
 ```cs
 builder.Services.AddSlimMessageBus(mbb =>
 {
+    mbb.PerMessageScopeEnabled(false);
     mbb
         .AddChildBus("Memory", mbb =>
         {
@@ -85,6 +86,7 @@ builder.Services.AddSlimMessageBus(mbb =>
         .AddOutboxUsingDbContext<CustomerContext>(opts =>
         {
             opts.PollBatchSize = 100;
+            opts.PollIdleSleep = TimeSpan.FromSeconds(10);
             opts.MessageCleanup.Interval = TimeSpan.FromSeconds(10);
             opts.MessageCleanup.Age = TimeSpan.FromMinutes(1);
             //opts.SqlSettings.TransactionIsolationLevel = System.Data.IsolationLevel.RepeatableRead;

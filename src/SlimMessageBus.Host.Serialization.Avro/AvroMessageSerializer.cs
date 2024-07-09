@@ -39,7 +39,7 @@ public class AvroMessageSerializer : IMessageSerializer
     public Func<Type, Schema> ReadSchemaLookup { get; set; }
 
     /// <summary>
-    /// By default MessageFactory is set to use the <see cref="ReflectionMessageCreationStategy"/> strategy, WriteSchemaLookup and ReadSchemaLookup is set to use <see cref="ReflectionSchemaLookupStrategy"/>.
+    /// By default MessageFactory is set to use the <see cref="ReflectionMessageCreationStrategy"/> strategy, WriteSchemaLookup and ReadSchemaLookup is set to use <see cref="ReflectionSchemaLookupStrategy"/>.
     /// </summary>
     public AvroMessageSerializer(ILoggerFactory loggerFactory = null)
     {
@@ -49,7 +49,7 @@ public class AvroMessageSerializer : IMessageSerializer
         WriteMemoryStreamFactory = () => new MemoryStream();
         ReadMemoryStreamFactory = (byte[] payload) => new MemoryStream(payload);
 
-        var mf = new ReflectionMessageCreationStategy(loggerFactory.CreateLogger<ReflectionMessageCreationStategy>());
+        var mf = new ReflectionMessageCreationStrategy(loggerFactory.CreateLogger<ReflectionMessageCreationStrategy>());
         var ml = new ReflectionSchemaLookupStrategy(loggerFactory.CreateLogger<ReflectionSchemaLookupStrategy>());
 
         MessageFactory = (Type type) => mf.Create(type);

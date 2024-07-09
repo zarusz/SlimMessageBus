@@ -3,7 +3,7 @@
 using global::Avro;
 
 /// <summary>
-/// Stategy to lookup meessage schema by type using a dictionary registry
+/// Strategy to lookup message schema by type using a dictionary registry
 /// </summary>
 public class DictionarySchemaLookupStrategy : ISchemaLookupStrategy
 {

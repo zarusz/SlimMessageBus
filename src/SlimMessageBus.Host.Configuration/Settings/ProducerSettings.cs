@@ -19,7 +19,7 @@ public class ProducerSettings : HasProviderExtensions
     /// </summary>
     public TimeSpan? Timeout { get; set; }
     /// <summary>
-    /// Hook called whenver message is being produced. Can be used to add (or mutate) message headers.
+    /// Hook called whenever message is being produced. Can be used to add (or mutate) message headers.
     /// </summary>
     public MessageHeaderModifier<object> HeaderModifier { get; set; }
 }

@@ -122,7 +122,7 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
                     {
                         var pollRetryInterval = MessageBus.ProviderSettings.ConsumerPollRetryInterval;
 
-                        Logger.LogError(e, "Group [{Group}]: Error occured while polling new messages (will retry in {RetryInterval}) - {Reason}", Group, pollRetryInterval, e.Error.Reason);
+                        Logger.LogError(e, "Group [{Group}]: Error occurred while polling new messages (will retry in {RetryInterval}) - {Reason}", Group, pollRetryInterval, e.Error.Reason);
                         await Task.Delay(pollRetryInterval, _consumerCts.Token).ConfigureAwait(false);
                     }
                 }
@@ -144,7 +144,7 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
         }
         catch (Exception e)
         {
-            Logger.LogError(e, "Group [{Group}]: Error occured in group loop (terminated)", Group);
+            Logger.LogError(e, "Group [{Group}]: Error occurred in group loop (terminated)", Group);
         }
         finally
         {
