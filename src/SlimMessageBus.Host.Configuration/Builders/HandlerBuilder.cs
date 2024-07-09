@@ -82,7 +82,7 @@ public abstract class AbstractHandlerBuilder<TRequest, THandlerBuilder> : Abstra
     }
 
     /// <summary>
-    /// Declares type the hadlner of a derived message.
+    /// Declares type the handler of a derived message.
     /// The handler type has to implement <see cref="IRequestHandler{TRequest, TResponse}"/> interface.
     /// </summary>
     /// <param name="derivedRequestType">The derived request type from type <see cref="TRequest"/>/param>

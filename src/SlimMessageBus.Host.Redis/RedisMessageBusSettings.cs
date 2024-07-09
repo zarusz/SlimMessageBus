@@ -23,13 +23,13 @@ public class RedisMessageBusSettings
     public TimeSpan? QueuePollDelay { get; set; } = TimeSpan.FromSeconds(1);
 
     /// <summary>
-    /// The <see cref="IMessageSerializer"/> serializer capable of serializing <see cref="MessageWithHeaders"/> that wrap the actual message type. The wrapper is needed to transmit headers for redit transport which has no headers support.
+    /// The <see cref="IMessageSerializer"/> serializer capable of serializing <see cref="MessageWithHeaders"/> that wraps the actual message type. The wrapper is needed to transmit headers for redis transport which has no headers support.
     /// By default uses <see cref="MessageWithHeadersSerializer"/>.
     /// </summary>
     public IMessageSerializer EnvelopeSerializer { get; set; }
 
     /// <summary>
-    /// Hook that is fired when the Redis connection to database is established on startuo. Can be used to perform some Redis database cleanup or initialization.
+    /// Hook that is fired when the Redis connection to database is established on startup. Can be used to perform some Redis database cleanup or initialization.
     /// </summary>
     public Action<IDatabase> OnDatabaseConnected { get; set; }
 

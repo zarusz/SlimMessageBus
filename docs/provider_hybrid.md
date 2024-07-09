@@ -72,17 +72,17 @@ The `IMessageBus` injected into any layer of your application will be the hybrid
 It is important to understand, that handlers (`IRequestHandler<>`) or consumers (`IConsumer<>`) registered will be managed by the respective child bus that they are configured on.
 
 There can be more than one child bus that can consume the given message type. In this case hybrid bus will route the message to all of the child bus.
-By default any matching child bus will be executed in sequence. There is also an option to execute this in pararell (see the `PublishExecutionMode` setting on `HybridMessageBusSettings`).
+By default any matching child bus will be executed in sequence. There is also an option to execute this in parallel (see the `PublishExecutionMode` setting on `HybridMessageBusSettings`).
 
 > A given request message type can only be handled by one child bus, however, non-request messages can by consumed by multiple child buses.
 
-The request messages need exactly one handler to calculate the response, therefore if we had more than one handler for a given request it would be ambigous which response to return.
+The request messages need exactly one handler to calculate the response, therefore if we had more than one handler for a given request it would be ambiguous which response to return.
 
 ### Shared configuration
 
-Any setting applied at the hybrid bus builder level will be inherited by ech child transport bus. In the example mentioned, the memory and Azure SB busses will inherit the serializer and dependency resolver.
+Any setting applied at the hybrid bus builder level will be inherited by each child transport bus. In the example mentioned, the memory and Azure SB buses will inherit the serializer and dependency resolver.
 
-Individual child busses can provide their own serialization (or any other setting) and effectively override the serialization (or any other setting).
+Individual child buses can provide their own serialization (or any other setting) and effectively override the serialization (or any other setting).
 
 > The Hybrid bus builder configurations of the producer (`Produce()`) and consumer (`Consume()`) will be added into every child bus producer/consumer registration list.
 

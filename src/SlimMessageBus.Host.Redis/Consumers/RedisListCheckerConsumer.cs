@@ -76,13 +76,13 @@ public class RedisListCheckerConsumer : AbstractConsumer, IRedisConsumer
                             var r = await processor.ProcessMessage(transportMessage, transportMessage.Headers, cancellationToken: CancellationToken).ConfigureAwait(false);
                             if (r.Exception != null)
                             {
-                                Logger.LogError(r.Exception, "Error occured while processing the list item on {Queue}", queue.Name);
+                                Logger.LogError(r.Exception, "Error occurred while processing the list item on {Queue}", queue.Name);
                             }
                         }
                     }
                     catch (Exception e)
                     {
-                        Logger.LogError(e, "Error occured while processing the list item on {Queue}", queue.Name);
+                        Logger.LogError(e, "Error occurred while processing the list item on {Queue}", queue.Name);
                     }
 
                     itemsArrived = true;

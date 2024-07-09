@@ -24,7 +24,7 @@ services.AddSlimMessageBus(mbb =>
 });
 ```
 
-If the bus is a Hybrid bus composed of other child buses, then we can register multiple serializers and instuct which serializer type to apply for the given child bus.
+If the bus is a Hybrid bus composed of other child buses, then we can register multiple serializers and instruct which serializer type to apply for the given child bus.
 Consider the following example:
 
 ```cs
@@ -50,7 +50,7 @@ services.AddSlimMessageBus(mbb =>
 });
 ```
 
-> The serializer will be a singleton used across all the concurently running tasks of producing and consuming messages in a given bus instance. The serializers are designed, so that they are Thread-safe.
+> The serializer will be a singleton used across all the concurrently running tasks of producing and consuming messages in a given bus instance. The serializers are designed, so that they are Thread-safe.
 
 ## Json (Newtonsoft.Json)
 

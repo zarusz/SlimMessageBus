@@ -46,7 +46,7 @@ public class GenericTypeCache<TFunc> : IGenericTypeCache<TFunc>
     /// <param name="openGenericType">The open generic type e.g. <see cref="IProducerInterceptor{TMessage}>"/>.</param>
     /// <param name="methodName">The method name on the open generic type.</param>
     /// <param name="returnTypeFunc">The return type of the method.</param>
-    /// <param name="argumentTypes">Additional method arguments (in addition to the message type which is the open generyc type param).</param>
+    /// <param name="argumentTypes">Additional method arguments (in addition to the message type which is the open generic type param).</param>
     public GenericTypeCache(Type openGenericType, string methodName, Func<Type, Type> returnTypeFunc, Func<Type, Type[]> argumentTypesFunc = null)
     {
         _openGenericType = openGenericType;

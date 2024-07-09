@@ -42,7 +42,7 @@ public class ConsumerSettings : AbstractConsumerSettings, IMessageTypeConsumerIn
     /// </summary>
     public Type ResponseType { get; set; }
     /// <summary>
-    /// Determines if a child scope is created for the message consuption. The consumer instance is then derived from that scope.
+    /// Determines if a child scope is created for the message consumption. The consumer instance is then derived from that scope.
     /// </summary>
     public bool? IsMessageScopeEnabled { get; set; }
     /// <summary>

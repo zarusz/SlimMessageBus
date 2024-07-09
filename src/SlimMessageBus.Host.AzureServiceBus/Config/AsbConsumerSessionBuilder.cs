@@ -7,7 +7,7 @@ public class AsbConsumerSessionBuilder
     public AsbConsumerSessionBuilder(AbstractConsumerSettings consumerSettings) => ConsumerSettings = consumerSettings;
 
     /// <summary>
-    /// Sets the Azue Service Bus session idle timeout.
+    /// Sets the Azure Service Bus session idle timeout.
     /// </summary>
     /// <param name="sessionIdleTimeout"></param>
     /// <returns></returns>
@@ -19,7 +19,7 @@ public class AsbConsumerSessionBuilder
     }
 
     /// <summary>
-    /// Sets the Azue Service Bus maximmum concurrent sessions that can be handled by this consumer.
+    /// Sets the Azure Service Bus maximum concurrent sessions that can be handled by this consumer.
     /// </summary>
     /// <param name="maxConcurrentSessions"></param>
     /// <returns></returns>

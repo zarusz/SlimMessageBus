@@ -34,7 +34,7 @@ public static class RabbitMqConsumerContextExtensions
     static internal void ConfirmAction(this IConsumerContext consumerContext, RabbitMqMessageConfirmOptions option)
     {
         var messageConfirmAction = consumerContext.GetPropertyOrDefault<RabbitMqMessageConfirmAction>(Key)
-            ?? throw new ConsumerMessageBusException("Cannnot perform RabbitMq message confirmation at this point");
+            ?? throw new ConsumerMessageBusException("Cannot perform RabbitMq message confirmation at this point");
 
         messageConfirmAction(option);
     }

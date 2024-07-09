@@ -7,7 +7,7 @@
 $FILE = 'avro-tools.jar'
 $VERSION = '1.9.2'
 
-# download the avro tools (if havent done so already)
+# download the avro tools (if you haven't done so already)
 if(!(Test-Path -Path $FILE -PathType leaf)) 
 {
 	# if the link doesn't work check latest mirror link here: http://avro.apache.org/releases.html#Download

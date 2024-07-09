@@ -16,7 +16,7 @@ internal class ServiceBusMessageBusSettingsValidationService : DefaultMessageBus
         }
 
         var kindMapping = new KindMapping();
-        // This will validae if one path is mapped to both a topic and a queue
+        // This will validate if one path is mapped to both a topic and a queue
         kindMapping.Configure(Settings);
     }
 

@@ -89,7 +89,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
         Settings = settings;
 
-        // Try to resolve from DI, if also not available supress logging using the NullLoggerFactory
+        // Try to resolve from DI. If not available, suppress logging by using the NullLoggerFactory
         LoggerFactory = settings.ServiceProvider.GetService<ILoggerFactory>() ?? NullLoggerFactory.Instance;
 
         _logger = LoggerFactory.CreateLogger<MessageBusBase>();

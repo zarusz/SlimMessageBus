@@ -81,7 +81,7 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
 
         CheckpointTrigger?.Reset();
 
-        // Generate a new token source if it wasnt created or the existing one was cancelled
+        // Generate a new token source if it wasn't created or the existing one was cancelled
         if (_cancellationTokenSource == null || _cancellationTokenSource.IsCancellationRequested)
         {
             _cancellationTokenSource?.Dispose();
@@ -115,7 +115,7 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "Group [{Group}]: Error occured while consuming a message at Topic: {Topic}, Partition: {Partition}, Offset: {Offset}", Group, message.Topic, message.Partition, message.Offset);
+            _logger.LogError(e, "Group [{Group}]: Error occurred while consuming a message at Topic: {Topic}, Partition: {Partition}, Offset: {Offset}", Group, message.Topic, message.Partition, message.Offset);
             throw;
         }
     }

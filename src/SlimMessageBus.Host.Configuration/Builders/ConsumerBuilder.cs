@@ -155,7 +155,7 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
     }
 
     /// <summary>
-    /// Enable (or disable) creation of DI child scope for each meesage.
+    /// Enable (or disable) creation of DI child scope for each message.
     /// </summary>
     /// <param name="enabled"></param>
     /// <returns></returns>
@@ -168,7 +168,7 @@ public class ConsumerBuilder<T> : AbstractConsumerBuilder
     /// <summary>
     /// Enable (or disable) disposal of consumer after message consumption.
     /// </summary>
-    /// <remarks>This should be used in conjuction with <see cref="PerMessageScopeEnabled"/>. With per message scope enabled, the DI should dispose the consumer upon disposal of message scope.</remarks>
+    /// <remarks>This should be used in conjunction with <see cref="PerMessageScopeEnabled"/>. With per message scope enabled, the DI should dispose the consumer upon disposal of message scope.</remarks>
     /// <param name="enabled"></param>
     /// <returns></returns>
     public ConsumerBuilder<T> DisposeConsumerEnabled(bool enabled)

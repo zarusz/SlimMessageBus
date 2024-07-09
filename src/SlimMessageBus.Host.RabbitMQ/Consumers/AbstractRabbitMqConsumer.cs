@@ -24,7 +24,7 @@ public abstract class AbstractRabbitMqConsumer : AbstractConsumer
     protected override Task OnStart()
     {
         _consumer = new AsyncEventingBasicConsumer(_channel.Channel);
-        _consumer.Received += OnMessageRecieved;
+        _consumer.Received += OnMessageReceived;
 
         lock (_channel.ChannelLock)
         {
@@ -46,7 +46,7 @@ public abstract class AbstractRabbitMqConsumer : AbstractConsumer
         return Task.CompletedTask;
     }
 
-    protected async Task OnMessageRecieved(object sender, BasicDeliverEventArgs @event)
+    protected async Task OnMessageReceived(object sender, BasicDeliverEventArgs @event)
     {
         if (_consumer == null)
         {
@@ -68,7 +68,7 @@ public abstract class AbstractRabbitMqConsumer : AbstractConsumer
                 }
             }
 
-            exception = await OnMessageRecieved(messageHeaders, @event);
+            exception = await OnMessageReceived(messageHeaders, @event);
         }
         catch (Exception ex)
         {
@@ -80,7 +80,7 @@ public abstract class AbstractRabbitMqConsumer : AbstractConsumer
         }
     }
 
-    protected abstract Task<Exception> OnMessageRecieved(Dictionary<string, object> messageHeaders, BasicDeliverEventArgs transportMessage);
+    protected abstract Task<Exception> OnMessageReceived(Dictionary<string, object> messageHeaders, BasicDeliverEventArgs transportMessage);
 
     protected void NackMessage(BasicDeliverEventArgs @event, bool requeue)
     {

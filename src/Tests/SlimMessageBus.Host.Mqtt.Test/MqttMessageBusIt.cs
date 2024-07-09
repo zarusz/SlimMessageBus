@@ -153,7 +153,7 @@ public class MqttMessageBusIt : BaseIntegrationTest<MqttMessageBusIt>
         var responseTasks = requests.Select(async req =>
         {
             var resp = await messageBus.Send<EchoResponse, EchoRequest>(req);
-            Logger.LogDebug("Recieved response for index {EchoIndex:000}", req.Index);
+            Logger.LogDebug("Received response for index {EchoIndex:000}", req.Index);
             responses.Add((req, resp));
         });
         await Task.WhenAll(responseTasks);

@@ -27,7 +27,7 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
         Settings = settings ?? throw new ArgumentNullException(nameof(settings));
         ProviderSettings = providerSettings ?? new HybridMessageBusSettings();
 
-        // Try to resolve from DI, if also not available supress logging using the NullLoggerFactory
+        // Try to resolve from DI. If not available, suppress logging by using the NullLoggerFactory
         LoggerFactory = (ILoggerFactory)settings.ServiceProvider?.GetService(typeof(ILoggerFactory)) ?? NullLoggerFactory.Instance;
 
         _logger = LoggerFactory.CreateLogger<HybridMessageBus>();
@@ -60,7 +60,7 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
 
         _undeclaredMessageType = new();
 
-        // ToDo: defer start of busses until here
+        // ToDo: defer start of buses until here
     }
 
     protected virtual MessageBusBase BuildBus(MessageBusBuilder builder)

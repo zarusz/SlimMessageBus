@@ -1,6 +1,6 @@
 ﻿# What
 
-This shows the Avro IDL contract first apparch using the Apache.Avro library.
+This shows the Avro IDL contract first approach using the Apache.Avro library.
 First we need to define the IDL (*.avdl), then we generate C# classes from it.
 
 * The Avro contract is defined in [Avro IDL](https://avro.apache.org/docs/current/idl.html#overview_usage) (*.avdl).

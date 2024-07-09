@@ -6,7 +6,7 @@ public class CustomerEventConsumer : IConsumer<CustomerEvent>
     /// Process the <see cref="CustomerEvent"/> and acts accordingly.
     /// </summary>
     /// <remarks>
-    /// This will create an customer entry in the local databse for the created customer.
+    /// This will create an customer entry in the local database for the created customer.
     /// </remarks>
     /// <param name="message"></param>
     /// <returns></returns>

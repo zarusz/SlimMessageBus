@@ -3,7 +3,7 @@
 using SlimMessageBus;
 
 /// <summary>
-/// Resolves the <see cref="IMessageBus"/> from the current ASP.NET Core web request (if present, otherwise falls back to the application root containser).
+/// Resolves the <see cref="IMessageBus"/> from the current ASP.NET Core web request (if present, otherwise falls back to the application root container).
 /// </summary>
 internal class HttpContextAccessorCurrentMessageBusProvider : CurrentMessageBusProvider
 {

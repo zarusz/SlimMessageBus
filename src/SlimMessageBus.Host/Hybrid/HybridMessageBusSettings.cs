@@ -38,7 +38,7 @@ public enum PublishExecutionMode
     /// </summary>
     Sequential = 0,
     /// <summary>
-    /// Execute the publish on all of the buses in pararellel (non-deterministic order).
+    /// Execute the publish on all of the buses in parallel (non-deterministic order).
     /// </summary>
     Parallel = 2
 }

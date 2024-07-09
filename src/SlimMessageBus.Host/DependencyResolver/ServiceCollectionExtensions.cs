@@ -24,7 +24,7 @@ public static class ServiceCollectionExtensions
             {
                 configure(mbb);
 
-                // Execute post config actions for the master bus and its childern
+                // Execute post config actions for the master bus and its children
                 foreach (var action in mbb.PostConfigurationActions.Concat(mbb.Children.Values.SelectMany(x => x.PostConfigurationActions)))
                 {
                     action(services);
@@ -107,8 +107,8 @@ public static class ServiceCollectionExtensions
     /// <param name="mbb"></param>
     /// <param name="assembly"></param>
     /// <param name="filter">The filter to be applied for the found types - only types that evaluate the given filter predicate will be registered in MSDI.</param>
-    /// <param name="consumerLifetime">The consumer lifetime under which the found types should be registerd as.</param>
-    /// <param name="interceptorLifetime">The interceptor lifetime under which the found types should be registerd as.</param>
+    /// <param name="consumerLifetime">The consumer lifetime under which the found types should be registered as.</param>
+    /// <param name="interceptorLifetime">The interceptor lifetime under which the found types should be registered as.</param>
     /// <returns></returns>
     public static MessageBusBuilder AddServicesFromAssembly(
         this MessageBusBuilder mbb,
@@ -161,8 +161,8 @@ public static class ServiceCollectionExtensions
     /// <typeparam name="T"></typeparam>
     /// <param name="mbb"></param>
     /// <param name="filter">The filter to be applied for the found types - only types that evaluate the given filter predicate will be registered in MSDI.</param>
-    /// <param name="consumerLifetime">The consumer lifetime under which the found types should be registerd as.</param>
-    /// <param name="interceptorLifetime">The interceptor lifetime under which the found types should be registerd as.</param>
+    /// <param name="consumerLifetime">The consumer lifetime under which the found types should be registered as.</param>
+    /// <param name="interceptorLifetime">The interceptor lifetime under which the found types should be registered as.</param>
     /// <returns></returns>
     public static MessageBusBuilder AddServicesFromAssemblyContaining<T>(
         this MessageBusBuilder mbb,

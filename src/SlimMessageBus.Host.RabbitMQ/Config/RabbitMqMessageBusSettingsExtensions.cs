@@ -24,7 +24,7 @@ public static class RabbitMqMessageBusSettingsExtensions
     }
 
     /// <summary>
-    /// Sets the default settings for exchanges on the bus level. This default will be taken unless it is overriden at the relevant producer level.
+    /// Sets the default settings for exchanges on the bus level. This default will be taken unless it is overridden at the relevant producer level.
     /// </summary>
     /// <param name="settings"></param>
     /// <param name="durable"></param>
@@ -44,7 +44,7 @@ public static class RabbitMqMessageBusSettingsExtensions
     }
 
     /// <summary>
-    /// Sets the default settings for dead letter exchanges on the bus level. This default will be taken unless it is overriden at the relevant producer level.
+    /// Sets the default settings for dead letter exchanges on the bus level. This default will be taken unless it is overridden at the relevant producer level.
     /// </summary>
     /// <param name="settings"></param>
     /// <param name="exchangeType"></param>
@@ -74,7 +74,7 @@ public static class RabbitMqMessageBusSettingsExtensions
     }
 
     /// <summary>
-    /// Sets the default settings for queues on the bus level. This default will be taken unless it is overriden at the relevant consumer level.
+    /// Sets the default settings for queues on the bus level. This default will be taken unless it is overridden at the relevant consumer level.
     /// </summary>
     /// <param name="settings"></param>
     /// <param name="durable"></param>

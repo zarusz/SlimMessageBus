@@ -7,7 +7,7 @@ public static class BuilderExtensions
     static readonly internal string PropertySqlTransactionEnabled = "SqlTransaction_Enabled";
    
     /// <summary>
-    /// Enables the cration of <see cref="SqlTransaction"/> for every message consumed by this bus.
+    /// Enables the creation of <see cref="SqlTransaction"/> for every message consumed by this bus.
     /// </summary>
     /// <param name="builder"></param>
     /// <param name="enabled"></param>
@@ -19,7 +19,7 @@ public static class BuilderExtensions
     }
 
     /// <summary>
-    /// Enables the cration of <see cref="SqlTransaction"/> for every message on this consumer.
+    /// Enables the creation of <see cref="SqlTransaction"/> for every message on this consumer.
     /// </summary>
     /// <param name="builder"></param>
     /// <param name="enabled"></param>
@@ -31,7 +31,7 @@ public static class BuilderExtensions
     }
 
     /// <summary>
-    /// Enables the cration of <see cref="SqlTransaction"/> every messages on this handler.
+    /// Enables the creation of <see cref="SqlTransaction"/> every messages on this handler.
     /// </summary>
     /// <param name="builder"></param>
     /// <param name="enabled"></param>

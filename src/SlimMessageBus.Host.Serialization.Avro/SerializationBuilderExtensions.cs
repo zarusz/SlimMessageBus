@@ -27,7 +27,7 @@ public static class SerializationBuilderExtensions
 
     /// <summary>
     /// Registers the <see cref="IMessageSerializer"/> with implementation as <see cref="AvroMessageSerializer"/>.
-    /// Uses <see cref="ReflectionSchemaLookupStrategy"/> and <see cref="ReflectionMessageCreationStategy"/> strategies.
+    /// Uses <see cref="ReflectionSchemaLookupStrategy"/> and <see cref="ReflectionMessageCreationStrategy"/> strategies.
     /// </summary>
     /// <param name="builder"></param>
     /// <returns></returns>

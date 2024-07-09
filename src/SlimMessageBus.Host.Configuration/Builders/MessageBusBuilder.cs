@@ -139,7 +139,7 @@ public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBui
     }
 
     /// <summary>
-    /// Configures (declares) the handler of a given request message type which nas no response message type.
+    /// Configures (declares) the handler of a given request message type which has no response message type.
     /// </summary>
     /// <typeparam name="TRequest"></typeparam>
     /// <param name="builder"></param>
@@ -254,7 +254,7 @@ public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBui
     }
 
     /// <summary>
-    /// Sets the default enable (or disable) creation of DI child scope for each meesage.
+    /// Sets the default enable (or disable) creation of DI child scope for each message.
     /// </summary>
     /// <param name="enabled"></param>
     /// <returns></returns>
@@ -292,7 +292,7 @@ public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBui
     }
 
     /// <summary>
-    /// Hook called whenver message is being produced. Can be used to change message headers.
+    /// Hook called whenever message is being produced. Can be used to change message headers.
     /// </summary>
     /// <param name="executePrevious">Should the previously set modifier be executed as well?</param>
     public MessageBusBuilder WithHeaderModifier<T>(MessageHeaderModifier<T> headerModifier, bool executePrevious = true)
@@ -306,7 +306,7 @@ public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBui
             executePrevious);
 
     /// <summary>
-    /// Enables or disabled the auto statrt of message consumption upon bus creation. If false, then you need to call the .Start() on the bus to start consuming messages.
+    /// Enables or disabled the auto start of message consumption upon bus creation. If false, then you need to call the .Start() on the bus to start consuming messages.
     /// </summary>
     /// <param name="enabled"></param>
     public MessageBusBuilder AutoStartConsumersEnabled(bool enabled)

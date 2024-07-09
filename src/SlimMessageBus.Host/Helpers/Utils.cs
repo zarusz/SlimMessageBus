@@ -31,21 +31,21 @@ public static class Utils
 
     public static void DisposeSilently(this IDisposable disposable, string name, ILogger logger)
     {
-        disposable.DisposeSilently(e => logger.LogWarning(e, "Error occured while disposing {Name}", name));
+        disposable.DisposeSilently(e => logger.LogWarning(e, "Error occurred while disposing {Name}", name));
     }
 
     public static void DisposeSilently(this IDisposable disposable, Func<string> nameFunc, ILogger logger)
     {
-        disposable.DisposeSilently(e => logger.LogWarning(e, "Error occured while disposing {Name}", nameFunc()));
+        disposable.DisposeSilently(e => logger.LogWarning(e, "Error occurred while disposing {Name}", nameFunc()));
     }
 
     public static ValueTask DisposeSilently(this IAsyncDisposable disposable, Func<string> nameFunc, ILogger logger)
     {
-        return disposable.DisposeSilently(e => logger.LogWarning(e, "Error occured while disposing {Name}", nameFunc()));
+        return disposable.DisposeSilently(e => logger.LogWarning(e, "Error occurred while disposing {Name}", nameFunc()));
     }
 
     public static ValueTask DisposeSilently(this IAsyncDisposable disposable, string name, ILogger logger)
     {
-        return disposable.DisposeSilently(e => logger.LogWarning(e, "Error occured while disposing {Name}", name));
+        return disposable.DisposeSilently(e => logger.LogWarning(e, "Error occurred while disposing {Name}", name));
     }
 }

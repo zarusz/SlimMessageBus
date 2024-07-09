@@ -118,7 +118,7 @@ public static class AsbConsumerBuilderExtensions
     }
 
     /// <summary>
-    /// Enables Azue Service Bus session support for this consumer
+    /// Enables Azure Service Bus session support for this consumer
     /// </summary>
     /// <typeparam name="TConsumerBuilder"></typeparam>
     /// <param name="builder"></param>

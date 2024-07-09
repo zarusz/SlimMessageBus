@@ -13,7 +13,7 @@ public class MemoryMessageBusSettings
     /// <summary>
     /// The default behavior is to have Publish operations blocking (synchronous) and to wait for the message processing (handling) to finish.
     /// This is useful to ensure side effect within the unit of work (web request, external message handling) are completed.
-    /// However, if you prefer to have Publish operaions non-blocking (asynchronous), you can disable this setting.
+    /// However, if you prefer to have Publish operations non-blocking (asynchronous), you can disable this setting.
     /// </summary>
     public bool EnableBlockingPublish { get; set; } = true;
 }

@@ -3,7 +3,7 @@
 using System.Text;
 
 /// <summary>
-/// Peforms mappingg of the header value from the native RabbitMq client to SMB and vice vera.
+/// Performs mapping of the header value from the native RabbitMq client to SMB and vice versa.
 /// Converts the string into a byte[] UTF-8 when sending the message to RabbitMq client, and converts that back to avoid the known problem: https://github.com/rabbitmq/rabbitmq-dotnet-client/issues/415
 /// </summary>
 public class DefaultHeaderValueConverter : IHeaderValueConverter

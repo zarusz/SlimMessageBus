@@ -70,7 +70,7 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer
         }
     }
 
-    protected override async Task<Exception> OnMessageRecieved(Dictionary<string, object> messageHeaders, BasicDeliverEventArgs transportMessage)
+    protected override async Task<Exception> OnMessageReceived(Dictionary<string, object> messageHeaders, BasicDeliverEventArgs transportMessage)
     {
         var consumerContextProperties = new Dictionary<string, object>();
 

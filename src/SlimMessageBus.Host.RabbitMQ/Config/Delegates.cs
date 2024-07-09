@@ -4,11 +4,11 @@
 /// Represents an initializer that is able to perform additional RabbitMQ topology setup.
 /// </summary>
 /// <param name="channel">The RabbitMQ client channel</param>
-/// <param name="applyDefaultTopology">Calling this action will peform the default topology setup by SMB</param>
+/// <param name="applyDefaultTopology">Calling this action will perform the default topology setup by SMB</param>
 public delegate void RabbitMqTopologyInitializer(IModel channel, Action applyDefaultTopology);
 
 /// <summary>
-/// Represents a key provider provider for a given message.
+/// Represents a key provider for a given message.
 /// </summary>
 /// <typeparam name="T"></typeparam>
 /// <param name="message">The message</param>
