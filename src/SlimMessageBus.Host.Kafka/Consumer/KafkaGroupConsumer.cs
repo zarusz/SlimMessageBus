@@ -243,7 +243,7 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
     public void Commit(TopicPartitionOffset offset)
     {
         Logger.LogDebug("Group [{Group}]: Commit Offset, Topic: {Topic}, Partition: {Partition}, Offset: {Offset}", Group, offset.Topic, offset.Partition, offset.Offset);
-        _consumer.Commit(new[] { offset });
+        _consumer.Commit([offset]);
     }
 
     #endregion
