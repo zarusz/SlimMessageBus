@@ -95,7 +95,7 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
 
         if (Settings.RequestResponse != null && !responseConsumerCreated)
         {
-            AddGroupConsumer(Settings.RequestResponse.GetGroup(), new[] { Settings.RequestResponse.Path }, ResponseProcessorFactory);
+            AddGroupConsumer(Settings.RequestResponse.GetGroup(), [Settings.RequestResponse.Path], ResponseProcessorFactory);
         }
     }
 
