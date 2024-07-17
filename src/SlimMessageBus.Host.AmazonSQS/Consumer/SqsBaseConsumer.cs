@@ -23,7 +23,7 @@ public abstract class SqsBaseConsumer : AbstractConsumer
         IMessageProcessor<Message> messageProcessor,
         IEnumerable<AbstractConsumerSettings> consumerSettings,
         ILogger logger)
-        : base(logger ?? throw new ArgumentNullException(nameof(logger)))
+        : base(logger, consumerSettings)
     {
         MessageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
         _clientProvider = clientProvider ?? throw new ArgumentNullException(nameof(clientProvider));

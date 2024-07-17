@@ -7,6 +7,7 @@
     - [Set message headers](#set-message-headers)
   - [Consumer](#consumer)
     - [Start or Stop message consumption](#start-or-stop-message-consumption)
+        - [Health check circuit breaker](#health-check-circuit-breaker)
     - [Consumer context (additional message information)](#consumer-context-additional-message-information)
     - [Per-message DI container scope](#per-message-di-container-scope)
     - [Hybrid bus and message scope reuse](#hybrid-bus-and-message-scope-reuse)
@@ -290,6 +291,32 @@ await consumerControl.Stop();
 ```
 
 > Since version 1.15.5
+
+#### Health check circuit breaker
+
+Consumers can be linked to [.NET app health checks](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/diagnostic-health-checks) [tags](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/health-checks#register-health-check-services), enabling or disabling the consumer based on the health check status reported by the [Health Check Publisher](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/health-checks#health-check-publisher). A consumer associated with one or more tags will only be active if all health checks linked to the tags are passing.
+
+```cs
+    // add health checks with tags
+    builder.Services
+        .AddHealthChecks()
+        .AddCheck<StorageHealthCheck>("Storage", tags: ["Storage"]);
+        .AddCheck<SqlServerHealthCheck>("SqlServer", tags: ["Sql"]);
+
+    builder.Services
+        .AddSlimMessageBus(mbb => {
+            ...
+
+            mbb.Consume<Message>(cfg => {
+                ...
+
+                // configure consumer to monitor tag/state
+                cfg.PauseOnUnhealthyCheck("Storage");
+                cfg.PauseOnDegradedHealthCheck("Sql");
+            })
+        })
+```
+*Requires: SlimMessageBus.Host.CircuitBreaker.HealthCheck*
 
 #### Consumer context (additional message information)
 
