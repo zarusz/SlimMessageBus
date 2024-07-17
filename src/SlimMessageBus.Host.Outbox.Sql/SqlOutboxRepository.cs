@@ -4,12 +4,14 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
 {
     private readonly SqlOutboxTemplate _sqlTemplate;
     private readonly JsonSerializerOptions _jsonOptions;
+    private readonly string _connectionString;
 
     protected SqlOutboxSettings Settings { get; }
 
     public SqlOutboxRepository(ILogger<SqlOutboxRepository> logger, SqlOutboxSettings settings, SqlOutboxTemplate sqlOutboxTemplate, SqlConnection connection, ISqlTransactionService transactionService)
         : base(logger, settings.SqlSettings, connection, transactionService)
     {
+        _connectionString = connection.ConnectionString;
         _sqlTemplate = sqlOutboxTemplate;
         _jsonOptions = new();
         _jsonOptions.Converters.Add(new ObjectToInferredTypesConverter());
@@ -19,10 +21,9 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
 
     public async virtual Task Save(OutboxMessage message, CancellationToken token)
     {
+        // use ingested connection and share transaction with publisher
+
         await EnsureConnection();
-
-        // ToDo: Create command template
-
         await ExecuteNonQuery(Settings.SqlSettings.OperationRetry, _sqlTemplate.SqlOutboxMessageInsert, cmd =>
         {
             cmd.Parameters.Add("@Id", SqlDbType.UniqueIdentifier).Value = message.Id;
@@ -41,17 +42,20 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
         }, token);
     }
 
-    public async Task<IReadOnlyCollection<OutboxMessage>> LockAndSelect(string instanceId, int batchSize, bool tableLock, TimeSpan lockDuration, CancellationToken token)
+    public async Task<IReadOnlyCollection<OutboxMessage>> LockAndSelect(string instanceId, int batchSize, bool tableLock, TimeSpan lockDuration, CancellationToken cancellationToken)
     {
-        await EnsureConnection();
+        // use connection outside of any transaction
 
-        using var cmd = CreateCommand();
+        using var scope = new TransactionScope(TransactionScopeOption.Suppress, TransactionScopeAsyncFlowOption.Enabled);
+        using var conn = new SqlConnection(_connectionString);
+        using var cmd = CreateCommand(conn);
         cmd.CommandText = tableLock ? _sqlTemplate.SqlOutboxMessageLockTableAndSelect : _sqlTemplate.SqlOutboxMessageLockAndSelect;
         cmd.Parameters.Add("@InstanceId", SqlDbType.NVarChar).Value = instanceId;
         cmd.Parameters.Add("@BatchSize", SqlDbType.Int).Value = batchSize;
         cmd.Parameters.Add("@LockDuration", SqlDbType.Int).Value = lockDuration.TotalSeconds;
 
-        using var reader = await cmd.ExecuteReaderAsync(token);
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+        using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 
         var idOrdinal = reader.GetOrdinal("Id");
         var timestampOrdinal = reader.GetOrdinal("Timestamp");
@@ -68,7 +72,7 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
         var deliveryAbortedOrdinal = reader.GetOrdinal("DeliveryAborted");
 
         var items = new List<OutboxMessage>();
-        while (await reader.ReadAsync(token).ConfigureAwait(false))
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             var id = reader.GetGuid(idOrdinal);
             var messageType = reader.GetString(typeOrdinal);
@@ -98,12 +102,12 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
 
     public async Task UpdateToSent(IReadOnlyCollection<Guid> ids, CancellationToken token)
     {
+        // use connection outside of any transaction
+
         if (ids.Count == 0)
         {
             return;
         }
-
-        await EnsureConnection();
 
         var table = new DataTable();
         table.Columns.Add("Id", typeof(Guid));
@@ -112,15 +116,13 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
             table.Rows.Add(guid);
         }
 
-        var affected = await ExecuteNonQuery(Settings.SqlSettings.OperationRetry,
-            _sqlTemplate.SqlOutboxMessageUpdateSent,
-            cmd =>
+        var affected = await ExecuteNonQuery(Settings.SqlSettings.OperationRetry, false, _sqlTemplate.SqlOutboxMessageUpdateSent, cmd =>
             {
                 var param = cmd.Parameters.Add("@Ids", SqlDbType.Structured);
                 param.TypeName = _sqlTemplate.OutboxIdTypeQualified;
                 param.Value = table;
             },
-            token: token);
+            cancellationToken: token);
 
         if (affected != ids.Count)
         {
@@ -128,8 +130,10 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
         }
     }
 
-    public async Task IncrementDeliveryAttempt(IReadOnlyCollection<Guid> ids, int maxDeliveryAttempts, CancellationToken token)
+    public async Task IncrementDeliveryAttempt(IReadOnlyCollection<Guid> ids, int maxDeliveryAttempts, CancellationToken cancellationToken)
     {
+        // use connection outside of any transaction
+
         if (ids.Count == 0)
         {
             return;
@@ -140,8 +144,6 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
             throw new ArgumentOutOfRangeException(nameof(maxDeliveryAttempts), "Must be larger than 0.");
         }
 
-        await EnsureConnection();
-
         var table = new DataTable();
         table.Columns.Add("Id", typeof(Guid));
         foreach (var guid in ids)
@@ -149,9 +151,7 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
             table.Rows.Add(guid);
         }
 
-        var affected = await ExecuteNonQuery(Settings.SqlSettings.OperationRetry,
-            _sqlTemplate.SqlOutboxMessageIncrementDeliveryAttempt,
-            cmd =>
+        var affected = await ExecuteNonQuery(Settings.SqlSettings.OperationRetry, false, _sqlTemplate.SqlOutboxMessageIncrementDeliveryAttempt, cmd =>
             {
                 var param = cmd.Parameters.Add("@Ids", SqlDbType.Structured);
                 param.TypeName = _sqlTemplate.OutboxIdTypeQualified;
@@ -159,7 +159,7 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
 
                 cmd.Parameters.AddWithValue("@MaxDeliveryAttempts", maxDeliveryAttempts);
             },
-            token: token);
+            cancellationToken);
 
         if (affected != ids.Count)
         {
@@ -167,27 +167,57 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
         }
     }
 
-    public async Task DeleteSent(DateTime olderThan, CancellationToken token)
+    public async Task DeleteSent(DateTime olderThan, CancellationToken cancellationToken)
     {
-        await EnsureConnection();
+        // use connection outside of any transaction
 
-        var affected = await ExecuteNonQuery(Settings.SqlSettings.OperationRetry, _sqlTemplate.SqlOutboxMessageDeleteSent, cmd =>
+        var affected = await ExecuteNonQuery(Settings.SqlSettings.OperationRetry, false, _sqlTemplate.SqlOutboxMessageDeleteSent, cmd =>
         {
             cmd.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = olderThan;
-        }, token);
+        }, cancellationToken);
 
         Logger.Log(affected > 0 ? LogLevel.Information : LogLevel.Debug, "Removed {MessageCount} sent messages from outbox table", affected);
     }
 
-    public async Task<bool> RenewLock(string instanceId, TimeSpan lockDuration, CancellationToken token)
+    public async Task<bool> RenewLock(string instanceId, TimeSpan lockDuration, CancellationToken cancellationToken)
     {
-        await EnsureConnection();
+        // use connection outside of any transaction
 
-        using var cmd = CreateCommand();
-        cmd.CommandText = _sqlTemplate.SqlOutboxMessageRenewLock;
-        cmd.Parameters.Add("@InstanceId", SqlDbType.NVarChar).Value = instanceId;
-        cmd.Parameters.Add("@LockDuration", SqlDbType.Int).Value = lockDuration.TotalSeconds;
+        return await ExecuteNonQuery(Settings.SqlSettings.OperationRetry, false, _sqlTemplate.SqlOutboxMessageRenewLock, cmd =>
+        {
+            cmd.Parameters.Add("@InstanceId", SqlDbType.NVarChar).Value = instanceId;
+            cmd.Parameters.Add("@LockDuration", SqlDbType.Int).Value = lockDuration.TotalSeconds;
+        }, cancellationToken) > 0;
+    }
 
-        return await cmd.ExecuteNonQueryAsync(token) > 0;
+    protected virtual SqlCommand CreateCommand(SqlConnection connection)
+    {
+        var cmd = connection.CreateCommand();
+        if (Settings.SqlSettings.CommandTimeout != null)
+        {
+            cmd.CommandTimeout = (int)Settings.SqlSettings.CommandTimeout.Value.TotalSeconds;
+        }
+
+        return cmd;
+    }
+
+    public async Task<int> ExecuteNonQuery(SqlRetrySettings retrySettings, bool useTransaction, string sql, Action<SqlCommand> setParameters = null, CancellationToken cancellationToken = default)
+    {
+        if (useTransaction)
+        {
+            return await ExecuteNonQuery(retrySettings, sql, setParameters, cancellationToken);
+        }
+
+        using var scope = new TransactionScope(TransactionScopeOption.Suppress, TransactionScopeAsyncFlowOption.Enabled);
+        using var conn = new SqlConnection(_connectionString);
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        return await SqlHelper.RetryIfTransientError(Logger, retrySettings, async () =>
+        {
+            using var cmd = CreateCommand(conn);
+            cmd.CommandText = sql;
+            setParameters?.Invoke(cmd);
+            return await cmd.ExecuteNonQueryAsync(cancellationToken);
+        }, cancellationToken);
     }
 }
