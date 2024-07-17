@@ -61,10 +61,10 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
 
         var responseConsumerCreated = false;
 
-        void AddGroupConsumer(string group, IReadOnlyCollection<string> topics, Func<TopicPartition, IKafkaCommitController, IKafkaPartitionConsumer> processorFactory)
+        void AddGroupConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, string group, IReadOnlyCollection<string> topics, Func<TopicPartition, IKafkaCommitController, IKafkaPartitionConsumer> processorFactory)
         {
             _logger.LogInformation("Creating consumer group {ConsumerGroup}", group);
-            AddConsumer(new KafkaGroupConsumer(LoggerFactory, ProviderSettings, group, topics, processorFactory));
+            AddConsumer(new KafkaGroupConsumer(LoggerFactory, ProviderSettings, consumerSettings, group, topics, processorFactory));
         }
 
         object MessageProvider(Type messageType, ConsumeResult<Ignore, byte[]> transportMessage)
@@ -97,12 +97,12 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
                 responseConsumerCreated = true;
             }
 
-            AddGroupConsumer(group, topics, processorFactory);
+            AddGroupConsumer(consumersByGroup, group, topics, processorFactory);
         }
 
         if (Settings.RequestResponse != null && !responseConsumerCreated)
         {
-            AddGroupConsumer(Settings.RequestResponse.GetGroup(), [Settings.RequestResponse.Path], ResponseProcessorFactory);
+            AddGroupConsumer([Settings.RequestResponse], Settings.RequestResponse.GetGroup(), new[] { Settings.RequestResponse.Path }, ResponseProcessorFactory);
         }
     }
 

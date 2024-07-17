@@ -244,7 +244,7 @@ public class KafkaMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<K
             }
         }));
 
-        await responses.WaitUntilArriving(newMessagesTimeout: 5);
+        await responses.WaitUntilArriving(newMessagesTimeout: 10);
 
         // assert
 

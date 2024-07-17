@@ -24,7 +24,7 @@ public class RedisListCheckerConsumer : AbstractConsumer, IRedisConsumer
     }
 
     public RedisListCheckerConsumer(ILogger<RedisListCheckerConsumer> logger, IDatabase database, TimeSpan? pollDelay, TimeSpan maxIdle, IEnumerable<(string QueueName, IMessageProcessor<MessageWithHeaders> Processor)> queues, IMessageSerializer envelopeSerializer)
-        : base(logger)
+        : base(logger, [])
     {
         _database = database;
         _pollDelay = pollDelay;

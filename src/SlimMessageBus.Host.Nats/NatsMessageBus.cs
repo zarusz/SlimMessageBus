@@ -1,8 +1,5 @@
 namespace SlimMessageBus.Host.Nats;
 
-using System.Collections.Generic;
-using System.Threading;
-
 using Microsoft.Extensions.Primitives;
 
 public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
@@ -68,20 +65,20 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
                 this,
                 consumerErrorHandlerOpenGenericType: typeof(INatsConsumerErrorHandler<>));
 
-            AddSubjectConsumer(subject, processor);
+            AddSubjectConsumer(consumerSettings, subject, processor);
         }
 
         if (Settings.RequestResponse != null)
         {
             var processor = new ResponseMessageProcessor<NatsMsg<byte[]>>(LoggerFactory, Settings.RequestResponse, MessageProvider, PendingRequestStore, CurrentTimeProvider);
-            AddSubjectConsumer(Settings.RequestResponse.Path, processor);
+            AddSubjectConsumer([], Settings.RequestResponse.Path, processor);
         }
     }
 
-    private void AddSubjectConsumer(string subject, IMessageProcessor<NatsMsg<byte[]>> processor)
+    private void AddSubjectConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, string subject, IMessageProcessor<NatsMsg<byte[]>> processor)
     {
         _logger.LogInformation("Creating consumer for {Subject}", subject);
-        var consumer = new NatsSubjectConsumer<byte[]>(LoggerFactory.CreateLogger<NatsSubjectConsumer<byte[]>>(), subject, _connection, processor);
+        var consumer = new NatsSubjectConsumer<byte[]>(LoggerFactory.CreateLogger<NatsSubjectConsumer<byte[]>>(), consumerSettings, subject, _connection, processor);
         AddConsumer(consumer);
     }
 

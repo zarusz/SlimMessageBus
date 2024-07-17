@@ -9,8 +9,8 @@ public class RedisTopicConsumer : AbstractConsumer, IRedisConsumer
 
     public string Path { get; }
 
-    public RedisTopicConsumer(ILogger<RedisTopicConsumer> logger, string topic, ISubscriber subscriber, IMessageProcessor<MessageWithHeaders> messageProcessor, IMessageSerializer envelopeSerializer)
-        : base(logger)
+    public RedisTopicConsumer(ILogger<RedisTopicConsumer> logger, IEnumerable<AbstractConsumerSettings> consumerSettings, string topic, ISubscriber subscriber, IMessageProcessor<MessageWithHeaders> messageProcessor, IMessageSerializer envelopeSerializer)
+        : base(logger, consumerSettings)
     {
         Path = topic;
         _messageProcessor = messageProcessor;
