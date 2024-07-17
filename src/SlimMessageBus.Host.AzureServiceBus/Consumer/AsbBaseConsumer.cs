@@ -10,7 +10,7 @@ public abstract class AsbBaseConsumer : AbstractConsumer
     protected TopicSubscriptionParams TopicSubscription { get; }
 
     protected AsbBaseConsumer(ServiceBusMessageBus messageBus, ServiceBusClient serviceBusClient, TopicSubscriptionParams subscriptionFactoryParams, IMessageProcessor<ServiceBusReceivedMessage> messageProcessor, IEnumerable<AbstractConsumerSettings> consumerSettings, ILogger logger)
-        : base(logger ?? throw new ArgumentNullException(nameof(logger)))
+        : base(logger ?? throw new ArgumentNullException(nameof(logger)), consumerSettings)
     {
         MessageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
         TopicSubscription = subscriptionFactoryParams ?? throw new ArgumentNullException(nameof(subscriptionFactoryParams));

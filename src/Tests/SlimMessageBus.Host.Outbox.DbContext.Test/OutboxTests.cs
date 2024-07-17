@@ -94,6 +94,8 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseOutboxIntegra
             }
             else
             {
+                mbb.PerMessageScopeEnabled(true);
+
                 // we test outbox with hybrid bus setup
                 mbb.AddChildBus("Memory", mbb =>
                 {
