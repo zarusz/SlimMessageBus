@@ -49,23 +49,23 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
 
         object MessageProvider(Type messageType, MqttApplicationMessage transportMessage) => Serializer.Deserialize(messageType, transportMessage.PayloadSegment.Array);
 
-        void AddTopicConsumer(string topic, IMessageProcessor<MqttApplicationMessage> messageProcessor)
+        void AddTopicConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, string topic, IMessageProcessor<MqttApplicationMessage> messageProcessor)
         {
             _logger.LogInformation("Creating consumer for {Path}", topic);
-            var consumer = new MqttTopicConsumer(LoggerFactory.CreateLogger<MqttTopicConsumer>(), topic, messageProcessor);
+            var consumer = new MqttTopicConsumer(LoggerFactory.CreateLogger<MqttTopicConsumer>(), consumerSettings, topic, messageProcessor);
             AddConsumer(consumer);
         }
 
         foreach (var (path, consumerSettings) in Settings.Consumers.GroupBy(x => x.Path).ToDictionary(x => x.Key, x => x.ToList()))
         {
             var processor = new MessageProcessor<MqttApplicationMessage>(consumerSettings, this, MessageProvider, path, responseProducer: this);
-            AddTopicConsumer(path, processor);
+            AddTopicConsumer(consumerSettings, path, processor);
         }
 
         if (Settings.RequestResponse != null)
         {
             var processor = new ResponseMessageProcessor<MqttApplicationMessage>(LoggerFactory, Settings.RequestResponse, responseConsumer: this, messagePayloadProvider: m => m.PayloadSegment.Array);
-            AddTopicConsumer(Settings.RequestResponse.Path, processor);
+            AddTopicConsumer([Settings.RequestResponse], Settings.RequestResponse.Path, processor);
         }
 
         var topics = Consumers.Cast<MqttTopicConsumer>().Select(x => new MqttTopicFilterBuilder().WithTopic(x.Topic).Build()).ToList();

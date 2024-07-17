@@ -41,6 +41,8 @@ $projects = @(
 	"SlimMessageBus.Host.Outbox.Sql",
 	"SlimMessageBus.Host.Outbox.DbContext",
 
+	"SlimMessageBus.Host.CircuitBreaker.HealthCheck",
+
 	"SlimMessageBus.Host.AsyncApi"
 )
 

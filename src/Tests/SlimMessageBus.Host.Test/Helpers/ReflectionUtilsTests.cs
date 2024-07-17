@@ -19,13 +19,13 @@ public class ReflectionUtilsTests
     }
 
     [Fact]
-    public async void When_GenerateMethodCallToFunc_Given_ConsumerWithOnHandlerAsyncMethodWithTwoArguments_Then_MethodIsProperlyInvoked()
+    public async Task When_GenerateMethodCallToFunc_Given_ConsumerWithOnHandlerAsyncMethodWithTwoArguments_Then_MethodIsProperlyInvoked()
     {
         // arrange
         var message = new SomeMessage();
 
         var instanceType = typeof(IConsumer<SomeMessage>);
-        var consumerOnHandleMethodInfo = instanceType.GetMethod(nameof(IConsumer<SomeMessage>.OnHandle), new[] { typeof(SomeMessage) });
+        var consumerOnHandleMethodInfo = instanceType.GetMethod(nameof(IConsumer<SomeMessage>.OnHandle), [typeof(SomeMessage)]);
 
         var consumerMock = new Mock<IConsumer<SomeMessage>>();
         consumerMock.Setup(x => x.OnHandle(message)).Returns(Task.CompletedTask);
@@ -46,14 +46,14 @@ public class ReflectionUtilsTests
     }
 
     [Fact]
-    public void When_GenerateGenericMethodCallToFunc_Given_GenericMethid_Then_MethodIsProperlyInvoked()
+    public void When_GenerateGenericMethodCallToFunc_Given_GenericMethod_Then_MethodIsProperlyInvoked()
     {
         // arrange
         var obj = new ClassWithGenericMethod(true);
         var genericMethod = typeof(ClassWithGenericMethod).GetMethods().FirstOrDefault(x => x.Name == nameof(ClassWithGenericMethod.GenericMethod));
 
         // act
-        var methodOfTypeBoolFunc = ReflectionUtils.GenerateGenericMethodCallToFunc<Func<object, object>>(genericMethod, new[] { typeof(bool) }, obj.GetType(), typeof(object));
+        var methodOfTypeBoolFunc = ReflectionUtils.GenerateGenericMethodCallToFunc<Func<object, object>>(genericMethod, [typeof(bool)], obj.GetType(), typeof(object));
         var result = methodOfTypeBoolFunc(obj);
 
         // assert
@@ -61,7 +61,7 @@ public class ReflectionUtilsTests
     }
 
     [Fact]
-    public async void When_TaskOfObjectContinueWithTaskOfTypeFunc_Given_TaskOfObject_Then_TaskTypedIsObtained()
+    public async Task When_TaskOfObjectContinueWithTaskOfTypeFunc_Given_TaskOfObject_Then_TaskTypedIsObtained()
     {
         // arrange        
         var taskOfObject = Task.FromResult<object>(10);

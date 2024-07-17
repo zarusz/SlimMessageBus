@@ -90,9 +90,9 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
 
         object MessageProvider(Type messageType, MessageWithHeaders transportMessage) => Serializer.Deserialize(messageType, transportMessage.Payload);
 
-        void AddTopicConsumer(string topic, ISubscriber subscriber, IMessageProcessor<MessageWithHeaders> messageProcessor)
+        void AddTopicConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, string topic, ISubscriber subscriber, IMessageProcessor<MessageWithHeaders> messageProcessor)
         {
-            var consumer = new RedisTopicConsumer(LoggerFactory.CreateLogger<RedisTopicConsumer>(), topic, subscriber, messageProcessor, ProviderSettings.EnvelopeSerializer);
+            var consumer = new RedisTopicConsumer(LoggerFactory.CreateLogger<RedisTopicConsumer>(), consumerSettings, topic, subscriber, messageProcessor, ProviderSettings.EnvelopeSerializer);
             AddConsumer(consumer);
         }
 
@@ -116,7 +116,7 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
             _logger.LogInformation("Creating consumer for redis {PathKind} {Path}", GetPathKindString(pathKind), path);
             if (pathKind == PathKind.Topic)
             {
-                AddTopicConsumer(path, subscriber, processor);
+                AddTopicConsumer(consumerSettings, path, subscriber, processor);
             }
             else
             {
@@ -129,7 +129,7 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
             _logger.LogInformation("Creating response consumer for redis {PathKind} {Path}", GetPathKindString(Settings.RequestResponse.PathKind), Settings.RequestResponse.Path);
             if (Settings.RequestResponse.PathKind == PathKind.Topic)
             {
-                AddTopicConsumer(Settings.RequestResponse.Path, subscriber, new ResponseMessageProcessor<MessageWithHeaders>(LoggerFactory, Settings.RequestResponse, this, messagePayloadProvider: m => m.Payload));
+                AddTopicConsumer([Settings.RequestResponse], Settings.RequestResponse.Path, subscriber, new ResponseMessageProcessor<MessageWithHeaders>(LoggerFactory, Settings.RequestResponse, this, messagePayloadProvider: m => m.Payload));
             }
             else
             {
