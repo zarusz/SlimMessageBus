@@ -11,7 +11,13 @@ public class SqlOutboxTemplate
     public string SqlOutboxMessageLockTableAndSelect { get; }
     public string SqlOutboxMessageUpdateSent { get; }
     public string SqlOutboxMessageIncrementDeliveryAttempt { get; }
+    public string SqlOutboxMessageAbortDelivery { get; }
     public string SqlOutboxMessageRenewLock { get; }
+
+    /// <summary>
+    /// Used by tests only.
+    /// </summary>
+    internal string SqlOutboxAllMessages { get; }
 
     public SqlOutboxTemplate(SqlOutboxSettings settings)
     {
@@ -114,6 +120,13 @@ public class SqlOutboxTemplate
             WHERE [Id] IN (SELECT [Id] from @Ids);
             """;
 
+        SqlOutboxMessageAbortDelivery = $"""
+            UPDATE {TableNameQualified}
+            SET [DeliveryAttempt] = DeliveryAttempt + 1,
+                [DeliveryAborted] = 1
+            WHERE [Id] IN (SELECT [Id] from @Ids);
+            """;
+
         SqlOutboxMessageRenewLock = $"""
             UPDATE {TableNameQualified}
             SET LockExpiresOn = DATEADD(SECOND, @LockDuration, GETUTCDATE())
@@ -121,6 +134,23 @@ public class SqlOutboxTemplate
                 AND LockExpiresOn > GETUTCDATE()
                 AND DeliveryComplete = 0
                 AND DeliveryAborted = 0
+            """;
+
+        SqlOutboxAllMessages = $"""
+            SELECT Id
+                 , Timestamp
+                 , BusName
+                 , MessageType
+                 , MessagePayload
+                 , Headers
+                 , Path
+                 , InstanceId
+                 , LockInstanceId
+                 , LockExpiresOn
+                 , DeliveryAttempt
+                 , DeliveryComplete
+                 , DeliveryAborted
+            FROM {TableNameQualified}
             """;
     }
 }

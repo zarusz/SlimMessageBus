@@ -178,6 +178,10 @@ dotnet_style_allow_multiple_blank_lines_experimental = true:silent
 dotnet_style_allow_statement_immediately_after_block_experimental = true:silent
 dotnet_style_prefer_collection_expression = when_types_loosely_match:suggestion
 dotnet_diagnostic.CA1859.severity = silent
+dotnet_style_qualification_for_field = false:suggestion
+dotnet_style_qualification_for_property = false:suggestion
+dotnet_style_qualification_for_method = false:suggestion
+dotnet_style_qualification_for_event = false:suggestion
 
 [*.{csproj,xml}]
 indent_style = space

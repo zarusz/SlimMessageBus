@@ -146,3 +146,9 @@ When applied on the (child) bus level then all consumers (or handlers) will inhe
 - Once a message is picked from outbox and successfully delivered then it is marked as sent in the outbox table.
 
 - At configured intervals (`MessageCleanup.Interval`), and after a configured time span (`MessageCleanup.Age`), the sent messages are removed from the outbox table.
+
+## Important note
+
+As the outbox can be processed by instance of the application that did not originally process it, it is important to ensure that all active instances maintian the same message registrations (and compatible JSON schema definitions). 
+
+A message that fails to deserialize will be flagged as invalid by setting the associated `DeliveryAborted` field in the `Outbox` table, to `1`. It is safe to manually reset this field value to `0` once the version incompatibility has been resolved.

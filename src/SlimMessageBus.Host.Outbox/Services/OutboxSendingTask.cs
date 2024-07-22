@@ -72,7 +72,6 @@ internal class OutboxSendingTask(
 
             _loopCts = new CancellationTokenSource();
             _loopTask = Run();
-
         }
         return Task.CompletedTask;
     }
@@ -208,10 +207,8 @@ internal class OutboxSendingTask(
         }
     }
 
-    internal async Task<int> SendMessages(IServiceProvider serviceProvider, IOutboxRepository outboxRepository, CancellationToken cancellationToken)
+    async internal Task<int> SendMessages(IServiceProvider serviceProvider, IOutboxRepository outboxRepository, CancellationToken cancellationToken)
     {
-        const int defaultBatchSize = 50;
-
         var lockDuration = TimeSpan.FromSeconds(Math.Min(Math.Max(_outboxSettings.LockExpiration.TotalSeconds, 5), 30));
         if (lockDuration != _outboxSettings.LockExpiration)
         {
@@ -231,7 +228,7 @@ internal class OutboxSendingTask(
 
         var messageBus = serviceProvider.GetRequiredService<IMessageBus>();
         var lockRenewalTimerFactory = serviceProvider.GetRequiredService<IOutboxLockRenewalTimerFactory>();
-        using var lockRenewalTimer = lockRenewalTimerFactory.CreateRenewalTimer(lockDuration, lockInterval, ex => { cts.Cancel(); }, cts.Token);
+        using var lockRenewalTimer = lockRenewalTimerFactory.CreateRenewalTimer(lockDuration, lockInterval, _ => cts.Cancel(), cts.Token);
 
         var compositeMessageBus = messageBus as ICompositeMessageBus;
         var messageBusTarget = messageBus as IMessageBusTarget;
@@ -242,59 +239,11 @@ internal class OutboxSendingTask(
         {
             _asyncManualResetEvent.Reset();
             lockRenewalTimer.Start();
+
             var outboxMessages = await outboxRepository.LockAndSelect(lockRenewalTimer.InstanceId, _outboxSettings.PollBatchSize, _outboxSettings.MaintainSequence, lockRenewalTimer.LockDuration, cts.Token);
-            runAgain = outboxMessages.Count == _outboxSettings.PollBatchSize;
-            foreach (var group in outboxMessages.GroupBy(x => x.BusName))
-            {
-                var busName = group.Key;
-                var bus = GetBus(compositeMessageBus, messageBusTarget, busName);
-                var bulkProducer = bus as IMessageBusBulkProducer;
-                if (bus == null || bulkProducer == null)
-                {
-                    var ids = new List<Guid>(_outboxSettings.PollBatchSize);
-                    foreach (var outboxMessage in group)
-                    {
-                        if (bus == null)
-                        {
-                            _logger.LogWarning("Not able to find matching bus provider for the outbox message with Id {MessageId} of type {MessageType} to pathGroup {Path} using {BusName} bus. The message will be skipped.", outboxMessage.Id, outboxMessage.MessageType.Name, outboxMessage.Path, outboxMessage.BusName);
-                        }
-                        else
-                        {
-                            _logger.LogWarning("Bus provider for the outbox message with Id {MessageId} of type {MessageType} to pathGroup {Path} using {BusName} bus does not support bulk processing. The message will be skipped.", outboxMessage.Id, outboxMessage.MessageType.Name, outboxMessage.Path, outboxMessage.BusName);
-                        }
-
-                        ids.Add(outboxMessage.Id);
-                    }
-
-                    await outboxRepository.IncrementDeliveryAttempt(ids, _outboxSettings.MaxDeliveryAttempts, cts.Token);
-                    runAgain = true;
-                    continue;
-                }
-
-                foreach (var pathGroup in group.GroupBy(x => x.Path))
-                {
-                    if (cts.Token.IsCancellationRequested)
-                    {
-                        break;
-                    }
-
-                    var path = pathGroup.Key;
-                    var batches = pathGroup.Select(
-                        outboxMessage =>
-                        {
-                            var message = bus.Serializer.Deserialize(outboxMessage.MessageType, outboxMessage.MessagePayload);
-                            return new OutboxBulkMessage(outboxMessage.Id, message, outboxMessage.MessageType, outboxMessage.Headers ?? new Dictionary<string, object>());
-                        })
-                        .Batch(bulkProducer.MaxMessagesPerTransaction ?? defaultBatchSize);
-
-                    foreach (var batch in batches)
-                    {
-                        var (Success, PublishedCount) = await DispatchBatchAsync(outboxRepository, bulkProducer, messageBusTarget, batch, busName, path, cts.Token);
-                        runAgain |= !Success;
-                        count += PublishedCount;
-                    }
-                }
-            }
+            var result = await ProcessMessages(outboxRepository, outboxMessages, compositeMessageBus, messageBusTarget, cts.Token);
+            runAgain = result.RunAgain;
+            count += result.Count;
 
             lockRenewalTimer.Stop();
         } while (!cts.Token.IsCancellationRequested && runAgain);
@@ -302,7 +251,81 @@ internal class OutboxSendingTask(
         return count;
     }
 
-    internal async Task<(bool Success, int Published)> DispatchBatchAsync(IOutboxRepository outboxRepository, IMessageBusBulkProducer producer, IMessageBusTarget messageBusTarget, IReadOnlyCollection<OutboxBulkMessage> batch, string busName, string path, CancellationToken cancellationToken)
+    async internal Task<(bool RunAgain, int Count)> ProcessMessages(IOutboxRepository outboxRepository, IReadOnlyCollection<OutboxMessage> outboxMessages, ICompositeMessageBus compositeMessageBus, IMessageBusTarget messageBusTarget, CancellationToken cancellationToken)
+    {
+        const int defaultBatchSize = 50;
+
+        var runAgain = outboxMessages.Count == _outboxSettings.PollBatchSize;
+        var count = 0;
+
+        var abortedIds = new List<Guid>(_outboxSettings.PollBatchSize);
+        foreach (var busGroup in outboxMessages.GroupBy(x => x.BusName))
+        {
+            var busName = busGroup.Key;
+            var bus = GetBus(compositeMessageBus, messageBusTarget, busName);
+            var bulkProducer = bus as IMessageBusBulkProducer;
+            if (bus == null || bulkProducer == null)
+            {
+                foreach (var outboxMessage in busGroup)
+                {
+                    if (bus == null)
+                    {
+                        _logger.LogWarning("Not able to find matching bus provider for the outbox message with Id {MessageId} of type {MessageType} to path {Path} using {BusName} bus. The message will be skipped.", outboxMessage.Id, outboxMessage.MessageType, outboxMessage.Path, outboxMessage.BusName);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Bus provider for the outbox message with Id {MessageId} of type {MessageType} to path {Path} using {BusName} bus does not support bulk processing. The message will be skipped.", outboxMessage.Id, outboxMessage.MessageType, outboxMessage.Path, outboxMessage.BusName);
+                    }
+
+                    abortedIds.Add(outboxMessage.Id);
+                }
+
+                continue;
+            }
+
+            foreach (var pathGroup in busGroup.GroupBy(x => x.Path))
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                var path = pathGroup.Key;
+                var batches = pathGroup.Select(
+                        outboxMessage =>
+                        {
+                            var messageType = _outboxSettings.MessageTypeResolver.ToType(outboxMessage.MessageType);
+                            if (messageType == null)
+                            {
+                                abortedIds.Add(outboxMessage.Id);
+                                _logger.LogError("Outbox message with Id {id} - the MessageType {messageType} is not recognized. The type might have been renamed or moved namespaces.", outboxMessage.Id, outboxMessage.MessageType);
+                                return null;
+                            }
+
+                            var message = bus.Serializer.Deserialize(messageType, outboxMessage.MessagePayload);
+                            return new OutboxBulkMessage(outboxMessage.Id, message, messageType, outboxMessage.Headers ?? new Dictionary<string, object>());
+                        })
+                    .Where(x => x != null)
+                    .Batch(bulkProducer.MaxMessagesPerTransaction ?? defaultBatchSize);
+
+                foreach (var batch in batches)
+                {
+                    var result = await DispatchBatch(outboxRepository, bulkProducer, messageBusTarget, batch, busName, path, cancellationToken);
+                    runAgain |= !result.Success;
+                    count += result.Published;
+                }
+            }
+        }
+
+        if (abortedIds.Count > 0)
+        {
+            await outboxRepository.AbortDelivery(abortedIds, cancellationToken);
+        }
+
+        return (runAgain, count);
+    }
+
+    async internal Task<(bool Success, int Published)> DispatchBatch(IOutboxRepository outboxRepository, IMessageBusBulkProducer producer, IMessageBusTarget messageBusTarget, IReadOnlyCollection<OutboxBulkMessage> batch, string busName, string path, CancellationToken cancellationToken)
     {
         _logger.LogDebug("Publishing batch of {MessageCount} messages to pathGroup {Path} on {BusName} bus", batch.Count, path, busName);
 
