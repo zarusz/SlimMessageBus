@@ -16,7 +16,8 @@ public sealed class OutboxForwardingPublishInterceptor<T>(
     ILogger<OutboxForwardingPublishInterceptor> logger,
     IOutboxRepository outboxRepository,
     IInstanceIdProvider instanceIdProvider,
-    IOutboxNotificationService outboxNotificationService)
+    IOutboxNotificationService outboxNotificationService,
+    OutboxSettings outboxSettings)
     : OutboxForwardingPublishInterceptor, IInterceptorWithOrder, IPublishInterceptor<T>, IDisposable where T : class
 {
     static readonly internal string SkipOutboxHeader = "__SkipOutbox";
@@ -25,6 +26,7 @@ public sealed class OutboxForwardingPublishInterceptor<T>(
     private readonly IOutboxRepository _outboxRepository = outboxRepository;
     private readonly IInstanceIdProvider _instanceIdProvider = instanceIdProvider;
     private readonly IOutboxNotificationService _outboxNotificationService = outboxNotificationService;
+    private readonly OutboxSettings _outboxSettings = outboxSettings;
 
     private bool _notifyOutbox = false;
 
@@ -71,12 +73,12 @@ public sealed class OutboxForwardingPublishInterceptor<T>(
             BusName = busMaster.Name,
             Headers = context.Headers,
             Path = context.Path,
-            MessageType = messageType,
+            MessageType = _outboxSettings.MessageTypeResolver.ToName(messageType),
             MessagePayload = messagePayload,
             InstanceId = _instanceIdProvider.GetInstanceId()
         };
         await _outboxRepository.Save(outboxMessage, context.CancellationToken);
-        
+
         // a message was sent, notify outbox service to poll on dispose (post transaction)
         _notifyOutbox = true;
     }

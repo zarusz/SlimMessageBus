@@ -17,9 +17,10 @@ public static class OutboxForwardingPublishInterceptorTests
             var mockOutboxRepository = new Mock<IOutboxRepository>();
             var mockInstanceIdProvider = new Mock<IInstanceIdProvider>();
             var mockOutboxNotificationService = new Mock<IOutboxNotificationService>();
+            var mockOutboxSettings = new Mock<OutboxSettings>();
 
             // act
-            var target = new OutboxForwardingPublishInterceptor<object>(mockLogger.Object, mockOutboxRepository.Object, mockInstanceIdProvider.Object, mockOutboxNotificationService.Object);
+            var target = new OutboxForwardingPublishInterceptor<object>(mockLogger.Object, mockOutboxRepository.Object, mockInstanceIdProvider.Object, mockOutboxNotificationService.Object, mockOutboxSettings.Object);
             var actual = target.Order;
 
             // assert
@@ -45,6 +46,7 @@ public static class OutboxForwardingPublishInterceptorTests
         private readonly Mock<IMessageSerializer> _mockSerializer;
         private readonly Mock<IMasterMessageBus> _mockMasterMessageBus;
         private readonly Mock<IOutboxNotificationService> _mockOutboxNotificationService;
+        private readonly Mock<OutboxSettings> _mockOutboxSettings;
         private Mock<IMessageBusTarget> _mockTargetBus;
         private Mock<IProducerContext> _mockProducerContext;
 
@@ -54,6 +56,7 @@ public static class OutboxForwardingPublishInterceptorTests
             _mockOutboxRepository = new Mock<IOutboxRepository>();
             _mockInstanceIdProvider = new Mock<IInstanceIdProvider>();
             _mockOutboxNotificationService = new Mock<IOutboxNotificationService>();
+            _mockOutboxSettings = new Mock<OutboxSettings>();
 
             _mockSerializer = new Mock<IMessageSerializer>();
 
@@ -82,7 +85,7 @@ public static class OutboxForwardingPublishInterceptorTests
             };
 
             // act
-            var target = new OutboxForwardingPublishInterceptor<object>(_mockLogger.Object, _mockOutboxRepository.Object, _mockInstanceIdProvider.Object, _mockOutboxNotificationService.Object);
+            var target = new OutboxForwardingPublishInterceptor<object>(_mockLogger.Object, _mockOutboxRepository.Object, _mockInstanceIdProvider.Object, _mockOutboxNotificationService.Object, _mockOutboxSettings.Object);
             await target.OnHandle(new object(), next, _mockProducerContext.Object);
             target.Dispose();
 
@@ -111,7 +114,7 @@ public static class OutboxForwardingPublishInterceptorTests
             };
 
             // act
-            var target = new OutboxForwardingPublishInterceptor<object>(_mockLogger.Object, _mockOutboxRepository.Object, _mockInstanceIdProvider.Object, _mockOutboxNotificationService.Object);
+            var target = new OutboxForwardingPublishInterceptor<object>(_mockLogger.Object, _mockOutboxRepository.Object, _mockInstanceIdProvider.Object, _mockOutboxNotificationService.Object, _mockOutboxSettings.Object);
             await target.OnHandle(new object(), next, _mockProducerContext.Object);
             target.Dispose();
 
@@ -129,7 +132,7 @@ public static class OutboxForwardingPublishInterceptorTests
             _mockOutboxNotificationService.Setup(x => x.Notify()).Verifiable();
 
             // act
-            var target = new OutboxForwardingPublishInterceptor<object>(_mockLogger.Object, _mockOutboxRepository.Object, _mockInstanceIdProvider.Object, _mockOutboxNotificationService.Object);
+            var target = new OutboxForwardingPublishInterceptor<object>(_mockLogger.Object, _mockOutboxRepository.Object, _mockInstanceIdProvider.Object, _mockOutboxNotificationService.Object, _mockOutboxSettings.Object);
             await target.OnHandle(new object(), () => Task.CompletedTask, _mockProducerContext.Object);
             target.Dispose();
 
@@ -149,7 +152,7 @@ public static class OutboxForwardingPublishInterceptorTests
             _mockOutboxNotificationService.Setup(x => x.Notify()).Verifiable();
 
             // act
-            var target = new OutboxForwardingPublishInterceptor<object>(_mockLogger.Object, _mockOutboxRepository.Object, _mockInstanceIdProvider.Object, _mockOutboxNotificationService.Object);
+            var target = new OutboxForwardingPublishInterceptor<object>(_mockLogger.Object, _mockOutboxRepository.Object, _mockInstanceIdProvider.Object, _mockOutboxNotificationService.Object, _mockOutboxSettings.Object);
             await target.OnHandle(new object(), () => Task.CompletedTask, _mockProducerContext.Object);
             target.Dispose();
 
