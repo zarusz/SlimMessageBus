@@ -110,9 +110,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         lock (_initTaskLock)
         {
             var prevInitTask = _initTask;
-            _initTask = prevInitTask != null
-                ? prevInitTask.ContinueWith(_ => task)
-                : task;
+            _initTask = prevInitTask?.ContinueWith(_ => task, CancellationToken) ?? task;
         }
     }
 
@@ -183,11 +181,8 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     private Dictionary<Type, ProducerSettings> BuildProducerByBaseMessageType()
     {
-        var producerByBaseMessageType = new Dictionary<Type, ProducerSettings>();
-        foreach (var producerSettings in Settings.Producers)
-        {
-            producerByBaseMessageType.Add(producerSettings.MessageType, producerSettings);
-        }
+        var producerByBaseMessageType = Settings.Producers.ToDictionary(producerSettings => producerSettings.MessageType);
+        
         foreach (var consumerSettings in Settings.Consumers.Where(x => x.ResponseType != null))
         {
             // A response type can be used across different requests hence TryAdd
