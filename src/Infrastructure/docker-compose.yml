@@ -74,6 +74,15 @@ services:
       - "11002:11002"
     networks:
       - slim
+  
+  nats:
+    container_name: slim.nats
+    image: nats:2.10
+    ports:
+      - 4222:4222
+    networks:
+      - slim
+    
 
 networks:
   slim: {}
