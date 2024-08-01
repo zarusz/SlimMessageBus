@@ -149,6 +149,8 @@ jobs:
 
           sqlserver_connectionstring: "Server=localhost;Initial Catalog=SlimMessageBus_Outbox;User ID=sa;Password=SuperSecretP@55word;TrustServerCertificate=true;MultipleActiveResultSets=true;"
 
+          nats_endpoint: "nats://localhost:4222"
+
       - name: SonarCloud - SonarScanner End
         #if: github.event_name == 'pull_request_target'
         env:
