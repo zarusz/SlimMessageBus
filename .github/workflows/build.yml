@@ -68,7 +68,7 @@ jobs:
         #if: github.event_name == 'pull_request_target'
         uses: actions/setup-java@v3
         with:
-          distribution: "zulu"
+          distribution: "adopt"
           java-version: "17"
 
       - name: SonarCloud - Install SonarCloud scanner
