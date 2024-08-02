@@ -127,7 +127,7 @@ jobs:
 
           _redis_connectionstring: ${{ secrets.redis_connectionstring }}
 
-          _sqlserver_connectionstring: ${{ secrets.sqlserver_connectionstring }}
+          sqlserver_connectionstring: ${{ secrets.sqlserver_connectionstring }}
 
           # Connects to the local Test Containers
 
@@ -147,7 +147,7 @@ jobs:
 
           redis_connectionstring: localhost:6379
 
-          sqlserver_connectionstring: "Server=localhost;Initial Catalog=SlimMessageBus_Outbox;User ID=sa;Password=SuperSecretP@55word;TrustServerCertificate=true;MultipleActiveResultSets=true;"
+          #sqlserver_connectionstring: "Server=localhost;Initial Catalog=SlimMessageBus_Outbox;User ID=sa;Password=SuperSecretP@55word;TrustServerCertificate=true;MultipleActiveResultSets=true;"
 
           nats_endpoint: "nats://localhost:4222"
 
