@@ -184,7 +184,7 @@ public class NatsMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegrat
         {
             messages.Add(message);
 
-            _logger.LogInformation("Got message {0} on topic {1}.", message.Counter, Context.Path);
+            _logger.LogInformation("Got message {Counter} on topic {Path}", message.Counter, Context.Path);
             return Task.CompletedTask;
         }
     }

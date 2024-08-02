@@ -1,0 +1,7 @@
+version: '2'
+services:
+  nats:
+    container_name: slim.nats
+    image: nats:2.10
+    ports:
+      - 4222:4222

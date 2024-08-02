@@ -128,7 +128,7 @@ jobs:
           _redis_connectionstring: ${{ secrets.redis_connectionstring }}
 
           sqlserver_connectionstring: ${{ secrets.sqlserver_connectionstring }}
-          
+
           # Connects to the local Test Containers
 
           # need to postpone until feature https://github.com/zarusz/SlimMessageBus/issues/110 is implemented
@@ -142,13 +142,13 @@ jobs:
           mqtt_username: "(empty)"
           mqtt_password: "(empty)"
           mqtt_secure: false
-          
+
           rabbitmq_connectionstring: amqp://localhost
 
           redis_connectionstring: localhost:6379
 
           #sqlserver_connectionstring: "Server=localhost;Initial Catalog=SlimMessageBus_Outbox;User ID=sa;Password=SuperSecretP@55word;TrustServerCertificate=true;MultipleActiveResultSets=true;"
-          
+
           nats_endpoint: "nats://localhost:4222"
 
       - name: SonarCloud - SonarScanner End

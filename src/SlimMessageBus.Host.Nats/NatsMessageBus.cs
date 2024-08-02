@@ -20,10 +20,10 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
     protected override void Build()
     {
         base.Build();
-        AddInit(CreateConnection());
+        AddInit(CreateConnectionAsync());
     }
 
-    private Task CreateConnection()
+    private Task CreateConnectionAsync()
     {
         try
         {
@@ -44,8 +44,15 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
         return Task.CompletedTask;
     }
 
-    protected override Task CreateConsumers()
+    protected override async Task CreateConsumers()
     {
+        if (_connection == null)
+        {
+            throw new ConsumerMessageBusException("The connection is not available at this time");
+        }
+        
+        await base.CreateConsumers();
+        
         foreach (var (subject, consumerSettings) in Settings.Consumers.GroupBy(x => x.Path).ToDictionary(x => x.Key, x => x.ToList()))
         {
             var processor = new MessageProcessor<NatsMsg<byte[]>>(consumerSettings, this, (type, message) => Serializer.Deserialize(type, message.Data), subject, this);
@@ -57,8 +64,6 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
             var processor = new ResponseMessageProcessor<NatsMsg<byte[]>>(LoggerFactory, Settings.RequestResponse, this, message => message.Data);
             AddSubjectConsumer(Settings.RequestResponse.Path, processor);
         }
-
-        return Task.CompletedTask;
     }
 
     private void AddSubjectConsumer(string subject, IMessageProcessor<NatsMsg<byte[]>> processor)
@@ -82,6 +87,14 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
     protected override async Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus,
         CancellationToken cancellationToken)
     {
+        
+        await EnsureInitFinished();
+
+        if (_connection == null)
+        {
+            throw new ProducerMessageBusException("The connection is not available at this time");
+        }
+        
         var messages = envelopes.Select(envelope =>
         {
             var messagePayload = Serializer.Serialize(envelope.MessageType, envelope.Message);

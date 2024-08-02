@@ -1,33 +1,39 @@
+#nullable enable
 namespace SlimMessageBus.Host.Nats;
 
 public class NatsSubjectConsumer<TType>(ILogger logger, string subject, INatsConnection connection, IMessageProcessor<NatsMsg<TType>> messageProcessor) : AbstractConsumer(logger)
 {
-    private CancellationTokenSource _cancellationTokenSource;
-    private INatsSub<TType> _subscription;
+    private INatsSub<TType>? _subscription;
+    private Task? _messageConsumerTask;
 
     protected override async Task OnStart()
     {
-        _cancellationTokenSource = new CancellationTokenSource();
-        _subscription ??= await connection.SubscribeCoreAsync<TType>(subject, cancellationToken: _cancellationTokenSource.Token);
+        _subscription ??= await connection.SubscribeCoreAsync<TType>(subject, cancellationToken: CancellationToken);
 
-        _ = Task.Run(async () =>
+        _messageConsumerTask = Task.Factory.StartNew(async () =>
         {
-            while (await _subscription.Msgs.WaitToReadAsync(_cancellationTokenSource.Token))
+            try
             {
-                while (_subscription.Msgs.TryRead(out var msg))
+                while (await _subscription.Msgs.WaitToReadAsync(CancellationToken))
                 {
-                    await messageProcessor.ProcessMessage(msg, msg.Headers.ToReadOnlyDictionary(), cancellationToken: _cancellationTokenSource.Token).ConfigureAwait(false);
+                    while (_subscription.Msgs.TryRead(out var msg))
+                    {
+                        await messageProcessor.ProcessMessage(msg, msg.Headers.ToReadOnlyDictionary(), cancellationToken: CancellationToken).ConfigureAwait(false);
+                    }
                 }
             }
-        }, _cancellationTokenSource.Token);
+            catch (OperationCanceledException ex)
+            {
+                Logger.LogInformation(ex, "Consumer task was cancelled");
+            }
+        }, CancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap();
     }
 
     protected override async Task OnStop()
     {
-        if (_cancellationTokenSource != null)
+        if (_messageConsumerTask != null)
         {
-            _cancellationTokenSource.Cancel();
-            _cancellationTokenSource.Dispose();
+            await _messageConsumerTask.ConfigureAwait(false);
         }
 
         if (_subscription != null)

@@ -11,4 +11,5 @@
   - [RabbitMq](provider_rabbitmq.md)
   - [Redis](provider_redis.md)
   - [SQL](provider_sql.md)
+  - [NATS](provider_nats.md)
 - [Serialization Plugins](serialization.md)

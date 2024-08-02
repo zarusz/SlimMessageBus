@@ -14,24 +14,7 @@ This transport provider uses [Nats.Nets](https://www.nuget.org/packages/NATS.Net
 
 The configuration is arranged via the `.WithProviderNats(cfg => {})` method on the message bus builder.
 
-```cs
-builder.Services.AddSlimMessageBus(messageBusBuilder =>
-{
-    messageBusBuilder.WithProviderNats(cfg =>
-    {
-        cfg.Endpoint = endpoint;
-        cfg.ClientName = $"MyService_{Environment.MachineName}";
-        cfg.AuthOpts = NatsAuthOpts.Default;
-    });
-
-    messageBusBuilder
-        .Produce<PingMessage>(x => x.DefaultTopic(topic))
-        .Consume<PingMessage>(x => x.Topic(topic).Instances(1));
-
-    messageBusBuilder.AddServicesFromAssemblyContaining<PingConsumer>();
-    messageBusBuilder.AddJsonSerializer();
-});
-```
+@[:cs](../src/Samples/Sample.Nats.WebApi/Program.cs,ExampleConfiguringMessageBus)
 
 The `NatsMessageBusSettings` property is used to configure the underlying [Nats.Net library client](https://github.com/nats-io/nats.net).
 Please consult the Nats.Net library docs for more configuration options.
