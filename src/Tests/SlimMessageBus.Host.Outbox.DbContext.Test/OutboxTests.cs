@@ -14,6 +14,7 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTe
     {
         services.AddSlimMessageBus(mbb =>
         {
+            mbb.PerMessageScopeEnabled(true);
             mbb.AddChildBus("Memory", mbb =>
             {
                 mbb.WithProviderMemory()
@@ -240,7 +241,7 @@ public record GenerateCustomerIdCommand(string Firstname, string Lastname) : IRe
 
 public class GenerateCustomerIdCommandHandler : IRequestHandler<GenerateCustomerIdCommand, string>
 {
-    public async Task<string> OnHandle(GenerateCustomerIdCommand request)
+    public Task<string> OnHandle(GenerateCustomerIdCommand request)
     {
         // Note: This handler will be already wrapped in a transaction: see Program.cs and .UseTransactionScope() / .UseSqlTransaction() 
 
@@ -250,7 +251,7 @@ public class GenerateCustomerIdCommandHandler : IRequestHandler<GenerateCustomer
         }
 
         // generate a dummy customer id
-        return $"{request.Firstname.ToUpperInvariant()[..3]}-{request.Lastname.ToUpperInvariant()[..3]}-{Guid.NewGuid()}";
+        return Task.FromResult($"{request.Firstname.ToUpperInvariant()[..3]}-{request.Lastname.ToUpperInvariant()[..3]}-{Guid.NewGuid()}");
     }
 }
 

@@ -12,7 +12,7 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer
     protected override RabbitMqMessageAcknowledgementMode AcknowledgementMode => _acknowledgementMode;
 
     public RabbitMqConsumer(ILoggerFactory loggerFactory, IRabbitMqChannel channel, string queueName, IList<ConsumerSettings> consumers, IMessageSerializer serializer, MessageBusBase messageBus, IHeaderValueConverter headerValueConverter)
-        : base(loggerFactory.CreateLogger<RabbitMqConsumer>(), channel, queueName, headerValueConverter)
+        : base(loggerFactory.CreateLogger<RabbitMqConsumer>(), consumers, channel, queueName, headerValueConverter)
     {
         _acknowledgementMode = consumers.Select(x => x.GetOrDefault<RabbitMqMessageAcknowledgementMode?>(RabbitMqProperties.MessageAcknowledgementMode, messageBus.Settings)).FirstOrDefault(x => x != null)
             ?? RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade; // be default choose the safer acknowledgement mode

@@ -15,8 +15,8 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
     public string Group { get; }
     public IReadOnlyCollection<string> Topics { get; }
 
-    public KafkaGroupConsumer(KafkaMessageBus messageBus, string group, IReadOnlyCollection<string> topics, Func<TopicPartition, IKafkaCommitController, IKafkaPartitionConsumer> processorFactory)
-        : base(messageBus.LoggerFactory.CreateLogger<KafkaGroupConsumer>())
+    public KafkaGroupConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, KafkaMessageBus messageBus, string group, IReadOnlyCollection<string> topics, Func<TopicPartition, IKafkaCommitController, IKafkaPartitionConsumer> processorFactory)
+        : base(messageBus.LoggerFactory.CreateLogger<KafkaGroupConsumer>(), consumerSettings)
     {
         MessageBus = messageBus;
         Group = group ?? throw new ArgumentNullException(nameof(group));

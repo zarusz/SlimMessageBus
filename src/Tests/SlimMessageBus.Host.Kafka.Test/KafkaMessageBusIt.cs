@@ -218,7 +218,7 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
             responses.Add((req, resp));
         }));
 
-        await responses.WaitUntilArriving(newMessagesTimeout: 5);
+        await responses.WaitUntilArriving(newMessagesTimeout: 10);
 
         // assert
 

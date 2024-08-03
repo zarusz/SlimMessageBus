@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Sql;
 
+using Azure;
+
 public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
 {
     private readonly SqlOutboxTemplate _sqlTemplate;
@@ -43,57 +45,68 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
 
     public async Task<IReadOnlyCollection<OutboxMessage>> LockAndSelect(string instanceId, int batchSize, bool tableLock, TimeSpan lockDuration, CancellationToken token)
     {
-        await EnsureConnection();
-
-        using var cmd = CreateCommand();
-        cmd.CommandText = tableLock ? _sqlTemplate.SqlOutboxMessageLockTableAndSelect : _sqlTemplate.SqlOutboxMessageLockAndSelect;
-        cmd.Parameters.Add("@InstanceId", SqlDbType.NVarChar).Value = instanceId;
-        cmd.Parameters.Add("@BatchSize", SqlDbType.Int).Value = batchSize;
-        cmd.Parameters.Add("@LockDuration", SqlDbType.Int).Value = lockDuration.TotalSeconds;
-
-        using var reader = await cmd.ExecuteReaderAsync(token);
-
-        var idOrdinal = reader.GetOrdinal("Id");
-        var timestampOrdinal = reader.GetOrdinal("Timestamp");
-        var busNameOrdinal = reader.GetOrdinal("BusName");
-        var typeOrdinal = reader.GetOrdinal("MessageType");
-        var payloadOrdinal = reader.GetOrdinal("MessagePayload");
-        var headersOrdinal = reader.GetOrdinal("Headers");
-        var pathOrdinal = reader.GetOrdinal("Path");
-        var instanceIdOrdinal = reader.GetOrdinal("InstanceId");
-        var lockInstanceIdOrdinal = reader.GetOrdinal("LockInstanceId");
-        var lockExpiresOnOrdinal = reader.GetOrdinal("LockExpiresOn");
-        var deliveryAttemptOrdinal = reader.GetOrdinal("DeliveryAttempt");
-        var deliveryCompleteOrdinal = reader.GetOrdinal("DeliveryComplete");
-        var deliveryAbortedOrdinal = reader.GetOrdinal("DeliveryAborted");
-
-        var items = new List<OutboxMessage>();
-        while (await reader.ReadAsync(token).ConfigureAwait(false))
+        try
         {
-            var id = reader.GetGuid(idOrdinal);
-            var messageType = reader.GetString(typeOrdinal);
-            var headers = reader.IsDBNull(headersOrdinal) ? null : reader.GetString(headersOrdinal);
-            var message = new OutboxMessage
+            await EnsureConnection();
+
+            using var cmd = CreateCommand();
+            cmd.CommandText = tableLock ? _sqlTemplate.SqlOutboxMessageLockTableAndSelect : _sqlTemplate.SqlOutboxMessageLockAndSelect;
+            cmd.Parameters.Add("@InstanceId", SqlDbType.NVarChar).Value = instanceId;
+            cmd.Parameters.Add("@BatchSize", SqlDbType.Int).Value = batchSize;
+            cmd.Parameters.Add("@LockDuration", SqlDbType.Int).Value = lockDuration.TotalSeconds;
+
+            using var reader = await cmd.ExecuteReaderAsync(token);
+
+            var idOrdinal = reader.GetOrdinal("Id");
+            var timestampOrdinal = reader.GetOrdinal("Timestamp");
+            var busNameOrdinal = reader.GetOrdinal("BusName");
+            var typeOrdinal = reader.GetOrdinal("MessageType");
+            var payloadOrdinal = reader.GetOrdinal("MessagePayload");
+            var headersOrdinal = reader.GetOrdinal("Headers");
+            var pathOrdinal = reader.GetOrdinal("Path");
+            var instanceIdOrdinal = reader.GetOrdinal("InstanceId");
+            var lockInstanceIdOrdinal = reader.GetOrdinal("LockInstanceId");
+            var lockExpiresOnOrdinal = reader.GetOrdinal("LockExpiresOn");
+            var deliveryAttemptOrdinal = reader.GetOrdinal("DeliveryAttempt");
+            var deliveryCompleteOrdinal = reader.GetOrdinal("DeliveryComplete");
+            var deliveryAbortedOrdinal = reader.GetOrdinal("DeliveryAborted");
+
+            var items = new List<OutboxMessage>();
+            while (await reader.ReadAsync(token).ConfigureAwait(false))
             {
-                Id = id,
-                Timestamp = reader.GetDateTime(timestampOrdinal),
-                BusName = reader.GetString(busNameOrdinal),
-                MessageType = Settings.MessageTypeResolver.ToType(messageType) ?? throw new MessageBusException($"Outbox message with Id {id} - the MessageType {messageType} is not recognized. The type might have been renamed or moved namespaces."),
-                MessagePayload = reader.GetSqlBinary(payloadOrdinal).Value,
-                Headers = headers == null ? null : JsonSerializer.Deserialize<IDictionary<string, object>>(headers, _jsonOptions),
-                Path = reader.IsDBNull(pathOrdinal) ? null : reader.GetString(pathOrdinal),
-                InstanceId = reader.GetString(instanceIdOrdinal),
-                LockInstanceId = reader.IsDBNull(lockInstanceIdOrdinal) ? null : reader.GetString(lockInstanceIdOrdinal),
-                LockExpiresOn = reader.IsDBNull(lockExpiresOnOrdinal) ? null : reader.GetDateTime(lockExpiresOnOrdinal),
-                DeliveryAttempt = reader.GetInt32(deliveryAttemptOrdinal),
-                DeliveryComplete = reader.GetBoolean(deliveryCompleteOrdinal),
-                DeliveryAborted = reader.GetBoolean(deliveryAbortedOrdinal)
-            };
+                var id = reader.GetGuid(idOrdinal);
+                var messageType = reader.GetString(typeOrdinal);
+                var headers = reader.IsDBNull(headersOrdinal) ? null : reader.GetString(headersOrdinal);
+                var message = new OutboxMessage
+                {
+                    Id = id,
+                    Timestamp = reader.GetDateTime(timestampOrdinal),
+                    BusName = reader.GetString(busNameOrdinal),
+                    MessageType = Settings.MessageTypeResolver.ToType(messageType) ?? throw new MessageBusException($"Outbox message with Id {id} - the MessageType {messageType} is not recognized. The type might have been renamed or moved namespaces."),
+                    MessagePayload = reader.GetSqlBinary(payloadOrdinal).Value,
+                    Headers = headers == null ? null : JsonSerializer.Deserialize<IDictionary<string, object>>(headers, _jsonOptions),
+                    Path = reader.IsDBNull(pathOrdinal) ? null : reader.GetString(pathOrdinal),
+                    InstanceId = reader.GetString(instanceIdOrdinal),
+                    LockInstanceId = reader.IsDBNull(lockInstanceIdOrdinal) ? null : reader.GetString(lockInstanceIdOrdinal),
+                    LockExpiresOn = reader.IsDBNull(lockExpiresOnOrdinal) ? null : reader.GetDateTime(lockExpiresOnOrdinal),
+                    DeliveryAttempt = reader.GetInt32(deliveryAttemptOrdinal),
+                    DeliveryComplete = reader.GetBoolean(deliveryCompleteOrdinal),
+                    DeliveryAborted = reader.GetBoolean(deliveryAbortedOrdinal)
+                };
 
-            items.Add(message);
+                items.Add(message);
+            }
+
+            return items;
         }
+        catch (SqlException) when (token.IsCancellationRequested)
+        {
+            // Avoid - Microsoft.Data.SqlClient.SqlException (0x80131904): A severe error occurred on the current command.  The results, if any, should be discarded. Operation cancelled by user.
+            token.ThrowIfCancellationRequested();
 
-        return items;
+            // should never get here
+            throw;
+        }
     }
 
     public async Task UpdateToSent(IReadOnlyCollection<Guid> ids, CancellationToken token)

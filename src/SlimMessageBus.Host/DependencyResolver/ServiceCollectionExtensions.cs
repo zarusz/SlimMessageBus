@@ -25,7 +25,7 @@ public static class ServiceCollectionExtensions
                 configure(mbb);
 
                 // Execute post config actions for the master bus and its children
-                foreach (var action in mbb.PostConfigurationActions.Concat(mbb.Children.Values.SelectMany(x => x.PostConfigurationActions)))
+                foreach (var action in mbb.GetPostConfigurationActions())
                 {
                     action(services);
                 }

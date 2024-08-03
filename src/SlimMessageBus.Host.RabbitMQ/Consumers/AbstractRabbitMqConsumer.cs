@@ -13,8 +13,8 @@ public abstract class AbstractRabbitMqConsumer : AbstractConsumer
     protected string QueueName { get; }
     protected abstract RabbitMqMessageAcknowledgementMode AcknowledgementMode { get; }
 
-    protected AbstractRabbitMqConsumer(ILogger logger, IRabbitMqChannel channel, string queueName, IHeaderValueConverter headerValueConverter)
-        : base(logger)
+    protected AbstractRabbitMqConsumer(ILogger logger, IEnumerable<AbstractConsumerSettings> consumerSettings, IRabbitMqChannel channel, string queueName, IHeaderValueConverter headerValueConverter)
+        : base(logger, consumerSettings)
     {
         _channel = channel;
         _headerValueConverter = headerValueConverter;
