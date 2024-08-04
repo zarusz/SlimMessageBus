@@ -53,6 +53,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
   - [Hybrid](docs/provider_hybrid.md)
   - [MQTT](docs/provider_mqtt.md)
   - [Memory](docs/provider_memory.md)
+  - [NATS](docs/provider_nats.md)
   - [RabbitMQ](docs/provider_rabbitmq.md)
   - [Redis](docs/provider_redis.md)
   - [SQL](docs/provider_sql.md)
@@ -73,6 +74,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 | `.Host.Kafka`                        | Transport provider for Apache Kafka                                                                                 | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Kafka.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)                                               |
 | `.Host.Memory`                       | Transport provider implementation for in-process (in memory) message passing (no messaging infrastructure required) | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Memory.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Memory)                                             |
 | `.Host.MQTT`                         | Transport provider for MQTT                                                                                         | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.MQTT.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.MQTT)                                                 |
+| `.Host.NATS`                         | Transport provider for [NATS](https://nats.io/)                                                                     | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.NATS.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.NATS)                                                 |
 | `.Host.RabbitMQ`                     | Transport provider for RabbitMQ                                                                                     | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.RabbitMQ.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.RabbitMQ)                                         |
 | `.Host.Redis`                        | Transport provider for Redis                                                                                        | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Redis.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Redis)                                               |
 | `.Host.Sql` (pending)                | Transport provider implementation for SQL database message passing                                                  | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Sql.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Sql)                                                   |

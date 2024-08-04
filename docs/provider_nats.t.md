@@ -2,13 +2,13 @@
 
 Please read the [Introduction](intro.md) before reading this provider documentation.
 
-- [Underlying Nats client](#underlying-nats-client)
+- [Underlying NATS client](#underlying-nats-client)
 - [Configuration](#configuration)
 - [Message Serialization](#message-serialization)
 
-## Underlying Nats client
+## Underlying NATS client
 
-This transport provider uses [Nats.Nets](https://www.nuget.org/packages/NATS.Net) client to connect to the Nats broker.
+This transport provider uses [NATS.Nets](https://www.nuget.org/packages/NATS.Net) client to connect to the NATS broker.
 
 ## Configuration
 
@@ -17,7 +17,7 @@ The configuration is arranged via the `.WithProviderNats(cfg => {})` method on t
 @[:cs](../src/Samples/Sample.Nats.WebApi/Program.cs,ExampleConfiguringMessageBus)
 
 The `NatsMessageBusSettings` property is used to configure the underlying [Nats.Net library client](https://github.com/nats-io/nats.net).
-Please consult the Nats.Net library docs for more configuration options.
+Please consult the NATS.Net library docs for more configuration options.
 
 ## Message Serialization
 
