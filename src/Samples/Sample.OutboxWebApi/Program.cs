@@ -38,9 +38,9 @@ builder.Services.AddSlimMessageBus(mbb =>
         .AddChildBus("Memory", mbb =>
         {
             mbb.WithProviderMemory()
-                .AutoDeclareFrom(Assembly.GetExecutingAssembly(), consumerTypeFilter: t => t.Name.Contains("Command"))
-                //.UseTransactionScope(); // Consumers/Handlers will be wrapped in a TransactionScope
-                .UseSqlTransaction(); // Consumers/Handlers will be wrapped in a SqlTransaction
+                .AutoDeclareFrom(Assembly.GetExecutingAssembly(), consumerTypeFilter: t => t.Name.EndsWith("CommandHandler"))
+                //.UseTransactionScope(messageTypeFilter: t => t.Name.EndsWith("Command")) // Consumers/Handlers will be wrapped in a TransactionScope
+                .UseSqlTransaction(messageTypeFilter: t => t.Name.EndsWith("Command")); // Consumers/Handlers will be wrapped in a SqlTransaction ending with Command
         })
         .AddChildBus("AzureSB", mbb =>
         {
@@ -66,7 +66,8 @@ builder.Services.AddSlimMessageBus(mbb =>
                     // OR if you want just this producer to sent via outbox
                     // x.UseOutbox();
                 })
-                .UseOutbox(); // All outgoing messages from this bus will go out via an outbox
+                // All outgoing messages from this bus will go out via an outbox
+                .UseOutbox(/* messageTypeFilter: t => t.Name.EndsWith("Command") */); // Additionaly, can apply filter do determine messages that should go out via outbox                
         })
         .AddServicesFromAssembly(Assembly.GetExecutingAssembly())
         .AddJsonSerializer()

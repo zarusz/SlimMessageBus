@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Sql;
 
-using SlimMessageBus.Host;
-
 public static class MessageBusBuilderExtensions
 {
     public static MessageBusBuilder AddOutboxUsingSql<TOutboxRepository>(this MessageBusBuilder mbb, Action<SqlOutboxSettings> configure)
@@ -11,6 +9,8 @@ public static class MessageBusBuilderExtensions
 
         mbb.PostConfigurationActions.Add(services =>
         {
+            var settings = new[] { mbb.Settings }.Concat(mbb.Children.Values.Select(x => x.Settings)).ToList();
+
             services.TryAddSingleton(svp =>
             {
                 var settings = new SqlOutboxSettings();
@@ -21,7 +21,17 @@ public static class MessageBusBuilderExtensions
 
             services.TryAddSingleton<ISqlSettings>(svp => svp.GetRequiredService<SqlOutboxSettings>().SqlSettings);
 
-            services.TryAddEnumerable(ServiceDescriptor.Transient(typeof(IConsumerInterceptor<>), typeof(SqlTransactionConsumerInterceptor<>)));
+            // Optimization: only register generic interceptors in the DI for particular message types that have opted in for transaction scope
+            foreach (var consumerMessageType in settings
+                .SelectMany(x => x.Consumers
+                    .SelectMany(c => c.Invokers)
+                    .Where(ci => ci.ParentSettings.IsEnabledForMessageType(x, BuilderExtensions.PropertySqlTransactionEnabled, BuilderExtensions.PropertySqlTransactionFilter, ci.MessageType)))
+                .Select(x => x.MessageType))
+            {
+                var serviceType = typeof(IConsumerInterceptor<>).MakeGenericType(consumerMessageType);
+                var implementationType = typeof(SqlTransactionConsumerInterceptor<>).MakeGenericType(consumerMessageType);
+                services.TryAddEnumerable(ServiceDescriptor.Transient(serviceType, implementationType));
+            }
 
             services.TryAddScoped<TOutboxRepository>();
             services.TryAddScoped<ISqlTransactionService, SqlTransactionService>();
