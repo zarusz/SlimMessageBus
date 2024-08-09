@@ -172,5 +172,5 @@ public class MemoryMessageBusBuilder : MessageBusBuilder
     /// <param name="consumerTypeFilter">Allows to apply a filter for any found consumer/handler.</param>
     /// <param name="messageTypeToTopicConverter">By default the type name is used for the topic name. This can be used to customize the topic name. For example, if have types that have same names but are in the namespaces, you might want to include the full type in the topic name.</param>
     public MemoryMessageBusBuilder AutoDeclareFrom(Assembly assembly, Func<Type, bool> consumerTypeFilter = null, Func<Type, string> messageTypeToTopicConverter = null)
-        => AutoDeclareFrom(new[] { assembly }, consumerTypeFilter, messageTypeToTopicConverter);
+        => AutoDeclareFrom([assembly], consumerTypeFilter, messageTypeToTopicConverter);
 }

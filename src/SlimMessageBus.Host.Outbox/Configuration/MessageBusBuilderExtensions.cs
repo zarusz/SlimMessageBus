@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Outbox;
 
-using Microsoft.Extensions.DependencyInjection;
-
 using SlimMessageBus.Host.Outbox.Services;
 
 public static class MessageBusBuilderExtensions
@@ -14,25 +12,26 @@ public static class MessageBusBuilderExtensions
 
             // Optimization: only register generic interceptors in the DI for particular message types that have opted in for outbox
             foreach (var producerMessageType in settings
-                .SelectMany(x => x.Producers.Where(producerSettings => producerSettings.IsOutboxEnabled(x)))
+                .SelectMany(x => x.Producers
+                    .Where(producerSettings => producerSettings.IsEnabledForMessageType(x, BuilderExtensions.PropertyOutboxEnabled, BuilderExtensions.PropertyOutboxFilter, producerSettings.MessageType)))
                 .Select(x => x.MessageType))
             {
                 var serviceType = typeof(IPublishInterceptor<>).MakeGenericType(producerMessageType);
                 var implementationType = typeof(OutboxForwardingPublishInterceptor<>).MakeGenericType(producerMessageType);
                 services.TryAddEnumerable(ServiceDescriptor.Transient(serviceType, implementationType));
             }
-            // Without optimization: services.TryAddEnumerable(ServiceDescriptor.Transient(typeof(IPublishInterceptor<>), typeof(OutboxForwardingPublishInterceptor<>)));
 
             // Optimization: only register generic interceptors in the DI for particular message types that have opted in for transaction scope
             foreach (var consumerMessageType in settings
-                .SelectMany(x => x.Consumers.SelectMany(x => x.Invokers).Where(consumerInvoker => consumerInvoker.ParentSettings.IsTransactionScopeEnabled(x)))
+                .SelectMany(x => x.Consumers
+                    .SelectMany(c => c.Invokers)
+                    .Where(ci => ci.ParentSettings.IsEnabledForMessageType(x, BuilderExtensions.PropertyTransactionScopeEnabled, BuilderExtensions.PropertyTransactionScopeFilter, ci.MessageType)))
                 .Select(x => x.MessageType))
             {
                 var serviceType = typeof(IConsumerInterceptor<>).MakeGenericType(consumerMessageType);
                 var implementationType = typeof(TransactionScopeConsumerInterceptor<>).MakeGenericType(consumerMessageType);
                 services.TryAddEnumerable(ServiceDescriptor.Transient(serviceType, implementationType));
             }
-            // Without optimization: services.TryAddEnumerable(ServiceDescriptor.Transient(typeof(IConsumerInterceptor<>), typeof(TransactionScopeConsumerInterceptor<>)));
 
             services.AddSingleton<OutboxSendingTask>();
             services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageBusLifecycleInterceptor, OutboxSendingTask>(sp => sp.GetRequiredService<OutboxSendingTask>()));
