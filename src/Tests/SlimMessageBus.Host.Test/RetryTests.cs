@@ -1,14 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Test;
 
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
-using FluentAssertions;
-
-using Xunit;
-
-public static class RetryTests
+public class RetryTests
 {
     public class WithDelay
     {

@@ -28,4 +28,8 @@
     <ProjectReference Include="..\Sample.DomainEvents.Domain\Sample.DomainEvents.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="SlimMessageBus.Host.AspNetCore.Test" />
+  </ItemGroup>
+
 </Project>

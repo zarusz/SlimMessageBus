@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="../Host.Test.Properties.xml" />
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Samples\Sample.DomainEvents.WebApi\Sample.DomainEvents.WebApi.csproj" />
+    <ProjectReference Include="..\..\SlimMessageBus.Host.AspNetCore\SlimMessageBus.Host.AspNetCore.csproj" />
+  </ItemGroup>
+
+</Project>

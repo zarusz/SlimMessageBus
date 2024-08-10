@@ -2,12 +2,8 @@
 
 using SlimMessageBus.Host.Consumer;
 
-public class CurrentMessageBusProvider : ICurrentMessageBusProvider
+public class CurrentMessageBusProvider(IServiceProvider serviceProvider) : ICurrentMessageBusProvider
 {
-    private readonly IServiceProvider _serviceProvider;
-
-    public CurrentMessageBusProvider(IServiceProvider serviceProvider) => _serviceProvider = serviceProvider;
-
     public virtual IMessageBus GetCurrent()
     {
         var current = MessageScope.Current?.GetService<IMessageBus>();
@@ -15,6 +11,6 @@ public class CurrentMessageBusProvider : ICurrentMessageBusProvider
         {
             return current;
         }
-        return _serviceProvider.GetService<IMessageBus>();
+        return serviceProvider.GetService<IMessageBus>();
     }
 }

@@ -1,5 +1,14 @@
-﻿global using Xunit;
-global using Xunit.Abstractions;
+﻿global using System.Reflection;
+
 global using FluentAssertions;
-global using Microsoft.Extensions.Logging;
+
+global using Microsoft.Extensions.Configuration;
+global using Microsoft.Extensions.DependencyInjection;
+
 global using SecretStore;
+
+global using SlimMessageBus.Host.Test.Common.IntegrationTest;
+
+global using Xunit;
+global using Xunit.Abstractions;
+

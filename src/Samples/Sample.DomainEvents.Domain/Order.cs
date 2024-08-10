@@ -11,14 +11,14 @@ public class Order
     public Customer Customer { get; }
     public OrderState State { get; private set; }
 
-    private readonly IList<OrderLine> _lines = new List<OrderLine>();
+    private readonly IList<OrderLine> _lines = [];
     public IEnumerable<OrderLine> Lines => _lines.AsEnumerable();
 
     public Order(Customer customer)
     {
         Id = Guid.NewGuid();
-        State = OrderState.New;
         Customer = customer;
+        State = OrderState.New;
     }
 
     public OrderLine Add(string productId, int quantity)
