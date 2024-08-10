@@ -1,69 +1,43 @@
 namespace SlimMessageBus.Host.Integration.Test;
 
-using System.Reflection;
-
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
-
 using SlimMessageBus;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Memory;
-using SlimMessageBus.Host.Test.Common;
-using SlimMessageBus.Host.Test.Common.IntegrationTest;
-
-public enum SerializerType
-{
-    NewtonsoftJson = 1,
-    SystemTextJson = 2
-}
 
 [Trait("Category", "Integration")]
-public class HybridTests : IDisposable
+public class HybridTests : BaseIntegrationTest<HybridTests>
 {
-    private IServiceProvider _serviceProvider;
-
-    private readonly XunitLoggerFactory _loggerFactory;
-    private readonly ILogger<HybridTests> _logger;
-    private readonly IConfigurationRoot _configuration;
-    private IDisposable containerDisposable;
-
-    public HybridTests(ITestOutputHelper testOutputHelper)
+    public enum SerializerType
     {
-        _loggerFactory = new XunitLoggerFactory(testOutputHelper);
-        _logger = _loggerFactory.CreateLogger<HybridTests>();
-
-        _configuration = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
-
-        Secrets.Load(@"..\..\..\..\..\secrets.txt");
+        NewtonsoftJson = 1,
+        SystemTextJson = 2
     }
 
-    private void SetupBus(SerializerType serializerType, Action<IServiceCollection> servicesBuilder = null)
+    public record RunOptions(SerializerType SerializerType, Action<IServiceCollection> ServicesBuilder);
+
+    public HybridTests(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
     {
-        var services = new ServiceCollection();
-        services.AddSingleton<ILoggerFactory>(_loggerFactory);
-        services.AddTransient(typeof(ILogger<>), typeof(NullLogger<>));
-
-        services.AddSlimMessageBus(mbb => SetupBus(mbb, serializerType));
-
-        servicesBuilder?.Invoke(services);
-
-        _serviceProvider = services.BuildServiceProvider();
-
-        containerDisposable = _serviceProvider as IDisposable;
     }
 
-    private void SetupBus(MessageBusBuilder mbb, SerializerType serializerType)
+    protected RunOptions Options { get; set; }
+
+    protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
+    {
+        services.AddSlimMessageBus(SetupBus);
+        Options?.ServicesBuilder?.Invoke(services);
+    }
+
+    private void SetupBus(MessageBusBuilder mbb)
     {
         mbb.AddServicesFromAssemblyContaining<InternalMessageConsumer>();
 
-        if (serializerType == SerializerType.NewtonsoftJson)
+        if (Options.SerializerType == SerializerType.NewtonsoftJson)
         {
             Serialization.Json.SerializationBuilderExtensions.AddJsonSerializer(mbb);
         }
-        if (serializerType == SerializerType.SystemTextJson)
+        if (Options.SerializerType == SerializerType.SystemTextJson)
         {
             Serialization.SystemTextJson.SerializationBuilderExtensions.AddJsonSerializer(mbb);
         }
@@ -71,7 +45,8 @@ public class HybridTests : IDisposable
         mbb.AddChildBus("Memory", (mbb) =>
         {
             mbb.WithProviderMemory()
-               .AutoDeclareFrom(Assembly.GetExecutingAssembly(), consumerTypeFilter: (consumerType) => consumerType.Name.Contains("Internal"));
+               .AutoDeclareFrom(Assembly.GetExecutingAssembly(),
+                    consumerTypeFilter: t => t.Name.Contains("Internal"));
         });
         mbb.AddChildBus("AzureSB", (mbb) =>
         {
@@ -82,7 +57,7 @@ public class HybridTests : IDisposable
                 .WithProviderServiceBus(cfg =>
                 {
                     cfg.SubscriptionName("test");
-                    cfg.ConnectionString = Secrets.Service.PopulateSecrets(_configuration["Azure:ServiceBus"]);
+                    cfg.ConnectionString = Secrets.Service.PopulateSecrets(Configuration["Azure:ServiceBus"]);
                     cfg.PrefetchCount = 100;
                 });
         });
@@ -101,9 +76,10 @@ public class HybridTests : IDisposable
     public async Task When_PublishToMemoryBus_Given_InsideConsumerWithMessageScope_Then_MessageScopeIsCarriedOverToMemoryBusConsumer(SerializerType serializerType)
     {
         // arrange
-        SetupBus(
-            serializerType: serializerType,
-            servicesBuilder: services =>
+        Options = new RunOptions
+        (
+            SerializerType: serializerType,
+            ServicesBuilder: services =>
             {
                 // Unit of work should be shared between InternalMessageConsumer and ExternalMessageConsumer.
                 // External consumer creates a message scope which continues to internal consumer.
@@ -112,12 +88,12 @@ public class HybridTests : IDisposable
                 // This is a singleton that will collect all the events that happened to verify later what actually happened.
                 services.AddSingleton<List<EventMark>>();
 
-                services.AddSingleton<IConfiguration>(_configuration);
+                services.AddSingleton<IConfiguration>(Configuration);
             }
         );
 
-        var bus = _serviceProvider.GetRequiredService<IPublishBus>();
-        var store = _serviceProvider.GetRequiredService<List<EventMark>>();
+        var bus = ServiceProvider.GetRequiredService<IPublishBus>();
+        var store = ServiceProvider.GetRequiredService<List<EventMark>>();
 
         // Eat up all the outstanding message in case the last test left some
         await store.WaitUntilArriving(newMessagesTimeout: 4);
@@ -165,16 +141,6 @@ public class HybridTests : IDisposable
         eventsThatHappenedWhenExternalWasConsumed[3].Should().Be(nameof(InternalMessagePublishInterceptor));
         eventsThatHappenedWhenExternalWasConsumed[4].Should().Be(nameof(InternalMessageConsumerInterceptor));
         eventsThatHappenedWhenExternalWasConsumed[5].Should().Be(nameof(InternalMessageConsumer));
-    }
-
-    public void Dispose()
-    {
-        if (containerDisposable != null)
-        {
-            containerDisposable.Dispose();
-            containerDisposable = null;
-        }
-        GC.SuppressFinalize(this);
     }
 
     public class UnitOfWork

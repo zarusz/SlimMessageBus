@@ -258,7 +258,7 @@ public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBui
     /// </summary>
     /// <param name="enabled"></param>
     /// <returns></returns>
-    public MessageBusBuilder PerMessageScopeEnabled(bool enabled)
+    public MessageBusBuilder PerMessageScopeEnabled(bool enabled = true)
     {
         Settings.IsMessageScopeEnabled = enabled;
         return this;

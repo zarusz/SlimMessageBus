@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 using Sample.DomainEvents.Application;
+using Sample.DomainEvents.Application.DomainEventHandlers;
 
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.Memory;
@@ -43,8 +44,8 @@ public class Startup
 
             mbb.AddServicesFromAssemblyContaining<OrderSubmittedHandler>();
             mbb.AddAspNet();
-        })
-        .AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
+        });
+        services.AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

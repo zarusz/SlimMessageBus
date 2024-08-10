@@ -37,23 +37,15 @@ public class MessageScopeWrapperTest
     public void When_Create_Given_CurrentMessageScope_And_CreateScopeValue_Then_CreatesANewScopeAndAssignsCurrentMessageContextOrReuses(bool currentScopeExists, bool createScope)
     {
         // arrange
-        var currentServiceProvider = currentScopeExists ? new Mock<IServiceProvider>() : null;
-
-        // erase current message scope
-        MessageScope.Current = currentServiceProvider?.Object;
+        MessageScope.Current = currentScopeExists
+            ? serviceProviderMock.Object
+            : null;
 
         // act
         var subject = new MessageScopeWrapper(NullLogger.Instance, serviceProviderMock.Object, createScope, messageMock.Object);
 
         // assert
-        if (createScope)
-        {
-            MessageScope.Current.Should().BeSameAs(scopeServiceProviderMock.Object);
-        }
-        else
-        {
-            MessageScope.Current.Should().BeSameAs(currentServiceProvider?.Object);
-        }
+        MessageScope.Current.Should().BeSameAs(createScope ? scopeServiceProviderMock.Object : serviceProviderMock.Object);
 
         if (createScope)
         {
@@ -75,10 +67,12 @@ public class MessageScopeWrapperTest
     public async Task When_Dispose_Given_CurrentMessageScope_And_CreateScopeValue_Then_CreatesANewScopeAndAssignsCurrentMessageContextOrReuses(bool currentScopeExists, bool createScope)
     {
         // arrange
-        var currentServiceProvider = currentScopeExists ? new Mock<IServiceProvider>() : null;
+        var currentServiceProvider = currentScopeExists
+            ? serviceProviderMock.Object
+            : null;
 
         // erase current message scope
-        MessageScope.Current = currentServiceProvider?.Object;
+        MessageScope.Current = currentServiceProvider;
 
         var subject = new MessageScopeWrapper(NullLogger.Instance, serviceProviderMock.Object, createScope, messageMock.Object);
 
@@ -86,14 +80,7 @@ public class MessageScopeWrapperTest
         await subject.DisposeAsync();
 
         // assert
-        if (createScope)
-        {
-            MessageScope.Current.Should().BeNull();
-        }
-        else
-        {
-            MessageScope.Current.Should().BeSameAs(currentServiceProvider?.Object);
-        }
+        MessageScope.Current.Should().BeSameAs(currentServiceProvider);
 
         if (createScope)
         {
