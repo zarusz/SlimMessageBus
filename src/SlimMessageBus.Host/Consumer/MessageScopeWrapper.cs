@@ -1,5 +1,9 @@
 ﻿namespace SlimMessageBus.Host.Consumer;
 
+/// <summary>
+/// Used by consumers to wrap the message processing in a message scope (MSDI).
+/// The <see cref="MessageScope.Current"/> is being adjusted as part of this wrapper.
+/// </summary>
 public sealed class MessageScopeWrapper : IMessageScope
 {
     private readonly ILogger _logger;

@@ -3,13 +3,13 @@
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.Memory;
 
+/// <summary>
+/// This test verifies that the MessageBus.Current accessor works correctly and looks up in the current message scope.
+/// </summary>
+/// <param name="testOutputHelper"></param>
 [Trait("Category", "Integration")]
-public class MessageBusCurrentTests : BaseIntegrationTest<MessageBusCurrentTests>
+public class MessageBusCurrentTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<MessageBusCurrentTests>(testOutputHelper)
 {
-    public MessageBusCurrentTests(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
-    {
-    }
-
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
         services.AddSlimMessageBus(mbb =>
@@ -42,37 +42,36 @@ public class MessageBusCurrentTests : BaseIntegrationTest<MessageBusCurrentTests
         var valueHolder = scope.ServiceProvider.GetRequiredService<ValueHolder>();
         valueHolder.Value.Should().Be(value);
     }
-}
 
+    public record SetValueCommand(Guid Value);
 
-public record SetValueCommand(Guid Value);
-
-public class SetValueCommandHandler : IRequestHandler<SetValueCommand>
-{
-    public async Task OnHandle(SetValueCommand request)
+    public class SetValueCommandHandler : IRequestHandler<SetValueCommand>
     {
-        // Some other logic here ...
+        public async Task OnHandle(SetValueCommand request)
+        {
+            // Some other logic here ...
 
-        // and then notify about the value change using the MessageBus.Current accessor which should look up in the current message scope
-        await MessageBus.Current.Publish(new ValueChangedEvent(request.Value));
+            // and then notify about the value change using the MessageBus.Current accessor which should look up in the current message scope
+            await MessageBus.Current.Publish(new ValueChangedEvent(request.Value));
+        }
     }
-}
 
-public record ValueChangedEvent(Guid Value);
+    public record ValueChangedEvent(Guid Value);
 
-public class ValueChangedEventHandler(ValueHolder valueHolder) : IRequestHandler<ValueChangedEvent>
-{
-    public Task OnHandle(ValueChangedEvent request)
+    public class ValueChangedEventHandler(ValueHolder valueHolder) : IRequestHandler<ValueChangedEvent>
     {
-        valueHolder.Value = request.Value;
-        return Task.CompletedTask;
+        public Task OnHandle(ValueChangedEvent request)
+        {
+            valueHolder.Value = request.Value;
+            return Task.CompletedTask;
+        }
     }
-}
 
-/// <summary>
-/// Holds the value (per scope lifetime).
-/// </summary>
-public class ValueHolder
-{
-    public Guid Value { get; set; }
+    /// <summary>
+    /// Holds the value (per scope lifetime).
+    /// </summary>
+    public class ValueHolder
+    {
+        public Guid Value { get; set; }
+    }
 }
