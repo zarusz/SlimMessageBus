@@ -2,6 +2,7 @@
 
 using System.Reflection;
 
+using SlimMessageBus.Host.Consumer;
 using SlimMessageBus.Host.Hybrid;
 
 public static class ServiceCollectionExtensions
@@ -94,6 +95,8 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<ICurrentMessageBusProvider, CurrentMessageBusProvider>();
         services.TryAddSingleton<IMessageTypeResolver, AssemblyQualifiedNameMessageTypeResolver>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageBusSettingsPostProcessor, ConsumerMethodPostProcessor>());
+
+        services.TryAddSingleton<IMessageScopeAccessor, MessageScopeAccessor>();
 
         services.AddHostedService<MessageBusHostedService>();
 

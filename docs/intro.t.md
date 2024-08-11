@@ -23,6 +23,7 @@
   - [ASP.Net Core](#aspnet-core)
   - [Modularization of configuration](#modularization-of-configuration)
   - [Auto registration of consumers and interceptors](#auto-registration-of-consumers-and-interceptors)
+  - [Message Scope Accessor](#message-scope-accessor)
 - [Serialization](#serialization)
 - [Multiple message types on one topic (or queue)](#multiple-message-types-on-one-topic-or-queue)
   - [Message Type Resolver](#message-type-resolver)
@@ -673,6 +674,14 @@ services.AddSlimMessageBus(mbb =>
   // mbb.AddServicesFromAssemblyContaining<SomeMessageConsumer>();
 });
 ```
+
+### Message Scope Accessor
+
+During normal consumer/handler and interceptor life cycles, we can inject any scoped dependencies (services) using the constructor. All is nicely handled by MSDI.
+
+However, for advanced framework integration, if there is a need to get ahold of the `IServiceProvider` tied to the scope of the currently consumed message the [`IMessageScopeAccessor`](../src/SlimMessageBus.Host/Consumer/IMessageScope.cs) can be used.
+It works in a similar way how the [`IHttpContextAccessor`](https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.http.ihttpcontextaccessor?view=aspnetcore-8.0) works in ASP.NET Core to lookup the current ongoing HTTP request and the per request scoped services.
+This is useful when the other framework is not managed by MSDI and we still want to hook into the current message scope.
 
 ## Serialization
 
