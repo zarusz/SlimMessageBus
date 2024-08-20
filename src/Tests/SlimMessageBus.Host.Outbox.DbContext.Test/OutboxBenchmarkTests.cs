@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using SlimMessageBus.Host.Outbox.Services;
 using SlimMessageBus.Host.RabbitMQ;
 
+
 /// <summary>
 /// This test should help to understand the runtime performance and overhead of the outbox feature.
 /// It will generate the time measurements for a given transport (Azure DB + Azure SQL instance) as the baseline, 
@@ -17,7 +18,7 @@ using SlimMessageBus.Host.RabbitMQ;
 [Trait("Category", "Integration")] // for benchmarks
 [Trait("Transport", "Outbox")]
 [Collection(CustomerContext.Schema)]
-public class OutboxBenchmarkTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<OutboxBenchmarkTests>(testOutputHelper)
+public class OutboxBenchmarkTests(ITestOutputHelper testOutputHelper) : BaseOutboxIntegrationTest<OutboxBenchmarkTests>(testOutputHelper)
 {
     private bool _useOutbox;
     private BusType _testParamBusType;
@@ -125,21 +126,6 @@ public class OutboxBenchmarkTests(ITestOutputHelper testOutputHelper) : BaseInte
             options => options.UseSqlServer(
                 Secrets.Service.PopulateSecrets(Configuration.GetConnectionString("DefaultConnection")),
                 x => x.MigrationsHistoryTable(HistoryRepository.DefaultTableName, CustomerContext.Schema)));
-    }
-
-    private async Task PerformDbOperation(Func<CustomerContext, IOutboxMigrationService, Task> action)
-    {
-        var scope = ServiceProvider!.CreateScope();
-        try
-        {
-            var context = scope.ServiceProvider.GetRequiredService<CustomerContext>();
-            var outboxMigrationService = scope.ServiceProvider.GetRequiredService<IOutboxMigrationService>();
-            await action(context, outboxMigrationService);
-        }
-        finally
-        {
-            await ((IAsyncDisposable)scope).DisposeAsync();
-        }
     }
 
     [Theory]

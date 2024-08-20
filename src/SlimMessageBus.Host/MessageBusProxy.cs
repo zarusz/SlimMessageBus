@@ -56,7 +56,7 @@ public class MessageBusProxy(
         {
             return composite.GetChildBuses();
         }
-        return Enumerable.Empty<IMasterMessageBus>();
+        return [];
     }
 
     #endregion

@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Services;
 
-using System.Threading;
-
 using SlimMessageBus;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.Outbox;
@@ -356,7 +354,11 @@ internal class OutboxSendingTask(
     {
         if (name != null && compositeMessageBus != null)
         {
-            return compositeMessageBus.GetChildBus(name);
+            var childBus = compositeMessageBus.GetChildBus(name);
+            if (childBus != null)
+            {
+                return childBus;
+            }
         }
         if (messageBusTarget != null)
         {
