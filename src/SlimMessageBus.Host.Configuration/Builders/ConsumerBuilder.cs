@@ -8,14 +8,24 @@ public class ConsumerBuilder<TMessage> : AbstractConsumerBuilder
         ConsumerSettings.ConsumerMode = ConsumerMode.Consumer;
     }
 
-    public ConsumerBuilder<TMessage> Path(string path, Action<ConsumerBuilder<TMessage>> pathConfig = null)
+    public ConsumerBuilder<TMessage> Path(string path)
     {
         ConsumerSettings.Path = path;
+        return this;
+    }
+
+    public ConsumerBuilder<TMessage> Path(string path, Action<ConsumerBuilder<TMessage>> pathConfig)
+    {
+        Path(path);
         pathConfig?.Invoke(this);
         return this;
     }
 
-    public ConsumerBuilder<TMessage> Topic(string topic, Action<ConsumerBuilder<TMessage>> topicConfig = null) => Path(topic, topicConfig);
+    public ConsumerBuilder<TMessage> Topic(string topic)
+        => Path(topic);
+
+    public ConsumerBuilder<TMessage> Topic(string topic, Action<ConsumerBuilder<TMessage>> topicConfig)
+        => Path(topic, topicConfig);
 
     private static Task DefaultConsumerOnMethod<T>(object consumer, object message, IConsumerContext consumerContext, CancellationToken cancellationToken)
         => ((IConsumer<T>)consumer).OnHandle((T)message, cancellationToken);

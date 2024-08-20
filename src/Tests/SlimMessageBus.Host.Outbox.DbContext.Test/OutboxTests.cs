@@ -310,7 +310,7 @@ public record GenerateCustomerIdCommand(string Firstname, string Lastname) : IRe
 
 public class GenerateCustomerIdCommandHandler : IRequestHandler<GenerateCustomerIdCommand, string>
 {
-    public async Task<string> OnHandle(GenerateCustomerIdCommand request, CancellationToken cancellationToken)
+    public Task<string> OnHandle(GenerateCustomerIdCommand request, CancellationToken cancellationToken)
     {
         // Note: This handler will be already wrapped in a transaction: see Program.cs and .UseTransactionScope() / .UseSqlTransaction() 
 

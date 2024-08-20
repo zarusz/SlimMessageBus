@@ -70,7 +70,7 @@ public class HandlerBuilderTest
         // assert
         act.Should()
             .Throw<ConfigurationMessageBusException>()
-            .WithMessage($"Attempted to configure request handler for path '*' when one was already configured. There can only be one request handler for a given path (topic/queue)");
+            .WithMessage($"Attempted to configure request handler for path '*' when one was already configured. There can only be one request handler for a given path.");
     }
 
     [Theory]

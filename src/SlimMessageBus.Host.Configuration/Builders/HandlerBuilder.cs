@@ -19,17 +19,28 @@ public abstract class AbstractHandlerBuilder<TRequest, THandlerBuilder> : Abstra
     /// Configure topic name (or queue name) that incoming requests (<see cref="TRequest"/>) are expected on.
     /// </summary>
     /// <param name="path">Topic name</param>
-    /// <param name="pathConfig"></param>
     /// <returns></returns>
-    public THandlerBuilder Path(string path, Action<THandlerBuilder> pathConfig = null)
+    public THandlerBuilder Path(string path)
     {
         var consumerSettingsExist = Settings.Consumers.Any(x => x.Path == path && x.ConsumerMode == ConsumerMode.RequestResponse && x != ConsumerSettings);
         if (consumerSettingsExist)
         {
-            throw new ConfigurationMessageBusException($"Attempted to configure request handler for path '{path}' when one was already configured. There can only be one request handler for a given path (topic/queue)");
+            throw new ConfigurationMessageBusException($"Attempted to configure request handler for path '{path}' when one was already configured. There can only be one request handler for a given path.");
         }
 
         ConsumerSettings.Path = path;
+        return TypedThis;
+    }
+
+    /// <summary>
+    /// Configure topic name (or queue name) that incoming requests (<see cref="TRequest"/>) are expected on.
+    /// </summary>
+    /// <param name="path">Topic name</param>
+    /// <param name="pathConfig"></param>
+    /// <returns></returns>
+    public THandlerBuilder Path(string path, Action<THandlerBuilder> pathConfig)
+    {
+        Path(path);
         pathConfig?.Invoke(TypedThis);
         return TypedThis;
     }
@@ -38,9 +49,18 @@ public abstract class AbstractHandlerBuilder<TRequest, THandlerBuilder> : Abstra
     /// Configure topic name (or queue name) that incoming requests (<see cref="TRequest"/>) are expected on.
     /// </summary>
     /// <param name="topic">Topic name</param>
+    /// <returns></returns>
+    public THandlerBuilder Topic(string topic)
+        => Path(topic);
+
+    /// <summary>
+    /// Configure topic name (or queue name) that incoming requests (<see cref="TRequest"/>) are expected on.
+    /// </summary>
+    /// <param name="topic">Topic name</param>
     /// <param name="topicConfig"></param>
     /// <returns></returns>
-    public THandlerBuilder Topic(string topic, Action<THandlerBuilder> topicConfig = null) => Path(topic, topicConfig);
+    public THandlerBuilder Topic(string topic, Action<THandlerBuilder> topicConfig)
+        => Path(topic, topicConfig);
 
     public THandlerBuilder Instances(int numberOfInstances)
     {
