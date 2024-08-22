@@ -5,7 +5,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 - [Introduction](#introduction)
 - [Configuration](#configuration)
   - [Serialization](#serialization)
-  - [Virtual Topics](#virtual-topics)
+  - [Headers](#headers)
   - [Auto Declaration](#auto-declaration)
     - [Polymorphic message support](#polymorphic-message-support)
 - [Lifecycle](#lifecycle)
@@ -68,6 +68,23 @@ services.AddSlimMessageBus(mbb =>
 > When serialization is disabled for in memory passed messages, the exact same object instance send by the producer will be received by the consumer. Therefore state changes on the consumer end will be visible by the producer.
 > Consider making the messages immutable (read only) in that case.
 
+### Headers
+
+The headers published to the memory bus are delivered to the consumer.
+This is managed by the `cfg.EnableMessageHeaders` setting, which is enabled by default.
+
+````cs
+services.AddSlimMessageBus(mbb =>
+{
+   mbb.WithProviderMemory(cfg =>
+   {
+      // Header passing can be disabled when not needed (and to save on memory allocations)
+      cfg.EnableMessageHeaders = false
+   });
+});
+
+Before version v2.5.1, to enable header passing the [serialization](#serialization) had to be enabled.
+
 ### Virtual Topics
 
 Unlike other transport providers, memory transport does not have true notion of topics (or queues). However, it is still required to use topic names. This is required, so that the bus knows on which virtual topic to deliver the message to, and from what virtual topic to consume from.
@@ -80,7 +97,7 @@ mbb.Consume<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<O
 
 // alternatively
 mbb.Consume<OrderSubmittedEvent>(x => x.Topic("OrderSubmittedEvent").WithConsumer<OrderSubmittedHandler>());
-```
+````
 
 The producer configuration side should use `.DefaultTopic()` to set the virtual topic name:
 
