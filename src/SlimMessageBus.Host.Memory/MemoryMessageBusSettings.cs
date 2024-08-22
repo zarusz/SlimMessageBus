@@ -16,4 +16,11 @@ public class MemoryMessageBusSettings
     /// However, if you prefer to have Publish operations non-blocking (asynchronous), you can disable this setting.
     /// </summary>
     public bool EnableBlockingPublish { get; set; } = true;
+
+    /// <summary>
+    /// This setting allows you to enable or disable the passing of message headers from the publisher to the consumer.
+    /// By default, message headers are enabled for ease of use. However, if you are not using headers in the memory bus, disabling them can save on memory allocations.
+    /// </summary>
+    public bool EnableMessageHeaders { get; set; } = true;
+
 }

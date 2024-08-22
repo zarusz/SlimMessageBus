@@ -55,11 +55,11 @@ public class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
 
     public override IDictionary<string, object> CreateHeaders()
     {
-        if (ProviderSettings.EnableMessageSerialization)
+        if (ProviderSettings.EnableMessageHeaders)
         {
             return base.CreateHeaders();
         }
-        // Memory bus does not require headers
+        // Do not use headers
         return null;
     }
 

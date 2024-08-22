@@ -72,14 +72,21 @@ public class MemoryMessageBusTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task When_Publish_Given_MessageSerializationSetting_Then_DeliversMessageInstanceToRespectiveConsumers(bool enableMessageSerialization)
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    public async Task When_Publish_Given_MessageSerializationSetting_Then_DeliversMessageInstanceToRespectiveConsumers(bool enableMessageSerialization, bool enableMessageHeaders)
     {
         // arrange
         const string topicA = "topic-a";
         const string topicA2 = "topic-a-2";
         const string topicB = "topic-b";
+        var headers = new Dictionary<string, object>
+        {
+            ["key1"] = "str",
+            ["key2"] = 2
+        };
 
         _builder.Produce<SomeMessageA>(x => x.DefaultTopic(topicA));
         _builder.Produce<SomeMessageB>(x => x.DefaultTopic(topicB));
@@ -87,19 +94,21 @@ public class MemoryMessageBusTests
         _builder.Consume<SomeMessageA>(x => x.Topic(topicA2).WithConsumer<SomeMessageAConsumer2>());
         _builder.Consume<SomeMessageB>(x => x.Topic(topicB).WithConsumer<SomeMessageBConsumer>());
 
-        var aConsumerMock = new Mock<SomeMessageAConsumer>();
+        var aConsumerMock = new Mock<SomeMessageAConsumer>() { CallBase = true };
         var aConsumer2Mock = new Mock<SomeMessageAConsumer2>();
         var bConsumerMock = new Mock<SomeMessageBConsumer>();
+
         _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeMessageAConsumer))).Returns(aConsumerMock.Object);
         _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeMessageAConsumer2))).Returns(aConsumer2Mock.Object);
         _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeMessageBConsumer))).Returns(bConsumerMock.Object);
 
         _providerSettings.EnableMessageSerialization = enableMessageSerialization;
+        _providerSettings.EnableMessageHeaders = enableMessageHeaders;
 
         var m = new SomeMessageA(Guid.NewGuid());
 
         // act
-        await _subject.Value.ProducePublish(m);
+        await _subject.Value.ProducePublish(m, headers: headers);
 
         // assert
         if (enableMessageSerialization)
@@ -110,7 +119,20 @@ public class MemoryMessageBusTests
         {
             aConsumerMock.Verify(x => x.OnHandle(m), Times.Once);
         }
+
+        aConsumerMock.VerifySet(x => x.Context = It.IsAny<IConsumerContext>(), Times.Once);
         aConsumerMock.VerifyNoOtherCalls();
+
+        if (enableMessageHeaders)
+        {
+            // All passed headers should be present in the consumer headers
+            headers.Should().BeSubsetOf(aConsumerMock.Object.Context.Headers);
+        }
+        else
+        {
+            // The headers should not be present in the consumer headers
+            aConsumerMock.Object.Context.Headers.Should().BeNull();
+        }
 
         aConsumer2Mock.Verify(x => x.OnHandle(It.IsAny<SomeMessageA>()), Times.Never);
         aConsumer2Mock.VerifyNoOtherCalls();
@@ -172,6 +194,7 @@ public class MemoryMessageBusTests
         scopeProviderMock.Verify(x => x.GetService(typeof(SomeMessageAConsumer)), Times.Once);
         scopeProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IConsumerInterceptor<SomeMessageA>>)), Times.Once);
 
+        consumerMock.VerifySet(x => x.Context = It.IsAny<IConsumerContext>(), Times.Once);
         consumerMock.Verify(x => x.OnHandle(m), Times.Once);
         consumerMock.Verify(x => x.Dispose(), Times.Never);
         consumerMock.VerifyNoOtherCalls();
@@ -210,6 +233,7 @@ public class MemoryMessageBusTests
         _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IMessageTypeResolver)), Times.Once);
         _serviceProviderMock.ProviderMock.VerifyNoOtherCalls();
 
+        consumerMock.VerifySet(x => x.Context = It.IsAny<IConsumerContext>(), Times.Once);
         consumerMock.Verify(x => x.OnHandle(m), Times.Once);
         consumerMock.Verify(x => x.Dispose(), Times.Once);
         consumerMock.VerifyNoOtherCalls();
@@ -255,6 +279,7 @@ public class MemoryMessageBusTests
         // current scope is not changed
         MessageScope.Current.Should().BeNull();
 
+        consumerMock.VerifySet(x => x.Context = It.IsAny<IConsumerContext>(), Times.Once);
         consumerMock.Verify(x => x.OnHandle(m), Times.Once);
         consumerMock.Verify(x => x.Dispose(), Times.Once);
         consumerMock.VerifyNoOtherCalls();
@@ -318,6 +343,7 @@ public class MemoryMessageBusTests
         _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IMessageTypeResolver)), Times.Once);
         _serviceProviderMock.ProviderMock.VerifyNoOtherCalls();
 
+        consumer1Mock.VerifySet(x => x.Context = It.IsAny<IConsumerContext>(), Times.Once);
         consumer1Mock.Verify(x => x.OnHandle(m), Times.Once);
         consumer1Mock.VerifyNoOtherCalls();
 
@@ -475,8 +501,10 @@ public record SomeMessageA(Guid Value);
 
 public record SomeMessageB(Guid Value);
 
-public class SomeMessageAConsumer : IConsumer<SomeMessageA>, IDisposable
+public class SomeMessageAConsumer : IConsumer<SomeMessageA>, IConsumerWithContext, IDisposable
 {
+    public virtual IConsumerContext Context { get; set; }
+
     public virtual void Dispose()
     {
         // Needed to check disposing
