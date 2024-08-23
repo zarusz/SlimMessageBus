@@ -6,6 +6,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 - [Configuration](#configuration)
   - [Serialization](#serialization)
   - [Headers](#headers)
+  - [Virtual Topics](#virtual-topics)
   - [Auto Declaration](#auto-declaration)
     - [Polymorphic message support](#polymorphic-message-support)
 - [Lifecycle](#lifecycle)
@@ -71,17 +72,18 @@ services.AddSlimMessageBus(mbb =>
 ### Headers
 
 The headers published to the memory bus are delivered to the consumer.
-This is managed by the `cfg.EnableMessageHeaders` setting, which is enabled by default.
+This is managed by the `EnableMessageHeaders` setting, which is enabled by default.
 
-````cs
+```cs
 services.AddSlimMessageBus(mbb =>
 {
    mbb.WithProviderMemory(cfg =>
    {
       // Header passing can be disabled when not needed (and to save on memory allocations)
-      cfg.EnableMessageHeaders = false
+      cfg.EnableMessageHeaders = false;
    });
 });
+```
 
 Before version v2.5.1, to enable header passing the [serialization](#serialization) had to be enabled.
 
@@ -97,7 +99,7 @@ mbb.Consume<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<O
 
 // alternatively
 mbb.Consume<OrderSubmittedEvent>(x => x.Topic("OrderSubmittedEvent").WithConsumer<OrderSubmittedHandler>());
-````
+```
 
 The producer configuration side should use `.DefaultTopic()` to set the virtual topic name:
 
