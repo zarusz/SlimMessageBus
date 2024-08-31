@@ -74,9 +74,21 @@ public class SqlOutboxMigrationService : CommonSqlMigrationService<CommonSqlRepo
             
             -- SqlOutboxTemplate.SqlOutboxMessageDeleteSent
             CREATE INDEX IX_Outbox_Timestamp_DeliveryComplete_1_DeliveryAborted_0 ON {qualifiedTableName} (Timestamp) WHERE (DeliveryComplete = 1 and DeliveryAborted = 0);
+                        
+            BEGIN TRY
+                -- SqlOutboxTemplate.SqlOutboxMessageUpdateSent
+                CREATE TYPE {qualifiedOutboxIdTypeName} AS TABLE (Id uniqueidentifier);
+            END TRY
+            BEGIN CATCH
+                -- Ignore when there is lack of permissions to create a custom type.
+                -- In the next migration we will drop the type see: https://github.com/zarusz/SlimMessageBus/issues/297
+            END CATCH;
+            """,
+            token);
 
-            -- SqlOutboxTemplate.SqlOutboxMessageUpdateSent
-            CREATE TYPE {qualifiedOutboxIdTypeName} AS TABLE (Id uniqueidentifier);
+        await TryApplyMigration("20240831000000_SMB_RemoveOutboxIdType",
+            $"""
+            DROP TYPE IF EXISTS {qualifiedOutboxIdTypeName};
             """,
             token);
     }
