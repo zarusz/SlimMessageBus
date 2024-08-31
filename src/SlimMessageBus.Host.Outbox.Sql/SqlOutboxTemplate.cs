@@ -2,7 +2,6 @@
 
 public class SqlOutboxTemplate
 {
-    public string OutboxIdTypeQualified { get; }
     public string TableNameQualified { get; }
     public string MigrationsTableNameQualified { get; }
     public string SqlOutboxMessageInsert { get; }
@@ -19,9 +18,10 @@ public class SqlOutboxTemplate
     /// </summary>
     internal string SqlOutboxAllMessages { get; }
 
+    public string InIdsSeparator { get; } = "|";
+
     public SqlOutboxTemplate(SqlOutboxSettings settings)
     {
-        OutboxIdTypeQualified = $"[{settings.SqlSettings.DatabaseSchemaName}].[{settings.SqlSettings.DatabaseOutboxTypeName}]";
         TableNameQualified = $"[{settings.SqlSettings.DatabaseSchemaName}].[{settings.SqlSettings.DatabaseTableName}]";
         MigrationsTableNameQualified = $"[{settings.SqlSettings.DatabaseSchemaName}].[{settings.SqlSettings.DatabaseMigrationsTableName}]";
 
@@ -106,25 +106,29 @@ public class SqlOutboxTemplate
             ORDER BY Timestamp ASC;
             """;
 
+        // See https://learn.microsoft.com/en-us/sql/t-sql/functions/string-split-transact-sql?view=sql-server-ver16
+        // See https://stackoverflow.com/a/47777878/1906057
+        var inIdsSql = $"SELECT CONVERT(uniqueidentifier, [value]) from STRING_SPLIT(@Ids, '{InIdsSeparator}')";
+
         SqlOutboxMessageUpdateSent = $"""
             UPDATE {TableNameQualified}
             SET [DeliveryComplete] = 1,
                 [DeliveryAttempt] = DeliveryAttempt + 1
-            WHERE [Id] IN (SELECT [Id] from @Ids);
+            WHERE [Id] IN ({inIdsSql});
             """;
 
         SqlOutboxMessageIncrementDeliveryAttempt = $"""
             UPDATE {TableNameQualified}
             SET [DeliveryAttempt] = DeliveryAttempt + 1,
                 [DeliveryAborted] = CASE WHEN [DeliveryAttempt] >= @MaxDeliveryAttempts THEN 1 ELSE 0 END
-            WHERE [Id] IN (SELECT [Id] from @Ids);
+            WHERE [Id] IN ({inIdsSql});
             """;
 
         SqlOutboxMessageAbortDelivery = $"""
             UPDATE {TableNameQualified}
             SET [DeliveryAttempt] = DeliveryAttempt + 1,
                 [DeliveryAborted] = 1
-            WHERE [Id] IN (SELECT [Id] from @Ids);
+            WHERE [Id] IN ({inIdsSql});
             """;
 
         SqlOutboxMessageRenewLock = $"""

@@ -21,8 +21,6 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
     {
         await EnsureConnection();
 
-        // ToDo: Create command template
-
         await ExecuteNonQuery(Settings.SqlSettings.OperationRetry, _sqlTemplate.SqlOutboxMessageInsert, cmd =>
         {
             cmd.Parameters.Add("@Id", SqlDbType.UniqueIdentifier).Value = message.Id;
@@ -63,20 +61,11 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
 
         await EnsureConnection();
 
-        var table = new DataTable();
-        table.Columns.Add("Id", typeof(Guid));
-        foreach (var guid in ids)
-        {
-            table.Rows.Add(guid);
-        }
-
         var affected = await ExecuteNonQuery(Settings.SqlSettings.OperationRetry,
             _sqlTemplate.SqlOutboxMessageAbortDelivery,
             cmd =>
             {
-                var param = cmd.Parameters.Add("@Ids", SqlDbType.Structured);
-                param.TypeName = _sqlTemplate.OutboxIdTypeQualified;
-                param.Value = table;
+                cmd.Parameters.AddWithValue("@Ids", ToIdsString(ids));
             },
             token: token);
 
@@ -95,20 +84,11 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
 
         await EnsureConnection();
 
-        var table = new DataTable();
-        table.Columns.Add("Id", typeof(Guid));
-        foreach (var guid in ids)
-        {
-            table.Rows.Add(guid);
-        }
-
         var affected = await ExecuteNonQuery(Settings.SqlSettings.OperationRetry,
             _sqlTemplate.SqlOutboxMessageUpdateSent,
             cmd =>
             {
-                var param = cmd.Parameters.Add("@Ids", SqlDbType.Structured);
-                param.TypeName = _sqlTemplate.OutboxIdTypeQualified;
-                param.Value = table;
+                cmd.Parameters.AddWithValue("@Ids", ToIdsString(ids));
             },
             token: token);
 
@@ -117,6 +97,8 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
             throw new MessageBusException($"The number of affected rows was {affected}, but {ids.Count} was expected");
         }
     }
+
+    private string ToIdsString(IReadOnlyCollection<Guid> ids) => string.Join(_sqlTemplate.InIdsSeparator, ids);
 
     public async Task IncrementDeliveryAttempt(IReadOnlyCollection<Guid> ids, int maxDeliveryAttempts, CancellationToken token)
     {
@@ -132,21 +114,11 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
 
         await EnsureConnection();
 
-        var table = new DataTable();
-        table.Columns.Add("Id", typeof(Guid));
-        foreach (var guid in ids)
-        {
-            table.Rows.Add(guid);
-        }
-
         var affected = await ExecuteNonQuery(Settings.SqlSettings.OperationRetry,
             _sqlTemplate.SqlOutboxMessageIncrementDeliveryAttempt,
             cmd =>
             {
-                var param = cmd.Parameters.Add("@Ids", SqlDbType.Structured);
-                param.TypeName = _sqlTemplate.OutboxIdTypeQualified;
-                param.Value = table;
-
+                cmd.Parameters.AddWithValue("@Ids", ToIdsString(ids));
                 cmd.Parameters.AddWithValue("@MaxDeliveryAttempts", maxDeliveryAttempts);
             },
             token: token);
