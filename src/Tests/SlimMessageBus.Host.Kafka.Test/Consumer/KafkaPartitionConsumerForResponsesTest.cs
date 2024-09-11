@@ -2,9 +2,7 @@
 
 using System.Text;
 
-using Confluent.Kafka;
-
-using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
+using ConsumeResult = ConsumeResult<Ignore, byte[]>;
 
 public class KafkaPartitionConsumerForResponsesTest : IDisposable
 {
@@ -45,13 +43,17 @@ public class KafkaPartitionConsumerForResponsesTest : IDisposable
     }
 
     [Fact]
-    public void When_OnPartitionEndReached_Then_ShouldCommit()
+    public async Task When_OnPartitionEndReached_Then_ShouldCommit()
     {
         // arrange
         var partition = new TopicPartitionOffset(_topicPartition, new Offset(10));
+        var message = GetSomeMessage();
+
+        _subject.OnPartitionAssigned(_topicPartition);
+        await _subject.OnMessage(message);
 
         // act
-        _subject.OnPartitionEndReached(partition);
+        _subject.OnPartitionEndReached();
 
         // assert
         _commitControllerMock.Verify(x => x.Commit(partition), Times.Once);
@@ -125,7 +127,7 @@ public class KafkaPartitionConsumerForResponsesTest : IDisposable
             Message = new Message<Ignore, byte[]>
             {
                 Key = null,
-                Value = new byte[] { 10, 20 },
+                Value = [10, 20],
                 Headers = new Headers
                 {
                     { "test-header", Encoding.UTF8.GetBytes("test-value") }
@@ -145,3 +147,4 @@ public class KafkaPartitionConsumerForResponsesTest : IDisposable
 
     #endregion
 }
+

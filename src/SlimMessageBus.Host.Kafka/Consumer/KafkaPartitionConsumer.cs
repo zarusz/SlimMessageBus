@@ -37,13 +37,16 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
         _commitController = commitController;
         _messageProcessor = messageProcessor;
 
-        // ToDo: Add support for Kafka driven automatic commit
+        // ToDo: Add support for Kafka driven automatic commit (https://github.com/zarusz/SlimMessageBus/issues/131)
         CheckpointTrigger = CreateCheckpointTrigger();
     }
 
     private ICheckpointTrigger CreateCheckpointTrigger()
     {
-        var f = new CheckpointTriggerFactory(LoggerFactory, (configuredCheckpoints) => $"The checkpoint settings ({nameof(BuilderExtensions.CheckpointAfter)} and {nameof(BuilderExtensions.CheckpointEvery)}) across all the consumers that use the same Topic {TopicPartition.Topic} and Group {Group} must be the same (found settings are: {string.Join(", ", configuredCheckpoints)})");
+        var f = new CheckpointTriggerFactory(
+            LoggerFactory,
+            (configuredCheckpoints) => $"The checkpoint settings ({nameof(BuilderExtensions.CheckpointAfter)} and {nameof(BuilderExtensions.CheckpointEvery)}) across all the consumers that use the same Topic {TopicPartition.Topic} and Group {Group} must be the same (found settings are: {string.Join(", ", configuredCheckpoints)})");
+
         return f.Create(ConsumerSettings);
     }
 
@@ -101,11 +104,22 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
             _lastOffset = message.TopicPartitionOffset;
 
             var messageHeaders = message.ToHeaders(_headerSerializer);
+
+            // Log in trace level all the message headers converted to string
+            if (_logger.IsEnabled(LogLevel.Trace))
+            {
+                foreach (var header in messageHeaders)
+                {
+                    _logger.LogTrace("Group [{Group}]: Topic: {Topic}, Partition: {Partition}, Offset: {Offset}, Message Header: {HeaderKey}={HeaderValue}", Group, message.TopicPartitionOffset.Topic, message.TopicPartitionOffset.Partition, message.TopicPartitionOffset.Offset, header.Key, header.Value);
+                }
+            }
+
             var r = await _messageProcessor.ProcessMessage(message, messageHeaders, cancellationToken: _cancellationTokenSource.Token).ConfigureAwait(false);
             if (r.Exception != null)
             {
-                // ToDo: Retry logic
-                // The OnMessageFaulted was called at this point by the MessageProcessor.
+                // The IKafkaConsumerErrorHandler and OnMessageFaulted was called at this point by the MessageProcessor.
+                // We can only log and move to the next message, as the error handling is done by the MessageProcessor.
+                LogError(r.Exception, message);
             }
 
             if (CheckpointTrigger != null && CheckpointTrigger.Increment())
@@ -115,19 +129,19 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "Group [{Group}]: Error occurred while consuming a message at Topic: {Topic}, Partition: {Partition}, Offset: {Offset}", Group, message.Topic, message.Partition, message.Offset);
+            LogError(e, message);
             throw;
         }
     }
 
-    public void OnPartitionEndReached(TopicPartitionOffset offset)
+    private void LogError(Exception e, ConsumeResult<Ignore, byte[]> message)
+        => _logger.LogError(e, "Group [{Group}]: Error occurred while consuming a message at Topic: {Topic}, Partition: {Partition}, Offset: {Offset}, Error: {ErrorMessage}", Group, message.Topic, message.Partition, message.Offset, e.Message);
+
+    public void OnPartitionEndReached()
     {
         if (CheckpointTrigger != null)
         {
-            if (offset != null)
-            {
-                Commit(offset);
-            }
+            Commit(_lastOffset);
         }
     }
 

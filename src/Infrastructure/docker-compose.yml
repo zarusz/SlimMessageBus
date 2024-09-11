@@ -1,4 +1,4 @@
-version: '3.4'
+version: "3.4"
 
 services:
   zookeeper:
@@ -16,13 +16,13 @@ services:
       - "9092:9092"
     environment:
       KAFKA_ADVERTISED_HOST_NAME: localhost
-      KAFKA_CREATE_TOPICS: "user-test-ping:2:1,user-test-echo:2:1"
+      KAFKA_CREATE_TOPICS: "user-test-ping:2:1,user-test-echo:2:1,user-test-echo-resp:2:1"
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
     depends_on:
       - zookeeper
     networks:
       - slim
-      
+
   mqtt:
     container_name: slim.mqtt
     image: eclipse-mosquitto:2.0.18
@@ -74,7 +74,7 @@ services:
       - "11002:11002"
     networks:
       - slim
-  
+
   nats:
     container_name: slim.nats
     image: nats:2.10
@@ -82,8 +82,6 @@ services:
       - 4222:4222
     networks:
       - slim
-    
 
 networks:
   slim: {}
- 

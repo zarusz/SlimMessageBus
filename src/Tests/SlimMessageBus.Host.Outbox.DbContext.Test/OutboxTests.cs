@@ -27,7 +27,7 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseOutboxIntegra
 
         void ConfigureExternalBus(MessageBusBuilder mbb)
         {
-            var topic = "";
+            var topic = "test-ping";
             if (_testParamBusType == BusType.Kafka)
             {
                 var kafkaBrokers = Secrets.Service.PopulateSecrets(configuration["Kafka:Brokers"]);
@@ -52,9 +52,8 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseOutboxIntegra
                     {
                         config.FetchErrorBackoffMs = 1;
                         config.SocketNagleDisable = true;
-
-                        config.StatisticsIntervalMs = 500000;
-                        config.AutoOffsetReset = AutoOffsetReset.Latest;
+                        // when the test containers start there is no consumer group yet, so we want to start from the beginning
+                        config.AutoOffsetReset = AutoOffsetReset.Earliest;
 
                         if (kafkaSecure)
                         {
@@ -62,7 +61,7 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseOutboxIntegra
                         }
                     };
                 });
-
+                // Topics on cloudkarafka.com are prefixed with username
                 topic = $"{kafkaUsername}-test-ping";
             }
             if (_testParamBusType == BusType.AzureSB)
@@ -311,7 +310,7 @@ public record GenerateCustomerIdCommand(string Firstname, string Lastname) : IRe
 
 public class GenerateCustomerIdCommandHandler : IRequestHandler<GenerateCustomerIdCommand, string>
 {
-    public async Task<string> OnHandle(GenerateCustomerIdCommand request)
+    public Task<string> OnHandle(GenerateCustomerIdCommand request)
     {
         // Note: This handler will be already wrapped in a transaction: see Program.cs and .UseTransactionScope() / .UseSqlTransaction() 
 
@@ -321,7 +320,7 @@ public class GenerateCustomerIdCommandHandler : IRequestHandler<GenerateCustomer
         }
 
         // generate a dummy customer id
-        return $"{request.Firstname.ToUpperInvariant()[..3]}-{request.Lastname.ToUpperInvariant()[..3]}-{Guid.NewGuid()}";
+        return Task.FromResult($"{request.Firstname.ToUpperInvariant()[..3]}-{request.Lastname.ToUpperInvariant()[..3]}-{Guid.NewGuid()}");
     }
 }
 

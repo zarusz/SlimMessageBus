@@ -1,12 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Kafka.Test;
 
-using Confluent.Kafka;
-
-using Microsoft.Extensions.Logging.Abstractions;
-
-using SlimMessageBus.Host;
-
-using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
+using ConsumeResult = ConsumeResult<Ignore, byte[]>;
 
 public class KafkaPartitionConsumerForConsumersTest : IDisposable
 {
@@ -41,7 +35,7 @@ public class KafkaPartitionConsumerForConsumersTest : IDisposable
 
         var headerSerializer = new StringValueSerializer();
 
-        _subject = new Lazy<KafkaPartitionConsumerForConsumers>(() => new KafkaPartitionConsumerForConsumers(massageBusMock.Bus.LoggerFactory, new[] { _consumerBuilder.ConsumerSettings }, group, _topicPartition, _commitControllerMock.Object, headerSerializer, massageBusMock.Bus));
+        _subject = new Lazy<KafkaPartitionConsumerForConsumers>(() => new KafkaPartitionConsumerForConsumers(massageBusMock.Bus.LoggerFactory, [_consumerBuilder.ConsumerSettings], group, _topicPartition, _commitControllerMock.Object, headerSerializer, massageBusMock.Bus));
     }
 
     public void Dispose()
@@ -64,7 +58,7 @@ public class KafkaPartitionConsumerForConsumersTest : IDisposable
         await _subject.Value.OnMessage(message);
 
         // act
-        _subject.Value.OnPartitionEndReached(message.TopicPartitionOffset);
+        _subject.Value.OnPartitionEndReached();
 
         // assert
         _commitControllerMock.Verify(x => x.Commit(message.TopicPartitionOffset), Times.Once);
@@ -114,7 +108,7 @@ public class KafkaPartitionConsumerForConsumersTest : IDisposable
             Topic = _topicPartition.Topic,
             Partition = _topicPartition.Partition,
             Offset = 10 + offsetAdd,
-            Message = new Message<Ignore, byte[]> { Key = null, Value = new byte[] { 10, 20 } },
+            Message = new Message<Ignore, byte[]> { Key = null, Value = [10, 20] },
             IsPartitionEOF = false,
         };
     }

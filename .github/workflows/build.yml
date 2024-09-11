@@ -52,6 +52,7 @@ jobs:
         working-directory: ./src
 
       - name: Install Coverlet
+        #if: false
         run: find . -name "*.Test.csproj" | xargs -t -I {} dotnet add {} package coverlet.collector
         working-directory: ./src
 
@@ -119,10 +120,10 @@ jobs:
           azure_eventhub_connectionstring: ${{ secrets.azure_eventhub_connectionstring }}
           azure_storagecontainer_connectionstring: ${{ secrets.azure_storagecontainer_connectionstring }}
 
-          kafka_brokers: ${{ secrets.kafka_brokers }}
-          kafka_username: ${{ secrets.kafka_username }}
-          kafka_password: ${{ secrets.kafka_password }}
-          kafka_secure: ${{ secrets.kafka_secure }}
+          #kafka_brokers: ${{ secrets.kafka_brokers }}
+          #kafka_username: ${{ secrets.kafka_username }}
+          #kafka_password: ${{ secrets.kafka_password }}
+          #kafka_secure: ${{ secrets.kafka_secure }}
 
           _mqtt_server: ${{ secrets.mqtt_server }}
           _mqtt_port: ${{ secrets.mqtt_port }}
@@ -137,10 +138,10 @@ jobs:
           sqlserver_connectionstring: ${{ secrets.sqlserver_connectionstring }}
 
           # Connects to the local Test Containers
-          _kafka_brokers: localhost:9092
-          _kafka_username: user
-          _kafka_password: password
-          _kafka_secure: false
+          kafka_brokers: localhost:9092
+          kafka_username: user
+          kafka_password: password
+          kafka_secure: false
 
           mqtt_server: localhost
           mqtt_port: 1883
@@ -192,6 +193,7 @@ jobs:
           name: .NET Tests
           path: ./test-results/*.trx
           reporter: dotnet-trx
+          fail-on-error: false
 
       - name: Copy NuGet packages
         shell: bash

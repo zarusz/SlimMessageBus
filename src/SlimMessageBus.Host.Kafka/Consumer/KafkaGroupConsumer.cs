@@ -11,14 +11,14 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
     private Task _consumerTask;
     private CancellationTokenSource _consumerCts;
 
-    public KafkaMessageBus MessageBus { get; }
+    public KafkaMessageBusSettings ProviderSettings { get; }
     public string Group { get; }
     public IReadOnlyCollection<string> Topics { get; }
 
-    public KafkaGroupConsumer(KafkaMessageBus messageBus, string group, IReadOnlyCollection<string> topics, Func<TopicPartition, IKafkaCommitController, IKafkaPartitionConsumer> processorFactory)
-        : base(messageBus.LoggerFactory.CreateLogger<KafkaGroupConsumer>())
+    public KafkaGroupConsumer(ILoggerFactory loggerFactory, KafkaMessageBusSettings providerSettings, string group, IReadOnlyCollection<string> topics, Func<TopicPartition, IKafkaCommitController, IKafkaPartitionConsumer> processorFactory)
+        : base(loggerFactory.CreateLogger<KafkaGroupConsumer>())
     {
-        MessageBus = messageBus;
+        ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
         Group = group ?? throw new ArgumentNullException(nameof(group));
         Topics = topics ?? throw new ArgumentNullException(nameof(topics));
 
@@ -58,16 +58,16 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
         var config = new ConsumerConfig
         {
             GroupId = group,
-            BootstrapServers = MessageBus.ProviderSettings.BrokerList
+            BootstrapServers = ProviderSettings.BrokerList
         };
-        MessageBus.ProviderSettings.ConsumerConfig(config);
+        ProviderSettings.ConsumerConfig(config);
 
         // ToDo: add support for auto commit
         config.EnableAutoCommit = false;
         // Notify when we reach EoF, so that we can do a manual commit
         config.EnablePartitionEof = true;
 
-        var consumer = MessageBus.ProviderSettings.ConsumerBuilderFactory(config)
+        var consumer = ProviderSettings.ConsumerBuilderFactory(config)
             .SetStatisticsHandler((_, json) => OnStatistics(json))
             .SetPartitionsAssignedHandler((_, partitions) => OnPartitionAssigned(partitions))
             .SetPartitionsRevokedHandler((_, partitions) => OnPartitionRevoked(partitions))
@@ -120,7 +120,7 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
                     }
                     catch (ConsumeException e)
                     {
-                        var pollRetryInterval = MessageBus.ProviderSettings.ConsumerPollRetryInterval;
+                        var pollRetryInterval = ProviderSettings.ConsumerPollRetryInterval;
 
                         Logger.LogError(e, "Group [{Group}]: Error occurred while polling new messages (will retry in {RetryInterval}) - {Reason}", Group, pollRetryInterval, e.Error.Reason);
                         await Task.Delay(pollRetryInterval, _consumerCts.Token).ConfigureAwait(false);
@@ -134,7 +134,7 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
             Logger.LogInformation("Group [{Group}]: Unsubscribing from topics", Group);
             _consumer.Unsubscribe();
 
-            if (MessageBus.ProviderSettings.EnableCommitOnBusStop)
+            if (ProviderSettings.EnableCommitOnBusStop)
             {
                 OnClose();
             }
@@ -201,7 +201,7 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
         Logger.LogDebug("Group [{Group}]: Reached end of partition, Topic: {Topic}, Partition: {Partition}, Offset: {Offset}", Group, offset.Topic, offset.Partition, offset.Offset);
 
         var processor = _processors[offset.TopicPartition];
-        processor.OnPartitionEndReached(offset);
+        processor.OnPartitionEndReached();
     }
 
     protected async virtual ValueTask OnMessage(ConsumeResult message)
@@ -212,15 +212,21 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
         await processor.OnMessage(message).ConfigureAwait(false);
     }
 
-    protected virtual void OnOffsetsCommitted(CommittedOffsets e)
+    protected internal virtual void OnOffsetsCommitted(CommittedOffsets e)
     {
         if (e.Error.IsError || e.Error.IsFatal)
         {
-            Logger.LogWarning("Group [{Group}]: Failed to commit offsets: [{Offsets}], error: {error}", Group, string.Join(", ", e.Offsets), e.Error.Reason);
+            if (Logger.IsEnabled(LogLevel.Warning))
+            {
+                Logger.LogWarning("Group [{Group}]: Failed to commit offsets: [{Offsets}], error: {ErrorMessage}", Group, string.Join(", ", e.Offsets), e.Error.Reason);
+            }
         }
         else
         {
-            Logger.LogTrace("Group [{Group}]: Successfully committed offsets: [{Offsets}]", Group, string.Join(", ", e.Offsets));
+            if (Logger.IsEnabled(LogLevel.Debug))
+            {
+                Logger.LogDebug("Group [{Group}]: Successfully committed offsets: [{Offsets}]", Group, string.Join(", ", e.Offsets));
+            }
         }
     }
 

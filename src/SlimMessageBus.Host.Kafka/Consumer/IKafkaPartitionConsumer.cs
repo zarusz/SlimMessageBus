@@ -11,7 +11,7 @@ public interface IKafkaPartitionConsumer : IDisposable
 
     void OnPartitionAssigned(TopicPartition partition);
     Task OnMessage(ConsumeResult message);
-    void OnPartitionEndReached(TopicPartitionOffset offset);
+    void OnPartitionEndReached();
     void OnPartitionRevoked();
 
     void OnClose();
