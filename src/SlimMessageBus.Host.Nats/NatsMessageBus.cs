@@ -15,7 +15,7 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
 
     protected override IMessageBusSettingsValidationService ValidationService => new NatsMessageBusSettingsValidationService(Settings, ProviderSettings);
 
-    public bool IsConnected => _connection is {ConnectionState: NatsConnectionState.Open};
+    public bool IsConnected => _connection is { ConnectionState: NatsConnectionState.Open };
 
     protected override void Build()
     {
@@ -50,12 +50,19 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
         {
             throw new ConsumerMessageBusException("The connection is not available at this time");
         }
-        
+
         await base.CreateConsumers();
-        
+
         foreach (var (subject, consumerSettings) in Settings.Consumers.GroupBy(x => x.Path).ToDictionary(x => x.Key, x => x.ToList()))
         {
-            var processor = new MessageProcessor<NatsMsg<byte[]>>(consumerSettings, this, (type, message) => Serializer.Deserialize(type, message.Data), subject, this);
+            var processor = new MessageProcessor<NatsMsg<byte[]>>(
+                consumerSettings,
+                messageBus: this,
+                messageProvider: (type, message) => Serializer.Deserialize(type, message.Data),
+                subject,
+                this,
+                consumerErrorHandlerOpenGenericType: typeof(INatsConsumerErrorHandler<>));
+
             AddSubjectConsumer(subject, processor);
         }
 
@@ -87,14 +94,14 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
     protected override async Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus,
         CancellationToken cancellationToken)
     {
-        
+
         await EnsureInitFinished();
 
         if (_connection == null)
         {
             throw new ProducerMessageBusException("The connection is not available at this time");
         }
-        
+
         var messages = envelopes.Select(envelope =>
         {
             var messagePayload = Serializer.Serialize(envelope.MessageType, envelope.Message);
@@ -105,7 +112,7 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
             {
                 Data = messagePayload,
                 Subject = path,
-                Headers = new NatsHeaders(),
+                Headers = [],
                 ReplyTo = replyTo
             };
 

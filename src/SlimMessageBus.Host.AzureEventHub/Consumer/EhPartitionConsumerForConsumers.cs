@@ -13,7 +13,14 @@ public class EhPartitionConsumerForConsumers : EhPartitionConsumer
         _consumerSettings = consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings));
         if (!consumerSettings.Any()) throw new ArgumentOutOfRangeException(nameof(consumerSettings));
 
-        MessageProcessor = new MessageProcessor<EventData>(_consumerSettings, MessageBus, messageProvider: GetMessageFromTransportMessage, path: GroupPathPartition.ToString(), responseProducer: MessageBus, consumerContextInitializer: InitializeConsumerContext);
+        MessageProcessor = new MessageProcessor<EventData>(
+            _consumerSettings,
+            MessageBus,
+            messageProvider: GetMessageFromTransportMessage,
+            path: GroupPathPartition.ToString(),
+            responseProducer: MessageBus,
+            consumerContextInitializer: InitializeConsumerContext,
+            consumerErrorHandlerOpenGenericType: typeof(IEventHubConsumerErrorHandler<>));
         CheckpointTrigger = CreateCheckpointTrigger();
     }
 
