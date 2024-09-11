@@ -92,13 +92,25 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
 
         void AddTopicConsumer(string topic, ISubscriber subscriber, IMessageProcessor<MessageWithHeaders> messageProcessor)
         {
-            var consumer = new RedisTopicConsumer(LoggerFactory.CreateLogger<RedisTopicConsumer>(), topic, subscriber, messageProcessor, ProviderSettings.EnvelopeSerializer);
+            var consumer = new RedisTopicConsumer(
+                LoggerFactory.CreateLogger<RedisTopicConsumer>(),
+                topic,
+                subscriber,
+                messageProcessor,
+                ProviderSettings.EnvelopeSerializer);
+
             AddConsumer(consumer);
         }
 
         foreach (var ((path, pathKind), consumerSettings) in Settings.Consumers.GroupBy(x => (x.Path, x.PathKind)).ToDictionary(x => x.Key, x => x.ToList()))
         {
-            IMessageProcessor<MessageWithHeaders> processor = new MessageProcessor<MessageWithHeaders>(consumerSettings, this, MessageProvider, path, responseProducer: this);
+            IMessageProcessor<MessageWithHeaders> processor = new MessageProcessor<MessageWithHeaders>(
+                consumerSettings,
+                messageBus: this,
+                messageProvider: MessageProvider,
+                path: path,
+                responseProducer: this,
+                consumerErrorHandlerOpenGenericType: typeof(IRedisConsumerErrorHandler<>));
 
             var instances = consumerSettings.Max(x => x.Instances);
             if (instances > 1)

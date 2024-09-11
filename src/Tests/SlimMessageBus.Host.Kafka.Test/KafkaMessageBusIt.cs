@@ -100,23 +100,24 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
         AddBusConfiguration(mbb =>
         {
             var topic = $"{TopicPrefix}test-ping";
-            mbb
-                .Produce<PingMessage>(x =>
-                {
-                    x.DefaultTopic(topic);
-                    // Partition #0 for even counters
-                    // Partition #1 for odd counters
-                    x.PartitionProvider((m, t) => m.Counter % 2);
-                })
-                .Consume<PingMessage>(x =>
-                {
-                    x.Topic(topic)
-                        .WithConsumer<PingConsumer>()
-                        .KafkaGroup("subscriber")
-                        .Instances(2)
-                        .CheckpointEvery(1000)
-                        .CheckpointAfter(TimeSpan.FromSeconds(600));
-                });
+            mbb.Produce<PingMessage>(x =>
+            {
+                x.DefaultTopic(topic);
+                // Partition #0 for even counters
+                // Partition #1 for odd counters
+                x.PartitionProvider((m, t) => m.Counter % 2);
+            });
+            // doc:fragment:ExampleCheckpointConfig
+            mbb.Consume<PingMessage>(x =>
+            {
+                x.Topic(topic)
+                    .WithConsumer<PingConsumer>()
+                    .KafkaGroup("subscriber")
+                    .Instances(2)
+                    .CheckpointEvery(1000)
+                    .CheckpointAfter(TimeSpan.FromSeconds(600));
+            });
+            // doc:fragment:ExampleCheckpointConfig
         });
 
         var consumedMessages = ServiceProvider.GetRequiredService<TestEventCollector<ConsumedMessage>>();

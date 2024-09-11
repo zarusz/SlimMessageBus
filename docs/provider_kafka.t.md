@@ -217,17 +217,7 @@ In the current Kafka provider implementation, SMB handles the manual commit of t
 
 Here’s an example:
 
-```cs
-mbb.Consume<PingMessage>(x =>
-{
-    x.Topic(topic)
-        .WithConsumer<PingConsumer>()
-        .KafkaGroup("subscriber")
-        .Instances(2)
-        .CheckpointEvery(1000)
-        .CheckpointAfter(TimeSpan.FromSeconds(600));
-});
-```
+@[:cs](../src/Tests/SlimMessageBus.Host.Kafka.Test/KafkaMessageBusIt.cs,ExampleCheckpointConfig)
 
 In future versions, the following features may be added:
 

@@ -10,15 +10,15 @@ public class KafkaPartitionConsumerForResponses : KafkaPartitionConsumer
 {
     public KafkaPartitionConsumerForResponses(ILoggerFactory loggerFactory, RequestResponseSettings requestResponseSettings, string group, TopicPartition topicPartition, IKafkaCommitController commitController, IResponseConsumer responseConsumer, IMessageSerializer headerSerializer)
         : base(
-            loggerFactory, 
-            new[] { requestResponseSettings }, 
-            group, 
-            topicPartition, 
-            commitController, 
+            loggerFactory,
+            [requestResponseSettings],
+            group,
+            topicPartition,
+            commitController,
             headerSerializer,
             messageProcessor: new ResponseMessageProcessor<ConsumeResult>(
-                loggerFactory, 
-                requestResponseSettings, 
+                loggerFactory,
+                requestResponseSettings,
                 responseConsumer,
                 messagePayloadProvider: m => m.Message.Value))
     {

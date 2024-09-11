@@ -98,7 +98,8 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
                 messageProvider: (messageType, m) => Serializer.Deserialize(messageType, m.Body.ToArray()),
                 path: path.ToString(),
                 responseProducer: this,
-                InitConsumerContext);
+                consumerContextInitializer: InitConsumerContext,
+                consumerErrorHandlerOpenGenericType: typeof(IServiceBusConsumerErrorHandler<>));
 
             AddConsumerFrom(topicSubscription, messageProcessor, consumerSettings);
         }

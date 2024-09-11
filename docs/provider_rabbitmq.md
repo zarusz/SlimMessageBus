@@ -189,7 +189,7 @@ By default the the transport implementation performs a negative ack (nack) in th
 
 The recommendation here is to either:
 
-- configure a [dead letter exchange](#dead-letter-exchange) configured on the consumer queue,
+- configure a [dead letter exchange](#dead-letter-exchange) on the consumer queue,
 - or provide a [custom error handler](#custom-consumer-error-handler) (retry the message couple of times, if failed send to a dead letter exchange).
 
 ##### Dead Letter Exchange

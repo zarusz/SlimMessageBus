@@ -15,7 +15,7 @@ public class CheckpointTriggerFactory : ICheckpointTriggerFactory
     {
         // The first consumer settings will be taken (the assumption is that all consumers declared on same path/group will have a similar checkpoint settings).
         var consumerSettingsWithConfiguredCheckpoints = consumerSettingsCollection
-            .Where(x => CheckpointTrigger.IsConfigured(x))
+            .Where(CheckpointTrigger.IsConfigured)
             .ToList();
 
         if (consumerSettingsWithConfiguredCheckpoints.Count > 1)

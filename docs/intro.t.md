@@ -1003,30 +1003,38 @@ public class LoggingConsumerInterceptor<TMessage> : IConsumerInterceptor<TMessag
 
 ## Error Handling
 
-The result of message processing by the consumers or handlers can be an exception raised.
-Since version 2.3.0, SMB provides a standard way across transports to plug-in custom logic to deal with error situations.
+Message processing by consumers or handlers may result in exceptions.
+Starting with version 2.3.0, SMB introduces a standard way to integrate custom error handling logic across different transports.
 
-The interface [IConsumerErrorHandler<T>](../src/SlimMessageBus.Host/Consumer/ErrorHandling/IConsumerErrorHandler.cs) allows to define custom error handling logic for a given message type:
+The interface [IConsumerErrorHandler<T>](../src/SlimMessageBus.Host/Consumer/ErrorHandling/IConsumerErrorHandler.cs) enables the definition of custom error handling for specific message types:
 
 @[:cs](../src/SlimMessageBus.Host/Consumer/ErrorHandling/IConsumerErrorHandler.cs,Interface)
 
-> The `retry()` parameter allows to retry the message processing pipeline (including consumers interceptors) in case there is a desire to implement retries for transient errors.
+> The `retry()` parameter allows the message processing pipeline, including consumer interceptors, to retry processing when transient errors occur and retries are desired.
 
-For SMB to pick up the error handler, it has to be registered in the MSDI:
+To enable SMB to recognize the error handler, it must be registered within the Microsoft Dependency Injection (MSDI) framework:
 
 ```cs
-// Register error handler in MSDI for any message type
+// Register error handler in MSDI for any message type, for the specific transport
 services.AddTransient(typeof(IRabbitMqConsumerErrorHandler<>), typeof(CustomRabbitMqConsumerErrorHandler<>));
+
+// Register error handler in MSDI for any message type (for all other transports)
+services.AddTransient(typeof(IConsumerErrorHandler<>), typeof(CustomConsumerErrorHandler<>));
 ```
 
-Transport plugins introduce their own specialized error handling interface. For example:
+Transport plugins provide specialized error handling interfaces. Examples include:
 
-- [IRabbitMqConsumerErrorHandler<T>](../src/SlimMessageBus.Host.RabbitMQ/Consumers/IRabbitMqConsumerErrorHandler.cs)
 - [IMemoryConsumerErrorHandler<T>](../src/SlimMessageBus.Host.Memory/Consumers/IMemoryConsumerErrorHandler.cs)
+- [IRabbitMqConsumerErrorHandler<T>](../src/SlimMessageBus.Host.RabbitMQ/Consumers/IRabbitMqConsumerErrorHandler.cs)
+- [IKafkaConsumerErrorHandler<T>](../src/SlimMessageBus.Host.Kafka/Consumer/IKafkaConsumerErrorHandler.cs)
+- [IRedisConsumerErrorHandler<T>](../src/SlimMessageBus.Host.Redis/Consumers/IRedisConsumerErrorHandler.cs)
+- [INatsConsumerErrorHandler<T>](../src/SlimMessageBus.Host.Nats/INatsConsumerErrorHandler.cs)
+- [IServiceBusConsumerErrorHandler<T>](../src/SlimMessageBus.Host.AzureServiceBus/Consumer/IServiceBusConsumerErrorHandler.cs)
+- [IEventHubConsumerErrorHandler<T>](../src/SlimMessageBus.Host.AzureEventHub/Consumer/IEventHubConsumerErrorHandler.cs)
 
-> The message processing pipeline will always try to lookup the transport specific implementation (`IMemoryConsumerErrorHandler<T>`) first, and then if not found lookup the generic error handler (`IConsumerErrorHandler<T>`).
+> The message processing pipeline will always attempt to use the transport-specific error handler (e.g., `IMemoryConsumerErrorHandler<T>`) first. If unavailable, it will then look for the generic error handler (`IConsumerErrorHandler<T>`).
 
-This allows to specialize and prioritize error handlers by transport.
+This approach allows for transport-specific error handling, ensuring that specialized handlers can be prioritized.
 
 ## Logging
 

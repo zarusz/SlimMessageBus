@@ -10,19 +10,20 @@ public class KafkaPartitionConsumerForConsumers : KafkaPartitionConsumer
 {
     public KafkaPartitionConsumerForConsumers(ILoggerFactory loggerFactory, ConsumerSettings[] consumerSettings, string group, TopicPartition topicPartition, IKafkaCommitController commitController, IMessageSerializer headerSerializer, MessageBusBase messageBus)
         : base(
-            loggerFactory, 
-            consumerSettings, 
-            group, 
-            topicPartition, 
-            commitController, 
+            loggerFactory,
+            consumerSettings,
+            group,
+            topicPartition,
+            commitController,
             headerSerializer,
             new MessageProcessor<ConsumeResult>(
-                consumerSettings, 
-                messageBus, 
+                consumerSettings,
+                messageBus,
                 path: topicPartition.Topic,
                 responseProducer: messageBus,
                 messageProvider: (messageType, transportMessage) => messageBus.Serializer.Deserialize(messageType, transportMessage.Message.Value),
-                consumerContextInitializer: (m, ctx) => ctx.SetTransportMessage(m)))
+                consumerContextInitializer: (m, ctx) => ctx.SetTransportMessage(m),
+                consumerErrorHandlerOpenGenericType: typeof(IKafkaConsumerErrorHandler<>)))
     {
     }
 }
