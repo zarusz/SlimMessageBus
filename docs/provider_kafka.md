@@ -14,6 +14,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 - [Consumers](#consumers)
   - [Offset Commit](#offset-commit)
   - [Consumer Error Handling](#consumer-error-handling)
+  - [Debugging](#debugging)
 - [Deployment](#deployment)
 
 ## Underlying client
@@ -22,9 +23,9 @@ The SMB Kafka implementation uses [confluent-kafka-dotnet](https://github.com/co
 
 When troubleshooting or fine tuning it is worth reading the `librdkafka` and `confluent-kafka-dotnet` docs:
 
-- [Introduction](https://github.com/edenhill/librdkafka/blob/master/INTRODUCTION.md
-- [Broker version compatibility](https://github.com/edenhill/librdkafka/wiki/Broker-version-compatibility)
-- [Using SSL with librdkafka](https://github.com/edenhill/librdkafka/wiki/Using-SSL-with-librdkafka)
+- [Introduction](https://github.com/confluentinc/librdkafka/blob/master/INTRODUCTION.md)
+- [Broker version compatibility](https://github.com/confluentinc/librdkafka/blob/master/INTRODUCTION.md#broker-version-compatibility)
+- [Using SSL with librdkafka](https://github.com/confluentinc/librdkafka/wiki/Using-SSL-with-librdkafka)
 
 ## Configuration properties
 
@@ -245,6 +246,35 @@ The error handler can perform the following actions:
 - Stop the consumer's message processing (currently not supported), though the circuit breaker feature from [this pull request](https://github.com/zarusz/SlimMessageBus/pull/282) could be used as an alternative.
 
 If no custom error handler is provided, the provider logs the exception and moves on to process the next message.
+
+### Debugging
+
+Kafka uses a sophisticated protocol for partition assignment:
+
+- Partition assignments may change due to factors like rebalancing.
+- A running consumer instance might not receive any partitions if there are more consumers than partitions for a given topic.
+
+To better understand what's happening, you can enable Debug level logging in your library, such as SlimMessageBus.Host.Kafka.KafkaGroupConsumer.
+
+At this logging level, you can track the lifecycle events of the consumer group:
+
+```
+[00:03:06 INF] SlimMessageBus.Host.Kafka.KafkaGroupConsumer Group [subscriber]: Subscribing to topics: 4p5ma6io-test-ping
+[00:03:06 INF] SlimMessageBus.Host.Kafka.KafkaGroupConsumer Group [subscriber]: Consumer loop started
+[00:03:12 DBG] SlimMessageBus.Host.Kafka.KafkaGroupConsumer Group [subscriber]: Assigned partition, Topic: 4p5ma6io-test-ping, Partition: [0]
+[00:03:12 INF] SlimMessageBus.Host.Kafka.KafkaPartitionConsumer Creating consumer for Group: subscriber, Topic: 4p5ma6io-test-ping, Partition: [0]
+[00:03:12 DBG] SlimMessageBus.Host.Kafka.KafkaGroupConsumer Group [subscriber]: Assigned partition, Topic: 4p5ma6io-test-ping, Partition: [1]
+[00:03:12 INF] SlimMessageBus.Host.Kafka.KafkaPartitionConsumer Creating consumer for Group: subscriber, Topic: 4p5ma6io-test-ping, Partition: [1]
+...
+[00:03:15 DBG] SlimMessageBus.Host.Kafka.KafkaGroupConsumer Group [subscriber]: Received message with Topic: 4p5ma6io-test-ping, Partition: [1], Offset: 98578, payload size: 57
+[00:03:15 INF] SlimMessageBus.Host.Kafka.Test.KafkaMessageBusIt.PingConsumer Got message 073 on topic 4p5ma6io-test-ping.
+[00:03:15 DBG] SlimMessageBus.Host.Kafka.KafkaGroupConsumer Group [subscriber]: Received message with Topic: 4p5ma6io-test-ping, Partition: [1], Offset: 98579, payload size: 57
+[00:03:15 INF] SlimMessageBus.Host.Kafka.Test.KafkaMessageBusIt.PingConsumer Got message 075 on topic 4p5ma6io-test-ping.
+[00:03:16 DBG] SlimMessageBus.Host.Kafka.KafkaGroupConsumer Group [subscriber]: Reached end of partition, Topic: 4p5ma6io-test-ping, Partition: [0], Offset: 100403
+[00:03:16 DBG] SlimMessageBus.Host.Kafka.KafkaGroupConsumer Group [subscriber]: Commit Offset, Topic: 4p5ma6io-test-ping, Partition: [0], Offset: 100402
+[00:03:16 DBG] SlimMessageBus.Host.Kafka.KafkaGroupConsumer Group [subscriber]: Reached end of partition, Topic: 4p5ma6io-test-ping, Partition: [1], Offset: 98580
+[00:03:16 DBG] SlimMessageBus.Host.Kafka.KafkaGroupConsumer Group [subscriber]: Commit Offset, Topic: 4p5ma6io-test-ping, Partition: [1], Offset: 98579
+```
 
 ## Deployment
 

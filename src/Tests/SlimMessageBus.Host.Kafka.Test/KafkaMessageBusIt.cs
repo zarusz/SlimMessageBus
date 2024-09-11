@@ -23,7 +23,8 @@ using SlimMessageBus.Host.Test.Common.IntegrationTest;
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Transport", "Kafka")]
-public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
+public class KafkaMessageBusIt(ITestOutputHelper testOutputHelper)
+    : BaseIntegrationTest<KafkaMessageBusIt>(testOutputHelper)
 {
     private const int NumberOfMessages = 77;
     private string TopicPrefix { get; set; }
@@ -36,10 +37,6 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
         c.SaslPassword = password;
         c.SaslMechanism = SaslMechanism.ScramSha256;
         c.SslCaLocation = "cloudkarafka_2023-10.pem";
-    }
-
-    public KafkaMessageBusIt(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
-    {
     }
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
@@ -60,26 +57,26 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
                     cfg.BrokerList = kafkaBrokers;
                     cfg.ProducerConfig = (config) =>
                     {
+                        config.LingerMs = 5; // 5ms
+                        config.SocketNagleDisable = true;
+
                         if (kafkaSecure)
                         {
                             AddSsl(kafkaUsername, kafkaPassword, config);
                         }
 
-                        config.LingerMs = 5; // 5ms
-                        config.SocketNagleDisable = true;
                     };
                     cfg.ConsumerConfig = (config) =>
                     {
+                        config.FetchErrorBackoffMs = 1;
+                        config.SocketNagleDisable = true;
+                        // when the test containers start there is no consumer group yet, so we want to start from the beginning
+                        config.AutoOffsetReset = AutoOffsetReset.Earliest;
+
                         if (kafkaSecure)
                         {
                             AddSsl(kafkaUsername, kafkaPassword, config);
                         }
-
-                        config.FetchErrorBackoffMs = 1;
-                        config.SocketNagleDisable = true;
-
-                        config.StatisticsIntervalMs = 500000;
-                        config.AutoOffsetReset = AutoOffsetReset.Latest;
                     };
                 });
                 mbb.AddServicesFromAssemblyContaining<PingConsumer>();
@@ -134,13 +131,13 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
 
         var messages = Enumerable
             .Range(0, NumberOfMessages)
-            .Select(i => new PingMessage { Counter = i, Timestamp = DateTime.UtcNow })
+            .Select(i => new PingMessage(DateTime.UtcNow, i))
             .ToList();
 
         await Task.WhenAll(messages.Select(m => messageBus.Publish(m)));
 
         stopwatch.Stop();
-        Logger.LogInformation("Published {0} messages in {1}", messages.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Published {MessageCount} messages in {PublishTime}", messages.Count, stopwatch.Elapsed);
 
         // consume
         stopwatch.Restart();
@@ -148,7 +145,7 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
         await consumedMessages.WaitUntilArriving(newMessagesTimeout: 5);
 
         stopwatch.Stop();
-        Logger.LogInformation("Consumed {0} messages in {1}", consumedMessages.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Consumed {MessageCount} messages in {ConsumedTime}", consumedMessages.Count, stopwatch.Elapsed);
 
         // assert
 
@@ -190,8 +187,8 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
                                                          .WithHandler<EchoRequestHandler>()
                                                          .KafkaGroup("handler")
                                                          .Instances(2)
-                                                         .CheckpointEvery(1000)
-                                                         .CheckpointAfter(TimeSpan.FromSeconds(60)))
+                                                         .CheckpointEvery(100)
+                                                         .CheckpointAfter(TimeSpan.FromSeconds(10)))
                 .ExpectRequestResponses(x =>
                 {
                     x.ReplyToTopic($"{TopicPrefix}test-echo-resp");
@@ -209,14 +206,21 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
 
         var requests = Enumerable
             .Range(0, NumberOfMessages)
-            .Select(i => new EchoRequest { Index = i, Message = $"Echo {i}" })
+            .Select(i => new EchoRequest(i, $"Echo {i}"))
             .ToList();
 
         var responses = new ConcurrentBag<ValueTuple<EchoRequest, EchoResponse>>();
         await Task.WhenAll(requests.Select(async req =>
         {
-            var resp = await kafkaMessageBus.Send<EchoResponse, EchoRequest>(req);
-            responses.Add((req, resp));
+            try
+            {
+                var resp = await kafkaMessageBus.Send<EchoResponse, EchoRequest>(req);
+                responses.Add((req, resp));
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to send request {RequestIndex:000}", req.Index);
+            }
         }));
 
         await responses.WaitUntilArriving(newMessagesTimeout: 5);
@@ -228,72 +232,34 @@ public class KafkaMessageBusIt : BaseIntegrationTest<KafkaMessageBusIt>
         responses.All(x => x.Item1.Message == x.Item2.Message).Should().BeTrue();
     }
 
-    private class PingMessage
-    {
-        public DateTime Timestamp { get; set; }
-        public int Counter { get; set; }
-
-        #region Overrides of Object
-
-        public override string ToString() => $"PingMessage(Counter={Counter}, Timestamp={Timestamp})";
-
-        #endregion
-    }
+    private record PingMessage(DateTime Timestamp, int Counter);
 
     record struct ConsumedMessage(PingMessage Message, int Partition);
 
     private class PingConsumer(ILogger<PingConsumer> logger, TestEventCollector<ConsumedMessage> messages)
         : IConsumer<PingMessage>, IConsumerWithContext
     {
-        private readonly ILogger _logger = logger;
-        private readonly TestEventCollector<ConsumedMessage> _messages = messages;
-
         public IConsumerContext Context { get; set; }
-
-        #region Implementation of IConsumer<in PingMessage>
 
         public Task OnHandle(PingMessage message)
         {
             var transportMessage = Context.GetTransportMessage();
             var partition = transportMessage.TopicPartition.Partition;
 
-            _messages.Add(new ConsumedMessage(message, partition));
+            messages.Add(new ConsumedMessage(message, partition));
 
-            _logger.LogInformation("Got message {0:000} on topic {1}.", message.Counter, Context.Path);
+            logger.LogInformation("Got message {MessageCounter:000} on topic {TopicName}.", message.Counter, Context.Path);
             return Task.CompletedTask;
         }
-
-        #endregion
     }
 
-    private class EchoRequest /*: IRequest<EchoResponse>*/
-    {
-        public int Index { get; set; }
-        public string Message { get; set; }
+    private record EchoRequest(int Index, string Message);
 
-        #region Overrides of Object
-
-        public override string ToString() => $"EchoRequest(Index={Index}, Message={Message})";
-
-        #endregion
-    }
-
-    private class EchoResponse
-    {
-        public string Message { get; set; }
-
-        #region Overrides of Object
-
-        public override string ToString() => $"EchoResponse(Message={Message})";
-
-        #endregion
-    }
+    private record EchoResponse(string Message);
 
     private class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
     {
         public Task<EchoResponse> OnHandle(EchoRequest request)
-        {
-            return Task.FromResult(new EchoResponse { Message = request.Message });
-        }
+            => Task.FromResult(new EchoResponse(request.Message));
     }
 }

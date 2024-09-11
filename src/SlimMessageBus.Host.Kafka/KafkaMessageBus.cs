@@ -62,7 +62,7 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
         void AddGroupConsumer(string group, IReadOnlyCollection<string> topics, Func<TopicPartition, IKafkaCommitController, IKafkaPartitionConsumer> processorFactory)
         {
             _logger.LogInformation("Creating consumer group {ConsumerGroup}", group);
-            AddConsumer(new KafkaGroupConsumer(this, group, topics, processorFactory));
+            AddConsumer(new KafkaGroupConsumer(LoggerFactory, ProviderSettings, group, topics, processorFactory));
         }
 
         IKafkaPartitionConsumer ResponseProcessorFactory(TopicPartition tp, IKafkaCommitController cc) => new KafkaPartitionConsumerForResponses(LoggerFactory, Settings.RequestResponse, Settings.RequestResponse.GetGroup(), tp, cc, this, HeaderSerializer);
@@ -147,8 +147,14 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
                     ? GetMessagePartition(producerSettings, messageType, envelope.Message, path)
                     : NoPartition;
 
-                _logger.LogTrace("Producing message {Message} of type {MessageType}, on topic {Topic}, partition {Partition}, key size {KeySize}, payload size {MessageSize}",
-                    envelope.Message, messageType?.Name, path, partition, key?.Length ?? 0, messagePayload?.Length ?? 0);
+                _logger.LogDebug("Producing message {Message} of type {MessageType}, topic {Topic}, partition {Partition}, key size {KeySize}, payload size {MessageSize}, headers count {MessageHeaderCount}",
+                    envelope.Message,
+                    messageType?.Name,
+                    path,
+                    partition,
+                    key?.Length ?? 0,
+                    messagePayload?.Length ?? 0,
+                    kafkaMessage.Headers?.Count ?? 0);
 
                 // send the message to topic
                 var task = partition == NoPartition
