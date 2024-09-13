@@ -5,17 +5,6 @@ using System.Linq.Expressions;
 
 public static class ReflectionUtils
 {
-    public static Func<object, object> GenerateGetterExpr(PropertyInfo property)
-    {
-        var objInstanceExpr = Expression.Parameter(typeof(object), "instance");
-        var typedInstanceExpr = Expression.TypeAs(objInstanceExpr, property.DeclaringType);
-
-        var propertyExpr = Expression.Property(typedInstanceExpr, property);
-        var propertyObjExpr = Expression.Convert(propertyExpr, typeof(object));
-
-        return Expression.Lambda<Func<object, object>>(propertyObjExpr, objInstanceExpr).Compile();
-    }
-
     public static Func<object, object> GenerateGetterFunc(PropertyInfo property)
     {
         var objInstanceExpr = Expression.Parameter(typeof(object), "instance");
