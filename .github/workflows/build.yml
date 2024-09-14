@@ -1,6 +1,3 @@
-# This workflow will build a .NET project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
-
 name: build
 
 on:
@@ -13,6 +10,8 @@ on:
 
 permissions:
   contents: read
+  id-token: write # needed by dorny/test-reporter
+  checks: write # needed by dorny/test-reporter
 
 env:
   SOLUTION_NAME: SlimMessageBus.sln
@@ -36,15 +35,6 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
 
-      # - name: PR - Create Branch
-      #   if: github.event_name == 'pull_request_target'
-      #   env:
-      #     GITHUB_REF: ${{ secrets.GITHUB_REF }}
-      #   run: |
-      #     git branch new-branch
-      #     git push origin new-branch -f
-      #     echo GITHUB_REF: ${GITHUB_REF}
-
       - name: Checkout
         if: github.event_name != 'pull_request_target'
         uses: actions/checkout@v3
@@ -55,6 +45,7 @@ jobs:
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: 8.0.x
+          cache: false
 
       - name: Restore dependencies
         run: dotnet restore $SOLUTION_NAME
@@ -90,20 +81,36 @@ jobs:
         working-directory: ./src
 
       - name: Build
-        run: dotnet build $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-restore
+        run: |
+          dotnet build $SOLUTION_NAME \
+            --configuration $SOLUTION_CONFIGURATION \
+            --no-restore
         working-directory: ./src
 
       - name: Unit Tests
-        run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --collect:"XPlat Code Coverage;Format=opencover" --filter Category!=Integration
+        run: |
+          dotnet test $SOLUTION_NAME \
+            --configuration $SOLUTION_CONFIGURATION \
+            --no-build \
+            --verbosity normal \
+            --logger "trx;LogFilePrefix=Unit" \
+            --collect:"XPlat Code Coverage;Format=opencover" \
+            --filter "Category!=Integration"
         working-directory: ./src
 
       - name: Integration Tests - Infrastructure
-        run: docker compose -f src/Infrastructure/docker-compose.yml up --detach --force-recreate -V
+        run: |
+          docker compose -f src/Infrastructure/docker-compose.yml up --detach --force-recreate -V
 
       - name: Integration Tests
-        # Run integration tests against the test infrastructure if secrets are provided
-        run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --collect:"XPlat Code Coverage;Format=opencover" --filter Category=Integration
-        #run: dotnet test $SOLUTION_NAME --configuration $SOLUTION_CONFIGURATION --no-build --verbosity normal --logger html --results-directory TestResults --collect:"XPlat Code Coverage;Format=opencover" --filter "Category=Integration&Transport=Outbox"
+        run: |
+          dotnet test $SOLUTION_NAME \
+            --configuration $SOLUTION_CONFIGURATION \
+            --no-build \
+            --verbosity normal \
+            --logger "trx;LogFilePrefix=Integration" \
+            --collect:"XPlat Code Coverage;Format=opencover" \
+            --filter "Category=Integration"
         working-directory: ./src
         env:
           # Connects to the Azure cloud
@@ -130,8 +137,6 @@ jobs:
           sqlserver_connectionstring: ${{ secrets.sqlserver_connectionstring }}
 
           # Connects to the local Test Containers
-
-          # need to postpone until feature https://github.com/zarusz/SlimMessageBus/issues/110 is implemented
           _kafka_brokers: localhost:9092
           _kafka_username: user
           _kafka_password: password
@@ -159,13 +164,35 @@ jobs:
         run: ../.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
         working-directory: ./src
 
-      - name: Upload test results
-        uses: actions/upload-artifact@v3
+      - name: Collect test results and rename
+        if: success() || failure()
+        run: |
+          mkdir -p ./test-results
+          # Find all the .trx files recursively and copy them to the test-results folder
+          # Use the grandparent directory name and filename
+          find ./src -name "*.trx" | while read file; do
+            # The grand parent will correspond to the csproj name e.g. SlimMessageBus.Host.Tests
+            grandparent_dir=$(basename $(dirname $(dirname "$file")))
+            filename=$(basename "$file")
+            # Copy the file and use grandparent_dir and index as the new filename
+            cp "$file" "./test-results/${grandparent_dir}_${filename}"
+          done
+
+      - name: Upload Test Results
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
         with:
-          name: dotnet-results
-          path: ./src/TestResults
-        # Use always() to always run this step to publish test results when there are test failures
-        if: ${{ always() }}
+          name: test-results
+          path: ./test-results
+
+      - name: Publish Test Results
+        if: success() || failure()
+        uses: dorny/test-reporter@v1
+        with:
+          name: .NET Tests
+          path: ./test-results/*.trx
+          reporter: dotnet-trx
+
       - name: Copy NuGet packages
         shell: bash
         run: |
@@ -173,8 +200,9 @@ jobs:
           find -name "*.nupkg" -exec cp {} ./dist \;
           find -name "*.snupkg" -exec cp {} ./dist \;
           find ./dist
+
       - name: Archive NuGet packages
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: nuget-packages
           path: "./dist"
