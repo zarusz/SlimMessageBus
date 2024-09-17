@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BenchmarkDotNet" Version="0.13.12" />
+    <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -16,6 +16,17 @@
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Avro\SlimMessageBus.Host.Serialization.Avro.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Json\SlimMessageBus.Host.Serialization.Json.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.SystemTextJson\SlimMessageBus.Host.Serialization.SystemTextJson.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="FluentAssertions" Version="6.12.1" />
+    <PackageReference Update="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Update="Moq" Version="4.20.72" />
+    <PackageReference Update="xunit" Version="2.9.0" />
+    <PackageReference Update="xunit.runner.visualstudio" Version="2.8.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
 </Project>

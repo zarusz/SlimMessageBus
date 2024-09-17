@@ -5,8 +5,8 @@
   <PropertyGroup>
     <Version>2.0.3</Version>
     <Description>
-      This library offers a lightweight message bus interface for .NET, providing a streamlined facade for messaging brokers.
-      It supports various transport providers for popular messaging systems as well as in-process (in-memory) messaging.
+      This library provides a lightweight, easy-to-use message bus interface for .NET, offering a simplified facade for working with messaging brokers.
+      It supports multiple transport providers for popular messaging systems, as well as in-memory (in-process) messaging for efficient local communication.
     </Description>
     <NeutralLanguage />
     <PackageTags>MessageBus facade EventBus broker events messages message bus DomainEvents domain DDD messaging EDA mediator</PackageTags>

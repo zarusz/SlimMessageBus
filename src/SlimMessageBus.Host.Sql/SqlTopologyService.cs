@@ -7,7 +7,5 @@ public class SqlTopologyService : CommonSqlMigrationService<SqlRepository, SqlMe
     {
     }
 
-    protected override async Task OnMigrate(CancellationToken token)
-    {
-    }
+    protected override Task OnMigrate(CancellationToken token) => Task.CompletedTask;
 }

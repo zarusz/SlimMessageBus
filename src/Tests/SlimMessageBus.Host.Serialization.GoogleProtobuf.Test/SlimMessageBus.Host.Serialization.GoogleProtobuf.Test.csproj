@@ -7,16 +7,27 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Grpc.AspNetCore" Version="2.63.0" />
-    <PackageReference Include="Grpc.Tools" Version="2.64.0">
+    <PackageReference Include="Grpc.AspNetCore" Version="2.65.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.66.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Grpc.Net.Client" Version="2.63.0" />
+    <PackageReference Include="Grpc.Net.Client" Version="2.65.0" />
   </ItemGroup>
 
   <ItemGroup>
     <Protobuf Include="**/*.proto" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="FluentAssertions" Version="6.12.1" />
+    <PackageReference Update="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Update="Moq" Version="4.20.72" />
+    <PackageReference Update="xunit" Version="2.9.0" />
+    <PackageReference Update="xunit.runner.visualstudio" Version="2.8.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
 </Project>
