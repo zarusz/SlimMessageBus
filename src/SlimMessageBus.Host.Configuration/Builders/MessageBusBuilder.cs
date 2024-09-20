@@ -315,10 +315,17 @@ public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBui
         return this;
     }
 
+    /// <summary>
+    /// Adds a child bus with the given name <paramref name="busName"/>.
+    /// If the child bus with the given name already exists, it will be reused and only the <paramref name="builderAction"/> will be invoked to configure it.
+    /// </summary>
+    /// <param name="busName"></param>
+    /// <param name="builderAction"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentNullException"></exception>
     public MessageBusBuilder AddChildBus(string busName, Action<MessageBusBuilder> builderAction)
     {
         if (busName is null) throw new ArgumentNullException(nameof(busName));
-        if (builderAction is null) throw new ArgumentNullException(nameof(builderAction));
 
         if (!Children.TryGetValue(busName, out var child))
         {
@@ -334,7 +341,7 @@ public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBui
             child.MergeFrom(Settings);
         }
 
-        builderAction.Invoke(child);
+        builderAction?.Invoke(child);
 
         return this;
     }

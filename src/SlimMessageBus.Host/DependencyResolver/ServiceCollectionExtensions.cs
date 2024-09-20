@@ -26,9 +26,9 @@ public static class ServiceCollectionExtensions
                 configure(mbb);
 
                 // Execute post config actions for the master bus and its children
-                foreach (var action in mbb.PostConfigurationActions.Concat(mbb.Children.Values.SelectMany(x => x.PostConfigurationActions)))
+                foreach (var postConfigure in mbb.PostConfigurationActions.Concat(mbb.Children.Values.SelectMany(x => x.PostConfigurationActions)))
                 {
-                    action(services);
+                    postConfigure(services);
                 }
             }
         }
@@ -55,6 +55,9 @@ public static class ServiceCollectionExtensions
         }
 
         // MessageBusSettings
+        services.TryAddTransient(svp => svp.GetRequiredService<MessageBusBuilder>().Settings);
+
+        // IMasterMessageBus - Single master bus that holds the defined consumers and message processing pipelines
         services.TryAddSingleton(svp =>
         {
             var mbb = svp.GetRequiredService<MessageBusBuilder>();
@@ -65,15 +68,6 @@ public static class ServiceCollectionExtensions
             {
                 postProcessor.Run(mbb.Settings);
             }
-
-            return mbb.Settings;
-        });
-
-        // IMasterMessageBus - Single master bus that holds the defined consumers and message processing pipelines
-        services.TryAddSingleton(svp =>
-        {
-            var mbb = svp.GetRequiredService<MessageBusBuilder>();
-            var messageBusSettings = svp.GetRequiredService<MessageBusSettings>();
 
             // Set the MessageBus.Current
             var currentBusProvider = svp.GetRequiredService<ICurrentMessageBusProvider>();
