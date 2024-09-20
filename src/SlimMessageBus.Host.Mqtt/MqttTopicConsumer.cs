@@ -2,7 +2,7 @@
 
 public class MqttTopicConsumer : AbstractConsumer
 {
-    public IMessageProcessor<MqttApplicationMessage> MessageProcessor;
+    public IMessageProcessor<MqttApplicationMessage> MessageProcessor { get; }
     public string Topic { get; }
 
     public MqttTopicConsumer(ILogger logger, string topic, IMessageProcessor<MqttApplicationMessage> messageProcessor) : base(logger)

@@ -185,13 +185,10 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
         else
         {
             var found = false;
-            foreach (var invoker in _invokers)
+            foreach (var invoker in _invokers.Where(x => RuntimeTypeCache.IsAssignableFrom(messageType, x.MessageType)))
             {
-                if (RuntimeTypeCache.IsAssignableFrom(messageType, invoker.MessageType))
-                {
-                    found = true;
-                    yield return invoker;
-                }
+                found = true;
+                yield return invoker;
             }
 
             if (!found)

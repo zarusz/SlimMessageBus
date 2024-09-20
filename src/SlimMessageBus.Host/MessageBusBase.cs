@@ -182,7 +182,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     private Dictionary<Type, ProducerSettings> BuildProducerByBaseMessageType()
     {
         var producerByBaseMessageType = Settings.Producers.ToDictionary(producerSettings => producerSettings.MessageType);
-        
+
         foreach (var consumerSettings in Settings.Consumers.Where(x => x.ResponseType != null))
         {
             // A response type can be used across different requests hence TryAdd
@@ -314,7 +314,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         GC.SuppressFinalize(this);
     }
 
-    protected void Dispose(bool disposing)
+    protected virtual void Dispose(bool disposing)
     {
         if (disposing)
         {
@@ -717,10 +717,15 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     public virtual bool IsMessageScopeEnabled(ConsumerSettings consumerSettings, IDictionary<string, object> consumerContextProperties)
         => consumerSettings.IsMessageScopeEnabled ?? Settings.IsMessageScopeEnabled ?? true;
 
-    public virtual IMessageScope CreateMessageScope(ConsumerSettings consumerSettings, object message, IDictionary<string, object> consumerContextProperties, IServiceProvider currentServiceProvider = null)
+    public virtual IMessageScope CreateMessageScope(ConsumerSettings consumerSettings, object message, IDictionary<string, object> consumerContextProperties, IServiceProvider currentServiceProvider)
     {
         var createMessageScope = IsMessageScopeEnabled(consumerSettings, consumerContextProperties);
-        return new MessageScopeWrapper(_logger, currentServiceProvider ?? Settings.ServiceProvider, createMessageScope, message);
+
+        if (createMessageScope)
+        {
+            _logger.LogDebug("Creating message scope for {Message} of type {MessageType}", message, message.GetType());
+        }
+        return new MessageScopeWrapper(currentServiceProvider ?? Settings.ServiceProvider, createMessageScope);
     }
 
     public virtual Task ProvisionTopology() => Task.CompletedTask;

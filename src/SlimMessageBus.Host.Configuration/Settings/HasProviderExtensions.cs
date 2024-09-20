@@ -7,15 +7,6 @@ public abstract class HasProviderExtensions
     /// </summary>
     public IDictionary<string, object> Properties { get; } = new Dictionary<string, object>();
 
-    public T GetOrDefault<T>(string key, T defaultValue = default)
-    {
-        if (Properties.TryGetValue(key, out var value))
-        {
-            return (T)value;
-        }
-        return defaultValue;
-    }
-
     public T GetOrCreate<T>(string key, Func<T> factoryMethod)
     {
         if (Properties.TryGetValue(key, out var value) && value is T typedValue)
@@ -25,6 +16,15 @@ public abstract class HasProviderExtensions
         typedValue = factoryMethod();
         Properties[key] = typedValue;
         return typedValue;
+    }
+
+    public T GetOrDefault<T>(string key, T defaultValue = default)
+    {
+        if (Properties.TryGetValue(key, out var value))
+        {
+            return (T)value;
+        }
+        return defaultValue;
     }
 
     public T GetOrDefault<T>(string key, MessageBusSettings messageBusSettings, T defaultValue = default)

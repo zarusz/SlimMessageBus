@@ -62,6 +62,18 @@ public static class BuilderExtensions
     }
 
     /// <summary>
+    /// Checkpoint every N-th processed message.
+    /// </summary>
+    /// <param name="builder"></param>
+    /// <param name="numberOfMessages"></param>
+    /// <returns></returns>
+    public static RequestResponseBuilder CheckpointEvery(this RequestResponseBuilder builder, int numberOfMessages)
+    {
+        builder.Settings.Properties[CheckpointSettings.CheckpointCount] = numberOfMessages;
+        return builder;
+    }
+
+    /// <summary>
     /// Checkpoint after T elapsed time.
     /// </summary>
     /// <param name="builder"></param>
@@ -71,18 +83,6 @@ public static class BuilderExtensions
         where T : AbstractConsumerBuilder
     {
         builder.ConsumerSettings.Properties[CheckpointSettings.CheckpointDuration] = duration;
-        return builder;
-    }
-
-    /// <summary>
-    /// Checkpoint every N-th processed message.
-    /// </summary>
-    /// <param name="builder"></param>
-    /// <param name="numberOfMessages"></param>
-    /// <returns></returns>
-    public static RequestResponseBuilder CheckpointEvery(this RequestResponseBuilder builder, int numberOfMessages)
-    {
-        builder.Settings.Properties[CheckpointSettings.CheckpointCount] = numberOfMessages;
         return builder;
     }
 

@@ -10,3 +10,4 @@ using System.Diagnostics.CodeAnalysis;
 [assembly: SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "This is intended.", Scope = "member", Target = "~M:SlimMessageBus.Host.MessageQueueWorker`1.WaitAll~System.Threading.Tasks.Task{SlimMessageBus.Host.MessageQueueResult{`0}}")]
 [assembly: SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "This is intended.", Scope = "member", Target = "~M:SlimMessageBus.Host.Utils.DisposeSilently(System.IDisposable,System.Action{System.Exception})")]
 [assembly: SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Intended", Scope = "member", Target = "~M:SlimMessageBus.Host.MessageBusBase.OnProducedHook(System.Object,System.String,SlimMessageBus.Host.Config.ProducerSettings)")]
+[assembly: SuppressMessage("Minor Code Smell", "S2094:Classes should not be empty", Justification = "<Pending>")]

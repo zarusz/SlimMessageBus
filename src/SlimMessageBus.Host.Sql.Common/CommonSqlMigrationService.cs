@@ -14,7 +14,7 @@ public abstract class CommonSqlMigrationService<TRepository, TSettings>
     protected TRepository Repository { get; }
     public ISqlTransactionService TransactionService { get; }
 
-    public CommonSqlMigrationService(ILogger logger, TRepository repository, ISqlTransactionService transactionService, TSettings settings)
+    protected CommonSqlMigrationService(ILogger logger, TRepository repository, ISqlTransactionService transactionService, TSettings settings)
     {
         Logger = logger;
         Settings = settings;

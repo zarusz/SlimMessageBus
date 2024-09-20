@@ -296,7 +296,7 @@ internal class OutboxSendingTask(
                             if (messageType == null)
                             {
                                 abortedIds.Add(outboxMessage.Id);
-                                _logger.LogError("Outbox message with Id {id} - the MessageType {messageType} is not recognized. The type might have been renamed or moved namespaces.", outboxMessage.Id, outboxMessage.MessageType);
+                                _logger.LogError("Outbox message with Id {Id} - the MessageType {MessageType} is not recognized. The type might have been renamed or moved namespaces.", outboxMessage.Id, outboxMessage.MessageType);
                                 return null;
                             }
 

@@ -12,7 +12,7 @@ public abstract class AbstractConsumer : IAsyncDisposable, IConsumerControl
 
     protected CancellationToken CancellationToken => _cancellationTokenSource.Token;
 
-    public AbstractConsumer(ILogger logger)
+    protected AbstractConsumer(ILogger logger)
     {
         Logger = logger;
     }

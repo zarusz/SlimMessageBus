@@ -6,7 +6,7 @@ public class PingConsumer(ILogger<PingConsumer> logger) : IConsumer<PingMessage>
 {
     private readonly ILogger _logger = logger;
 
-    public IConsumerContext Context { get; set; }
+    public IConsumerContext Context { get; set; } = default!;
 
     public Task OnHandle(PingMessage message)
     {

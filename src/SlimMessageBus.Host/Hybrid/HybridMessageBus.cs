@@ -9,7 +9,6 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
     private readonly ILogger _logger;
     private readonly Dictionary<string, MessageBusBase> _busByName;
     private readonly ProducerByMessageTypeCache<MessageBusBase[]> _busesByMessageType;
-    private readonly RuntimeTypeCache _runtimeTypeCache;
     private readonly ConcurrentDictionary<Type, bool> _undeclaredMessageType;
 
     public ILoggerFactory LoggerFactory { get; }
@@ -31,8 +30,6 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
         LoggerFactory = (ILoggerFactory)settings.ServiceProvider?.GetService(typeof(ILoggerFactory)) ?? NullLoggerFactory.Instance;
 
         _logger = LoggerFactory.CreateLogger<HybridMessageBus>();
-
-        _runtimeTypeCache = new RuntimeTypeCache();
 
         _busByName = [];
         foreach (var childBus in mbb.Children)
@@ -56,7 +53,8 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
             throw new ConfigurationMessageBusException($"Found request messages that are handled by more than one child bus: {string.Join(", ", requestTypesWithMoreThanOneBus)}. Double check your Produce configuration.");
         }
 
-        _busesByMessageType = new ProducerByMessageTypeCache<MessageBusBase[]>(_logger, busesByMessageType, _runtimeTypeCache);
+        var runtimeTypeCache = new RuntimeTypeCache();
+        _busesByMessageType = new ProducerByMessageTypeCache<MessageBusBase[]>(_logger, busesByMessageType, runtimeTypeCache);
 
         _undeclaredMessageType = new();
 

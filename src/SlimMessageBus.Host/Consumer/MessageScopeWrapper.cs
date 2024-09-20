@@ -6,21 +6,18 @@
 /// </summary>
 public sealed class MessageScopeWrapper : IMessageScope
 {
-    private readonly ILogger _logger;
     private readonly IServiceProvider _messageScope;
     private readonly IServiceProvider _prevMessageScope;
     private IDisposable _messageScopeDisposable;
 
     public IServiceProvider ServiceProvider => _messageScope;
 
-    public MessageScopeWrapper(ILogger logger, IServiceProvider serviceProvider, bool createMessageScope, object message)
+    public MessageScopeWrapper(IServiceProvider serviceProvider, bool createMessageScope)
     {
-        _logger = logger;
         _messageScope = serviceProvider;
 
         if (createMessageScope)
         {
-            _logger.LogDebug("Creating message scope for {Message} of type {MessageType}", message, message.GetType());
             var ms = serviceProvider.CreateScope();
             _messageScope = ms.ServiceProvider;
             _messageScopeDisposable = ms;
