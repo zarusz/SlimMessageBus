@@ -13,7 +13,7 @@ public static class ServiceCollectionExtensions
     /// <param name="services"></param>
     /// <param name="configure">Action to configure the master (root) message bus</param>
     /// <returns></returns>
-    public static IServiceCollection AddSlimMessageBus(this IServiceCollection services, Action<MessageBusBuilder> configure = null)
+    public static IServiceCollection AddSlimMessageBus(this IServiceCollection services, Action<MessageBusBuilder> configure)
     {
         services.AddSlimMessageBus();
 

@@ -19,7 +19,7 @@ public class ReflectionUtilsTests
     }
 
     [Fact]
-    public async void When_GenerateMethodCallToFunc_Given_ConsumerWithOnHandlerAsyncMethodWithTwoArguments_Then_MethodIsProperlyInvoked()
+    public async Task When_GenerateMethodCallToFunc_Given_ConsumerWithOnHandlerAsyncMethodWithTwoArguments_Then_MethodIsProperlyInvoked()
     {
         // arrange
         var message = new SomeMessage();
@@ -61,7 +61,7 @@ public class ReflectionUtilsTests
     }
 
     [Fact]
-    public async void When_TaskOfObjectContinueWithTaskOfTypeFunc_Given_TaskOfObject_Then_TaskTypedIsObtained()
+    public async Task When_TaskOfObjectContinueWithTaskOfTypeFunc_Given_TaskOfObject_Then_TaskTypedIsObtained()
     {
         // arrange        
         var taskOfObject = Task.FromResult<object>(10);

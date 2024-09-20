@@ -334,7 +334,7 @@ public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBui
             child.MergeFrom(Settings);
         }
 
-        builderAction?.Invoke(child);
+        builderAction.Invoke(child);
 
         return this;
     }

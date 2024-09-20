@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 public class MessageProcessorQueueTests
 {
     [Fact]
-    public async void When_Enqueue_Given_TwoMessagesEnqueued_Then_ProcessMessageIsCalledOn1stMessageAndOn2ndAfterThat()
+    public async Task When_Enqueue_Given_TwoMessagesEnqueued_Then_ProcessMessageIsCalledOn1stMessageAndOn2ndAfterThat()
     {
         // Arrange
         var messageProcessor = new Mock<IMessageProcessor<object>>();

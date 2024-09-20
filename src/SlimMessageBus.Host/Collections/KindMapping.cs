@@ -43,7 +43,7 @@ public class KindMapping
         }
     }
 
-    private PathKind AddPathMapping(PathKind producerKind, string path)
+    private void AddPathMapping(PathKind producerKind, string path)
     {
         if (_kindByTopic.TryGetValue(path, out var existingKind))
         {
@@ -56,8 +56,6 @@ public class KindMapping
         {
             _kindByTopic.Add(path, producerKind);
         }
-
-        return existingKind;
     }
 
     public PathKind GetKind(Type messageType, string path)

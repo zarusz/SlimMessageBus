@@ -20,7 +20,7 @@ public sealed class OutboxForwardingPublishInterceptor<T>(
     OutboxSettings outboxSettings)
     : OutboxForwardingPublishInterceptor, IInterceptorWithOrder, IPublishInterceptor<T>, IDisposable where T : class
 {
-    static readonly internal string SkipOutboxHeader = "__SkipOutbox";
+    internal const string SkipOutboxHeader = "__SkipOutbox";
 
     private readonly ILogger _logger = logger;
     private readonly IOutboxRepository _outboxRepository = outboxRepository;

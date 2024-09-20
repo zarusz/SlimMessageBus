@@ -26,11 +26,8 @@ public class SafeDictionaryWrapper<TKey, TValue> : IReadOnlyCache<TKey, TValue>
             {
                 lock (_lock)
                 {
-                    if (_readonlyDict == null)
-                    {
-                        // Lazily create the read only snapshot
-                        _readonlyDict = new ReadOnlyDictionary<TKey, TValue>(_mutableDict);
-                    }
+                    // Lazily create the read only snapshot
+                    _readonlyDict ??= new ReadOnlyDictionary<TKey, TValue>(_mutableDict);
                 }
             }
             return _readonlyDict;
@@ -118,7 +115,7 @@ public class SafeDictionaryWrapper<TKey, TValue> : IReadOnlyCache<TKey, TValue>
     {
         lock (_lock)
         {
-            var snapshot = Dictionary.Values.ToList();
+            var snapshot = Snapshot();
             _mutableDict.Clear();
             OnChanged();
             return snapshot;

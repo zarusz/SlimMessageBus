@@ -2,7 +2,6 @@
 
 internal class PublishInterceptorPipeline : ProducerInterceptorPipeline<PublishContext>
 {
-    private readonly IEnumerable<object> _publishInterceptors;
     private readonly Func<object, object, Func<Task>, IProducerContext, Task> _publishInterceptorFunc;
     private IEnumerator<object> _publishInterceptorsEnumerator;
     private bool _publishInterceptorsVisited = false;
@@ -10,10 +9,9 @@ internal class PublishInterceptorPipeline : ProducerInterceptorPipeline<PublishC
     public PublishInterceptorPipeline(MessageBusBase bus, object message, ProducerSettings producerSettings, IMessageBusTarget targetBus, PublishContext context, IEnumerable<object> producerInterceptors, IEnumerable<object> publishInterceptors)
         : base(bus, message, producerSettings, targetBus, context, producerInterceptors)
     {
-        _publishInterceptors = publishInterceptors;
         _publishInterceptorFunc = bus.RuntimeTypeCache.PublishInterceptorType[message.GetType()];
         _publishInterceptorsVisited = publishInterceptors is null;
-        _publishInterceptorsEnumerator = _publishInterceptors?.GetEnumerator();
+        _publishInterceptorsEnumerator = publishInterceptors?.GetEnumerator();
     }
 
     public async Task<object> Next()

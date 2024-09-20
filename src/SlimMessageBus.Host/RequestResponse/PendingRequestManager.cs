@@ -90,7 +90,7 @@ public class PendingRequestManager : IDisposable
 
             if (canceled)
             {
-                _logger.LogDebug("Pending request timed-out: {0}, now: {1}", requestState, now);
+                _logger.LogDebug("Pending request timed-out: {RequestState}, now: {TimeNow}", requestState, now);
                 _onRequestTimeout?.Invoke(requestState.Request);
             }
         }

@@ -2,7 +2,6 @@
 
 internal class SendInterceptorPipeline<TResponse> : ProducerInterceptorPipeline<SendContext>
 {
-    private readonly IEnumerable<object> _sendInterceptors;
     private readonly Func<object, object, object, IProducerContext, Task> _sendInterceptorFunc;
     private IEnumerator<object> _sendInterceptorsEnumerator;
     private bool _sendInterceptorsVisited = false;
@@ -10,10 +9,9 @@ internal class SendInterceptorPipeline<TResponse> : ProducerInterceptorPipeline<
     public SendInterceptorPipeline(MessageBusBase bus, object message, ProducerSettings producerSettings, IMessageBusTarget targetBus, SendContext context, IEnumerable<object> producerInterceptors, IEnumerable<object> sendInterceptors)
         : base(bus, message, producerSettings, targetBus, context, producerInterceptors)
     {
-        _sendInterceptors = sendInterceptors;
         _sendInterceptorFunc = bus.RuntimeTypeCache.SendInterceptorType[(message.GetType(), typeof(TResponse))];
         _sendInterceptorsVisited = sendInterceptors is null;
-        _sendInterceptorsEnumerator = _sendInterceptors?.GetEnumerator();
+        _sendInterceptorsEnumerator = sendInterceptors?.GetEnumerator();
     }
 
     private async Task<object> NextOfObject() => await Next();

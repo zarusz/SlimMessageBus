@@ -81,7 +81,7 @@ public class MessageWithHeadersSerializer : IMessageSerializer
                 payload[index] = TypeIdGuid;
                 return 1 + WriteGuid(payload, index + 1, g);
             default:
-                throw new InvalidOperationException($"Not supported header value type {v?.GetType().FullName ?? "(null)"}");
+                throw new InvalidOperationException($"Not supported header value type {v.GetType().FullName ?? "(null)"}");
         }
     }
 
@@ -95,7 +95,7 @@ public class MessageWithHeadersSerializer : IMessageSerializer
             int _ => sizeof(int),
             long _ => sizeof(long),
             Guid _ => 16,
-            _ => throw new InvalidOperationException($"Not supported header value type {v?.GetType().FullName ?? "(null)"}"),
+            _ => throw new InvalidOperationException($"Not supported header value type {v.GetType().FullName ?? "(null)"}"),
         };
         return 1 + byteLength;
     }

@@ -1,13 +1,11 @@
 ﻿namespace SlimMessageBus.Host.Test.Consumer;
 
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
 
 using SlimMessageBus.Host.Consumer;
 
 public class MessageScopeWrapperTest
 {
-    private readonly Mock<object> messageMock;
     private readonly Mock<IServiceScopeFactory> serviceScopeFactoryMock;
     private readonly Mock<IServiceProvider> serviceProviderMock;
     private readonly Mock<IServiceProvider> scopeServiceProviderMock;
@@ -15,7 +13,6 @@ public class MessageScopeWrapperTest
 
     public MessageScopeWrapperTest()
     {
-        messageMock = new Mock<object>();
 
         scopeServiceProviderMock = new Mock<IServiceProvider>();
 
@@ -42,7 +39,7 @@ public class MessageScopeWrapperTest
             : null;
 
         // act
-        var subject = new MessageScopeWrapper(NullLogger.Instance, serviceProviderMock.Object, createScope, messageMock.Object);
+        var subject = new MessageScopeWrapper(serviceProviderMock.Object, createScope);
 
         // assert
         MessageScope.Current.Should().BeSameAs(createScope ? scopeServiceProviderMock.Object : serviceProviderMock.Object);
@@ -74,7 +71,7 @@ public class MessageScopeWrapperTest
         // erase current message scope
         MessageScope.Current = currentServiceProvider;
 
-        var subject = new MessageScopeWrapper(NullLogger.Instance, serviceProviderMock.Object, createScope, messageMock.Object);
+        var subject = new MessageScopeWrapper(serviceProviderMock.Object, createScope);
 
         // act
         await subject.DisposeAsync();
