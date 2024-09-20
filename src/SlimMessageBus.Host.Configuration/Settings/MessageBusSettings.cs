@@ -41,9 +41,9 @@ public class MessageBusSettings : HasProviderExtensions
 
     public MessageBusSettings(MessageBusSettings parent = null)
     {
-        _children = new List<MessageBusSettings>();
-        Producers = new List<ProducerSettings>();
-        Consumers = new List<ConsumerSettings>();
+        _children = [];
+        Producers = [];
+        Consumers = [];
         SerializerType = typeof(IMessageSerializer);
         AutoStartConsumers = true;
 

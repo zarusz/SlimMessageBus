@@ -84,10 +84,9 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     protected MessageBusBase(MessageBusSettings settings)
     {
-        if (settings is null) throw new ArgumentNullException(nameof(settings));
-        if (settings.ServiceProvider is null) throw new ConfigurationMessageBusException($"The bus {Name} has no {nameof(settings.ServiceProvider)} configured");
+        Settings = settings ?? throw new ArgumentNullException(nameof(settings));
 
-        Settings = settings;
+        if (settings.ServiceProvider is null) throw new ConfigurationMessageBusException($"The bus {Name} has no {nameof(settings.ServiceProvider)} configured");
 
         // Try to resolve from DI. If not available, suppress logging by using the NullLoggerFactory
         LoggerFactory = settings.ServiceProvider.GetService<ILoggerFactory>() ?? NullLoggerFactory.Instance;
