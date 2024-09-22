@@ -159,7 +159,8 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
             throw new MessageBusException($"Consumer for group {Group} not yet started");
         }
 
-        _consumerCts.Cancel();
+        await _consumerCts.CancelAsync();
+
         try
         {
             await _consumerTask.ConfigureAwait(false);

@@ -182,6 +182,7 @@ dotnet_style_qualification_for_field = false:suggestion
 dotnet_style_qualification_for_property = false:suggestion
 dotnet_style_qualification_for_method = false:suggestion
 dotnet_style_qualification_for_event = false:suggestion
+dotnet_diagnostic.VSTHRD200.severity = none
 
 [*.{csproj,xml}]
 indent_style = space

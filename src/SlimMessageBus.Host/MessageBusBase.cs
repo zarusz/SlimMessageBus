@@ -354,7 +354,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
         if (_cancellationTokenSource != null)
         {
-            _cancellationTokenSource.Cancel();
+            await _cancellationTokenSource.CancelAsync();
             _cancellationTokenSource.Dispose();
             _cancellationTokenSource = null;
         }

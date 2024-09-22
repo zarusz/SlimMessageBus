@@ -31,7 +31,7 @@ internal class OutboxSendingTask(
     {
         if (_outboxSettings.MessageCleanup?.Enabled == true)
         {
-            var trigger = _cleanupNextRun is null || DateTime.UtcNow > _cleanupNextRun.Value;
+            var trigger = !_cleanupNextRun.HasValue || DateTime.UtcNow > _cleanupNextRun.Value;
             if (trigger)
             {
                 _cleanupNextRun = DateTime.UtcNow.Add(_outboxSettings.MessageCleanup.Interval);
@@ -78,7 +78,10 @@ internal class OutboxSendingTask(
     {
         _logger.LogDebug("Outbox loop stopping...");
 
-        _loopCts?.Cancel();
+        if (_loopCts != null)
+        {
+            await _loopCts.CancelAsync();
+        }
 
         if (_loopTask != null)
         {
@@ -261,8 +264,7 @@ internal class OutboxSendingTask(
         {
             var busName = busGroup.Key;
             var bus = GetBus(compositeMessageBus, messageBusTarget, busName);
-            var bulkProducer = bus as IMessageBusBulkProducer;
-            if (bus == null || bulkProducer == null)
+            if (bus == null || bus is not IMessageBusBulkProducer bulkProducer)
             {
                 foreach (var outboxMessage in busGroup)
                 {

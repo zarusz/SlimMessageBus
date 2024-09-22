@@ -12,10 +12,7 @@ public abstract class AbstractConsumer : IAsyncDisposable, IConsumerControl
 
     protected CancellationToken CancellationToken => _cancellationTokenSource.Token;
 
-    protected AbstractConsumer(ILogger logger)
-    {
-        Logger = logger;
-    }
+    protected AbstractConsumer(ILogger logger) => Logger = logger;
 
     public async Task Start()
     {
@@ -29,7 +26,7 @@ public abstract class AbstractConsumer : IAsyncDisposable, IConsumerControl
         {
             if (_cancellationTokenSource == null || _cancellationTokenSource.IsCancellationRequested)
             {
-                _cancellationTokenSource?.Cancel();
+                _cancellationTokenSource?.Dispose();
                 _cancellationTokenSource = new CancellationTokenSource();
             }
 
@@ -53,7 +50,7 @@ public abstract class AbstractConsumer : IAsyncDisposable, IConsumerControl
         _stopping = true;
         try
         {
-            _cancellationTokenSource.Cancel();
+            await _cancellationTokenSource.CancelAsync();
 
             await OnStop().ConfigureAwait(false);
 
