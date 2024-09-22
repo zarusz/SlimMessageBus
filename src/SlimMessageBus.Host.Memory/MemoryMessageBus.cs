@@ -94,7 +94,7 @@ public class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
             .ToDictionary(
                 x => x.Key,
                 // Note: The consumers will first have IConsumer<>, then IRequestHandler<>
-                x => CreateMessageProcessor(x.OrderBy(consumerSettings => ConsumerModeOrder(consumerSettings)).ToList(), x.Key));
+                x => CreateMessageProcessor([.. x.OrderBy(consumerSettings => ConsumerModeOrder(consumerSettings))], x.Key));
 
         _messageProcessorQueueByPath = ProviderSettings.EnableBlockingPublish
             ? []

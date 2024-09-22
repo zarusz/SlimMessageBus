@@ -93,7 +93,6 @@ public sealed class OutboxSendingTaskTests
         private readonly Mock<IMessageBusTarget> _mockMessageBusTarget;
         private readonly Mock<IMasterMessageBus> _mockMasterMessageBus;
         private readonly Mock<IMessageBusBulkProducer> _mockMessageBusBulkProducer;
-        private readonly Mock<ILogger<OutboxSendingTask>> _mockLogger;
         private readonly OutboxSettings _outboxSettings;
         private readonly OutboxSendingTask _sut;
 
@@ -104,7 +103,6 @@ public sealed class OutboxSendingTaskTests
             _mockMessageBusTarget = new Mock<IMessageBusTarget>();
             _mockMasterMessageBus = new Mock<IMasterMessageBus>();
             _mockMessageBusBulkProducer = _mockMasterMessageBus.As<IMessageBusBulkProducer>();
-            _mockLogger = new Mock<ILogger<OutboxSendingTask>>();
 
             _outboxSettings = new OutboxSettings
             {
@@ -179,7 +177,7 @@ public sealed class OutboxSendingTaskTests
             outboxMessages[7].BusName = null;
 
             var knownBusCount = outboxMessages.Count(x => x.BusName != null);
-            
+
             _mockMessageBusTarget.SetupGet(x => x.Target).Returns((IMessageBusProducer)null);
 
             _mockCompositeMessageBus.Setup(x => x.GetChildBus(It.IsAny<string>())).Returns(_mockMasterMessageBus.Object);
