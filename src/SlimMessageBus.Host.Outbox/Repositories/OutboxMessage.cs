@@ -1,8 +1,9 @@
 ﻿namespace SlimMessageBus.Host.Outbox;
 
-public class OutboxMessage
+
+public class OutboxMessage<TOutboxKey>
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public TOutboxKey Id { get; set; }
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     public string BusName { get; set; }
     public string MessageType { get; set; }

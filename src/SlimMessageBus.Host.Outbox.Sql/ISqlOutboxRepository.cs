@@ -1,5 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Sql;
 
-public interface ISqlOutboxRepository : IOutboxRepository
+public interface ISqlOutboxRepository : IOutboxRepository<Guid>
 {
 }

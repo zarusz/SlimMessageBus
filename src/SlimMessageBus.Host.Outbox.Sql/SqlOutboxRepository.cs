@@ -17,7 +17,12 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
         Settings = settings;
     }
 
-    public async virtual Task Save(OutboxMessage message, CancellationToken token)
+    public Task<Guid> GenerateId(CancellationToken cancellationToken)
+    {
+        return Task.FromResult(Guid.NewGuid());
+    }
+
+    public async virtual Task Save(OutboxMessage<Guid> message, CancellationToken token)
     {
         await EnsureConnection();
 
@@ -39,7 +44,7 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
         }, token);
     }
 
-    public async Task<IReadOnlyCollection<OutboxMessage>> LockAndSelect(string instanceId, int batchSize, bool tableLock, TimeSpan lockDuration, CancellationToken token)
+    public async Task<IReadOnlyCollection<OutboxMessage<Guid>>> LockAndSelect(string instanceId, int batchSize, bool tableLock, TimeSpan lockDuration, CancellationToken token)
     {
         await EnsureConnection();
 
@@ -154,7 +159,7 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
         return await cmd.ExecuteNonQueryAsync(token) > 0;
     }
 
-    internal async Task<IReadOnlyCollection<OutboxMessage>> GetAllMessages(CancellationToken cancellationToken)
+    internal async Task<IReadOnlyCollection<OutboxMessage<Guid>>> GetAllMessages(CancellationToken cancellationToken)
     {
         await EnsureConnection();
 
@@ -164,7 +169,7 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
         return await ReadMessages(cmd, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<IReadOnlyCollection<OutboxMessage>> ReadMessages(SqlCommand cmd, CancellationToken cancellationToken)
+    private async Task<IReadOnlyCollection<OutboxMessage<Guid>>> ReadMessages(SqlCommand cmd, CancellationToken cancellationToken)
     {
         using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 
@@ -182,12 +187,12 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
         var deliveryCompleteOrdinal = reader.GetOrdinal("DeliveryComplete");
         var deliveryAbortedOrdinal = reader.GetOrdinal("DeliveryAborted");
 
-        var items = new List<OutboxMessage>();
+        var items = new List<OutboxMessage<Guid>>();
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             var id = reader.GetGuid(idOrdinal);
             var headers = reader.IsDBNull(headersOrdinal) ? null : reader.GetString(headersOrdinal);
-            var message = new OutboxMessage
+            var message = new OutboxMessage<Guid>
             {
                 Id = id,
                 Timestamp = reader.GetDateTime(timestampOrdinal),

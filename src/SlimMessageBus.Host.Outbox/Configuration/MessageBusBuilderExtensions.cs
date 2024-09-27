@@ -4,7 +4,7 @@ using SlimMessageBus.Host.Outbox.Services;
 
 public static class MessageBusBuilderExtensions
 {
-    public static MessageBusBuilder AddOutbox(this MessageBusBuilder mbb, Action<OutboxSettings> configure = null)
+    public static MessageBusBuilder AddOutbox<TOutboxKey>(this MessageBusBuilder mbb, Action<OutboxSettings> configure = null)
     {
         mbb.PostConfigurationActions.Add(services =>
         {
@@ -17,7 +17,7 @@ public static class MessageBusBuilderExtensions
                 .Select(x => x.MessageType))
             {
                 var serviceType = typeof(IPublishInterceptor<>).MakeGenericType(producerMessageType);
-                var implementationType = typeof(OutboxForwardingPublishInterceptor<>).MakeGenericType(producerMessageType);
+                var implementationType = typeof(OutboxForwardingPublishInterceptor<,>).MakeGenericType(producerMessageType);
                 services.TryAddEnumerable(ServiceDescriptor.Transient(serviceType, implementationType));
             }
 
@@ -33,12 +33,12 @@ public static class MessageBusBuilderExtensions
                 services.TryAddEnumerable(ServiceDescriptor.Transient(serviceType, implementationType));
             }
 
-            services.AddSingleton<OutboxSendingTask>();
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageBusLifecycleInterceptor, OutboxSendingTask>(sp => sp.GetRequiredService<OutboxSendingTask>()));
-            services.TryAdd(ServiceDescriptor.Singleton<IOutboxNotificationService, OutboxSendingTask>(sp => sp.GetRequiredService<OutboxSendingTask>()));
+            services.AddSingleton<OutboxSendingTask<TOutboxKey>>();
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageBusLifecycleInterceptor, OutboxSendingTask<TOutboxKey>>(sp => sp.GetRequiredService<OutboxSendingTask<TOutboxKey>>()));
+            services.TryAdd(ServiceDescriptor.Singleton<IOutboxNotificationService, OutboxSendingTask<TOutboxKey>>(sp => sp.GetRequiredService<OutboxSendingTask<TOutboxKey>>()));
 
             services.TryAddSingleton<IInstanceIdProvider, DefaultInstanceIdProvider>();
-            services.TryAddSingleton<IOutboxLockRenewalTimerFactory, OutboxLockRenewalTimerFactory>();
+            services.TryAddSingleton<IOutboxLockRenewalTimerFactory, OutboxLockRenewalTimerFactory<TOutboxKey>>();
 
             services.TryAddSingleton(svp =>
             {
@@ -47,6 +47,7 @@ public static class MessageBusBuilderExtensions
                 return settings;
             });
         });
+
         return mbb;
     }
 }

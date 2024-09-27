@@ -1,18 +1,11 @@
 ﻿namespace SlimMessageBus.Host.Outbox;
 
-internal static class IEnumerableExtensions
+static internal class IEnumerableExtensions
 {
     public static IEnumerable<IReadOnlyCollection<T>> Batch<T>(this IEnumerable<T> items, int batchSize)
     {
-        if (items == null)
-        {
-            throw new ArgumentNullException(nameof(items));
-        }
-
-        if (batchSize <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(batchSize), "Batch size must be greater than zero.");
-        }
+        // Parameter validation in yielding methods should be wrapped
+        Check(items, batchSize);
 
         using var enumerator = items.GetEnumerator();
         while (enumerator.MoveNext())
@@ -24,6 +17,19 @@ internal static class IEnumerableExtensions
             }
 
             yield return batch.AsReadOnly();
+        }
+    }
+
+    private static void Check<T>(IEnumerable<T> items, int batchSize)
+    {
+        if (items == null)
+        {
+            throw new ArgumentNullException(nameof(items));
+        }
+
+        if (batchSize <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(batchSize), "Batch size must be greater than zero.");
         }
     }
 }

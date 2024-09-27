@@ -1,9 +1,9 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Test;
 
-public class OutboxLockRenewalTimerTests
+public sealed class OutboxLockRenewalTimerTests: IDisposable
 {
-    private readonly Mock<ILogger<OutboxLockRenewalTimer>> _loggerMock;
-    private readonly Mock<IOutboxRepository> _outboxRepositoryMock;
+    private readonly Mock<ILogger<OutboxLockRenewalTimer<Guid>>> _loggerMock;
+    private readonly Mock<IOutboxRepository<Guid>> _outboxRepositoryMock;
     private readonly Mock<IInstanceIdProvider> _instanceIdProviderMock;
     private readonly CancellationTokenSource _cancellationTokenSource;
     private readonly Action<Exception> _lockLostAction;
@@ -13,8 +13,8 @@ public class OutboxLockRenewalTimerTests
 
     public OutboxLockRenewalTimerTests()
     {
-        _loggerMock = new Mock<ILogger<OutboxLockRenewalTimer>>();
-        _outboxRepositoryMock = new Mock<IOutboxRepository>();
+        _loggerMock = new Mock<ILogger<OutboxLockRenewalTimer<Guid>>>();
+        _outboxRepositoryMock = new Mock<IOutboxRepository<Guid>>();
         _instanceIdProviderMock = new Mock<IInstanceIdProvider>();
         _cancellationTokenSource = new CancellationTokenSource();
         _lockLostAction = Mock.Of<Action<Exception>>();
@@ -111,9 +111,9 @@ public class OutboxLockRenewalTimerTests
         lockLostActionMock.Verify(a => a(It.IsAny<Exception>()), Times.Never);
     }
 
-    private OutboxLockRenewalTimer CreateTimer(Action<Exception> lockLostAction = null)
+    private OutboxLockRenewalTimer<Guid> CreateTimer(Action<Exception> lockLostAction = null)
     {
-        return new OutboxLockRenewalTimer(
+        return new OutboxLockRenewalTimer<Guid>(
             _loggerMock.Object,
             _outboxRepositoryMock.Object,
             _instanceIdProviderMock.Object,
@@ -123,9 +123,14 @@ public class OutboxLockRenewalTimerTests
             _cancellationTokenSource.Token);
     }
 
-    private static async Task InvokeCallbackAsync(OutboxLockRenewalTimer timer)
+    private static async Task InvokeCallbackAsync(OutboxLockRenewalTimer<Guid> timer)
     {
-        var callbackMethod = typeof(OutboxLockRenewalTimer).GetMethod("CallbackAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var callbackMethod = typeof(OutboxLockRenewalTimer<Guid>).GetMethod("CallbackAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         await (Task)callbackMethod.Invoke(timer, null);
+    }
+
+    public void Dispose()
+    {
+        _cancellationTokenSource.Dispose();
     }
 }

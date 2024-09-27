@@ -12,9 +12,9 @@ public abstract class OutboxForwardingPublishInterceptor
 /// Interceptor must be registered as a transient in order for outbox notifications to be raised.
 /// Notifications are raised on disposal (if required), to ensure they occur outside of a transaction scope.
 /// </remarks>
-public sealed class OutboxForwardingPublishInterceptor<T>(
+public sealed class OutboxForwardingPublishInterceptor<T, TOutboxKey>(
     ILogger<OutboxForwardingPublishInterceptor> logger,
-    IOutboxRepository outboxRepository,
+    IOutboxRepository<TOutboxKey> outboxRepository,
     IInstanceIdProvider instanceIdProvider,
     IOutboxNotificationService outboxNotificationService,
     OutboxSettings outboxSettings)
@@ -23,7 +23,7 @@ public sealed class OutboxForwardingPublishInterceptor<T>(
     internal const string SkipOutboxHeader = "__SkipOutbox";
 
     private readonly ILogger _logger = logger;
-    private readonly IOutboxRepository _outboxRepository = outboxRepository;
+    private readonly IOutboxRepository<TOutboxKey> _outboxRepository = outboxRepository;
     private readonly IInstanceIdProvider _instanceIdProvider = instanceIdProvider;
     private readonly IOutboxNotificationService _outboxNotificationService = outboxNotificationService;
     private readonly OutboxSettings _outboxSettings = outboxSettings;
@@ -67,9 +67,13 @@ public sealed class OutboxForwardingPublishInterceptor<T>(
         var messagePayload = busMaster.Serializer?.Serialize(messageType, message)
             ?? throw new PublishMessageBusException($"The {busMaster.Name} bus has no configured serializer, so it cannot be used with the outbox plugin");
 
+        // Generates a unique identifier in the current database
+        var outboxId = await _outboxRepository.GenerateId(context.CancellationToken);
+
         // Add message to the database, do not call next()
-        var outboxMessage = new OutboxMessage
+        var outboxMessage = new OutboxMessage<TOutboxKey>
         {
+            Id = outboxId,
             BusName = busMaster.Name,
             Headers = context.Headers,
             Path = context.Path,
@@ -77,6 +81,7 @@ public sealed class OutboxForwardingPublishInterceptor<T>(
             MessagePayload = messagePayload,
             InstanceId = _instanceIdProvider.GetInstanceId()
         };
+
         await _outboxRepository.Save(outboxMessage, context.CancellationToken);
 
         // a message was sent, notify outbox service to poll on dispose (post transaction)

@@ -45,10 +45,10 @@ public static class SqlOutboxRepositoryTests
         public async Task ExpiredItems_AreDeleted()
         {
             // arrange
-            var active = new DateTime(2000, 1, 1);
+            var active = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             var expired = active.AddDays(-1);
 
-            var seedMessages = await SeedOutbox(10, (i, x) =>
+            await SeedOutbox(10, (i, x) =>
             {
                 x.DeliveryAttempt = 1;
                 x.DeliveryComplete = true;

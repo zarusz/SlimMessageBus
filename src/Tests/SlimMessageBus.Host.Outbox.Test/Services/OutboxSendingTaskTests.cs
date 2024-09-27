@@ -1,29 +1,29 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Test.Services;
 
-using static SlimMessageBus.Host.Outbox.Services.OutboxSendingTask;
+using static SlimMessageBus.Host.Outbox.Services.OutboxSendingTask<Guid>;
 
 public sealed class OutboxSendingTaskTests
 {
     public class DispatchBatchTests
     {
         private readonly ILoggerFactory _loggerFactory;
-        private readonly Mock<IOutboxRepository> _outboxRepositoryMock;
+        private readonly Mock<IOutboxRepository<Guid>> _outboxRepositoryMock;
         private readonly Mock<IMessageBusBulkProducer> _producerMock;
         private readonly Mock<IMessageBusTarget> _messageBusTargetMock;
         private readonly OutboxSettings _outboxSettings;
         private readonly IServiceProvider _serviceProvider;
-        private readonly OutboxSendingTask _sut;
+        private readonly OutboxSendingTask<Guid> _sut;
 
         public DispatchBatchTests()
         {
-            _outboxRepositoryMock = new Mock<IOutboxRepository>();
+            _outboxRepositoryMock = new Mock<IOutboxRepository<Guid>>();
             _producerMock = new Mock<IMessageBusBulkProducer>();
             _messageBusTargetMock = new Mock<IMessageBusTarget>();
             _outboxSettings = new OutboxSettings { MaxDeliveryAttempts = 5 };
             _serviceProvider = Mock.Of<IServiceProvider>();
             _loggerFactory = new NullLoggerFactory();
 
-            _sut = new OutboxSendingTask(_loggerFactory, _outboxSettings, _serviceProvider);
+            _sut = new OutboxSendingTask<Guid>(_loggerFactory, _outboxSettings, _serviceProvider);
         }
 
         [Fact]
@@ -88,23 +88,22 @@ public sealed class OutboxSendingTaskTests
 
     public class ProcessMessagesTests
     {
-        private readonly Mock<IOutboxRepository> _mockOutboxRepository;
+        private readonly Mock<IOutboxRepository<Guid>> _mockOutboxRepository;
         private readonly Mock<ICompositeMessageBus> _mockCompositeMessageBus;
         private readonly Mock<IMessageBusTarget> _mockMessageBusTarget;
         private readonly Mock<IMasterMessageBus> _mockMasterMessageBus;
         private readonly Mock<IMessageBusBulkProducer> _mockMessageBusBulkProducer;
-        private readonly Mock<ILogger<OutboxSendingTask>> _mockLogger;
+
         private readonly OutboxSettings _outboxSettings;
-        private readonly OutboxSendingTask _sut;
+        private readonly OutboxSendingTask<Guid> _sut;
 
         public ProcessMessagesTests()
         {
-            _mockOutboxRepository = new Mock<IOutboxRepository>();
+            _mockOutboxRepository = new Mock<IOutboxRepository<Guid>>();
             _mockCompositeMessageBus = new Mock<ICompositeMessageBus>();
             _mockMessageBusTarget = new Mock<IMessageBusTarget>();
             _mockMasterMessageBus = new Mock<IMasterMessageBus>();
             _mockMessageBusBulkProducer = _mockMasterMessageBus.As<IMessageBusBulkProducer>();
-            _mockLogger = new Mock<ILogger<OutboxSendingTask>>();
 
             _outboxSettings = new OutboxSettings
             {
@@ -112,7 +111,7 @@ public sealed class OutboxSendingTaskTests
                 MessageTypeResolver = new Mock<IMessageTypeResolver>().Object
             };
 
-            _sut = new OutboxSendingTask(NullLoggerFactory.Instance, _outboxSettings, null);
+            _sut = new OutboxSendingTask<Guid>(NullLoggerFactory.Instance, _outboxSettings, null);
         }
 
         [Fact]
@@ -179,7 +178,7 @@ public sealed class OutboxSendingTaskTests
             outboxMessages[7].BusName = null;
 
             var knownBusCount = outboxMessages.Count(x => x.BusName != null);
-            
+
             _mockMessageBusTarget.SetupGet(x => x.Target).Returns((IMessageBusProducer)null);
 
             _mockCompositeMessageBus.Setup(x => x.GetChildBus(It.IsAny<string>())).Returns(_mockMasterMessageBus.Object);
@@ -237,12 +236,12 @@ public sealed class OutboxSendingTaskTests
             result.Count.Should().Be(knownMessageCount);
         }
 
-        private static List<OutboxMessage> CreateOutboxMessages(int count)
+        private static List<OutboxMessage<Guid>> CreateOutboxMessages(int count)
         {
             return Enumerable
                 .Range(0, count)
                 .Select(
-                    _ => new OutboxMessage
+                    _ => new OutboxMessage<Guid>
                     {
                         Id = Guid.NewGuid(),
                         MessageType = "TestType",

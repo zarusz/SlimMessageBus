@@ -1,18 +1,14 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Services;
-public class OutboxLockRenewalTimerFactory : IOutboxLockRenewalTimerFactory, IAsyncDisposable
+
+public class OutboxLockRenewalTimerFactory<TOutboxKey>(IServiceProvider serviceProvider) : IOutboxLockRenewalTimerFactory, IAsyncDisposable
 {
-    private readonly IServiceScope _scope;
+    private readonly IServiceScope _scope = serviceProvider.CreateScope();
 
     private bool _isDisposed = false;
 
-    public OutboxLockRenewalTimerFactory(IServiceProvider serviceProvider)
-    {
-        _scope = serviceProvider.CreateScope();
-    }
-
     public IOutboxLockRenewalTimer CreateRenewalTimer(TimeSpan lockDuration, TimeSpan interval, Action<Exception> lockLost, CancellationToken cancellationToken)
     {
-        return (OutboxLockRenewalTimer)ActivatorUtilities.CreateInstance(_scope.ServiceProvider, typeof(OutboxLockRenewalTimer), lockDuration, interval, lockLost, cancellationToken);
+        return (OutboxLockRenewalTimer<TOutboxKey>)ActivatorUtilities.CreateInstance(_scope.ServiceProvider, typeof(OutboxLockRenewalTimer<TOutboxKey>), lockDuration, interval, lockLost, cancellationToken);
     }
 
     public async ValueTask DisposeAsync()

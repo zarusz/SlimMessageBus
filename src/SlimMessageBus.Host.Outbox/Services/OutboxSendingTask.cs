@@ -4,13 +4,13 @@ using SlimMessageBus;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.Outbox;
 
-internal class OutboxSendingTask(
+internal class OutboxSendingTask<TOutboxKey>(
     ILoggerFactory loggerFactory,
     OutboxSettings outboxSettings,
     IServiceProvider serviceProvider)
     : IMessageBusLifecycleInterceptor, IOutboxNotificationService, IAsyncDisposable
 {
-    private readonly ILogger<OutboxSendingTask> _logger = loggerFactory.CreateLogger<OutboxSendingTask>();
+    private readonly ILogger<OutboxSendingTask<TOutboxKey>> _logger = loggerFactory.CreateLogger<OutboxSendingTask<TOutboxKey>>();
     private readonly OutboxSettings _outboxSettings = outboxSettings;
     private readonly IServiceProvider _serviceProvider = serviceProvider;
 
@@ -157,7 +157,7 @@ internal class OutboxSendingTask(
             try
             {
                 await EnsureMigrateSchema(scope.ServiceProvider, _loopCts.Token);
-                var outboxRepository = scope.ServiceProvider.GetRequiredService<IOutboxRepository>();
+                var outboxRepository = scope.ServiceProvider.GetRequiredService<IOutboxRepository<TOutboxKey>>();
                 do
                 {
                     if (_loopCts.Token.IsCancellationRequested)
@@ -205,7 +205,7 @@ internal class OutboxSendingTask(
         }
     }
 
-    async internal Task<int> SendMessages(IServiceProvider serviceProvider, IOutboxRepository outboxRepository, CancellationToken cancellationToken)
+    async internal Task<int> SendMessages(IServiceProvider serviceProvider, IOutboxRepository<TOutboxKey> outboxRepository, CancellationToken cancellationToken)
     {
         var lockDuration = TimeSpan.FromSeconds(Math.Min(Math.Max(_outboxSettings.LockExpiration.TotalSeconds, 5), 30));
         if (lockDuration != _outboxSettings.LockExpiration)
@@ -249,14 +249,14 @@ internal class OutboxSendingTask(
         return count;
     }
 
-    async internal Task<(bool RunAgain, int Count)> ProcessMessages(IOutboxRepository outboxRepository, IReadOnlyCollection<OutboxMessage> outboxMessages, ICompositeMessageBus compositeMessageBus, IMessageBusTarget messageBusTarget, CancellationToken cancellationToken)
+    async internal Task<(bool RunAgain, int Count)> ProcessMessages(IOutboxRepository<TOutboxKey> outboxRepository, IReadOnlyCollection<OutboxMessage<TOutboxKey>> outboxMessages, ICompositeMessageBus compositeMessageBus, IMessageBusTarget messageBusTarget, CancellationToken cancellationToken)
     {
         const int defaultBatchSize = 50;
 
         var runAgain = outboxMessages.Count == _outboxSettings.PollBatchSize;
         var count = 0;
 
-        var abortedIds = new List<Guid>(_outboxSettings.PollBatchSize);
+        var abortedIds = new List<TOutboxKey>(_outboxSettings.PollBatchSize);
         foreach (var busGroup in outboxMessages.GroupBy(x => x.BusName))
         {
             var busName = busGroup.Key;
@@ -323,7 +323,7 @@ internal class OutboxSendingTask(
         return (runAgain, count);
     }
 
-    async internal Task<(bool Success, int Published)> DispatchBatch(IOutboxRepository outboxRepository, IMessageBusBulkProducer producer, IMessageBusTarget messageBusTarget, IReadOnlyCollection<OutboxBulkMessage> batch, string busName, string path, CancellationToken cancellationToken)
+    async internal Task<(bool Success, int Published)> DispatchBatch(IOutboxRepository<TOutboxKey> outboxRepository, IMessageBusBulkProducer producer, IMessageBusTarget messageBusTarget, IReadOnlyCollection<OutboxBulkMessage> batch, string busName, string path, CancellationToken cancellationToken)
     {
         _logger.LogDebug("Publishing batch of {MessageCount} messages to pathGroup {Path} on {BusName} bus", batch.Count, path, busName);
 
@@ -369,9 +369,9 @@ internal class OutboxSendingTask(
 
     public record OutboxBulkMessage : BulkMessageEnvelope
     {
-        public Guid Id { get; }
+        public TOutboxKey Id { get; }
 
-        public OutboxBulkMessage(Guid id, object message, Type messageType, IDictionary<string, object> headers)
+        public OutboxBulkMessage(TOutboxKey id, object message, Type messageType, IDictionary<string, object> headers)
             : base(message, messageType, headers)
         {
             Id = id;
