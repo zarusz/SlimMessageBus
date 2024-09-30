@@ -2,7 +2,6 @@
 
 public class OutboxMessage
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     public string BusName { get; set; }
     public string MessageType { get; set; }

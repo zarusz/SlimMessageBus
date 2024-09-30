@@ -68,15 +68,14 @@ public sealed class OutboxForwardingPublishInterceptor<T>(
             ?? throw new PublishMessageBusException($"The {busMaster.Name} bus has no configured serializer, so it cannot be used with the outbox plugin");
 
         // Add message to the database, do not call next()
-        var outboxMessage = new OutboxMessage
-        {
-            BusName = busMaster.Name,
-            Headers = context.Headers,
-            Path = context.Path,
-            MessageType = _outboxSettings.MessageTypeResolver.ToName(messageType),
-            MessagePayload = messagePayload,
-            InstanceId = _instanceIdProvider.GetInstanceId()
-        };
+        var outboxMessage = _outboxRepository.Create();
+        outboxMessage.BusName = busMaster.Name;
+        outboxMessage.Headers = context.Headers;
+        outboxMessage.Path = context.Path;
+        outboxMessage.MessageType = _outboxSettings.MessageTypeResolver.ToName(messageType);
+        outboxMessage.MessagePayload = messagePayload;
+        outboxMessage.InstanceId = _instanceIdProvider.GetInstanceId();
+
         await _outboxRepository.Save(outboxMessage, context.CancellationToken);
 
         // a message was sent, notify outbox service to poll on dispose (post transaction)

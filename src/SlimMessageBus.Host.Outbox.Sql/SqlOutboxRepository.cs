@@ -1,21 +1,24 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Sql;
-
 public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
 {
     private readonly SqlOutboxTemplate _sqlTemplate;
+    private readonly IOutboxMessageAdapter _outboxMessageAdapter;
     private readonly JsonSerializerOptions _jsonOptions;
 
     protected SqlOutboxSettings Settings { get; }
 
-    public SqlOutboxRepository(ILogger<SqlOutboxRepository> logger, SqlOutboxSettings settings, SqlOutboxTemplate sqlOutboxTemplate, SqlConnection connection, ISqlTransactionService transactionService)
+    public SqlOutboxRepository(ILogger<SqlOutboxRepository> logger, SqlOutboxSettings settings, SqlOutboxTemplate sqlOutboxTemplate, SqlConnection connection, ISqlTransactionService transactionService, IOutboxMessageAdapter outboxMessageAdapter)
         : base(logger, settings.SqlSettings, connection, transactionService)
     {
         _sqlTemplate = sqlOutboxTemplate;
+        _outboxMessageAdapter = outboxMessageAdapter;
         _jsonOptions = new();
         _jsonOptions.Converters.Add(new ObjectToInferredTypesConverter());
 
         Settings = settings;
     }
+
+    public OutboxMessage Create() => _outboxMessageAdapter.Create();
 
     public async virtual Task Save(OutboxMessage message, CancellationToken token)
     {
@@ -23,7 +26,7 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
 
         await ExecuteNonQuery(Settings.SqlSettings.OperationRetry, _sqlTemplate.SqlOutboxMessageInsert, cmd =>
         {
-            cmd.Parameters.Add("@Id", SqlDbType.UniqueIdentifier).Value = message.Id;
+            cmd.Parameters.Add(_outboxMessageAdapter.CreateIdSqlParameter("@Id", message));
             cmd.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = message.Timestamp;
             cmd.Parameters.Add("@BusName", SqlDbType.NVarChar).Value = message.BusName;
             cmd.Parameters.Add("@MessageType", SqlDbType.NVarChar).Value = message.MessageType;
@@ -52,9 +55,9 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
         return await ReadMessages(cmd, token).ConfigureAwait(false);
     }
 
-    public async Task AbortDelivery(IReadOnlyCollection<Guid> ids, CancellationToken token)
+    public async Task AbortDelivery(IReadOnlyCollection<OutboxMessage> messages, CancellationToken token)
     {
-        if (ids.Count == 0)
+        if (messages.Count == 0)
         {
             return;
         }
@@ -65,19 +68,19 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
             _sqlTemplate.SqlOutboxMessageAbortDelivery,
             cmd =>
             {
-                cmd.Parameters.AddWithValue("@Ids", ToIdsString(ids));
+                cmd.Parameters.Add(_outboxMessageAdapter.CreateIdsSqlParameter("@Ids", messages));
             },
             token: token);
 
-        if (affected != ids.Count)
+        if (affected != messages.Count)
         {
-            throw new MessageBusException($"The number of affected rows was {affected}, but {ids.Count} was expected");
+            throw new MessageBusException($"The number of affected rows was {affected}, but {messages.Count} was expected");
         }
     }
 
-    public async Task UpdateToSent(IReadOnlyCollection<Guid> ids, CancellationToken token)
+    public async Task UpdateToSent(IReadOnlyCollection<OutboxMessage> messages, CancellationToken token)
     {
-        if (ids.Count == 0)
+        if (messages.Count == 0)
         {
             return;
         }
@@ -88,21 +91,21 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
             _sqlTemplate.SqlOutboxMessageUpdateSent,
             cmd =>
             {
-                cmd.Parameters.AddWithValue("@Ids", ToIdsString(ids));
+                cmd.Parameters.Add(_outboxMessageAdapter.CreateIdsSqlParameter("@Ids", messages));
             },
             token: token);
 
-        if (affected != ids.Count)
+        if (affected != messages.Count)
         {
-            throw new MessageBusException($"The number of affected rows was {affected}, but {ids.Count} was expected");
+            throw new MessageBusException($"The number of affected rows was {affected}, but {messages.Count} was expected");
         }
     }
 
     private string ToIdsString(IReadOnlyCollection<Guid> ids) => string.Join(_sqlTemplate.InIdsSeparator, ids);
 
-    public async Task IncrementDeliveryAttempt(IReadOnlyCollection<Guid> ids, int maxDeliveryAttempts, CancellationToken token)
+    public async Task IncrementDeliveryAttempt(IReadOnlyCollection<OutboxMessage> messages, int maxDeliveryAttempts, CancellationToken token)
     {
-        if (ids.Count == 0)
+        if (messages.Count == 0)
         {
             return;
         }
@@ -118,14 +121,14 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
             _sqlTemplate.SqlOutboxMessageIncrementDeliveryAttempt,
             cmd =>
             {
-                cmd.Parameters.AddWithValue("@Ids", ToIdsString(ids));
+                cmd.Parameters.Add(_outboxMessageAdapter.CreateIdsSqlParameter("@Ids", messages));
                 cmd.Parameters.AddWithValue("@MaxDeliveryAttempts", maxDeliveryAttempts);
             },
             token: token);
 
-        if (affected != ids.Count)
+        if (affected != messages.Count)
         {
-            throw new MessageBusException($"The number of affected rows was {affected}, but {ids.Count} was expected");
+            throw new MessageBusException($"The number of affected rows was {affected}, but {messages.Count} was expected");
         }
     }
 
@@ -185,24 +188,22 @@ public class SqlOutboxRepository : CommonSqlRepository, ISqlOutboxRepository
         var items = new List<OutboxMessage>();
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            var id = reader.GetGuid(idOrdinal);
             var headers = reader.IsDBNull(headersOrdinal) ? null : reader.GetString(headersOrdinal);
-            var message = new OutboxMessage
-            {
-                Id = id,
-                Timestamp = reader.GetDateTime(timestampOrdinal),
-                BusName = reader.GetString(busNameOrdinal),
-                MessageType = reader.GetString(typeOrdinal),
-                MessagePayload = reader.GetSqlBinary(payloadOrdinal).Value,
-                Headers = headers == null ? null : JsonSerializer.Deserialize<IDictionary<string, object>>(headers, _jsonOptions),
-                Path = reader.IsDBNull(pathOrdinal) ? null : reader.GetString(pathOrdinal),
-                InstanceId = reader.GetString(instanceIdOrdinal),
-                LockInstanceId = reader.IsDBNull(lockInstanceIdOrdinal) ? null : reader.GetString(lockInstanceIdOrdinal),
-                LockExpiresOn = reader.IsDBNull(lockExpiresOnOrdinal) ? null : reader.GetDateTime(lockExpiresOnOrdinal),
-                DeliveryAttempt = reader.GetInt32(deliveryAttemptOrdinal),
-                DeliveryComplete = reader.GetBoolean(deliveryCompleteOrdinal),
-                DeliveryAborted = reader.GetBoolean(deliveryAbortedOrdinal)
-            };
+
+            var message = _outboxMessageAdapter.Create(reader, idOrdinal);
+
+            message.Timestamp = reader.GetDateTime(timestampOrdinal);
+            message.BusName = reader.GetString(busNameOrdinal);
+            message.MessageType = reader.GetString(typeOrdinal);
+            message.MessagePayload = reader.GetSqlBinary(payloadOrdinal).Value;
+            message.Headers = headers == null ? null : JsonSerializer.Deserialize<IDictionary<string, object>>(headers, _jsonOptions);
+            message.Path = reader.IsDBNull(pathOrdinal) ? null : reader.GetString(pathOrdinal);
+            message.InstanceId = reader.GetString(instanceIdOrdinal);
+            message.LockInstanceId = reader.IsDBNull(lockInstanceIdOrdinal) ? null : reader.GetString(lockInstanceIdOrdinal);
+            message.LockExpiresOn = reader.IsDBNull(lockExpiresOnOrdinal) ? null : reader.GetDateTime(lockExpiresOnOrdinal);
+            message.DeliveryAttempt = reader.GetInt32(deliveryAttemptOrdinal);
+            message.DeliveryComplete = reader.GetBoolean(deliveryCompleteOrdinal);
+            message.DeliveryAborted = reader.GetBoolean(deliveryAbortedOrdinal);
 
             items.Add(message);
         }

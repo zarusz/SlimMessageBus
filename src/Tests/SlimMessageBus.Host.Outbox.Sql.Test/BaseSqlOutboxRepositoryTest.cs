@@ -10,6 +10,7 @@ public class BaseSqlOutboxRepositoryTest : BaseSqlTest
     protected SqlOutboxRepository _target;
     protected SqlOutboxTemplate _template;
     protected ISqlTransactionService _transactionService;
+    protected IOutboxMessageAdapter _outboxMessageAdapter;
 
     public override async Task InitializeAsync()
     {
@@ -19,7 +20,8 @@ public class BaseSqlOutboxRepositoryTest : BaseSqlTest
         _connection = new SqlConnection(GetConnectionString());
         _transactionService = new SqlTransactionService(_connection, _settings.SqlSettings);
         _template = new SqlOutboxTemplate(_settings);
-        _target = new SqlOutboxRepository(NullLogger<SqlOutboxRepository>.Instance, _settings, _template, _connection, _transactionService);
+        _outboxMessageAdapter = new GuidOutboxMessageAdapter(_template);
+        _target = new SqlOutboxRepository(NullLogger<SqlOutboxRepository>.Instance, _settings, _template, _connection, _transactionService, _outboxMessageAdapter);
         _migrationService = new SqlOutboxMigrationService(NullLogger<SqlOutboxMigrationService>.Instance, _target, _transactionService, _settings);
 
         await _migrationService.Migrate(CancellationToken.None);

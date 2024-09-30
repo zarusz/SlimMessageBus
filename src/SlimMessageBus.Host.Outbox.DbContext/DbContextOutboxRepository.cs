@@ -16,8 +16,15 @@ public class DbContextOutboxRepository<TDbContext> : SqlOutboxRepository where T
         SqlOutboxSettings settings,
         SqlOutboxTemplate sqlOutboxTemplate,
         TDbContext dbContext,
-        ISqlTransactionService transactionService)
-        : base(logger, settings, sqlOutboxTemplate, (SqlConnection)dbContext.Database.GetDbConnection(), transactionService)
+        ISqlTransactionService transactionService,
+        IOutboxMessageAdapter outboxMessageAdapter)
+        : base(
+            logger,
+            settings,
+            sqlOutboxTemplate,
+            (SqlConnection)dbContext.Database.GetDbConnection(),
+            transactionService,
+            outboxMessageAdapter)
     {
         DbContext = dbContext;
     }

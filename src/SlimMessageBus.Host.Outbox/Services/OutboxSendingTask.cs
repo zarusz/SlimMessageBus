@@ -256,7 +256,7 @@ internal class OutboxSendingTask(
         var runAgain = outboxMessages.Count == _outboxSettings.PollBatchSize;
         var count = 0;
 
-        var abortedIds = new List<Guid>(_outboxSettings.PollBatchSize);
+        var abortedMessages = new List<OutboxMessage>(_outboxSettings.PollBatchSize);
         foreach (var busGroup in outboxMessages.GroupBy(x => x.BusName))
         {
             var busName = busGroup.Key;
@@ -268,14 +268,14 @@ internal class OutboxSendingTask(
                 {
                     if (bus == null)
                     {
-                        _logger.LogWarning("Not able to find matching bus provider for the outbox message with Id {MessageId} of type {MessageType} to path {Path} using {BusName} bus. The message will be skipped.", outboxMessage.Id, outboxMessage.MessageType, outboxMessage.Path, outboxMessage.BusName);
+                        _logger.LogWarning("Not able to find matching bus provider for the outbox message with Id {MessageId} of type {MessageType} to path {Path} using {BusName} bus. The message will be skipped.", outboxMessage, outboxMessage.MessageType, outboxMessage.Path, outboxMessage.BusName);
                     }
                     else
                     {
-                        _logger.LogWarning("Bus provider for the outbox message with Id {MessageId} of type {MessageType} to path {Path} using {BusName} bus does not support bulk processing. The message will be skipped.", outboxMessage.Id, outboxMessage.MessageType, outboxMessage.Path, outboxMessage.BusName);
+                        _logger.LogWarning("Bus provider for the outbox message with Id {MessageId} of type {MessageType} to path {Path} using {BusName} bus does not support bulk processing. The message will be skipped.", outboxMessage, outboxMessage.MessageType, outboxMessage.Path, outboxMessage.BusName);
                     }
 
-                    abortedIds.Add(outboxMessage.Id);
+                    abortedMessages.Add(outboxMessage);
                 }
 
                 continue;
@@ -295,13 +295,13 @@ internal class OutboxSendingTask(
                             var messageType = _outboxSettings.MessageTypeResolver.ToType(outboxMessage.MessageType);
                             if (messageType == null)
                             {
-                                abortedIds.Add(outboxMessage.Id);
-                                _logger.LogError("Outbox message with Id {Id} - the MessageType {MessageType} is not recognized. The type might have been renamed or moved namespaces.", outboxMessage.Id, outboxMessage.MessageType);
+                                abortedMessages.Add(outboxMessage);
+                                _logger.LogError("Outbox message with Id {Id} - the MessageType {MessageType} is not recognized. The type might have been renamed or moved namespaces.", outboxMessage, outboxMessage.MessageType);
                                 return null;
                             }
 
                             var message = bus.Serializer.Deserialize(messageType, outboxMessage.MessagePayload);
-                            return new OutboxBulkMessage(outboxMessage.Id, message, messageType, outboxMessage.Headers ?? new Dictionary<string, object>());
+                            return new OutboxBulkMessage(outboxMessage, message, messageType, outboxMessage.Headers ?? new Dictionary<string, object>());
                         })
                     .Where(x => x != null)
                     .Batch(bulkProducer.MaxMessagesPerTransaction ?? defaultBatchSize);
@@ -315,9 +315,9 @@ internal class OutboxSendingTask(
             }
         }
 
-        if (abortedIds.Count > 0)
+        if (abortedMessages.Count > 0)
         {
-            await outboxRepository.AbortDelivery(abortedIds, cancellationToken);
+            await outboxRepository.AbortDelivery(abortedMessages, cancellationToken);
         }
 
         return (runAgain, count);
@@ -335,19 +335,19 @@ internal class OutboxSendingTask(
             return (false, 0);
         }
 
-        var updatedIds = results.Dispatched.Select(x => x.Id).ToHashSet();
-        await outboxRepository.UpdateToSent(updatedIds, CancellationToken.None).ConfigureAwait(false);
+        var updatedMessages = results.Dispatched.Select(x => x.OutboxMessage).ToHashSet();
+        await outboxRepository.UpdateToSent(updatedMessages, CancellationToken.None).ConfigureAwait(false);
 
-        if (updatedIds.Count != batch.Count)
+        if (updatedMessages.Count != batch.Count)
         {
-            var failedIds = batch.Where(x => !updatedIds.Contains(x.Id!)).Select(x => x.Id).ToHashSet();
-            await outboxRepository.IncrementDeliveryAttempt(failedIds, _outboxSettings.MaxDeliveryAttempts, CancellationToken.None).ConfigureAwait(false);
+            var failedMessages = batch.Where(x => !updatedMessages.Contains(x.OutboxMessage)).Select(x => x.OutboxMessage).ToHashSet();
+            await outboxRepository.IncrementDeliveryAttempt(failedMessages, _outboxSettings.MaxDeliveryAttempts, CancellationToken.None).ConfigureAwait(false);
 
-            _logger.LogDebug("Failed to publish {MessageCount} messages in a batch of {BatchSize} to pathGroup {Path} on {BusName} bus", failedIds.Count, batch.Count, path, busName);
-            return (false, updatedIds.Count);
+            _logger.LogDebug("Failed to publish {MessageCount} messages in a batch of {BatchSize} to pathGroup {Path} on {BusName} bus", failedMessages.Count, batch.Count, path, busName);
+            return (false, updatedMessages.Count);
         }
 
-        return (true, updatedIds.Count);
+        return (true, updatedMessages.Count);
     }
 
     private static IMasterMessageBus GetBus(ICompositeMessageBus compositeMessageBus, IMessageBusTarget messageBusTarget, string name)
@@ -369,12 +369,12 @@ internal class OutboxSendingTask(
 
     public record OutboxBulkMessage : BulkMessageEnvelope
     {
-        public Guid Id { get; }
+        public OutboxMessage OutboxMessage { get; }
 
-        public OutboxBulkMessage(Guid id, object message, Type messageType, IDictionary<string, object> headers)
+        public OutboxBulkMessage(OutboxMessage outboxMessage, object message, Type messageType, IDictionary<string, object> headers)
             : base(message, messageType, headers)
         {
-            Id = id;
+            OutboxMessage = outboxMessage;
         }
     }
 }

@@ -36,6 +36,8 @@ public static class MessageBusBuilderExtensions
             services.TryAddScoped<TOutboxRepository>();
             services.TryAddScoped<ISqlTransactionService, SqlTransactionService>();
 
+            services.TryAddSingleton<IOutboxMessageAdapter, GuidOutboxMessageAdapter>();
+
             services.Replace(ServiceDescriptor.Scoped<ISqlOutboxRepository>(svp => svp.GetRequiredService<TOutboxRepository>()));
             services.Replace(ServiceDescriptor.Scoped<IOutboxRepository>(svp => svp.GetRequiredService<TOutboxRepository>()));
 

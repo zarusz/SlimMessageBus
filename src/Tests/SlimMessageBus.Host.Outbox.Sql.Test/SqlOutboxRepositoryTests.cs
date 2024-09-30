@@ -27,14 +27,14 @@ public static class SqlOutboxRepositoryTests
         {
             // arrange
             var seed = await SeedOutbox(5);
-            var expected = seed.Select(x => x.Id).Take(3).ToList();
+            var expected = seed.Take(3).ToList();
 
             // act
             await _target.AbortDelivery(expected, CancellationToken.None);
             var messages = await _target.GetAllMessages(CancellationToken.None);
 
             // assert
-            var actual = messages.Where(x => x.DeliveryAborted).Select(x => x.Id).ToList();
+            var actual = messages.Where(x => x.DeliveryAborted).ToList();
             actual.Should().BeEquivalentTo(expected);
         }
     }
@@ -105,15 +105,15 @@ public static class SqlOutboxRepositoryTests
         {
             // arrange
             var seed = await SeedOutbox(5);
-            var abortedIds = seed.Select(x => x.Id).Take(3).ToList();
+            var aborted = seed.Take(3).ToList();
 
-            await _target.AbortDelivery(abortedIds, CancellationToken.None);
+            await _target.AbortDelivery(aborted, CancellationToken.None);
 
             // act
             var actual = await _target.LockAndSelect("123", 10, false, TimeSpan.FromMinutes(1), CancellationToken.None);
 
             // assert
-            actual.Select(x => x.Id).Should().NotContain(abortedIds);
+            actual.Should().NotContain(aborted);
         }
 
         [Fact]
@@ -121,15 +121,15 @@ public static class SqlOutboxRepositoryTests
         {
             // arrange
             var seed = await SeedOutbox(5);
-            var sentIds = seed.Select(x => x.Id).Take(3).ToList();
+            var sent = seed.Take(3).ToList();
 
-            await _target.UpdateToSent(sentIds, CancellationToken.None);
+            await _target.UpdateToSent(sent, CancellationToken.None);
 
             // act
             var actual = await _target.LockAndSelect("123", 10, false, TimeSpan.FromMinutes(1), CancellationToken.None);
 
             // assert
-            actual.Select(x => x.Id).Should().NotContain(sentIds);
+            actual.Should().NotContain(sent);
         }
     }
 
@@ -141,17 +141,17 @@ public static class SqlOutboxRepositoryTests
             // arrange
             const int maxAttempts = 2;
             var seed = await SeedOutbox(5);
-            var ids = seed.Select(x => x.Id).Take(3).ToList();
+            var messages = seed.Take(3).ToList();
 
             // act
-            await _target.IncrementDeliveryAttempt(ids, maxAttempts, CancellationToken.None);
-            var messages = await _target.GetAllMessages(CancellationToken.None);
+            await _target.IncrementDeliveryAttempt(messages, maxAttempts, CancellationToken.None);
+            var allMessages = await _target.GetAllMessages(CancellationToken.None);
 
             // assert
-            messages.Should().OnlyContain(x => !x.DeliveryComplete);
-            messages.Should().OnlyContain(x => !x.DeliveryAborted);
-            messages.Where(x => !ids.Contains(x.Id)).Should().OnlyContain(x => x.DeliveryAttempt == 0);
-            messages.Where(x => ids.Contains(x.Id)).Should().OnlyContain(x => x.DeliveryAttempt == 1);
+            allMessages.Should().OnlyContain(x => !x.DeliveryComplete);
+            allMessages.Should().OnlyContain(x => !x.DeliveryAborted);
+            allMessages.Where(x => !messages.Contains(x)).Should().OnlyContain(x => x.DeliveryAttempt == 0);
+            allMessages.Where(x => messages.Contains(x)).Should().OnlyContain(x => x.DeliveryAttempt == 1);
         }
 
         [Fact]
@@ -160,21 +160,21 @@ public static class SqlOutboxRepositoryTests
             // arrange
             const int maxAttempts = 1;
             var seed = await SeedOutbox(5);
-            var ids = seed.Select(x => x.Id).Take(3).ToList();
+            var ids = seed.Take(3).ToList();
 
             // act
             await _target.IncrementDeliveryAttempt(ids, maxAttempts, CancellationToken.None);
             await _target.IncrementDeliveryAttempt(ids, maxAttempts, CancellationToken.None);
-            var messages = await _target.GetAllMessages(CancellationToken.None);
+            var allMessages = await _target.GetAllMessages(CancellationToken.None);
 
             // assert
-            messages.Should().OnlyContain(x => !x.DeliveryComplete);
+            allMessages.Should().OnlyContain(x => !x.DeliveryComplete);
 
-            var attempted = messages.Where(x => ids.Contains(x.Id)).ToList();
+            var attempted = allMessages.Where(x => ids.Contains(x)).ToList();
             attempted.Should().OnlyContain(x => x.DeliveryAttempt == 2);
             attempted.Should().OnlyContain(x => x.DeliveryAborted);
 
-            var notAttempted = messages.Where(x => !ids.Contains(x.Id)).ToList();
+            var notAttempted = allMessages.Where(x => !ids.Contains(x)).ToList();
             notAttempted.Should().OnlyContain(x => x.DeliveryAttempt == 0);
             notAttempted.Should().OnlyContain(x => !x.DeliveryAborted);
         }
@@ -187,14 +187,14 @@ public static class SqlOutboxRepositoryTests
         {
             // arrange
             var seed = await SeedOutbox(5);
-            var expected = seed.Select(x => x.Id).Take(3).ToList();
+            var expected = seed.Take(3).ToList();
 
             // act
             await _target.UpdateToSent(expected, CancellationToken.None);
             var messages = await _target.GetAllMessages(CancellationToken.None);
 
             // assert
-            var actual = messages.Where(x => x.DeliveryComplete).Select(x => x.Id).ToList();
+            var actual = messages.Where(x => x.DeliveryComplete).ToList();
             actual.Should().BeEquivalentTo(expected);
         }
     }
@@ -210,7 +210,6 @@ public static class SqlOutboxRepositoryTests
             await SeedOutbox(batchSize);
 
             var lockedItems = await _target.LockAndSelect(instanceId, batchSize, true, TimeSpan.FromSeconds(10), CancellationToken.None);
-            var lockedIds = lockedItems.Select(x => x.Id).ToList();
 
             var before = await _target.GetAllMessages(CancellationToken.None);
             var originalLock = before.Min(x => x.LockExpiresOn);
@@ -220,7 +219,7 @@ public static class SqlOutboxRepositoryTests
 
             // assert
             var after = await _target.GetAllMessages(CancellationToken.None);
-            var actual = after.Where(x => lockedIds.Contains(x.Id));
+            var actual = after.Where(x => lockedItems.Contains(x));
 
             actual.Should().OnlyContain(x => x.LockExpiresOn > originalLock);
         }

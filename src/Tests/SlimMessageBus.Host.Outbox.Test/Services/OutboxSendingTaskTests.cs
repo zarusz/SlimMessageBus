@@ -31,8 +31,8 @@ public sealed class OutboxSendingTaskTests
         {
             var batch = new List<OutboxBulkMessage>
             {
-                new(Guid.NewGuid(), "Message1", typeof(string), new Dictionary<string, object>()),
-                new(Guid.NewGuid(), "Message2", typeof(string), new Dictionary<string, object>())
+                new(new OutboxMessage(), "Message1", typeof(string), new Dictionary<string, object>()),
+                new(new OutboxMessage(), "Message2", typeof(string), new Dictionary<string, object>())
             }.AsReadOnly();
 
             var results = new ProduceToTransportBulkResult<OutboxBulkMessage>(batch, null);
@@ -51,8 +51,8 @@ public sealed class OutboxSendingTaskTests
         {
             var batch = new List<OutboxBulkMessage>
             {
-                new(Guid.NewGuid(), "Message1", typeof(string), new Dictionary<string, object>()),
-                new(Guid.NewGuid(), "Message2", typeof(string), new Dictionary<string, object>())
+                new(new OutboxMessage(), "Message1", typeof(string), new Dictionary<string, object>()),
+                new(new OutboxMessage(), "Message2", typeof(string), new Dictionary<string, object>())
             }.AsReadOnly();
 
             var results = new ProduceToTransportBulkResult<OutboxBulkMessage>([batch.First()], null);
@@ -71,8 +71,8 @@ public sealed class OutboxSendingTaskTests
         {
             var batch = new List<OutboxBulkMessage>
             {
-                new(Guid.NewGuid(), "Message1", typeof(string), new Dictionary<string, object>()),
-                new(Guid.NewGuid(), "Message2", typeof(string), new Dictionary<string, object>())
+                new(new OutboxMessage(), "Message1", typeof(string), new Dictionary<string, object>()),
+                new(new OutboxMessage(), "Message2", typeof(string), new Dictionary<string, object>())
             }.AsReadOnly();
 
             var results = new ProduceToTransportBulkResult<OutboxBulkMessage>([batch.First()], null);
@@ -82,7 +82,7 @@ public sealed class OutboxSendingTaskTests
 
             await _sut.DispatchBatch(_outboxRepositoryMock.Object, _producerMock.Object, _messageBusTargetMock.Object, batch, "busName", "path", CancellationToken.None);
 
-            _outboxRepositoryMock.Verify(x => x.IncrementDeliveryAttempt(It.Is<HashSet<Guid>>(ids => ids.Contains(batch[1].Id)), _outboxSettings.MaxDeliveryAttempts, CancellationToken.None), Times.Once);
+            _outboxRepositoryMock.Verify(x => x.IncrementDeliveryAttempt(It.Is<HashSet<OutboxMessage>>(messages => messages.Contains(batch[1].OutboxMessage)), _outboxSettings.MaxDeliveryAttempts, CancellationToken.None), Times.Once);
         }
     }
 
@@ -139,7 +139,7 @@ public sealed class OutboxSendingTaskTests
             // Assert
             result.RunAgain.Should().BeFalse();
             result.Count.Should().Be(30);
-            _mockOutboxRepository.Verify(x => x.UpdateToSent(It.IsAny<HashSet<Guid>>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+            _mockOutboxRepository.Verify(x => x.UpdateToSent(It.IsAny<HashSet<OutboxMessage>>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
         }
 
         [Fact]
@@ -179,7 +179,7 @@ public sealed class OutboxSendingTaskTests
             outboxMessages[7].BusName = null;
 
             var knownBusCount = outboxMessages.Count(x => x.BusName != null);
-            
+
             _mockMessageBusTarget.SetupGet(x => x.Target).Returns((IMessageBusProducer)null);
 
             _mockCompositeMessageBus.Setup(x => x.GetChildBus(It.IsAny<string>())).Returns(_mockMasterMessageBus.Object);
@@ -197,8 +197,8 @@ public sealed class OutboxSendingTaskTests
             var result = await _sut.ProcessMessages(_mockOutboxRepository.Object, outboxMessages, _mockCompositeMessageBus.Object, _mockMessageBusTarget.Object, CancellationToken.None);
 
             // Assert
-            _mockOutboxRepository.Verify(x => x.AbortDelivery(It.IsAny<List<Guid>>(), It.IsAny<CancellationToken>()), Times.Once);
-            _mockOutboxRepository.Verify(x => x.UpdateToSent(It.IsAny<HashSet<Guid>>(), It.IsAny<CancellationToken>()), Times.Once);
+            _mockOutboxRepository.Verify(x => x.AbortDelivery(It.IsAny<List<OutboxMessage>>(), It.IsAny<CancellationToken>()), Times.Once);
+            _mockOutboxRepository.Verify(x => x.UpdateToSent(It.IsAny<HashSet<OutboxMessage>>(), It.IsAny<CancellationToken>()), Times.Once);
             result.RunAgain.Should().BeFalse();
             result.Count.Should().Be(knownBusCount);
         }
@@ -231,8 +231,8 @@ public sealed class OutboxSendingTaskTests
             var result = await _sut.ProcessMessages(_mockOutboxRepository.Object, outboxMessages, _mockCompositeMessageBus.Object, _mockMessageBusTarget.Object, CancellationToken.None);
 
             // Assert
-            _mockOutboxRepository.Verify(x => x.AbortDelivery(It.IsAny<List<Guid>>(), It.IsAny<CancellationToken>()), Times.Once);
-            _mockOutboxRepository.Verify(x => x.UpdateToSent(It.IsAny<HashSet<Guid>>(), It.IsAny<CancellationToken>()), Times.Once);
+            _mockOutboxRepository.Verify(x => x.AbortDelivery(It.IsAny<List<OutboxMessage>>(), It.IsAny<CancellationToken>()), Times.Once);
+            _mockOutboxRepository.Verify(x => x.UpdateToSent(It.IsAny<HashSet<OutboxMessage>>(), It.IsAny<CancellationToken>()), Times.Once);
             result.RunAgain.Should().BeFalse();
             result.Count.Should().Be(knownMessageCount);
         }
@@ -244,7 +244,6 @@ public sealed class OutboxSendingTaskTests
                 .Select(
                     _ => new OutboxMessage
                     {
-                        Id = Guid.NewGuid(),
                         MessageType = "TestType",
                         MessagePayload = [],
                         BusName = "TestBus",
