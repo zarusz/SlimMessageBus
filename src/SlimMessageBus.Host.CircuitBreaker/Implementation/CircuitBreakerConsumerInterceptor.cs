@@ -3,7 +3,7 @@
 /// <summary>
 /// Circuit breaker to toggle consumer status on an external events.
 /// </summary>
-internal sealed class CircuitBreakerAbstractConsumerInterceptor(ILogger logger) : IAbstractConsumerInterceptor
+internal sealed class CircuitBreakerConsumerInterceptor(ILogger<CircuitBreakerConsumerInterceptor> logger) : IAbstractConsumerInterceptor
 {
     public int Order => 100;
 

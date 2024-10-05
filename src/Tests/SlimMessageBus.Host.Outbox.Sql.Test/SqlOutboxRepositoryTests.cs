@@ -1,4 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Sql.Test;
+
+[Trait("Category", "Integration")]
+[Trait("Transport", "Outbox.Sql")]
 public static class SqlOutboxRepositoryTests
 {
     public class SaveTests : BaseSqlOutboxRepositoryTest
