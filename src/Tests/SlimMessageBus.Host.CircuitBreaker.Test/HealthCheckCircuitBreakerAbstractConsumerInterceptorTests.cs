@@ -59,7 +59,7 @@ public class CircuitBreakerAbstractConsumerInterceptorTests
     {
         accessor = new CircuitBreakerAccessor();
 
-        var h = new CircuitBreakerAbstractConsumerInterceptor(NullLogger<CircuitBreakerAbstractConsumerInterceptor>.Instance);
+        var h = new CircuitBreakerConsumerInterceptor(NullLogger<CircuitBreakerConsumerInterceptor>.Instance);
 
         var serviceCollection = new ServiceCollection();
         serviceCollection.TryAddSingleton(accessor);

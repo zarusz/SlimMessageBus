@@ -9,16 +9,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MQTTnet " Version="4.1.4.563" />
+    <PackageReference Include="MQTTnet" Version="4.3.7.1207" />
     <PackageReference Include="MQTTnet.Extensions.ManagedClient" Version="4.3.7.1207" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Update="MQTTnet" Version="4.3.7.1207" />
   </ItemGroup>
 
 </Project>
