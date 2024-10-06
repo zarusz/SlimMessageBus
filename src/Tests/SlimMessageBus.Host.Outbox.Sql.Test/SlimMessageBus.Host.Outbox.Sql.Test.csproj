@@ -8,6 +8,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\SlimMessageBus.Host.Outbox.Sql\SlimMessageBus.Host.Outbox.Sql.csproj" />
+		<ProjectReference Include="..\SlimMessageBus.Host.Test.Common\SlimMessageBus.Host.Test.Common.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

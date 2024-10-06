@@ -7,7 +7,7 @@ public sealed class OutboxSendingTaskTests
     public class DispatchBatchTests
     {
         private readonly ILoggerFactory _loggerFactory;
-        private readonly Mock<IOutboxRepository> _outboxRepositoryMock;
+        private readonly Mock<IOutboxMessageRepository> _outboxRepositoryMock;
         private readonly Mock<IMessageBusBulkProducer> _producerMock;
         private readonly Mock<IMessageBusTarget> _messageBusTargetMock;
         private readonly OutboxSettings _outboxSettings;
@@ -16,14 +16,14 @@ public sealed class OutboxSendingTaskTests
 
         public DispatchBatchTests()
         {
-            _outboxRepositoryMock = new Mock<IOutboxRepository>();
+            _outboxRepositoryMock = new Mock<IOutboxMessageRepository>();
             _producerMock = new Mock<IMessageBusBulkProducer>();
             _messageBusTargetMock = new Mock<IMessageBusTarget>();
             _outboxSettings = new OutboxSettings { MaxDeliveryAttempts = 5 };
             _serviceProvider = Mock.Of<IServiceProvider>();
             _loggerFactory = new NullLoggerFactory();
 
-            _sut = new OutboxSendingTask(_loggerFactory, _outboxSettings, _serviceProvider);
+            _sut = new OutboxSendingTask(_loggerFactory, _outboxSettings, new CurrentTimeProvider(), _serviceProvider);
         }
 
         [Fact]
@@ -88,7 +88,7 @@ public sealed class OutboxSendingTaskTests
 
     public class ProcessMessagesTests
     {
-        private readonly Mock<IOutboxRepository> _mockOutboxRepository;
+        private readonly Mock<IOutboxMessageRepository> _mockOutboxRepository;
         private readonly Mock<ICompositeMessageBus> _mockCompositeMessageBus;
         private readonly Mock<IMessageBusTarget> _mockMessageBusTarget;
         private readonly Mock<IMasterMessageBus> _mockMasterMessageBus;
@@ -98,7 +98,7 @@ public sealed class OutboxSendingTaskTests
 
         public ProcessMessagesTests()
         {
-            _mockOutboxRepository = new Mock<IOutboxRepository>();
+            _mockOutboxRepository = new Mock<IOutboxMessageRepository>();
             _mockCompositeMessageBus = new Mock<ICompositeMessageBus>();
             _mockMessageBusTarget = new Mock<IMessageBusTarget>();
             _mockMasterMessageBus = new Mock<IMasterMessageBus>();
@@ -110,7 +110,7 @@ public sealed class OutboxSendingTaskTests
                 MessageTypeResolver = new Mock<IMessageTypeResolver>().Object
             };
 
-            _sut = new OutboxSendingTask(NullLoggerFactory.Instance, _outboxSettings, null);
+            _sut = new OutboxSendingTask(NullLoggerFactory.Instance, _outboxSettings, new CurrentTimeProvider(), null);
         }
 
         [Fact]

@@ -35,10 +35,11 @@ public static class MessageBusBuilderExtensions
 
             services.AddSingleton<OutboxSendingTask>();
             services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageBusLifecycleInterceptor, OutboxSendingTask>(sp => sp.GetRequiredService<OutboxSendingTask>()));
-            services.TryAdd(ServiceDescriptor.Singleton<IOutboxNotificationService, OutboxSendingTask>(sp => sp.GetRequiredService<OutboxSendingTask>()));
+            services.TryAddSingleton<IOutboxNotificationService>(sp => sp.GetRequiredService<OutboxSendingTask>());
 
             services.TryAddSingleton<IInstanceIdProvider, DefaultInstanceIdProvider>();
             services.TryAddSingleton<IOutboxLockRenewalTimerFactory, OutboxLockRenewalTimerFactory>();
+            services.TryAddScoped<IOutboxMessageFactory>(svp => svp.GetRequiredService<IOutboxMessageRepository>());
 
             services.TryAddSingleton(svp =>
             {
