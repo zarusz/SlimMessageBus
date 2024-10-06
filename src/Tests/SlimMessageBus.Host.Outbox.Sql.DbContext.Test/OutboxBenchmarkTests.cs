@@ -1,12 +1,16 @@
-﻿namespace SlimMessageBus.Host.Outbox.DbContext.Test;
+﻿namespace SlimMessageBus.Host.Outbox.Sql.DbContext.Test;
 
 using System.Net.Mime;
 
 using Microsoft.EntityFrameworkCore.Migrations;
 
+using SlimMessageBus;
+using SlimMessageBus.Host;
+using SlimMessageBus.Host.Outbox;
 using SlimMessageBus.Host.Outbox.Services;
+using SlimMessageBus.Host.Outbox.Sql.DbContext;
+using SlimMessageBus.Host.Outbox.Sql.DbContext.Test.DataAccess;
 using SlimMessageBus.Host.RabbitMQ;
-
 
 /// <summary>
 /// This test should help to understand the runtime performance and overhead of the outbox feature.
@@ -151,10 +155,10 @@ public class OutboxBenchmarkTests(ITestOutputHelper testOutputHelper) : BaseOutb
         var events = Enumerable.Range(0, messageCount).Select(x => new CustomerCreatedEvent(Guid.NewGuid(), $"John {x:000}", surnames[x % surnames.Length])).ToList();
         var store = ServiceProvider!.GetRequiredService<TestEventCollector<CustomerCreatedEvent>>();
 
-        OutboxSendingTask outboxSendingTask = null;
+        OutboxSendingTask<SqlOutboxMessage, Guid> outboxSendingTask = null;
         if (_useOutbox)
         {
-            outboxSendingTask = ServiceProvider.GetRequiredService<OutboxSendingTask>();
+            outboxSendingTask = ServiceProvider.GetRequiredService<OutboxSendingTask<SqlOutboxMessage, Guid>>();
 
             // migrate data context
             await outboxSendingTask.OnBusLifecycle(Interceptor.MessageBusLifecycleEventType.Created, null);
@@ -197,7 +201,7 @@ public class OutboxBenchmarkTests(ITestOutputHelper testOutputHelper) : BaseOutb
         var outboxPublishTimerElapsed = TimeSpan.Zero;
         if (_useOutbox)
         {
-            var outputRepository = ServiceProvider.GetRequiredService<IOutboxRepository>();
+            var outputRepository = ServiceProvider.GetRequiredService<IOutboxMessageRepository<SqlOutboxMessage, Guid>>();
 
             var outboxTimer = Stopwatch.StartNew();
             var publishCount = await outboxSendingTask.SendMessages(ServiceProvider, outputRepository, CancellationToken.None);

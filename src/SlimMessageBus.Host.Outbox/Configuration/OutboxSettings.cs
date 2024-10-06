@@ -36,9 +36,9 @@ public class OutboxSettings
     /// Sent message cleanup settings.
     /// </summary>
     public OutboxMessageCleanupSettings MessageCleanup { get; set; } = new();
-
     /// <summary>
     /// Type resolver which is responsible for converting message type into the Outbox table column MessageType
     /// </summary>
     public IMessageTypeResolver MessageTypeResolver { get; set; } = new AssemblyQualifiedNameMessageTypeResolver();
 }
+

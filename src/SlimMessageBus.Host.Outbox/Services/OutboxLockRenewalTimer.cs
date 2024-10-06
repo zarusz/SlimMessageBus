@@ -1,20 +1,19 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Services;
-using SlimMessageBus.Host.Outbox;
 
-public sealed class OutboxLockRenewalTimer : IOutboxLockRenewalTimer
+internal sealed class OutboxLockRenewalTimer<TOutboxMessage, TOutboxMessageKey> : IOutboxLockRenewalTimer
+    where TOutboxMessage : OutboxMessage<TOutboxMessageKey>
 {
     private readonly object _lock;
     private readonly Timer _timer;
-    private readonly ILogger<OutboxLockRenewalTimer> _logger;
-    private readonly IOutboxRepository _outboxRepository;
+    private readonly ILogger<OutboxLockRenewalTimer<TOutboxMessage, TOutboxMessageKey>> _logger;
+    private readonly IOutboxMessageRepository<TOutboxMessage, TOutboxMessageKey> _outboxRepository;
     private readonly CancellationToken _cancellationToken;
     private readonly Action<Exception> _lockLost;
     private bool _active;
     private bool _renewingLock;
 
-    public OutboxLockRenewalTimer(ILogger<OutboxLockRenewalTimer> logger, IOutboxRepository outboxRepository, IInstanceIdProvider instanceIdProvider, TimeSpan lockDuration, TimeSpan lockRenewalInterval, Action<Exception> lockLost, CancellationToken cancellationToken)
+    public OutboxLockRenewalTimer(ILogger<OutboxLockRenewalTimer<TOutboxMessage, TOutboxMessageKey>> logger, IOutboxMessageRepository<TOutboxMessage, TOutboxMessageKey> outboxRepository, IInstanceIdProvider instanceIdProvider, TimeSpan lockDuration, TimeSpan lockRenewalInterval, Action<Exception> lockLost, CancellationToken cancellationToken)
     {
-
         Debug.Assert(lockRenewalInterval < lockDuration);
 
         _logger = logger;

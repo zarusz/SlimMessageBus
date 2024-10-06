@@ -103,7 +103,7 @@ jobs:
             --verbosity normal \
             --logger "trx;LogFilePrefix=Integration" \
             --collect:"XPlat Code Coverage;Format=opencover" \
-            --filter "Category=Integration"
+            --filter "Category=Integration&Transport=Outbox"
         working-directory: ./src
         env:
           # Connects to the Azure cloud
@@ -185,7 +185,7 @@ jobs:
           name: .NET Tests
           path: ./test-results/*.trx
           reporter: dotnet-trx
-          fail-on-error: false
+          fail-on-error: true
 
       - name: Copy NuGet packages
         shell: bash
