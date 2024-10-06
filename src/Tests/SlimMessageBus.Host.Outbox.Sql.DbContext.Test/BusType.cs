@@ -1,4 +1,4 @@
-﻿namespace SlimMessageBus.Host.Outbox.DbContext.Test;
+﻿namespace SlimMessageBus.Host.Outbox.Sql.DbContext.Test;
 
 public enum BusType
 {

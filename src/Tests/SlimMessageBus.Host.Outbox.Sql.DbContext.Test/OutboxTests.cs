@@ -1,7 +1,13 @@
-﻿namespace SlimMessageBus.Host.Outbox.DbContext.Test;
+﻿namespace SlimMessageBus.Host.Outbox.Sql.DbContext.Test;
 
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Migrations;
 
+using SlimMessageBus;
+using SlimMessageBus.Host;
+using SlimMessageBus.Host.Outbox;
+using SlimMessageBus.Host.Outbox.Sql.DbContext;
+using SlimMessageBus.Host.Outbox.Sql.DbContext.Test.DataAccess;
 using SlimMessageBus.Host.Sql.Common;
 
 [Trait("Category", "Integration")]
@@ -12,6 +18,7 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseOutboxIntegra
     private bool _testParamUseHybridBus;
     private TransactionType _testParamTransactionType;
     private BusType _testParamBusType;
+    private SqlOutboxMessageIdGenerationMode _testParamIdGenerationMode;
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
@@ -98,40 +105,43 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseOutboxIntegra
                 opts.MessageCleanup.Interval = TimeSpan.FromSeconds(10);
                 opts.MessageCleanup.Age = TimeSpan.FromMinutes(1);
                 opts.SqlSettings.DatabaseSchemaName = CustomerContext.Schema;
+                opts.IdGeneration.Mode = _testParamIdGenerationMode;
+                // We want to see the time output in the logs
+                opts.MeasureSqlOperations = true;
             });
         });
 
         services.AddSingleton<TestEventCollector<CustomerCreatedEvent>>();
 
         // Entity Framework setup - application specific EF DbContext
-        services.AddDbContext<CustomerContext>(
-            options => options.UseSqlServer(
+        services.AddDbContext<CustomerContext>(options => options
+            .UseSqlServer(
                 Secrets.Service.PopulateSecrets(Configuration.GetConnectionString("DefaultConnection")),
-                x => x.MigrationsHistoryTable(HistoryRepository.DefaultTableName, CustomerContext.Schema)));
+                x => x.MigrationsHistoryTable(HistoryRepository.DefaultTableName, CustomerContext.Schema))
+            .ConfigureWarnings(w => w.Ignore(SqlServerEventId.SavepointsDisabledBecauseOfMARS)));
     }
 
     public const string InvalidLastname = "Exception";
+    private readonly string[] _surnames = ["Doe", "Smith", InvalidLastname];
+
 
     [Theory]
-    [InlineData([TransactionType.SqlTransaction, BusType.AzureSB, 100])]
-    [InlineData([TransactionType.TransactionScope, BusType.AzureSB, 100])]
-    [InlineData([TransactionType.SqlTransaction, BusType.Kafka, 100])]
-    public async Task Given_CommandHandlerInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoDataSaved_And_NoEventRaised(TransactionType transactionType, BusType busType, int messageCount)
+    [InlineData([TransactionType.SqlTransaction, BusType.AzureSB, 100, SqlOutboxMessageIdGenerationMode.ClientGuidGenerator])]
+    [InlineData([TransactionType.SqlTransaction, BusType.AzureSB, 100, SqlOutboxMessageIdGenerationMode.DatabaseGeneratedSequentialGuid])]
+    [InlineData([TransactionType.SqlTransaction, BusType.AzureSB, 100, SqlOutboxMessageIdGenerationMode.DatabaseGeneratedGuid])]
+    [InlineData([TransactionType.TransactionScope, BusType.AzureSB, 100, SqlOutboxMessageIdGenerationMode.ClientGuidGenerator])]
+    [InlineData([TransactionType.SqlTransaction, BusType.Kafka, 100, SqlOutboxMessageIdGenerationMode.ClientGuidGenerator])]
+    public async Task Given_CommandHandlerInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoDataSaved_And_NoEventRaised(TransactionType transactionType, BusType busType, int messageCount, SqlOutboxMessageIdGenerationMode mode)
     {
         // arrange
         _testParamUseHybridBus = true;
         _testParamTransactionType = transactionType;
         _testParamBusType = busType;
+        _testParamIdGenerationMode = mode;
 
-        await PerformDbOperation(async (context, _) =>
-        {
-            // migrate db
-            await context.Database.DropSchemaIfExistsAsync(context.Model.GetDefaultSchema());
-            await context.Database.MigrateAsync();
-        });
+        await PrepareDatabase();
 
-        var surnames = new[] { "Doe", "Smith", InvalidLastname };
-        var commands = Enumerable.Range(0, messageCount).Select(x => new CreateCustomerCommand($"John {x:000}", surnames[x % surnames.Length]));
+        var commands = Enumerable.Range(0, messageCount).Select(x => new CreateCustomerCommand($"John {x:000}", _surnames[x % _surnames.Length])).ToList();
         var validCommands = commands.Where(x => !string.Equals(x.Lastname, InvalidLastname, StringComparison.InvariantCulture)).ToList();
 
         await EnsureConsumersStarted();
@@ -182,25 +192,33 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseOutboxIntegra
         customerCountWithValidLastname.Should().Be(validCommands.Count);
     }
 
+    private Task PrepareDatabase()
+        => PerformDbOperation(async (context, _) =>
+        {
+            // migrate db
+            await context.Database.MigrateAsync();
+            await context.Customers.ExecuteDeleteAsync();
+#pragma warning disable EF1002 // Risk of vulnerability to SQL injection.
+            await context.Database.ExecuteSqlRawAsync($"delete from {context.Model.GetDefaultSchema()}.Outbox");
+#pragma warning restore EF1002 // Risk of vulnerability to SQL injection.
+        });
+
     [Theory]
-    [InlineData([BusType.AzureSB, 100])]
-    [InlineData([BusType.Kafka, 100])]
-    public async Task Given_PublishExternalEventInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoEventRaised(BusType busType, int messageCount)
+    [InlineData([BusType.AzureSB, 100, SqlOutboxMessageIdGenerationMode.ClientGuidGenerator])]
+    [InlineData([BusType.AzureSB, 100, SqlOutboxMessageIdGenerationMode.DatabaseGeneratedGuid])]
+    [InlineData([BusType.AzureSB, 100, SqlOutboxMessageIdGenerationMode.DatabaseGeneratedSequentialGuid])]
+    [InlineData([BusType.Kafka, 100, SqlOutboxMessageIdGenerationMode.ClientGuidGenerator])]
+    public async Task Given_PublishExternalEventInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoEventRaised(BusType busType, int messageCount, SqlOutboxMessageIdGenerationMode mode)
     {
         // arrange
         _testParamUseHybridBus = false;
         _testParamTransactionType = TransactionType.TransactionScope;
         _testParamBusType = busType;
 
-        await PerformDbOperation(async (context, _) =>
-        {
-            // migrate db
-            await context.Database.DropSchemaIfExistsAsync(context.Model.GetDefaultSchema());
-            await context.Database.MigrateAsync();
-        });
+        await PrepareDatabase();
 
         var surnames = new[] { "Doe", "Smith", InvalidLastname };
-        var events = Enumerable.Range(0, messageCount).Select(x => new CustomerCreatedEvent(Guid.NewGuid(), $"John {x:000}", surnames[x % surnames.Length]));
+        var events = Enumerable.Range(0, messageCount).Select(x => new CustomerCreatedEvent(Guid.NewGuid(), $"John {x:000}", surnames[x % surnames.Length])).ToList();
         var validEvents = events.Where(x => !string.Equals(x.Lastname, InvalidLastname, StringComparison.InvariantCulture)).ToList();
 
         await EnsureConsumersStarted();

@@ -3,7 +3,7 @@
   <Import Project="../Common.NuGet.Properties.xml" />
 
   <PropertyGroup>
-    <Version>3.0.0-rc11</Version>
+    <Version>3.0.0-rc12</Version>
     <Description>Core serialization interfaces of SlimMessageBus</Description>
     <PackageTags>SlimMessageBus</PackageTags>
   </PropertyGroup>

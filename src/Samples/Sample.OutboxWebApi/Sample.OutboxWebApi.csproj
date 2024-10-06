@@ -20,9 +20,7 @@
     <ProjectReference Include="..\..\SlimMessageBus.Host.AspNetCore\SlimMessageBus.Host.AspNetCore.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.AzureServiceBus\SlimMessageBus.Host.AzureServiceBus.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Memory\SlimMessageBus.Host.Memory.csproj" />
-    <ProjectReference Include="..\..\SlimMessageBus.Host.Outbox.DbContext\SlimMessageBus.Host.Outbox.DbContext.csproj" />
-    <ProjectReference Include="..\..\SlimMessageBus.Host.Outbox.Sql\SlimMessageBus.Host.Outbox.Sql.csproj" />
-    <ProjectReference Include="..\..\SlimMessageBus.Host.Outbox\SlimMessageBus.Host.Outbox.csproj" />
+    <ProjectReference Include="..\..\SlimMessageBus.Host.Outbox.Sql.DbContext\SlimMessageBus.Host.Outbox.Sql.DbContext.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Json\SlimMessageBus.Host.Serialization.Json.csproj" />
     <ProjectReference Include="..\..\Tools\SecretStore\SecretStore.csproj" />
   </ItemGroup>

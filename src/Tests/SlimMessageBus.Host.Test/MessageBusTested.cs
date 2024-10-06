@@ -5,12 +5,13 @@ public class MessageBusTested : MessageBusBase
     internal int _startedCount;
     internal int _stoppedCount;
 
-    public MessageBusTested(MessageBusSettings settings)
+    public MessageBusTested(MessageBusSettings settings, ICurrentTimeProvider currentTimeProvider)
         : base(settings)
     {
         // by default no responses will arrive
         OnReply = (type, payload, req) => null;
 
+        CurrentTimeProvider = currentTimeProvider;
         OnBuildProvider();
     }
 
@@ -78,11 +79,7 @@ public class MessageBusTested : MessageBusBase
         return new(dispatched, null);
     }
 
-    public override DateTimeOffset CurrentTime => CurrentTimeProvider();
-
     #endregion
-
-    public Func<DateTimeOffset> CurrentTimeProvider { get; set; } = () => DateTimeOffset.UtcNow;
 
     public void TriggerPendingRequestCleanup()
     {

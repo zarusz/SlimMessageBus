@@ -15,7 +15,7 @@ public abstract class MessageBusBase<TProviderSettings> : MessageBusBase where T
     }
 }
 
-public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMessageBus, IMessageScopeFactory, IMessageHeadersFactory, ICurrentTimeProvider, IResponseProducer, IResponseConsumer, IMessageBusBulkProducer
+public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMessageBus, IMessageScopeFactory, IMessageHeadersFactory, IResponseProducer, IResponseConsumer, IMessageBusBulkProducer
 {
     private readonly ILogger _logger;
     private CancellationTokenSource _cancellationTokenSource = new();
@@ -102,6 +102,8 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         RuntimeTypeCache = new RuntimeTypeCache();
 
         MessageBusTarget = new MessageBusProxy(this, Settings.ServiceProvider);
+
+        CurrentTimeProvider = settings.ServiceProvider.GetRequiredService<ICurrentTimeProvider>();
     }
 
     protected void AddInit(Task task)
@@ -174,7 +176,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
     protected virtual void BuildPendingRequestStore()
     {
         PendingRequestStore = new InMemoryPendingRequestStore();
-        PendingRequestManager = new PendingRequestManager(PendingRequestStore, () => CurrentTime, TimeSpan.FromSeconds(1), LoggerFactory);
+        PendingRequestManager = new PendingRequestManager(PendingRequestStore, () => CurrentTimeProvider.CurrentTime, TimeSpan.FromSeconds(1), LoggerFactory);
         PendingRequestManager.Start();
     }
 
@@ -387,7 +389,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
 
     protected void AddConsumer(AbstractConsumer consumer) => _consumers.Add(consumer);
 
-    public virtual DateTimeOffset CurrentTime => DateTimeOffset.UtcNow;
+    public ICurrentTimeProvider CurrentTimeProvider { get; protected set; }
 
     public virtual int? MaxMessagesPerTransaction => null;
 
@@ -513,7 +515,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         path ??= GetDefaultPath(requestType, producerSettings);
         timeout ??= GetDefaultRequestTimeout(requestType, producerSettings);
 
-        var created = CurrentTime;
+        var created = CurrentTimeProvider.CurrentTime;
         var expires = created.Add(timeout.Value);
 
         // generate the request guid
@@ -670,7 +672,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable, IMasterMes
         {
             if (_logger.IsEnabled(LogLevel.Debug))
             {
-                var tookTimespan = CurrentTime.Subtract(requestState.Created);
+                var tookTimespan = CurrentTimeProvider.CurrentTime.Subtract(requestState.Created);
                 _logger.LogDebug("Response arrived for {Request} on path {Path} (time: {RequestTime} ms)", requestState, path, tookTimespan);
             }
 

@@ -1,4 +1,4 @@
-﻿namespace SlimMessageBus.Host.Outbox.DbContext.Test.DataAccess;
+﻿namespace SlimMessageBus.Host.Outbox.Sql.DbContext.Test.DataAccess;
 
 using Microsoft.EntityFrameworkCore;
 

@@ -14,7 +14,8 @@
 
 	<ItemGroup>
     <InternalsVisibleTo Include="SlimMessageBus.Host.Outbox.Test" />
-    <InternalsVisibleTo Include="SlimMessageBus.Host.Outbox.DbContext.Test" />
-	</ItemGroup>
+    <InternalsVisibleTo Include="SlimMessageBus.Host.Outbox.Sql.DbContext.Test" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+  </ItemGroup>
 
 </Project>

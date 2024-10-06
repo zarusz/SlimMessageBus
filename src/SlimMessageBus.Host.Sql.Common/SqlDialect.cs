@@ -2,6 +2,6 @@
 
 public enum SqlDialect
 {
-    SqlServer = 1
+    SqlServer = 1,
     // More to come
 }
