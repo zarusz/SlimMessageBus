@@ -15,6 +15,11 @@ using SlimMessageBus.Host;
 using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
+/// <summary>
+/// Runs the integration tests for the <see cref="ServiceBusMessageBus"/>.
+/// Notice that this test needs to run against a real Azure Service Bus infrastructure.
+/// Inside the GitHub Actions pipeline, the Azure Service Bus infrastructure is shared, and this tests attempts to isolate itself by using unique queue/topic names.
+/// </summary>
 [Trait("Category", "Integration")]
 public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<ServiceBusMessageBusIt>(testOutputHelper)
 {
@@ -29,6 +34,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
                 cfg.ConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
                 cfg.PrefetchCount = 100;
                 cfg.MaxConcurrentSessions = 20;
+                // auto-delete queues and topics after 5 minutes, we create temp topics and queues
                 cfg.TopologyProvisioning.CreateQueueOptions = o => o.AutoDeleteOnIdle = TimeSpan.FromMinutes(5);
                 cfg.TopologyProvisioning.CreateTopicOptions = o => o.AutoDeleteOnIdle = TimeSpan.FromMinutes(5);
             });
@@ -323,14 +329,10 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
     }
 
     private static string QueueName([CallerMemberName] string testName = null)
-    {
-        return $"smb-tests/{nameof(ServiceBusMessageBusIt)}/{testName}/{DateTimeOffset.UtcNow.Ticks}";
-    }
+        => $"smb-tests/{nameof(ServiceBusMessageBusIt)}/{testName}/{DateTimeOffset.UtcNow.Ticks}";
 
     private static string TopicName([CallerMemberName] string testName = null)
-    {
-        return QueueName(testName);
-    }
+        => QueueName(testName);
 }
 
 public record TestEvent(PingMessage Message, string MessageId, string SessionId);

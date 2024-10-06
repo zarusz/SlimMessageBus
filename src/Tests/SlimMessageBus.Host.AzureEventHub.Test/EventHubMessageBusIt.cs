@@ -10,14 +10,15 @@ using SlimMessageBus.Host;
 using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
+/// <summary>
+/// Runs the integration tests for the <see cref="EventHubMessageBus"/>.
+/// Notice that this test needs to run against a real Azure Event Hub infrastructure.
+/// Inside the GitHub Actions pipeline, the Azure Event Hub infrastructure is shared, and so if tests are run in parallel they might affect each other (flaky tests).
+/// </summary>
 [Trait("Category", "Integration")]
-public class EventHubMessageBusIt : BaseIntegrationTest<EventHubMessageBusIt>
+public class EventHubMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<EventHubMessageBusIt>(testOutputHelper)
 {
     private const int NumberOfMessages = 77;
-
-    public EventHubMessageBusIt(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
-    {
-    }
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
