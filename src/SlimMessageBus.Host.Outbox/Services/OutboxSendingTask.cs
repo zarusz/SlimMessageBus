@@ -1,12 +1,12 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Services;
 
-using SlimMessageBus;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.Outbox;
 
 internal class OutboxSendingTask(
     ILoggerFactory loggerFactory,
     OutboxSettings outboxSettings,
+    ICurrentTimeProvider currentTimeProvider,
     IServiceProvider serviceProvider)
     : IMessageBusLifecycleInterceptor, IOutboxNotificationService, IAsyncDisposable
 {
@@ -25,16 +25,17 @@ internal class OutboxSendingTask(
 
     private int _busStartCount;
 
-    private DateTime? _cleanupNextRun;
+    private DateTimeOffset? _cleanupNextRun;
 
     private bool ShouldRunCleanup()
     {
         if (_outboxSettings.MessageCleanup?.Enabled == true)
         {
-            var trigger = !_cleanupNextRun.HasValue || DateTime.UtcNow > _cleanupNextRun.Value;
+            var currentTime = currentTimeProvider.CurrentTime;
+            var trigger = !_cleanupNextRun.HasValue || currentTime > _cleanupNextRun.Value;
             if (trigger)
             {
-                _cleanupNextRun = DateTime.UtcNow.Add(_outboxSettings.MessageCleanup.Interval);
+                _cleanupNextRun = currentTime.Add(_outboxSettings.MessageCleanup.Interval);
             }
 
             return trigger;
@@ -160,7 +161,7 @@ internal class OutboxSendingTask(
             try
             {
                 await EnsureMigrateSchema(scope.ServiceProvider, _loopCts.Token);
-                var outboxRepository = scope.ServiceProvider.GetRequiredService<IOutboxRepository>();
+                var outboxRepository = scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository>();
                 do
                 {
                     if (_loopCts.Token.IsCancellationRequested)
@@ -175,7 +176,7 @@ internal class OutboxSendingTask(
                         if (!_loopCts.IsCancellationRequested && ShouldRunCleanup())
                         {
                             _logger.LogTrace("Running cleanup of sent messages");
-                            await outboxRepository.DeleteSent(DateTime.UtcNow.Add(-_outboxSettings.MessageCleanup.Age), _loopCts.Token).ConfigureAwait(false);
+                            await outboxRepository.DeleteSent(currentTimeProvider.CurrentTime.DateTime.Add(-_outboxSettings.MessageCleanup.Age), _loopCts.Token).ConfigureAwait(false);
                         }
                     }
                     catch (Exception e)
@@ -208,7 +209,7 @@ internal class OutboxSendingTask(
         }
     }
 
-    async internal Task<int> SendMessages(IServiceProvider serviceProvider, IOutboxRepository outboxRepository, CancellationToken cancellationToken)
+    async internal Task<int> SendMessages(IServiceProvider serviceProvider, IOutboxMessageRepository outboxRepository, CancellationToken cancellationToken)
     {
         var lockDuration = TimeSpan.FromSeconds(Math.Min(Math.Max(_outboxSettings.LockExpiration.TotalSeconds, 5), 30));
         if (lockDuration != _outboxSettings.LockExpiration)
@@ -252,7 +253,7 @@ internal class OutboxSendingTask(
         return count;
     }
 
-    async internal Task<(bool RunAgain, int Count)> ProcessMessages(IOutboxRepository outboxRepository, IReadOnlyCollection<OutboxMessage> outboxMessages, ICompositeMessageBus compositeMessageBus, IMessageBusTarget messageBusTarget, CancellationToken cancellationToken)
+    async internal Task<(bool RunAgain, int Count)> ProcessMessages(IOutboxMessageRepository outboxRepository, IReadOnlyCollection<OutboxMessage> outboxMessages, ICompositeMessageBus compositeMessageBus, IMessageBusTarget messageBusTarget, CancellationToken cancellationToken)
     {
         const int defaultBatchSize = 50;
 
@@ -325,7 +326,7 @@ internal class OutboxSendingTask(
         return (runAgain, count);
     }
 
-    async internal Task<(bool Success, int Published)> DispatchBatch(IOutboxRepository outboxRepository, IMessageBusBulkProducer producer, IMessageBusTarget messageBusTarget, IReadOnlyCollection<OutboxBulkMessage> batch, string busName, string path, CancellationToken cancellationToken)
+    async internal Task<(bool Success, int Published)> DispatchBatch(IOutboxMessageRepository outboxRepository, IMessageBusBulkProducer producer, IMessageBusTarget messageBusTarget, IReadOnlyCollection<OutboxBulkMessage> batch, string busName, string path, CancellationToken cancellationToken)
     {
         _logger.LogDebug("Publishing batch of {MessageCount} messages to pathGroup {Path} on {BusName} bus", batch.Count, path, busName);
 

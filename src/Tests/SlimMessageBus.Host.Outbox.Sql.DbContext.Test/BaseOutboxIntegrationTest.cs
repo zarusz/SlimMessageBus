@@ -1,4 +1,6 @@
-﻿namespace SlimMessageBus.Host.Outbox.DbContext.Test;
+﻿namespace SlimMessageBus.Host.Outbox.Sql.DbContext.Test;
+
+using SlimMessageBus.Host.Outbox.Sql.DbContext.Test.DataAccess;
 
 public abstract class BaseOutboxIntegrationTest<T>(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<T>(testOutputHelper)
 {

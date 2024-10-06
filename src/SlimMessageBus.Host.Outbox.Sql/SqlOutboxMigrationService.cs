@@ -2,7 +2,7 @@
 
 public class SqlOutboxMigrationService : CommonSqlMigrationService<CommonSqlRepository, SqlSettings>, IOutboxMigrationService
 {
-    public SqlOutboxMigrationService(ILogger<SqlOutboxMigrationService> logger, ISqlOutboxRepository repository, ISqlTransactionService transactionService, SqlOutboxSettings settings)
+    public SqlOutboxMigrationService(ILogger<SqlOutboxMigrationService> logger, ISqlMessageOutboxRepository repository, ISqlTransactionService transactionService, SqlOutboxSettings settings)
         : base(logger, (CommonSqlRepository)repository, transactionService, settings.SqlSettings)
     {
     }

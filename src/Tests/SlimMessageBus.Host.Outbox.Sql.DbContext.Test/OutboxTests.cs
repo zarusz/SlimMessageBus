@@ -1,7 +1,12 @@
-﻿namespace SlimMessageBus.Host.Outbox.DbContext.Test;
+﻿namespace SlimMessageBus.Host.Outbox.Sql.DbContext.Test;
 
 using Microsoft.EntityFrameworkCore.Migrations;
 
+using SlimMessageBus;
+using SlimMessageBus.Host;
+using SlimMessageBus.Host.Outbox;
+using SlimMessageBus.Host.Outbox.Sql.DbContext;
+using SlimMessageBus.Host.Outbox.Sql.DbContext.Test.DataAccess;
 using SlimMessageBus.Host.Sql.Common;
 
 [Trait("Category", "Integration")]
@@ -12,6 +17,7 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseOutboxIntegra
     private bool _testParamUseHybridBus;
     private TransactionType _testParamTransactionType;
     private BusType _testParamBusType;
+    private OutboxMessageIdGenerationMode _testParamIdGenerationMode;
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
@@ -121,6 +127,7 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseOutboxIntegra
                 opts.MessageCleanup.Interval = TimeSpan.FromSeconds(10);
                 opts.MessageCleanup.Age = TimeSpan.FromMinutes(1);
                 opts.SqlSettings.DatabaseSchemaName = CustomerContext.Schema;
+                opts.IdGeneration.Mode = _testParamIdGenerationMode;
             });
         });
 
@@ -136,15 +143,18 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseOutboxIntegra
     public const string InvalidLastname = "Exception";
 
     [Theory]
-    [InlineData([TransactionType.SqlTransaction, BusType.AzureSB, 100])]
-    [InlineData([TransactionType.TransactionScope, BusType.AzureSB, 100])]
-    [InlineData([TransactionType.SqlTransaction, BusType.Kafka, 100])]
-    public async Task Given_CommandHandlerInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoDataSaved_And_NoEventRaised(TransactionType transactionType, BusType busType, int messageCount)
+    [InlineData([TransactionType.SqlTransaction, BusType.AzureSB, 100, OutboxMessageIdGenerationMode.ClientGuidGenerator])]
+    [InlineData([TransactionType.SqlTransaction, BusType.AzureSB, 100, OutboxMessageIdGenerationMode.DatabaseGeneratedSequentialGuid])]
+    [InlineData([TransactionType.SqlTransaction, BusType.AzureSB, 100, OutboxMessageIdGenerationMode.DatabaseGeneratedGuid])]
+    [InlineData([TransactionType.TransactionScope, BusType.AzureSB, 100, OutboxMessageIdGenerationMode.ClientGuidGenerator])]
+    [InlineData([TransactionType.SqlTransaction, BusType.Kafka, 100, OutboxMessageIdGenerationMode.ClientGuidGenerator])]
+    public async Task Given_CommandHandlerInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoDataSaved_And_NoEventRaised(TransactionType transactionType, BusType busType, int messageCount, OutboxMessageIdGenerationMode mode)
     {
         // arrange
         _testParamUseHybridBus = true;
         _testParamTransactionType = transactionType;
         _testParamBusType = busType;
+        _testParamIdGenerationMode = mode;
 
         await PerformDbOperation(async (context, _) =>
         {
@@ -206,9 +216,11 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseOutboxIntegra
     }
 
     [Theory]
-    [InlineData([BusType.AzureSB, 100])]
-    [InlineData([BusType.Kafka, 100])]
-    public async Task Given_PublishExternalEventInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoEventRaised(BusType busType, int messageCount)
+    [InlineData([BusType.AzureSB, 100, OutboxMessageIdGenerationMode.ClientGuidGenerator])]
+    [InlineData([BusType.AzureSB, 100, OutboxMessageIdGenerationMode.DatabaseGeneratedGuid])]
+    [InlineData([BusType.AzureSB, 100, OutboxMessageIdGenerationMode.DatabaseGeneratedSequentialGuid])]
+    [InlineData([BusType.Kafka, 100, OutboxMessageIdGenerationMode.ClientGuidGenerator])]
+    public async Task Given_PublishExternalEventInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoEventRaised(BusType busType, int messageCount, OutboxMessageIdGenerationMode mode)
     {
         // arrange
         _testParamUseHybridBus = false;

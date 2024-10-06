@@ -12,6 +12,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
     - [UseTransactionScope](#usetransactionscope)
     - [UseSqlTransaction](#usesqltransaction)
 - [How it works](#how-it-works)
+- [Important note](#important-note)
 
 ## Introduction
 
@@ -27,15 +28,15 @@ Outbox plugin can work in combination with any transport provider.
 
 ### Entity Framework
 
-> Required: [`SlimMessageBus.Host.Outbox.DbContext`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.DbContext)
+> Required: [`SlimMessageBus.Host.Outbox.Sql.DbContext`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql.DbContext)
 
 ```cs
-using SlimMessageBus.Host.Outbox.DbContext;
+using SlimMessageBus.Host.Outbox.Sql.DbContext;
 ```
 
 Consider the following example (from [Samples](../src/Samples/Sample.OutboxWebApi/Program.cs)):
 
-- `services.AddOutboxUsingDbContext<CustomerContext>(...)` is used to add the [Outbox.DbContext](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.DbContext) plugin to the container.
+- `services.AddOutboxUsingDbContext<CustomerContext>(...)` is used to add the [Outbox.DbContext](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql.DbContext) plugin to the container.
 - `CustomerContext` is the application specific Entity Framework `DbContext`.
 - `CustomerCreatedEvent` is produced on the `AzureSB` child bus, the bus will deliver these events via outbox - see `.UseOutbox()`
 - `CreateCustomerCommand` is consumed on the `Memory` child bus, each command is wrapped in an SQL transaction - see `UseSqlTransaction()`
@@ -112,7 +113,7 @@ When applied on the (child) bus level then all consumers (or handlers) will inhe
 
 #### UseSqlTransaction
 
-> Required: [`SlimMessageBus.Host.Outbox.Sql`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql) or [`SlimMessageBus.Host.Outbox.DbContext`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.DbContext)
+> Required: [`SlimMessageBus.Host.Outbox.Sql`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql) or [`SlimMessageBus.Host.Outbox.Sql.DbContext`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql.DbContext)
 
 ```cs
 using SlimMessageBus.Host.Outbox.Sql;
@@ -149,6 +150,6 @@ When applied on the (child) bus level then all consumers (or handlers) will inhe
 
 ## Important note
 
-As the outbox can be processed by instance of the application that did not originally process it, it is important to ensure that all active instances maintian the same message registrations (and compatible JSON schema definitions). 
+As the outbox can be processed by instance of the application that did not originally process it, it is important to ensure that all active instances maintain the same message registrations (and compatible JSON schema definitions).
 
 A message that fails to deserialize will be flagged as invalid by setting the associated `DeliveryAborted` field in the `Outbox` table, to `1`. It is safe to manually reset this field value to `0` once the version incompatibility has been resolved.

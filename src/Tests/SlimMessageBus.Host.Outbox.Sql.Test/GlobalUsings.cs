@@ -9,6 +9,7 @@ global using Microsoft.Data.SqlClient;
 global using Microsoft.Extensions.Logging.Abstractions;
 
 global using SlimMessageBus.Host.Sql.Common;
+global using SlimMessageBus.Host.Test.Common;
 
 global using Testcontainers.MsSql;
 
