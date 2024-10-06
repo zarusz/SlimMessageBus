@@ -20,8 +20,10 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    concurrency: int-tests
-
+    # allow to run concurrently within separate branches
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       # - name: Dump GitHub context
       #   env:
@@ -120,10 +122,10 @@ jobs:
           azure_eventhub_connectionstring: ${{ secrets.azure_eventhub_connectionstring }}
           azure_storagecontainer_connectionstring: ${{ secrets.azure_storagecontainer_connectionstring }}
 
-          #kafka_brokers: ${{ secrets.kafka_brokers }}
-          #kafka_username: ${{ secrets.kafka_username }}
-          #kafka_password: ${{ secrets.kafka_password }}
-          #kafka_secure: ${{ secrets.kafka_secure }}
+          _kafka_brokers: ${{ secrets.kafka_brokers }}
+          _kafka_username: ${{ secrets.kafka_username }}
+          _kafka_password: ${{ secrets.kafka_password }}
+          _kafka_secure: ${{ secrets.kafka_secure }}
 
           _mqtt_server: ${{ secrets.mqtt_server }}
           _mqtt_port: ${{ secrets.mqtt_port }}
@@ -135,7 +137,7 @@ jobs:
 
           _redis_connectionstring: ${{ secrets.redis_connectionstring }}
 
-          sqlserver_connectionstring: ${{ secrets.sqlserver_connectionstring }}
+          _sqlserver_connectionstring: ${{ secrets.sqlserver_connectionstring }}
 
           # Connects to the local Test Containers
           kafka_brokers: localhost:9092
@@ -153,7 +155,7 @@ jobs:
 
           redis_connectionstring: localhost:6379
 
-          #sqlserver_connectionstring: "Server=localhost;Initial Catalog=SlimMessageBus_Outbox;User ID=sa;Password=SuperSecretP@55word;TrustServerCertificate=true;MultipleActiveResultSets=true;"
+          sqlserver_connectionstring: "Server=localhost;Initial Catalog=SlimMessageBus_Outbox;User ID=sa;Password=SuperSecretP@55word;TrustServerCertificate=true;MultipleActiveResultSets=true;"
 
           nats_endpoint: "nats://localhost:4222"
 
