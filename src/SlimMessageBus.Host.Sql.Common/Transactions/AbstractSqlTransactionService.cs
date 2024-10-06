@@ -31,12 +31,13 @@ public abstract class AbstractSqlTransactionService(SqlConnection connection) : 
 
     public async virtual Task BeginTransaction()
     {
-        if (_transactionCount++ == 0)
+        if (_transactionCount == 0)
         {
             // Start transaction
+            await OnBeginTransaction();
             _transactionFailed = false;
             _transactionCompleted = false;
-            await OnBeginTransaction();
+            _transactionCount++;
         }
     }
 

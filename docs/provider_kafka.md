@@ -29,7 +29,7 @@ When troubleshooting or fine tuning it is worth reading the `librdkafka` and `co
 
 ## Configuration properties
 
-Producer, consumer and global configuration properties are described [here](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md).
+Producer, consumer and global configuration properties are described [here](https://github.com/confluentinc/librdkafka/blob/master/CONFIGURATION.md).
 The configuration on the underlying Kafka client can be adjusted like so:
 
 ```cs
@@ -53,7 +53,7 @@ services.AddSlimMessageBus(mbb =>
 
 ### Minimizing message latency
 
-There is a good description [here](https://github.com/edenhill/librdkafka/wiki/How-to-decrease-message-latency) on improving the latency by applying producer/consumer settings on librdkafka. Here is how you enter the settings using SlimMessageBus:
+There is a good description [here](https://github.com/confluentinc/librdkafka/wiki/How-to-decrease-message-latency) on improving the latency by applying producer/consumer settings on librdkafka. Here is how you enter the settings using SlimMessageBus:
 
 ```cs
 services.AddSlimMessageBus(mbb =>
@@ -176,7 +176,7 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
 {
    public IConsumerContext Context { get; set; }
 
-   public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
+   public Task OnHandle(PingMessage message)
    {
       // SMB Kafka transport specific extension:
       var transportMessage = Context.GetTransportMessage();
@@ -211,7 +211,8 @@ mbb
 
 ### Offset Commit
 
-In the current Kafka provider implementation, SMB handles the manual commit of topic-partition offsets for the consumer. This configuration is controlled through the following methods on the consumer builder:
+In the current Kafka provider implementation, SMB handles the manual commit of topic-partition offsets for the consumer.Th
+is configuration is controlled through the following methods on the consumer builder:
 
 - `CheckpointEvery(int)` – Commits the offset after a specified number of processed messages.
 - `CheckpointAfter(TimeSpan)` – Commits the offset after a specified time interval.

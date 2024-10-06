@@ -4,7 +4,7 @@ public abstract class SqlTransactionConsumerInterceptor
 {
 }
 
-/// <summary>
+/// <summary>s
 /// Wraps the consumer in an <see cref="SqlTransaction"/> (conditionally).
 /// </summary>
 /// <typeparam name="T"></typeparam>
