@@ -12,8 +12,8 @@ using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.Memory;
 using SlimMessageBus.Host.Outbox;
-using SlimMessageBus.Host.Outbox.DbContext;
 using SlimMessageBus.Host.Outbox.Sql;
+using SlimMessageBus.Host.Outbox.Sql.DbContext;
 using SlimMessageBus.Host.Serialization.Json;
 
 // Local file with secrets

@@ -24,6 +24,7 @@ public class ServiceBusMessageBusTests : IDisposable
         serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(new Mock<IMessageSerializer>().Object);
         serviceProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
         serviceProviderMock.Setup(x => x.GetService(typeof(IEnumerable<IMessageBusLifecycleInterceptor>))).Returns(Array.Empty<IMessageBusLifecycleInterceptor>());
+        serviceProviderMock.Setup(x => x.GetService(typeof(ICurrentTimeProvider))).Returns(new CurrentTimeProvider());
 
         BusBuilder.WithDependencyResolver(serviceProviderMock.Object);
 

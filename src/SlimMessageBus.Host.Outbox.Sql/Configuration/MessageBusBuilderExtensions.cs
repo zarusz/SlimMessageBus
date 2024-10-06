@@ -3,10 +3,8 @@
 public static class MessageBusBuilderExtensions
 {
     public static MessageBusBuilder AddOutboxUsingSql<TOutboxRepository>(this MessageBusBuilder mbb, Action<SqlOutboxSettings> configure)
-        where TOutboxRepository : class, ISqlOutboxRepository
+        where TOutboxRepository : class, ISqlMessageOutboxRepository
     {
-        mbb.AddOutbox();
-
         mbb.PostConfigurationActions.Add(services =>
         {
             var settings = new[] { mbb.Settings }.Concat(mbb.Children.Values.Select(x => x.Settings)).ToList();
@@ -17,8 +15,7 @@ public static class MessageBusBuilderExtensions
                 configure?.Invoke(settings);
                 return settings;
             });
-            services.Replace(ServiceDescriptor.Transient<OutboxSettings>(svp => svp.GetRequiredService<SqlOutboxSettings>()));
-
+            services.TryAddTransient<OutboxSettings>(svp => svp.GetRequiredService<SqlOutboxSettings>());
             services.TryAddSingleton<ISqlSettings>(svp => svp.GetRequiredService<SqlOutboxSettings>().SqlSettings);
 
             // Optimization: only register generic interceptors in the DI for particular message types that have opted in for transaction scope
@@ -33,18 +30,37 @@ public static class MessageBusBuilderExtensions
                 services.TryAddEnumerable(ServiceDescriptor.Transient(serviceType, implementationType));
             }
 
-            services.TryAddScoped<TOutboxRepository>();
             services.TryAddScoped<ISqlTransactionService, SqlTransactionService>();
 
-            services.Replace(ServiceDescriptor.Scoped<ISqlOutboxRepository>(svp => svp.GetRequiredService<TOutboxRepository>()));
-            services.Replace(ServiceDescriptor.Scoped<IOutboxRepository>(svp => svp.GetRequiredService<TOutboxRepository>()));
+            services.TryAddScoped<IOutboxMessageFactory>(svp => svp.GetRequiredService<TOutboxRepository>());
+            services.TryAddScoped<IOutboxMessageRepository<SqlOutboxMessage, Guid>>(svp => svp.GetRequiredService<TOutboxRepository>());
+            services.TryAddScoped<ISqlMessageOutboxRepository>(svp => svp.GetRequiredService<TOutboxRepository>());
 
             services.TryAddSingleton<SqlOutboxTemplate>();
             services.TryAddTransient<IOutboxMigrationService, SqlOutboxMigrationService>();
         });
-        return mbb;
+        return mbb.AddOutbox<SqlOutboxMessage, Guid>();
     }
 
     public static MessageBusBuilder AddOutboxUsingSql(this MessageBusBuilder mbb, Action<SqlOutboxSettings> configure)
-        => mbb.AddOutboxUsingSql<SqlOutboxRepository>(configure);
+    {
+        mbb.PostConfigurationActions.Add(services =>
+        {
+            services.TryAddScoped(svp =>
+            {
+                var settings = svp.GetRequiredService<SqlOutboxSettings>();
+                return new SqlOutboxMessageRepository(
+                        svp.GetRequiredService<ILogger<SqlOutboxMessageRepository>>(),
+                        settings,
+                        svp.GetRequiredService<SqlOutboxTemplate>(),
+                        settings.IdGeneration.GuidGenerator ?? (IGuidGenerator)svp.GetRequiredService(settings.IdGeneration.GuidGeneratorType),
+                        svp.GetRequiredService<ICurrentTimeProvider>(),
+                        svp.GetRequiredService<IInstanceIdProvider>(),
+                        svp.GetRequiredService<SqlConnection>(),
+                        svp.GetRequiredService<ISqlTransactionService>()
+                    );
+            });
+        });
+        return mbb.AddOutboxUsingSql<SqlOutboxMessageRepository>(configure);
+    }
 }
