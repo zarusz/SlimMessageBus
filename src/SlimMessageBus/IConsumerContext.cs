@@ -27,3 +27,8 @@ public interface IConsumerContext
     /// </summary>
     object Consumer { get; }
 }
+
+public interface IConsumerContext<out TMessage> : IConsumerContext
+{
+    public TMessage Message { get; }
+}

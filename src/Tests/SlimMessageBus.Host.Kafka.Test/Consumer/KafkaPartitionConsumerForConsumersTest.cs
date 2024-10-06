@@ -120,5 +120,5 @@ public class SomeMessage
 
 public class SomeMessageConsumer : IConsumer<SomeMessage>
 {
-    public Task OnHandle(SomeMessage message) => Task.CompletedTask;
+    public Task OnHandle(SomeMessage message, CancellationToken cancellationToken) => Task.CompletedTask;
 }

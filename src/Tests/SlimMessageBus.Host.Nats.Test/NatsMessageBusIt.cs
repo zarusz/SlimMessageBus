@@ -165,7 +165,7 @@ public class NatsMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegrat
     private async Task WaitUntilConnected()
     {
         // Wait until connected
-        var natsMessageBus = (NatsMessageBus) ServiceProvider.GetRequiredService<IConsumerControl>();
+        var natsMessageBus = (NatsMessageBus)ServiceProvider.GetRequiredService<IConsumerControl>();
         while (!natsMessageBus.IsConnected)
         {
             await Task.Delay(200);
@@ -176,15 +176,13 @@ public class NatsMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegrat
 
     private class PingConsumer(ILogger<PingConsumer> logger, TestEventCollector<PingMessage> messages) : IConsumer<PingMessage>, IConsumerWithContext
     {
-        private readonly ILogger _logger = logger;
-
         public IConsumerContext Context { get; set; }
 
-        public Task OnHandle(PingMessage message)
+        public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
         {
             messages.Add(message);
 
-            _logger.LogInformation("Got message {Counter} on topic {Path}", message.Counter, Context.Path);
+            logger.LogInformation("Got message {Counter} on topic {Path}", message.Counter, Context.Path);
             return Task.CompletedTask;
         }
     }
@@ -195,7 +193,7 @@ public class NatsMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegrat
 
     private class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
     {
-        public Task<EchoResponse> OnHandle(EchoRequest request)
+        public Task<EchoResponse> OnHandle(EchoRequest request, CancellationToken cancellationToken)
         {
             return Task.FromResult(new EchoResponse(request.Message));
         }

@@ -1,5 +1,7 @@
 namespace SlimMessageBus.Host;
 
+using System.Reflection;
+
 public abstract class AbstractConsumerBuilder : IAbstractConsumerBuilder
 {
     public MessageBusSettings Settings { get; }
@@ -35,13 +37,12 @@ public abstract class AbstractConsumerBuilder : IAbstractConsumerBuilder
         {
             var parameters = new List<Type>(methodInfo.GetParameters().Select(x => x.ParameterType));
 
-            var requiredParameters = new[] { invoker.MessageType };
-            foreach (var parameter in requiredParameters)
+            var consumerContextOfMessageType = typeof(IConsumerContext<>).MakeGenericType(invoker.MessageType);
+
+            if (!parameters.Remove(invoker.MessageType)
+                && !parameters.Remove(consumerContextOfMessageType))
             {
-                if (!parameters.Remove(parameter))
-                {
-                    return false;
-                }
+                return false;
             }
 
             var allowedParameters = new[] { typeof(IConsumerContext), typeof(CancellationToken) };
@@ -64,11 +65,15 @@ public abstract class AbstractConsumerBuilder : IAbstractConsumerBuilder
             return true;
         }
 
+#if NETSTANDARD2_0
         if (invoker == null) throw new ArgumentNullException(nameof(invoker));
+#else
+        ArgumentNullException.ThrowIfNull(invoker);
+#endif
 
         methodName ??= nameof(IConsumer<object>.OnHandle);
 
-        /// See <see cref="IConsumer{TMessage}.OnHandle(TMessage)"/> and <see cref="IRequestHandler{TRequest, TResponse}.OnHandle(TRequest)"/> 
+        /// See <see cref="IConsumer{TMessage}.OnHandle(TMessage, CancellationToken)"/> and <see cref="IRequestHandler{TRequest, TResponse}.OnHandle(TRequest, CancellationToken)"/> 
 
         var consumerOnHandleMethod = invoker.ConsumerType.GetMethods(BindingFlags.Public | BindingFlags.Instance)
             .Where(x => x.Name.Equals(methodName, StringComparison.OrdinalIgnoreCase) && ParameterMatch(invoker, x))

@@ -242,7 +242,7 @@ public class MemoryMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegr
 
     internal record PingConsumer(TestEventCollector<PingMessage> Messages, SafeCounter SafeCounter) : IConsumer<PingMessage>
     {
-        public Task OnHandle(PingMessage message)
+        public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
         {
             message.ConsumerCounter = SafeCounter.NextValue();
             Messages.Add(message);
@@ -265,7 +265,7 @@ public class MemoryMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegr
 
     internal class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
     {
-        public Task<EchoResponse> OnHandle(EchoRequest request) =>
+        public Task<EchoResponse> OnHandle(EchoRequest request, CancellationToken cancellationToken) =>
             Task.FromResult(new EchoResponse { Message = request.Message });
     }
 }

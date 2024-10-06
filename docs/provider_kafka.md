@@ -176,7 +176,7 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
 {
    public IConsumerContext Context { get; set; }
 
-   public Task OnHandle(PingMessage message)
+   public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
    {
       // SMB Kafka transport specific extension:
       var transportMessage = Context.GetTransportMessage();

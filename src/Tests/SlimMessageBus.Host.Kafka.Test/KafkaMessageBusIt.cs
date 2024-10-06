@@ -241,7 +241,7 @@ public class KafkaMessageBusIt(ITestOutputHelper testOutputHelper)
     {
         public IConsumerContext Context { get; set; }
 
-        public Task OnHandle(PingMessage message)
+        public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
         {
             var transportMessage = Context.GetTransportMessage();
             var partition = transportMessage.TopicPartition.Partition;
@@ -259,7 +259,7 @@ public class KafkaMessageBusIt(ITestOutputHelper testOutputHelper)
 
     private class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
     {
-        public Task<EchoResponse> OnHandle(EchoRequest request)
+        public Task<EchoResponse> OnHandle(EchoRequest request, CancellationToken cancellationToken)
             => Task.FromResult(new EchoResponse(request.Message));
     }
 }

@@ -47,12 +47,12 @@ public class MessageBusCurrentTests(ITestOutputHelper testOutputHelper) : BaseIn
 
     public class SetValueCommandHandler : IRequestHandler<SetValueCommand>
     {
-        public async Task OnHandle(SetValueCommand request)
+        public async Task OnHandle(SetValueCommand request, CancellationToken cancellationToken)
         {
             // Some other logic here ...
 
             // and then notify about the value change using the MessageBus.Current accessor which should look up in the current message scope
-            await MessageBus.Current.Publish(new ValueChangedEvent(request.Value));
+            await MessageBus.Current.Publish(new ValueChangedEvent(request.Value), cancellationToken: cancellationToken);
         }
     }
 
@@ -60,7 +60,7 @@ public class MessageBusCurrentTests(ITestOutputHelper testOutputHelper) : BaseIn
 
     public class ValueChangedEventHandler(ValueHolder valueHolder) : IRequestHandler<ValueChangedEvent>
     {
-        public Task OnHandle(ValueChangedEvent request)
+        public Task OnHandle(ValueChangedEvent request, CancellationToken cancellationToken)
         {
             valueHolder.Value = request.Value;
             return Task.CompletedTask;
