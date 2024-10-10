@@ -36,9 +36,14 @@ public class OutboxSettings
     /// Sent message cleanup settings.
     /// </summary>
     public OutboxMessageCleanupSettings MessageCleanup { get; set; } = new();
-
     /// <summary>
     /// Type resolver which is responsible for converting message type into the Outbox table column MessageType
     /// </summary>
     public IMessageTypeResolver MessageTypeResolver { get; set; } = new AssemblyQualifiedNameMessageTypeResolver();
+
+    /// <summary>
+    /// Control how the <see cref="OutboxMessage.Id"/> is being generated.
+    /// </summary>
+    public OutboxMessageIdGenerationSettings IdGeneration { get; set; } = new OutboxMessageIdGenerationSettings();
 }
+

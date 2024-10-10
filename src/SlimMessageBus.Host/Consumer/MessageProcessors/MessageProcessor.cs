@@ -37,7 +37,7 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
         messageTypeResolver: messageBus.MessageTypeResolver,
         messageHeadersFactory: messageBus,
         runtimeTypeCache: messageBus.RuntimeTypeCache,
-        currentTimeProvider: messageBus,
+        currentTimeProvider: messageBus.CurrentTimeProvider,
         path: path,
         consumerErrorHandlerOpenGenericType)
     {

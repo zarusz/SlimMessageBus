@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Outbox.DbContext;
 
-using Microsoft.Extensions.DependencyInjection.Extensions;
-
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.Outbox.Sql;
 using SlimMessageBus.Host.Sql.Common;
@@ -14,6 +12,20 @@ public static class MessageBusBuilderExtensions
         mbb.PostConfigurationActions.Add(services =>
         {
             services.TryAddScoped<ISqlTransactionService, DbContextTransactionService<TDbContext>>();
+            services.TryAddScoped(svp =>
+            {
+                var settings = svp.GetRequiredService<SqlOutboxSettings>();
+                return new DbContextOutboxRepository<TDbContext>(
+                        svp.GetRequiredService<ILogger<DbContextOutboxRepository<TDbContext>>>(),
+                        settings,
+                        svp.GetRequiredService<SqlOutboxTemplate>(),
+                        settings.IdGeneration.GuidGenerator ?? (IGuidGenerator)svp.GetRequiredService(settings.IdGeneration.GuidGeneratorType),
+                        svp.GetRequiredService<ICurrentTimeProvider>(),
+                        svp.GetRequiredService<IInstanceIdProvider>(),
+                        svp.GetRequiredService<TDbContext>(),
+                        svp.GetRequiredService<ISqlTransactionService>()
+                    );
+            });
         });
         return mbb.AddOutboxUsingSql<DbContextOutboxRepository<TDbContext>>(configure);
     }

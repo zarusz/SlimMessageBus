@@ -3,7 +3,7 @@
 public class OutboxLockRenewalTimerTests
 {
     private readonly Mock<ILogger<OutboxLockRenewalTimer>> _loggerMock;
-    private readonly Mock<IOutboxRepository> _outboxRepositoryMock;
+    private readonly Mock<IOutboxMessageRepository> _outboxRepositoryMock;
     private readonly Mock<IInstanceIdProvider> _instanceIdProviderMock;
     private readonly CancellationTokenSource _cancellationTokenSource;
     private readonly Action<Exception> _lockLostAction;
@@ -14,7 +14,7 @@ public class OutboxLockRenewalTimerTests
     public OutboxLockRenewalTimerTests()
     {
         _loggerMock = new Mock<ILogger<OutboxLockRenewalTimer>>();
-        _outboxRepositoryMock = new Mock<IOutboxRepository>();
+        _outboxRepositoryMock = new Mock<IOutboxMessageRepository>();
         _instanceIdProviderMock = new Mock<IInstanceIdProvider>();
         _cancellationTokenSource = new CancellationTokenSource();
         _lockLostAction = Mock.Of<Action<Exception>>();

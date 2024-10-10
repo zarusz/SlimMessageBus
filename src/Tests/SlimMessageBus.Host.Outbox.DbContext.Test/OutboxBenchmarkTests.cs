@@ -197,7 +197,7 @@ public class OutboxBenchmarkTests(ITestOutputHelper testOutputHelper) : BaseOutb
         var outboxPublishTimerElapsed = TimeSpan.Zero;
         if (_useOutbox)
         {
-            var outputRepository = ServiceProvider.GetRequiredService<IOutboxRepository>();
+            var outputRepository = ServiceProvider.GetRequiredService<IOutboxMessageRepository>();
 
             var outboxTimer = Stopwatch.StartNew();
             var publishCount = await outboxSendingTask.SendMessages(ServiceProvider, outputRepository, CancellationToken.None);
