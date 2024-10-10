@@ -55,7 +55,7 @@ public static class MessageBusBuilderExtensions
                         svp.GetRequiredService<ILogger<SqlOutboxMessageRepository>>(),
                         settings,
                         svp.GetRequiredService<SqlOutboxTemplate>(),
-                        settings.GuidGenerator ?? (IGuidGenerator)svp.GetRequiredService(settings.GuidGeneratorType),
+                        settings.IdGeneration.GuidGenerator ?? (IGuidGenerator)svp.GetRequiredService(settings.IdGeneration.GuidGeneratorType),
                         svp.GetRequiredService<ICurrentTimeProvider>(),
                         svp.GetRequiredService<IInstanceIdProvider>(),
                         svp.GetRequiredService<SqlConnection>(),

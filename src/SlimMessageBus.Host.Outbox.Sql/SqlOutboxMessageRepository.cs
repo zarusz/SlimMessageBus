@@ -17,6 +17,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
     private readonly IGuidGenerator _guidGenerator;
     private readonly ICurrentTimeProvider _currentTimeProvider;
     private readonly IInstanceIdProvider _instanceIdProvider;
+    private readonly bool _idDatabaseGenerated;
 
     protected SqlOutboxSettings Settings { get; }
 
@@ -35,14 +36,14 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
         _guidGenerator = guidGenerator;
         _currentTimeProvider = currentTimeProvider;
         _instanceIdProvider = instanceIdProvider;
+        _idDatabaseGenerated = settings.IdGeneration.Mode == OutboxMessageIdGenerationMode.DatabaseGeneratedSequentialGuid;
         Settings = settings;
     }
 
     public virtual async Task<Guid> Create(string busName, IDictionary<string, object> headers, string path, string messageType, byte[] messagePayload, CancellationToken cancellationToken)
     {
-        var outboxMessage = new OutboxMessage
+        var om = new OutboxMessage
         {
-            Id = _guidGenerator.NewGuid(),
             Timestamp = _currentTimeProvider.CurrentTime.DateTime,
             InstanceId = _instanceIdProvider.GetInstanceId(),
 
@@ -53,31 +54,38 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
             MessagePayload = messagePayload,
         };
 
-        await Save(outboxMessage, cancellationToken);
+        if (!_idDatabaseGenerated)
+        {
+            om.Id = _guidGenerator.NewGuid();
+        }
 
-        return outboxMessage.Id;
-    }
+        var template = _idDatabaseGenerated
+            ? _sqlTemplate.SqlOutboxMessageInsertWithDatabaseId
+            : _sqlTemplate.SqlOutboxMessageInsertWithClientId;
 
-    protected async virtual Task Save(OutboxMessage message, CancellationToken cancellationToken)
-    {
         await EnsureConnection();
 
-        await ExecuteNonQuery(Settings.SqlSettings.OperationRetry, _sqlTemplate.SqlOutboxMessageInsert, cmd =>
+        om.Id = (Guid)await ExecuteScalarAsync(Settings.SqlSettings.OperationRetry, template, cmd =>
         {
-            cmd.Parameters.Add("@Id", SqlDbType.UniqueIdentifier).Value = message.Id;
-            cmd.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = message.Timestamp;
-            cmd.Parameters.Add("@BusName", SqlDbType.NVarChar).Value = message.BusName;
-            cmd.Parameters.Add("@MessageType", SqlDbType.NVarChar).Value = message.MessageType;
-            cmd.Parameters.Add("@MessagePayload", SqlDbType.VarBinary).Value = message.MessagePayload;
-            cmd.Parameters.Add("@Headers", SqlDbType.NVarChar).Value = message.Headers != null ? JsonSerializer.Serialize(message.Headers, _jsonOptions) : DBNull.Value;
-            cmd.Parameters.Add("@Path", SqlDbType.NVarChar).Value = message.Path;
-            cmd.Parameters.Add("@InstanceId", SqlDbType.NVarChar).Value = message.InstanceId;
-            cmd.Parameters.Add("@LockInstanceId", SqlDbType.NVarChar).Value = message.LockInstanceId;
-            cmd.Parameters.Add("@LockExpiresOn", SqlDbType.DateTime2).Value = message.LockExpiresOn ?? new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-            cmd.Parameters.Add("@DeliveryAttempt", SqlDbType.Int).Value = message.DeliveryAttempt;
-            cmd.Parameters.Add("@DeliveryComplete", SqlDbType.Bit).Value = message.DeliveryComplete;
-            cmd.Parameters.Add("@DeliveryAborted", SqlDbType.Bit).Value = message.DeliveryAborted;
+            if (_idDatabaseGenerated)
+            {
+                cmd.Parameters.Add("@Id", SqlDbType.UniqueIdentifier).Value = om.Id;
+            }
+            cmd.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = om.Timestamp;
+            cmd.Parameters.Add("@BusName", SqlDbType.NVarChar).Value = om.BusName;
+            cmd.Parameters.Add("@MessageType", SqlDbType.NVarChar).Value = om.MessageType;
+            cmd.Parameters.Add("@MessagePayload", SqlDbType.VarBinary).Value = om.MessagePayload;
+            cmd.Parameters.Add("@Headers", SqlDbType.NVarChar).Value = om.Headers != null ? JsonSerializer.Serialize(om.Headers, _jsonOptions) : DBNull.Value;
+            cmd.Parameters.Add("@Path", SqlDbType.NVarChar).Value = om.Path;
+            cmd.Parameters.Add("@InstanceId", SqlDbType.NVarChar).Value = om.InstanceId;
+            cmd.Parameters.Add("@LockInstanceId", SqlDbType.NVarChar).Value = om.LockInstanceId;
+            cmd.Parameters.Add("@LockExpiresOn", SqlDbType.DateTime2).Value = om.LockExpiresOn ?? new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            cmd.Parameters.Add("@DeliveryAttempt", SqlDbType.Int).Value = om.DeliveryAttempt;
+            cmd.Parameters.Add("@DeliveryComplete", SqlDbType.Bit).Value = om.DeliveryComplete;
+            cmd.Parameters.Add("@DeliveryAborted", SqlDbType.Bit).Value = om.DeliveryAborted;
         }, cancellationToken);
+
+        return om.Id;
     }
 
     public async Task<IReadOnlyCollection<OutboxMessage>> LockAndSelect(string instanceId, int batchSize, bool tableLock, TimeSpan lockDuration, CancellationToken cancellationToken)

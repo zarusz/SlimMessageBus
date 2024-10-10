@@ -41,11 +41,20 @@ public abstract class CommonSqlRepository : ISqlConnectionProvider
     public string GetQualifiedName(string tableName) => $"[{_settings.DatabaseSchemaName}].[{tableName}]";
 
     public Task<int> ExecuteNonQuery(SqlRetrySettings retrySettings, string sql, Action<SqlCommand> setParameters = null, CancellationToken token = default) =>
-        SqlHelper.RetryIfTransientError(Logger, retrySettings, async () =>
+        SqlHelper.RetryIfTransientError(Logger, retrySettings, () =>
         {
             using var cmd = CreateCommand();
             cmd.CommandText = sql;
             setParameters?.Invoke(cmd);
-            return await cmd.ExecuteNonQueryAsync();
+            return cmd.ExecuteNonQueryAsync();
+        }, token);
+
+    public Task<object> ExecuteScalarAsync(SqlRetrySettings retrySettings, string sql, Action<SqlCommand> setParameters = null, CancellationToken token = default) =>
+        SqlHelper.RetryIfTransientError(Logger, retrySettings, () =>
+        {
+            using var cmd = CreateCommand();
+            cmd.CommandText = sql;
+            setParameters?.Invoke(cmd);
+            return cmd.ExecuteScalarAsync();
         }, token);
 }

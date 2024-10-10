@@ -40,16 +40,10 @@ public class OutboxSettings
     /// Type resolver which is responsible for converting message type into the Outbox table column MessageType
     /// </summary>
     public IMessageTypeResolver MessageTypeResolver { get; set; } = new AssemblyQualifiedNameMessageTypeResolver();
+
     /// <summary>
-    /// The type to resolve from MSDI that implementes the <see cref="IGuidGenerator"/>.
-    /// Default is <see cref="IGuidGenerator"/>.
-    /// Guid generator is used to generate unique identifiers for the outbox messages.
+    /// Control how the <see cref="OutboxMessage.Id"/> is being generated.
     /// </summary>
-    public Type GuidGeneratorType { get; set; } = typeof(IGuidGenerator);
-    /// <summary>
-    /// The instance of <see cref="IGuidGenerator"/> to use (if specified).
-    /// Default is null.
-    /// Guid generator is used to generate unique identifiers for the outbox messages.
-    /// </summary>
-    public IGuidGenerator GuidGenerator { get; set; } = null;
+    public OutboxMessageIdGenerationSettings IdGeneration { get; set; } = new OutboxMessageIdGenerationSettings();
 }
+
