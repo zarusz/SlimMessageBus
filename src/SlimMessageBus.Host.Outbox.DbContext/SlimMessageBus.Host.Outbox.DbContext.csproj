@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="../Host.Plugin.Properties.xml" />
+
+  <PropertyGroup>
+    <Description>Plugin for SlimMessageBus that adds Transactional Outbox pattern support using Entity Framework</Description>
+    <PackageTags>SlimMessageBus MessageBus Transactional Outbox SQL Entity Framework EF</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SlimMessageBus.Host.Outbox\SlimMessageBus.Host.Outbox.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="3.1.0" Condition="'$(TargetFramework)' == 'netstandard2.0'" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="6.0.0" Condition="'$(TargetFramework)' == 'net6.0'" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.0" Condition="'$(TargetFramework)' == 'net8.0'" />
+  </ItemGroup>
+
+
+</Project>

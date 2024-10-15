@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Outbox;
 
-internal static class IEnumerableExtensions
+static internal class IEnumerableExtensions
 {
     public static IEnumerable<IReadOnlyCollection<T>> Batch<T>(this IEnumerable<T> items, int batchSize)
     {

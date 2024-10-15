@@ -39,6 +39,7 @@ $projects = @(
 	"SlimMessageBus.Host.FluentValidation",
 
 	"SlimMessageBus.Host.Outbox",
+	"SlimMessageBus.Host.Outbox.DbContext",
 	"SlimMessageBus.Host.Outbox.Sql",
 	"SlimMessageBus.Host.Outbox.Sql.DbContext",
 

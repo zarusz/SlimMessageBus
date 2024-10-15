@@ -1,5 +1,4 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Services;
-using SlimMessageBus.Host.Outbox;
 
 public sealed class OutboxLockRenewalTimer : IOutboxLockRenewalTimer
 {

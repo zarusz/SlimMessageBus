@@ -1,8 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Services;
 
-using SlimMessageBus.Host;
-using SlimMessageBus.Host.Outbox;
-
 internal class OutboxSendingTask(
     ILoggerFactory loggerFactory,
     OutboxSettings outboxSettings,
