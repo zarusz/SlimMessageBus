@@ -17,5 +17,4 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.0" Condition="'$(TargetFramework)' == 'net8.0'" />
   </ItemGroup>
 
-
 </Project>

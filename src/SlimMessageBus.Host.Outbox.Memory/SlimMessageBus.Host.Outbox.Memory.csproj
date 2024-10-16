@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="../Host.Plugin.Properties.xml" />
+
+  <PropertyGroup>
+    <Description>Plugin for SlimMessageBus that adds Outbox pattern support that deffers message delivery until transaction commits. Messages are buffered in memory.</Description>
+    <PackageTags>SlimMessageBus MessageBus Outbox Memory</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SlimMessageBus.Host.Outbox\SlimMessageBus.Host.Outbox.csproj" />
+  </ItemGroup>
+
+</Project>

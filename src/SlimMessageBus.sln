@@ -279,7 +279,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Nats-SingleNode", "Nats-Sin
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.AspNetCore.Test", "Tests\SlimMessageBus.Host.AspNetCore.Test\SlimMessageBus.Host.AspNetCore.Test.csproj", "{9FCBF788-1F0C-43E2-909D-1F96B2685F38}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.Outbox.DbContext", "SlimMessageBus.Host.Outbox.DbContext\SlimMessageBus.Host.Outbox.DbContext.csproj", "{3373FC58-73A7-46E6-9CB9-0858660EAD52}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Outbox.DbContext", "SlimMessageBus.Host.Outbox.DbContext\SlimMessageBus.Host.Outbox.DbContext.csproj", "{3373FC58-73A7-46E6-9CB9-0858660EAD52}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.Outbox.Memory", "SlimMessageBus.Host.Outbox.Memory\SlimMessageBus.Host.Outbox.Memory.csproj", "{D0CC7072-1E1B-4FCA-A253-630035757FA2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -857,6 +859,14 @@ Global
 		{3373FC58-73A7-46E6-9CB9-0858660EAD52}.Release|Any CPU.Build.0 = Release|Any CPU
 		{3373FC58-73A7-46E6-9CB9-0858660EAD52}.Release|x86.ActiveCfg = Release|Any CPU
 		{3373FC58-73A7-46E6-9CB9-0858660EAD52}.Release|x86.Build.0 = Release|Any CPU
+		{D0CC7072-1E1B-4FCA-A253-630035757FA2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D0CC7072-1E1B-4FCA-A253-630035757FA2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D0CC7072-1E1B-4FCA-A253-630035757FA2}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D0CC7072-1E1B-4FCA-A253-630035757FA2}.Debug|x86.Build.0 = Debug|Any CPU
+		{D0CC7072-1E1B-4FCA-A253-630035757FA2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D0CC7072-1E1B-4FCA-A253-630035757FA2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D0CC7072-1E1B-4FCA-A253-630035757FA2}.Release|x86.ActiveCfg = Release|Any CPU
+		{D0CC7072-1E1B-4FCA-A253-630035757FA2}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -941,6 +951,7 @@ Global
 		{5250E48D-36C7-4214-8D7E-5924A9E337C6} = {59F88FB5-6D19-4520-87E8-227B3539BBB3}
 		{9FCBF788-1F0C-43E2-909D-1F96B2685F38} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
 		{3373FC58-73A7-46E6-9CB9-0858660EAD52} = {B7CDA0D2-98AB-42B6-A41A-9D893C1B9DCB}
+		{D0CC7072-1E1B-4FCA-A253-630035757FA2} = {B7CDA0D2-98AB-42B6-A41A-9D893C1B9DCB}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {435A0D65-610C-4B84-B1AA-2C7FBE72DB80}

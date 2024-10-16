@@ -40,6 +40,7 @@ $projects = @(
 
 	"SlimMessageBus.Host.Outbox",
 	"SlimMessageBus.Host.Outbox.DbContext",
+	"SlimMessageBus.Host.Outbox.Memory",
 	"SlimMessageBus.Host.Outbox.Sql",
 	"SlimMessageBus.Host.Outbox.Sql.DbContext",
 
