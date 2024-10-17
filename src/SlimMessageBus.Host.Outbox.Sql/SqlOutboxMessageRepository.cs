@@ -1,7 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Sql;
 
 /// <summary>
-/// The MS SQL implmentation of the <see cref="IOutboxMessageRepository"/>
+/// The MS SQL implmentation of the <see cref="IOutboxMessageRepository{TOutboxMessage, TOutboxMessageKey}"/>
 /// </summary>
 public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutboxRepository
 {
@@ -12,6 +12,8 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
     {
         Converters = { new ObjectToInferredTypesConverter() }
     };
+
+    private static readonly DateTime _defaultExpiresOn = new(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private readonly SqlOutboxTemplate _sqlTemplate;
     private readonly IGuidGenerator _guidGenerator;
@@ -40,9 +42,9 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
         Settings = settings;
     }
 
-    public virtual async Task<Guid> Create(string busName, IDictionary<string, object> headers, string path, string messageType, byte[] messagePayload, CancellationToken cancellationToken)
+    public virtual async Task<object> Create(string busName, IDictionary<string, object> headers, string path, string messageType, byte[] messagePayload, CancellationToken cancellationToken)
     {
-        var om = new OutboxMessage
+        var om = new SqlOutboxMessage
         {
             Timestamp = _currentTimeProvider.CurrentTime.DateTime,
             InstanceId = _instanceIdProvider.GetInstanceId(),
@@ -79,7 +81,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
             cmd.Parameters.Add("@Path", SqlDbType.NVarChar).Value = om.Path;
             cmd.Parameters.Add("@InstanceId", SqlDbType.NVarChar).Value = om.InstanceId;
             cmd.Parameters.Add("@LockInstanceId", SqlDbType.NVarChar).Value = om.LockInstanceId;
-            cmd.Parameters.Add("@LockExpiresOn", SqlDbType.DateTime2).Value = om.LockExpiresOn ?? new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            cmd.Parameters.Add("@LockExpiresOn", SqlDbType.DateTime2).Value = om.LockExpiresOn ?? _defaultExpiresOn;
             cmd.Parameters.Add("@DeliveryAttempt", SqlDbType.Int).Value = om.DeliveryAttempt;
             cmd.Parameters.Add("@DeliveryComplete", SqlDbType.Bit).Value = om.DeliveryComplete;
             cmd.Parameters.Add("@DeliveryAborted", SqlDbType.Bit).Value = om.DeliveryAborted;
@@ -88,7 +90,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
         return om.Id;
     }
 
-    public async Task<IReadOnlyCollection<OutboxMessage>> LockAndSelect(string instanceId, int batchSize, bool tableLock, TimeSpan lockDuration, CancellationToken cancellationToken)
+    public async Task<IReadOnlyCollection<SqlOutboxMessage>> LockAndSelect(string instanceId, int batchSize, bool tableLock, TimeSpan lockDuration, CancellationToken cancellationToken)
     {
         await EnsureConnection();
 
@@ -203,7 +205,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
         return await cmd.ExecuteNonQueryAsync(cancellationToken) > 0;
     }
 
-    internal async Task<IReadOnlyCollection<OutboxMessage>> GetAllMessages(CancellationToken cancellationToken)
+    internal async Task<IReadOnlyCollection<SqlOutboxMessage>> GetAllMessages(CancellationToken cancellationToken)
     {
         await EnsureConnection();
 
@@ -213,7 +215,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
         return await ReadMessages(cmd, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task<IReadOnlyCollection<OutboxMessage>> ReadMessages(SqlCommand cmd, CancellationToken cancellationToken)
+    private static async Task<IReadOnlyCollection<SqlOutboxMessage>> ReadMessages(SqlCommand cmd, CancellationToken cancellationToken)
     {
         using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 
@@ -231,13 +233,14 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
         var deliveryCompleteOrdinal = reader.GetOrdinal("DeliveryComplete");
         var deliveryAbortedOrdinal = reader.GetOrdinal("DeliveryAborted");
 
-        var items = new List<OutboxMessage>();
+        var items = new List<SqlOutboxMessage>();
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             var headers = reader.IsDBNull(headersOrdinal)
                 ? null
                 : reader.GetString(headersOrdinal);
-            var message = new OutboxMessage
+
+            var message = new SqlOutboxMessage
             {
                 Id = reader.GetGuid(idOrdinal),
                 Timestamp = reader.GetDateTime(timestampOrdinal),

@@ -1,16 +1,14 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Services;
 
-using SlimMessageBus.Host;
-using SlimMessageBus.Host.Outbox;
-
-internal class OutboxSendingTask(
+internal class OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>(
     ILoggerFactory loggerFactory,
     OutboxSettings outboxSettings,
     ICurrentTimeProvider currentTimeProvider,
     IServiceProvider serviceProvider)
     : IMessageBusLifecycleInterceptor, IOutboxNotificationService, IAsyncDisposable
+    where TOutboxMessage : OutboxMessage<TOutboxMessageKey>
 {
-    private readonly ILogger<OutboxSendingTask> _logger = loggerFactory.CreateLogger<OutboxSendingTask>();
+    private readonly ILogger<OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>> _logger = loggerFactory.CreateLogger<OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>>();
     private readonly OutboxSettings _outboxSettings = outboxSettings;
     private readonly IServiceProvider _serviceProvider = serviceProvider;
 
@@ -138,7 +136,14 @@ internal class OutboxSendingTask(
         }
         finally
         {
-            await ((IAsyncDisposable)scope).DisposeAsync();
+            if (scope is IAsyncDisposable asyncDisposable)
+            {
+                await asyncDisposable.DisposeAsync();
+            }
+            else
+            {
+                scope.Dispose();
+            }
         }
     }
 
@@ -161,7 +166,7 @@ internal class OutboxSendingTask(
             try
             {
                 await EnsureMigrateSchema(scope.ServiceProvider, _loopCts.Token);
-                var outboxRepository = scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository>();
+                var outboxRepository = scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository<TOutboxMessage, TOutboxMessageKey>>();
                 do
                 {
                     if (_loopCts.Token.IsCancellationRequested)
@@ -209,7 +214,7 @@ internal class OutboxSendingTask(
         }
     }
 
-    async internal Task<int> SendMessages(IServiceProvider serviceProvider, IOutboxMessageRepository outboxRepository, CancellationToken cancellationToken)
+    async internal Task<int> SendMessages(IServiceProvider serviceProvider, IOutboxMessageRepository<TOutboxMessage, TOutboxMessageKey> outboxRepository, CancellationToken cancellationToken)
     {
         var lockDuration = TimeSpan.FromSeconds(Math.Min(Math.Max(_outboxSettings.LockExpiration.TotalSeconds, 5), 30));
         if (lockDuration != _outboxSettings.LockExpiration)
@@ -253,14 +258,14 @@ internal class OutboxSendingTask(
         return count;
     }
 
-    async internal Task<(bool RunAgain, int Count)> ProcessMessages(IOutboxMessageRepository outboxRepository, IReadOnlyCollection<OutboxMessage> outboxMessages, ICompositeMessageBus compositeMessageBus, IMessageBusTarget messageBusTarget, CancellationToken cancellationToken)
+    async internal Task<(bool RunAgain, int Count)> ProcessMessages(IOutboxMessageRepository<TOutboxMessage, TOutboxMessageKey> outboxRepository, IReadOnlyCollection<TOutboxMessage> outboxMessages, ICompositeMessageBus compositeMessageBus, IMessageBusTarget messageBusTarget, CancellationToken cancellationToken)
     {
         const int defaultBatchSize = 50;
 
         var runAgain = outboxMessages.Count == _outboxSettings.PollBatchSize;
         var count = 0;
 
-        var abortedIds = new List<Guid>(_outboxSettings.PollBatchSize);
+        var abortedIds = new List<TOutboxMessageKey>(_outboxSettings.PollBatchSize);
         foreach (var busGroup in outboxMessages.GroupBy(x => x.BusName))
         {
             var busName = busGroup.Key;
@@ -292,20 +297,20 @@ internal class OutboxSendingTask(
                 }
 
                 var path = pathGroup.Key;
-                var batches = pathGroup.Select(
-                        outboxMessage =>
+                var batches = pathGroup
+                    .Select(outboxMessage =>
+                    {
+                        var messageType = _outboxSettings.MessageTypeResolver.ToType(outboxMessage.MessageType);
+                        if (messageType == null)
                         {
-                            var messageType = _outboxSettings.MessageTypeResolver.ToType(outboxMessage.MessageType);
-                            if (messageType == null)
-                            {
-                                abortedIds.Add(outboxMessage.Id);
-                                _logger.LogError("Outbox message with Id {Id} - the MessageType {MessageType} is not recognized. The type might have been renamed or moved namespaces.", outboxMessage.Id, outboxMessage.MessageType);
-                                return null;
-                            }
+                            abortedIds.Add(outboxMessage.Id);
+                            _logger.LogError("Outbox message with Id {Id} - the MessageType {MessageType} is not recognized. The type might have been renamed or moved namespaces.", outboxMessage.Id, outboxMessage.MessageType);
+                            return null;
+                        }
 
-                            var message = bus.Serializer.Deserialize(messageType, outboxMessage.MessagePayload);
-                            return new OutboxBulkMessage(outboxMessage.Id, message, messageType, outboxMessage.Headers ?? new Dictionary<string, object>());
-                        })
+                        var message = bus.Serializer.Deserialize(messageType, outboxMessage.MessagePayload);
+                        return new OutboxBulkMessage(outboxMessage.Id, message, messageType, outboxMessage.Headers ?? new Dictionary<string, object>());
+                    })
                     .Where(x => x != null)
                     .Batch(bulkProducer.MaxMessagesPerTransaction ?? defaultBatchSize);
 
@@ -326,7 +331,7 @@ internal class OutboxSendingTask(
         return (runAgain, count);
     }
 
-    async internal Task<(bool Success, int Published)> DispatchBatch(IOutboxMessageRepository outboxRepository, IMessageBusBulkProducer producer, IMessageBusTarget messageBusTarget, IReadOnlyCollection<OutboxBulkMessage> batch, string busName, string path, CancellationToken cancellationToken)
+    async internal Task<(bool Success, int Published)> DispatchBatch(IOutboxMessageRepository<TOutboxMessage, TOutboxMessageKey> outboxRepository, IMessageBusBulkProducer producer, IMessageBusTarget messageBusTarget, IReadOnlyCollection<OutboxBulkMessage> batch, string busName, string path, CancellationToken cancellationToken)
     {
         _logger.LogDebug("Publishing batch of {MessageCount} messages to pathGroup {Path} on {BusName} bus", batch.Count, path, busName);
 
@@ -372,9 +377,9 @@ internal class OutboxSendingTask(
 
     public record OutboxBulkMessage : BulkMessageEnvelope
     {
-        public Guid Id { get; }
+        public TOutboxMessageKey Id { get; }
 
-        public OutboxBulkMessage(Guid id, object message, Type messageType, IDictionary<string, object> headers)
+        public OutboxBulkMessage(TOutboxMessageKey id, object message, Type messageType, IDictionary<string, object> headers)
             : base(message, messageType, headers)
         {
             Id = id;

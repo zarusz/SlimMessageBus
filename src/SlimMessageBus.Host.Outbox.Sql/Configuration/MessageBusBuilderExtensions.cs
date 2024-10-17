@@ -5,7 +5,7 @@ public static class MessageBusBuilderExtensions
     public static MessageBusBuilder AddOutboxUsingSql<TOutboxRepository>(this MessageBusBuilder mbb, Action<SqlOutboxSettings> configure)
         where TOutboxRepository : class, ISqlMessageOutboxRepository
     {
-        mbb.AddOutbox();
+        mbb.AddOutbox<SqlOutboxMessage, Guid>();
 
         mbb.PostConfigurationActions.Add(services =>
         {
@@ -36,7 +36,7 @@ public static class MessageBusBuilderExtensions
             services.TryAddScoped<ISqlTransactionService, SqlTransactionService>();
 
             services.Replace(ServiceDescriptor.Scoped<ISqlMessageOutboxRepository>(svp => svp.GetRequiredService<TOutboxRepository>()));
-            services.Replace(ServiceDescriptor.Scoped<IOutboxMessageRepository>(svp => svp.GetRequiredService<TOutboxRepository>()));
+            services.Replace(ServiceDescriptor.Scoped<IOutboxMessageRepository<SqlOutboxMessage, Guid>>(svp => svp.GetRequiredService<TOutboxRepository>()));
 
             services.TryAddSingleton<SqlOutboxTemplate>();
             services.TryAddTransient<IOutboxMigrationService, SqlOutboxMigrationService>();

@@ -1,6 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Sql.DbContext;
 
-public class DbContextOutboxRepository<TDbContext> : SqlOutboxMessageRepository where TDbContext : Microsoft.EntityFrameworkCore.DbContext
+public class DbContextOutboxRepository<TDbContext> : SqlOutboxMessageRepository
+    where TDbContext : Microsoft.EntityFrameworkCore.DbContext
 {
     public TDbContext DbContext { get; }
 

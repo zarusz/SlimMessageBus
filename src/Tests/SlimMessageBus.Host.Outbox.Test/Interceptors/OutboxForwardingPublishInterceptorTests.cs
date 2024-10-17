@@ -14,7 +14,7 @@ public static class OutboxForwardingPublishInterceptorTests
             var expected = int.MaxValue;
 
             var mockLogger = new Mock<ILogger<OutboxForwardingPublishInterceptor>>();
-            var mockOutboxRepository = new Mock<IOutboxMessageRepository>();
+            var mockOutboxRepository = new Mock<IOutboxMessageRepository<OutboxMessage<Guid>, Guid>>();
             var mockOutboxNotificationService = new Mock<IOutboxNotificationService>();
             var mockOutboxSettings = new Mock<OutboxSettings>();
             var mockOutboxMessageFactory = new Mock<IOutboxMessageFactory>();
@@ -41,7 +41,7 @@ public static class OutboxForwardingPublishInterceptorTests
     public class OnHandleTests
     {
         private readonly Mock<ILogger<OutboxForwardingPublishInterceptor>> _mockLogger;
-        private readonly Mock<IOutboxMessageRepository> _mockOutboxRepository;
+        private readonly Mock<IOutboxMessageRepository<OutboxMessage<Guid>, Guid>> _mockOutboxRepository;
         private readonly Mock<IMessageSerializer> _mockSerializer;
         private readonly Mock<IMasterMessageBus> _mockMasterMessageBus;
         private readonly Mock<IOutboxNotificationService> _mockOutboxNotificationService;
@@ -53,7 +53,7 @@ public static class OutboxForwardingPublishInterceptorTests
         public OnHandleTests()
         {
             _mockLogger = new Mock<ILogger<OutboxForwardingPublishInterceptor>>();
-            _mockOutboxRepository = new Mock<IOutboxMessageRepository>();
+            _mockOutboxRepository = new Mock<IOutboxMessageRepository<OutboxMessage<Guid>, Guid>>();
             _mockOutboxNotificationService = new Mock<IOutboxNotificationService>();
             _mockOutboxSettings = new Mock<OutboxSettings>();
 

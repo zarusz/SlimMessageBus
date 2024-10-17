@@ -14,8 +14,8 @@ public interface IOutboxMessageFactory
     /// <param name="messageType"></param>
     /// <param name="messagePayload"></param>
     /// <param name="cancellationToken"></param>
-    /// <returns>ID of the <see cref="OutboxMessage"/>.</returns>
-    Task<Guid> Create(
+    /// <returns>ID of the outbox message.</returns>
+    Task<object> Create(
         string busName,
         IDictionary<string, object> headers,
         string path,
