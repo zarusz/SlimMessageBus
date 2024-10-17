@@ -48,7 +48,7 @@ public class InMemoryPendingRequestStore : IPendingRequestStore
         }
     }
 
-    public ICollection<PendingRequestState> FindAllToCancel(DateTimeOffset now)
+    public IReadOnlyCollection<PendingRequestState> FindAllToCancel(DateTimeOffset now)
     {
         lock (_itemsLock)
         {

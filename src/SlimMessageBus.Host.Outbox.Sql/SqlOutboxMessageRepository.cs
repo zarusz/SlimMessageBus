@@ -44,7 +44,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
     {
         var om = new OutboxMessage
         {
-            Timestamp = _currentTimeProvider.CurrentTime.DateTime,
+            Timestamp = _currentTimeProvider.CurrentTime.UtcDateTime,
             InstanceId = _instanceIdProvider.GetInstanceId(),
 
             BusName = busName,
