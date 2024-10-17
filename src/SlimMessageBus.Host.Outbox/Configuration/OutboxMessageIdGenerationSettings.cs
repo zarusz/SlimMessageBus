@@ -1,5 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Outbox;
 
+// ToDo: Move to SlimMessageBus.Host.Outbox.Sql to be a setting there
 public class OutboxMessageIdGenerationSettings
 {
     /// <summary>
