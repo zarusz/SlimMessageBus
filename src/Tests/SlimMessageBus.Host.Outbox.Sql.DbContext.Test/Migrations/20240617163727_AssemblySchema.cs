@@ -1,9 +1,8 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace SlimMessageBus.Host.Outbox.DbContext.Test.Migrations
+namespace SlimMessageBus.Host.Outbox.Sql.DbContext.Test.Migrations
 {
     /// <inheritdoc />
     public partial class AssemblySchema : Migration

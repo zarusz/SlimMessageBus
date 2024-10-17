@@ -94,6 +94,13 @@ public static class ServiceCollectionExtensions
 
         services.AddHostedService<MessageBusHostedService>();
 
+        // Register the default providers
+        services.TryAddSingleton<GuidGenerator>();
+        services.TryAddSingleton<IGuidGenerator>(svp => svp.GetRequiredService<GuidGenerator>());
+
+        services.TryAddSingleton<CurrentTimeProvider>();
+        services.TryAddSingleton<ICurrentTimeProvider>(svp => svp.GetRequiredService<CurrentTimeProvider>());
+
         return services;
     }
 

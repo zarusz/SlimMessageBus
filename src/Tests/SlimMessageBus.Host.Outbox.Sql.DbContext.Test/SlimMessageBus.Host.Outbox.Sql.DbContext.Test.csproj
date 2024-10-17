@@ -16,7 +16,7 @@
     <ProjectReference Include="..\..\SlimMessageBus.Host.AzureServiceBus\SlimMessageBus.Host.AzureServiceBus.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Kafka\SlimMessageBus.Host.Kafka.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Memory\SlimMessageBus.Host.Memory.csproj" />
-    <ProjectReference Include="..\..\SlimMessageBus.Host.Outbox.DbContext\SlimMessageBus.Host.Outbox.DbContext.csproj" />
+    <ProjectReference Include="..\..\SlimMessageBus.Host.Outbox.Sql.DbContext\SlimMessageBus.Host.Outbox.Sql.DbContext.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.SystemTextJson\SlimMessageBus.Host.Serialization.SystemTextJson.csproj" />
   </ItemGroup>
 

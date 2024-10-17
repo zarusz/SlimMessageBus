@@ -46,6 +46,15 @@ public abstract class CommonSqlRepository : ISqlConnectionProvider
             using var cmd = CreateCommand();
             cmd.CommandText = sql;
             setParameters?.Invoke(cmd);
-            return await cmd.ExecuteNonQueryAsync();
+            return await cmd.ExecuteNonQueryAsync(token);
+        }, token);
+
+    public Task<object> ExecuteScalarAsync(SqlRetrySettings retrySettings, string sql, Action<SqlCommand> setParameters = null, CancellationToken token = default) =>
+        SqlHelper.RetryIfTransientError(Logger, retrySettings, async () =>
+        {
+            using var cmd = CreateCommand();
+            cmd.CommandText = sql;
+            setParameters?.Invoke(cmd);
+            return await cmd.ExecuteScalarAsync(token);
         }, token);
 }

@@ -17,6 +17,7 @@ public class KafkaMessageBusTest : IDisposable
         var serviceProviderMock = new Mock<IServiceProvider>();
         serviceProviderMock.Setup(x => x.GetService(typeof(ILogger<IMessageSerializer>))).CallBase();
         serviceProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
+        serviceProviderMock.Setup(x => x.GetService(typeof(ICurrentTimeProvider))).Returns(new CurrentTimeProvider());
 
         MbSettings = new MessageBusSettings
         {
