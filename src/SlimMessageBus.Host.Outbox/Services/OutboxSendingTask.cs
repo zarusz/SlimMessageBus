@@ -248,9 +248,13 @@ internal class OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>(
             lockRenewalTimer.Start();
 
             var outboxMessages = await outboxRepository.LockAndSelect(lockRenewalTimer.InstanceId, _outboxSettings.PollBatchSize, _outboxSettings.MaintainSequence, lockRenewalTimer.LockDuration, cts.Token);
-            var result = await ProcessMessages(outboxRepository, outboxMessages, compositeMessageBus, messageBusTarget, cts.Token);
-            runAgain = result.RunAgain;
-            count += result.Count;
+
+            if (outboxMessages.Count > 0)
+            {
+                var result = await ProcessMessages(outboxRepository, outboxMessages, compositeMessageBus, messageBusTarget, cts.Token);
+                runAgain = result.RunAgain;
+                count += result.Count;
+            }
 
             lockRenewalTimer.Stop();
         } while (!cts.Token.IsCancellationRequested && runAgain);
@@ -270,7 +274,7 @@ internal class OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>(
         {
             var busName = busGroup.Key;
             var bus = GetBus(compositeMessageBus, messageBusTarget, busName);
-            if (bus == null || bus is not IMessageBusBulkProducer bulkProducer)
+            if (bus is not IMessageBusBulkProducer bulkProducer)
             {
                 foreach (var outboxMessage in busGroup)
                 {

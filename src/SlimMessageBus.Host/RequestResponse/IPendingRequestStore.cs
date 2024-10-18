@@ -14,5 +14,5 @@ public interface IPendingRequestStore
     /// </summary>
     /// <param name="now"></param>
     /// <returns></returns>
-    ICollection<PendingRequestState> FindAllToCancel(DateTimeOffset now);
+    IReadOnlyCollection<PendingRequestState> FindAllToCancel(DateTimeOffset now);
 }

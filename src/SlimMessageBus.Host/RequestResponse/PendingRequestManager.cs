@@ -81,19 +81,22 @@ public class PendingRequestManager : IDisposable
         var now = _timeProvider();
 
         var requestsToCancel = Store.FindAllToCancel(now);
-        foreach (var requestState in requestsToCancel)
+        if (requestsToCancel.Count > 0)
         {
-            // request is either cancelled (via CancellationToken) or expired
-            var canceled = requestState.CancellationToken.IsCancellationRequested
-                ? requestState.TaskCompletionSource.TrySetCanceled(requestState.CancellationToken)
-                : requestState.TaskCompletionSource.TrySetCanceled();
-
-            if (canceled)
+            foreach (var requestState in requestsToCancel)
             {
-                _logger.LogDebug("Pending request timed-out: {RequestState}, now: {TimeNow}", requestState, now);
-                _onRequestTimeout?.Invoke(requestState.Request);
+                // request is either cancelled (via CancellationToken) or expired
+                var canceled = requestState.CancellationToken.IsCancellationRequested
+                    ? requestState.TaskCompletionSource.TrySetCanceled(requestState.CancellationToken)
+                    : requestState.TaskCompletionSource.TrySetCanceled();
+
+                if (canceled)
+                {
+                    _logger.LogDebug("Pending request timed-out: {RequestState}, now: {TimeNow}", requestState, now);
+                    _onRequestTimeout?.Invoke(requestState.Request);
+                }
             }
+            Store.RemoveAll(requestsToCancel.Select(x => x.Id));
         }
-        Store.RemoveAll(requestsToCancel.Select(x => x.Id));
     }
 }
