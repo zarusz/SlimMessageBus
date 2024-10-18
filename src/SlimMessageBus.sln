@@ -206,9 +206,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sample.OutboxWebApi", "Samp
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Outbox.Sql", "SlimMessageBus.Host.Outbox.Sql\SlimMessageBus.Host.Outbox.Sql.csproj", "{F4A692F5-0FAE-46DE-A267-DAC2B71BF026}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Outbox.DbContext", "SlimMessageBus.Host.Outbox.DbContext\SlimMessageBus.Host.Outbox.DbContext.csproj", "{EC14A729-8DF5-448D-944F-32C0BA7A4B6E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Outbox.Sql.DbContext", "SlimMessageBus.Host.Outbox.Sql.DbContext\SlimMessageBus.Host.Outbox.Sql.DbContext.csproj", "{EC14A729-8DF5-448D-944F-32C0BA7A4B6E}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Outbox.DbContext.Test", "Tests\SlimMessageBus.Host.Outbox.DbContext.Test\SlimMessageBus.Host.Outbox.DbContext.Test.csproj", "{2DD467F8-F06F-4B7C-A46F-1EC5BAE325A5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Outbox.Sql.DbContext.Test", "Tests\SlimMessageBus.Host.Outbox.Sql.DbContext.Test\SlimMessageBus.Host.Outbox.Sql.DbContext.Test.csproj", "{2DD467F8-F06F-4B7C-A46F-1EC5BAE325A5}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Serialization.SystemTextJson.Test", "Tests\SlimMessageBus.Host.Serialization.SystemTextJson.Test\SlimMessageBus.Host.Serialization.SystemTextJson.Test.csproj", "{0155628A-7B0A-4461-B3BE-4CEBE4CD77F1}"
 EndProject
@@ -277,7 +277,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Nats-SingleNode", "Nats-Sin
 		Samples\Infrastructure\Nats-SingleNode\docker-compose.yml = Samples\Infrastructure\Nats-SingleNode\docker-compose.yml
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.AspNetCore.Test", "Tests\SlimMessageBus.Host.AspNetCore.Test\SlimMessageBus.Host.AspNetCore.Test.csproj", "{9FCBF788-1F0C-43E2-909D-1F96B2685F38}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.AspNetCore.Test", "Tests\SlimMessageBus.Host.AspNetCore.Test\SlimMessageBus.Host.AspNetCore.Test.csproj", "{9FCBF788-1F0C-43E2-909D-1F96B2685F38}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Test;
 
-using System.Threading;
-
 using Moq.Protected;
 
 using SlimMessageBus.Host.Test.Common;
@@ -29,9 +27,13 @@ public class MessageBusBaseTests : IDisposable
 
         _producedMessages = [];
 
+        var currentTimeProviderMock = new Mock<ICurrentTimeProvider>();
+        currentTimeProviderMock.SetupGet(x => x.CurrentTime).Returns(() => _timeNow);
+
         _serviceProviderMock = new Mock<IServiceProvider>();
         _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(new JsonMessageSerializer());
         _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
+        _serviceProviderMock.Setup(x => x.GetService(typeof(ICurrentTimeProvider))).Returns(new CurrentTimeProvider());
         _serviceProviderMock.Setup(x => x.GetService(It.Is<Type>(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)))).Returns((Type t) => Array.CreateInstance(t.GetGenericArguments()[0], 0));
 
         BusBuilder = MessageBusBuilder.Create()
@@ -52,10 +54,9 @@ public class MessageBusBaseTests : IDisposable
             .WithDependencyResolver(_serviceProviderMock.Object)
             .WithProvider(s =>
             {
-                return new MessageBusTested(s)
+                return new MessageBusTested(s, currentTimeProviderMock.Object)
                 {
                     // provide current time
-                    CurrentTimeProvider = () => _timeNow,
                     OnProduced = (mt, n, m) => _producedMessages.Add(new(mt, n, m))
                 };
             });
@@ -497,6 +498,7 @@ public class MessageBusBaseTests : IDisposable
         _serviceProviderMock.Verify(x => x.GetService(typeof(ILoggerFactory)), Times.Once);
         _serviceProviderMock.Verify(x => x.GetService(typeof(IMessageSerializer)), Times.Between(0, 1, Moq.Range.Inclusive));
         _serviceProviderMock.Verify(x => x.GetService(typeof(IMessageTypeResolver)), Times.Once);
+        _serviceProviderMock.Verify(x => x.GetService(typeof(ICurrentTimeProvider)), Times.Once);
         _serviceProviderMock.VerifyNoOtherCalls();
 
         if (producerInterceptorCallsNext != null)
@@ -596,6 +598,7 @@ public class MessageBusBaseTests : IDisposable
         _serviceProviderMock.Verify(x => x.GetService(typeof(ILoggerFactory)), Times.Once);
         _serviceProviderMock.Verify(x => x.GetService(typeof(IMessageSerializer)), Times.Between(0, 1, Moq.Range.Inclusive));
         _serviceProviderMock.Verify(x => x.GetService(typeof(IMessageTypeResolver)), Times.Once);
+        _serviceProviderMock.Verify(x => x.GetService(typeof(ICurrentTimeProvider)), Times.Once);
         _serviceProviderMock.VerifyNoOtherCalls();
 
         if (producerInterceptorCallsNext != null)
@@ -679,6 +682,7 @@ public class MessageBusBaseTests : IDisposable
 
             var mockServiceProvider = new Mock<IServiceProvider>();
             mockServiceProvider.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(mockMessageTypeResolver.Object);
+            mockServiceProvider.Setup(x => x.GetService(typeof(ICurrentTimeProvider))).Returns(new CurrentTimeProvider());
 
             var mockMessageTypeConsumerInvokerSettings = new Mock<IMessageTypeConsumerInvokerSettings>();
             mockMessageTypeConsumerInvokerSettings.SetupGet(x => x.ParentSettings).Returns(() => new ConsumerSettings() { ResponseType = response.GetType() });

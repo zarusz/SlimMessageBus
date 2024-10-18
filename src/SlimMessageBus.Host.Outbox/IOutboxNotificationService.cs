@@ -1,4 +1,4 @@
-﻿namespace SlimMessageBus.Host.Outbox.Services;
+﻿namespace SlimMessageBus.Host.Outbox;
 
 public interface IOutboxNotificationService
 {

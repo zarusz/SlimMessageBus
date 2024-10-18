@@ -25,11 +25,6 @@ jobs:
       group: ${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
     steps:
-      # - name: Dump GitHub context
-      #   env:
-      #     GITHUB_CONTEXT: ${{ toJson(github) }}
-      #   run: echo "$GITHUB_CONTEXT"
-
       - name: PR - Checkout
         if: github.event_name == 'pull_request_target'
         uses: actions/checkout@v3
@@ -195,7 +190,7 @@ jobs:
           name: .NET Tests
           path: ./test-results/*.trx
           reporter: dotnet-trx
-          fail-on-error: false
+          fail-on-error: true
 
       - name: Copy NuGet packages
         shell: bash

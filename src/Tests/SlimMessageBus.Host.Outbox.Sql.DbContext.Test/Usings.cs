@@ -15,8 +15,7 @@ global using SecretStore;
 global using SlimMessageBus.Host.AzureServiceBus;
 global using SlimMessageBus.Host.Kafka;
 global using SlimMessageBus.Host.Memory;
-global using SlimMessageBus.Host.Outbox.DbContext.Test.DataAccess;
-global using SlimMessageBus.Host.Outbox.Sql;
+global using SlimMessageBus.Host.Outbox.Sql.DbContext.Test.DataAccess;
 global using SlimMessageBus.Host.Serialization.SystemTextJson;
 global using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
