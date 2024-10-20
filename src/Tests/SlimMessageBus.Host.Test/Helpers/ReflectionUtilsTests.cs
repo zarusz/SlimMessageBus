@@ -94,7 +94,7 @@ public class ReflectionUtilsTests
     }
 
     [Fact]
-    public void When_GenerateGenericMethodCallToFunc_Given_GenericMethid_Then_MethodIsProperlyInvoked()
+    public void When_GenerateGenericMethodCallToFunc_Given_GenericMethod_Then_MethodIsProperlyInvoked()
     {
         // arrange
         var obj = new ClassWithGenericMethod(true);

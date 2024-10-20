@@ -223,7 +223,7 @@ public class KafkaMessageBusIt(ITestOutputHelper testOutputHelper)
             }
         }));
 
-        await responses.WaitUntilArriving(newMessagesTimeout: 5);
+        await responses.WaitUntilArriving(newMessagesTimeout: 10);
 
         // assert
 

@@ -11,8 +11,8 @@ public class EhGroupConsumer : AbstractConsumer
 
     public EventHubMessageBus MessageBus { get; }
 
-    public EhGroupConsumer(EventHubMessageBus messageBus, GroupPath groupPath, Func<GroupPathPartitionId, EhPartitionConsumer> partitionConsumerFactory)
-        : base(messageBus.LoggerFactory.CreateLogger<EhGroupConsumer>())
+    public EhGroupConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, EventHubMessageBus messageBus, GroupPath groupPath, Func<GroupPathPartitionId, EhPartitionConsumer> partitionConsumerFactory)
+        : base(messageBus.LoggerFactory.CreateLogger<EhGroupConsumer>(), consumerSettings)
     {
         _groupPath = groupPath ?? throw new ArgumentNullException(nameof(groupPath));
         if (partitionConsumerFactory == null) throw new ArgumentNullException(nameof(partitionConsumerFactory));

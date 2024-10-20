@@ -13,8 +13,9 @@ public class KafkaGroupConsumerTests
         var processorFactoryMock = new Mock<Func<TopicPartition, IKafkaCommitController, IKafkaPartitionConsumer>>();
 
         var providerSettings = new KafkaMessageBusSettings("host");
+        var consumerSettings = Array.Empty<AbstractConsumerSettings>();
 
-        var subjectMock = new Mock<KafkaGroupConsumer>(loggerFactoryMock.Object, providerSettings, "group", new List<string> { "topic" }, processorFactoryMock.Object) { CallBase = true };
+        var subjectMock = new Mock<KafkaGroupConsumer>(loggerFactoryMock.Object, providerSettings, consumerSettings, "group", new List<string> { "topic" }, processorFactoryMock.Object) { CallBase = true };
         _subject = subjectMock.Object;
     }
 
