@@ -1,5 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Outbox;
 
+
 /// <summary>
 /// Factory for creating outbox messages
 /// </summary>
@@ -15,7 +16,7 @@ public interface IOutboxMessageFactory
     /// <param name="messagePayload"></param>
     /// <param name="cancellationToken"></param>
     /// <returns>ID of the outbox message.</returns>
-    Task<object> Create(
+    Task<IHasId> Create(
         string busName,
         IDictionary<string, object> headers,
         string path,

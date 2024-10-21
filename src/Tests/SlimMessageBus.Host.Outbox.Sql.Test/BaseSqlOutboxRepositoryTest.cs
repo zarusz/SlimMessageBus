@@ -40,7 +40,7 @@ public class BaseSqlOutboxRepositoryTest : BaseSqlTest
         {
             var message = messages[i];
             action?.Invoke(i, message);
-            message.Id = (Guid)await _target.Create(message.BusName, message.Headers, message.Path, message.MessageType, message.MessagePayload, cancellationToken);
+            message.Id = (Guid)(await _target.Create(message.BusName, message.Headers, message.Path, message.MessageType, message.MessagePayload, cancellationToken)).Id;
         }
         return messages;
     }

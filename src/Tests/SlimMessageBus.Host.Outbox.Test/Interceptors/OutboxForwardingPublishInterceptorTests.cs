@@ -73,7 +73,7 @@ public static class OutboxForwardingPublishInterceptorTests
             _mockOutboxMessageFactory = new Mock<IOutboxMessageFactory>();
             _mockOutboxMessageFactory
                 .Setup(x => x.Create(It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(Guid.NewGuid());
+                .ReturnsAsync( new OutboxMessage<Guid> { Id = Guid.NewGuid() });
         }
 
         [Fact]

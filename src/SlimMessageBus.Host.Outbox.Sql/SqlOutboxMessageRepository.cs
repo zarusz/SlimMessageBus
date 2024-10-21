@@ -42,7 +42,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
         Settings = settings;
     }
 
-    public virtual async Task<object> Create(string busName, IDictionary<string, object> headers, string path, string messageType, byte[] messagePayload, CancellationToken cancellationToken)
+    public virtual async Task<IHasId> Create(string busName, IDictionary<string, object> headers, string path, string messageType, byte[] messagePayload, CancellationToken cancellationToken)
     {
         var om = new SqlOutboxMessage
         {
@@ -87,7 +87,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
             cmd.Parameters.Add("@DeliveryAborted", SqlDbType.Bit).Value = om.DeliveryAborted;
         }, cancellationToken);
 
-        return om.Id;
+        return om;
     }
 
     public async Task<IReadOnlyCollection<SqlOutboxMessage>> LockAndSelect(string instanceId, int batchSize, bool tableLock, TimeSpan lockDuration, CancellationToken cancellationToken)

@@ -10,7 +10,7 @@ public static class SqlOutboxRepositoryTests
             var message = CreateOutboxMessages(1).Single();
 
             // act
-            message.Id = (Guid)await _target.Create(message.BusName, message.Headers, message.Path, message.MessageType, message.MessagePayload, CancellationToken.None);
+            message.Id = (Guid)(await _target.Create(message.BusName, message.Headers, message.Path, message.MessageType, message.MessagePayload, CancellationToken.None)).Id;
             var messages = await _target.GetAllMessages(CancellationToken.None);
 
             // assert
