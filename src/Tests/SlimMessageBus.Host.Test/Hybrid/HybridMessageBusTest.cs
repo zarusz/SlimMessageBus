@@ -39,6 +39,7 @@ public class HybridMessageBusTest
         _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
         _serviceProviderMock.Setup(x => x.GetService(typeof(ILoggerFactory))).Returns(_loggerFactoryMock.Object);
         _serviceProviderMock.Setup(x => x.GetService(typeof(IEnumerable<IMessageBusLifecycleInterceptor>))).Returns(Array.Empty<IMessageBusLifecycleInterceptor>());
+        _serviceProviderMock.Setup(x => x.GetService(typeof(ICurrentTimeProvider))).Returns(new CurrentTimeProvider());
 
         _loggerFactoryMock.Setup(x => x.CreateLogger(It.IsAny<string>())).Returns(_loggerMock.Object);
 

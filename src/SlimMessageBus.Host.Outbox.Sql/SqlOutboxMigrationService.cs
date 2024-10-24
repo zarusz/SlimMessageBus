@@ -1,12 +1,13 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Sql;
 
-public class SqlOutboxMigrationService : CommonSqlMigrationService<CommonSqlRepository, SqlSettings>, IOutboxMigrationService
+public class SqlOutboxMigrationService(
+    ILogger<SqlOutboxMigrationService> logger,
+    ISqlMessageOutboxRepository repository,
+    ISqlTransactionService transactionService,
+    SqlOutboxSettings settings)
+    : CommonSqlMigrationService<CommonSqlRepository, SqlSettings>(logger, (CommonSqlRepository)repository, transactionService, settings.SqlSettings),
+      IOutboxMigrationService
 {
-    public SqlOutboxMigrationService(ILogger<SqlOutboxMigrationService> logger, ISqlOutboxRepository repository, ISqlTransactionService transactionService, SqlOutboxSettings settings)
-        : base(logger, (CommonSqlRepository)repository, transactionService, settings.SqlSettings)
-    {
-    }
-
     protected override async Task OnMigrate(CancellationToken token)
     {
         var qualifiedTableName = Repository.GetQualifiedName(Settings.DatabaseTableName);

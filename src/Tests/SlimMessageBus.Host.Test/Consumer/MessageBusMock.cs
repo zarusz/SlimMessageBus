@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Serialization;
 
-public class MessageBusMock
+public class MessageBusMock : ICurrentTimeProvider
 {
     public Mock<IServiceProvider> ServiceProviderMock { get; }
     public IList<Mock<IServiceScope>> ChildDependencyResolverMocks { get; }
@@ -63,6 +63,7 @@ public class MessageBusMock
 
         ServiceProviderMock.Setup(x => x.GetService(typeof(IServiceScopeFactory))).Returns(serviceScopeFactoryMock.Object);
         ServiceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(SerializerMock.Object);
+        ServiceProviderMock.Setup(x => x.GetService(typeof(ICurrentTimeProvider))).Returns(this);
 
         var mbSettings = new MessageBusSettings
         {
@@ -75,7 +76,6 @@ public class MessageBusMock
         BusMock.SetupGet(x => x.Settings).Returns(mbSettings);
         BusMock.SetupGet(x => x.Serializer).CallBase();
         BusMock.SetupGet(x => x.MessageBusTarget).CallBase();
-        BusMock.SetupGet(x => x.CurrentTime).Returns(() => CurrentTime);
         BusMock.Setup(x => x.CreateHeaders()).CallBase();
         BusMock.Setup(x => x.CreateMessageScope(It.IsAny<ConsumerSettings>(), It.IsAny<object>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IServiceProvider>())).CallBase();
     }
