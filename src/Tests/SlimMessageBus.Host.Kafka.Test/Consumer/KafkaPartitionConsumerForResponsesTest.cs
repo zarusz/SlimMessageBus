@@ -46,7 +46,7 @@ public class KafkaPartitionConsumerForResponsesTest : IDisposable
     public async Task When_OnPartitionEndReached_Then_ShouldCommit()
     {
         // arrange
-        var partition = new TopicPartitionOffset(_topicPartition, new Offset(10));
+        var messageOffset = new TopicPartitionOffset(_topicPartition, new Offset(10));
         var message = GetSomeMessage();
 
         _subject.OnPartitionAssigned(_topicPartition);
@@ -56,7 +56,7 @@ public class KafkaPartitionConsumerForResponsesTest : IDisposable
         _subject.OnPartitionEndReached();
 
         // assert
-        _commitControllerMock.Verify(x => x.Commit(partition), Times.Once);
+        _commitControllerMock.Verify(x => x.Commit(messageOffset.AddOffset(1)), Times.Once);
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public class KafkaPartitionConsumerForResponsesTest : IDisposable
         await _subject.OnMessage(message);
 
         // assert
-        _commitControllerMock.Verify(x => x.Commit(message.TopicPartitionOffset), Times.Once);
+        _commitControllerMock.Verify(x => x.Commit(message.TopicPartitionOffset.AddOffset(1)), Times.Once);
     }
 
     [Fact]

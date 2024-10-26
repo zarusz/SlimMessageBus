@@ -61,7 +61,7 @@ public class KafkaPartitionConsumerForConsumersTest : IDisposable
         _subject.Value.OnPartitionEndReached();
 
         // assert
-        _commitControllerMock.Verify(x => x.Commit(message.TopicPartitionOffset), Times.Once);
+        _commitControllerMock.Verify(x => x.Commit(message.TopicPartitionOffset.AddOffset(1)), Times.Once);
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public class KafkaPartitionConsumerForConsumersTest : IDisposable
         await _subject.Value.OnMessage(message3);
 
         // assert
-        _commitControllerMock.Verify(x => x.Commit(message3.TopicPartitionOffset), Times.Once);
+        _commitControllerMock.Verify(x => x.Commit(message3.TopicPartitionOffset.AddOffset(1)), Times.Once);
     }
 
     private ConsumeResult GetSomeMessage(int offsetAdd = 0)
