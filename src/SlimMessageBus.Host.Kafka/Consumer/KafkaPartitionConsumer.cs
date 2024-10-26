@@ -168,10 +168,13 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
     {
         if (offset != null && (_lastCheckpointOffset == null || offset.Offset > _lastCheckpointOffset.Offset))
         {
-            _logger.LogDebug("Group [{Group}]: Commit at Offset: {Offset}, Partition: {Partition}, Topic: {Topic}", Group, offset.Offset, offset.Partition, offset.Topic);
-
             _lastCheckpointOffset = offset;
-            _commitController.Commit(offset);
+
+            // See https://github.com/confluentinc/confluent-kafka-dotnet/blob/25f320a672b4324d732304cb4efa2288867b320c/src/Confluent.Kafka/Consumer.cs#L338
+            // See https://github.com/confluentinc/confluent-kafka-dotnet/issues/1380#issuecomment-672036089
+            // The commit has to have the last processed message + 1
+
+            _commitController.Commit(offset.AddOffset(1));
 
             CheckpointTrigger?.Reset();
         }

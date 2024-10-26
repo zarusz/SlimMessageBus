@@ -119,7 +119,6 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A6C28448-3839-490C-BE30-580C1A45E225}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
-		cloudkarafka_2023-10.pem = cloudkarafka_2023-10.pem
 		Common.NuGet.Properties.xml = Common.NuGet.Properties.xml
 		Common.Properties.xml = Common.Properties.xml
 		..\CONTRIBUTING.md = ..\CONTRIBUTING.md
@@ -277,7 +276,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Nats-SingleNode", "Nats-Sin
 		Samples\Infrastructure\Nats-SingleNode\docker-compose.yml = Samples\Infrastructure\Nats-SingleNode\docker-compose.yml
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.AspNetCore.Test", "Tests\SlimMessageBus.Host.AspNetCore.Test\SlimMessageBus.Host.AspNetCore.Test.csproj", "{9FCBF788-1F0C-43E2-909D-1F96B2685F38}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.AspNetCore.Test", "Tests\SlimMessageBus.Host.AspNetCore.Test\SlimMessageBus.Host.AspNetCore.Test.csproj", "{9FCBF788-1F0C-43E2-909D-1F96B2685F38}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

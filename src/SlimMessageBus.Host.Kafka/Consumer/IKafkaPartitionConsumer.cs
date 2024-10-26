@@ -1,6 +1,6 @@
 namespace SlimMessageBus.Host.Kafka;
 
-using ConsumeResult = Confluent.Kafka.ConsumeResult<Confluent.Kafka.Ignore, byte[]>;
+using ConsumeResult = ConsumeResult<Ignore, byte[]>;
 
 /// <summary>
 /// The processor of assigned partition (<see cref="TopicPartition"/>).

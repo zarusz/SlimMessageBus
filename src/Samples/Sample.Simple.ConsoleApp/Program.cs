@@ -140,14 +140,6 @@ static internal class Program
         var consumerGroup = "consoleapp";
         var responseGroup = "consoleapp-1";
 
-        if (provider == Provider.Kafka)
-        {
-            // Note: We are using the free plan of CloudKarafka to host the Kafka infrastructure. The free plan has a limit on topic you can get free and it requires these topic prefixes.
-            topicForAddCommand = "4p5ma6io-test-ping";
-            topicForMultiplyRequest = "4p5ma6io-multiply-request";
-            topicForResponses = "4p5ma6io-responses";
-        }
-
         /*
         
         Azure Event Hub setup notes:
