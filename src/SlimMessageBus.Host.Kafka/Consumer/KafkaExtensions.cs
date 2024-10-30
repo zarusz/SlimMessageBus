@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Kafka;
 
-public static class KafkaExtensions
+internal static class KafkaExtensions
 {
     public static TopicPartitionOffset AddOffset(this TopicPartitionOffset topicPartitionOffset, int addOffset)
         => new(topicPartitionOffset.TopicPartition, topicPartitionOffset.Offset + addOffset);

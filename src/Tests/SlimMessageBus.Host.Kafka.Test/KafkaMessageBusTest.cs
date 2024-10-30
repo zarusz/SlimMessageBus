@@ -1,22 +1,33 @@
 ﻿namespace SlimMessageBus.Host.Kafka.Test;
 
+using System.Linq.Expressions;
+using System.Threading.Tasks;
+
+using Confluent.Kafka;
+
 public class KafkaMessageBusTest : IDisposable
 {
+    private readonly Mock<ProducerBuilder<byte[], byte[]>> _producerBuilderMock;
+    private readonly Mock<IProducer<byte[], byte[]>> _producerMock;
+
     private MessageBusSettings MbSettings { get; }
     private KafkaMessageBusSettings KafkaMbSettings { get; }
     private Lazy<WrappedKafkaMessageBus> KafkaMb { get; }
 
     public KafkaMessageBusTest()
     {
-        var producerMock = new Mock<IProducer<byte[], byte[]>>();
-        producerMock.SetupGet(x => x.Name).Returns("Producer Name");
+        _producerMock = new Mock<IProducer<byte[], byte[]>>();
+        _producerMock.SetupGet(x => x.Name).Returns("Producer Name");
 
-        var producerBuilderMock = new Mock<ProducerBuilder<byte[], byte[]>>(new ProducerConfig());
-        producerBuilderMock.Setup(x => x.Build()).Returns(producerMock.Object);
+        _producerBuilderMock = new Mock<ProducerBuilder<byte[], byte[]>>(new ProducerConfig());
+        _producerBuilderMock.Setup(x => x.Build()).Returns(_producerMock.Object);
+
+        var messageSerializerMock = new Mock<IMessageSerializer>();
 
         var serviceProviderMock = new Mock<IServiceProvider>();
         serviceProviderMock.Setup(x => x.GetService(typeof(ILogger<IMessageSerializer>))).CallBase();
         serviceProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
+        serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(messageSerializerMock.Object);
 
         MbSettings = new MessageBusSettings
         {
@@ -24,7 +35,7 @@ public class KafkaMessageBusTest : IDisposable
         };
         KafkaMbSettings = new KafkaMessageBusSettings("host")
         {
-            ProducerBuilderFactory = (config) => producerBuilderMock.Object
+            ProducerBuilderFactory = (config) => _producerBuilderMock.Object
         };
         KafkaMb = new Lazy<WrappedKafkaMessageBus>(() => new WrappedKafkaMessageBus(MbSettings, KafkaMbSettings));
     }
@@ -89,6 +100,60 @@ public class KafkaMessageBusTest : IDisposable
         // assert
         msgAPartition.Should().Be(10);
         msgBPartition.Should().Be(-1);
+    }
+
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    public async Task When_Publish_Given_EnableAwaitProduce_Then_UsesSyncOrAsyncProduceVersionAsync(bool enableAwaitProduce, bool withPartitionProvider)
+    {
+        // arrange
+        var topic = "topic1";
+        var producer = new ProducerSettings();
+        var producerBuilder = new ProducerBuilder<SomeMessage>(producer)
+            .DefaultTopic(topic)
+            .EnableProduceAwait(enableAwaitProduce);
+
+        var partitionNumber = 10;
+        if (withPartitionProvider)
+        {
+            producerBuilder.PartitionProvider((m, t) => partitionNumber);
+        }
+
+        MbSettings.Producers.Add(producer);
+
+        var cancellationToken = new CancellationTokenSource().Token;
+        var msg = new SomeMessage();
+
+        var deliveryReport = new DeliveryResult<byte[], byte[]> { Status = PersistenceStatus.Persisted };
+        _producerMock
+            .Setup(x => x.ProduceAsync(It.IsAny<string>(), It.IsAny<Message<byte[], byte[]>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(deliveryReport);
+        _producerMock
+            .Setup(x => x.ProduceAsync(It.IsAny<TopicPartition>(), It.IsAny<Message<byte[], byte[]>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(deliveryReport);
+
+        // act
+        await KafkaMb.Value.ProducePublish(msg, cancellationToken: cancellationToken);
+
+        // assert
+        Expression<Action<IProducer<byte[], byte[]>>> exp;
+        if (enableAwaitProduce)
+        {
+            exp = withPartitionProvider
+                ? x => x.ProduceAsync(It.Is<TopicPartition>(tp => tp.Partition == partitionNumber && tp.Topic == topic), It.IsAny<Message<byte[], byte[]>>(), It.IsAny<CancellationToken>())
+                : x => x.ProduceAsync(topic, It.IsAny<Message<byte[], byte[]>>(), It.IsAny<CancellationToken>());
+        }
+        else
+        {
+            exp = withPartitionProvider
+                ? x => x.Produce(It.Is<TopicPartition>(tp => tp.Partition == partitionNumber && tp.Topic == topic), It.IsAny<Message<byte[], byte[]>>(), It.IsAny<Action<DeliveryReport<byte[], byte[]>>>())
+                : x => x.Produce(topic, It.IsAny<Message<byte[], byte[]>>(), It.IsAny<Action<DeliveryReport<byte[], byte[]>>>());
+        }
+        _producerMock.Verify(exp, Times.Once);
+        _producerMock.VerifyNoOtherCalls();
     }
 
     class MessageA

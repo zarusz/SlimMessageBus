@@ -64,21 +64,25 @@ public class KafkaMessageBusIt(ITestOutputHelper testOutputHelper)
     public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
 
     [Theory]
-    [InlineData(300, 100, 120)]
-    [InlineData(300, 120, 100)]
-    public async Task BasicPubSub(int numberOfMessages, int delayProducerAt, int delayConsumerAt)
+    [InlineData(300, 100, 120, true)]
+    [InlineData(300, 120, 100, true)]
+    [InlineData(300, 100, 120, false)]
+    [InlineData(300, 120, 100, false)]
+    public async Task BasicPubSub(int numberOfMessages, int delayProducerAt, int delayConsumerAt, bool enableProduceAwait)
     {
         // arrange
         AddBusConfiguration(mbb =>
         {
             var topic = "test-ping";
+            // doc:fragment:ExampleEnableProduceAwait
             mbb.Produce<PingMessage>(x =>
             {
                 x.DefaultTopic(topic);
-                // Partition #0 for even counters
-                // Partition #1 for odd counters
+                // Partition #0 - for even counters, and #1 - for odd counters
                 x.PartitionProvider((m, t) => m.Counter % 2);
+                x.EnableProduceAwait(enableProduceAwait);
             });
+            // doc:fragment:ExampleEnableProduceAwait
             // doc:fragment:ExampleCheckpointConfig
             mbb.Consume<PingMessage>(x =>
             {
@@ -90,6 +94,9 @@ public class KafkaMessageBusIt(ITestOutputHelper testOutputHelper)
                     .CheckpointAfter(TimeSpan.FromSeconds(600));
             });
             // doc:fragment:ExampleCheckpointConfig
+
+            // or
+            //mbb.EnableProduceAwait(enableProduceAwait);
         });
 
         var consumedMessages = ServiceProvider.GetRequiredService<TestEventCollector<ConsumedMessage>>();

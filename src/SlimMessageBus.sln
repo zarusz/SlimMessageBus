@@ -252,6 +252,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Infrastructure", "Infrastru
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Build", "Build", "{1A71BB05-58ED-4B27-B4A4-A03D9E608C1C}"
 	ProjectSection(SolutionItems) = preProject
+		..\.github\workflows\build.yml = ..\.github\workflows\build.yml
 		..\build\do_build.ps1 = ..\build\do_build.ps1
 		..\build\do_package.ps1 = ..\build\do_package.ps1
 		..\build\do_push_local.ps1 = ..\build\do_push_local.ps1

@@ -45,7 +45,7 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
     {
         var f = new CheckpointTriggerFactory(
             LoggerFactory,
-            (configuredCheckpoints) => $"The checkpoint settings ({nameof(BuilderExtensions.CheckpointAfter)} and {nameof(BuilderExtensions.CheckpointEvery)}) across all the consumers that use the same Topic {TopicPartition.Topic} and Group {Group} must be the same (found settings are: {string.Join(", ", configuredCheckpoints)})");
+            (configuredCheckpoints) => $"The checkpoint settings ({nameof(KafkaAbstractConsumerBuilderExtensions.CheckpointAfter)} and {nameof(KafkaAbstractConsumerBuilderExtensions.CheckpointEvery)}) across all the consumers that use the same Topic {TopicPartition.Topic} and Group {Group} must be the same (found settings are: {string.Join(", ", configuredCheckpoints)})");
 
         return f.Create(ConsumerSettings);
     }
