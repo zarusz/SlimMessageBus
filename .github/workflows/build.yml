@@ -54,6 +54,7 @@ jobs:
         working-directory: ./src
 
       - name: Install Coverlet
+        continue-on-error: true
         #if: false
         run: find . -name "*.Test.csproj" | xargs -t -I {} dotnet add {} package coverlet.collector
         working-directory: ./src
