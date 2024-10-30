@@ -1,7 +1,9 @@
 namespace SlimMessageBus.Host;
 
-public class ConsumerBuilder<T> : AbstractConsumerBuilder
+public class ConsumerBuilder<T> : AbstractConsumerBuilder, IConsumerBuilder
 {
+    HasProviderExtensions IBuilderWithSettings.Settings => ConsumerSettings;
+
     public ConsumerBuilder(MessageBusSettings settings, Type messageType = null)
         : base(settings, messageType ?? typeof(T))
     {

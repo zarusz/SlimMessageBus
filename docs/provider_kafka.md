@@ -6,12 +6,14 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 - [Configuration properties](#configuration-properties)
   - [Minimizing message latency](#minimizing-message-latency)
   - [SSL and password authentication](#ssl-and-password-authentication)
-- [Selecting message partition for topic producer](#selecting-message-partition-for-topic-producer)
-  - [Default partitioner with message key](#default-partitioner-with-message-key)
-  - [Assigning partition explicitly](#assigning-partition-explicitly)
-- [Consumer context](#consumer-context)
+- [Producers](#producers)
+  - [High throughput publish](#high-throughput-publish)
+  - [Selecting message partition for topic producer](#selecting-message-partition-for-topic-producer)
+    - [Default partitioner with message key](#default-partitioner-with-message-key)
+    - [Assigning partition explicitly](#assigning-partition-explicitly)
 - [Message Headers](#message-headers)
 - [Consumers](#consumers)
+  - [Consumer context](#consumer-context)
   - [Offset Commit](#offset-commit)
   - [Consumer Error Handling](#consumer-error-handling)
   - [Debugging](#debugging)
@@ -29,7 +31,7 @@ When troubleshooting or fine tuning it is worth reading the `librdkafka` and `co
 
 ## Configuration properties
 
-Producer, consumer and global configuration properties are described [here](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md).
+Producer, consumer and global configuration properties are described [here](https://github.com/confluentinc/librdkafka/blob/master/CONFIGURATION.md).
 The configuration on the underlying Kafka client can be adjusted like so:
 
 ```cs
@@ -53,7 +55,7 @@ services.AddSlimMessageBus(mbb =>
 
 ### Minimizing message latency
 
-There is a good description [here](https://github.com/edenhill/librdkafka/wiki/How-to-decrease-message-latency) on improving the latency by applying producer/consumer settings on librdkafka. Here is how you enter the settings using SlimMessageBus:
+There is a good description [here](https://github.com/confluentinc/librdkafka/wiki/How-to-decrease-message-latency) on improving the latency by applying producer/consumer settings on librdkafka. Here is how you enter the settings using SlimMessageBus:
 
 ```cs
 services.AddSlimMessageBus(mbb =>
@@ -119,12 +121,34 @@ private static void AddSsl(string username, string password, ClientConfig c)
 
 The file `cloudkarafka_2020-12.ca` has to be set to `Copy to Output Directory` as `Copy always`.
 
-## Selecting message partition for topic producer
+## Producers
+
+### High throughput publish
+
+By default each [.Publish()](../src/SlimMessageBus/IPublishBus.cs) / [.Send()](../src/SlimMessageBus/RequestResponse/IRequestResponseBus.cs) is producing the message to the Kafka transport and awaiting the response.
+This is to ensure the errors in delivery to the Kafka transport are reported as [ProducerMessageBusException](../src/SlimMessageBus/Exceptions/ProducerMessageBusException.cs) and ensuring delivery to the kafka cluster.
+
+However, for scenarios where we want higher throughput with the sacrifice of delivery we can use the `.EnableProduceAwait(false)` on the producer or bus configuration.
+When await is disabled the message will be delivered to the Kafka client without awaiting the produce result, and the client's internal buffering will be used more effectively.
+
+> When `.EnableProduceAwait(false)` any errors in delivery will be reported only in the logs resulting in an fire&forget semantics and possible message loss.
+
+```cs
+mbb.Produce<PingMessage>(x =>
+{
+    x.DefaultTopic(topic);
+    // Partition #0 - for even counters, and #1 - for odd counters
+    x.PartitionProvider((m, t) => m.Counter % 2);
+    x.EnableProduceAwait(enableProduceAwait);
+});
+```
+
+### Selecting message partition for topic producer
 
 Kafka topics are broken into partitions. The question is how does SMB Kafka choose the partition to assign the message?
 There are two possible options:
 
-### Default partitioner with message key
+#### Default partitioner with message key
 
 Currently, [confluent-kafka-dotnet](https://github.com/confluentinc/confluent-kafka-dotnet) does not support custom partitioners (see [here](https://github.com/confluentinc/confluent-kafka-dotnet/issues/343)).
 The default partitioner is supported, which works in this way:
@@ -148,7 +172,7 @@ mbb
 
 The key must be a `byte[]`.
 
-### Assigning partition explicitly
+#### Assigning partition explicitly
 
 SMB Kafka allows to set a provider (selector) that will assign the partition number for a given message and topic pair. Here is an example:
 
@@ -167,7 +191,29 @@ mbb
 
 With this approach your provider needs to know the number of partitions for a topic.
 
-## Consumer context
+## Message Headers
+
+SMB uses headers to pass additional metadata information with the message. This includes the `MessageType` (of type `string`) or in the case of request/response messages the `RequestId` (of type `string`), `ReplyTo` (of type `string`) and `Expires` (of type `long`).
+
+The Kafka message header values are natively binary (`byte[]`) in the underlying .NET client, as a result SMB needs to serialize the header values.
+By default the [DefaultKafkaHeaderSerializer](../src/SlimMessageBus.Host.Kafka/DefaultKafkaHeaderSerializer.cs) is used to serialize header values.
+If you need to specify a different serializer provide a specific `IMessageSerializer` implementation (custom or one of the available serialization plugins):
+
+```cs
+// MessageBusBuilder mbb;
+mbb
+   .WithProviderKafka(cfg =>
+   {
+      cfg.BrokerList = kafkaBrokers;
+      cfg.HeaderSerializer = new DefaultKafkaHeaderSerializer() // specify a different header values serializer
+   });
+```
+
+> Since version 2.0.0, uses the [DefaultKafkaHeaderSerializer](../src/SlimMessageBus.Host.Kafka/DefaultKafkaHeaderSerializer.cs) serializer which converts the passed values into string. Prior version 2.0.0, by default the same serializer for the bus was used to also serialize message header values.
+
+## Consumers
+
+### Consumer context
 
 The consumer can implement the `IConsumerWithContext` interface to access the Kafka native message:
 
@@ -187,31 +233,10 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
 
 This could be useful to extract the message's offset or partition.
 
-## Message Headers
-
-SMB uses headers to pass additional metadata information with the message. This includes the `MessageType` (of type `string`) or in the case of request/response messages the `RequestId` (of type `string`), `ReplyTo` (of type `string`) and `Expires` (of type `long`).
-
-The Kafka message header values are natively binary (`byte[]`) in the underlying .NET client, as a result SMB needs to serialize the header values.
-By default the [DefaultKafkaHeaderSerializer](../src/SlimMessageBus.Host.Kafka/DefaultKafkaHeaderSerializer.cs) is used to serialize header values.
-If you need to specify a different serializer provide a specfic `IMessageSerializer` implementation (custom or one of the available serialization plugins):
-
-```cs
-// MessageBusBuilder mbb;
-mbb
-   .WithProviderKafka(cfg =>
-   {
-      cfg.BrokerList = kafkaBrokers;
-      cfg.HeaderSerializer = new DefaultKafkaHeaderSerializer() // specify a different header values serializer
-   });
-```
-
-> Since version 2.0.0, uses the [DefaultKafkaHeaderSerializer](../src/SlimMessageBus.Host.Kafka/DefaultKafkaHeaderSerializer.cs) serializer which converts the passed values into string. Prior version 2.0.0, by default the same serializer for the bus was used to also serialize message header values.
-
-## Consumers
-
 ### Offset Commit
 
-In the current Kafka provider implementation, SMB handles the manual commit of topic-partition offsets for the consumer. This configuration is controlled through the following methods on the consumer builder:
+In the current Kafka provider implementation, SMB handles the manual commit of topic-partition offsets for the consumer.Th
+is configuration is controlled through the following methods on the consumer builder:
 
 - `CheckpointEvery(int)` – Commits the offset after a specified number of processed messages.
 - `CheckpointAfter(TimeSpan)` – Commits the offset after a specified time interval.

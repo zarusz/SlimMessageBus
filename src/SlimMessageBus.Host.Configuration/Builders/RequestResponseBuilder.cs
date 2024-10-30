@@ -1,10 +1,12 @@
 namespace SlimMessageBus.Host;
 
-public class RequestResponseBuilder : IAbstractConsumerBuilder
+public class RequestResponseBuilder : IAbstractConsumerBuilder, IConsumerBuilder
 {
     public RequestResponseSettings Settings { get; }
 
     public AbstractConsumerSettings ConsumerSettings => Settings;
+
+    HasProviderExtensions IBuilderWithSettings.Settings => Settings;
 
     public RequestResponseBuilder(RequestResponseSettings settings)
     {

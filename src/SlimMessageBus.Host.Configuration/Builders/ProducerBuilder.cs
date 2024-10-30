@@ -1,10 +1,12 @@
 ﻿namespace SlimMessageBus.Host;
 
-public class ProducerBuilder<T>
+public class ProducerBuilder<T> : IProducerBuilder
 {
     public ProducerSettings Settings { get; }
 
     public Type MessageType => Settings.MessageType;
+
+    HasProviderExtensions IBuilderWithSettings.Settings => Settings;
 
     public ProducerBuilder(ProducerSettings settings)
         : this(settings, typeof(T))
