@@ -2,17 +2,20 @@
 
 public class TestEventCollector<T>
 {
-    private readonly IList<T> list = new List<T>();
+    private readonly IList<T> list = [];
 
     private bool isStarted = false;
 
     public bool IsStarted => isStarted;
+
+    public event Action<IList<T>, T>? OnAdded;
 
     public void Add(T item)
     {
         lock (list)
         {
             list.Add(item);
+            OnAdded?.Invoke(list, item);
         }
     }
 

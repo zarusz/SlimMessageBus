@@ -245,7 +245,7 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
         Logger.LogTrace("Group [{Group}]: Statistics: {statistics}", Group, json);
     }
 
-    #region Implementation of IKafkaCoordinator
+    #region Implementation of IKafkaCommitController
 
     public void Commit(TopicPartitionOffset offset)
     {

@@ -15,16 +15,6 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseOutboxIntegra
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
-        static void AddKafkaSsl(string username, string password, ClientConfig c)
-        {
-            // cloudkarafka.com uses SSL with SASL authentication
-            c.SecurityProtocol = SecurityProtocol.SaslSsl;
-            c.SaslUsername = username;
-            c.SaslPassword = password;
-            c.SaslMechanism = SaslMechanism.ScramSha256;
-            c.SslCaLocation = "cloudkarafka_2023-10.pem";
-        }
-
         void ConfigureExternalBus(MessageBusBuilder mbb)
         {
             var topic = "test-ping";
@@ -33,7 +23,6 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseOutboxIntegra
                 var kafkaBrokers = Secrets.Service.PopulateSecrets(configuration["Kafka:Brokers"]);
                 var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
                 var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
-                var kafkaSecure = bool.TryParse(Secrets.Service.PopulateSecrets(configuration["Kafka:Secure"]), out var secure) && secure;
 
                 mbb.WithProviderKafka(cfg =>
                 {
@@ -42,11 +31,6 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseOutboxIntegra
                     {
                         config.LingerMs = 5; // 5ms
                         config.SocketNagleDisable = true;
-
-                        if (kafkaSecure)
-                        {
-                            AddKafkaSsl(kafkaUsername, kafkaPassword, config);
-                        }
                     };
                     cfg.ConsumerConfig = (config) =>
                     {
@@ -54,15 +38,8 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseOutboxIntegra
                         config.SocketNagleDisable = true;
                         // when the test containers start there is no consumer group yet, so we want to start from the beginning
                         config.AutoOffsetReset = AutoOffsetReset.Earliest;
-
-                        if (kafkaSecure)
-                        {
-                            AddKafkaSsl(kafkaUsername, kafkaPassword, config);
-                        }
                     };
                 });
-                // Topics on cloudkarafka.com are prefixed with username
-                topic = $"{kafkaUsername}-test-ping";
             }
             if (_testParamBusType == BusType.AzureSB)
             {
