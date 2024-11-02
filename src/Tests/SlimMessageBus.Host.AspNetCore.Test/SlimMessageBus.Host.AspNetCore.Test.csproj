@@ -3,7 +3,7 @@
   <Import Project="../Host.Test.Properties.xml" />
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.7" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.10" />
   </ItemGroup>
 
   <ItemGroup>

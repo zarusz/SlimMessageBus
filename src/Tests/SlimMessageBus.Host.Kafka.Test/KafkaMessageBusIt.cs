@@ -26,28 +26,12 @@ using SlimMessageBus.Host.Test.Common.IntegrationTest;
 public class KafkaMessageBusIt(ITestOutputHelper testOutputHelper)
     : BaseIntegrationTest<KafkaMessageBusIt>(testOutputHelper)
 {
-    private const int NumberOfMessages = 77;
-    private string TopicPrefix { get; set; }
-
-    private static void AddSsl(string username, string password, ClientConfig c)
-    {
-        // cloudkarafka.com uses SSL with SASL authentication
-        c.SecurityProtocol = SecurityProtocol.SaslSsl;
-        c.SaslUsername = username;
-        c.SaslPassword = password;
-        c.SaslMechanism = SaslMechanism.ScramSha256;
-        c.SslCaLocation = "cloudkarafka_2023-10.pem";
-    }
+    private const int NumberOfMessages = 300;
+    private readonly static TimeSpan DelayTimeSpan = TimeSpan.FromSeconds(5);
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
         var kafkaBrokers = Secrets.Service.PopulateSecrets(configuration["Kafka:Brokers"]);
-        var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
-        var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
-        var kafkaSecure = Convert.ToBoolean(Secrets.Service.PopulateSecrets(configuration["Kafka:Secure"]));
-
-        // Topics on cloudkarafka.com are prefixed with username
-        TopicPrefix = $"{kafkaUsername}-";
 
         services
             .AddSlimMessageBus((mbb) =>
@@ -59,12 +43,6 @@ public class KafkaMessageBusIt(ITestOutputHelper testOutputHelper)
                     {
                         config.LingerMs = 5; // 5ms
                         config.SocketNagleDisable = true;
-
-                        if (kafkaSecure)
-                        {
-                            AddSsl(kafkaUsername, kafkaPassword, config);
-                        }
-
                     };
                     cfg.ConsumerConfig = (config) =>
                     {
@@ -72,11 +50,6 @@ public class KafkaMessageBusIt(ITestOutputHelper testOutputHelper)
                         config.SocketNagleDisable = true;
                         // when the test containers start there is no consumer group yet, so we want to start from the beginning
                         config.AutoOffsetReset = AutoOffsetReset.Earliest;
-
-                        if (kafkaSecure)
-                        {
-                            AddSsl(kafkaUsername, kafkaPassword, config);
-                        }
                     };
                 });
                 mbb.AddServicesFromAssemblyContaining<PingConsumer>();
@@ -90,13 +63,15 @@ public class KafkaMessageBusIt(ITestOutputHelper testOutputHelper)
 
     public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
 
-    [Fact]
-    public async Task BasicPubSub()
+    [Theory]
+    [InlineData(300, 100, 120)]
+    [InlineData(300, 120, 100)]
+    public async Task BasicPubSub(int numberOfMessages, int delayProducerAt, int delayConsumerAt)
     {
         // arrange
         AddBusConfiguration(mbb =>
         {
-            var topic = $"{TopicPrefix}test-ping";
+            var topic = "test-ping";
             mbb.Produce<PingMessage>(x =>
             {
                 x.DefaultTopic(topic);
@@ -118,6 +93,7 @@ public class KafkaMessageBusIt(ITestOutputHelper testOutputHelper)
         });
 
         var consumedMessages = ServiceProvider.GetRequiredService<TestEventCollector<ConsumedMessage>>();
+        var consumerControl = ServiceProvider.GetRequiredService<IConsumerControl>();
         var messageBus = MessageBus;
 
         // act
@@ -126,26 +102,55 @@ public class KafkaMessageBusIt(ITestOutputHelper testOutputHelper)
         await consumedMessages.WaitUntilArriving(newMessagesTimeout: 5);
         consumedMessages.Clear();
 
+        var pauseAtOffsets = new HashSet<int> { delayConsumerAt };
+
+        consumedMessages.OnAdded += (IList<ConsumedMessage> messages, ConsumedMessage message) =>
+        {
+            // At the given index message stop the consumers, to simulate a pause in the processing to check if it resumes exactly from the next message
+            if (pauseAtOffsets.Contains(message.Message.Counter))
+            {
+                // Remove self to cause only delay once (in case the same message gets repeated)
+                pauseAtOffsets.Remove(message.Message.Counter);
+
+                consumerControl.Stop().ContinueWith(async (_) =>
+                {
+                    await Task.Delay(DelayTimeSpan);
+                    await consumerControl.Start();
+                });
+            }
+        };
+
         // publish
         var stopwatch = Stopwatch.StartNew();
 
         var messages = Enumerable
-            .Range(0, NumberOfMessages)
+            .Range(0, numberOfMessages)
             .Select(i => new PingMessage(DateTime.UtcNow, i))
             .ToList();
 
-        await Task.WhenAll(messages.Select(m => messageBus.Publish(m)));
+        var index = 0;
+        foreach (var m in messages)
+        {
+            if (index == delayProducerAt)
+            {
+                // We want to force the Partition EOF event to be triggered by Kafka
+                Logger.LogInformation("Waiting some time before publish to force Partition EOF event (MessageIndex: {MessageIndex})", index);
+                await Task.Delay(DelayTimeSpan);
+            }
+            await messageBus.Publish(m);
+            index++;
+        }
 
         stopwatch.Stop();
-        Logger.LogInformation("Published {MessageCount} messages in {PublishTime}", messages.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Published {MessageCount} messages in {ProduceTime} including simulated delay {DelayTime}", messages.Count, stopwatch.Elapsed, DelayTimeSpan);
 
         // consume
         stopwatch.Restart();
 
-        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 5);
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 10);
 
         stopwatch.Stop();
-        Logger.LogInformation("Consumed {MessageCount} messages in {ConsumedTime}", consumedMessages.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Consumed {MessageCount} messages in {ConsumeTime} including simlulated delay {DelayTime}", consumedMessages.Count, stopwatch.Elapsed, DelayTimeSpan);
 
         // assert
 
@@ -174,7 +179,7 @@ public class KafkaMessageBusIt(ITestOutputHelper testOutputHelper)
 
         AddBusConfiguration(mbb =>
         {
-            var topic = $"{TopicPrefix}test-echo";
+            var topic = "test-echo";
             mbb
                 .Produce<EchoRequest>(x =>
                 {
@@ -191,7 +196,7 @@ public class KafkaMessageBusIt(ITestOutputHelper testOutputHelper)
                                                          .CheckpointAfter(TimeSpan.FromSeconds(10)))
                 .ExpectRequestResponses(x =>
                 {
-                    x.ReplyToTopic($"{TopicPrefix}test-echo-resp");
+                    x.ReplyToTopic("test-echo-resp");
                     x.KafkaGroup("response-reader");
                     // for subsequent test runs allow enough time for kafka to reassign the partitions
                     x.DefaultTimeout(TimeSpan.FromSeconds(60));
