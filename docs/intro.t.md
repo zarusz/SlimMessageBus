@@ -3,6 +3,7 @@
 - [Configuration](#configuration)
 - [Pub/Sub communication](#pubsub-communication)
   - [Producer](#producer)
+    - [Bulk (Batch) Publish](#bulk-batch-publish)
     - [Set message headers](#set-message-headers)
   - [Consumer](#consumer)
     - [Start or Stop message consumption](#start-or-stop-message-consumption)
@@ -158,6 +159,30 @@ await bus.Publish(msg, cancellationToken: ct);
 ```
 
 > The transport plugins might introduce additional configuration options. Please check the relevant provider docs. For example, Azure Service Bus, Azure Event Hub and Kafka allow setting the partitioning key for a given message type.
+
+#### Bulk (Batch) Publish
+
+Several transports support publishing messages in bulk, including:
+
+- **Azure Service Bus**
+- **Azure Event Hub**
+- **RabbitMQ**
+
+To publish messages in bulk, pass a collection of message instances of the specified type, as shown below:
+
+```csharp
+// Assuming IMessageBus bus;
+IEnumerable<SomeMessage> messages = [ ];
+await bus.Publish(messages);
+```
+
+Any collection type that can be converted to `IEnumerable<T>` is supported.
+
+While there’s no upper limit enforced by SMB, be aware that the underlying transport may split messages into chunks to avoid exceeding its payload limits in a single publish operation. These chunks will retain the original message order.
+
+For transports that don’t natively support bulk publishing, messages are published individually in sequence.
+
+> **Note:** The [producer interceptor](#interceptors) pipeline is not executed during bulk publishing. This behavior may change in future updates.
 
 #### Set message headers
 

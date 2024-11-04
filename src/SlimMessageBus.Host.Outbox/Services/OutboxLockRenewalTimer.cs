@@ -131,17 +131,4 @@ internal sealed class OutboxLockRenewalTimer<TOutboxMessage, TOutboxMessageKey> 
             _renewingLock = false;
         }
     }
-
-    public class LockLostException : Exception
-    {
-        public LockLostException(string message)
-            : base(message)
-        {
-        }
-
-        public LockLostException(string message, Exception innerException)
-            : base(message, innerException)
-        {
-        }
-    }
 }

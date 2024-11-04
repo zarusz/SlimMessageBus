@@ -2,7 +2,7 @@
 
 using SlimMessageBus.Host.Outbox.Sql.DbContext.Test.DataAccess;
 
-public abstract class BaseOutboxIntegrationTest<T>(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<T>(testOutputHelper)
+public abstract class BaseOutboxIntegrationTest<T>(ITestOutputHelper output) : BaseIntegrationTest<T>(output)
 {
     protected async Task PerformDbOperation(Func<CustomerContext, IOutboxMigrationService, Task> action)
     {

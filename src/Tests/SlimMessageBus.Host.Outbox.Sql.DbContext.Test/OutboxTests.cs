@@ -13,7 +13,7 @@ using SlimMessageBus.Host.Sql.Common;
 [Trait("Category", "Integration")]
 [Trait("Transport", "Outbox")]
 [Collection(CustomerContext.Schema)]
-public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseOutboxIntegrationTest<OutboxTests>(testOutputHelper)
+public class OutboxTests(ITestOutputHelper output) : BaseOutboxIntegrationTest<OutboxTests>(output)
 {
     private bool _testParamUseHybridBus;
     private TransactionType _testParamTransactionType;
@@ -214,6 +214,7 @@ public class OutboxTests(ITestOutputHelper testOutputHelper) : BaseOutboxIntegra
         _testParamUseHybridBus = false;
         _testParamTransactionType = TransactionType.TransactionScope;
         _testParamBusType = busType;
+        _testParamIdGenerationMode = mode;
 
         await PrepareDatabase();
 

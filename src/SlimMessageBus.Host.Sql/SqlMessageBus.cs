@@ -25,7 +25,12 @@ public class SqlMessageBus : MessageBusBase<SqlMessageBusSettings>
         await provisioningService.Migrate(CancellationToken); // provisioning happens asynchronously
     }
 
-    protected override Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
+    public override Task ProduceToTransport(object message, Type messageType, string path, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken)
+    {
+        throw new NotImplementedException();
+    }
+
+    public override Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
         var sqlRepository = targetBus.ServiceProvider.GetService<ISqlRepository>();
 

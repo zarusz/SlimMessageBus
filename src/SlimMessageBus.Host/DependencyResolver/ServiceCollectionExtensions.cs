@@ -101,6 +101,11 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<CurrentTimeProvider>();
         services.TryAddSingleton<ICurrentTimeProvider>(svp => svp.GetRequiredService<CurrentTimeProvider>());
 
+        services.TryAddSingleton<RuntimeTypeCache>();
+
+        services.TryAddTransient<IPendingRequestStore, InMemoryPendingRequestStore>();
+        services.TryAddSingleton<IPendingRequestManager, PendingRequestManager>();
+
         return services;
     }
 

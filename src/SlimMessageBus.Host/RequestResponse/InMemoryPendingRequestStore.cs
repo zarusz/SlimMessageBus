@@ -7,7 +7,7 @@ namespace SlimMessageBus.Host;
 public class InMemoryPendingRequestStore : IPendingRequestStore
 {
     private readonly object _itemsLock = new();
-    private readonly Dictionary<string, PendingRequestState> _items = new();
+    private readonly Dictionary<string, PendingRequestState> _items = [];
 
     #region Implementation of IPendingRequestsStore
 

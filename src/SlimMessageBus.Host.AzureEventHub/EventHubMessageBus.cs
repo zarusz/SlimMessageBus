@@ -104,68 +104,84 @@ public class EventHubMessageBus : MessageBusBase<EventHubMessageBusSettings>
         }
     }
 
-    protected override async Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
+    private EventData GetTransportMessage(object message, Type messageType, IDictionary<string, object> messageHeaders, string path, out string partitionKey)
+    {
+        OnProduceToTransport(message, messageType, path, messageHeaders);
+
+        var messagePayload = message != null
+            ? Serializer.Serialize(messageType, message)
+            : null;
+
+        var transportMessage = message != null
+            ? new EventData(messagePayload)
+            : new EventData();
+
+        if (messageHeaders != null)
+        {
+            foreach (var header in messageHeaders)
+            {
+                transportMessage.Properties.Add(header.Key, header.Value);
+            }
+        }
+
+        partitionKey = messageType != null
+            ? GetPartitionKey(messageType, message)
+            : null;
+
+        return transportMessage;
+    }
+
+    public override async Task ProduceToTransport(object message, Type messageType, string path, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var transportMessage = GetTransportMessage(message, messageType, messageHeaders, path, out var partitionKey);
+            var producer = _producerByPath[path];
+            await producer.SendAsync([transportMessage], new SendEventOptions { PartitionKey = partitionKey }, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not ProducerMessageBusException && ex is not TaskCanceledException)
+        {
+            throw new ProducerMessageBusException(GetProducerErrorMessage(path, message, messageType, ex), ex);
+        }
+    }
+
+    public override async Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
         AssertActive();
 
         var dispatched = new List<T>(envelopes.Count);
         try
         {
+            var producer = _producerByPath[path];
+
             var messagesByPartition = envelopes
                 .Where(x => x.Message != null)
                 .Select(envelope =>
                 {
-                    var messageType = envelope.Message?.GetType();
-                    var messagePayload = Serializer.Serialize(envelope.MessageType, envelope.Message);
-
-                    _logger.LogDebug("Producing message {Message} of Type {MessageType} on Path {Path} with Size {MessageSize}", envelope.Message, messageType?.Name, path, messagePayload?.Length ?? 0);
-
-                    var ev = envelope.Message != null ? new EventData(messagePayload) : new EventData();
-
-                    if (envelope.Headers != null)
-                    {
-                        foreach (var header in envelope.Headers)
-                        {
-                            ev.Properties.Add(header.Key, header.Value);
-                        }
-                    }
-
-                    var partitionKey = messageType != null
-                        ? GetPartitionKey(messageType, envelope.Message)
-                        : null;
-
-                    return (Envelope: envelope, Message: ev, PartitionKey: partitionKey);
+                    var transportMessage = GetTransportMessage(envelope.Message, envelope.MessageType, envelope.Headers, path, out var partitionKey);
+                    return (Envelope: envelope, TransportMessage: transportMessage, PartitionKey: partitionKey);
                 })
                 .GroupBy(x => x.PartitionKey);
 
-            var producer = _producerByPath[path];
+            var inBatch = new List<T>(envelopes.Count);
             foreach (var partition in messagesByPartition)
             {
+                var batchOptions = new CreateBatchOptions { PartitionKey = partition.Key };
                 EventDataBatch batch = null;
                 try
                 {
-                    var items = partition.ToList();
-                    if (items.Count == 1)
+                    using var it = partition.GetEnumerator();
+                    var advance = it.MoveNext();
+                    while (advance)
                     {
-                        // only one item - quicker to send on its own
-                        var item = items.Single();
-                        await producer.SendAsync([item.Message], new SendEventOptions { PartitionKey = partition.Key }, cancellationToken);
+                        var item = it.Current;
 
-                        dispatched.Add(item.Envelope);
-                        continue;
-                    }
-
-                    // multiple items - send in batches
-                    var inBatch = new List<T>(items.Count);
-                    var i = 0;
-                    while (i < items.Count)
-                    {
-                        var item = items[i];
-                        batch ??= await producer.CreateBatchAsync(new CreateBatchOptions { PartitionKey = partition.Key }, cancellationToken);
-                        if (batch.TryAdd(item.Message))
+                        batch ??= await producer.CreateBatchAsync(batchOptions, cancellationToken);
+                        if (batch.TryAdd(item.TransportMessage))
                         {
                             inBatch.Add(item.Envelope);
-                            if (++i < items.Count)
+                            advance = it.MoveNext();
+                            if (advance)
                             {
                                 continue;
                             }
@@ -173,30 +189,29 @@ public class EventHubMessageBus : MessageBusBase<EventHubMessageBusSettings>
 
                         if (batch.Count == 0)
                         {
-                            throw new ProducerMessageBusException($"Failed to add message {item.Envelope.Message} of Type {item.Envelope.MessageType?.Name} on Path {path} to an empty batch");
+                            throw new ProducerMessageBusException($"Failed to add message {item.Envelope.Message} of type {item.Envelope.MessageType?.Name} on path {path} to an empty batch");
                         }
 
+                        advance = false;
                         await producer.SendAsync(batch, cancellationToken).ConfigureAwait(false);
                         dispatched.AddRange(inBatch);
                         inBatch.Clear();
+
                         batch.Dispose();
                         batch = null;
                     }
-
-                    return new(dispatched, null);
                 }
                 finally
                 {
                     batch?.Dispose();
                 }
             }
+            return new(dispatched, null);
         }
         catch (Exception ex)
         {
             return new(dispatched, ex);
         }
-
-        return new(dispatched, null);
     }
 
     #endregion

@@ -5,6 +5,7 @@ public class RuntimeTypeCache : IRuntimeTypeCache
     private readonly IReadOnlyCache<(Type From, Type To), bool> _isAssignable;
     private readonly IReadOnlyCache<Type, TaskOfTypeCache> _taskOfType;
     private readonly IReadOnlyCache<(Type OpenGenericType, Type GenericParameterType), Type> _closedGenericTypeOfOpenGenericType;
+    private readonly IReadOnlyCache<Type, CollectionTypeInfo> _collectionInfoByType;
 
     public IReadOnlyCache<(Type ClassType, string MethodName, Type GenericArgument), Func<object, Task<object>>> GenericMethod { get; }
 
@@ -22,6 +23,31 @@ public class RuntimeTypeCache : IRuntimeTypeCache
         _isAssignable = new SafeDictionaryWrapper<(Type From, Type To), bool>(x => x.To.IsAssignableFrom(x.From));
         _taskOfType = new SafeDictionaryWrapper<Type, TaskOfTypeCache>(type => new TaskOfTypeCache(type));
         _closedGenericTypeOfOpenGenericType = new SafeDictionaryWrapper<(Type OpenGenericType, Type GenericPatameterType), Type>(x => x.OpenGenericType.MakeGenericType(x.GenericPatameterType));
+        _collectionInfoByType = new SafeDictionaryWrapper<Type, CollectionTypeInfo>(type =>
+        {
+            var enumerableType = type.GetInterfaces().Concat([type])
+                .SingleOrDefault(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+
+            if (enumerableType != null)
+            {
+                return new CollectionTypeInfo
+                {
+                    ItemType = enumerableType.GetGenericArguments()[0],
+                    ToCollection = x => (IEnumerable<object>)x
+                };
+            }
+
+            if (type.IsArray)
+            {
+                return new CollectionTypeInfo
+                {
+                    ItemType = type.GetElementType(),
+                    ToCollection = x => (IEnumerable<object>)x
+                };
+            }
+
+            return null;
+        });
 
         GenericMethod = new SafeDictionaryWrapper<(Type ClassType, string MethodName, Type GenericArgument), Func<object, Task<object>>>(key =>
         {
@@ -65,4 +91,7 @@ public class RuntimeTypeCache : IRuntimeTypeCache
 
     public Type GetClosedGenericType(Type openGenericType, Type genericParameterType)
         => _closedGenericTypeOfOpenGenericType[(openGenericType, genericParameterType)];
+
+    public CollectionTypeInfo GetCollectionTypeInfo(Type type)
+        => _collectionInfoByType[type];
 }

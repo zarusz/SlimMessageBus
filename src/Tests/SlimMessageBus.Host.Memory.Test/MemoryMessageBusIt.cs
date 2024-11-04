@@ -11,7 +11,7 @@ using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
 [Trait("Category", "Integration")]
-public class MemoryMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<MemoryMessageBusIt>(testOutputHelper)
+public class MemoryMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<MemoryMessageBusIt>(output)
 {
     private const int NumberOfMessages = 1023;
 

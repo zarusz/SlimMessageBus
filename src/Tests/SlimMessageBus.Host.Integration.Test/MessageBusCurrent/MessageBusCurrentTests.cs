@@ -6,9 +6,9 @@ using SlimMessageBus.Host.Memory;
 /// <summary>
 /// This test verifies that the MessageBus.Current accessor works correctly and looks up in the current message scope.
 /// </summary>
-/// <param name="testOutputHelper"></param>
+/// <param name="output"></param>
 [Trait("Category", "Integration")]
-public class MessageBusCurrentTests(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<MessageBusCurrentTests>(testOutputHelper)
+public class MessageBusCurrentTests(ITestOutputHelper output) : BaseIntegrationTest<MessageBusCurrentTests>(output)
 {
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {

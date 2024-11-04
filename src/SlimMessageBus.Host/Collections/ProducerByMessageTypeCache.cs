@@ -9,15 +9,15 @@ public class ProducerByMessageTypeCache<TProducer> : IReadOnlyCache<Type, TProdu
     where TProducer : class
 {
     private readonly ILogger _logger;
-    private readonly IDictionary<Type, TProducer> _producerByBaseType;
     private readonly IRuntimeTypeCache _runtimeTypeCache;
+    private readonly IDictionary<Type, TProducer> _producerByBaseType;
     private readonly IReadOnlyCache<Type, TProducer> _producerByType;
 
     public ProducerByMessageTypeCache(ILogger logger, IDictionary<Type, TProducer> producerByBaseType, IRuntimeTypeCache runtimeTypeCache)
     {
         _logger = logger;
-        _producerByBaseType = producerByBaseType;
         _runtimeTypeCache = runtimeTypeCache;
+        _producerByBaseType = producerByBaseType;
         _producerByType = new SafeDictionaryWrapper<Type, TProducer>(CalculateProducer);
     }
 
@@ -30,12 +30,26 @@ public class ProducerByMessageTypeCache<TProducer> : IReadOnlyCache<Type, TProdu
 
     private TProducer CalculateProducer(Type messageType)
     {
-        var assignableProducers = _producerByBaseType.Where(x => _runtimeTypeCache.IsAssignableFrom(messageType, x.Key)).OrderBy(x => CalculateBaseClassDistance(messageType, x.Key));
+        var assignableProducers = _producerByBaseType
+            .Where(x => _runtimeTypeCache.IsAssignableFrom(messageType, x.Key))
+            .OrderBy(x => CalculateBaseClassDistance(messageType, x.Key));
+
         var assignableProducer = assignableProducers.FirstOrDefault();
         if (assignableProducer.Key != null)
         {
             _logger.LogDebug("Matched producer for message type {ProducerMessageType} for dispatched message type {MessageType}", assignableProducer.Key, messageType);
             return assignableProducer.Value;
+        }
+
+        // Is is collection of message types?
+        var collectionInfo = _runtimeTypeCache.GetCollectionTypeInfo(messageType);
+        if (collectionInfo != null)
+        {
+            var innerProducer = CalculateProducer(collectionInfo.ItemType);
+            if (innerProducer != null)
+            {
+                return innerProducer;
+            }
         }
 
         _logger.LogDebug("Unable to match any declared producer for dispatched message type {MessageType}", messageType);

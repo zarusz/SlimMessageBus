@@ -18,11 +18,11 @@ using SlimMessageBus.Host.RabbitMQ;
 /// and then measure times when outbox is enabled. 
 /// This should help asses the overhead of outbox and to baseline future outbox improvements.
 /// </summary>
-/// <param name="testOutputHelper"></param>
+/// <param name="output"></param>
 [Trait("Category", "Integration")] // for benchmarks
 [Trait("Transport", "Outbox")]
 [Collection(CustomerContext.Schema)]
-public class OutboxBenchmarkTests(ITestOutputHelper testOutputHelper) : BaseOutboxIntegrationTest<OutboxBenchmarkTests>(testOutputHelper)
+public class OutboxBenchmarkTests(ITestOutputHelper output) : BaseOutboxIntegrationTest<OutboxBenchmarkTests>(output)
 {
     private bool _useOutbox;
     private BusType _testParamBusType;

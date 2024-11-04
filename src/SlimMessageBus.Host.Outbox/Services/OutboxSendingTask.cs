@@ -270,7 +270,7 @@ internal class OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>(
         {
             var busName = busGroup.Key;
             var bus = GetBus(compositeMessageBus, messageBusTarget, busName);
-            if (bus == null || bus is not IMessageBusBulkProducer bulkProducer)
+            if (bus == null || bus is not ITransportBulkProducer bulkProducer)
             {
                 foreach (var outboxMessage in busGroup)
                 {
@@ -331,7 +331,7 @@ internal class OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>(
         return (runAgain, count);
     }
 
-    async internal Task<(bool Success, int Published)> DispatchBatch(IOutboxMessageRepository<TOutboxMessage, TOutboxMessageKey> outboxRepository, IMessageBusBulkProducer producer, IMessageBusTarget messageBusTarget, IReadOnlyCollection<OutboxBulkMessage> batch, string busName, string path, CancellationToken cancellationToken)
+    async internal Task<(bool Success, int Published)> DispatchBatch(IOutboxMessageRepository<TOutboxMessage, TOutboxMessageKey> outboxRepository, ITransportBulkProducer producer, IMessageBusTarget messageBusTarget, IReadOnlyCollection<OutboxBulkMessage> batch, string busName, string path, CancellationToken cancellationToken)
     {
         _logger.LogDebug("Publishing batch of {MessageCount} messages to pathGroup {Path} on {BusName} bus", batch.Count, path, busName);
 

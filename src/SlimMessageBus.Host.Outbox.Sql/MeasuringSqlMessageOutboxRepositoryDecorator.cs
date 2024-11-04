@@ -20,9 +20,6 @@ public class MeasuringSqlMessageOutboxRepositoryDecorator(
         }
     }
 
-    private void LogTime(string name, Stopwatch sw)
-        => logger.LogInformation("Method {MethodName} took {Elapsed}", name, sw.Elapsed);
-
     private async Task MeasureMethod(string name, Func<Task> action)
     {
         var sw = Stopwatch.StartNew();
@@ -35,6 +32,9 @@ public class MeasuringSqlMessageOutboxRepositoryDecorator(
             LogTime(name, sw);
         }
     }
+
+    private void LogTime(string name, Stopwatch sw)
+        => logger.LogInformation("Method {MethodName} took {Elapsed}", name, sw.Elapsed);
 
     public Task AbortDelivery(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
         => MeasureMethod(nameof(AbortDelivery), () => target.AbortDelivery(ids, cancellationToken));

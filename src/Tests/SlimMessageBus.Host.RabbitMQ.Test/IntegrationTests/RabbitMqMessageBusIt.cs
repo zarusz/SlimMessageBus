@@ -12,8 +12,7 @@ using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
 [Trait("Category", "Integration")]
 [Trait("Transport", "RabbitMQ")]
-public class RabbitMqMessageBusIt(ITestOutputHelper testOutputHelper)
-    : BaseIntegrationTest<RabbitMqMessageBusIt>(testOutputHelper)
+public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<RabbitMqMessageBusIt>(output)
 {
     private const int NumberOfMessages = 144;
 

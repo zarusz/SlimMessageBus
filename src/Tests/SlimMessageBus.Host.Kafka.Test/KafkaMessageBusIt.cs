@@ -23,11 +23,10 @@ using SlimMessageBus.Host.Test.Common.IntegrationTest;
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Transport", "Kafka")]
-public class KafkaMessageBusIt(ITestOutputHelper testOutputHelper)
-    : BaseIntegrationTest<KafkaMessageBusIt>(testOutputHelper)
+public class KafkaMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<KafkaMessageBusIt>(output)
 {
     private const int NumberOfMessages = 300;
-    private readonly static TimeSpan DelayTimeSpan = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan DelayTimeSpan = TimeSpan.FromSeconds(5);
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
@@ -64,9 +63,10 @@ public class KafkaMessageBusIt(ITestOutputHelper testOutputHelper)
     public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
 
     [Theory]
-    [InlineData(300, 100, 120)]
-    [InlineData(300, 120, 100)]
-    public async Task BasicPubSub(int numberOfMessages, int delayProducerAt, int delayConsumerAt)
+    [InlineData(300, 100, 120, false)]
+    [InlineData(300, 120, 100, false)]
+    [InlineData(300, 100, 120, true)]
+    public async Task BasicPubSub(int numberOfMessages, int delayProducerAt, int delayConsumerAt, bool bulkProduce)
     {
         // arrange
         AddBusConfiguration(mbb =>
@@ -128,17 +128,25 @@ public class KafkaMessageBusIt(ITestOutputHelper testOutputHelper)
             .Select(i => new PingMessage(DateTime.UtcNow, i))
             .ToList();
 
-        var index = 0;
-        foreach (var m in messages)
+        if (bulkProduce)
         {
-            if (index == delayProducerAt)
+            await messageBus.Publish(messages);
+        }
+        else
+        {
+            // Publish messages one by one (to simulate a delay between messages
+            var index = 0;
+            foreach (var m in messages)
             {
-                // We want to force the Partition EOF event to be triggered by Kafka
-                Logger.LogInformation("Waiting some time before publish to force Partition EOF event (MessageIndex: {MessageIndex})", index);
-                await Task.Delay(DelayTimeSpan);
+                if (index == delayProducerAt)
+                {
+                    // We want to force the Partition EOF event to be triggered by Kafka
+                    Logger.LogInformation("Waiting some time before publish to force Partition EOF event (MessageIndex: {MessageIndex})", index);
+                    await Task.Delay(DelayTimeSpan);
+                }
+                await messageBus.Publish(m);
+                index++;
             }
-            await messageBus.Publish(m);
-            index++;
         }
 
         stopwatch.Stop();

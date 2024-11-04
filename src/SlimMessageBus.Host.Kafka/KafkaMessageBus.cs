@@ -114,74 +114,64 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
         }
     }
 
-    protected override async Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
+    public override async Task ProduceToTransport(object message, Type messageType, string path, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
-        AssertActive();
-
-        var dispatched = new List<T>(envelopes.Count);
         try
         {
-            foreach (var envelope in envelopes)
+            var producerSettings = messageType != null ? GetProducerSettings(messageType) : null;
+            var messagePayload = Serializer.Serialize(messageType, message);
+
+            // calculate message key
+            var key = GetMessageKey(producerSettings, messageType, message, path);
+            var kafkaMessage = new Message { Key = key, Value = messagePayload };
+
+            if (messageHeaders != null && messageHeaders.Count > 0)
             {
-                var messageType = envelope.Message?.GetType();
-                var producerSettings = messageType != null ? GetProducerSettings(messageType) : null;
-                var messagePayload = Serializer.Serialize(envelope.MessageType, envelope.Message);
+                kafkaMessage.Headers = [];
 
-                // calculate message key
-                var key = GetMessageKey(producerSettings, messageType, envelope.Message, path);
-                var kafkaMessage = new Message { Key = key, Value = messagePayload };
-
-                if (envelope.Headers != null && envelope.Headers.Count > 0)
+                foreach (var keyValue in messageHeaders)
                 {
-                    kafkaMessage.Headers = [];
-
-                    foreach (var keyValue in envelope.Headers)
-                    {
-                        var valueBytes = HeaderSerializer.Serialize(typeof(object), keyValue.Value);
-                        kafkaMessage.Headers.Add(keyValue.Key, valueBytes);
-                    }
+                    var valueBytes = HeaderSerializer.Serialize(typeof(object), keyValue.Value);
+                    kafkaMessage.Headers.Add(keyValue.Key, valueBytes);
                 }
-
-                // calculate partition
-                var partition = producerSettings != null
-                    ? GetMessagePartition(producerSettings, messageType, envelope.Message, path)
-                    : NoPartition;
-
-                _logger.LogDebug("Producing message {Message} of type {MessageType}, topic {Topic}, partition {Partition}, key size {KeySize}, payload size {MessageSize}, headers count {MessageHeaderCount}",
-                    envelope.Message,
-                    messageType?.Name,
-                    path,
-                    partition,
-                    key?.Length ?? 0,
-                    messagePayload?.Length ?? 0,
-                    kafkaMessage.Headers?.Count ?? 0);
-
-                // send the message to topic
-                var task = partition == NoPartition
-                    ? _producer.ProduceAsync(path, kafkaMessage, cancellationToken: cancellationToken)
-                    : _producer.ProduceAsync(new TopicPartition(path, new Partition(partition)), kafkaMessage, cancellationToken: cancellationToken);
-
-                // ToDo: Introduce support for not awaited produce
-
-                var deliveryResult = await task.ConfigureAwait(false);
-                if (deliveryResult.Status == PersistenceStatus.NotPersisted)
-                {
-                    throw new ProducerMessageBusException($"Error while publish message {envelope.Message} of type {messageType?.Name} to topic {path}. Kafka persistence status: {deliveryResult.Status}");
-                }
-
-                dispatched.Add(envelope);
-
-                // log some debug information
-                _logger.LogDebug("Message {Message} of type {MessageType} delivered to topic {Topic}, partition {Partition}, offset: {Offset}",
-                    envelope.Message, messageType?.Name, deliveryResult.Topic, deliveryResult.Partition, deliveryResult.Offset);
             }
-        }
-        catch (Exception ex)
-        {
-            return new(dispatched, ex);
-        }
 
-        return new(dispatched, null);
+            // calculate partition
+            var partition = producerSettings != null
+            ? GetMessagePartition(producerSettings, messageType, message, path)
+            : NoPartition;
+
+            _logger.LogDebug("Producing message {Message} of type {MessageType}, topic {Topic}, partition {Partition}, key size {KeySize}, payload size {MessageSize}, headers count {MessageHeaderCount}",
+                message,
+                messageType?.Name,
+                path,
+                partition,
+                key?.Length ?? 0,
+                messagePayload?.Length ?? 0,
+                kafkaMessage.Headers?.Count ?? 0);
+
+            // send the message to topic
+            var task = partition == NoPartition
+                ? _producer.ProduceAsync(path, kafkaMessage, cancellationToken: cancellationToken)
+                : _producer.ProduceAsync(new TopicPartition(path, new Partition(partition)), kafkaMessage, cancellationToken: cancellationToken);
+
+            // ToDo: Introduce support for not awaited produce
+
+            var deliveryResult = await task.ConfigureAwait(false);
+            if (deliveryResult.Status == PersistenceStatus.NotPersisted)
+            {
+                throw new ProducerMessageBusException($"Error while publish message {message} of type {messageType?.Name} to topic {path}. Kafka persistence status: {deliveryResult.Status}");
+            }
+
+            // log some debug information
+            _logger.LogDebug("Message {Message} of type {MessageType} delivered to topic {Topic}, partition {Partition}, offset: {Offset}",
+                message, messageType?.Name, deliveryResult.Topic, deliveryResult.Partition, deliveryResult.Offset);
+
+        }
+        catch (Exception ex) when (ex is not ProducerMessageBusException && ex is not TaskCanceledException)
+        {
+            throw new ProducerMessageBusException(GetProducerErrorMessage(path, message, messageType, ex), ex);
+        }
     }
 
     protected byte[] GetMessageKey(ProducerSettings producerSettings, Type messageType, object message, string topic)

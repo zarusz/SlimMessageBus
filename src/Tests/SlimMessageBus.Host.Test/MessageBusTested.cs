@@ -36,47 +36,30 @@ public class MessageBusTested : MessageBusBase
         return base.OnStop();
     }
 
-    protected override async Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken = default)
+    public override async Task ProduceToTransport(object message, Type messageType, string path, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
-        await EnsureInitFinished();
+        OnProduced(messageType, path, message);
 
-        var dispatched = new List<T>(envelopes.Count);
-        try
+        if (messageType.GetInterfaces().Any(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IRequest<>)))
         {
-            foreach (var envelope in envelopes)
+            var messagePayload = Serializer.Serialize(messageType, message);
+            var req = Serializer.Deserialize(messageType, messagePayload);
+
+            var resp = OnReply(messageType, path, req);
+            if (resp == null)
             {
-                var messageType = envelope.Message.GetType();
-
-                OnProduced(messageType, path, envelope.Message);
-
-                if (messageType.GetInterfaces().Any(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IRequest<>)))
-                {
-                    var messagePayload = Serializer.Serialize(envelope.MessageType, envelope.Message);
-                    var req = Serializer.Deserialize(messageType, messagePayload);
-
-                    var resp = OnReply(messageType, path, req);
-                    if (resp == null)
-                    {
-                        continue;
-                    }
-
-                    envelope.Headers.TryGetHeader(ReqRespMessageHeaders.ReplyTo, out string replyTo);
-                    envelope.Headers.TryGetHeader(ReqRespMessageHeaders.RequestId, out string requestId);
-
-                    var responseHeaders = CreateHeaders();
-                    responseHeaders.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
-
-                    var responsePayload = Serializer.Serialize(resp.GetType(), resp);
-                    await OnResponseArrived(responsePayload, replyTo, (IReadOnlyDictionary<string, object>)responseHeaders);
-                }
+                return;
             }
-        }
-        catch (Exception ex)
-        {
-            return new(dispatched, ex);
-        }
 
-        return new(dispatched, null);
+            messageHeaders.TryGetHeader(ReqRespMessageHeaders.ReplyTo, out string replyTo);
+            messageHeaders.TryGetHeader(ReqRespMessageHeaders.RequestId, out string requestId);
+
+            var responseHeaders = CreateHeaders();
+            responseHeaders.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
+
+            var responsePayload = Serializer.Serialize(resp.GetType(), resp);
+            await OnResponseArrived(responsePayload, replyTo, (IReadOnlyDictionary<string, object>)responseHeaders);
+        }
     }
 
     #endregion

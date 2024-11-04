@@ -5,13 +5,9 @@ using System.Diagnostics;
 
 [Trait("Category", "Integration")]
 [Trait("Transport", "Mqtt")]
-public class MqttMessageBusIt : BaseIntegrationTest<MqttMessageBusIt>
+public class MqttMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<MqttMessageBusIt>(output)
 {
     private const int NumberOfMessages = 77;
-
-    public MqttMessageBusIt(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
-    {
-    }
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
@@ -41,8 +37,10 @@ public class MqttMessageBusIt : BaseIntegrationTest<MqttMessageBusIt>
 
     public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
 
-    [Fact]
-    public async Task BasicPubSubOnTopic()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BasicPubSubOnTopic(bool bulkProduce)
     {
         var concurrency = 2;
         var topic = "test-ping";
@@ -54,10 +52,10 @@ public class MqttMessageBusIt : BaseIntegrationTest<MqttMessageBusIt>
                 .Consume<PingMessage>(x => x.Topic(topic).Instances(concurrency));
         });
 
-        await BasicPubSub(1);
+        await BasicPubSub(1, bulkProduce: bulkProduce);
     }
 
-    private async Task BasicPubSub(int expectedMessageCopies)
+    private async Task BasicPubSub(int expectedMessageCopies, bool bulkProduce)
     {
         // arrange
         var messageBus = MessageBus;
@@ -78,9 +76,16 @@ public class MqttMessageBusIt : BaseIntegrationTest<MqttMessageBusIt>
             .Select(i => new PingMessage(i, Guid.NewGuid()))
             .ToList();
 
-        var messageTasks = producedMessages.Select(m => messageBus.Publish(m));
-        // wait until all messages are sent
-        await Task.WhenAll(messageTasks);
+        if (bulkProduce)
+        {
+            await messageBus.Publish(producedMessages);
+        }
+        else
+        {
+            var messageTasks = producedMessages.Select(m => messageBus.Publish(m));
+            // wait until all messages are sent
+            await Task.WhenAll(messageTasks);
+        }
 
         stopwatch.Stop();
         Logger.LogInformation("Published {MessageCount} messages in {Duration}", producedMessages.Count, stopwatch.Elapsed);
