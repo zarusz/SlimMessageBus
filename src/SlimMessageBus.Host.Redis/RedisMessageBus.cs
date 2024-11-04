@@ -159,51 +159,34 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
 
     #region Overrides of MessageBusBase
 
-    protected override async Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
+    public override async Task ProduceToTransport(object message, Type messageType, string path, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
-#if NETSTANDARD2_0
-        if (envelopes is null) throw new ArgumentNullException(nameof(envelopes));
-#else
-        ArgumentNullException.ThrowIfNull(envelopes);
-#endif
-
-        AssertActive();
-
-        var dispatched = new List<T>(envelopes.Count);
         try
         {
-            foreach (var envelope in envelopes)
-            {
-                var messageType = envelope.Message.GetType();
-                var messagePayload = Serializer.Serialize(envelope.MessageType, envelope.Message);
+            var messagePayload = Serializer.Serialize(messageType, message);
 
-                // determine the SMB topic name if its a Azure SB queue or topic
-                var kind = _kindMapping.GetKind(messageType, path);
+            // determine the SMB topic name if its a Azure SB queue or topic
+            var kind = _kindMapping.GetKind(messageType, path);
 
-                var messageWithHeaders = new MessageWithHeaders(messagePayload, envelope.Headers);
-                var messageWithHeadersBytes = ProviderSettings.EnvelopeSerializer.Serialize(typeof(MessageWithHeaders), messageWithHeaders);
+            var messageWithHeaders = new MessageWithHeaders(messagePayload, messageHeaders);
+            var messageWithHeadersBytes = ProviderSettings.EnvelopeSerializer.Serialize(typeof(MessageWithHeaders), messageWithHeaders);
 
-                _logger.LogDebug(
-                    "Producing message {Message} of type {MessageType} to redis {PathKind} {Path} with size {MessageSize}",
-                    envelope.Message, messageType.Name, GetPathKindString(kind), path, messageWithHeadersBytes.Length);
+            _logger.LogDebug(
+                "Producing message {Message} of type {MessageType} to redis {PathKind} {Path} with size {MessageSize}",
+                message, messageType.Name, GetPathKindString(kind), path, messageWithHeadersBytes.Length);
 
-                var result = kind == PathKind.Topic
-                    ? await Database.PublishAsync(RedisUtils.ToRedisChannel(path), messageWithHeadersBytes).ConfigureAwait(false) // Use Redis Pub/Sub
-                    : await Database.ListRightPushAsync(path, messageWithHeadersBytes).ConfigureAwait(false); // Use Redis List Type (append on the right side/end of list)
+            var result = kind == PathKind.Topic
+                ? await Database.PublishAsync(RedisUtils.ToRedisChannel(path), messageWithHeadersBytes).ConfigureAwait(false) // Use Redis Pub/Sub
+                : await Database.ListRightPushAsync(path, messageWithHeadersBytes).ConfigureAwait(false); // Use Redis List Type (append on the right side/end of list)
 
-                dispatched.Add(envelope);
-
-                _logger.LogDebug(
-                    "Produced message {Message} of type {MessageType} to redis channel {PathKind} {Path} with result {RedisResult}",
-                    envelope.Message, messageType, GetPathKindString(kind), path, result);
-            }
+            _logger.LogDebug(
+                "Produced message {Message} of type {MessageType} to redis channel {PathKind} {Path} with result {RedisResult}",
+                message, messageType, GetPathKindString(kind), path, result);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not ProducerMessageBusException && ex is not TaskCanceledException)
         {
-            return new(dispatched, ex);
+            throw new ProducerMessageBusException(GetProducerErrorMessage(path, message, messageType, ex), ex);
         }
-
-        return new(dispatched, null);
     }
 
     #endregion

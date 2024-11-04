@@ -5,6 +5,7 @@ using System.Text;
 using Newtonsoft.Json;
 
 using SlimMessageBus.Host;
+using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.Hybrid;
 using SlimMessageBus.Host.Test.Common;
 
@@ -40,6 +41,8 @@ public class HybridMessageBusTest
         _serviceProviderMock.Setup(x => x.GetService(typeof(ILoggerFactory))).Returns(_loggerFactoryMock.Object);
         _serviceProviderMock.Setup(x => x.GetService(typeof(IEnumerable<IMessageBusLifecycleInterceptor>))).Returns(Array.Empty<IMessageBusLifecycleInterceptor>());
         _serviceProviderMock.Setup(x => x.GetService(typeof(ICurrentTimeProvider))).Returns(new CurrentTimeProvider());
+        _serviceProviderMock.Setup(x => x.GetService(typeof(RuntimeTypeCache))).Returns(new RuntimeTypeCache());
+        _serviceProviderMock.Setup(x => x.GetService(typeof(IPendingRequestManager))).Returns(() => new PendingRequestManager(new InMemoryPendingRequestStore(), new CurrentTimeProvider(), NullLoggerFactory.Instance));
 
         _loggerFactoryMock.Setup(x => x.CreateLogger(It.IsAny<string>())).Returns(_loggerMock.Object);
 

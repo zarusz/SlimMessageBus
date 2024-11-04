@@ -16,4 +16,6 @@ public interface IRuntimeTypeCache
     /// <param name="genericParameterType"></param>
     /// <returns></returns>
     Type GetClosedGenericType(Type openGenericType, Type genericParameterType);
+
+    CollectionTypeInfo GetCollectionTypeInfo(Type type);
 }

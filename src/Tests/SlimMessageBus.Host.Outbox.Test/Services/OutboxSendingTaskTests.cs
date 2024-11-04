@@ -8,7 +8,7 @@ public sealed class OutboxSendingTaskTests
     {
         private readonly ILoggerFactory _loggerFactory;
         private readonly Mock<IOutboxMessageRepository<OutboxMessage<Guid>, Guid>> _outboxRepositoryMock;
-        private readonly Mock<IMessageBusBulkProducer> _producerMock;
+        private readonly Mock<ITransportBulkProducer> _producerMock;
         private readonly Mock<IMessageBusTarget> _messageBusTargetMock;
         private readonly OutboxSettings _outboxSettings;
         private readonly IServiceProvider _serviceProvider;
@@ -17,7 +17,7 @@ public sealed class OutboxSendingTaskTests
         public DispatchBatchTests()
         {
             _outboxRepositoryMock = new Mock<IOutboxMessageRepository<OutboxMessage<Guid>, Guid>>();
-            _producerMock = new Mock<IMessageBusBulkProducer>();
+            _producerMock = new Mock<ITransportBulkProducer>();
             _messageBusTargetMock = new Mock<IMessageBusTarget>();
             _outboxSettings = new OutboxSettings { MaxDeliveryAttempts = 5 };
             _serviceProvider = Mock.Of<IServiceProvider>();
@@ -92,7 +92,7 @@ public sealed class OutboxSendingTaskTests
         private readonly Mock<ICompositeMessageBus> _mockCompositeMessageBus;
         private readonly Mock<IMessageBusTarget> _mockMessageBusTarget;
         private readonly Mock<IMasterMessageBus> _mockMasterMessageBus;
-        private readonly Mock<IMessageBusBulkProducer> _mockMessageBusBulkProducer;
+        private readonly Mock<ITransportBulkProducer> _mockMessageBusBulkProducer;
         private readonly OutboxSettings _outboxSettings;
         private readonly OutboxSendingTask<OutboxMessage<Guid>, Guid> _sut;
 
@@ -102,7 +102,7 @@ public sealed class OutboxSendingTaskTests
             _mockCompositeMessageBus = new Mock<ICompositeMessageBus>();
             _mockMessageBusTarget = new Mock<IMessageBusTarget>();
             _mockMasterMessageBus = new Mock<IMasterMessageBus>();
-            _mockMessageBusBulkProducer = _mockMasterMessageBus.As<IMessageBusBulkProducer>();
+            _mockMessageBusBulkProducer = _mockMasterMessageBus.As<ITransportBulkProducer>();
 
             _outboxSettings = new OutboxSettings
             {

@@ -12,6 +12,7 @@ Transports:
 - Hybrid (composition of the bus out of many transports)
 - In-Memory transport (domain events, mediator)
 - MQTT / Azure IoT Hub
+- NATS
 - RabbitMQ
 - Redis
 - SQL (MS SQL, PostgreSql)

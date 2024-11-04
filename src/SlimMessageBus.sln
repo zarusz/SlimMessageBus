@@ -121,11 +121,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.editorconfig = .editorconfig
 		Common.NuGet.Properties.xml = Common.NuGet.Properties.xml
 		Common.Properties.xml = Common.Properties.xml
-		..\CONTRIBUTING.md = ..\CONTRIBUTING.md
-		..\build\do_build.ps1 = ..\build\do_build.ps1
-		..\build\do_package.ps1 = ..\build\do_package.ps1
-		..\build\do_test.ps1 = ..\build\do_test.ps1
-		..\build\do_test_ci.ps1 = ..\build\do_test_ci.ps1
 		Host.Plugin.Properties.xml = Host.Plugin.Properties.xml
 		..\README.md = ..\README.md
 		..\build\tasks.ps1 = ..\build\tasks.ps1
@@ -141,7 +136,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Seriali
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{CBE53E71-7F48-415C-BD43-B812EC207BC6}"
 	ProjectSection(SolutionItems) = preProject
+		..\CONTRIBUTING.md = ..\CONTRIBUTING.md
 		..\docs\intro.md = ..\docs\intro.md
+		..\docs\NuGet.md = ..\docs\NuGet.md
 		..\docs\provider_azure_eventhubs.md = ..\docs\provider_azure_eventhubs.md
 		..\docs\provider_azure_servicebus.md = ..\docs\provider_azure_servicebus.md
 		..\docs\provider_hybrid.md = ..\docs\provider_hybrid.md
@@ -277,6 +274,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Nats-SingleNode", "Nats-Sin
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.AspNetCore.Test", "Tests\SlimMessageBus.Host.AspNetCore.Test\SlimMessageBus.Host.AspNetCore.Test.csproj", "{9FCBF788-1F0C-43E2-909D-1F96B2685F38}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Artifacts", "Artifacts", "{0F4AD1B7-157D-4ABC-A379-68BF207F2FC3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -883,6 +882,7 @@ Global
 		{7D5E4522-8D44-471B-AB01-70FC65948B36} = {A5B15524-93B8-4CCE-AC6D-A22984498BA0}
 		{81D3FE99-67E6-40AC-A893-AAC4002A30B1} = {A5B15524-93B8-4CCE-AC6D-A22984498BA0}
 		{A6E0EF17-5D09-481A-90F9-16FC24E12AA8} = {D7DCD96A-C3B8-4D22-8216-0E8ADD30C03F}
+		{CBE53E71-7F48-415C-BD43-B812EC207BC6} = {0F4AD1B7-157D-4ABC-A379-68BF207F2FC3}
 		{5F0638BD-2967-4257-A73D-80C45F40CE4F} = {9291D340-B4FA-44A3-8060-C14743FB1712}
 		{D7DCD96A-C3B8-4D22-8216-0E8ADD30C03F} = {75BDDBB5-8DB8-4893-BD89-8FFC6C42244D}
 		{59F88FB5-6D19-4520-87E8-227B3539BBB3} = {A5B15524-93B8-4CCE-AC6D-A22984498BA0}
@@ -922,6 +922,8 @@ Global
 		{8507237C-68C3-46AD-B7DA-800791C6FDDB} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
 		{DB624D5F-CB7C-4E16-B1E2-3B368FCB5A46} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
 		{AD05234E-A925-44C0-977E-FEAC2A75B98C} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
+		{137BFD32-CD0A-47CA-8884-209CD49DEE8C} = {0F4AD1B7-157D-4ABC-A379-68BF207F2FC3}
+		{1A71BB05-58ED-4B27-B4A4-A03D9E608C1C} = {0F4AD1B7-157D-4ABC-A379-68BF207F2FC3}
 		{969AAB37-AEFC-40F9-9F89-B4B5E45E13C9} = {D3D6FD9A-968A-45BB-86C7-4527C72A057E}
 		{CDF578D6-FE85-4A44-A99A-32490F047FDA} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
 		{57290E47-603D-46D0-BF13-AC1D6481380A} = {9291D340-B4FA-44A3-8060-C14743FB1712}

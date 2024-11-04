@@ -1,5 +1,8 @@
 namespace SlimMessageBus.Host.Nats;
 
+using System.Collections.Generic;
+using System.Threading;
+
 using Microsoft.Extensions.Primitives;
 
 public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
@@ -91,22 +94,17 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
         }
     }
 
-    protected override async Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus,
-        CancellationToken cancellationToken)
+    public override async Task ProduceToTransport(object message, Type messageType, string path, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
-
-        await EnsureInitFinished();
-
-        if (_connection == null)
+        try
         {
-            throw new ProducerMessageBusException("The connection is not available at this time");
-        }
+            OnProduceToTransport(message, messageType, path, messageHeaders);
 
-        var messages = envelopes.Select(envelope =>
-        {
-            var messagePayload = Serializer.Serialize(envelope.MessageType, envelope.Message);
+            var messagePayload = Serializer.Serialize(messageType, message);
 
-            var replyTo = envelope.Headers.TryGetValue("ReplyTo", out var replyToValue) ? replyToValue.ToString() : null;
+            var replyTo = messageHeaders.TryGetValue("ReplyTo", out var replyToValue)
+                ? replyToValue.ToString()
+                : null;
 
             NatsMsg<byte[]> m = new()
             {
@@ -116,28 +114,17 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
                 ReplyTo = replyTo
             };
 
-            foreach (var header in envelope.Headers)
+            foreach (var header in messageHeaders)
             {
                 m.Headers.Add(new KeyValuePair<string, StringValues>(header.Key, header.Value.ToString()));
             }
 
-            return (Envelope: envelope, Message: m);
-        });
-
-        var dispatched = new List<T>(envelopes.Count);
-        foreach (var item in messages)
+            await _connection.PublishAsync(m, cancellationToken: cancellationToken);
+        }
+        catch (Exception ex) when (ex is not ProducerMessageBusException && ex is not TaskCanceledException)
         {
-            try
-            {
-                await _connection.PublishAsync(item.Message, cancellationToken: cancellationToken);
-                dispatched.Add(item.Envelope);
-            }
-            catch (Exception ex)
-            {
-                return new ProduceToTransportBulkResult<T>(dispatched, ex);
-            }
+            throw new ProducerMessageBusException(GetProducerErrorMessage(path, message, messageType, ex), ex);
         }
 
-        return new ProduceToTransportBulkResult<T>(dispatched, null);
     }
 }

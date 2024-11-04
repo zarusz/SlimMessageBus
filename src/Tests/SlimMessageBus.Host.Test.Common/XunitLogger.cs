@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Test.Common;
 
-public class XunitLogger : ILogger, IDisposable
+public class XunitLogger : Microsoft.Extensions.Logging.ILogger, IDisposable
 {
     private readonly ITestOutputHelper output;
     private readonly string categoryName;
@@ -33,9 +33,7 @@ public class XunitLogger : ILogger, IDisposable
     }
 }
 
-public class XunitLogger<T> : XunitLogger, ILogger<T>
+public class XunitLogger<T>(ILoggerFactory loggerFactory)
+    : XunitLogger(((XunitLoggerFactory)loggerFactory).Output, typeof(T).Name), ILogger<T>
 {
-    public XunitLogger(ILoggerFactory loggerFactory) : base(((XunitLoggerFactory)loggerFactory).Output, typeof(T).Name)
-    {
-    }
 }

@@ -7,7 +7,7 @@ using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Memory;
 
 [Trait("Category", "Integration")]
-public class HybridTests : BaseIntegrationTest<HybridTests>
+public class HybridTests(ITestOutputHelper output) : BaseIntegrationTest<HybridTests>(output)
 {
     public enum SerializerType
     {
@@ -16,10 +16,6 @@ public class HybridTests : BaseIntegrationTest<HybridTests>
     }
 
     public record RunOptions(SerializerType SerializerType, Action<IServiceCollection> ServicesBuilder);
-
-    public HybridTests(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
-    {
-    }
 
     protected RunOptions Options { get; set; }
 

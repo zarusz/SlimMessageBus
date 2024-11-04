@@ -1,18 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Test.Common.IntegrationTest;
 
-using System.Diagnostics;
-
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-
-using Serilog;
-using Serilog.Extensions.Logging;
-
-using SlimMessageBus.Host;
-
-using Xunit;
-
 /// <summary>
 /// Base integration test setup that:
 /// - uses MS Dependency Injection
@@ -32,7 +19,7 @@ public abstract class BaseIntegrationTest<T> : IAsyncLifetime
     protected IConfigurationRoot Configuration { get; }
     protected ServiceProvider ServiceProvider => _serviceProvider.Value;
 
-    protected BaseIntegrationTest(ITestOutputHelper testOutputHelper)
+    protected BaseIntegrationTest(ITestOutputHelper output)
     {
         // Creating a `LoggerProviderCollection` lets Serilog optionally write
         // events through other dynamically-added MEL ILoggerProviders.
@@ -42,7 +29,7 @@ public abstract class BaseIntegrationTest<T> : IAsyncLifetime
 
         Log.Logger = new LoggerConfiguration()
             //.WriteTo.Providers(providers)
-            .WriteTo.TestOutput(testOutputHelper, outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}")
+            .WriteTo.TestOutput(output, outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}")
             .ReadFrom.Configuration(Configuration)
             .CreateLogger();
 

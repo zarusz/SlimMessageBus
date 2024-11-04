@@ -16,9 +16,9 @@ using SlimMessageBus.Host.Test.Common.IntegrationTest;
 /// Inside the GitHub Actions pipeline, the Azure Event Hub infrastructure is shared, and so if tests are run in parallel they might affect each other (flaky tests).
 /// </summary>
 [Trait("Category", "Integration")]
-public class EventHubMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<EventHubMessageBusIt>(testOutputHelper)
+public class EventHubMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<EventHubMessageBusIt>(output)
 {
-    private const int NumberOfMessages = 77;
+    private const int NumberOfMessages = 100;
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
@@ -51,8 +51,10 @@ public class EventHubMessageBusIt(ITestOutputHelper testOutputHelper) : BaseInte
 
     public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
 
-    [Fact]
-    public async Task BasicPubSub()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BasicPubSub(bool bulkProduce)
     {
         // arrange
         var hubName = "test-ping";
@@ -85,9 +87,16 @@ public class EventHubMessageBusIt(ITestOutputHelper testOutputHelper) : BaseInte
             .Select(i => new PingMessage { Counter = i, Timestamp = DateTime.UtcNow })
             .ToList();
 
-        foreach (var m in messages)
+        if (bulkProduce)
         {
-            await messageBus.Publish(m);
+            await messageBus.Publish(messages);
+        }
+        else
+        {
+            foreach (var m in messages)
+            {
+                await messageBus.Publish(m);
+            }
         }
 
         stopwatch.Stop();

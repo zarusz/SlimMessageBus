@@ -12,8 +12,7 @@ using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
 [Trait("Category", "Integration")]
 [Trait("Transport", "Redis")]
-public class RedisMessageBusIt(ITestOutputHelper testOutputHelper)
-    : BaseIntegrationTest<RedisMessageBusIt>(testOutputHelper)
+public class RedisMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<RedisMessageBusIt>(output)
 {
     private const int NumberOfMessages = 77;
 
@@ -45,8 +44,10 @@ public class RedisMessageBusIt(ITestOutputHelper testOutputHelper)
 
     public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
 
-    [Fact]
-    public async Task BasicPubSubOnTopic()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BasicPubSubOnTopic(bool bulkProduce)
     {
         var concurrency = 2;
         var consumers = 2;
@@ -68,11 +69,13 @@ public class RedisMessageBusIt(ITestOutputHelper testOutputHelper)
                 }));
         });
 
-        await BasicPubSub(consumers);
+        await BasicPubSub(consumers, bulkProduce);
     }
 
-    [Fact]
-    public async Task BasicPubSubOnQueue()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BasicPubSubOnQueue(bool bulkProduce)
     {
         var concurrency = 2;
         var consumers = 2;
@@ -94,10 +97,10 @@ public class RedisMessageBusIt(ITestOutputHelper testOutputHelper)
                 }));
         });
 
-        await BasicPubSub(consumers);
+        await BasicPubSub(consumers, bulkProduce);
     }
 
-    private async Task BasicPubSub(int expectedMessageCopies)
+    private async Task BasicPubSub(int expectedMessageCopies, bool bulkProduce)
     {
         // arrange
         var messageBus = MessageBus;
@@ -120,19 +123,27 @@ public class RedisMessageBusIt(ITestOutputHelper testOutputHelper)
             .Select(i => new PingMessage(i, Guid.NewGuid()))
             .ToList();
 
-        var messageTasks = producedMessages.Select(m => messageBus.Publish(m));
-        // wait until all messages are sent
-        await Task.WhenAll(messageTasks).ConfigureAwait(false);
+
+        if (bulkProduce)
+        {
+            await messageBus.Publish(producedMessages);
+        }
+        else
+        {
+            var messageTasks = producedMessages.Select(m => messageBus.Publish(m));
+            // wait until all messages are sent
+            await Task.WhenAll(messageTasks).ConfigureAwait(false);
+        }
 
         stopwatch.Stop();
-        Logger.LogInformation("Published {0} messages in {1}", producedMessages.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Published {MessageCount} messages in {Duration}", producedMessages.Count, stopwatch.Elapsed);
 
         // consume
         stopwatch.Restart();
         await consumedMessages.WaitUntilArriving(expectedCount: expectedMessageCopies * producedMessages.Count);
         stopwatch.Stop();
 
-        Logger.LogInformation("Consumed {0} messages in {1}", consumedMessages, stopwatch.Elapsed);
+        Logger.LogInformation("Consumed {MessageCount} messages in {Duration}", consumedMessages, stopwatch.Elapsed);
 
         // assert
 
@@ -222,13 +233,13 @@ public class RedisMessageBusIt(ITestOutputHelper testOutputHelper)
         var responseTasks = requests.Select(async req =>
         {
             var resp = await messageBus.Send<EchoResponse, EchoRequest>(req).ConfigureAwait(false);
-            Logger.LogDebug("Received response for index {0:000}", req.Index);
+            Logger.LogDebug("Received response for index {ResponseIndex:000}", req.Index);
             responses.Add((req, resp));
         });
         await Task.WhenAll(responseTasks).ConfigureAwait(false);
 
         stopwatch.Stop();
-        Logger.LogInformation("Published and received {0} messages in {1}", responses.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Published and received {MessageCount} messages in {Duration}", responses.Count, stopwatch.Elapsed);
 
         // assert
 
@@ -242,18 +253,14 @@ public class RedisMessageBusIt(ITestOutputHelper testOutputHelper)
     private class PingConsumer(ILogger<PingConsumer> logger, TestEventCollector<PingMessage> messages)
         : IConsumer<PingMessage>, IConsumerWithContext
     {
-        private readonly ILogger _logger = logger;
-        private readonly TestEventCollector<PingMessage> _messages = messages;
-
         public IConsumerContext Context { get; set; }
 
         #region Implementation of IConsumer<in PingMessage>
 
         public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
         {
-            _messages.Add(message);
-
-            _logger.LogInformation("Got message {0} on topic {1}.", message.Counter, Context.Path);
+            messages.Add(message);
+            logger.LogInformation("Got message {MessageCounter} on topic {Topic}.", message.Counter, Context.Path);
             return Task.CompletedTask;
         }
 
@@ -266,18 +273,12 @@ public class RedisMessageBusIt(ITestOutputHelper testOutputHelper)
     {
         public string Message { get; set; }
 
-        #region Overrides of Object
-
         public override string ToString() => $"EchoResponse(Message={Message})";
-
-        #endregion
     }
 
     private class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
     {
         public Task<EchoResponse> OnHandle(EchoRequest request, CancellationToken cancellationToken)
-        {
-            return Task.FromResult(new EchoResponse { Message = request.Message });
-        }
+            => Task.FromResult(new EchoResponse { Message = request.Message });
     }
 }
