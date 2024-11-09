@@ -18,7 +18,7 @@ public class KafkaProducerBuilderExtensionsTest
         var message = new SomeMessage();
         var messageKey = new byte[] { 1, 2 };
 
-        var keyProviderMock = new Mock<Func<SomeMessage, string, byte[]>>();
+        var keyProviderMock = new Mock<KafkaKeyProvider<SomeMessage>>();
         keyProviderMock.Setup(x => x(message, "topic1")).Returns(messageKey);
 
         // act
@@ -36,7 +36,7 @@ public class KafkaProducerBuilderExtensionsTest
         // arrange
         var message = new SomeMessage();
 
-        var partitionProviderMock = new Mock<Func<SomeMessage, string, int>>();
+        var partitionProviderMock = new Mock<KafkaPartitionProvider<SomeMessage>>();
         partitionProviderMock.Setup(x => x(message, "topic1")).Returns(1);
 
         // act

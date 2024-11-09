@@ -24,7 +24,7 @@ internal class KafkaMessageBusSettingsValidationService : DefaultMessageBusSetti
 
         if (consumerSettings.GetGroup() == null)
         {
-            ThrowConsumerFieldNotSet(consumerSettings, nameof(BuilderExtensions.KafkaGroup));
+            ThrowConsumerFieldNotSet(consumerSettings, nameof(KafkaAbstractConsumerBuilderExtensions.KafkaGroup));
         }
     }
 
@@ -36,12 +36,12 @@ internal class KafkaMessageBusSettingsValidationService : DefaultMessageBusSetti
         {
             if (Settings.RequestResponse.GetGroup() == null)
             {
-                ThrowRequestResponseFieldNotSet(nameof(BuilderExtensions.KafkaGroup));
+                ThrowRequestResponseFieldNotSet(nameof(KafkaAbstractConsumerBuilderExtensions.KafkaGroup));
             }
 
             if (Settings.Consumers.Any(x => x.GetGroup() == Settings.RequestResponse.GetGroup() && x.Path == Settings.RequestResponse.Path))
             {
-                ThrowRequestResponseFieldNotSet(nameof(BuilderExtensions.KafkaGroup), "cannot use topic that is already being used by a consumer");
+                ThrowRequestResponseFieldNotSet(nameof(KafkaAbstractConsumerBuilderExtensions.KafkaGroup), "cannot use topic that is already being used by a consumer");
             }
         }
     }

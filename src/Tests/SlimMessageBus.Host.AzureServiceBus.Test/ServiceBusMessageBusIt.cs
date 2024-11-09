@@ -21,6 +21,7 @@ using SlimMessageBus.Host.Test.Common.IntegrationTest;
 /// Inside the GitHub Actions pipeline, the Azure Service Bus infrastructure is shared, and this tests attempts to isolate itself by using unique queue/topic names.
 /// </summary>
 [Trait("Category", "Integration")]
+[Trait("Transport", "AzureServiceBus")]
 public class ServiceBusMessageBusIt(ITestOutputHelper output)
     : BaseIntegrationTest<ServiceBusMessageBusIt>(output)
 {

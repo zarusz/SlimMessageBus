@@ -16,6 +16,7 @@ using SlimMessageBus.Host.Test.Common.IntegrationTest;
 /// Inside the GitHub Actions pipeline, the Azure Event Hub infrastructure is shared, and so if tests are run in parallel they might affect each other (flaky tests).
 /// </summary>
 [Trait("Category", "Integration")]
+[Trait("Transport", "AzureEventHub")]
 public class EventHubMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<EventHubMessageBusIt>(output)
 {
     private const int NumberOfMessages = 100;

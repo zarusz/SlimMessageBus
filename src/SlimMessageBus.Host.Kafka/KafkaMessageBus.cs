@@ -11,6 +11,7 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
 {
     private readonly ILogger _logger;
     private IProducer _producer;
+    private bool _producerDeliveryReportsEnabled;
 
     public KafkaMessageBus(MessageBusSettings settings, KafkaMessageBusSettings providerSettings)
         : base(settings, providerSettings)
@@ -44,13 +45,14 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
         _logger.LogTrace("Creating producer settings");
         var config = new ProducerConfig
         {
-            BootstrapServers = ProviderSettings.BrokerList
+            BootstrapServers = ProviderSettings.BrokerList,
         };
         ProviderSettings.ProducerConfig(config);
 
+        _producerDeliveryReportsEnabled = config.EnableDeliveryReports ?? true; // when not set per Confluent.KafkaNet docs, it's defaulting to true
+
         _logger.LogDebug("Producer settings: {ProducerSettings}", config);
-        var producer = ProviderSettings.ProducerBuilderFactory(config).Build();
-        return producer;
+        return ProviderSettings.ProducerBuilderFactory(config).Build();
     }
 
     protected override async Task CreateConsumers()
@@ -116,6 +118,13 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
 
     public override async Task ProduceToTransport(object message, Type messageType, string path, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
+        static void OnMessageDelivered(ILogger logger, DeliveryResult<byte[], byte[]> deliveryResult, object message, Type messageType)
+        {
+            // log some debug information
+            logger.LogDebug("Message {Message} of type {MessageType} delivered to topic {Topic}, partition {Partition}, offset: {Offset}",
+                message, messageType?.Name, deliveryResult.Topic, deliveryResult.Partition, deliveryResult.Offset);
+        }
+
         try
         {
             var producerSettings = messageType != null ? GetProducerSettings(messageType) : null;
@@ -123,23 +132,23 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
 
             // calculate message key
             var key = GetMessageKey(producerSettings, messageType, message, path);
-            var kafkaMessage = new Message { Key = key, Value = messagePayload };
+            var transportMessage = new Message { Key = key, Value = messagePayload };
 
             if (messageHeaders != null && messageHeaders.Count > 0)
             {
-                kafkaMessage.Headers = [];
+                transportMessage.Headers = [];
 
                 foreach (var keyValue in messageHeaders)
                 {
                     var valueBytes = HeaderSerializer.Serialize(typeof(object), keyValue.Value);
-                    kafkaMessage.Headers.Add(keyValue.Key, valueBytes);
+                    transportMessage.Headers.Add(keyValue.Key, valueBytes);
                 }
             }
 
             // calculate partition
             var partition = producerSettings != null
-            ? GetMessagePartition(producerSettings, messageType, message, path)
-            : NoPartition;
+                ? GetMessagePartition(producerSettings, messageType, message, path)
+                : NoPartition;
 
             _logger.LogDebug("Producing message {Message} of type {MessageType}, topic {Topic}, partition {Partition}, key size {KeySize}, payload size {MessageSize}, headers count {MessageHeaderCount}",
                 message,
@@ -148,25 +157,59 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
                 partition,
                 key?.Length ?? 0,
                 messagePayload?.Length ?? 0,
-                kafkaMessage.Headers?.Count ?? 0);
+                transportMessage.Headers?.Count ?? 0);
 
-            // send the message to topic
-            var task = partition == NoPartition
-                ? _producer.ProduceAsync(path, kafkaMessage, cancellationToken: cancellationToken)
-                : _producer.ProduceAsync(new TopicPartition(path, new Partition(partition)), kafkaMessage, cancellationToken: cancellationToken);
+            var topicPartition = partition == NoPartition ? null : new TopicPartition(path, partition);
 
-            // ToDo: Introduce support for not awaited produce
-
-            var deliveryResult = await task.ConfigureAwait(false);
-            if (deliveryResult.Status == PersistenceStatus.NotPersisted)
+            // check if we should await for the message delivery result, by default true
+            var awaitProduceResult = producerSettings?.GetOrDefault(KafkaProducerSettingsExtensions.EnableProduceAwaitKey, Settings, true) ?? true;
+            if (awaitProduceResult)
             {
-                throw new ProducerMessageBusException($"Error while publish message {message} of type {messageType?.Name} to topic {path}. Kafka persistence status: {deliveryResult.Status}");
+                // send the message to topic and await result
+                var task = topicPartition == null
+                    ? _producer.ProduceAsync(path, transportMessage, cancellationToken: cancellationToken)
+                    : _producer.ProduceAsync(topicPartition, transportMessage, cancellationToken: cancellationToken);
+
+                var deliveryResult = await task.ConfigureAwait(false);
+                if (deliveryResult.Status == PersistenceStatus.NotPersisted)
+                {
+                    throw new ProducerMessageBusException($"Error while publish message {message} of type {messageType?.Name} to topic {path}. Kafka persistence status: {deliveryResult.Status}");
+                }
+
+                OnMessageDelivered(_logger, deliveryResult, message, messageType);
             }
+            else
+            {
+                // callback for message delivery result, null if not enabled to save on delegate memory allocation
+                Action<DeliveryReport<byte[], byte[]>> onMessageFailed = _producerDeliveryReportsEnabled
+                    ? (deliveryReport) =>
+                    {
+                        if (deliveryReport.Error.IsError)
+                        {
+                            _logger.LogError("Message {Message} of type {MessageType} failed to deliver to topic {Topic}, partition {Partition}, error: {Error}",
+                                message, messageType?.Name, deliveryReport.Topic, deliveryReport.Partition, deliveryReport.Error);
+                        }
+                        else
+                        {
+                            OnMessageDelivered(_logger, deliveryReport, message, messageType);
+                        }
+                    }
+                : null;
 
-            // log some debug information
-            _logger.LogDebug("Message {Message} of type {MessageType} delivered to topic {Topic}, partition {Partition}, offset: {Offset}",
-                message, messageType?.Name, deliveryResult.Topic, deliveryResult.Partition, deliveryResult.Offset);
+                // send the message to topic and dont await result (potential message loss)
+                if (topicPartition == null)
+                {
+                    _producer.Produce(path, transportMessage, onMessageFailed);
+                }
+                else
+                {
+                    _producer.Produce(topicPartition, transportMessage, onMessageFailed);
+                }
 
+                // log some debug information
+                _logger.LogDebug("Message {Message} of type {MessageType} sent to topic {Topic} (result is not awaited)",
+                    message, messageType?.Name, path);
+            }
         }
         catch (Exception ex) when (ex is not ProducerMessageBusException && ex is not TaskCanceledException)
         {

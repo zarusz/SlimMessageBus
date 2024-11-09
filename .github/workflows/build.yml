@@ -6,7 +6,6 @@ on:
   pull_request_target:
     branches: ["master", "devops/*"]
   workflow_dispatch:
-    branches: ["master", "release/*", "feature/*"]
 
 permissions:
   contents: read

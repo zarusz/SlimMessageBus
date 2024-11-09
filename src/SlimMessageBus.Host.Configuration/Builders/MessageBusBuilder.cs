@@ -2,7 +2,7 @@ namespace SlimMessageBus.Host;
 
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBuilder
+public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBuilder, IProducerBuilder
 {
     /// <summary>
     /// Parent bus builder.
@@ -19,12 +19,15 @@ public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBui
     /// </summary>
     public MessageBusSettings Settings { get; private set; } = new();
 
+    HasProviderExtensions IBuilderWithSettings.Settings => Settings;
+
     /// <summary>
     /// The bus factory method.
     /// </summary>
     public Func<MessageBusSettings, IMessageBusProvider> BusFactory { get; private set; }
 
     public IList<Action<IServiceCollection>> PostConfigurationActions { get; } = [];
+
 
     protected MessageBusBuilder()
     {
