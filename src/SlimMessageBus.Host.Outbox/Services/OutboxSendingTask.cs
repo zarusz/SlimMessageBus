@@ -270,7 +270,7 @@ internal class OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>(
         {
             var busName = busGroup.Key;
             var bus = GetBus(compositeMessageBus, messageBusTarget, busName);
-            if (bus == null || bus is not ITransportBulkProducer bulkProducer)
+            if (bus is not ITransportBulkProducer bulkProducer)
             {
                 foreach (var outboxMessage in busGroup)
                 {
@@ -285,7 +285,6 @@ internal class OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>(
 
                     abortedIds.Add(outboxMessage.Id);
                 }
-
                 continue;
             }
 

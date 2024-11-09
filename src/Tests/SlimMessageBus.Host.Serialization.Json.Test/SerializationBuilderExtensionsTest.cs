@@ -16,6 +16,7 @@ public class SerializationBuilderExtensionsTest
         builder.PostConfigurationActions.ToList().ForEach(action => action(services));
 
         services.Should().ContainSingle(x => x.ServiceType == typeof(IMessageSerializer));
+        services.Should().ContainSingle(x => x.ServiceType == typeof(IMessageSerializer<string>));
         services.Should().ContainSingle(x => x.ServiceType == typeof(JsonMessageSerializer));
     }
 }

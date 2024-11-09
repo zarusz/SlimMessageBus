@@ -67,7 +67,11 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
             AddConsumer(new KafkaGroupConsumer(LoggerFactory, ProviderSettings, group, topics, processorFactory));
         }
 
-        IKafkaPartitionConsumer ResponseProcessorFactory(TopicPartition tp, IKafkaCommitController cc) => new KafkaPartitionConsumerForResponses(LoggerFactory, Settings.RequestResponse, Settings.RequestResponse.GetGroup(), tp, cc, this, HeaderSerializer);
+        object MessageProvider(Type messageType, ConsumeResult<Ignore, byte[]> transportMessage)
+            => Serializer.Deserialize(messageType, transportMessage.Message.Value);
+
+        IKafkaPartitionConsumer ResponseProcessorFactory(TopicPartition tp, IKafkaCommitController cc)
+            => new KafkaPartitionConsumerForResponses(LoggerFactory, Settings.RequestResponse, Settings.RequestResponse.GetGroup(), tp, cc, MessageProvider, PendingRequestStore, CurrentTimeProvider, HeaderSerializer);
 
         foreach (var consumersByGroup in Settings.Consumers.GroupBy(x => x.GetGroup()))
         {
@@ -75,7 +79,8 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
             var consumersByTopic = consumersByGroup.GroupBy(x => x.Path).ToDictionary(x => x.Key, x => x.ToArray());
             var topics = consumersByTopic.Keys.ToList();
 
-            IKafkaPartitionConsumer ConsumerProcessorFactory(TopicPartition tp, IKafkaCommitController cc) => new KafkaPartitionConsumerForConsumers(LoggerFactory, consumersByTopic[tp.Topic], group, tp, cc, HeaderSerializer, this);
+            IKafkaPartitionConsumer ConsumerProcessorFactory(TopicPartition tp, IKafkaCommitController cc)
+                => new KafkaPartitionConsumerForConsumers(LoggerFactory, consumersByTopic[tp.Topic], group, tp, cc, HeaderSerializer, this);
 
             var processorFactory = ConsumerProcessorFactory;
 

@@ -18,6 +18,9 @@ public abstract class HasProviderExtensions
         return typedValue;
     }
 
+    public T GetOrCreate<T>(ProviderExtensionProperty<T> property, Func<T> factoryMethod)
+        => GetOrCreate(property.Key, factoryMethod);
+
     public T GetOrDefault<T>(string key, T defaultValue = default)
     {
         if (Properties.TryGetValue(key, out var value))
@@ -26,6 +29,9 @@ public abstract class HasProviderExtensions
         }
         return defaultValue;
     }
+
+    public T GetOrDefault<T>(ProviderExtensionProperty<T> property, T defaultValue = default)
+        => GetOrDefault(property.Key, defaultValue);
 
     public T GetOrDefault<T>(string key, MessageBusSettings messageBusSettings, T defaultValue = default)
     {
@@ -38,6 +44,9 @@ public abstract class HasProviderExtensions
         return defaultValue;
     }
 
+    public T GetOrDefault<T>(ProviderExtensionProperty<T> property, MessageBusSettings messageBusSettings, T defaultValue = default)
+        => GetOrDefault(property.Key, messageBusSettings, defaultValue);
+
     public T GetOrDefault<T>(string key, HasProviderExtensions parentSettings, T defaultValue = default)
     {
         if (Properties.TryGetValue(key, out var value)
@@ -47,4 +56,7 @@ public abstract class HasProviderExtensions
         }
         return defaultValue;
     }
+
+    public T GetOrDefault<T>(ProviderExtensionProperty<T> property, HasProviderExtensions parentSettings, T defaultValue = default)
+        => GetOrDefault(property.Key, parentSettings, defaultValue);
 }

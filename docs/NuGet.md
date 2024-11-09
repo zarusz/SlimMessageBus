@@ -6,6 +6,7 @@ SlimMessageBus additionally provides request-response implementation over messag
 
 Transports:
 
+- Amazon SQS/SNS
 - Apache Kafka
 - Azure Event Hub
 - Azure Service Bus

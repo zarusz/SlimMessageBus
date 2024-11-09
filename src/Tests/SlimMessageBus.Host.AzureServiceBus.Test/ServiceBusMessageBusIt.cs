@@ -476,7 +476,5 @@ public class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
     }
 
     public Task<EchoResponse> OnHandle(EchoRequest request, CancellationToken cancellationToken)
-    {
-        return Task.FromResult(new EchoResponse(request.Message));
-    }
+        => Task.FromResult(new EchoResponse(request.Message));
 }

@@ -5,6 +5,8 @@ public class MessageBusTested : MessageBusBase
     internal int _startedCount;
     internal int _stoppedCount;
 
+    public IMessageProcessor<object> RequestResponseMessageProcessor { get; private set; }
+
     public MessageBusTested(MessageBusSettings settings, ICurrentTimeProvider currentTimeProvider)
         : base(settings)
     {
@@ -13,6 +15,17 @@ public class MessageBusTested : MessageBusBase
 
         CurrentTimeProvider = currentTimeProvider;
         OnBuildProvider();
+    }
+
+    protected override async Task CreateConsumers()
+    {
+        await base.CreateConsumers();
+
+        if (Settings.RequestResponse != null)
+        {
+            RequestResponseMessageProcessor = new ResponseMessageProcessor<object>(LoggerFactory, Settings.RequestResponse, (mt, m) => m, PendingRequestStore, CurrentTimeProvider);
+            AddConsumer(new MessageBusTestedConsumer(NullLogger.Instance));
+        }
     }
 
     public ProducerSettings Public_GetProducerSettings(Type messageType) => GetProducerSettings(messageType);
@@ -54,11 +67,10 @@ public class MessageBusTested : MessageBusBase
             messageHeaders.TryGetHeader(ReqRespMessageHeaders.ReplyTo, out string replyTo);
             messageHeaders.TryGetHeader(ReqRespMessageHeaders.RequestId, out string requestId);
 
-            var responseHeaders = CreateHeaders();
+            var responseHeaders = CreateHeaders() as Dictionary<string, object>;
             responseHeaders.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
 
-            var responsePayload = Serializer.Serialize(resp.GetType(), resp);
-            await OnResponseArrived(responsePayload, replyTo, (IReadOnlyDictionary<string, object>)responseHeaders);
+            await RequestResponseMessageProcessor.ProcessMessage(resp, responseHeaders, null, null, cancellationToken);
         }
     }
 
@@ -67,5 +79,12 @@ public class MessageBusTested : MessageBusBase
     public void TriggerPendingRequestCleanup()
     {
         PendingRequestManager.CleanPendingRequests();
+    }
+
+    public class MessageBusTestedConsumer(ILogger logger) : AbstractConsumer(logger)
+    {
+        protected override Task OnStart() => Task.CompletedTask;
+
+        protected override Task OnStop() => Task.CompletedTask;
     }
 }

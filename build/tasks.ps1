@@ -35,7 +35,8 @@ $projects = @(
 	"SlimMessageBus.Host.Sql",
 	"SlimMessageBus.Host.Sql.Common",
 	"SlimMessageBus.Host.Nats",
-	
+	"SlimMessageBus.Host.AmazonSQS",
+
 	"SlimMessageBus.Host.FluentValidation",
 
 	"SlimMessageBus.Host.Outbox",

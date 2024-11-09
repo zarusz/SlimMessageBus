@@ -141,11 +141,11 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
             _logger.LogInformation("Creating response consumer for redis {PathKind} {Path}", GetPathKindString(Settings.RequestResponse.PathKind), Settings.RequestResponse.Path);
             if (Settings.RequestResponse.PathKind == PathKind.Topic)
             {
-                AddTopicConsumer(Settings.RequestResponse.Path, subscriber, new ResponseMessageProcessor<MessageWithHeaders>(LoggerFactory, Settings.RequestResponse, this, messagePayloadProvider: m => m.Payload));
+                AddTopicConsumer(Settings.RequestResponse.Path, subscriber, new ResponseMessageProcessor<MessageWithHeaders>(LoggerFactory, Settings.RequestResponse, MessageProvider, PendingRequestStore, CurrentTimeProvider));
             }
             else
             {
-                queues.Add((Settings.RequestResponse.Path, new ResponseMessageProcessor<MessageWithHeaders>(LoggerFactory, Settings.RequestResponse, this, messagePayloadProvider: m => m.Payload)));
+                queues.Add((Settings.RequestResponse.Path, new ResponseMessageProcessor<MessageWithHeaders>(LoggerFactory, Settings.RequestResponse, MessageProvider, PendingRequestStore, CurrentTimeProvider)));
             }
         }
 

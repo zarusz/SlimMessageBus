@@ -77,8 +77,9 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
             var processor = new ResponseMessageProcessor<MqttApplicationMessage>(
                 LoggerFactory,
                 Settings.RequestResponse,
-                responseConsumer: this,
-                messagePayloadProvider: m => m.PayloadSegment.Array);
+                messageProvider: MessageProvider,
+                PendingRequestStore,
+                CurrentTimeProvider);
 
             AddTopicConsumer(Settings.RequestResponse.Path, processor);
         }

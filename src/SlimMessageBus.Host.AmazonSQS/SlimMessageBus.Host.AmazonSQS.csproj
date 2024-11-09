@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="../Host.Plugin.Properties.xml" />
+
+  <PropertyGroup>
+    <Description>Amazon SQS provider for SlimMessageBus</Description>
+    <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
+    <PackageTags>Amazon AWS SQS provider SlimMessageBus MessageBus bus facade messaging</PackageTags>
+    <PackageIcon>icon.png</PackageIcon>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AWSSDK.SecurityToken" Version="3.7.400.47" />
+    <PackageReference Include="AWSSDK.SQS" Version="3.7.400.47" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SlimMessageBus.Host.Serialization.Json\SlimMessageBus.Host.Serialization.Json.csproj" />
+    <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
+  </ItemGroup>
+
+</Project>

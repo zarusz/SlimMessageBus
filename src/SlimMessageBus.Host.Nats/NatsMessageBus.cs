@@ -23,7 +23,7 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
     protected override void Build()
     {
         base.Build();
-        AddInit(CreateConnectionAsync());
+        InitTaskList.Add(CreateConnectionAsync, CancellationToken);
     }
 
     private Task CreateConnectionAsync()
@@ -56,12 +56,14 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
 
         await base.CreateConsumers();
 
+        object MessageProvider(Type messageType, NatsMsg<byte[]> transportMessage) => Serializer.Deserialize(messageType, transportMessage.Data);
+
         foreach (var (subject, consumerSettings) in Settings.Consumers.GroupBy(x => x.Path).ToDictionary(x => x.Key, x => x.ToList()))
         {
             var processor = new MessageProcessor<NatsMsg<byte[]>>(
                 consumerSettings,
                 messageBus: this,
-                messageProvider: (type, message) => Serializer.Deserialize(type, message.Data),
+                messageProvider: MessageProvider,
                 subject,
                 this,
                 consumerErrorHandlerOpenGenericType: typeof(INatsConsumerErrorHandler<>));
@@ -71,7 +73,7 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
 
         if (Settings.RequestResponse != null)
         {
-            var processor = new ResponseMessageProcessor<NatsMsg<byte[]>>(LoggerFactory, Settings.RequestResponse, this, message => message.Data);
+            var processor = new ResponseMessageProcessor<NatsMsg<byte[]>>(LoggerFactory, Settings.RequestResponse, MessageProvider, PendingRequestStore, CurrentTimeProvider);
             AddSubjectConsumer(Settings.RequestResponse.Path, processor);
         }
     }

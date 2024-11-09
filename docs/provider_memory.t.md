@@ -191,7 +191,7 @@ To use non-blocking publish use the `EnableBlockingPublish` property setting:
 
 When the `.Publish<T>()` is invoked in the non-blocking mode:
 
-- the consumers will be executed in another async task (in the background),
+- the consumers will be executed in another async task (in thMemoryMessageBusIte background),
 - that task cancellation token will be bound to the message bus lifecycle (consumers are stopped, the bus is disposed or application shuts down),
 - the order of message delivery to consumer will match the order of publish,
 - however, when number of concurrent consumer instances > 0 (`.Instances(N)`) then up to N messages will be processed concurrently (having impact on ordering)
