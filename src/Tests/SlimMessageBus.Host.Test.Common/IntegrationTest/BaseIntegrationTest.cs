@@ -74,10 +74,7 @@ public abstract class BaseIntegrationTest<T> : IAsyncLifetime
         while (!consumerControl.IsStarted && timeout.ElapsedMilliseconds < 5000) await Task.Delay(100);
     }
 
-    public Task InitializeAsync()
-    {
-        return Task.CompletedTask;
-    }
+    public Task InitializeAsync() => Task.CompletedTask;
 
     async Task IAsyncLifetime.DisposeAsync()
     {

@@ -11,7 +11,7 @@ public class SqlMessageBus : MessageBusBase<SqlMessageBusSettings>
     {
         base.Build();
 
-        AddInit(ProvisionTopology());
+        InitTaskList.Add(ProvisionTopology, CancellationToken);
     }
 
     public override async Task ProvisionTopology()

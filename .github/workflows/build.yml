@@ -102,7 +102,7 @@ jobs:
             --verbosity normal \
             --logger "trx;LogFilePrefix=Integration" \
             --collect:"XPlat Code Coverage;Format=opencover" \
-            --filter "Category=Integration&Transport=Outbox"
+            --filter "Category=Integration"
         working-directory: ./src
         env:
           # Connects to the Azure cloud
@@ -110,6 +110,10 @@ jobs:
 
           azure_eventhub_connectionstring: ${{ secrets.azure_eventhub_connectionstring }}
           azure_storagecontainer_connectionstring: ${{ secrets.azure_storagecontainer_connectionstring }}
+
+          # Connects to AWS cloud
+          amazon_access_key: ${{ secrets.amazon_access_key }}
+          amazon_secret_access_key: ${{ secrets.amazon_secret_access_key }}
 
           _kafka_brokers: ${{ secrets.kafka_brokers }}
           _kafka_username: ${{ secrets.kafka_username }}

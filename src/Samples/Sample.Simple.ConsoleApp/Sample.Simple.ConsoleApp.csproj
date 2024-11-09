@@ -11,6 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\SlimMessageBus.Host.AmazonSQS\SlimMessageBus.Host.AmazonSQS.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.AzureEventHub\SlimMessageBus.Host.AzureEventHub.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.AzureServiceBus\SlimMessageBus.Host.AzureServiceBus.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Kafka\SlimMessageBus.Host.Kafka.csproj" />

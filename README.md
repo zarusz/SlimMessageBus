@@ -11,8 +11,8 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=vulnerabilities)](https://sonarcloud.io/summary/overall?id=zarusz_SlimMessageBus)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=alert_status)](https://sonarcloud.io/summary/overall?id=zarusz_SlimMessageBus)
 
-> The v2 release is available (see [migration guide](https://github.com/zarusz/SlimMessageBus/releases/tag/Host.Transport-2.0.0)).
 > The v3 release is [under construction](https://github.com/zarusz/SlimMessageBus/tree/release/v3).
+> The v2 release is available (see [migration guide](https://github.com/zarusz/SlimMessageBus/releases/tag/Host.Transport-2.0.0)).
 
 - [Key elements of SlimMessageBus](#key-elements-of-slimmessagebus)
 - [Docs](#docs)
@@ -47,6 +47,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 
 - [Introduction](docs/intro.md)
 - Providers:
+  - [Amazon SQS/SNS](docs/provider_amazon_sqs.md)
   - [Apache Kafka](docs/provider_kafka.md)
   - [Azure EventHubs](docs/provider_azure_eventhubs.md)
   - [Azure ServiceBus](docs/provider_azure_servicebus.md)
@@ -69,11 +70,12 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SlimMessageBus`                     | The core API for SlimMessageBus                                                                                     | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.svg)](https://www.nuget.org/packages/SlimMessageBus)                                                                     |
 | **Transport providers**              |                                                                                                                     |                                                                                                                                                                                  |
+| `.Host.AmazonSQS`                    | Transport provider for Amazon SQS / SNS                                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AmazonSQS.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AmazonSQS)                                       |
 | `.Host.AzureEventHub`                | Transport provider for Azure Event Hubs                                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AzureEventHub.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)                               |
 | `.Host.AzureServiceBus`              | Transport provider for Azure Service Bus                                                                            | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AzureServiceBus.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AzureServiceBus)                           |
 | `.Host.Kafka`                        | Transport provider for Apache Kafka                                                                                 | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Kafka.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)                                               |
-| `.Host.Memory`                       | Transport provider implementation for in-process (in memory) message passing (no messaging infrastructure required) | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Memory.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Memory)                                             |
 | `.Host.MQTT`                         | Transport provider for MQTT                                                                                         | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.MQTT.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.MQTT)                                                 |
+| `.Host.Memory`                       | Transport provider implementation for in-process (in memory) message passing (no messaging infrastructure required) | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Memory.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Memory)                                             |
 | `.Host.NATS`                         | Transport provider for [NATS](https://nats.io/)                                                                     | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.NATS.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.NATS)                                                 |
 | `.Host.RabbitMQ`                     | Transport provider for RabbitMQ                                                                                     | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.RabbitMQ.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.RabbitMQ)                                         |
 | `.Host.Redis`                        | Transport provider for Redis                                                                                        | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Redis.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Redis)                                               |
@@ -186,7 +188,7 @@ services.AddSlimMessageBus(mbb =>
 
       // Scan assembly for consumers, handlers, interceptors, and register into MSDI
       .AddServicesFromAssemblyContaining<SomeMessageConsumer>()
-      //.AddServicesFromAssembly(Assembly.GetExecutingAssembly());
+      //.AddServicesFromAssembly(Assembly.GetExecutingAssembly())
 
       // Add JSON serializer
       .AddJsonSerializer(); // requires SlimMessageBus.Host.Serialization.Json or SlimMessageBus.Host.Serialization.SystemTextJson package

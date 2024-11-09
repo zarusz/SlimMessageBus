@@ -6,14 +6,10 @@ using System.Runtime.ExceptionServices;
 using SlimMessageBus.Host.Consumer;
 using SlimMessageBus.Host.Services;
 
-public abstract class MessageBusBase<TProviderSettings> : MessageBusBase where TProviderSettings : class
+public abstract class MessageBusBase<TProviderSettings>(MessageBusSettings settings, TProviderSettings providerSettings) : MessageBusBase(settings)
+    where TProviderSettings : class
 {
-    public TProviderSettings ProviderSettings { get; }
-
-    protected MessageBusBase(MessageBusSettings settings, TProviderSettings providerSettings) : base(settings)
-    {
-        ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
-    }
+    public TProviderSettings ProviderSettings { get; } = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
 }
 
 public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
@@ -21,7 +17,6 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
     IMessageScopeFactory,
     IMessageHeadersFactory,
     IResponseProducer,
-    IResponseConsumer,
     ITransportProducer,
     ITransportBulkProducer
 {
@@ -30,6 +25,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
     private IMessageSerializer _serializer;
     private readonly MessageHeaderService _headerService;
     private readonly List<AbstractConsumer> _consumers = [];
+    public ILoggerFactory LoggerFactory { get; protected set; }
 
     /// <summary>
     /// Special market reference that signifies a dummy producer settings for response types.
@@ -37,8 +33,6 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
     protected static readonly ProducerSettings MarkerProducerSettingsForResponses = new();
 
     public RuntimeTypeCache RuntimeTypeCache { get; }
-
-    public ILoggerFactory LoggerFactory { get; }
 
     public virtual MessageBusSettings Settings { get; }
 
@@ -65,8 +59,13 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
 
     #endregion
 
-    private readonly object _initTaskLock = new();
-    private Task _initTask = null;
+    /// <summary>
+    /// Maintains a list of tasks that should be completed before the bus can produce the first message or start consumers.
+    /// Add async things like
+    /// - connection creations here to the underlying transport client
+    /// - provision topology
+    /// </summary>
+    protected readonly AsyncTaskList InitTaskList = new();
 
     #region Start & Stop
 
@@ -110,36 +109,6 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
         PendingRequestStore = PendingRequestManager.Store;
     }
 
-    protected void AddInit(Task task)
-    {
-        lock (_initTaskLock)
-        {
-            var prevInitTask = _initTask;
-            _initTask = prevInitTask?.ContinueWith(_ => task, CancellationToken) ?? task;
-        }
-    }
-
-    /// <summary>
-    /// Awaits (if any) bus intialization (e.g. topology provisining) before we can produce message into the bus.
-    /// </summary>
-    /// <returns></returns>
-    protected async Task EnsureInitFinished()
-    {
-        var initTask = _initTask;
-        if (initTask != null)
-        {
-            await initTask.ConfigureAwait(false);
-
-            lock (_initTaskLock)
-            {
-                if (ReferenceEquals(_initTask, initTask))
-                {
-                    _initTask = null;
-                }
-            }
-        }
-    }
-
     protected virtual IMessageSerializer GetSerializer() => Settings.GetSerializer(Settings.ServiceProvider);
 
     protected virtual IMessageBusSettingsValidationService ValidationService { get => new DefaultMessageBusSettingsValidationService(Settings); }
@@ -154,7 +123,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
         Build();
 
         // Notify the bus has been created - before any message can be produced
-        AddInit(OnBusLifecycle(MessageBusLifecycleEventType.Created));
+        InitTaskList.Add(() => OnBusLifecycle(MessageBusLifecycleEventType.Created), CancellationToken);
 
         // Auto start consumers if enabled
         if (Settings.AutoStartConsumers)
@@ -222,7 +191,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
 
         try
         {
-            await EnsureInitFinished();
+            await InitTaskList.EnsureAllFinished();
 
             _logger.LogInformation("Starting consumers for {BusName} bus...", Name);
             await OnBusLifecycle(MessageBusLifecycleEventType.Starting).ConfigureAwait(false);
@@ -261,7 +230,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
 
         try
         {
-            await EnsureInitFinished();
+            await InitTaskList.EnsureAllFinished();
 
             _logger.LogInformation("Stopping consumers for {BusName} bus...", Name);
             await OnBusLifecycle(MessageBusLifecycleEventType.Stopping).ConfigureAwait(false);
@@ -450,7 +419,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
     {
         if (message == null) throw new ArgumentNullException(nameof(message));
         AssertActive();
-        await EnsureInitFinished();
+        await InitTaskList.EnsureAllFinished();
 
         // check if the cancellation was already requested
         cancellationToken.ThrowIfCancellationRequested();
@@ -549,7 +518,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
         if (request == null) throw new ArgumentNullException(nameof(request));
         AssertActive();
         AssertRequestResponseConfigured();
-        await EnsureInitFinished();
+        await InitTaskList.EnsureAllFinished();
 
         // check if the cancellation was already requested
         cancellationToken.ThrowIfCancellationRequested();
@@ -667,78 +636,6 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
         _headerService.AddMessageTypeHeader(response, responseHeaders);
 
         return ProduceToTransport(response, responseType, (string)replyTo, responseHeaders, null, cancellationToken);
-    }
-
-    /// <summary>
-    /// Should be invoked by the concrete bus implementation whenever there is a message arrived on the reply to topic.
-    /// </summary>
-    /// <param name="responsePayload"></param>
-    /// <param name="path"></param>
-    /// <returns></returns>
-    public virtual Task<Exception> OnResponseArrived(byte[] responsePayload, string path, IReadOnlyDictionary<string, object> responseHeaders)
-    {
-        if (!responseHeaders.TryGetHeader(ReqRespMessageHeaders.RequestId, out string requestId))
-        {
-            _logger.LogError("The response message arriving on path {Path} did not have the {HeaderName} header. Unable to math the response with the request. This likely indicates a misconfiguration.", path, ReqRespMessageHeaders.RequestId);
-            return Task.FromResult<Exception>(null);
-        }
-
-        Exception responseException = null;
-        if (responseHeaders.TryGetHeader(ReqRespMessageHeaders.Error, out string errorMessage))
-        {
-            responseException = new RequestHandlerFaultedMessageBusException(errorMessage);
-        }
-
-        var requestState = PendingRequestStore.GetById(requestId);
-        if (requestState == null)
-        {
-            _logger.LogDebug("The response message for request id {RequestId} arriving on path {Path} will be disregarded. Either the request had already expired, had been cancelled or it was already handled (this response message is a duplicate).", requestId, path);
-
-            // ToDo: add and API hook to these kind of situation
-            return Task.FromResult<Exception>(null);
-        }
-
-        try
-        {
-            if (_logger.IsEnabled(LogLevel.Debug))
-            {
-                var tookTimespan = CurrentTimeProvider.CurrentTime.Subtract(requestState.Created);
-                _logger.LogDebug("Response arrived for {Request} on path {Path} (time: {RequestTime} ms)", requestState, path, tookTimespan);
-            }
-
-            if (responseException != null)
-            {
-                // error response arrived
-                _logger.LogDebug(responseException, "Response arrived for {Request} on path {Path} with error: {ResponseError}", requestState, path, responseException.Message);
-
-                requestState.TaskCompletionSource.TrySetException(responseException);
-            }
-            else
-            {
-                // response arrived
-                try
-                {
-                    // deserialize the response message
-                    var response = responsePayload != null
-                        ? Serializer.Deserialize(requestState.ResponseType, responsePayload)
-                        : null;
-
-                    // resolve the response
-                    requestState.TaskCompletionSource.TrySetResult(response);
-                }
-                catch (Exception e)
-                {
-                    _logger.LogDebug(e, "Could not deserialize the response message for {Request} arriving on path {Path}", requestState, path);
-                    requestState.TaskCompletionSource.TrySetException(e);
-                }
-            }
-        }
-        finally
-        {
-            // remove the request from the queue
-            PendingRequestStore.Remove(requestId);
-        }
-        return Task.FromResult<Exception>(null);
     }
 
     /// <summary>

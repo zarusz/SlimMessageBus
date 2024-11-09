@@ -41,6 +41,8 @@
 - [Logging](#logging)
 - [Debugging](#debugging)
 - [Provider specific functionality](#provider-specific-functionality)
+- [Topology Provisioning](#topology-provisioning)
+  - [Triggering Topology Provisioning](#triggering-topology-provisioning)
 
 ## Configuration
 
@@ -1129,3 +1131,19 @@ Providers:
 - [RabbitMQ](provider_rabbitmq.md)
 - [Redis](provider_redis.md)
 - [SQL](provider_sql.md)
+
+## Topology Provisioning
+
+Most of the transport providers support the automatic creation of the needed messaging topology (queues, topics, subscriptions, etc).
+
+### Triggering Topology Provisioning
+
+Topology provisioning occurs when the bus is first created (e.g., at application startup). If the underlying topology changes (e.g., queues or topics are manually deleted), you may need to re-trigger provisioning programmatically:
+
+```csharp
+ITopologyControl ctrl = // injected
+
+await ctrl.ProvisionTopology();
+```
+
+This allows to recreate missing elements in the infrastructure without restarting the whole application.

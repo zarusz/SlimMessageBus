@@ -28,12 +28,14 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
     {
         base.Build();
 
-        AddInit(CreateConnection());
+        InitTaskList.Add(CreateConnection, CancellationToken);
     }
 
     protected override async Task CreateConsumers()
     {
         await base.CreateConsumers();
+
+        object MessageProvider(Type messageType, BasicDeliverEventArgs transportMessage) => Serializer.Deserialize(messageType, transportMessage.Body.ToArray());
 
         foreach (var (queueName, consumers) in Settings.Consumers.GroupBy(x => x.GetQueueName()).ToDictionary(x => x.Key, x => x.ToList()))
         {
@@ -43,6 +45,7 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
                 consumers,
                 Serializer,
                 messageBus: this,
+                MessageProvider,
                 ProviderSettings.HeaderValueConverter));
         }
 
@@ -52,7 +55,9 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
                 channel: this,
                 queueName: Settings.RequestResponse.GetQueueName(),
                 Settings.RequestResponse,
-                this,
+                MessageProvider,
+                PendingRequestStore,
+                CurrentTimeProvider,
                 ProviderSettings.HeaderValueConverter));
         }
     }

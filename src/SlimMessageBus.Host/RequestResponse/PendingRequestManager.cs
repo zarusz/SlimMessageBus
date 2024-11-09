@@ -7,7 +7,6 @@ public class PendingRequestManager : IPendingRequestManager, IDisposable
 {
     private readonly ILogger _logger;
 
-    private readonly TimeSpan _timerInterval;
     private readonly Timer _timer;
     private readonly object _timerSync = new();
 
@@ -24,8 +23,9 @@ public class PendingRequestManager : IPendingRequestManager, IDisposable
 
         _onRequestTimeout = onRequestTimeout;
         _timeProvider = timeProvider;
-        _timerInterval = interval ?? TimeSpan.FromSeconds(3);
-        _timer = new Timer(state => TimerCallback(), null, _timerInterval, _timerInterval);
+
+        var timerInterval = interval ?? TimeSpan.FromSeconds(3);
+        _timer = new Timer(state => TimerCallback(), null, timerInterval, timerInterval);
     }
 
     #region IDisposable

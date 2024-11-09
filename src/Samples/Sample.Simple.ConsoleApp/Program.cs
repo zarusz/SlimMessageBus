@@ -14,6 +14,7 @@ using SecretStore;
 
 using SlimMessageBus;
 using SlimMessageBus.Host;
+using SlimMessageBus.Host.AmazonSQS;
 using SlimMessageBus.Host.AzureEventHub;
 using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.Kafka;
@@ -28,6 +29,7 @@ enum Provider
     AzureEventHub,
     Redis,
     Memory,
+    AmazonSQS
 }
 
 /// <summary>
@@ -166,10 +168,9 @@ static internal class Program
                                        //.WithConsumer<AddCommandConsumer>(nameof(AddCommandConsumer.OnHandle))
                                        //.WithConsumer<AddCommandConsumer>((consumer, message, name) => consumer.OnHandle(message, name))
                                        .KafkaGroup(consumerGroup) // for Apache Kafka
-                                       .EventHubGroup(consumerGroup) // for Azure Event Hub
-                                                                     // for Azure Service Bus
-                                       .SubscriptionName(consumerGroup)
-                                       .SubscriptionSqlFilter("2=2")
+                                       .EventHubGroup(consumerGroup) // for Azure Event Hub                                                                     
+                                       .SubscriptionName(consumerGroup) // for Azure Service Bus
+                                       .SubscriptionSqlFilter("2=2") // for Azure Service Bus
                                        .CreateTopicOptions((options) =>
                                        {
                                            options.RequiresDuplicateDetection = true;
@@ -242,7 +243,7 @@ static internal class Program
                         builder.WithProviderServiceBus(cfg =>
                         {
                             cfg.ConnectionString = serviceBusConnectionString;
-                            cfg.TopologyProvisioning = new ServiceBusTopologySettings()
+                            cfg.TopologyProvisioning = new()
                             {
                                 Enabled = true,
                                 CreateQueueOptions = (options) =>
@@ -319,13 +320,24 @@ static internal class Program
                         break;
 
                     case Provider.Redis:
-                        // Ensure your Kafka broker is running
                         var redisConnectionString = Secrets.Service.PopulateSecrets(configuration["Redis:ConnectionString"]);
 
                         // Or use Redis as provider
                         builder.WithProviderRedis(cfg =>
                         {
                             cfg.ConnectionString = redisConnectionString;
+                        });
+                        break;
+
+                    case Provider.AmazonSQS:
+                        var accessKey = Secrets.Service.PopulateSecrets(configuration["Amazon:AccessKey"]);
+                        var secretAccess = Secrets.Service.PopulateSecrets(configuration["Amazon:SecretAccess"]);
+
+                        // Or use Amazon SQS as provider
+                        builder.WithProviderAmazonSQS(cfg =>
+                        {
+                            cfg.UseRegion(Amazon.RegionEndpoint.EUCentral1);
+                            cfg.UseCredentials(accessKey, secretAccess);
                         });
                         break;
                 }

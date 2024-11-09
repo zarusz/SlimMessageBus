@@ -59,7 +59,7 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
 
         if (ProviderSettings.TopologyProvisioning?.Enabled ?? false)
         {
-            AddInit(ProvisionTopology());
+            InitTaskList.Add(ProvisionTopology, CancellationToken);
         }
 
         _client = ProviderSettings.ClientFactory();
@@ -86,6 +86,7 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
         }
 
         static void InitConsumerContext(ServiceBusReceivedMessage m, ConsumerContext ctx) => ctx.SetTransportMessage(m);
+        object MessageProvider(Type messageType, ServiceBusReceivedMessage m) => Serializer.Deserialize(messageType, m.Body.ToArray());
 
         foreach (var ((path, subscriptionName), consumerSettings) in Settings.Consumers
                 .GroupBy(x => (x.Path, SubscriptionName: x.GetSubscriptionName(ProviderSettings)))
@@ -95,7 +96,7 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
             var messageProcessor = new MessageProcessor<ServiceBusReceivedMessage>(
                 consumerSettings,
                 this,
-                messageProvider: (messageType, m) => Serializer.Deserialize(messageType, m.Body.ToArray()),
+                messageProvider: MessageProvider,
                 path: path.ToString(),
                 responseProducer: this,
                 consumerContextInitializer: InitConsumerContext,
@@ -110,8 +111,9 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
             var messageProcessor = new ResponseMessageProcessor<ServiceBusReceivedMessage>(
                 LoggerFactory,
                 Settings.RequestResponse,
-                responseConsumer: this,
-                messagePayloadProvider: m => m.Body.ToArray());
+                MessageProvider,
+                PendingRequestStore,
+                CurrentTimeProvider);
 
             AddConsumerFrom(topicSubscription, messageProcessor, [Settings.RequestResponse]);
         }

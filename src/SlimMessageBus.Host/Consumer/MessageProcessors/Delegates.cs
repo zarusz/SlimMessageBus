@@ -4,9 +4,10 @@
 /// Provides the message payload (binary) from the transport message.
 /// </summary>
 /// <typeparam name="T"></typeparam>
+/// <typeparam name="TPayload"></typeparam>
 /// <param name="transportMessage"></param>
 /// <returns></returns>
-public delegate byte[] MessagePayloadProvider<T>(T transportMessage);
+public delegate TPayload MessagePayloadProvider<in T, out TPayload>(T transportMessage);
 
 /// <summary>
 /// Initializes the consumer context from the specified transport message.
