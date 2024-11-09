@@ -4,7 +4,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 
 [Trait("Category", "Integration")]
-[Trait("Transport", "Mqtt")]
+[Trait("Transport", "MQTT")]
 public class MqttMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<MqttMessageBusIt>(output)
 {
     private const int NumberOfMessages = 77;

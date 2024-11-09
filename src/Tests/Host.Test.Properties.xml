@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="FluentAssertions" Version="6.12.1" />
+    <PackageReference Include="FluentAssertions" Version="6.12.2" />
     <PackageReference Include="Moq" Version="4.20.72" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="AutoFixture" Version="4.18.1" />

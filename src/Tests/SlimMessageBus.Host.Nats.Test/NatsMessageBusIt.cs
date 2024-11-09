@@ -8,7 +8,7 @@ using Config;
 using Serialization.Json;
 
 [Trait("Category", "Integration")]
-[Trait("Transport", "Nats")]
+[Trait("Transport", "NATS")]
 public class NatsMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<NatsMessageBusIt>(output)
 {
     private const int NumberOfMessages = 100;
