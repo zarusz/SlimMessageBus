@@ -6,8 +6,8 @@ using Azure.Messaging.ServiceBus.Administration;
 public class ServiceBusMessageBusSettings : HasProviderExtensions
 {
     public string ConnectionString { get; set; }
-    public Func<ServiceBusClient> ClientFactory { get; set; }
-    public Func<ServiceBusAdministrationClient> AdminClientFactory { get; set; }
+    public Func<IServiceProvider, ServiceBusMessageBusSettings, ServiceBusClient> ClientFactory { get; set; }
+    public Func<IServiceProvider, ServiceBusMessageBusSettings, ServiceBusAdministrationClient> AdminClientFactory { get; set; }
     public Func<string, ServiceBusClient, ServiceBusSender> SenderFactory { get; set; }
     public Func<TopicSubscriptionParams, ServiceBusProcessorOptions> ProcessorOptionsFactory { get; set; }
     public Func<TopicSubscriptionParams, ServiceBusProcessorOptions, ServiceBusClient, ServiceBusProcessor> ProcessorFactory { get; set; }
@@ -45,8 +45,8 @@ public class ServiceBusMessageBusSettings : HasProviderExtensions
 
     public ServiceBusMessageBusSettings()
     {
-        ClientFactory = () => new ServiceBusClient(ConnectionString);
-        AdminClientFactory = () => new ServiceBusAdministrationClient(ConnectionString);
+        ClientFactory = (_, settings) => new ServiceBusClient(settings.ConnectionString);
+        AdminClientFactory = (_, settings) => new ServiceBusAdministrationClient(settings.ConnectionString);
 
         SenderFactory = (path, client) => client.CreateSender(path);
 
