@@ -30,7 +30,7 @@
 
                 ProviderBusSettings = new ServiceBusMessageBusSettings("connection-string")
                 {
-                    AdminClientFactory = () => _mockAdminClient.Object,
+                    AdminClientFactory = (_, _) => _mockAdminClient.Object,
                     TopologyProvisioning = new ServiceBusTopologySettings
                     {
                         Enabled = false
