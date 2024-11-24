@@ -33,7 +33,7 @@ public class ServiceBusMessageBusTests : IDisposable
 
         ProviderBusSettings = new ServiceBusMessageBusSettings("connection-string")
         {
-            ClientFactory = () =>
+            ClientFactory = (_, _) =>
             {
                 var client = new Mock<ServiceBusClient>();
                 return client.Object;
