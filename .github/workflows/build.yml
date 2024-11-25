@@ -111,6 +111,10 @@ jobs:
           azure_eventhub_connectionstring: ${{ secrets.azure_eventhub_connectionstring }}
           azure_storagecontainer_connectionstring: ${{ secrets.azure_storagecontainer_connectionstring }}
 
+          # Connects to AWS cloud
+          amazon_access_key: ${{ secrets.amazon_access_key }}
+          amazon_secret_access_key: ${{ secrets.amazon_secret_access_key }}
+
           _kafka_brokers: ${{ secrets.kafka_brokers }}
           _kafka_username: ${{ secrets.kafka_username }}
           _kafka_password: ${{ secrets.kafka_password }}
@@ -184,7 +188,7 @@ jobs:
           name: .NET Tests
           path: ./test-results/*.trx
           reporter: dotnet-trx
-          fail-on-error: false
+          fail-on-error: true
 
       - name: Copy NuGet packages
         shell: bash
