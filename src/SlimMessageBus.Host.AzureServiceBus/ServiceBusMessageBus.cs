@@ -62,7 +62,7 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
             InitTaskList.Add(ProvisionTopology, CancellationToken);
         }
 
-        _client = ProviderSettings.ClientFactory();
+        _client = ProviderSettings.ClientFactory(Settings.ServiceProvider, ProviderSettings);
 
         _producerByPath = new SafeDictionaryWrapper<string, ServiceBusSender>(path =>
         {

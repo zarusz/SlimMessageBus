@@ -15,7 +15,7 @@ public class ServiceBusTopologyService
         _logger = logger;
         _settings = settings;
         _providerSettings = providerSettings;
-        _adminClient = providerSettings.AdminClientFactory();
+        _adminClient = providerSettings.AdminClientFactory(settings.ServiceProvider, providerSettings);
     }
 
     [Flags]
