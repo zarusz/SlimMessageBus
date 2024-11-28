@@ -164,7 +164,7 @@ public class ServiceBusTopologyService
             var topologyProvisioning = _providerSettings.TopologyProvisioning;
 
             var consumersSettingsByPath = _settings.Consumers.OfType<AbstractConsumerSettings>()
-                .Concat(new[] { _settings.RequestResponse })
+                .Concat([_settings.RequestResponse])
                 .Where(x => x != null)
                 .GroupBy(x => (x.Path, x.PathKind))
                 .ToDictionary(x => x.Key, x => x.ToList());

@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host;
 
-using System;
-
 /// <summary>
 /// Implementation of <see cref="IMessageProcessor{TMessage}"/> that performs orchestration around processing of a new message using an instance of the declared consumer (<see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/> interface).
 /// </summary>
@@ -37,7 +35,7 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
         messageTypeResolver: messageBus.MessageTypeResolver,
         messageHeadersFactory: messageBus,
         runtimeTypeCache: messageBus.RuntimeTypeCache,
-        currentTimeProvider: messageBus,
+        currentTimeProvider: messageBus.CurrentTimeProvider,
         path: path,
         consumerErrorHandlerOpenGenericType)
     {
@@ -103,7 +101,7 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
                                 if (!ReferenceEquals(ResponseForExpiredRequest, lastResponse))
                                 {
                                     // We discard expired requests, so there is no response to provide
-                                    await _responseProducer.ProduceResponse(requestId, message, messageHeaders, lastResponse, lastException, consumerInvoker).ConfigureAwait(false);
+                                    await _responseProducer.ProduceResponse(requestId, message, messageHeaders, lastResponse, lastException, consumerInvoker, cancellationToken).ConfigureAwait(false);
                                 }
                                 // Clear the exception as it will be returned to the sender.
                                 lastException = null;

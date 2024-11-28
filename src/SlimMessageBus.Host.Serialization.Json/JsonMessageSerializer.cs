@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 using Newtonsoft.Json;
 
-public class JsonMessageSerializer : IMessageSerializer
+public class JsonMessageSerializer : IMessageSerializer, IMessageSerializer<string>
 {
     private readonly ILogger _logger;
     private readonly Encoding _encoding;
@@ -31,9 +31,7 @@ public class JsonMessageSerializer : IMessageSerializer
     {
         var jsonPayload = JsonConvert.SerializeObject(message, t, _serializerSettings);
         _logger.LogDebug("Type {MessageType} serialized from {Message} to JSON {MessageJson}", t, message, jsonPayload);
-
-        var payload = _encoding.GetBytes(jsonPayload);
-        return payload;
+        return _encoding.GetBytes(jsonPayload);
     }
 
     public object Deserialize(Type t, byte[] payload)
@@ -42,15 +40,31 @@ public class JsonMessageSerializer : IMessageSerializer
         try
         {
             jsonPayload = _encoding.GetString(payload);
-            var message = JsonConvert.DeserializeObject(jsonPayload, t, _serializerSettings);
-            _logger.LogDebug("Type {MessageType} deserialized from JSON {MessageJson} to {Message}", t, jsonPayload, message);
-            return message;
+            return Deserialize(t, jsonPayload);
         }
         catch (Exception e)
         {
             _logger.LogError(e, "Type {MessageType} could not been deserialized, payload: {MessagePayload}, JSON: {MessageJson}", t, _logger.IsEnabled(LogLevel.Debug) ? Convert.ToBase64String(payload) : "(...)", jsonPayload);
             throw;
         }
+    }
+
+    #endregion
+
+    #region Implementation of IMessageSerializer<string>
+
+    string IMessageSerializer<string>.Serialize(Type t, object message)
+    {
+        var payload = JsonConvert.SerializeObject(message, t, _serializerSettings);
+        _logger.LogDebug("Type {MessageType} serialized from {Message} to JSON {MessageJson}", t, message, payload);
+        return payload;
+    }
+
+    public object Deserialize(Type t, string payload)
+    {
+        var message = JsonConvert.DeserializeObject(payload, t, _serializerSettings);
+        _logger.LogDebug("Type {MessageType} deserialized from JSON {MessageJson} to {Message}", t, payload, message);
+        return message;
     }
 
     #endregion

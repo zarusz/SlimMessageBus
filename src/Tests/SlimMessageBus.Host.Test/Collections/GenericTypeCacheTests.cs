@@ -16,7 +16,7 @@ public class GenericTypeCacheTests
         scopeMock = new Mock<IServiceProvider>();
         scopeMock.Setup(x => x.GetService(typeof(IEnumerable<IConsumerInterceptor<SomeMessage>>))).Returns(() => new[] { consumerInterceptorMock.Object });
 
-        subject = new GenericTypeCache<Func<object, object, object, object, Task>>(typeof(IConsumerInterceptor<>), nameof(IConsumerInterceptor<object>.OnHandle), mt => typeof(Task), mt => new[] { typeof(Func<Task<object>>), typeof(IConsumerContext) });
+        subject = new GenericTypeCache<Func<object, object, object, object, Task>>(typeof(IConsumerInterceptor<>), nameof(IConsumerInterceptor<object>.OnHandle));
     }
 
     [Fact]

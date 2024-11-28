@@ -1,11 +1,12 @@
 ﻿namespace Sample.Hybrid.ConsoleApp.EmailService;
 
 using Sample.Hybrid.ConsoleApp.EmailService.Contract;
+
 using SlimMessageBus;
 
 public class SmtpEmailService : IConsumer<SendEmailCommand>
 {
-    public Task OnHandle(SendEmailCommand message)
+    public Task OnHandle(SendEmailCommand message, CancellationToken cancellationToken)
     {
         // Sending email via SMTP...
         Console.WriteLine("--------------------------------------------");

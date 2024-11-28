@@ -1,9 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Outbox;
 
-using Microsoft.Extensions.Logging;
-
-using SlimMessageBus.Host.Outbox.Services;
-
 public abstract class OutboxForwardingPublishInterceptor
 {
 }
@@ -14,19 +10,13 @@ public abstract class OutboxForwardingPublishInterceptor
 /// </remarks>
 public sealed class OutboxForwardingPublishInterceptor<T>(
     ILogger<OutboxForwardingPublishInterceptor> logger,
-    IOutboxRepository outboxRepository,
-    IInstanceIdProvider instanceIdProvider,
+    IOutboxMessageFactory outboxMessageFactory,
     IOutboxNotificationService outboxNotificationService,
     OutboxSettings outboxSettings)
-    : OutboxForwardingPublishInterceptor, IInterceptorWithOrder, IPublishInterceptor<T>, IDisposable where T : class
+    : OutboxForwardingPublishInterceptor, IInterceptorWithOrder, IPublishInterceptor<T>, IDisposable
+    where T : class
 {
     internal const string SkipOutboxHeader = "__SkipOutbox";
-
-    private readonly ILogger _logger = logger;
-    private readonly IOutboxRepository _outboxRepository = outboxRepository;
-    private readonly IInstanceIdProvider _instanceIdProvider = instanceIdProvider;
-    private readonly IOutboxNotificationService _outboxNotificationService = outboxNotificationService;
-    private readonly OutboxSettings _outboxSettings = outboxSettings;
 
     private bool _notifyOutbox = false;
 
@@ -36,7 +26,7 @@ public sealed class OutboxForwardingPublishInterceptor<T>(
     {
         if (_notifyOutbox)
         {
-            _outboxNotificationService.Notify();
+            outboxNotificationService.Notify();
         }
 
         GC.SuppressFinalize(this);
@@ -58,28 +48,25 @@ public sealed class OutboxForwardingPublishInterceptor<T>(
             return;
         }
 
-        // Forward to outbox
+        // Forward to outbox - do not call next()
+
         var messageType = message.GetType();
-
-        _logger.LogDebug("Forwarding published message of type {MessageType} to the outbox", messageType.Name);
-
         // Take the proper serializer (meant for the bus)
         var messagePayload = busMaster.Serializer?.Serialize(messageType, message)
-            ?? throw new PublishMessageBusException($"The {busMaster.Name} bus has no configured serializer, so it cannot be used with the outbox plugin");
+                ?? throw new PublishMessageBusException($"The {busMaster.Name} bus has no configured serializer, so it cannot be used with the outbox plugin");
 
-        // Add message to the database, do not call next()
-        var outboxMessage = new OutboxMessage
-        {
-            BusName = busMaster.Name,
-            Headers = context.Headers,
-            Path = context.Path,
-            MessageType = _outboxSettings.MessageTypeResolver.ToName(messageType),
-            MessagePayload = messagePayload,
-            InstanceId = _instanceIdProvider.GetInstanceId()
-        };
-        await _outboxRepository.Save(outboxMessage, context.CancellationToken);
+        var outboxMessageEntity = await outboxMessageFactory.Create(
+            busName: busMaster.Name,
+            headers: context.Headers,
+            path: context.Path,
+            messageType: outboxSettings.MessageTypeResolver.ToName(messageType),
+            messagePayload: messagePayload,
+            cancellationToken: context.CancellationToken
+        );
 
-        // a message was sent, notify outbox service to poll on dispose (post transaction)
+        logger.LogDebug("Forwarding published message of type {MessageType} to the outbox with Id {OutboxMessageId}", messageType.Name, outboxMessageEntity.Id);
+
+        // A message was sent, notify outbox service to poll on dispose (post transaction)
         _notifyOutbox = true;
     }
 }

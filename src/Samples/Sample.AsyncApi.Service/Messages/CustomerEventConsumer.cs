@@ -9,8 +9,9 @@ public class CustomerEventConsumer : IConsumer<CustomerEvent>
     /// This will create an customer entry in the local database for the created customer.
     /// </remarks>
     /// <param name="message"></param>
+    /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    public Task OnHandle(CustomerEvent message)
+    public Task OnHandle(CustomerEvent message, CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }

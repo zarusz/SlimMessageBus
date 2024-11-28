@@ -1,8 +1,8 @@
 ﻿namespace SlimMessageBus.Host.Memory.Test;
 
-using SlimMessageBus.Host;
-
 using System.Reflection;
+
+using SlimMessageBus.Host;
 
 using static SlimMessageBus.Host.Memory.Test.MemoryMessageBusIt;
 
@@ -198,20 +198,20 @@ public record OrderShipped : OrderEvent;
 
 public class CustomerEventConsumer : IConsumer<CustomerEvent>
 {
-    public Task OnHandle(CustomerEvent message) => throw new NotImplementedException();
+    public Task OnHandle(CustomerEvent message, CancellationToken cancellationToken) => throw new NotImplementedException();
 }
 
 public class CustomerCreatedCustomer : IConsumer<CustomerCreated>
 {
-    public Task OnHandle(CustomerCreated message) => throw new NotImplementedException();
+    public Task OnHandle(CustomerCreated message, CancellationToken cancellationToken) => throw new NotImplementedException();
 }
 
 public class CustomerDeletedCustomer : IConsumer<CustomerDeleted>
 {
-    public Task OnHandle(CustomerDeleted message) => throw new NotImplementedException();
+    public Task OnHandle(CustomerDeleted message, CancellationToken cancellationToken) => throw new NotImplementedException();
 }
 
 public class OrderShippedConsumer : IConsumer<OrderShipped>
 {
-    public Task OnHandle(OrderShipped message) => throw new NotImplementedException();
+    public Task OnHandle(OrderShipped message, CancellationToken cancellationToken) => throw new NotImplementedException();
 }

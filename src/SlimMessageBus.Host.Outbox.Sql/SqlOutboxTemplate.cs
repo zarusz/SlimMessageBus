@@ -4,7 +4,9 @@ public class SqlOutboxTemplate
 {
     public string TableNameQualified { get; }
     public string MigrationsTableNameQualified { get; }
-    public string SqlOutboxMessageInsert { get; }
+    public string SqlOutboxMessageInsertWithClientId { get; }
+    public string SqlOutboxMessageInsertWithDatabaseId { get; }
+    public string SqlOutboxMessageInsertWithDatabaseIdSequential { get; }
     public string SqlOutboxMessageDeleteSent { get; }
     public string SqlOutboxMessageLockAndSelect { get; }
     public string SqlOutboxMessageLockTableAndSelect { get; }
@@ -25,11 +27,16 @@ public class SqlOutboxTemplate
         TableNameQualified = $"[{settings.SqlSettings.DatabaseSchemaName}].[{settings.SqlSettings.DatabaseTableName}]";
         MigrationsTableNameQualified = $"[{settings.SqlSettings.DatabaseSchemaName}].[{settings.SqlSettings.DatabaseMigrationsTableName}]";
 
-        SqlOutboxMessageInsert = $"""
+        string insertWith(string idFunc) => $"""
             INSERT INTO {TableNameQualified}
             ([Id], [Timestamp], [BusName], [MessageType], [MessagePayload], [Headers], [Path], [InstanceId], [LockInstanceId], [LockExpiresOn], [DeliveryAttempt], [DeliveryComplete], [DeliveryAborted])
-            VALUES (@Id, @Timestamp, @BusName, @MessageType, @MessagePayload, @Headers, @Path, @InstanceId, @LockInstanceId, @LockExpiresOn, @DeliveryAttempt, @DeliveryComplete, @DeliveryAborted)
+            OUTPUT INSERTED.[Id]
+            VALUES ({idFunc}, @Timestamp, @BusName, @MessageType, @MessagePayload, @Headers, @Path, @InstanceId, @LockInstanceId, @LockExpiresOn, @DeliveryAttempt, @DeliveryComplete, @DeliveryAborted)
             """;
+
+        SqlOutboxMessageInsertWithClientId = insertWith("@Id");
+        SqlOutboxMessageInsertWithDatabaseId = insertWith("NEWID()");
+        SqlOutboxMessageInsertWithDatabaseIdSequential = insertWith("NEWSEQUENTIALID()");
 
         SqlOutboxMessageDeleteSent = $"""
             DELETE FROM {TableNameQualified} 
