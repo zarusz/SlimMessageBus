@@ -8,25 +8,21 @@ using SlimMessageBus.Host.Interceptor;
 
 public abstract class PubSubBaseBenchmark : AbstractMemoryBenchmark
 {
-    private readonly TestResult testResult;
-
-    public PubSubBaseBenchmark()
-    {
-        testResult = svp.GetRequiredService<TestResult>();
-    }
-
     protected override void Setup(ServiceCollection services)
     {
         services.AddSingleton<TestResult>();
         services.AddTransient<SomeEventConsumer>();
     }
 
-    protected async Task RunTest(int messageCount)
+    protected async Task RunTest(int messageCount, bool createMessageScope)
     {
+        PerMessageScopeEnabled = createMessageScope;
+        var bus = Bus;
         var publishTasks = Enumerable.Range(0, messageCount).Select(x => bus.Publish(new SomeEvent(DateTimeOffset.Now, x)));
 
         await Task.WhenAll(publishTasks);
 
+        var testResult = ServiceProvider.GetRequiredService<TestResult>();
         while (testResult.ArrivedCount < messageCount)
         {
             await Task.Yield();
@@ -38,8 +34,9 @@ public abstract class PubSubBaseBenchmark : AbstractMemoryBenchmark
 public class PubSubBenchmark : PubSubBaseBenchmark
 {
     [Benchmark]
-    [Arguments(1000000)]
-    public Task PubSub(int messageCount) => RunTest(messageCount);
+    [Arguments(1000000, true)]
+    [Arguments(1000000, false)]
+    public Task PubSub(int messageCount, bool createMessageScope) => RunTest(messageCount, createMessageScope);
 }
 
 [MemoryDiagnoser]
@@ -53,8 +50,9 @@ public class PubSubWithProducerInterceptorBenchmark : PubSubBaseBenchmark
     }
 
     [Benchmark]
-    [Arguments(1000000)]
-    public Task PubSubWithProducerInterceptor(int messageCount) => RunTest(messageCount);
+    [Arguments(1000000, true)]
+    [Arguments(1000000, false)]
+    public Task PubSubWithProducerInterceptor(int messageCount, bool createMessageScope) => RunTest(messageCount, createMessageScope);
 }
 
 [MemoryDiagnoser]
@@ -68,8 +66,9 @@ public class PubSubWithPublishInterceptorBenchmark : PubSubBaseBenchmark
     }
 
     [Benchmark]
-    [Arguments(1000000)]
-    public Task PubSubWithPublishInterceptor(int messageCount) => RunTest(messageCount);
+    [Arguments(1000000, true)]
+    [Arguments(1000000, false)]
+    public Task PubSubWithPublishInterceptor(int messageCount, bool createMessageScope) => RunTest(messageCount, createMessageScope);
 }
 
 [MemoryDiagnoser]
@@ -83,8 +82,9 @@ public class PubSubWithConsumerInterceptorBenchmark : PubSubBaseBenchmark
     }
 
     [Benchmark]
-    [Arguments(1000000)]
-    public Task PubSubWithConsumerInterceptor(int messageCount) => RunTest(messageCount);
+    [Arguments(1000000, true)]
+    [Arguments(1000000, false)]
+    public Task PubSubWithConsumerInterceptor(int messageCount, bool createMessageScope) => RunTest(messageCount, createMessageScope);
 }
 
 public record SomeEvent(DateTimeOffset Timestamp, long Id);
