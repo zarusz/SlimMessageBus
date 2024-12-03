@@ -52,8 +52,8 @@ public class AvroMessageSerializer : IMessageSerializer
         var mf = new ReflectionMessageCreationStrategy(loggerFactory.CreateLogger<ReflectionMessageCreationStrategy>());
         var ml = new ReflectionSchemaLookupStrategy(loggerFactory.CreateLogger<ReflectionSchemaLookupStrategy>());
 
-        MessageFactory = (Type type) => mf.Create(type);
-        WriteSchemaLookup = (Type type) => ml.Lookup(type);
+        MessageFactory = mf.Create;
+        WriteSchemaLookup = ml.Lookup;
         ReadSchemaLookup = WriteSchemaLookup;
     }
 
@@ -73,7 +73,7 @@ public class AvroMessageSerializer : IMessageSerializer
     public object Deserialize(Type t, byte[] payload)
     {
         using var ms = ReadMemoryStreamFactory(payload);
-        
+
         var dec = new BinaryDecoder(ms);
 
         var message = MessageFactory(t);
@@ -84,7 +84,7 @@ public class AvroMessageSerializer : IMessageSerializer
         var writerSchema = WriteSchemaLookup(t);
         AssertSchemaNotNull(t, writerSchema, true);
 
-        _logger.LogDebug("Type {0} writer schema: {1}, reader schema: {2}", t, writerSchema, readerSchema);
+        _logger.LogDebug("Type {Type} writer schema: {WriterSchema}, reader schema: {ReaderSchema}", t, writerSchema, readerSchema);
 
         var reader = new SpecificDefaultReader(writerSchema, readerSchema);
         reader.Read(message, dec);
@@ -108,7 +108,7 @@ public class AvroMessageSerializer : IMessageSerializer
         var writerSchema = WriteSchemaLookup(t);
         AssertSchemaNotNull(t, writerSchema, true);
 
-        _logger.LogDebug("Type {0} writer schema: {1}", t, writerSchema);
+        _logger.LogDebug("Type {Type} writer schema: {WriterSchema}", t, writerSchema);
 
         var writer = new SpecificDefaultWriter(writerSchema); // Schema comes from pre-compiled, code-gen phase
         writer.Write(message, enc);
