@@ -217,7 +217,7 @@ mbb.Consume<TMessage>(x => x
    .MaxAutoLockRenewalDuration(TimeSpan.FromMinutes(7))
    .SubQueue(SubQueue.DeadLetter)
    .PrefetchCount(10)
-   .SubscriptionSqlFilter("1=1") // ASB subscription SQL filters can also be created - see topology creation section
+   .SubscriptionSqlFilter("1=1") // ASB subscription filters can also be created - see topology creation section
    .Instances(1));
 ```
 
@@ -342,7 +342,9 @@ When there is a need to get ahold of the `SessionId` for the message processed, 
 > Since 1.19.0
 
 ASB transport provider can automatically create the required ASB queue/topic/subscription/rule that have been declared as part of the SMB configuration.
-The provisioning happens as soon as the SMB instance is created and prior any consumers start processing messages. The creation happens only when a particular topic/queue/subscription/rule does not exist. If it exist the SMB will not alter it.
+The provisioning happens as soon as the SMB instance is created and prior to consumers starting to process messages. The creation happens only when a particular topic/queue/subscription/rule does not exist, and will not be modified if it already exists. 
+
+SMB supports both [SQL](https://learn.microsoft.com/en-us/azure/service-bus-messaging/topic-filters#sql-filters) and [Correlation](https://learn.microsoft.com/en-us/azure/service-bus-messaging/topic-filters#correlation-filters) filters through the `SubscriptionSqlFilter` and `SubscriptionCorrelationFilter` consumer builders.
 
 > In order for the ASB provisioning to work, the Azure Service Bus connection string has to use a key with the `Manage` scope permission.
 
@@ -409,7 +411,7 @@ mbb.Consume<SomeMessage>(x => x
       .Topic("some-topic")
       .WithConsumer<SomeMessageConsumer>()
       .SubscriptionName("some-service")
-      .SubscriptionSqlFilter("1=1") // this will create a rule with SQL filter
+      .SubscriptionCorrelationFilter(correlationId: "some-id") // this will create a rule to filter messages with a CorrelationId of 'some-id'
       .CreateTopicOptions((options) =>
       {
          options.RequiresDuplicateDetection = false;
