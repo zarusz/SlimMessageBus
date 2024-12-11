@@ -345,6 +345,34 @@
             }
 
             [Fact]
+            public async Task When_FilterTypeConfigurationDiffersWithServer_And_CannotReplaceSubscriptionFilters_Then_DoNotUpdateRule()
+            {
+                // arrange
+                const string ruleName = "rule-name";
+
+                var applicationProperties = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                {
+                    { "Sample", "Value"}
+                };
+
+                _defaultConsumerBuilder
+                    .SubscriptionCorrelationFilter(ruleName, applicationProperties: applicationProperties);
+
+                ProviderBusSettings.TopologyProvisioning.CanConsumerReplaceSubscriptionFilters = false;
+
+                _mockAdminClient.Setup(x => x.TopicExistsAsync(_topicName, It.IsAny<CancellationToken>())).Returns(ResponseTask(true));
+                _mockAdminClient.Setup(x => x.SubscriptionExistsAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).Returns(ResponseTask(true));
+                _mockAdminClient.Setup(x => x.GetRulesAsync(_topicName, _subscriptionName, It.IsAny<CancellationToken>())).Returns(AsyncPage(ServiceBusModelFactory.RuleProperties(ruleName, new SqlRuleFilter("1 = 1"))));
+                _mockAdminClient.Setup(x => x.UpdateRuleAsync(_topicName, _subscriptionName, It.IsAny<RuleProperties>(), It.IsAny<CancellationToken>())).Verifiable();
+
+                // act
+                await _target.ProvisionTopology();
+
+                // assert
+                _mockAdminClient.Verify(x => x.UpdateRuleAsync(_topicName, _subscriptionName, It.IsAny<RuleProperties>(), It.IsAny<CancellationToken>()), Times.Never);
+            }
+
+            [Fact]
             public async Task When_FilterConfigurationDiffersWithServer_And_CanValidateSubscriptionFiltersOnly_Then_DoNotChangeAnyRules()
             {
                 // arrange
@@ -383,6 +411,17 @@
                 _mockAdminClient.Verify(x => x.CreateRuleAsync(_topicName, _subscriptionName, It.IsAny<CreateRuleOptions>(), It.IsAny<CancellationToken>()), Times.Never);
                 _mockAdminClient.Verify(x => x.UpdateRuleAsync(_topicName, _subscriptionName, It.IsAny<RuleProperties>(), It.IsAny<CancellationToken>()), Times.Never);
                 _mockAdminClient.Verify(x => x.DeleteRuleAsync(_topicName, _subscriptionName, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            }
+
+            [Fact]
+            public void When_SubscriptionCorrelationFilter_ContainsNoConfiguration_ThrowException()
+            {
+                // act
+                var act = () => _defaultConsumerBuilder
+                    .SubscriptionCorrelationFilter("rule-name");
+
+                // assert
+                act.Should().Throw<ArgumentException>();
             }
         }
 

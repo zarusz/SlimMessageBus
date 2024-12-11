@@ -331,10 +331,51 @@ public class ServiceBusTopologyService
                 throw new ConfigurationMessageBusException($"All rules across the same path/subscription {path}/{subscriptionName} must have unique names (Duplicate: '{name}').");
             }
 
+            RuleFilter filter;
+            RuleAction action = null;
+            switch (rule)
+            {
+                case SubscriptionSqlRule sqlRule:
+                    filter = new SqlRuleFilter(sqlRule.SqlFilter);
+                    if (!string.IsNullOrWhiteSpace(sqlRule.SqlAction))
+                    {
+                        action = new SqlRuleAction(sqlRule.SqlAction);
+                    }
+
+                    break;
+
+                case SubscriptionCorrelationRule correlationRule:
+                    var correlationRuleFilter = new CorrelationRuleFilter
+                    {
+                        CorrelationId = correlationRule.CorrelationId,
+                        MessageId = correlationRule.MessageId,
+                        To = correlationRule.To,
+                        ReplyTo = correlationRule.ReplyTo,
+                        Subject = correlationRule.Subject,
+                        SessionId = correlationRule.SessionId,
+                        ReplyToSessionId = correlationRule.ReplyToSessionId,
+                        ContentType = correlationRule.ContentType,
+                    };
+
+                    if (correlationRule.ApplicationProperties != null)
+                    {
+                        foreach (var (key, value) in correlationRule.ApplicationProperties)
+                        {
+                            correlationRuleFilter.ApplicationProperties.Add(key, value);
+                        }
+                    }
+
+                    filter = correlationRuleFilter;
+                    break;
+
+                default:
+                    throw new NotSupportedException($"Filter of type '{rule.GetType()}' is not supported");
+            }
+
             var createRuleOptions = new CreateRuleOptions(name)
             {
-                Filter = new SqlRuleFilter(rule.SqlFilter),
-                Action = !string.IsNullOrWhiteSpace(rule.SqlAction) ? new SqlRuleAction(rule.SqlAction) : null
+                Filter = filter,
+                Action = action
             };
 
             _providerSettings.TopologyProvisioning?.CreateSubscriptionFilterOptions?.Invoke(createRuleOptions);
