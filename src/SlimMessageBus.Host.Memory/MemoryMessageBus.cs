@@ -48,11 +48,6 @@ public class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
         return new NullMessageSerializer();
     }
 
-    protected override void BuildPendingRequestStore()
-    {
-        // Do not built it. Memory bus does not need it.
-    }
-
     public override IDictionary<string, object> CreateHeaders()
     {
         if (ProviderSettings.EnableMessageHeaders)
@@ -123,13 +118,7 @@ public class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
             : new MessageProcessorQueue(messageProcessor, LoggerFactory.CreateLogger<MessageProcessorQueue>(), CancellationToken);
     }
 
-    protected override Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
-        => Task.FromResult<ProduceToTransportBulkResult<T>>(new([], null)); // Not used
-
-    public override Task ProduceResponse(string requestId, object request, IReadOnlyDictionary<string, object> requestHeaders, object response, Exception responseException, IMessageTypeConsumerInvokerSettings consumerInvoker)
-        => Task.CompletedTask; // Not used to responses
-
-    protected override Task PublishInternal(object message, string path, IDictionary<string, object> messageHeaders, CancellationToken cancellationToken, ProducerSettings producerSettings, IMessageBusTarget targetBus)
+    public override Task ProduceToTransport(object message, Type messageType, string path, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken)
         => ProduceInternal<object>(message, path, messageHeaders, targetBus, isPublish: true, cancellationToken);
 
     protected override Task<TResponseMessage> SendInternal<TResponseMessage>(object request, string path, Type requestType, Type responseType, ProducerSettings producerSettings, DateTimeOffset created, DateTimeOffset expires, string requestId, IDictionary<string, object> requestHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken)

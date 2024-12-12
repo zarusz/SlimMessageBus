@@ -9,12 +9,18 @@ using SlimMessageBus.Host;
 /// </summary>
 public class EhPartitionConsumerForResponses : EhPartitionConsumer
 {
-    public EhPartitionConsumerForResponses(EventHubMessageBus messageBus, RequestResponseSettings requestResponseSettings, GroupPathPartitionId pathGroupPartition)
+    public EhPartitionConsumerForResponses(
+        EventHubMessageBus messageBus,
+        RequestResponseSettings requestResponseSettings,
+        GroupPathPartitionId pathGroupPartition,
+        MessageProvider<EventData> messageProvider,
+        IPendingRequestStore pendingRequestStore,
+        ICurrentTimeProvider currentTimeProvider)
         : base(messageBus, pathGroupPartition)
     {
         if (requestResponseSettings == null) throw new ArgumentNullException(nameof(requestResponseSettings));
 
-        MessageProcessor = new ResponseMessageProcessor<EventData>(MessageBus.LoggerFactory, requestResponseSettings, MessageBus, messagePayloadProvider: eventData => eventData.EventBody.ToArray());
+        MessageProcessor = new ResponseMessageProcessor<EventData>(MessageBus.LoggerFactory, requestResponseSettings, messageProvider, pendingRequestStore, currentTimeProvider);
         CheckpointTrigger = new CheckpointTrigger(requestResponseSettings, MessageBus.LoggerFactory);
     }
 }

@@ -23,7 +23,34 @@ public static class DictionaryExtensions
         return false;
     }
 
-    public static HashSet<T> ToHashSet<T>(this IEnumerable<T> items) => new HashSet<T>(items);
+    public static HashSet<T> ToHashSet<T>(this IEnumerable<T> items) => new(items);
+
+#if NETSTANDARD2_0
+
+    public static IEnumerable<IReadOnlyCollection<T>> Chunk<T>(this IEnumerable<T> items, int size)
+    {
+        var chunk = new List<T>(size);
+
+        foreach (var item in items)
+        {
+            if (chunk.Count < size)
+            {
+                chunk.Add(item);
+            }
+            else
+            {
+                yield return chunk;
+                chunk = new List<T>(size);
+            }
+        }
+
+        if (chunk.Count > 0)
+        {
+            yield return chunk;
+        }
+    }
+
+#endif
 }
 
 public static class TimeSpanExtensions

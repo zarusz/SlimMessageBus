@@ -5,7 +5,7 @@ using Sample.OutboxWebApi.DataAccess;
 // doc:fragment:Handler
 public record CreateCustomerCommandHandler(IMessageBus Bus, CustomerContext CustomerContext) : IRequestHandler<CreateCustomerCommand, Guid>
 {
-    public async Task<Guid> OnHandle(CreateCustomerCommand request)
+    public async Task<Guid> OnHandle(CreateCustomerCommand request, CancellationToken cancellationToken)
     {
         // Note: This handler will be already wrapped in a transaction: see Program.cs and .UseTransactionScope() / .UseSqlTransaction() 
 

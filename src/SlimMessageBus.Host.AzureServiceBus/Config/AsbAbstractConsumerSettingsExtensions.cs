@@ -55,12 +55,12 @@ public static class AsbAbstractConsumerSettingsExtensions
     static internal int? GetMaxConcurrentSessions(this AbstractConsumerSettings consumerSettings)
         => consumerSettings.GetOrDefault<int?>(AsbProperties.MaxConcurrentSessionsKey);
 
-    static internal IDictionary<string, SubscriptionSqlRule> GetRules(this AbstractConsumerSettings consumerSettings, bool createIfNotExists = false)
+    static internal IDictionary<string, SubscriptionRule> GetRules(this AbstractConsumerSettings consumerSettings, bool createIfNotExists = false)
     {
-        var filterByName = consumerSettings.GetOrDefault<IDictionary<string, SubscriptionSqlRule>>(AsbProperties.RulesKey);
+        var filterByName = consumerSettings.GetOrDefault<IDictionary<string, SubscriptionRule>>(AsbProperties.RulesKey);
         if (filterByName == null && createIfNotExists)
         {
-            filterByName = new Dictionary<string, SubscriptionSqlRule>();
+            filterByName = new Dictionary<string, SubscriptionRule>();
             consumerSettings.Properties[AsbProperties.RulesKey] = filterByName;
         }
         return filterByName;

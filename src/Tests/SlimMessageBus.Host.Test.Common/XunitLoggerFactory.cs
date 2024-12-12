@@ -10,7 +10,8 @@ public class XunitLoggerFactory(ITestOutputHelper output) : ILoggerFactory
     {
     }
 
-    public ILogger CreateLogger(string categoryName) => new XunitLogger(_output, categoryName);
+    public Microsoft.Extensions.Logging.ILogger CreateLogger(string categoryName)
+        => new XunitLogger(_output, categoryName);
 
     public void Dispose()
     {

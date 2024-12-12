@@ -53,7 +53,7 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
             throw new ConfigurationMessageBusException($"Found request messages that are handled by more than one child bus: {string.Join(", ", requestTypesWithMoreThanOneBus)}. Double check your Produce configuration.");
         }
 
-        var runtimeTypeCache = new RuntimeTypeCache();
+        var runtimeTypeCache = settings.ServiceProvider.GetRequiredService<RuntimeTypeCache>();
         _busesByMessageType = new ProducerByMessageTypeCache<MessageBusBase[]>(_logger, busesByMessageType, runtimeTypeCache);
 
         _undeclaredMessageType = new();

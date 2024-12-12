@@ -2,14 +2,16 @@
 
 internal class PublishInterceptorPipeline : ProducerInterceptorPipeline<PublishContext>
 {
+    private readonly ITransportProducer _bus;
     private readonly Func<object, object, Func<Task>, IProducerContext, Task> _publishInterceptorFunc;
     private IEnumerator<object> _publishInterceptorsEnumerator;
     private bool _publishInterceptorsVisited = false;
 
-    public PublishInterceptorPipeline(MessageBusBase bus, object message, ProducerSettings producerSettings, IMessageBusTarget targetBus, PublishContext context, IEnumerable<object> producerInterceptors, IEnumerable<object> publishInterceptors)
-        : base(bus, message, producerSettings, targetBus, context, producerInterceptors)
+    public PublishInterceptorPipeline(ITransportProducer bus, RuntimeTypeCache runtimeTypeCache, object message, ProducerSettings producerSettings, IMessageBusTarget targetBus, PublishContext context, IEnumerable<object> producerInterceptors, IEnumerable<object> publishInterceptors)
+        : base(runtimeTypeCache, message, producerSettings, targetBus, context, producerInterceptors)
     {
-        _publishInterceptorFunc = bus.RuntimeTypeCache.PublishInterceptorType[message.GetType()];
+        _bus = bus;
+        _publishInterceptorFunc = runtimeTypeCache.PublishInterceptorType[message.GetType()];
         _publishInterceptorsVisited = publishInterceptors is null;
         _publishInterceptorsEnumerator = publishInterceptors?.GetEnumerator();
     }
@@ -40,7 +42,7 @@ internal class PublishInterceptorPipeline : ProducerInterceptorPipeline<PublishC
         if (!_targetVisited)
         {
             _targetVisited = true;
-            await _bus.PublishInternal(_message, _context.Path, _context.Headers, _context.CancellationToken, _producerSettings, _targetBus);
+            await _bus.ProduceToTransport(_message, _message.GetType(), _context.Path, _context.Headers, _targetBus, _context.CancellationToken);
             return null;
         }
 

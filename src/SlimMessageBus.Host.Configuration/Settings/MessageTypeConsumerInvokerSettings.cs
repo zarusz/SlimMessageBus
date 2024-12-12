@@ -11,7 +11,7 @@ public class MessageTypeConsumerInvokerSettings : IMessageTypeConsumerInvokerSet
     /// <inheritdoc/>
     public Type ConsumerType { get; }
     /// <inheritdoc/>
-    public Func<object, object, IConsumerContext, CancellationToken, Task> ConsumerMethod { get; set; }
+    public ConsumerMethod ConsumerMethod { get; set; }
     /// <inheritdoc/>
     public MethodInfo ConsumerMethodInfo { get; set; }
 

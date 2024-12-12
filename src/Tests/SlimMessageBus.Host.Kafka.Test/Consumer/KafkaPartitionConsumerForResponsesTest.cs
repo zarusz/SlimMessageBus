@@ -11,6 +11,8 @@ public class KafkaPartitionConsumerForResponsesTest : IDisposable
     private readonly Mock<IKafkaCommitController> _commitControllerMock = new();
     private readonly Mock<ICheckpointTrigger> _checkpointTrigger = new();
     private KafkaPartitionConsumerForResponses _subject;
+    private readonly Mock<MessageProvider<ConsumeResult>> _messageProvider = new();
+    private readonly Mock<IPendingRequestStore> _pendingRequestStore = new();
 
     public KafkaPartitionConsumerForResponsesTest()
     {
@@ -30,7 +32,15 @@ public class KafkaPartitionConsumerForResponsesTest : IDisposable
             }
         };
 
-        _subject = new KafkaPartitionConsumerForResponses(_messageBusMock.Bus.LoggerFactory, requestResponseSettings, requestResponseSettings.GetGroup(), _topicPartition, _commitControllerMock.Object, _messageBusMock.Bus, _messageBusMock.SerializerMock.Object)
+        _subject = new KafkaPartitionConsumerForResponses(_messageBusMock.Bus.LoggerFactory,
+                                                          requestResponseSettings,
+                                                          requestResponseSettings.GetGroup(),
+                                                          _topicPartition,
+                                                          _commitControllerMock.Object,
+                                                          _messageProvider.Object,
+                                                          _pendingRequestStore.Object,
+                                                          _messageBusMock.CurrentTimeProvider,
+                                                          new DefaultKafkaHeaderSerializer())
         {
             CheckpointTrigger = _checkpointTrigger.Object
         };
@@ -75,14 +85,26 @@ public class KafkaPartitionConsumerForResponsesTest : IDisposable
     public async Task When_OnMessage_Given_SuccessMessage_ThenOnResponseArrived()
     {
         // arrange
-        var message = GetSomeMessage();
-        _subject.OnPartitionAssigned(message.TopicPartition);
+        var requestId = "1";
+        var request = new SomeMessage();
+        var responseTransportMessage = GetSomeMessage();
+        responseTransportMessage.Message.Headers.Add(ReqRespMessageHeaders.RequestId, Encoding.UTF8.GetBytes(requestId));
+        var response = new SomeMessage();
+
+        _subject.OnPartitionAssigned(responseTransportMessage.TopicPartition);
+
+        var pendingRequestState = new PendingRequestState(requestId, request, request.GetType(), response.GetType(), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1), default);
+        _pendingRequestStore.Setup(x => x.GetById(requestId)).Returns(pendingRequestState);
+
+        _messageProvider.Setup(x => x(response.GetType(), responseTransportMessage)).Returns(response);
 
         // act
-        await _subject.OnMessage(message);
+        await _subject.OnMessage(responseTransportMessage);
 
         // assert
-        _messageBusMock.BusMock.Verify(x => x.OnResponseArrived(message.Message.Value, message.Topic, It.Is<IReadOnlyDictionary<string, object>>(x => x.ContainsKey("test-header"))), Times.Once);
+        pendingRequestState.TaskCompletionSource.Task.IsCompleted.Should().BeTrue();
+        var result = await pendingRequestState.TaskCompletionSource.Task;
+        result.Should().Be(response);
     }
 
     [Fact]

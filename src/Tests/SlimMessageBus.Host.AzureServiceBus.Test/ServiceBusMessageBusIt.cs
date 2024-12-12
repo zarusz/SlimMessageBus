@@ -21,9 +21,11 @@ using SlimMessageBus.Host.Test.Common.IntegrationTest;
 /// Inside the GitHub Actions pipeline, the Azure Service Bus infrastructure is shared, and this tests attempts to isolate itself by using unique queue/topic names.
 /// </summary>
 [Trait("Category", "Integration")]
-public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<ServiceBusMessageBusIt>(testOutputHelper)
+[Trait("Transport", "AzureServiceBus")]
+public class ServiceBusMessageBusIt(ITestOutputHelper output)
+    : BaseIntegrationTest<ServiceBusMessageBusIt>(output)
 {
-    private const int NumberOfMessages = 77;
+    private const int NumberOfMessages = 100;
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
@@ -65,8 +67,10 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
         sbMessage.SessionId = $"DecimalDigit_{message.Counter / 10 % 10:00}";
     }
 
-    [Fact]
-    public async Task BasicPubSubOnTopic()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BasicPubSubOnTopic(bool bulkProduce)
     {
         var subscribers = 2;
         var topic = TopicName();
@@ -85,11 +89,13 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
                 }));
         });
 
-        await BasicPubSub(subscribers);
+        await BasicPubSub(subscribers, bulkProduce: bulkProduce);
     }
 
-    [Fact]
-    public async Task BasicPubSubOnQueue()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BasicPubSubOnQueue(bool bulkProduce)
     {
         var queue = QueueName();
 
@@ -104,7 +110,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
                     .Instances(20));
         });
 
-        await BasicPubSub(1);
+        await BasicPubSub(1, bulkProduce: bulkProduce);
     }
 
     [Fact]
@@ -134,7 +140,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
         public IReadOnlyCollection<TestEvent> ConsumedMessages { get; set; }
     }
 
-    private async Task BasicPubSub(int expectedMessageCopies, Action<TestData> additionalAssertion = null)
+    private async Task BasicPubSub(int expectedMessageCopies, Action<TestData> additionalAssertion = null, bool bulkProduce = false)
     {
         // arrange
         var testMetric = ServiceProvider.GetRequiredService<TestMetric>();
@@ -152,10 +158,17 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
             .Select(i => i % 2 == 0 ? new PingMessage { Counter = i } : new PingDerivedMessage { Counter = i })
             .ToList();
 
-        foreach (var producedMessage in producedMessages)
+        if (bulkProduce)
         {
-            // Send them in order
-            await messageBus.Publish(producedMessage);
+            await messageBus.Publish(producedMessages);
+        }
+        else
+        {
+            foreach (var producedMessage in producedMessages)
+            {
+                // Send them in order
+                await messageBus.Publish(producedMessage);
+            }
         }
 
         stopwatch.Stop();
@@ -277,8 +290,10 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
         responses.All(x => x.Item1.Message == x.Item2.Message).Should().BeTrue();
     }
 
-    [Fact]
-    public async Task FIFOUsingSessionsOnQueue()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FIFOUsingSessionsOnQueue(bool bulkProduce)
     {
         var queue = QueueName();
 
@@ -293,7 +308,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
                         .Instances(1)
                         .EnableSession(x => x.MaxConcurrentSessions(10).SessionIdleTimeout(TimeSpan.FromSeconds(5))));
         });
-        await BasicPubSub(1, CheckMessagesWithinSameSessionAreInOrder);
+        await BasicPubSub(1, CheckMessagesWithinSameSessionAreInOrder, bulkProduce: bulkProduce);
     }
 
     private static void CheckMessagesWithinSameSessionAreInOrder(TestData testData)
@@ -308,8 +323,10 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
         }
     }
 
-    [Fact]
-    public async Task FIFOUsingSessionsOnTopic()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FIFOUsingSessionsOnTopic(bool bulkProduce)
     {
         var queue = QueueName();
 
@@ -325,7 +342,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIn
                     .EnableSession(x => x.MaxConcurrentSessions(10).SessionIdleTimeout(TimeSpan.FromSeconds(5))));
         });
 
-        await BasicPubSub(1, CheckMessagesWithinSameSessionAreInOrder);
+        await BasicPubSub(1, CheckMessagesWithinSameSessionAreInOrder, bulkProduce: bulkProduce);
     }
 
     private static string QueueName([CallerMemberName] string testName = null)
@@ -364,7 +381,7 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
 
     #region Implementation of IConsumer<in PingMessage>
 
-    public Task OnHandle(PingMessage message)
+    public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
     {
         var sbMessage = Context.GetTransportMessage();
 
@@ -393,7 +410,7 @@ public class PingDerivedConsumer : IConsumer<PingDerivedMessage>, IConsumerWithC
 
     #region Implementation of IConsumer<in PingMessage>
 
-    public Task OnHandle(PingDerivedMessage message)
+    public Task OnHandle(PingDerivedMessage message, CancellationToken cancellationToken)
     {
         var sbMessage = Context.GetTransportMessage();
 
@@ -458,8 +475,6 @@ public class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
         testMetric.OnCreatedConsumer();
     }
 
-    public Task<EchoResponse> OnHandle(EchoRequest request)
-    {
-        return Task.FromResult(new EchoResponse(request.Message));
-    }
+    public Task<EchoResponse> OnHandle(EchoRequest request, CancellationToken cancellationToken)
+        => Task.FromResult(new EchoResponse(request.Message));
 }
