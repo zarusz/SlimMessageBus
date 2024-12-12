@@ -7,7 +7,7 @@ public class EhPartitionConsumerForConsumers : EhPartitionConsumer
 {
     private readonly IEnumerable<ConsumerSettings> _consumerSettings;
 
-    public EhPartitionConsumerForConsumers(EventHubMessageBus messageBus, IEnumerable<ConsumerSettings> consumerSettings, GroupPathPartitionId pathGroupPartition)
+    public EhPartitionConsumerForConsumers(EventHubMessageBus messageBus, IEnumerable<ConsumerSettings> consumerSettings, GroupPathPartitionId pathGroupPartition, MessageProvider<EventData> messageProvider)
         : base(messageBus, pathGroupPartition)
     {
         _consumerSettings = consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings));
@@ -16,7 +16,7 @@ public class EhPartitionConsumerForConsumers : EhPartitionConsumer
         MessageProcessor = new MessageProcessor<EventData>(
             _consumerSettings,
             MessageBus,
-            messageProvider: GetMessageFromTransportMessage,
+            messageProvider: messageProvider,
             path: GroupPathPartition.ToString(),
             responseProducer: MessageBus,
             consumerContextInitializer: InitializeConsumerContext,
@@ -29,9 +29,6 @@ public class EhPartitionConsumerForConsumers : EhPartitionConsumer
         var f = new CheckpointTriggerFactory(MessageBus.LoggerFactory, (configuredCheckpoints) => $"The checkpoint settings ({nameof(BuilderExtensions.CheckpointAfter)} and {nameof(BuilderExtensions.CheckpointEvery)}) across all the consumers that use the same Path {GroupPathPartition.Path} and Group {GroupPathPartition.Group} must be the same (found settings are: {string.Join(", ", configuredCheckpoints)})");
         return f.Create(_consumerSettings);
     }
-
-    private object GetMessageFromTransportMessage(Type messageType, EventData e)
-        => MessageBus.Serializer.Deserialize(messageType, e.Body.ToArray());
 
     private static void InitializeConsumerContext(EventData nativeMessage, ConsumerContext consumerContext)
         => consumerContext.SetTransportMessage(nativeMessage);

@@ -15,9 +15,13 @@ public class JsonMessageSerializerTests
             [Guid.Empty, "00000000-0000-0000-0000-000000000000"],
         ];
 
+    public JsonMessageSerializerTests()
+    {
+    }
+
     [Theory]
     [MemberData(nameof(Data))]
-    public void When_SerializeAndDeserialize_Given_TypeObject_Then_TriesToInferPrimitiveTypes(object value, object expectedValue)
+    public void When_SerializeAndDeserialize_Given_TypeObjectAndBytesPayload_Then_TriesToInferPrimitiveTypes(object value, object expectedValue)
     {
         // arrange
         var subject = new JsonMessageSerializer();
@@ -25,6 +29,21 @@ public class JsonMessageSerializerTests
         // act
         var bytes = subject.Serialize(typeof(object), value);
         var deserializedValue = subject.Deserialize(typeof(object), bytes);
+
+        // assert
+        deserializedValue.Should().Be(expectedValue);
+    }
+
+    [Theory]
+    [MemberData(nameof(Data))]
+    public void When_SerializeAndDeserialize_Given_TypeObjectAndStringPayload_Then_TriesToInferPrimitiveTypes(object value, object expectedValue)
+    {
+        // arrange
+        var subject = new JsonMessageSerializer() as IMessageSerializer<string>;
+
+        // act
+        var json = subject.Serialize(typeof(object), value);
+        var deserializedValue = subject.Deserialize(typeof(object), json);
 
         // assert
         deserializedValue.Should().Be(expectedValue);

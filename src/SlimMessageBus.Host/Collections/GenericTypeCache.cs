@@ -35,8 +35,6 @@ public class GenericTypeCache<TFunc> : IGenericTypeCache<TFunc>
 {
     private readonly Type _openGenericType;
     private readonly string _methodName;
-    private readonly Func<Type, Type> _returnTypeFunc;
-    private readonly Func<Type, Type[]> _argumentTypesFunc;
     private readonly IReadOnlyCache<Type, IGenericTypeCache<TFunc>.GenericInterfaceType> _messageTypeToGenericInterfaceType;
     private readonly SafeDictionaryWrapper<Type, GenericTypeResolveCache> _messageTypeToResolveCache;
 
@@ -47,12 +45,10 @@ public class GenericTypeCache<TFunc> : IGenericTypeCache<TFunc>
     /// <param name="methodName">The method name on the open generic type.</param>
     /// <param name="returnTypeFunc">The return type of the method.</param>
     /// <param name="argumentTypes">Additional method arguments (in addition to the message type which is the open generic type param).</param>
-    public GenericTypeCache(Type openGenericType, string methodName, Func<Type, Type> returnTypeFunc, Func<Type, Type[]> argumentTypesFunc = null)
+    public GenericTypeCache(Type openGenericType, string methodName)
     {
         _openGenericType = openGenericType;
         _methodName = methodName;
-        _returnTypeFunc = returnTypeFunc;
-        _argumentTypesFunc = argumentTypesFunc;
         _messageTypeToGenericInterfaceType = new SafeDictionaryWrapper<Type, IGenericTypeCache<TFunc>.GenericInterfaceType>(CreateType);
         _messageTypeToResolveCache = new SafeDictionaryWrapper<Type, GenericTypeResolveCache>();
     }
@@ -61,9 +57,7 @@ public class GenericTypeCache<TFunc> : IGenericTypeCache<TFunc>
     {
         var genericType = _openGenericType.MakeGenericType(messageType);
         var method = genericType.GetMethod(_methodName, BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public) ?? throw new InvalidOperationException($"The method {_methodName} was not found on type {genericType}");
-        var methodArguments = new[] { messageType }.Concat(_argumentTypesFunc?.Invoke(messageType) ?? Enumerable.Empty<Type>()).ToArray();
-        var returnType = _returnTypeFunc(messageType);
-        var func = ReflectionUtils.GenerateMethodCallToFunc<TFunc>(method, genericType, returnType, methodArguments);
+        var func = ReflectionUtils.GenerateMethodCallToFunc<TFunc>(method);
         return new IGenericTypeCache<TFunc>.GenericInterfaceType(messageType, genericType, method, func);
     }
 

@@ -6,10 +6,18 @@ public class RabbitMqResponseConsumer : AbstractRabbitMqConsumer
 
     protected override RabbitMqMessageAcknowledgementMode AcknowledgementMode => RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade;
 
-    public RabbitMqResponseConsumer(ILoggerFactory loggerFactory, IRabbitMqChannel channel, string queueName, RequestResponseSettings requestResponseSettings, MessageBusBase messageBus, IHeaderValueConverter headerValueConverter)
+    public RabbitMqResponseConsumer(
+        ILoggerFactory loggerFactory,
+        IRabbitMqChannel channel,
+        string queueName,
+        RequestResponseSettings requestResponseSettings,
+        MessageProvider<BasicDeliverEventArgs> messageProvider,
+        IPendingRequestStore pendingRequestStore,
+        ICurrentTimeProvider currentTimeProvider,
+        IHeaderValueConverter headerValueConverter)
         : base(loggerFactory.CreateLogger<RabbitMqConsumer>(), channel, queueName, headerValueConverter)
     {
-        _messageProcessor = new ResponseMessageProcessor<BasicDeliverEventArgs>(loggerFactory, requestResponseSettings, messageBus, m => m.Body.ToArray());
+        _messageProcessor = new ResponseMessageProcessor<BasicDeliverEventArgs>(loggerFactory, requestResponseSettings, messageProvider, pendingRequestStore, currentTimeProvider);
     }
 
     protected override async Task<Exception> OnMessageReceived(Dictionary<string, object> messageHeaders, BasicDeliverEventArgs transportMessage)

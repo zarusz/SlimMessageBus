@@ -11,7 +11,15 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer
 
     protected override RabbitMqMessageAcknowledgementMode AcknowledgementMode => _acknowledgementMode;
 
-    public RabbitMqConsumer(ILoggerFactory loggerFactory, IRabbitMqChannel channel, string queueName, IList<ConsumerSettings> consumers, IMessageSerializer serializer, MessageBusBase messageBus, IHeaderValueConverter headerValueConverter)
+    public RabbitMqConsumer(
+        ILoggerFactory loggerFactory,
+        IRabbitMqChannel channel,
+        string queueName,
+        IList<ConsumerSettings> consumers,
+        IMessageSerializer serializer,
+        MessageBusBase messageBus,
+        MessageProvider<BasicDeliverEventArgs> messageProvider,
+        IHeaderValueConverter headerValueConverter)
         : base(loggerFactory.CreateLogger<RabbitMqConsumer>(), channel, queueName, headerValueConverter)
     {
         _acknowledgementMode = consumers.Select(x => x.GetOrDefault<RabbitMqMessageAcknowledgementMode?>(RabbitMqProperties.MessageAcknowledgementMode, messageBus.Settings)).FirstOrDefault(x => x != null)
@@ -21,7 +29,7 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer
             messageBus,
             path: queueName,
             responseProducer: messageBus,
-            messageProvider: (messageType, m) => serializer.Deserialize(messageType, m.Body.ToArray()),
+            messageProvider: messageProvider,
             consumerContextInitializer: InitializeConsumerContext,
             consumerErrorHandlerOpenGenericType: typeof(IRabbitMqConsumerErrorHandler<>));
     }

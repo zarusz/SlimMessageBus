@@ -3,11 +3,11 @@
   <Import Project="../Host.Plugin.Properties.xml" />
 
   <PropertyGroup>
-    <LangVersion>latest</LangVersion>
     <Description>Azure Service Bus provider for SlimMessageBus</Description>
+    <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
     <PackageTags>Azure Service Bus provider SlimMessageBus MessageBus bus facade messaging client</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageReleaseNotes />
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,9 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
-      <_Parameter1>SlimMessageBus.Host.AzureServiceBus.Test</_Parameter1>
-    </AssemblyAttribute>
+    <InternalsVisibleTo Include="SlimMessageBus.Host.AzureServiceBus.Test"/>
   </ItemGroup>
 
 </Project>

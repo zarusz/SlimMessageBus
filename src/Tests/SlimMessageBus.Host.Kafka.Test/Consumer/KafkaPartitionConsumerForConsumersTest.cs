@@ -32,6 +32,7 @@ public class KafkaPartitionConsumerForConsumersTest : IDisposable
         massageBusMock.ServiceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeMessageConsumer))).Returns(_consumer);
         massageBusMock.ServiceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(ILoggerFactory))).Returns(_loggerFactory);
         massageBusMock.ServiceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
+        massageBusMock.ServiceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(IPendingRequestManager))).Returns(() => new PendingRequestManager(new InMemoryPendingRequestStore(), new CurrentTimeProvider(), NullLoggerFactory.Instance));
 
         var headerSerializer = new StringValueSerializer();
 
@@ -120,5 +121,5 @@ public class SomeMessage
 
 public class SomeMessageConsumer : IConsumer<SomeMessage>
 {
-    public Task OnHandle(SomeMessage message) => Task.CompletedTask;
+    public Task OnHandle(SomeMessage message, CancellationToken cancellationToken) => Task.CompletedTask;
 }

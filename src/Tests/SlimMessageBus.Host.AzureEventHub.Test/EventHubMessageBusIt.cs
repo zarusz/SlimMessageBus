@@ -16,9 +16,10 @@ using SlimMessageBus.Host.Test.Common.IntegrationTest;
 /// Inside the GitHub Actions pipeline, the Azure Event Hub infrastructure is shared, and so if tests are run in parallel they might affect each other (flaky tests).
 /// </summary>
 [Trait("Category", "Integration")]
-public class EventHubMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<EventHubMessageBusIt>(testOutputHelper)
+[Trait("Transport", "AzureEventHub")]
+public class EventHubMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<EventHubMessageBusIt>(output)
 {
-    private const int NumberOfMessages = 77;
+    private const int NumberOfMessages = 100;
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
@@ -51,8 +52,10 @@ public class EventHubMessageBusIt(ITestOutputHelper testOutputHelper) : BaseInte
 
     public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
 
-    [Fact]
-    public async Task BasicPubSub()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BasicPubSub(bool bulkProduce)
     {
         // arrange
         var hubName = "test-ping";
@@ -62,7 +65,7 @@ public class EventHubMessageBusIt(ITestOutputHelper testOutputHelper) : BaseInte
             .Produce<PingMessage>(x => x.DefaultPath(hubName).KeyProvider(m => (m.Counter % 2) == 0 ? "even" : "odd"))
             .Consume<PingMessage>(x => x.Path(hubName)
                                         .Group("subscriber") // ensure consumer group exists on the event hub
-                                        .WithConsumer<PingConsumer>()
+                                        .WithConsumerOfContext<PingConsumer>()
                                         .CheckpointAfter(TimeSpan.FromSeconds(10))
                                         .CheckpointEvery(50)
                                         .Instances(2));
@@ -85,9 +88,16 @@ public class EventHubMessageBusIt(ITestOutputHelper testOutputHelper) : BaseInte
             .Select(i => new PingMessage { Counter = i, Timestamp = DateTime.UtcNow })
             .ToList();
 
-        foreach (var m in messages)
+        if (bulkProduce)
         {
-            await messageBus.Publish(m);
+            await messageBus.Publish(messages);
+        }
+        else
+        {
+            foreach (var m in messages)
+            {
+                await messageBus.Publish(m);
+            }
         }
 
         stopwatch.Stop();
@@ -175,27 +185,20 @@ public class PingMessage
     #endregion
 }
 
-public class PingConsumer(ILogger<PingConsumer> logger, ConcurrentBag<PingMessage> messages)
-    : IConsumer<PingMessage>, IConsumerWithContext
+public class PingConsumer(ILogger<PingConsumer> logger, ConcurrentBag<PingMessage> messages) : IConsumer<IConsumerContext<PingMessage>>
 {
     private readonly ILogger _logger = logger;
     private readonly ConcurrentBag<PingMessage> _messages = messages;
 
-    public IConsumerContext Context { get; set; }
-
-    #region Implementation of IConsumer<in PingMessage>
-
-    public Task OnHandle(PingMessage message)
+    public Task OnHandle(IConsumerContext<PingMessage> context, CancellationToken cancellationToken)
     {
-        _messages.Add(message);
+        _messages.Add(context.Message);
 
-        var msg = Context.GetTransportMessage();
+        var msg = context.GetTransportMessage();
 
-        _logger.LogInformation("Got message {0:000} on topic {1} offset {2} partition key {3}.", message.Counter, Context.Path, msg.Offset, msg.PartitionKey);
+        _logger.LogInformation("Got message {Message:000} on topic {Path} offset {Offset} partition key {PartitionKey}.", context.Message.Counter, context.Path, msg.Offset, msg.PartitionKey);
         return Task.CompletedTask;
     }
-
-    #endregion
 }
 
 public class EchoRequest : IRequest<EchoResponse>
@@ -223,7 +226,7 @@ public class EchoResponse
 
 public class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
 {
-    public Task<EchoResponse> OnHandle(EchoRequest request)
+    public Task<EchoResponse> OnHandle(EchoRequest request, CancellationToken cancellationToken)
     {
         return Task.FromResult(new EchoResponse { Message = request.Message });
     }

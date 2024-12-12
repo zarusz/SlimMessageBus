@@ -1,5 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Test;
 
+using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.Interceptor;
 
 public class PublishInterceptorPipelineTests
@@ -46,10 +47,10 @@ public class PublishInterceptorPipelineTests
         };
 
         _busMock.BusMock
-            .Setup(x => x.PublishInternal(message, context.Path, context.Headers, context.CancellationToken, producerSettings, _busMock.Bus.MessageBusTarget))
+            .Setup(x => x.ProduceToTransport(message, message.GetType(), context.Path, context.Headers, _busMock.Bus.MessageBusTarget, context.CancellationToken))
             .Returns(() => Task.FromResult<object>(null));
 
-        var subject = new PublishInterceptorPipeline(_busMock.Bus, message, producerSettings, _busMock.Bus.MessageBusTarget, context, producerInterceptors: producerInterceptors, publishInterceptors: publishInterceptors);
+        var subject = new PublishInterceptorPipeline(_busMock.Bus, new RuntimeTypeCache(), message, producerSettings, _busMock.Bus.MessageBusTarget, context, producerInterceptors: producerInterceptors, publishInterceptors: publishInterceptors);
 
         // act
         var result = await subject.Next();
@@ -69,6 +70,6 @@ public class PublishInterceptorPipelineTests
         }
         publishInterceptorMock.VerifyNoOtherCalls();
 
-        _busMock.BusMock.Verify(x => x.PublishInternal(message, context.Path, context.Headers, context.CancellationToken, producerSettings, _busMock.Bus.MessageBusTarget), Times.Once);
+        _busMock.BusMock.Verify(x => x.ProduceToTransport(message, message.GetType(), context.Path, context.Headers, _busMock.Bus.MessageBusTarget, context.CancellationToken), Times.Once);
     }
 }

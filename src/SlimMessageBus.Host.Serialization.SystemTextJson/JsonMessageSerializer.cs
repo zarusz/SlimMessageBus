@@ -6,7 +6,7 @@ using System.Text.Json.Serialization;
 /// <summary>
 /// Implementation of <see cref="IMessageSerializer"/> using <see cref="JsonSerializer"/>.
 /// </summary>
-public class JsonMessageSerializer : IMessageSerializer
+public class JsonMessageSerializer : IMessageSerializer, IMessageSerializer<string>
 {
     /// <summary>
     /// <see cref="JsonSerializerOptions"/> options for the JSON serializer. By default adds <see cref="ObjectToInferredTypesConverter"/> converter.
@@ -30,9 +30,23 @@ public class JsonMessageSerializer : IMessageSerializer
         return options;
     }
 
+    #region Implementation of IMessageSerializer
+
     public byte[] Serialize(Type t, object message) =>
         JsonSerializer.SerializeToUtf8Bytes(message, t, Options);
 
     public object Deserialize(Type t, byte[] payload) =>
         JsonSerializer.Deserialize(payload, t, Options)!;
+
+    #endregion
+
+    #region Implementation of IMessageSerializer<string>
+
+    string IMessageSerializer<string>.Serialize(Type t, object message)
+        => JsonSerializer.Serialize(message, t, Options);
+
+    object IMessageSerializer<string>.Deserialize(Type t, string payload)
+        => JsonSerializer.Deserialize(payload, t, Options)!;
+
+    #endregion
 }
