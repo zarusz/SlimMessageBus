@@ -1,11 +1,11 @@
 ﻿namespace SlimMessageBus.Host;
 
 /// <summary>
-/// Decorator for <see cref="IMessageProcessor{TMessage}"> that increases the amount of messages being concurrently processed.
+/// Decorator  profor <see cref="IMessageProcessor{TMessage}"> that increases the amount of messages being concurrentlycessed.
 /// The expectation is that <see cref="IMessageProcessor{TMessage}.ProcessMessage(TMessage)"/> will be executed synchronously (in sequential order) by the caller on which we want to increase amount of concurrent transportMessage being processed.
 /// </summary>
 /// <typeparam name="TMessage"></typeparam>
-public sealed class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : IMessageProcessor<TMessage>, IDisposable
+public sealed class ConcurrentMessageProcessorDecorator<TMessage> : IMessageProcessor<TMessage>, IDisposable
 {
     private readonly ILogger _logger;
     private SemaphoreSlim _concurrentSemaphore;
@@ -21,13 +21,13 @@ public sealed class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : I
 
     public IReadOnlyCollection<AbstractConsumerSettings> ConsumerSettings => _target.ConsumerSettings;
 
-    public ConcurrencyIncreasingMessageProcessorDecorator(int concurrency, MessageBusBase messageBus, IMessageProcessor<TMessage> target)
+    public ConcurrentMessageProcessorDecorator(int concurrency, ILoggerFactory loggerFactory, IMessageProcessor<TMessage> target)
     {
         if (target is null) throw new ArgumentNullException(nameof(target));
-        if (messageBus is null) throw new ArgumentNullException(nameof(messageBus));
-        if (concurrency <= 1) throw new ArgumentOutOfRangeException(nameof(concurrency));
+        if (loggerFactory is null) throw new ArgumentNullException(nameof(loggerFactory));
+        if (concurrency <= 0) throw new ArgumentOutOfRangeException(nameof(concurrency));
 
-        _logger = messageBus.LoggerFactory.CreateLogger<ConcurrencyIncreasingMessageProcessorDecorator<TMessage>>();
+        _logger = loggerFactory.CreateLogger<ConcurrentMessageProcessorDecorator<TMessage>>();
         _concurrentSemaphore = new SemaphoreSlim(concurrency);
         _target = target;
     }
@@ -36,6 +36,11 @@ public sealed class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : I
 
     public void Dispose()
     {
+        if (_target is IDisposable targetDisposable)
+        {
+            targetDisposable.Dispose();
+        }
+
         _concurrentSemaphore?.Dispose();
         _concurrentSemaphore = null;
     }
@@ -65,21 +70,16 @@ public sealed class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : I
         return new(null, null, null);
     }
 
-    public TMessage GetMessageWithException()
+    /// <summary>
+    /// Waits on all processing tasks to finish.
+    /// </summary>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    public async Task WaitAll(CancellationToken cancellationToken)
     {
-        lock (_lastExceptionLock)
+        while (_pendingCount > 0 && !cancellationToken.IsCancellationRequested)
         {
-            var m = _lastExceptionMessage;
-            _lastExceptionMessage = default;
-            return m;
-        }
-    }
-
-    public async Task WaitAll()
-    {
-        while (_pendingCount > 0)
-        {
-            await Task.Delay(200).ConfigureAwait(false);
+            await Task.Delay(200, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -106,7 +106,7 @@ public sealed class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : I
         finally
         {
             _logger.LogDebug("Leaving ProcessMessages for message {MessageType}", typeof(TMessage));
-            _concurrentSemaphore.Release();
+            _concurrentSemaphore?.Release();
 
             Interlocked.Decrement(ref _pendingCount);
         }

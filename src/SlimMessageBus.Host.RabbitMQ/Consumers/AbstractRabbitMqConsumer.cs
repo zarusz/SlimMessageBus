@@ -10,7 +10,7 @@ public abstract class AbstractRabbitMqConsumer : AbstractConsumer
     private AsyncEventingBasicConsumer _consumer;
     private string _consumerTag;
 
-    protected string QueueName { get; }
+    public string QueueName { get; }
     protected abstract RabbitMqMessageAcknowledgementMode AcknowledgementMode { get; }
 
     protected AbstractRabbitMqConsumer(ILogger logger, IRabbitMqChannel channel, string queueName, IHeaderValueConverter headerValueConverter)
@@ -82,7 +82,7 @@ public abstract class AbstractRabbitMqConsumer : AbstractConsumer
 
     protected abstract Task<Exception> OnMessageReceived(Dictionary<string, object> messageHeaders, BasicDeliverEventArgs transportMessage);
 
-    protected void NackMessage(BasicDeliverEventArgs @event, bool requeue)
+    public void NackMessage(BasicDeliverEventArgs @event, bool requeue)
     {
         lock (_channel.ChannelLock)
         {
@@ -91,7 +91,7 @@ public abstract class AbstractRabbitMqConsumer : AbstractConsumer
         }
     }
 
-    protected void AckMessage(BasicDeliverEventArgs @event)
+    public void AckMessage(BasicDeliverEventArgs @event)
     {
         lock (_channel.ChannelLock)
         {

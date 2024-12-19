@@ -19,7 +19,7 @@ public class ResponseMessageProcessor<TMessage> : IMessageProcessor<TMessage>
         _logger = loggerFactory.CreateLogger<ResponseMessageProcessor<TMessage>>();
         _requestResponseSettings = requestResponseSettings ?? throw new ArgumentNullException(nameof(requestResponseSettings));
         _responseConsumer = responseConsumer ?? throw new ArgumentNullException(nameof(responseConsumer));
-        _consumerSettings = new List<AbstractConsumerSettings> { _requestResponseSettings };
+        _consumerSettings = [_requestResponseSettings];
         _messagePayloadProvider = messagePayloadProvider ?? throw new ArgumentNullException(nameof(messagePayloadProvider));
     }
 
