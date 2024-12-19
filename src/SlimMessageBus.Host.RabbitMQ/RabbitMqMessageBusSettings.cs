@@ -13,10 +13,12 @@ public class RabbitMqMessageBusSettings : HasProviderExtensions
 
     public ConnectionFactory ConnectionFactory { get; set; } = new()
     {
-        NetworkRecoveryInterval = TimeSpan.FromSeconds(5)
+        NetworkRecoveryInterval = TimeSpan.FromSeconds(5),
+        // By default the consumer dispatch is single threaded, we can increase it to the number of consumers by applying the .Instances(10) setting
+        ConsumerDispatchConcurrency = 1
     };
 
-    public IList<AmqpTcpEndpoint> Endpoints { get; set; } = new List<AmqpTcpEndpoint>();
+    public IList<AmqpTcpEndpoint> Endpoints { get; set; } = [];
 
     /// <summary>
     /// Allows to set a custom header values converter between SMB and the underlying RabbitMq client.

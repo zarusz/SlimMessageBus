@@ -62,24 +62,30 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
     {
         try
         {
-            var retryCount = 3;
-            for (var retry = 0; _connection == null && retry < retryCount; retry++)
-            {
-                try
+            const int retryCount = 3;
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+            await Retry.WithDelay(operation: async (cancellationTask) =>
                 {
+                    // See https://www.rabbitmq.com/client-libraries/dotnet-api-guide#connection-recovery
                     ProviderSettings.ConnectionFactory.AutomaticRecoveryEnabled = true;
                     ProviderSettings.ConnectionFactory.DispatchConsumersAsync = true;
 
                     _connection = ProviderSettings.Endpoints != null && ProviderSettings.Endpoints.Count > 0
                         ? ProviderSettings.ConnectionFactory.CreateConnection(ProviderSettings.Endpoints)
                         : ProviderSettings.ConnectionFactory.CreateConnection();
-                }
-                catch (global::RabbitMQ.Client.Exceptions.BrokerUnreachableException e)
+                },
+                shouldRetry: (ex, attempt) =>
                 {
-                    _logger.LogInformation(e, "Retrying {Retry} of {RetryCount} connection to RabbitMQ...", retry, retryCount);
-                    await Task.Delay(ProviderSettings.ConnectionFactory.NetworkRecoveryInterval);
-                }
-            }
+                    if (ex is global::RabbitMQ.Client.Exceptions.BrokerUnreachableException && attempt < retryCount)
+                    {
+                        _logger.LogInformation(ex, "Retrying {Retry} of {RetryCount} connection to RabbitMQ...", attempt, retryCount);
+                        return true;
+                    }
+                    return false;
+                },
+                delay: ProviderSettings.ConnectionFactory.NetworkRecoveryInterval
+            );
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
 
             lock (_channelLock)
             {
