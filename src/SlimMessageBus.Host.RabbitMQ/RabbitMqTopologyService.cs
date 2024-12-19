@@ -76,9 +76,9 @@ public class RabbitMqTopologyService
         }
     }
 
-    private void DeclareQueueBinding(HasProviderExtensions settings, string bindingExchangeName, string queueName)
+    private void DeclareQueueBinding(AbstractConsumerSettings settings, string bindingExchangeName, string queueName)
     {
-        var bindingRoutingKey = settings.GetOrDefault(RabbitMqProperties.BindingRoutingKey, _providerSettings, string.Empty);
+        var bindingRoutingKey = settings.GetBindingRoutingKey(_providerSettings) ?? string.Empty;
 
         _logger.LogInformation("Binding queue {QueueName} to exchange {ExchangeName} using routing key {RoutingKey}", queueName, bindingExchangeName, bindingRoutingKey);
         try

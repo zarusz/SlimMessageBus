@@ -21,13 +21,13 @@ public sealed class ConcurrencyIncreasingMessageProcessorDecorator<TMessage> : I
 
     public IReadOnlyCollection<AbstractConsumerSettings> ConsumerSettings => _target.ConsumerSettings;
 
-    public ConcurrencyIncreasingMessageProcessorDecorator(int concurrency, MessageBusBase messageBus, IMessageProcessor<TMessage> target)
+    public ConcurrencyIncreasingMessageProcessorDecorator(int concurrency, ILoggerFactory loggerFactory, IMessageProcessor<TMessage> target)
     {
         if (target is null) throw new ArgumentNullException(nameof(target));
-        if (messageBus is null) throw new ArgumentNullException(nameof(messageBus));
+        if (loggerFactory is null) throw new ArgumentNullException(nameof(loggerFactory));
         if (concurrency <= 1) throw new ArgumentOutOfRangeException(nameof(concurrency));
 
-        _logger = messageBus.LoggerFactory.CreateLogger<ConcurrencyIncreasingMessageProcessorDecorator<TMessage>>();
+        _logger = loggerFactory.CreateLogger<ConcurrencyIncreasingMessageProcessorDecorator<TMessage>>();
         _concurrentSemaphore = new SemaphoreSlim(concurrency);
         _target = target;
     }

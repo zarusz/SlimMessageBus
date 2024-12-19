@@ -18,7 +18,7 @@ public class ConcurrencyIncreasingMessageProcessorDecoratorTest
     public async Task When_ProcessMessage_Given_NMessagesAndConcurrencySetToC_Then_NMethodInvocationsHappenOnTargetWithCConcurrently(int concurrency, int expectedMessageCount)
     {
         // arrange
-        _subject = new ConcurrencyIncreasingMessageProcessorDecorator<SomeMessage>(concurrency, _busMock.Bus, _messageProcessorMock.Object);
+        _subject = new ConcurrencyIncreasingMessageProcessorDecorator<SomeMessage>(concurrency, NullLoggerFactory.Instance, _messageProcessorMock.Object);
 
         var currentSectionCount = 0;
         var maxSectionCount = 0;
