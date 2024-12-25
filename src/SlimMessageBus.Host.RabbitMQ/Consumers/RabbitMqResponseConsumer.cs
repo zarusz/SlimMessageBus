@@ -15,7 +15,7 @@ public class RabbitMqResponseConsumer : AbstractRabbitMqConsumer
         IPendingRequestStore pendingRequestStore,
         ICurrentTimeProvider currentTimeProvider,
         IHeaderValueConverter headerValueConverter)
-        : base(loggerFactory.CreateLogger<RabbitMqConsumer>(), channel, queueName, headerValueConverter)
+        : base(loggerFactory.CreateLogger<RabbitMqResponseConsumer>(), channel, queueName, headerValueConverter)
     {
         _messageProcessor = new ResponseMessageProcessor<BasicDeliverEventArgs>(loggerFactory, requestResponseSettings, messageProvider, pendingRequestStore, currentTimeProvider);
     }

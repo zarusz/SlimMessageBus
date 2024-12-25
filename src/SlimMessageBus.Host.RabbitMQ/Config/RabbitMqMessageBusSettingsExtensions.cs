@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.RabbitMQ;
 
-using System;
-
 public static class RabbitMqMessageBusSettingsExtensions
 {
     /// <summary>

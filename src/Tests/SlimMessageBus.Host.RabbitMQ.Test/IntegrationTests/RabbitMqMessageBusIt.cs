@@ -14,7 +14,7 @@ using SlimMessageBus.Host.Test.Common.IntegrationTest;
 [Trait("Transport", "RabbitMQ")]
 public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<RabbitMqMessageBusIt>(output)
 {
-    private const int NumberOfMessages = 144;
+    private const int NumberOfMessages = 300;
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
@@ -68,10 +68,13 @@ public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTes
     public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
 
     [Theory]
-    [InlineData(RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade)]
-    [InlineData(RabbitMqMessageAcknowledgementMode.AckAutomaticByRabbit)]
-    [InlineData(RabbitMqMessageAcknowledgementMode.AckMessageBeforeProcessing)]
-    public async Task PubSubOnFanoutExchange(RabbitMqMessageAcknowledgementMode acknowledgementMode)
+    [InlineData(RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade, 1)]
+    [InlineData(RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade, 10)]
+    [InlineData(RabbitMqMessageAcknowledgementMode.AckAutomaticByRabbit, 1)]
+    [InlineData(RabbitMqMessageAcknowledgementMode.AckAutomaticByRabbit, 10)]
+    [InlineData(RabbitMqMessageAcknowledgementMode.AckMessageBeforeProcessing, 1)]
+    [InlineData(RabbitMqMessageAcknowledgementMode.AckMessageBeforeProcessing, 10)]
+    public async Task PubSubOnFanoutExchange(RabbitMqMessageAcknowledgementMode acknowledgementMode, int consumerConcurrency)
     {
         var subscribers = 2;
         var topic = "test-ping";
@@ -101,13 +104,17 @@ public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTes
                         .DeadLetterExchange("subscriber-dlq")
                         .AcknowledgementMode(acknowledgementMode)
                         .WithConsumer<PingConsumer>()
-                        .WithConsumer<PingDerivedConsumer, PingDerivedMessage>());
+                        .WithConsumer<PingDerivedConsumer, PingDerivedMessage>()
+                        .Instances(consumerConcurrency));
                 }));
         });
 
         await BasicPubSub(subscribers, additionalAssertion: testData =>
         {
             testData.ConsumedMessages.Should().AllSatisfy(x => x.ContentType.Should().Be(MediaTypeNames.Application.Json));
+            // In the RabbitMQ client there is only one task dispatching the messages to the consumers
+            // If we leverage SMB to increase concurrency (instances) then each subscriber (2) will be potentially processed in up to 10 tasks concurrently
+            testData.TestMetric.ProcessingCountMax.Should().Be(consumerConcurrency * subscribers);
         });
     }
 
@@ -117,6 +124,7 @@ public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTes
     {
         public List<PingMessage> ProducedMessages { get; set; }
         public IReadOnlyCollection<TestEvent> ConsumedMessages { get; set; }
+        public TestMetric TestMetric { get; set; }
     }
 
     private async Task BasicPubSub(int expectedMessageCopies, Action<TestData> additionalAssertion = null)
@@ -137,14 +145,10 @@ public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTes
             .Select(i => i % 2 == 0 ? new PingMessage { Counter = i } : new PingDerivedMessage { Counter = i })
             .ToList();
 
-        foreach (var producedMessage in producedMessages)
-        {
-            // Send them in order
-            await messageBus.Publish(producedMessage);
-        }
+        await Task.WhenAll(producedMessages.Select(x => messageBus.Publish(x)));
 
         stopwatch.Stop();
-        Logger.LogInformation("Published {0} messages in {1}", producedMessages.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Published {MessageCount} messages in {Elapsed}", producedMessages.Count, stopwatch.Elapsed);
 
         // consume
         stopwatch.Restart();
@@ -171,7 +175,12 @@ public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTes
         messages.All(x => x.Message.Counter == (int)x.Headers["Counter"]).Should().BeTrue();
         messages.All(x => x.Message.Counter % 2 == 0 == (bool)x.Headers["Even"]).Should().BeTrue();
 
-        additionalAssertion?.Invoke(new TestData { ProducedMessages = producedMessages, ConsumedMessages = consumedMessages.Snapshot() });
+        additionalAssertion?.Invoke(new TestData
+        {
+            ProducedMessages = producedMessages,
+            ConsumedMessages = consumedMessages.Snapshot(),
+            TestMetric = testMetric
+        });
     }
 
     [Theory]
@@ -245,7 +254,7 @@ public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTes
         await Task.WhenAll(responseTasks).ConfigureAwait(false);
 
         stopwatch.Stop();
-        Logger.LogInformation("Published and received {0} messages in {1}", responses.Count, stopwatch.Elapsed);
+        Logger.LogInformation("Published and received {MessageCount} messages in {Elapsed}", responses.Count, stopwatch.Elapsed);
 
         // assert
 
@@ -268,60 +277,55 @@ public record PingDerivedMessage : PingMessage
 {
 }
 
-public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
+public abstract class AbstractPingConsumer<T> : IConsumer<T>, IConsumerWithContext
+    where T : PingMessage
 {
     private readonly ILogger _logger;
     private readonly TestEventCollector<TestEvent> _messages;
+    private readonly TestMetric _testMetric;
 
-    public PingConsumer(ILogger<PingConsumer> logger, TestEventCollector<TestEvent> messages, TestMetric testMetric)
+    public AbstractPingConsumer(ILogger<PingConsumer> logger, TestEventCollector<TestEvent> messages, TestMetric testMetric)
     {
         _logger = logger;
         _messages = messages;
+        _testMetric = testMetric;
         testMetric.OnCreatedConsumer();
     }
 
     public IConsumerContext Context { get; set; }
 
-    public async Task OnHandle(PingMessage message, CancellationToken cancellationToken)
+    public async Task OnHandle(T message, CancellationToken cancellationToken)
     {
-        var transportMessage = Context.GetTransportMessage();
+        _testMetric.OnProcessingStart();
+        try
+        {
+            var transportMessage = Context.GetTransportMessage();
 
-        _messages.Add(new(message, transportMessage.BasicProperties.MessageId, transportMessage.BasicProperties.ContentType, Context.Headers));
+            _messages.Add(new(message, transportMessage.BasicProperties.MessageId, transportMessage.BasicProperties.ContentType, Context.Headers));
 
-        _logger.LogInformation("Got message {Counter:000} on path {Path}.", message.Counter, Context.Path);
+            _logger.LogInformation("Got message {Counter:000} on path {Path}.", message.Counter, Context.Path);
 
-        await FakeExceptionUtil.SimulateFakeException(message.Counter);
+            // simulate work
+            await Task.Delay(20, cancellationToken);
+
+            await FakeExceptionUtil.SimulateFakeException(message.Counter);
+        }
+        finally
+        {
+            _testMetric.OnProcessingFinish();
+        }
     }
 }
 
-public class PingDerivedConsumer : IConsumer<PingDerivedMessage>, IConsumerWithContext
+
+public class PingConsumer(ILogger<PingConsumer> logger, TestEventCollector<TestEvent> messages, TestMetric testMetric)
+    : AbstractPingConsumer<PingMessage>(logger, messages, testMetric)
 {
-    private readonly ILogger _logger;
-    private readonly TestEventCollector<TestEvent> _messages;
+}
 
-    public PingDerivedConsumer(ILogger<PingDerivedConsumer> logger, TestEventCollector<TestEvent> messages, TestMetric testMetric)
-    {
-        _logger = logger;
-        _messages = messages;
-        testMetric.OnCreatedConsumer();
-    }
-
-    public IConsumerContext Context { get; set; }
-
-    #region Implementation of IConsumer<in PingMessage>
-
-    public async Task OnHandle(PingDerivedMessage message, CancellationToken cancellationToken)
-    {
-        var transportMessage = Context.GetTransportMessage();
-
-        _messages.Add(new(message, transportMessage.BasicProperties.MessageId, transportMessage.BasicProperties.ContentType, Context.Headers));
-
-        _logger.LogInformation("Got message {Counter:000} on path {Path}.", message.Counter, Context.Path);
-
-        await FakeExceptionUtil.SimulateFakeException(message.Counter);
-    }
-
-    #endregion
+public class PingDerivedConsumer(ILogger<PingConsumer> logger, TestEventCollector<TestEvent> messages, TestMetric testMetric)
+    : AbstractPingConsumer<PingDerivedMessage>(logger, messages, testMetric)
+{
 }
 
 public record EchoRequest : IRequest<EchoResponse>

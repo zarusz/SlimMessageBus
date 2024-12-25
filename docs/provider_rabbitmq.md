@@ -15,6 +15,8 @@ Please read the [Introduction](intro.md) before reading this provider documentat
   - [Request-Response](#request-response)
 - [Topology Provisioning](#topology-provisioning)
 - [Not Supported](#not-supported)
+- [Recipes](#recipes)
+  - [01 Multiple consumers on the same queue with different concurrency](#01-multiple-consumers-on-the-same-queue-with-different-concurrency)
 - [Feedback](#feedback)
 
 ## Underlying client
@@ -364,6 +366,33 @@ This might be useful in case the SMB inferred topology is not desired or there a
 
 - [Default type exchanges](https://www.rabbitmq.com/tutorials/amqp-concepts.html#exchange-default) are not yet supported
 - Broker generated queues are not yet supported.
+
+## Recipes
+
+### 01 Multiple consumers on the same queue with different concurrency
+
+The same `queue` will be used to consume messages, however there will be internal message processors running with different concurrency (10 and 1) depending on the message routing key.
+
+```csharp
+services.AddSlimMessageBus(mbb =>
+{
+  mbb.Produce<PingMessage>(x => x
+        .Exchange("exchange", exchangeType: ExchangeType.Direct)
+        .RoutingKeyProvider((m, p) => m.Label));
+
+  // messages with blue routing key will get 1 concurrency
+  mbb.Consume<PingMessage>(x => x
+      .Queue("queue", autoDelete: false)
+      .ExchangeBinding("orders", routingKey: "blue")
+      .Instances(1));
+
+  // messages with red routing key will get 10 concurrency
+  mbb.Consume<PingMessage>(x => x
+      .Queue("queue", autoDelete: false)
+      .ExchangeBinding("orders", routingKey: "red")
+      .Instances(10));
+});
+```
 
 ## Feedback
 

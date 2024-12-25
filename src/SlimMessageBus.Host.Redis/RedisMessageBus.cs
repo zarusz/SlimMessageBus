@@ -122,7 +122,7 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
                 }
 
                 // When it was requested to have more than once concurrent instances working then we need to fan out the incoming Redis consumption tasks
-                processor = new ConcurrencyIncreasingMessageProcessorDecorator<MessageWithHeaders>(instances, this, processor);
+                processor = new ConcurrentMessageProcessorDecorator<MessageWithHeaders>(instances, LoggerFactory, processor);
             }
 
             _logger.LogInformation("Creating consumer for redis {PathKind} {Path}", GetPathKindString(pathKind), path);
