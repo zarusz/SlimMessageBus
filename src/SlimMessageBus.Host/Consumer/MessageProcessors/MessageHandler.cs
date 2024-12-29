@@ -65,63 +65,61 @@ public class MessageHandler : IMessageHandler
         var hasResponse = consumerInvoker.ParentSettings.ConsumerMode == ConsumerMode.RequestResponse;
         var responseType = hasResponse ? consumerInvoker.ParentSettings.ResponseType ?? typeof(Void) : null;
 
-        object response = null;
-        Exception responseException = null;
         string requestId = null;
-
         if (hasResponse && messageHeaders != null)
         {
             messageHeaders.TryGetHeader(ReqRespMessageHeaders.RequestId, out requestId);
         }
 
-        await using (var messageScope = _messageScopeFactory.CreateMessageScope(consumerInvoker.ParentSettings, message, consumerContextProperties, currentServiceProvider))
+        DateTimeOffset? messageExpires = null;
+        if (messageHeaders != null && messageHeaders.TryGetHeader(ReqRespMessageHeaders.Expires, out DateTimeOffset? expires) && expires != null)
         {
-            if (messageHeaders != null && messageHeaders.TryGetHeader(ReqRespMessageHeaders.Expires, out DateTimeOffset? expires) && expires != null)
-            {
-                // Verify if the request/message is already expired
-                var currentTime = _currentTimeProvider.CurrentTime;
-                if (currentTime > expires.Value)
-                {
-                    // ToDo: Call interceptor
+            messageExpires = expires;
+        }
 
-                    // Do not process the expired message
-                    return (ResponseForExpiredRequest, null, requestId);
-                }
+        var attempts = 0;
+        var consumerType = consumerInvoker.ConsumerType;
+
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            await using var messageScope = _messageScopeFactory.CreateMessageScope(consumerInvoker.ParentSettings, message, consumerContextProperties, currentServiceProvider);
+            if (messageExpires != null && messageExpires < _currentTimeProvider.CurrentTime)
+            {
+                // ToDo: Call interceptor
+                // Do not process the expired message
+                return (ResponseForExpiredRequest, null, requestId);
             }
 
             var messageBusTarget = new MessageBusProxy(MessageBus, messageScope.ServiceProvider);
-
-            Type consumerType = null;
             object consumerInstance = null;
-
             try
             {
-                consumerType = consumerInvoker.ConsumerType;
                 consumerInstance = messageScope.ServiceProvider.GetService(consumerType)
                     ?? throw new ConfigurationMessageBusException($"Could not resolve consumer/handler type {consumerType} from the DI container. Please check that the configured type {consumerType} is registered within the DI container.");
 
                 var consumerContext = CreateConsumerContext(messageHeaders, consumerInvoker, transportMessage, consumerInstance, messageBusTarget, consumerContextProperties, cancellationToken);
                 try
                 {
-                    response = await DoHandleInternal(message, consumerInvoker, messageType, hasResponse, responseType, messageScope, consumerContext).ConfigureAwait(false);
+                    var response = await DoHandleInternal(message, consumerInvoker, messageType, hasResponse, responseType, messageScope, consumerContext).ConfigureAwait(false);
+                    return (response, null, requestId);
                 }
                 catch (Exception ex)
                 {
-                    // Give the consumer error handler a chance to take action
-                    var handleErrorResult = await DoHandleError(message, consumerInvoker, messageType, hasResponse, responseType, messageScope, consumerContext, ex).ConfigureAwait(false);
-                    if (!handleErrorResult.Handled)
+                    attempts++;
+                    var handleErrorResult = await DoHandleError(message, messageType, messageScope, consumerContext, ex, attempts, cancellationToken).ConfigureAwait(false);
+                    if (handleErrorResult.Result != ConsumerErrorHandlerResultEnum.Retry)
                     {
-                        responseException = ex;
-                    }
-                    if (handleErrorResult.HasResponse)
-                    {
-                        response = handleErrorResult.Response;
+                        var exception = handleErrorResult.Result != ConsumerErrorHandlerResultEnum.Success ? ex : null;
+                        var response = handleErrorResult.HasResponse ? handleErrorResult.Response : null;
+                        return (response, exception, requestId);
                     }
                 }
             }
             catch (Exception e)
             {
-                responseException = e;
+                return (null, e, requestId);
             }
             finally
             {
@@ -132,8 +130,6 @@ public class MessageHandler : IMessageHandler
                 }
             }
         }
-
-        return (response, responseException, requestId);
     }
 
     private async Task<object> DoHandleInternal(object message, IMessageTypeConsumerInvokerSettings consumerInvoker, Type messageType, bool hasResponse, Type responseType, IMessageScope messageScope, IConsumerContext consumerContext)
@@ -150,7 +146,7 @@ public class MessageHandler : IMessageHandler
         return await ExecuteConsumer(message, consumerContext, consumerInvoker, responseType).ConfigureAwait(false);
     }
 
-    private async Task<ConsumerErrorHandlerResult> DoHandleError(object message, IMessageTypeConsumerInvokerSettings consumerInvoker, Type messageType, bool hasResponse, Type responseType, IMessageScope messageScope, IConsumerContext consumerContext, Exception ex)
+    private async Task<ConsumerErrorHandlerResult> DoHandleError(object message, Type messageType, IMessageScope messageScope, IConsumerContext consumerContext, Exception ex, int attempts, CancellationToken cancellationToken)
     {
         var errorHandlerResult = ConsumerErrorHandlerResult.Failure;
 
@@ -166,11 +162,8 @@ public class MessageHandler : IMessageHandler
         {
             _logger.LogDebug(ex, "Consumer error handler of type {ConsumerErrorHandlerType} will be used to handle the exception during processing of message of type {MessageType}", consumerErrorHandler.GetType(), messageType);
 
-            // Give a chance to the consumer error handler to take action
-            Task<object> retry() => DoHandleInternal(message, consumerInvoker, messageType, hasResponse, responseType, messageScope, consumerContext);
-
             var consumerErrorHandlerMethod = RuntimeTypeCache.ConsumerErrorHandlerType[messageType];
-            errorHandlerResult = await consumerErrorHandlerMethod(consumerErrorHandler, message, retry, consumerContext, ex).ConfigureAwait(false);
+            errorHandlerResult = await consumerErrorHandlerMethod(consumerErrorHandler, message, consumerContext, ex, attempts).ConfigureAwait(false);
         }
 
         return errorHandlerResult;

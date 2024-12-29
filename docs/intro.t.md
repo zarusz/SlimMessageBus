@@ -1059,14 +1059,19 @@ public class LoggingConsumerInterceptor<TMessage> : IConsumerInterceptor<TMessag
 
 ## Error Handling
 
-Message processing by consumers or handlers may result in exceptions.
-Starting with version 2.3.0, SMB introduces a standard way to integrate custom error handling logic across different transports.
-
-The interface [IConsumerErrorHandler<T>](../src/SlimMessageBus.Host/Consumer/ErrorHandling/IConsumerErrorHandler.cs) enables the definition of custom error handling for specific message types:
+Message processing by consumers or handlers may result in exceptions. The [IConsumerErrorHandler<T>](../src/SlimMessageBus.Host/Consumer/ErrorHandling/IConsumerErrorHandler.cs) provides a standard way to integrate custom error handling logic across different transports.
 
 @[:cs](../src/SlimMessageBus.Host/Consumer/ErrorHandling/IConsumerErrorHandler.cs,Interface)
 
-> The `retry()` parameter allows the message processing pipeline, including consumer interceptors, to retry processing when transient errors occur and retries are desired.
+The returned `ConsumerErrorHandlerResult` object is used to override the execution for the remainder of the execution pipeline.
+| Result  | Description |
+|---------|-------------|
+| Failure | The message failed to be processed and should be returned to the queue |
+| Success | The pipeline must treat the message as having been processed successfully |
+| SuccessWithResponse | The pipeline to treat the messagage as having been processed successfully, returning the response to the request/response invocation ([IRequestResponseBus<T>](../src/SlimMessageBus/RequestResponse/IRequestResponseBus.cs)) |
+| Retry   | Execute the pipeline again (any delay/jitter should be applied before returning from method)[^1] |
+
+[^1]: `Retry` will recreate the message scope on every atttempt if `PerMessageScopeEnabled` has been enabled.
 
 To enable SMB to recognize the error handler, it must be registered within the Microsoft Dependency Injection (MSDI) framework:
 
@@ -1091,6 +1096,26 @@ Transport plugins provide specialized error handling interfaces. Examples includ
 > The message processing pipeline will always attempt to use the transport-specific error handler (e.g., `IMemoryConsumerErrorHandler<T>`) first. If unavailable, it will then look for the generic error handler (`IConsumerErrorHandler<T>`).
 
 This approach allows for transport-specific error handling, ensuring that specialized handlers can be prioritized.
+
+Sample retry with exponential back-off:
+```cs
+public class RetryHandler<T> : ConsumerErrorHandler<T>
+{
+    private static readonly Random _random = new();
+
+    public override async Task<ConsumerErrorHandlerResult> OnHandleError(T message, IConsumerContext consumerContext, Exception exception, int attempts)
+    {
+        if (attempts < 3)
+        {
+            var delay = (attempts * 1000) + (_random.Next(1000) - 500);
+            await Task.Delay(delay, consumerContext.CancellationToken);
+            return Retry();
+        }
+
+        return Failure();
+    }
+}
+```
 
 ## Logging
 
