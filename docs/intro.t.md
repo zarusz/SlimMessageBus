@@ -1064,14 +1064,15 @@ Message processing by consumers or handlers may result in exceptions. The [ICons
 @[:cs](../src/SlimMessageBus.Host/Consumer/ErrorHandling/IConsumerErrorHandler.cs,Interface)
 
 The returned `ConsumerErrorHandlerResult` object is used to override the execution for the remainder of the execution pipeline.
-| Result  | Description |
-|---------|-------------|
-| Failure | The message failed to be processed and should be returned to the queue |
-| Success | The pipeline must treat the message as having been processed successfully |
-| SuccessWithResponse | The pipeline to treat the messagage as having been processed successfully, returning the response to the request/response invocation ([IRequestResponseBus<T>](../src/SlimMessageBus/RequestResponse/IRequestResponseBus.cs)) |
-| Retry   | Execute the pipeline again (any delay/jitter should be applied before returning from method)[^1] |
 
-[^1]: `Retry` will recreate the message scope on every atttempt if `PerMessageScopeEnabled` has been enabled.
+| Result              | Description                                                                                                                                                                                                                 |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Failure             | The message failed to be processed and should be returned to the queue                                                                                                                                                      |
+| Success             | The pipeline must treat the message as having been processed successfully                                                                                                                                                   |
+| SuccessWithResponse | The pipeline to treat the message as having been processed successfully, returning the response to the request/response invocation ([IRequestResponseBus<T>](../src/SlimMessageBus/RequestResponse/IRequestResponseBus.cs)) |
+| Retry               | Execute the pipeline again (any delay/jitter should be applied before returning from method)[^1]                                                                                                                            |
+
+[^1]: `Retry` will recreate the message scope on every attempt if `PerMessageScopeEnabled` has been enabled.
 
 To enable SMB to recognize the error handler, it must be registered within the Microsoft Dependency Injection (MSDI) framework:
 
@@ -1092,12 +1093,14 @@ Transport plugins provide specialized error handling interfaces. Examples includ
 - [INatsConsumerErrorHandler<T>](../src/SlimMessageBus.Host.Nats/INatsConsumerErrorHandler.cs)
 - [IServiceBusConsumerErrorHandler<T>](../src/SlimMessageBus.Host.AzureServiceBus/Consumer/IServiceBusConsumerErrorHandler.cs)
 - [IEventHubConsumerErrorHandler<T>](../src/SlimMessageBus.Host.AzureEventHub/Consumer/IEventHubConsumerErrorHandler.cs)
+- [ISqsConsumerErrorHandler<T>](../src/SlimMessageBus.Host.AmazonSQS/Consumer/ISqsConsumerErrorHandler.cs)
 
 > The message processing pipeline will always attempt to use the transport-specific error handler (e.g., `IMemoryConsumerErrorHandler<T>`) first. If unavailable, it will then look for the generic error handler (`IConsumerErrorHandler<T>`).
 
 This approach allows for transport-specific error handling, ensuring that specialized handlers can be prioritized.
 
-Sample retry with exponential back-off:
+Sample retry with exponential back-off (using the [ConsumerErrorHandler](../src/SlimMessageBus.Host/Consumer/ErrorHandling/ConsumerErrorHandler.cs) abstract implementation):
+
 ```cs
 public class RetryHandler<T> : ConsumerErrorHandler<T>
 {
