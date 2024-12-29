@@ -1092,9 +1092,7 @@ The returned `ConsumerErrorHandlerResult` object is used to override the executi
 | Failure             | The message failed to be processed and should be returned to the queue                                                                                                                                                      |
 | Success             | The pipeline must treat the message as having been processed successfully                                                                                                                                                   |
 | SuccessWithResponse | The pipeline to treat the message as having been processed successfully, returning the response to the request/response invocation ([IRequestResponseBus<T>](../src/SlimMessageBus/RequestResponse/IRequestResponseBus.cs)) |
-| Retry               | Execute the pipeline again (any delay/jitter should be applied before returning from method)[^1]                                                                                                                            |
-
-[^1]: `Retry` will recreate the message scope on every attempt if `PerMessageScopeEnabled` has been enabled.
+| Retry               | Re-create and execute the pipeline (including the message scope when using [per-message DI container scopes](#per-message-di-container-scope)) |
 
 To enable SMB to recognize the error handler, it must be registered within the Microsoft Dependency Injection (MSDI) framework:
 
