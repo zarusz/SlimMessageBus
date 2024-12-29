@@ -4,14 +4,22 @@
 public interface IConsumerErrorHandler<in T>
 {
     /// <summary>
-    /// Executed when the message consumer (or handler) errors out. This interface allows to intercept and handle the exception. 
-    /// Use the consumer context to get ahold of transport specific options to proceed (acknowledge/reject message).
+    /// <para>
+    /// Executed when the message consumer (or handler) errors out. The interface allows for interception of 
+    /// exceptions to manipulate the processing pipeline (success/fail/retry).
+    /// </para>
+    /// <para>
+    /// The consumer context is available to apply transport specific operations (acknowledge/reject/dead letter/etc).
+    /// </para>
+    /// <para>
+    /// If message execution is to be re-attempted, any delays/jitter should be applied before the method returns.
+    /// </para>
     /// </summary>
     /// <param name="message">The message that failed to process.</param>
-    /// <param name="retry">Performs another message processing try. The return value is relevant if the consumer was a request handler (it will be its response value). Ensure to pass the return value to the result of the error handler.</param>
     /// <param name="consumerContext">The consumer context for the message processing pipeline.</param>
     /// <param name="exception">Exception that occurred during message processing.</param>
+    /// <param name="attempts">The number of times the message has been attempted to be processed.</param>
     /// <returns>The error handling result.</returns>
-    Task<ConsumerErrorHandlerResult> OnHandleError(T message, Func<Task<object>> retry, IConsumerContext consumerContext, Exception exception);
+    Task<ConsumerErrorHandlerResult> OnHandleError(T message, IConsumerContext consumerContext, Exception exception, int attempts);
 }
 // doc:fragment:Interface

@@ -101,7 +101,7 @@ public class MessageHandlerTest
         var consumerErrorHandlerMock = new Mock<IConsumerErrorHandler<SomeMessage>>();
 
         consumerErrorHandlerMock
-            .Setup(x => x.OnHandleError(someMessage, It.IsAny<Func<Task<object>>>(), It.IsAny<IConsumerContext>(), someException))
+            .Setup(x => x.OnHandleError(someMessage, It.IsAny<IConsumerContext>(), someException, It.IsAny<int>()))
             .ReturnsAsync(() => errorHandlerWasAbleToHandle ? ConsumerErrorHandlerResult.Success : ConsumerErrorHandlerResult.Failure);
 
         if (errorHandlerRegistered)
@@ -134,7 +134,6 @@ public class MessageHandlerTest
         var result = await subject.DoHandle(someMessage, messageHeaders, consumerInvoker: consumerInvokerMock.Object, currentServiceProvider: busMock.ServiceProviderMock.Object);
 
         // assert
-
         result.RequestId.Should().BeNull();
         result.Response.Should().BeNull();
 
@@ -156,12 +155,79 @@ public class MessageHandlerTest
         {
             consumerErrorHandlerMock
                 .Verify(
-                    x => x.OnHandleError(someMessage, It.IsAny<Func<Task<object>>>(), It.IsAny<IConsumerContext>(), someException),
+                    x => x.OnHandleError(someMessage, It.IsAny<IConsumerContext>(), someException, It.IsAny<int>()),
                     Times.Once());
 
             consumerErrorHandlerMock
                 .VerifyNoOtherCalls();
         }
+    }
+
+    [Fact]
+    public async Task When_DoHandle_Given_ConsumerThatThrowsExceptionAndErrorHandlerRegisteredAndRequestsARetry_Then_RetryInvocation()
+    {
+        // arrange
+        var someMessage = new SomeMessage();
+        var someException = fixture.Create<Exception>();
+        var messageHeaders = fixture.Create<Dictionary<string, object>>();
+
+        var consumerMock = new Mock<IConsumer<SomeMessage>>();
+
+        var consumerErrorHandlerMock = new Mock<IConsumerErrorHandler<SomeMessage>>();
+
+        consumerErrorHandlerMock
+            .Setup(x => x.OnHandleError(someMessage, It.IsAny<IConsumerContext>(), someException, It.IsAny<int>()))
+            .ReturnsAsync(() => ConsumerErrorHandlerResult.Retry);
+
+        busMock.ServiceProviderMock
+            .Setup(x => x.GetService(typeof(IConsumerErrorHandler<SomeMessage>)))
+            .Returns(consumerErrorHandlerMock.Object);
+
+        busMock.ServiceProviderMock
+            .Setup(x => x.GetService(typeof(IConsumer<SomeMessage>)))
+            .Returns(consumerMock.Object);
+
+        consumerMethodMock
+            .SetupSequence(x => x(consumerMock.Object, someMessage, It.IsAny<IConsumerContext>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(someException)
+            .Returns(Task.CompletedTask);
+
+        consumerInvokerMock
+            .SetupGet(x => x.ParentSettings)
+            .Returns(new ConsumerSettings());
+
+        consumerInvokerMock
+            .SetupGet(x => x.ConsumerType)
+            .Returns(typeof(IConsumer<SomeMessage>));
+
+        messageScopeMock
+            .SetupGet(x => x.ServiceProvider)
+            .Returns(busMock.ServiceProviderMock.Object);
+
+        // act
+        var result = await subject.DoHandle(someMessage, messageHeaders, consumerInvoker: consumerInvokerMock.Object, currentServiceProvider: busMock.ServiceProviderMock.Object);
+
+        // assert
+        result.RequestId.Should().BeNull();
+        result.Response.Should().BeNull();
+        result.ResponseException.Should().BeNull();
+
+        messageScopeFactoryMock
+            .Verify(x => x.CreateMessageScope(It.IsAny<ConsumerSettings>(), It.IsAny<object>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IServiceProvider>()), Times.Exactly(2));
+
+        consumerMethodMock
+            .Verify(x => x(consumerMock.Object, someMessage, It.IsAny<IConsumerContext>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+
+        consumerMethodMock
+            .VerifyNoOtherCalls();
+
+        consumerErrorHandlerMock
+            .Verify(
+                x => x.OnHandleError(someMessage, It.IsAny<IConsumerContext>(), someException, It.IsAny<int>()),
+                Times.Once());
+
+        consumerErrorHandlerMock
+            .VerifyNoOtherCalls();
     }
 
     [Fact]
