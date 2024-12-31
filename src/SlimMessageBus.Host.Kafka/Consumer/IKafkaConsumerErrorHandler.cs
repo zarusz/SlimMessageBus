@@ -2,4 +2,4 @@
 
 public interface IKafkaConsumerErrorHandler<in T> : IConsumerErrorHandler<T>;
 
-public abstract class KafkaConsumerErrorHandler<T> : ConsumerErrorHandler<T>;
+public abstract class KafkaConsumerErrorHandler<T> : ConsumerErrorHandler<T>, IKafkaConsumerErrorHandler<T>;

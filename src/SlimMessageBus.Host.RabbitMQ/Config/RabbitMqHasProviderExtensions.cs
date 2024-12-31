@@ -14,6 +14,6 @@ static internal class RabbitMqHasProviderExtensions
     public static string GetBindingRoutingKey(this AbstractConsumerSettings c, HasProviderExtensions settings = null)
         => c.GetOrDefault<string>(RabbitMqProperties.BindingRoutingKey, settings, null);
 
-    public static string GetExchageType(this ProducerSettings p, HasProviderExtensions settings = null)
+    public static string GetExchangeType(this ProducerSettings p, HasProviderExtensions settings = null)
         => p.GetOrDefault<string>(RabbitMqProperties.ExchangeType, settings, null);
 }

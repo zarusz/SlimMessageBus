@@ -1,8 +1,6 @@
 namespace SlimMessageBus.Host;
 
-public abstract class ResponseMessageProcessor
-{
-}
+public abstract class ResponseMessageProcessor;
 
 /// <summary>
 /// The <see cref="IMessageProcessor{TMessage}"/> implementation that processes the responses arriving to the bus.
@@ -48,7 +46,9 @@ public class ResponseMessageProcessor<TTransportMessage> : ResponseMessageProces
             // We can only continue and process all messages in the lease    
             ex = e;
         }
-        return Task.FromResult(new ProcessMessageResult(ex, _requestResponseSettings, null));
+
+        var result = ex == null ? ProcessResult.Success : ProcessResult.Fail;
+        return Task.FromResult(new ProcessMessageResult(result, ex, _requestResponseSettings, null));
     }
 
     /// <summary>
@@ -117,5 +117,4 @@ public class ResponseMessageProcessor<TTransportMessage> : ResponseMessageProces
 
         return null;
     }
-
 }

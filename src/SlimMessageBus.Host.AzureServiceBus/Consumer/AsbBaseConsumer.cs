@@ -137,18 +137,23 @@ public abstract class AsbBaseConsumer : AbstractConsumer
     }
 
     private Task ServiceBusSessionProcessor_ProcessMessageAsync(ProcessSessionMessageEventArgs args)
-        => ProcessMessageAsyncInternal(args.Message, args.CompleteMessageAsync, args.AbandonMessageAsync, args.CancellationToken);
+        => ProcessMessageAsyncInternal(args.Message, args.CompleteMessageAsync, args.AbandonMessageAsync, args.DeadLetterMessageAsync, args.CancellationToken);
 
     private Task ServiceBusSessionProcessor_ProcessErrorAsync(ProcessErrorEventArgs args)
         => ProcessErrorAsyncInternal(args.Exception, args.ErrorSource);
 
     protected Task ServiceBusProcessor_ProcessMessagesAsync(ProcessMessageEventArgs args)
-        => ProcessMessageAsyncInternal(args.Message, args.CompleteMessageAsync, args.AbandonMessageAsync, args.CancellationToken);
+        => ProcessMessageAsyncInternal(args.Message, args.CompleteMessageAsync, args.AbandonMessageAsync, args.DeadLetterMessageAsync, args.CancellationToken);
 
     protected Task ServiceBusProcessor_ProcessErrorAsync(ProcessErrorEventArgs args)
         => ProcessErrorAsyncInternal(args.Exception, args.ErrorSource);
 
-    protected async Task ProcessMessageAsyncInternal(ServiceBusReceivedMessage message, Func<ServiceBusReceivedMessage, CancellationToken, Task> completeMessage, Func<ServiceBusReceivedMessage, IDictionary<string, object>, CancellationToken, Task> abandonMessage, CancellationToken token)
+    protected async Task ProcessMessageAsyncInternal(
+        ServiceBusReceivedMessage message,
+        Func<ServiceBusReceivedMessage, CancellationToken, Task> completeMessage,
+        Func<ServiceBusReceivedMessage, IDictionary<string, object>, CancellationToken, Task> abandonMessage,
+        Func<ServiceBusReceivedMessage, string, string, CancellationToken, Task> deadLetterMessage,
+        CancellationToken token)
     {
         // Process the message.
         Logger.LogDebug("Received message - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
@@ -160,29 +165,38 @@ public abstract class AsbBaseConsumer : AbstractConsumer
             // to avoid unnecessary exceptions.
             Logger.LogDebug("Abandon message - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
             await abandonMessage(message, null, token).ConfigureAwait(false);
-
             return;
         }
 
         var r = await MessageProcessor.ProcessMessage(message, message.ApplicationProperties, cancellationToken: token).ConfigureAwait(false);
-        if (r.Exception != null)
+        switch (r.Result)
         {
-            Logger.LogError(r.Exception, "Abandon message (exception occurred while processing) - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
+            case ProcessResult.Success:
+                // Complete the message so that it is not received again.
+                // This can be done only if the subscriptionClient is created in ReceiveMode.PeekLock mode (which is the default).
+                Logger.LogDebug("Complete message - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
+                await completeMessage(message, token).ConfigureAwait(false);
+                return;
 
-            var messageProperties = new Dictionary<string, object>
-            {
-                // Set the exception message
-                ["SMB.Exception"] = r.Exception.Message
-            };
-            await abandonMessage(message, messageProperties, token).ConfigureAwait(false);
+            case ProcessResult.Abandon:
+                Logger.LogError(r.Exception, "Dead letter message - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
+                await deadLetterMessage(message, r.Exception?.GetType().Name ?? string.Empty, r.Exception?.Message ?? string.Empty, token).ConfigureAwait(false);
+                return;
 
-            return;
+            case ProcessResult.Fail:
+                var messageProperties = new Dictionary<string, object>();
+                {
+                    // Set the exception message
+                    messageProperties.Add("SMB.Exception", r.Exception.Message);
+                }
+
+                Logger.LogError(r.Exception, "Abandon message (exception occurred while processing) - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
+                await abandonMessage(message, messageProperties, token).ConfigureAwait(false);
+                return;
+
+            default:
+                throw new NotImplementedException();
         }
-
-        // Complete the message so that it is not received again.
-        // This can be done only if the subscriptionClient is created in ReceiveMode.PeekLock mode (which is the default).
-        Logger.LogDebug("Complete message - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
-        await completeMessage(message, token).ConfigureAwait(false);
     }
 
     protected Task ProcessErrorAsyncInternal(Exception exception, ServiceBusErrorSource errorSource)

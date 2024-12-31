@@ -28,7 +28,9 @@ static internal class RabbitMqProperties
 
     public static readonly string Message = $"RabbitMQ_{nameof(Message)}";
 
-    public static readonly string ProvderSettings = $"RabbitMQ_{nameof(ProvderSettings)}";
+    public static readonly string ProviderSettings = $"RabbitMQ_{nameof(ProviderSettings)}";
 
     public static readonly string MessageAcknowledgementMode = $"RabbitMQ_{nameof(MessageAcknowledgementMode)}";
+
+    public static readonly string ReqeueOnFailure = $"RabbitMQ_{nameof(ReqeueOnFailure)}";
 }

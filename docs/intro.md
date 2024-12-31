@@ -1089,10 +1089,11 @@ The returned `ConsumerErrorHandlerResult` object is used to override the executi
 
 | Result              | Description                                                                                                                                                                                                                 |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Abandon             | The message should be sent to the dead letter queue/exchange. **Not supported by all transports.**                                                                                                                          |
 | Failure             | The message failed to be processed and should be returned to the queue                                                                                                                                                      |
 | Success             | The pipeline must treat the message as having been processed successfully                                                                                                                                                   |
 | SuccessWithResponse | The pipeline to treat the message as having been processed successfully, returning the response to the request/response invocation ([IRequestResponseBus<T>](../src/SlimMessageBus/RequestResponse/IRequestResponseBus.cs)) |
-| Retry               | Re-create and execute the pipeline (including the message scope when using [per-message DI container scopes](#per-message-di-container-scope)) |
+| Retry               | Re-create and execute the pipeline (including the message scope when using [per-message DI container scopes](#per-message-di-container-scope))                                                                              |
 
 To enable SMB to recognize the error handler, it must be registered within the Microsoft Dependency Injection (MSDI) framework:
 
@@ -1119,8 +1120,35 @@ Transport plugins provide specialized error handling interfaces. Examples includ
 
 This approach allows for transport-specific error handling, ensuring that specialized handlers can be prioritized.
 
-Sample retry with exponential back-off (using the [ConsumerErrorHandler](../src/SlimMessageBus.Host/Consumer/ErrorHandling/ConsumerErrorHandler.cs) abstract implementation):
 
+### Abandon
+#### Azure Service Bus
+The Azure Service Bus transport has full support for abandoning messages to the dead letter queue.
+
+#### RabbitMQ
+Abandon will issue a `Nack` with `requeue: false`.
+
+#### Other transports
+No other transports currently support `Abandon` and calling `Abandon` will result in `NotSupportedException` being thrown.
+
+### Failure
+#### RabbitMQ
+While RabbitMQ supports dead letter exchanges, SMB's default implementation is not to requeue messages on `Failure`. If requeuing is required, it can be enabled by setting `RequeueOnFailure()` when configuring a consumer/handler. 
+
+Please be aware that as RabbitMQ does not have a maximum delivery count and enabling requeue may result in an infinite message loop. When `RequeueOnFailure()` has been set, it is the developer's responsibility to configure an appropriate `IConsumerErrorHandler` that will `Abandon` all non-transient exceptions.
+
+```cs
+.Handle<EchoRequest, EchoResponse>(x => x
+    .Queue("echo-request-handler")
+    .ExchangeBinding("test-echo")
+    .DeadLetterExchange("echo-request-handler-dlq")
+    // requeue a message on failure
+    .RequeueOnFailure()
+    .WithHandler<EchoRequestHandler>())
+```
+
+### Example usage
+Retry with exponential back-off and short-curcuit dead letter on non-transient exceptions (using the [ConsumerErrorHandler](../src/SlimMessageBus.Host/Consumer/ErrorHandling/ConsumerErrorHandler.cs) abstract implementation):
 ```cs
 public class RetryHandler<T> : ConsumerErrorHandler<T>
 {
@@ -1128,6 +1156,11 @@ public class RetryHandler<T> : ConsumerErrorHandler<T>
 
     public override async Task<ConsumerErrorHandlerResult> OnHandleError(T message, IConsumerContext consumerContext, Exception exception, int attempts)
     {
+        if (!IsTranientException(exception))
+        {
+          return Abandon();
+        }
+
         if (attempts < 3)
         {
             var delay = (attempts * 1000) + (_random.Next(1000) - 500);
@@ -1137,9 +1170,18 @@ public class RetryHandler<T> : ConsumerErrorHandler<T>
 
         return Failure();
     }
+
+    private static bool IsTransientException(Exception exception)
+    {
+        while (exception is not SqlException && exception.InnerException != null)
+        {
+            exception = exception.InnerException;
+        }
+
+        return exception is SqlException { Number: -2 or 1205 }; // Timeout or deadlock
+    }
 }
 ```
-
 ## Logging
 
 SlimMessageBus uses [Microsoft.Extensions.Logging.Abstractions](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Abstractions):

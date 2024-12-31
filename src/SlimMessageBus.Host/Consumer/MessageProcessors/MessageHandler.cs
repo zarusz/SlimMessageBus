@@ -58,7 +58,7 @@ public class MessageHandler : IMessageHandler
         }
     }
 
-    public async Task<(object Response, Exception ResponseException, string RequestId)> DoHandle(object message, IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, object transportMessage = null, IDictionary<string, object> consumerContextProperties = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
+    public async Task<(ProcessResult Result, object Response, Exception ResponseException, string RequestId)> DoHandle(object message, IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, object transportMessage = null, IDictionary<string, object> consumerContextProperties = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
     {
         var messageType = message.GetType();
 
@@ -89,7 +89,7 @@ public class MessageHandler : IMessageHandler
             {
                 // ToDo: Call interceptor
                 // Do not process the expired message
-                return (ResponseForExpiredRequest, null, requestId);
+                return (ProcessResult.Success, ResponseForExpiredRequest, null, requestId);
             }
 
             var messageBusTarget = new MessageBusProxy(MessageBus, messageScope.ServiceProvider);
@@ -103,23 +103,25 @@ public class MessageHandler : IMessageHandler
                 try
                 {
                     var response = await DoHandleInternal(message, consumerInvoker, messageType, hasResponse, responseType, messageScope, consumerContext).ConfigureAwait(false);
-                    return (response, null, requestId);
+                    return (ProcessResult.Success, response, null, requestId);
                 }
                 catch (Exception ex)
                 {
                     attempts++;
                     var handleErrorResult = await DoHandleError(message, messageType, messageScope, consumerContext, ex, attempts, cancellationToken).ConfigureAwait(false);
-                    if (handleErrorResult.Result != ConsumerErrorHandlerResultEnum.Retry)
+                    if (handleErrorResult.Result == ProcessResult.Retry)
                     {
-                        var exception = handleErrorResult.Result != ConsumerErrorHandlerResultEnum.Success ? ex : null;
-                        var response = handleErrorResult.HasResponse ? handleErrorResult.Response : null;
-                        return (response, exception, requestId);
+                        continue;
                     }
+
+                    var exception = handleErrorResult.Result != ProcessResult.Success ? ex : null;
+                    var response = handleErrorResult.HasResponse ? handleErrorResult.Response : null;
+                    return (handleErrorResult.Result, response, exception, requestId);
                 }
             }
             catch (Exception e)
             {
-                return (null, e, requestId);
+                return (ProcessResult.Fail, null, e, requestId);
             }
             finally
             {

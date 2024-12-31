@@ -2,4 +2,4 @@
 
 public interface IRabbitMqConsumerErrorHandler<in T> : IConsumerErrorHandler<T>;
 
-public abstract class RabbitMqConsumerErrorHandler<T> : ConsumerErrorHandler<T>;
+public abstract class RabbitMqConsumerErrorHandler<T> : ConsumerErrorHandler<T>, IRabbitMqConsumerErrorHandler<T>;
