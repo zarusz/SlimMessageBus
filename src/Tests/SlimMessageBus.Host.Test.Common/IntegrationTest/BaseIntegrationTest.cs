@@ -12,6 +12,7 @@ public abstract class BaseIntegrationTest<T> : IAsyncLifetime
 {
     private readonly Lazy<ServiceProvider> _serviceProvider;
     private Action<MessageBusBuilder> messageBusBuilderAction = (mbb) => { };
+    private Action<IServiceCollection, IConfigurationRoot> testServicesBuilderAction = (services, configuration) => { };
 
     private ILogger<T>? _logger;
     protected ILogger<T> Logger => _logger ??= ServiceProvider.GetRequiredService<ILogger<T>>();
@@ -45,6 +46,7 @@ public abstract class BaseIntegrationTest<T> : IAsyncLifetime
             services.AddSingleton<TestMetric>();
 
             SetupServices(services, Configuration);
+            ApplyTestServices(services, Configuration);
 
             return services.BuildServiceProvider();
         });
@@ -62,7 +64,18 @@ public abstract class BaseIntegrationTest<T> : IAsyncLifetime
         };
     }
 
+    protected void AddTestServices(Action<IServiceCollection, IConfigurationRoot> action)
+    {
+        var prevAction = testServicesBuilderAction;
+        testServicesBuilderAction = (services, configuration) =>
+        {
+            prevAction(services, configuration);
+            action(services, configuration);
+        };
+    }
+
     protected void ApplyBusConfiguration(MessageBusBuilder mbb) => messageBusBuilderAction?.Invoke(mbb);
+    protected void ApplyTestServices(IServiceCollection services, IConfigurationRoot configuration) => testServicesBuilderAction?.Invoke(services, configuration);
 
     protected async Task EnsureConsumersStarted()
     {

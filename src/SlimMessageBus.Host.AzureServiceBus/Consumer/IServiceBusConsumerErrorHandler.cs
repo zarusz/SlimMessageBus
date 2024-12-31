@@ -2,4 +2,4 @@
 
 public interface IServiceBusConsumerErrorHandler<in T> : IConsumerErrorHandler<T>;
 
-public abstract class ServiceBusConsumerErrorHandler<T> : ConsumerErrorHandler<T>;
+public abstract class ServiceBusConsumerErrorHandler<T> : ConsumerErrorHandler<T>, IServiceBusConsumerErrorHandler<T>;

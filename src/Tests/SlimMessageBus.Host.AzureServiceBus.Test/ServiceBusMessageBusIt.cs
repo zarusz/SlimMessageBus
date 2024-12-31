@@ -6,12 +6,14 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 
 using Azure.Messaging.ServiceBus;
+using Azure.Messaging.ServiceBus.Administration;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 using SlimMessageBus.Host;
+using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
@@ -111,6 +113,95 @@ public class ServiceBusMessageBusIt(ITestOutputHelper output)
         });
 
         await BasicPubSub(1, bulkProduce: bulkProduce);
+    }
+
+    [Fact]
+    public async Task AbandonedMessage_DeliveredToDeadLetterQueue()
+    {
+        // arrange
+        var queue = QueueName();
+
+        AddTestServices((services, configuration) =>
+        {
+            services.AddTransient(sp =>
+            {
+                var connectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
+                return ActivatorUtilities.CreateInstance<ServiceBusClient>(sp, connectionString);
+            });
+
+            services.AddTransient(sp =>
+            {
+                var connectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
+                return ActivatorUtilities.CreateInstance<ServiceBusAdministrationClient>(sp, connectionString);
+            });
+
+            services.AddScoped(typeof(IConsumerInterceptor<>), typeof(AbandonPingMessageInterceptor<>));
+            services.AddScoped(typeof(IServiceBusConsumerErrorHandler<>), typeof(AbandonMessageConsumerErrorHandler<>));
+        });
+
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+            .Produce<PingMessage>(x => x.DefaultQueue(queue).WithModifier(MessageModifier))
+            .Consume<PingMessage>(x => x
+                    .Queue(queue)
+                    .WithConsumer<PingConsumer>()
+                    .Instances(20));
+        });
+
+        var adminClient = ServiceProvider.GetRequiredService<ServiceBusAdministrationClient>();
+        var testMetric = ServiceProvider.GetRequiredService<TestMetric>();
+        var consumedMessages = ServiceProvider.GetRequiredService<TestEventCollector<TestEvent>>();
+        var client = ServiceProvider.GetRequiredService<ServiceBusClient>();
+        var deadLetterReceiver = client.CreateReceiver($"{queue}/$DeadLetterQueue");
+
+        // act
+        var messageBus = MessageBus;
+
+        var producedMessages = Enumerable
+            .Range(0, NumberOfMessages)
+            .Select(i => new PingMessage { Counter = i })
+            .ToList();
+
+        await messageBus.Publish(producedMessages);
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 5);
+
+        // assert
+        // ensure number of instances of consumers created matches
+        testMetric.CreatedConsumerCount.Should().Be(NumberOfMessages);
+        consumedMessages.Count.Should().Be(NumberOfMessages);
+
+        // all messages should be in the DLQ
+        var properties = await adminClient.GetQueueRuntimePropertiesAsync(queue);
+        properties.Value.ActiveMessageCount.Should().Be(0);
+        properties.Value.DeadLetterMessageCount.Should().Be(NumberOfMessages);
+
+        // all messages should have been sent directly to the DLQ
+        var messages = await deadLetterReceiver.PeekMessagesAsync(NumberOfMessages);
+        messages.Count.Should().Be(NumberOfMessages);
+        foreach (var message in messages)
+        {
+            message.DeliveryCount.Should().Be(0);
+            message.ApplicationProperties["DeadLetterReason"].Should().Be(nameof(ApplicationException));
+        }
+    }
+
+    public class AbandonPingMessageInterceptor<T> : IConsumerInterceptor<T>
+    {
+        public async Task<object> OnHandle(T message, Func<Task<object>> next, IConsumerContext context)
+        {
+            await next();
+            var pingMessage = message as PingMessage;
+            throw new ApplicationException($"Abandon message {pingMessage.Counter:000} on path {context.Path}.");
+        }
+    }
+
+    public class AbandonMessageConsumerErrorHandler<T> : ServiceBusConsumerErrorHandler<T>
+    {
+        public override Task<ConsumerErrorHandlerResult> OnHandleError(T message, IConsumerContext consumerContext, Exception exception, int attempts)
+        {
+            return Task.FromResult(Abandon());
+        }
     }
 
     [Fact]

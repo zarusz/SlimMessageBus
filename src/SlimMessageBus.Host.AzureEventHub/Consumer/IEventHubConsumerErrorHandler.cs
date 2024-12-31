@@ -2,4 +2,4 @@
 
 public interface IEventHubConsumerErrorHandler<in T> : IConsumerErrorHandler<T>;
 
-public abstract class EventHubConsumerErrorHandler<T> : ConsumerErrorHandler<T>;
+public abstract class EventHubConsumerErrorHandler<T> : ConsumerErrorHandler<T>, IEventHubConsumerErrorHandler<T>;

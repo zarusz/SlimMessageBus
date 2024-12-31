@@ -45,6 +45,11 @@ public class RedisTopicConsumer : AbstractConsumer, IRedisConsumer
             var messageWithHeaders = (MessageWithHeaders)_envelopeSerializer.Deserialize(typeof(MessageWithHeaders), m.Message);
 
             var r = await _messageProcessor.ProcessMessage(messageWithHeaders, messageWithHeaders.Headers, cancellationToken: CancellationToken);
+            if (r.Result == ProcessResult.Abandon)
+            {
+                throw new NotSupportedException("Transport does not support abandoning messages");
+            }
+
             exception = r.Exception;
         }
         catch (Exception e)

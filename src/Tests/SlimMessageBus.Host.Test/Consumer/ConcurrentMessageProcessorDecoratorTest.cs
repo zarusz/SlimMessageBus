@@ -41,7 +41,7 @@ public class ConcurrentMessageProcessorDecoratorTest
             .Returns(async () =>
             {
                 await Task.Delay(TimeSpan.FromSeconds(1));
-                return new(null, null, null);
+                return new(ProcessResult.Success, null, null, null);
             });
 
         var subject = new ConcurrentMessageProcessorDecorator<SomeMessage>(1, NullLoggerFactory.Instance, _messageProcessorMock.Object);
@@ -115,7 +115,7 @@ public class ConcurrentMessageProcessorDecoratorTest
 
                 // Leaving critical section
                 Interlocked.Decrement(ref currentSectionCount);
-                return new(null, null, null);
+                return new(ProcessResult.Success, null, null, null);
             });
 
         // act
@@ -147,7 +147,7 @@ public class ConcurrentMessageProcessorDecoratorTest
 
         _messageProcessorMock
             .Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IServiceProvider>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ProcessMessageResult(exception, null, null));
+            .ReturnsAsync(new ProcessMessageResult(ProcessResult.Fail, exception, null, null));
 
         var msg = new SomeMessage();
         var msgHeaders = new Dictionary<string, object>();

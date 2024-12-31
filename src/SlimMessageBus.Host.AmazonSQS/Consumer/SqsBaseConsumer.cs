@@ -116,6 +116,11 @@ public abstract class SqsBaseConsumer : AbstractConsumer
                         .ToDictionary(x => x.Key, x => HeaderSerializer.Deserialize(x.Key, x.Value));
 
                     var r = await MessageProcessor.ProcessMessage(message, messageHeaders, cancellationToken: CancellationToken).ConfigureAwait(false);
+                    if (r.Result == ProcessResult.Abandon)
+                    {
+                        throw new NotSupportedException("Transport does not support abandoning messages");
+                    }
+
                     if (r.Exception != null)
                     {
                         Logger.LogError(r.Exception, "Message processing error - Queue: {Queue}, MessageId: {MessageId}", Path, message.MessageId);

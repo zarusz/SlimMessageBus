@@ -7,7 +7,8 @@ public abstract class ConsumerErrorHandler<T> : BaseConsumerErrorHandler, IConsu
 
 public abstract class BaseConsumerErrorHandler
 {
-    public static ConsumerErrorHandlerResult Failure() => ConsumerErrorHandlerResult.Failure;
-    public static ConsumerErrorHandlerResult Retry() => ConsumerErrorHandlerResult.Retry;
-    public static ConsumerErrorHandlerResult Success(object response = null) => response == null ? ConsumerErrorHandlerResult.Success : ConsumerErrorHandlerResult.SuccessWithResponse(response);
+    public virtual ConsumerErrorHandlerResult Abandon() => ConsumerErrorHandlerResult.Abandon;
+    public virtual ConsumerErrorHandlerResult Failure() => ConsumerErrorHandlerResult.Failure;
+    public virtual ConsumerErrorHandlerResult Retry() => ConsumerErrorHandlerResult.Retry;
+    public virtual ConsumerErrorHandlerResult Success(object response = null) => response == null ? ConsumerErrorHandlerResult.Success : ConsumerErrorHandlerResult.SuccessWithResponse(response);
 }

@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host;
 
+using System.Diagnostics;
+
 /// <summary>
 /// Implementation of <see cref="IMessageProcessor{TMessage}"/> that performs orchestration around processing of a new message using an instance of the declared consumer (<see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/> interface).
 /// </summary>
@@ -66,6 +68,7 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
     public async virtual Task<ProcessMessageResult> ProcessMessage(TTransportMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, IDictionary<string, object> consumerContextProperties = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
     {
         IMessageTypeConsumerInvokerSettings lastConsumerInvoker = null;
+        var result = ProcessResult.Success;
         Exception lastException = null;
         object lastResponse = null;
 
@@ -94,7 +97,9 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
                                 break;
                             }
 
-                            (lastResponse, lastException, var requestId) = await DoHandle(message, messageHeaders, consumerInvoker, transportMessage, consumerContextProperties, currentServiceProvider, cancellationToken).ConfigureAwait(false);
+                            (result, lastResponse, lastException, var requestId) = await DoHandle(message, messageHeaders, consumerInvoker, transportMessage, consumerContextProperties, currentServiceProvider, cancellationToken).ConfigureAwait(false);
+
+                            Debug.Assert(result != ProcessResult.Retry);
 
                             if (consumerInvoker.ParentSettings.ConsumerMode == ConsumerMode.RequestResponse && _responseProducer != null)
                             {
@@ -136,7 +141,7 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
             _logger.LogDebug(e, "Processing of the message {TransportMessage} failed", transportMessage);
             lastException = e;
         }
-        return new(lastException, lastException != null ? lastConsumerInvoker?.ParentSettings : null, lastResponse);
+        return new(result, lastException, lastException != null ? lastConsumerInvoker?.ParentSettings : null, lastResponse);
     }
 
     protected Type GetMessageType(IReadOnlyDictionary<string, object> headers)

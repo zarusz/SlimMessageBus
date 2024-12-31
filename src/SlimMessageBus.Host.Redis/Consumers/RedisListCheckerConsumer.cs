@@ -74,6 +74,11 @@ public class RedisListCheckerConsumer : AbstractConsumer, IRedisConsumer
                             var processor = queue.Processors[i];
 
                             var r = await processor.ProcessMessage(transportMessage, transportMessage.Headers, cancellationToken: CancellationToken).ConfigureAwait(false);
+                            if (r.Result == ProcessResult.Abandon)
+                            {
+                                throw new NotSupportedException("Transport does not support abandoning messages");
+                            }
+
                             if (r.Exception != null)
                             {
                                 Logger.LogError(r.Exception, "Error occurred while processing the list item on {Queue}", queue.Name);

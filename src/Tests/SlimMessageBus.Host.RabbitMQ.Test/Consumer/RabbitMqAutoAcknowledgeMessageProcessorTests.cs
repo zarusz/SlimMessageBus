@@ -4,16 +4,15 @@ using global::RabbitMQ.Client.Events;
 
 public class RabbitMqAutoAcknowledgeMessageProcessorTests
 {
-    private readonly Mock<IMessageProcessor<object>> _targetMock;
-    private readonly Mock<IDisposable> _targetDisposableMock;
+    private readonly Mock<IMessageProcessor<object>> _messageProcessorMock;
+    private readonly Mock<IDisposable> _messageProcessorDisposableMock;
     private readonly Mock<IRabbitMqConsumer> _consumerMock;
     private readonly BasicDeliverEventArgs _transportMessage;
-    private readonly RabbitMqAutoAcknowledgeMessageProcessor _subject;
 
     public RabbitMqAutoAcknowledgeMessageProcessorTests()
     {
-        _targetMock = new Mock<IMessageProcessor<object>>();
-        _targetDisposableMock = _targetMock.As<IDisposable>();
+        _messageProcessorMock = new Mock<IMessageProcessor<object>>();
+        _messageProcessorDisposableMock = _messageProcessorMock.As<IDisposable>();
         _consumerMock = new Mock<IRabbitMqConsumer>();
 
         _transportMessage = new BasicDeliverEventArgs
@@ -21,29 +20,36 @@ public class RabbitMqAutoAcknowledgeMessageProcessorTests
             Exchange = "exchange",
             DeliveryTag = 1
         };
-
-        _subject = new RabbitMqAutoAcknowledgeMessageProcessor(_targetMock.Object, NullLogger<RabbitMqAutoAcknowledgeMessageProcessor>.Instance, RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade, _consumerMock.Object);
     }
 
     [Fact]
     public void When_Dispose_Then_CallsDisposeOnTarget()
     {
         // arrange
+        var subject = CreateSubject();
 
         // act
-        _subject.Dispose();
+        subject.Dispose();
 
         // assert
-        _targetDisposableMock.Verify(x => x.Dispose(), Times.Once);
+        _messageProcessorDisposableMock.Verify(x => x.Dispose(), Times.Once);
     }
 
-    [Fact]
-    public async Task When_ProcessMessage_Then_AutoAcknowledge()
+    [Theory]
+    [InlineData(ProcessResult.Abandon, RabbitMqMessageConfirmOptions.Nack)]
+    [InlineData(ProcessResult.Fail, RabbitMqMessageConfirmOptions.Nack)]
+    [InlineData(ProcessResult.Success, RabbitMqMessageConfirmOptions.Ack)]
+    public async Task When_ProcessMessage_Then_AutoAcknowledge(ProcessResult processResult, RabbitMqMessageConfirmOptions expected)
     {
         // arrange
+        _messageProcessorMock
+            .Setup(x => x.ProcessMessage(It.IsAny<object>(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IServiceProvider>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult(new ProcessMessageResult(processResult, null, null, null)));
+
+        var subject = CreateSubject();
 
         // act
-        var result = await _subject.ProcessMessage(
+        var result = await subject.ProcessMessage(
             _transportMessage,
             new Dictionary<string, object>(),
             null,
@@ -53,8 +59,13 @@ public class RabbitMqAutoAcknowledgeMessageProcessorTests
         // assert
         _consumerMock.Verify(x => x.ConfirmMessage(
             _transportMessage,
-            RabbitMqMessageConfirmOptions.Ack,
+            expected,
             It.IsAny<IDictionary<string, object>>(),
             It.IsAny<bool>()), Times.Once);
+    }
+
+    private RabbitMqAutoAcknowledgeMessageProcessor CreateSubject()
+    {
+        return new RabbitMqAutoAcknowledgeMessageProcessor(_messageProcessorMock.Object, NullLogger<RabbitMqAutoAcknowledgeMessageProcessor>.Instance, RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade, _consumerMock.Object);
     }
 }
