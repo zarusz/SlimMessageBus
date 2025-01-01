@@ -1,5 +1,7 @@
 namespace SlimMessageBus.Host.Kafka;
 
+using Microsoft.Extensions.DependencyInjection;
+
 using IProducer = Confluent.Kafka.IProducer<byte[], byte[]>;
 using Message = Confluent.Kafka.Message<byte[], byte[]>;
 
@@ -64,7 +66,7 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
         void AddGroupConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, string group, IReadOnlyCollection<string> topics, Func<TopicPartition, IKafkaCommitController, IKafkaPartitionConsumer> processorFactory)
         {
             _logger.LogInformation("Creating consumer group {ConsumerGroup}", group);
-            AddConsumer(new KafkaGroupConsumer(LoggerFactory, ProviderSettings, consumerSettings, group, topics, processorFactory));
+            AddConsumer(new KafkaGroupConsumer(LoggerFactory, ProviderSettings, consumerSettings, interceptors: Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(), group, topics, processorFactory));
         }
 
         object MessageProvider(Type messageType, ConsumeResult<Ignore, byte[]> transportMessage)

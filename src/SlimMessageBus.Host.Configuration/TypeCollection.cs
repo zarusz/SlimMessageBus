@@ -46,33 +46,24 @@ public class TypeCollection<TInterface> : IEnumerable<Type> where TInterface : c
     public void Clear() => _innerList.Clear();
 
     public bool Contains<T>() where T : TInterface
-    {
-        return _innerList.Contains(typeof(T));
-    }
+        => _innerList.Contains(typeof(T));
 
-    public void CopyTo(Type[] array, int arrayIndex) => _innerList.CopyTo(array, arrayIndex);
+    public void CopyTo(Type[] array, int arrayIndex)
+        => _innerList.CopyTo(array, arrayIndex);
 
     public bool Remove<T>() where T : TInterface
-    {
-        return _innerList.Remove(typeof(T));
-    }
+        => _innerList.Remove(typeof(T));
 
     public bool Remove(Type type)
-    {
-        return _innerList.Remove(type);
-    }
+        => _innerList.Remove(type);
 
     public int Count => _innerList.Count;
 
     public bool IsReadOnly => false;
 
     public IEnumerator<Type> GetEnumerator()
-    {
-        return _innerList.GetEnumerator();
-    }
+        => _innerList.GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator()
-    {
-        return _innerList.GetEnumerator();
-    }
+        => _innerList.GetEnumerator();
 }

@@ -1,4 +1,4 @@
-﻿namespace SlimMessageBus.Host.CircuitBreaker.HealthCheck.Config;
+﻿namespace SlimMessageBus.Host.CircuitBreaker.HealthCheck;
 
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -32,16 +32,18 @@ public static class ConsumerBuilderExtensions
 
     private static void RegisterHealthServices(AbstractConsumerBuilder builder)
     {
-        builder.ConsumerSettings.CircuitBreakers.TryAdd<HealthCheckCircuitBreaker>();
-        builder.PostConfigurationActions.Add(
-            services =>
-            {
-                services.TryAddSingleton<HealthCheckBackgroundService>();
-                services.TryAddEnumerable(ServiceDescriptor.Singleton<IHealthCheckPublisher, HealthCheckBackgroundService>(sp => sp.GetRequiredService<HealthCheckBackgroundService>()));
-                services.TryAdd(ServiceDescriptor.Singleton<IHealthCheckHostBreaker, HealthCheckBackgroundService>(sp => sp.GetRequiredService<HealthCheckBackgroundService>()));
-                services.AddHostedService(sp => sp.GetRequiredService<HealthCheckBackgroundService>());
+        var breakersTypes = builder.ConsumerSettings.GetOrCreate(ConsumerSettingsProperties.CircuitBreakerTypes, () => []);
+        breakersTypes.TryAdd<HealthCheckCircuitBreaker>();
 
-                services.TryAddSingleton<HealthCheckCircuitBreaker>();
-            });
+        builder.PostConfigurationActions.Add(services =>
+        {
+            services.TryAddSingleton<HealthCheckBackgroundService>();
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IHealthCheckPublisher, HealthCheckBackgroundService>(sp => sp.GetRequiredService<HealthCheckBackgroundService>()));
+            services.TryAdd(ServiceDescriptor.Singleton<IHealthCheckHostBreaker, HealthCheckBackgroundService>(sp => sp.GetRequiredService<HealthCheckBackgroundService>()));
+            services.AddHostedService(sp => sp.GetRequiredService<HealthCheckBackgroundService>());
+
+            services.TryAddTransient<HealthCheckCircuitBreaker>();
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IAbstractConsumerInterceptor, HealthCheckCircuitBreakerAbstractConsumerInterceptor>());
+        });
     }
 }

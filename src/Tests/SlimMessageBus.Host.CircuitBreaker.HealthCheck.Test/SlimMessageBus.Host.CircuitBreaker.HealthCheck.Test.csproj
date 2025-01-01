@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\SlimMessageBus.Host.CircuitBreaker.HealthCheck\SlimMessageBus.Host.CircuitBreaker.HealthCheck.csproj" />
+    <ProjectReference Include="..\SlimMessageBus.Host.Test.Common\SlimMessageBus.Host.Test.Common.csproj" />
   </ItemGroup>
 
   <ItemGroup>

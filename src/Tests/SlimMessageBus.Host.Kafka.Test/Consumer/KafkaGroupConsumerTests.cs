@@ -15,7 +15,7 @@ public class KafkaGroupConsumerTests
         var providerSettings = new KafkaMessageBusSettings("host");
         var consumerSettings = Array.Empty<AbstractConsumerSettings>();
 
-        var subjectMock = new Mock<KafkaGroupConsumer>(loggerFactoryMock.Object, providerSettings, consumerSettings, "group", new List<string> { "topic" }, processorFactoryMock.Object) { CallBase = true };
+        var subjectMock = new Mock<KafkaGroupConsumer>(loggerFactoryMock.Object, providerSettings, consumerSettings, Array.Empty<IAbstractConsumerInterceptor>(), "group", new List<string> { "topic" }, processorFactoryMock.Object) { CallBase = true };
         _subject = subjectMock.Object;
     }
 

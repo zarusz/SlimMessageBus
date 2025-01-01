@@ -1,17 +1,10 @@
 ﻿namespace Sample.CircuitBreaker.HealthCheck.Consumers;
 
-public class AddConsumer : IConsumer<Add>
+public class AddConsumer(ILogger<AddConsumer> logger) : IConsumer<Add>
 {
-    private readonly ILogger<AddConsumer> _logger;
-
-    public AddConsumer(ILogger<AddConsumer> logger)
-    {
-        _logger = logger;
-    }
-
     public Task OnHandle(Add message, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("{A} + {B} = {C}", message.a, message.b, message.a + message.b);
+        logger.LogInformation("{A} + {B} = {C}", message.A, message.B, message.A + message.B);
         return Task.CompletedTask;
     }
 }

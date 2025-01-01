@@ -23,11 +23,6 @@ public abstract class AbstractConsumerSettings : HasProviderExtensions
     /// </summary>
     public int Instances { get; set; }
 
-    /// <summary>
-    /// <see cref="IConsumerCircuitBreaker"/> to be used with the consumer.
-    /// </summary>
-    public TypeCollection<IConsumerCircuitBreaker> CircuitBreakers { get; } = [];
-
     protected AbstractConsumerSettings()
     {
         Instances = 1;

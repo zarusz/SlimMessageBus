@@ -1,4 +1,4 @@
-﻿namespace SlimMessageBus;
+﻿namespace SlimMessageBus.Host.CircuitBreaker.HealthCheck;
 
 /// <summary>
 /// Circuit breaker to toggle consumer status on an external event.

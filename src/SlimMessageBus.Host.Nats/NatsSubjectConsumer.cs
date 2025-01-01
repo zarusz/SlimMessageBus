@@ -1,27 +1,31 @@
 #nullable enable
 namespace SlimMessageBus.Host.Nats;
 
-using System.Collections.Generic;
-
 public class NatsSubjectConsumer<TType> : AbstractConsumer
 {
-    private readonly string _subject;
     private readonly INatsConnection _connection;
     private readonly IMessageProcessor<NatsMsg<TType>> _messageProcessor;
     private INatsSub<TType>? _subscription;
     private Task? _messageConsumerTask;
 
-    public NatsSubjectConsumer(ILogger logger, IEnumerable<AbstractConsumerSettings> consumerSettings, string subject, INatsConnection connection, IMessageProcessor<NatsMsg<TType>> messageProcessor) 
-        : base(logger, consumerSettings)
+    public NatsSubjectConsumer(ILogger logger,
+                               IEnumerable<AbstractConsumerSettings> consumerSettings,
+                               IEnumerable<IAbstractConsumerInterceptor> interceptors,
+                               string subject,
+                               INatsConnection connection,
+                               IMessageProcessor<NatsMsg<TType>> messageProcessor)
+        : base(logger,
+               consumerSettings,
+               path: subject,
+               interceptors)
     {
-        _subject = subject;
         _connection = connection;
         _messageProcessor = messageProcessor;
     }
 
     protected override async Task OnStart()
     {
-        _subscription ??= await _connection.SubscribeCoreAsync<TType>(_subject, cancellationToken: CancellationToken);
+        _subscription ??= await _connection.SubscribeCoreAsync<TType>(Path, cancellationToken: CancellationToken);
 
         _messageConsumerTask = Task.Factory.StartNew(OnLoop, CancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap();
     }

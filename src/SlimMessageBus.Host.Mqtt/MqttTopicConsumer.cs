@@ -3,12 +3,17 @@
 public class MqttTopicConsumer : AbstractConsumer
 {
     public IMessageProcessor<MqttApplicationMessage> MessageProcessor { get; }
-    public string Topic { get; }
 
-    public MqttTopicConsumer(ILogger logger, IEnumerable<AbstractConsumerSettings> consumerSettings, string topic, IMessageProcessor<MqttApplicationMessage> messageProcessor) 
-        : base(logger, consumerSettings)
+    public MqttTopicConsumer(ILogger logger,
+                             IEnumerable<AbstractConsumerSettings> consumerSettings,
+                             IEnumerable<IAbstractConsumerInterceptor> interceptors,
+                             string topic,
+                             IMessageProcessor<MqttApplicationMessage> messageProcessor)
+        : base(logger,
+               consumerSettings,
+               topic,
+               interceptors)
     {
-        Topic = topic;
         MessageProcessor = messageProcessor;
     }
 

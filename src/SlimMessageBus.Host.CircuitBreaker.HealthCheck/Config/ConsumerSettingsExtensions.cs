@@ -1,9 +1,7 @@
 ﻿namespace SlimMessageBus.Host.CircuitBreaker.HealthCheck;
 
-static internal class SettingsExtensions
+static internal class ConsumerSettingsExtensions
 {
-    private const string _key = nameof(HealthCheckCircuitBreaker);
-
     public static T PauseOnDegraded<T>(this T consumerSettings, params string[] tags)
         where T : AbstractConsumerSettings
     {
@@ -15,7 +13,6 @@ static internal class SettingsExtensions
                 dict[tag] = HealthStatus.Degraded;
             }
         }
-
         return consumerSettings;
     }
 
@@ -30,18 +27,9 @@ static internal class SettingsExtensions
                 dict[tag] = HealthStatus.Unhealthy;
             }
         }
-
         return consumerSettings;
     }
 
     static internal IDictionary<string, HealthStatus> HealthBreakerTags(this AbstractConsumerSettings consumerSettings)
-    {
-        if (!consumerSettings.Properties.TryGetValue(_key, out var rawValue) || rawValue is not IDictionary<string, HealthStatus> value)
-        {
-            value = new Dictionary<string, HealthStatus>();
-            consumerSettings.Properties[_key] = value;
-        }
-
-        return value;
-    }
+        => consumerSettings.GetOrCreate(ConsumerSettingsProperties.HealthStatusTags, () => []);
 }

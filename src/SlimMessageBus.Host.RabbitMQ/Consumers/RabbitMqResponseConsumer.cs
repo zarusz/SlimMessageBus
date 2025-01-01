@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.RabbitMQ;
 
+using System.Collections.Generic;
+
 public class RabbitMqResponseConsumer : AbstractRabbitMqConsumer
 {
     private readonly IMessageProcessor<BasicDeliverEventArgs> _messageProcessor;
@@ -8,6 +10,7 @@ public class RabbitMqResponseConsumer : AbstractRabbitMqConsumer
 
     public RabbitMqResponseConsumer(
         ILoggerFactory loggerFactory,
+        IEnumerable<IAbstractConsumerInterceptor> interceptors,
         IRabbitMqChannel channel,
         string queueName,
         RequestResponseSettings requestResponseSettings,
@@ -15,7 +18,13 @@ public class RabbitMqResponseConsumer : AbstractRabbitMqConsumer
         IPendingRequestStore pendingRequestStore,
         ICurrentTimeProvider currentTimeProvider,
         IHeaderValueConverter headerValueConverter)
-        : base(loggerFactory.CreateLogger<RabbitMqResponseConsumer>(), [requestResponseSettings], channel, queueName, headerValueConverter)
+
+        : base(loggerFactory.CreateLogger<RabbitMqResponseConsumer>(),
+               [requestResponseSettings],
+               interceptors,
+               channel,
+               queueName,
+               headerValueConverter)
     {
         _messageProcessor = new ResponseMessageProcessor<BasicDeliverEventArgs>(loggerFactory, requestResponseSettings, messageProvider, pendingRequestStore, currentTimeProvider);
     }

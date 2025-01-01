@@ -1,5 +1,6 @@
 namespace SlimMessageBus.Host.Nats;
 
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Primitives;
 
 public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
@@ -78,7 +79,7 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
     private void AddSubjectConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, string subject, IMessageProcessor<NatsMsg<byte[]>> processor)
     {
         _logger.LogInformation("Creating consumer for {Subject}", subject);
-        var consumer = new NatsSubjectConsumer<byte[]>(LoggerFactory.CreateLogger<NatsSubjectConsumer<byte[]>>(), consumerSettings, subject, _connection, processor);
+        var consumer = new NatsSubjectConsumer<byte[]>(LoggerFactory.CreateLogger<NatsSubjectConsumer<byte[]>>(), consumerSettings, interceptors: Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(), subject, _connection, processor);
         AddConsumer(consumer);
     }
 

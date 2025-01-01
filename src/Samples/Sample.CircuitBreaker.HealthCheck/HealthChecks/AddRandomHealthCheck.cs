@@ -1,11 +1,5 @@
 ﻿namespace Sample.CircuitBreaker.HealthCheck.HealthChecks;
 
-using Microsoft.Extensions.Logging;
-
-public class AddRandomHealthCheck : RandomHealthCheck
+public class AddRandomHealthCheck(ILogger<AddRandomHealthCheck> logger) : RandomHealthCheck(logger)
 {
-    public AddRandomHealthCheck(ILogger<AddRandomHealthCheck> logger) 
-        : base(logger)
-    {
-    }
 }

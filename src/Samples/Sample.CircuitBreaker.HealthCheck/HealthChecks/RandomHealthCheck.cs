@@ -2,19 +2,12 @@
 
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-public abstract class RandomHealthCheck : IHealthCheck
+public abstract class RandomHealthCheck(ILogger logger) : IHealthCheck
 {
-    private readonly ILogger _logger;
-
-    protected RandomHealthCheck(ILogger logger)
-    {
-        _logger = logger;
-    }
-
     public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
     {
         var value = (HealthStatus)Random.Shared.Next(3);
-        _logger.LogInformation("{HealthCheck} evaluated as {HealthStatus}", this.GetType(), value);
+        logger.LogInformation("{HealthCheck} evaluated as {HealthStatus}", GetType(), value);
         return Task.FromResult(new HealthCheckResult(value, value.ToString()));
     }
 }
