@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.CircuitBreaker.HealthCheck;
 
+using SlimMessageBus.Host.CircuitBreaker;
+
 internal sealed class HealthCheckCircuitBreaker : IConsumerCircuitBreaker
 {
     private readonly IEnumerable<AbstractConsumerSettings> _settings;

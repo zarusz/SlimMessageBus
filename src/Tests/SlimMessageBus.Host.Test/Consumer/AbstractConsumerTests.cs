@@ -2,99 +2,70 @@
 
 public class AbstractConsumerTests
 {
-    private class TestConsumer : AbstractConsumer
+    private class TestConsumer(ILogger logger, IEnumerable<AbstractConsumerSettings> settings, IEnumerable<IAbstractConsumerInterceptor> interceptors)
+        : AbstractConsumer(logger, settings, path: "path", interceptors)
     {
-        public TestConsumer(ILogger logger, IEnumerable<AbstractConsumerSettings> settings)
-            : base(logger, settings) { }
-
-        protected override Task OnStart() => Task.CompletedTask;
-        protected override Task OnStop() => Task.CompletedTask;
+        internal protected override Task OnStart() => Task.CompletedTask;
+        internal protected override Task OnStop() => Task.CompletedTask;
     }
 
     private class TestConsumerSettings : AbstractConsumerSettings;
 
-    public class CircuitBreakerAccessor
-    {
-        public Circuit State { get; set; }
-        public int SubscribeCallCount { get; set; } = 0;
-        public int UnsubscribeCallCount { get; set; } = 0;
-        public IEnumerable<AbstractConsumerSettings> Settings { get; set; }
-        public Func<Circuit, Task> OnChange { get; set; }
-    }
-
-    private class TestCircuitBreaker : IConsumerCircuitBreaker
-    {
-        private readonly CircuitBreakerAccessor _accessor;
-
-        public TestCircuitBreaker(CircuitBreakerAccessor accessor, IEnumerable<AbstractConsumerSettings> settings)
-        {
-            _accessor = accessor;
-            Settings = settings;
-            State = Circuit.Open;
-        }
-
-        public Circuit State
-        {
-            get => _accessor.State;
-            set => _accessor.State = value;
-        }
-        public IEnumerable<AbstractConsumerSettings> Settings { get; }
-
-        public Task Subscribe(Func<Circuit, Task> onChange)
-        {
-            _accessor.SubscribeCallCount++;
-            _accessor.OnChange = onChange;
-
-            return Task.CompletedTask;
-        }
-
-        public void Unsubscribe()
-        {
-            _accessor.UnsubscribeCallCount++;
-        }
-    }
-
     private readonly List<AbstractConsumerSettings> _settings;
-    private readonly TestConsumer _target;
-    private readonly CircuitBreakerAccessor accessor;
+    private readonly Mock<AbstractConsumer> _targetMock;
+    private readonly AbstractConsumer _target;
+    private readonly Mock<IAbstractConsumerInterceptor> _interceptor;
 
     public AbstractConsumerTests()
     {
-        accessor = new CircuitBreakerAccessor();
+        _interceptor = new Mock<IAbstractConsumerInterceptor>();
 
         var serviceCollection = new ServiceCollection();
-        serviceCollection.TryAddSingleton(accessor);
-        serviceCollection.TryAddTransient<TestCircuitBreaker>();
+        serviceCollection.TryAddEnumerable(ServiceDescriptor.Singleton(_interceptor.Object));
 
         var testSettings = new TestConsumerSettings
         {
             MessageBusSettings = new MessageBusSettings { ServiceProvider = serviceCollection.BuildServiceProvider() }
         };
 
-        testSettings.CircuitBreakers.Add<TestCircuitBreaker>();
-
         _settings = [testSettings];
 
-        _target = new TestConsumer(NullLogger.Instance, _settings);
+        _targetMock = new Mock<AbstractConsumer>(NullLogger.Instance, _settings, "path", new IAbstractConsumerInterceptor[] { _interceptor.Object }) { CallBase = true };
+        _target = _targetMock.Object;
     }
 
-    [Fact]
-    public async Task Start_ShouldStartCircuitBreakers_WhenNotStarted()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task When_Start_Then_Interceptor_CanStartIsCalled(bool canStart)
     {
         // Arrange
+        _interceptor.Setup(x => x.CanStart(_target)).ReturnsAsync(canStart);
 
         // Act
         await _target.Start();
 
         // Assert
         _target.IsStarted.Should().BeTrue();
-        accessor.SubscribeCallCount.Should().Be(1);
+
+        _interceptor.Verify(x => x.CanStart(_target), Times.Once);
+        _interceptor.Verify(x => x.Started(_target), canStart ? Times.Once : Times.Never);
+        _interceptor.VerifyGet(x => x.Order, Times.Once);
+        _interceptor.VerifyNoOtherCalls();
+
+        _targetMock.Verify(x => x.OnStart(), canStart ? Times.Once : Times.Never);
+        _targetMock.VerifyNoOtherCalls();
     }
 
-    [Fact]
-    public async Task Stop_ShouldStopCircuitBreakers_WhenStarted()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task When_Stop_Then_Interceptor_CanStopIsCalled(bool canStop)
     {
         // Arrange
+        _interceptor.Setup(x => x.CanStart(_target)).ReturnsAsync(true);
+        _interceptor.Setup(x => x.CanStop(_target)).ReturnsAsync(canStop);
+
         await _target.Start();
 
         // Act
@@ -102,38 +73,16 @@ public class AbstractConsumerTests
 
         // Assert
         _target.IsStarted.Should().BeFalse();
-        accessor.UnsubscribeCallCount.Should().Be(1);
-    }
 
-    [Fact]
-    public async Task BreakerChanged_ShouldPauseConsumer_WhenBreakerClosed()
-    {
-        // Arrange
-        await _target.Start();
+        _interceptor.Verify(x => x.CanStart(_target), Times.Once);
+        _interceptor.Verify(x => x.CanStop(_target), Times.Once);
+        _interceptor.Verify(x => x.Started(_target), Times.Once);
+        _interceptor.Verify(x => x.Stopped(_target), canStop ? Times.Once : Times.Never);
+        _interceptor.VerifyGet(x => x.Order, Times.Once);
+        _interceptor.VerifyNoOtherCalls();
 
-        // Act
-        _target.IsPaused.Should().BeFalse();
-        accessor.State = Circuit.Closed;
-        await _target.BreakerChanged(Circuit.Closed);
-
-        // Assert
-        _target.IsPaused.Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task BreakerChanged_ShouldResumeConsumer_WhenBreakerOpen()
-    {
-        // Arrange
-        await _target.Start();
-        accessor.State = Circuit.Closed;
-        await _target.BreakerChanged(Circuit.Open);
-
-        // Act
-        _target.IsPaused.Should().BeTrue();
-        accessor.State = Circuit.Open;
-        await _target.BreakerChanged(Circuit.Open);
-
-        // Assert
-        _target.IsPaused.Should().BeFalse();
+        _targetMock.Verify(x => x.OnStart(), Times.Once);
+        _targetMock.Verify(x => x.OnStop(), canStop ? Times.Once : Times.Never);
+        _targetMock.VerifyNoOtherCalls();
     }
 }

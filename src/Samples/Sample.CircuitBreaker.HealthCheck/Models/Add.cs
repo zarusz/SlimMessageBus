@@ -1,3 +1,3 @@
 ﻿namespace Sample.CircuitBreaker.HealthCheck.Models;
 
-public record Add(int a, int b);
+public record Add(int A, int B);

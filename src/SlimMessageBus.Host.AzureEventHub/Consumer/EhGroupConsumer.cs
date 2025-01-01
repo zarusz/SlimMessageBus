@@ -3,6 +3,8 @@ namespace SlimMessageBus.Host.AzureEventHub;
 using Azure.Messaging.EventHubs;
 using Azure.Messaging.EventHubs.Processor;
 
+using Microsoft.Extensions.DependencyInjection;
+
 public class EhGroupConsumer : AbstractConsumer
 {
     private readonly EventProcessorClient _processorClient;
@@ -12,7 +14,10 @@ public class EhGroupConsumer : AbstractConsumer
     public EventHubMessageBus MessageBus { get; }
 
     public EhGroupConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, EventHubMessageBus messageBus, GroupPath groupPath, Func<GroupPathPartitionId, EhPartitionConsumer> partitionConsumerFactory)
-        : base(messageBus.LoggerFactory.CreateLogger<EhGroupConsumer>(), consumerSettings)
+        : base(messageBus.LoggerFactory.CreateLogger<EhGroupConsumer>(),
+               consumerSettings,
+               groupPath.Path,
+               messageBus.Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>())
     {
         _groupPath = groupPath ?? throw new ArgumentNullException(nameof(groupPath));
         if (partitionConsumerFactory == null) throw new ArgumentNullException(nameof(partitionConsumerFactory));

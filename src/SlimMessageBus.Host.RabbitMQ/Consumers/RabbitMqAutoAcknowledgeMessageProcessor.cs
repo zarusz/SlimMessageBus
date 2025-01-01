@@ -56,7 +56,7 @@ internal sealed class RabbitMqAutoAcknowledgeMessageProcessor : IMessageProcesso
         if (r.Exception != null)
         {
             // We rely on the IMessageProcessor to execute the ConsumerErrorHandler<T>, but if it's not registered in the DI, it fails, or there is another fatal error then the message will be lost.
-            _logger.LogError(r.Exception, "Exchange {Exchange} - Queue {Queue}: Error processing message {Message}, delivery tag {DeliveryTag}", transportMessage.Exchange, _consumer.QueueName, transportMessage, transportMessage.DeliveryTag);
+            _logger.LogError(r.Exception, "Exchange {Exchange} - Queue {Queue}: Error processing message {Message}, delivery tag {DeliveryTag}", transportMessage.Exchange, _consumer.Path, transportMessage, transportMessage.DeliveryTag);
         }
         return r;
     }

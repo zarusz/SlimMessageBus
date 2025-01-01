@@ -1,9 +1,10 @@
 ﻿namespace Sample.CircuitBreaker.HealthCheck;
+
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 using Sample.CircuitBreaker.HealthCheck.HealthChecks;
 
-using SlimMessageBus.Host.CircuitBreaker.HealthCheck.Config;
+using SlimMessageBus.Host.CircuitBreaker.HealthCheck;
 
 public static class Program
 {

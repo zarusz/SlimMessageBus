@@ -1,4 +1,7 @@
 ﻿namespace SlimMessageBus.Host.CircuitBreaker.HealthCheck.Test;
+
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+
 public class HealthCheckCircuitBreakerTests
 {
     private readonly Mock<IHealthCheckHostBreaker> _hostMock;

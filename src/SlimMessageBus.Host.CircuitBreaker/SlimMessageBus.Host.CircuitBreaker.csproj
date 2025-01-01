@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="../Host.Plugin.Properties.xml" />
+
+  <PropertyGroup>
+    <Description>Circuit breaker abstractions for SlimMessageBus</Description>
+    <PackageTags>Toggle consumer on or off</PackageTags>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReleaseNotes />
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SlimMessageBus.Host.CircuitBreaker.Test" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+  </ItemGroup>
+
+</Project>
