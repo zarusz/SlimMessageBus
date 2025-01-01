@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Redis;
 
+using Microsoft.Extensions.DependencyInjection;
+
 public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
 {
     private readonly ILogger _logger;
@@ -95,6 +97,7 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
             var consumer = new RedisTopicConsumer(
                 LoggerFactory.CreateLogger<RedisTopicConsumer>(),
                 consumerSettings,
+                interceptors: Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(),
                 topic,
                 subscriber,
                 messageProcessor,
@@ -152,7 +155,7 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
 
         if (queues.Count > 0)
         {
-            AddConsumer(new RedisListCheckerConsumer(LoggerFactory.CreateLogger<RedisListCheckerConsumer>(), Database, ProviderSettings.QueuePollDelay, ProviderSettings.QueuePollMaxIdle, queues, ProviderSettings.EnvelopeSerializer));
+            AddConsumer(new RedisListCheckerConsumer(LoggerFactory.CreateLogger<RedisListCheckerConsumer>(), Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(), Database, ProviderSettings.QueuePollDelay, ProviderSettings.QueuePollMaxIdle, queues, ProviderSettings.EnvelopeSerializer));
         }
     }
 

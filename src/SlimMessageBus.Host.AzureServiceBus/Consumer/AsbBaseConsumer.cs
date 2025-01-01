@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus.Consumer;
 
+using Microsoft.Extensions.DependencyInjection;
+
 public abstract class AsbBaseConsumer : AbstractConsumer
 {
     private ServiceBusProcessor _serviceBusProcessor;
@@ -9,11 +11,19 @@ public abstract class AsbBaseConsumer : AbstractConsumer
     protected IMessageProcessor<ServiceBusReceivedMessage> MessageProcessor { get; }
     protected TopicSubscriptionParams TopicSubscription { get; }
 
-    protected AsbBaseConsumer(ServiceBusMessageBus messageBus, ServiceBusClient serviceBusClient, TopicSubscriptionParams subscriptionFactoryParams, IMessageProcessor<ServiceBusReceivedMessage> messageProcessor, IEnumerable<AbstractConsumerSettings> consumerSettings, ILogger logger)
-        : base(logger ?? throw new ArgumentNullException(nameof(logger)), consumerSettings)
+    protected AsbBaseConsumer(ServiceBusMessageBus messageBus,
+                              ServiceBusClient serviceBusClient,
+                              TopicSubscriptionParams subscriptionFactoryParams,
+                              IMessageProcessor<ServiceBusReceivedMessage> messageProcessor,
+                              IEnumerable<AbstractConsumerSettings> consumerSettings,
+                              ILogger logger)
+        : base(logger ?? throw new ArgumentNullException(nameof(logger)),
+               consumerSettings,
+               subscriptionFactoryParams.ToString(),
+               messageBus.Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>())
     {
-        MessageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
-        TopicSubscription = subscriptionFactoryParams ?? throw new ArgumentNullException(nameof(subscriptionFactoryParams));
+        MessageBus = messageBus;
+        TopicSubscription = subscriptionFactoryParams;
         MessageProcessor = messageProcessor ?? throw new ArgumentNullException(nameof(messageProcessor));
 
         T GetSingleValue<T>(Func<AbstractConsumerSettings, T> selector, string settingName)

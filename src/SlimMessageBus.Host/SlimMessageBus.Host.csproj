@@ -28,7 +28,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="SlimMessageBus.Host.Test" />
+    <InternalsVisibleTo Include="SlimMessageBus.Host.Test" />    
   </ItemGroup>  
 
 </Project>

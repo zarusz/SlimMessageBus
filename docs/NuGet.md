@@ -24,5 +24,6 @@ Plugins:
 - Transactional Outbox pattern (SQL, DbContext)
 - Serialization using JSON, Avro, ProtoBuf
 - AsyncAPI specification generation
+- Consumer Circuit Breaker based on Health Checks
 
 Find out more [https://github.com/zarusz/SlimMessageBus](https://github.com/zarusz/SlimMessageBus).

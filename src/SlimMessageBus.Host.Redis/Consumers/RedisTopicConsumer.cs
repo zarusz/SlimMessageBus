@@ -7,12 +7,18 @@ public class RedisTopicConsumer : AbstractConsumer, IRedisConsumer
     private ChannelMessageQueue _channelMessageQueue;
     private readonly IMessageProcessor<MessageWithHeaders> _messageProcessor;
 
-    public string Path { get; }
-
-    public RedisTopicConsumer(ILogger<RedisTopicConsumer> logger, IEnumerable<AbstractConsumerSettings> consumerSettings, string topic, ISubscriber subscriber, IMessageProcessor<MessageWithHeaders> messageProcessor, IMessageSerializer envelopeSerializer)
-        : base(logger, consumerSettings)
+    public RedisTopicConsumer(ILogger<RedisTopicConsumer> logger,
+                              IEnumerable<AbstractConsumerSettings> consumerSettings,
+                              IEnumerable<IAbstractConsumerInterceptor> interceptors,
+                              string topic,
+                              ISubscriber subscriber,
+                              IMessageProcessor<MessageWithHeaders> messageProcessor,
+                              IMessageSerializer envelopeSerializer)
+        : base(logger,
+               consumerSettings,
+               path: topic,
+               interceptors)
     {
-        Path = topic;
         _messageProcessor = messageProcessor;
         _envelopeSerializer = envelopeSerializer;
         _subscriber = subscriber ?? throw new ArgumentNullException(nameof(subscriber));

@@ -1,6 +1,4 @@
-﻿namespace SlimMessageBus.Host.CircuitBreaker.HealthCheck.Config;
-
-using Microsoft.Extensions.DependencyInjection.Extensions;
+﻿namespace SlimMessageBus.Host.CircuitBreaker.HealthCheck;
 
 public static class ConsumerBuilderExtensions
 {
@@ -32,16 +30,15 @@ public static class ConsumerBuilderExtensions
 
     private static void RegisterHealthServices(AbstractConsumerBuilder builder)
     {
-        builder.ConsumerSettings.CircuitBreakers.TryAdd<HealthCheckCircuitBreaker>();
-        builder.PostConfigurationActions.Add(
-            services =>
-            {
-                services.TryAddSingleton<HealthCheckBackgroundService>();
-                services.TryAddEnumerable(ServiceDescriptor.Singleton<IHealthCheckPublisher, HealthCheckBackgroundService>(sp => sp.GetRequiredService<HealthCheckBackgroundService>()));
-                services.TryAdd(ServiceDescriptor.Singleton<IHealthCheckHostBreaker, HealthCheckBackgroundService>(sp => sp.GetRequiredService<HealthCheckBackgroundService>()));
-                services.AddHostedService(sp => sp.GetRequiredService<HealthCheckBackgroundService>());
+        builder.AddConsumerCircuitBreakerType<AbstractConsumerBuilder, HealthCheckCircuitBreaker>();
+        builder.PostConfigurationActions.Add(services =>
+        {
+            services.TryAddSingleton<HealthCheckBackgroundService>();
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IHealthCheckPublisher, HealthCheckBackgroundService>(sp => sp.GetRequiredService<HealthCheckBackgroundService>()));
+            services.TryAdd(ServiceDescriptor.Singleton<IHealthCheckHostBreaker, HealthCheckBackgroundService>(sp => sp.GetRequiredService<HealthCheckBackgroundService>()));
+            services.AddHostedService(sp => sp.GetRequiredService<HealthCheckBackgroundService>());
 
-                services.TryAddSingleton<HealthCheckCircuitBreaker>();
-            });
+            services.TryAddTransient<HealthCheckCircuitBreaker>();
+        });
     }
 }

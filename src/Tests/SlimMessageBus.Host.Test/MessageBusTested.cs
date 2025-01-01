@@ -81,10 +81,10 @@ public class MessageBusTested : MessageBusBase
         PendingRequestManager.CleanPendingRequests();
     }
 
-    public class MessageBusTestedConsumer(ILogger logger) : AbstractConsumer(logger, [])
+    public class MessageBusTestedConsumer(ILogger logger) : AbstractConsumer(logger, [], "path", [])
     {
-        protected override Task OnStart() => Task.CompletedTask;
+        internal protected override Task OnStart() => Task.CompletedTask;
 
-        protected override Task OnStop() => Task.CompletedTask;
+        internal protected override Task OnStop() => Task.CompletedTask;
     }
 }

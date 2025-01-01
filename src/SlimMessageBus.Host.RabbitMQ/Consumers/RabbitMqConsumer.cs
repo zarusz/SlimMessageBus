@@ -1,8 +1,10 @@
 ﻿namespace SlimMessageBus.Host.RabbitMQ;
 
+using Microsoft.Extensions.DependencyInjection;
+
 public interface IRabbitMqConsumer
 {
-    string QueueName { get; }
+    string Path { get; }
     void ConfirmMessage(BasicDeliverEventArgs transportMessage, RabbitMqMessageConfirmOptions option, IDictionary<string, object> properties, bool warnIfAlreadyConfirmed = false);
 }
 
@@ -24,7 +26,12 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
         MessageBusBase messageBus,
         MessageProvider<BasicDeliverEventArgs> messageProvider,
         IHeaderValueConverter headerValueConverter)
-        : base(loggerFactory.CreateLogger<RabbitMqConsumer>(), consumers, channel, queueName, headerValueConverter)
+        : base(loggerFactory.CreateLogger<RabbitMqConsumer>(),
+               consumers,
+               messageBus.Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(),
+               channel,
+               queueName,
+               headerValueConverter)
     {
         _acknowledgementMode = consumers.Select(x => x.GetOrDefault<RabbitMqMessageAcknowledgementMode?>(RabbitMqProperties.MessageAcknowledgementMode, messageBus.Settings)).FirstOrDefault(x => x != null)
             ?? RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade; // be default choose the safer acknowledgement mode
@@ -99,7 +106,7 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
             // Note: We want to makes sure the 1st message confirmation is handled
             if (warnIfAlreadyConfirmed)
             {
-                Logger.LogWarning("Exchange {Exchange} - Queue {Queue}: The message (delivery tag {MessageDeliveryTag}) was already confirmed, subsequent message confirmation will have no effect", transportMessage.Exchange, QueueName, transportMessage.DeliveryTag);
+                Logger.LogWarning("Exchange {Exchange} - Queue {Queue}: The message (delivery tag {MessageDeliveryTag}) was already confirmed, subsequent message confirmation will have no effect", transportMessage.Exchange, Path, transportMessage.DeliveryTag);
             }
             return;
         }
@@ -139,7 +146,7 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
         }
         else
         {
-            Logger.LogDebug("Exchange {Exchange} - Queue {Queue}: No message processor found for routing key {RoutingKey}", transportMessage.Exchange, QueueName, transportMessage.RoutingKey);
+            Logger.LogDebug("Exchange {Exchange} - Queue {Queue}: No message processor found for routing key {RoutingKey}", transportMessage.Exchange, Path, transportMessage.RoutingKey);
         }
 
         // error handling happens in the message processor

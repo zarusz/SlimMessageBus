@@ -39,9 +39,7 @@ internal sealed class HealthCheckBackgroundService : IHealthCheckPublisher, IHos
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
-    {
-        return Task.CompletedTask;
-    }
+        => Task.CompletedTask;
 
     public Task StopAsync(CancellationToken cancellationToken)
     {

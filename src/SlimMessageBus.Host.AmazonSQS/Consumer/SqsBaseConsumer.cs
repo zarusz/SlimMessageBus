@@ -13,7 +13,6 @@ public abstract class SqsBaseConsumer : AbstractConsumer
 
     public SqsMessageBus MessageBus { get; }
     protected IMessageProcessor<Message> MessageProcessor { get; }
-    protected string Path { get; }
     protected ISqsHeaderSerializer HeaderSerializer { get; }
 
     protected SqsBaseConsumer(
@@ -23,11 +22,13 @@ public abstract class SqsBaseConsumer : AbstractConsumer
         IMessageProcessor<Message> messageProcessor,
         IEnumerable<AbstractConsumerSettings> consumerSettings,
         ILogger logger)
-        : base(logger, consumerSettings)
+        : base(logger,
+               consumerSettings,
+               path,
+               messageBus.Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>())
     {
-        MessageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
         _clientProvider = clientProvider ?? throw new ArgumentNullException(nameof(clientProvider));
-        Path = path ?? throw new ArgumentNullException(nameof(path));
+        MessageBus = messageBus;
         MessageProcessor = messageProcessor ?? throw new ArgumentNullException(nameof(messageProcessor));
         HeaderSerializer = messageBus.HeaderSerializer;
         T GetSingleValue<T>(Func<AbstractConsumerSettings, T> selector, string settingName, T defaultValue = default)
