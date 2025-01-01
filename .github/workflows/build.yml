@@ -4,7 +4,7 @@ on:
   push:
     branches: ["master", "release/*", "feature/*"]
   pull_request_target:
-    branches: ["master", "devops/*"]
+    branches: ["master", "release/*", "devops/*"]
   workflow_dispatch:
 
 permissions:
