@@ -115,11 +115,6 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
             }
 
             var r = await _messageProcessor.ProcessMessage(message, messageHeaders, cancellationToken: _cancellationTokenSource.Token).ConfigureAwait(false);
-            if (r.Result == ProcessResult.Abandon)
-            {
-                throw new NotSupportedException("Transport does not support abandoning messages");
-            }
-
             if (r.Exception != null)
             {
                 // The IKafkaConsumerErrorHandler and OnMessageFaulted was called at this point by the MessageProcessor.

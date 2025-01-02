@@ -116,7 +116,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper output)
     }
 
     [Fact]
-    public async Task AbandonedMessage_DeliveredToDeadLetterQueue()
+    public async Task DeadLetterMessage_IsDeliveredTo_DeadLetterQueue()
     {
         // arrange
         var queue = QueueName();
@@ -135,8 +135,8 @@ public class ServiceBusMessageBusIt(ITestOutputHelper output)
                 return ActivatorUtilities.CreateInstance<ServiceBusAdministrationClient>(sp, connectionString);
             });
 
-            services.AddScoped(typeof(IConsumerInterceptor<>), typeof(AbandonPingMessageInterceptor<>));
-            services.AddScoped(typeof(IServiceBusConsumerErrorHandler<>), typeof(AbandonMessageConsumerErrorHandler<>));
+            services.AddScoped(typeof(IConsumerInterceptor<>), typeof(ThrowExceptionPingMessageInterceptor<>));
+            services.AddScoped(typeof(IServiceBusConsumerErrorHandler<>), typeof(DeadLetterMessageConsumerErrorHandler<>));
         });
 
         AddBusConfiguration(mbb =>
@@ -186,7 +186,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper output)
         }
     }
 
-    public class AbandonPingMessageInterceptor<T> : IConsumerInterceptor<T>
+    public class ThrowExceptionPingMessageInterceptor<T> : IConsumerInterceptor<T>
     {
         public async Task<object> OnHandle(T message, Func<Task<object>> next, IConsumerContext context)
         {
@@ -196,11 +196,11 @@ public class ServiceBusMessageBusIt(ITestOutputHelper output)
         }
     }
 
-    public class AbandonMessageConsumerErrorHandler<T> : ServiceBusConsumerErrorHandler<T>
+    public class DeadLetterMessageConsumerErrorHandler<T> : ServiceBusConsumerErrorHandler<T>
     {
-        public override Task<ConsumerErrorHandlerResult> OnHandleError(T message, IConsumerContext consumerContext, Exception exception, int attempts)
+        public override Task<ProcessResult> OnHandleError(T message, IConsumerContext consumerContext, Exception exception, int attempts)
         {
-            return Task.FromResult(Abandon());
+            return Task.FromResult(DeadLetter());
         }
     }
 

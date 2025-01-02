@@ -20,6 +20,6 @@ public interface IConsumerErrorHandler<in T>
     /// <param name="exception">Exception that occurred during message processing.</param>
     /// <param name="attempts">The number of times the message has been attempted to be processed.</param>
     /// <returns>The error handling result.</returns>
-    Task<ConsumerErrorHandlerResult> OnHandleError(T message, IConsumerContext consumerContext, Exception exception, int attempts);
+    Task<ProcessResult> OnHandleError(T message, IConsumerContext consumerContext, Exception exception, int attempts);
 }
 // doc:fragment:Interface

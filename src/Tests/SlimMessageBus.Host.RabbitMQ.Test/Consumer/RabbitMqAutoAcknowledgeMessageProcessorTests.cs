@@ -35,11 +35,25 @@ public class RabbitMqAutoAcknowledgeMessageProcessorTests
         _messageProcessorDisposableMock.Verify(x => x.Dispose(), Times.Once);
     }
 
-    [Theory]
-    [InlineData(ProcessResult.Abandon, RabbitMqMessageConfirmOptions.Nack)]
-    [InlineData(ProcessResult.Fail, RabbitMqMessageConfirmOptions.Nack)]
-    [InlineData(ProcessResult.Success, RabbitMqMessageConfirmOptions.Ack)]
-    public async Task When_ProcessMessage_Then_AutoAcknowledge(ProcessResult processResult, RabbitMqMessageConfirmOptions expected)
+    [Fact]
+    public Task When_Requeue_ThenAutoNackWithRequeue()
+    {
+        return When_ProcessMessage_Then_AutoAcknowledge(RabbitMqProcessResult.Requeue, RabbitMqMessageConfirmOptions.Nack | RabbitMqMessageConfirmOptions.Requeue);
+    }
+
+    [Fact]
+    public Task When_Failure_ThenAutoNack()
+    {
+        return When_ProcessMessage_Then_AutoAcknowledge(RabbitMqProcessResult.Failure, RabbitMqMessageConfirmOptions.Nack);
+    }
+
+    [Fact]
+    public Task When_Success_AutoAcknowledge()
+    {
+        return When_ProcessMessage_Then_AutoAcknowledge(RabbitMqProcessResult.Success, RabbitMqMessageConfirmOptions.Ack);
+    }
+
+    private async Task When_ProcessMessage_Then_AutoAcknowledge(ProcessResult processResult, RabbitMqMessageConfirmOptions expected)
     {
         // arrange
         _messageProcessorMock

@@ -99,7 +99,7 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
 
                             (result, lastResponse, lastException, var requestId) = await DoHandle(message, messageHeaders, consumerInvoker, transportMessage, consumerContextProperties, currentServiceProvider, cancellationToken).ConfigureAwait(false);
 
-                            Debug.Assert(result != ProcessResult.Retry);
+                            Debug.Assert(result is not ProcessResult.RetryState);
 
                             if (consumerInvoker.ParentSettings.ConsumerMode == ConsumerMode.RequestResponse && _responseProducer != null)
                             {

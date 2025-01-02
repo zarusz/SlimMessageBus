@@ -430,7 +430,7 @@ public class MemoryMessageBusTests
         var consumerErrorHandlerMock = new Mock<IMemoryConsumerErrorHandler<SomeRequest>>();
         consumerErrorHandlerMock
             .Setup(x => x.OnHandleError(It.IsAny<SomeRequest>(), It.IsAny<IConsumerContext>(), It.IsAny<Exception>(), It.IsAny<int>()))
-            .ReturnsAsync(() => errorHandlerHandlesError ? ConsumerErrorHandlerResult.Success : ConsumerErrorHandlerResult.Failure);
+            .ReturnsAsync(() => errorHandlerHandlesError ? ProcessResult.Success : ProcessResult.Failure);
 
         _serviceProviderMock.ProviderMock
             .Setup(x => x.GetService(typeof(IConsumer<SomeRequest>)))
@@ -478,7 +478,7 @@ public class MemoryMessageBusTests
         var consumerErrorHandlerMock = new Mock<IMemoryConsumerErrorHandler<SomeRequest>>();
         consumerErrorHandlerMock
             .Setup(x => x.OnHandleError(It.IsAny<SomeRequest>(), It.IsAny<IConsumerContext>(), It.IsAny<Exception>(), It.IsAny<int>()))
-            .ReturnsAsync(() => errorHandlerHandlesError ? ConsumerErrorHandlerResult.SuccessWithResponse(null) : ConsumerErrorHandlerResult.Failure);
+            .ReturnsAsync(() => errorHandlerHandlesError ? ProcessResult.SuccessWithResponse(null) : ProcessResult.Failure);
 
         _serviceProviderMock.ProviderMock
             .Setup(x => x.GetService(typeof(IRequestHandler<SomeRequest, SomeResponse>)))

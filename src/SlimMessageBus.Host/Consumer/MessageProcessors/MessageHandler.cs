@@ -109,19 +109,19 @@ public class MessageHandler : IMessageHandler
                 {
                     attempts++;
                     var handleErrorResult = await DoHandleError(message, messageType, messageScope, consumerContext, ex, attempts, cancellationToken).ConfigureAwait(false);
-                    if (handleErrorResult.Result == ProcessResult.Retry)
+                    if (handleErrorResult is ProcessResult.RetryState)
                     {
                         continue;
                     }
 
-                    var exception = handleErrorResult.Result != ProcessResult.Success ? ex : null;
+                    var exception = handleErrorResult is not ProcessResult.SuccessState ? ex : null;
                     var response = handleErrorResult.HasResponse ? handleErrorResult.Response : null;
-                    return (handleErrorResult.Result, response, exception, requestId);
+                    return (handleErrorResult, response, exception, requestId);
                 }
             }
             catch (Exception e)
             {
-                return (ProcessResult.Fail, null, e, requestId);
+                return (ProcessResult.Failure, null, e, requestId);
             }
             finally
             {
@@ -148,9 +148,9 @@ public class MessageHandler : IMessageHandler
         return await ExecuteConsumer(message, consumerContext, consumerInvoker, responseType).ConfigureAwait(false);
     }
 
-    private async Task<ConsumerErrorHandlerResult> DoHandleError(object message, Type messageType, IMessageScope messageScope, IConsumerContext consumerContext, Exception ex, int attempts, CancellationToken cancellationToken)
+    private async Task<ProcessResult> DoHandleError(object message, Type messageType, IMessageScope messageScope, IConsumerContext consumerContext, Exception ex, int attempts, CancellationToken cancellationToken)
     {
-        var errorHandlerResult = ConsumerErrorHandlerResult.Failure;
+        var errorHandlerResult = ProcessResult.Failure;
 
         // Use the bus provider specific error handler type first (if provided)
         var consumerErrorHandler = ConsumerErrorHandlerOpenGenericType is not null
