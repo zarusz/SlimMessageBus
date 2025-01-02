@@ -158,11 +158,6 @@ public class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
         var serviceProvider = targetBus?.ServiceProvider ?? Settings.ServiceProvider;
         // Execute the message processor in synchronous manner
         var r = await messageProcessor.ProcessMessage(transportMessage, messageHeadersReadOnly, currentServiceProvider: serviceProvider, cancellationToken: cancellationToken);
-        if (r.Result == ProcessResult.Abandon)
-        {
-            throw new NotSupportedException("Transport does not support abandoning messages");
-        }
-
         if (r.Exception != null)
         {
             // We want to pass the same exception to the sender as it happened in the handler/consumer

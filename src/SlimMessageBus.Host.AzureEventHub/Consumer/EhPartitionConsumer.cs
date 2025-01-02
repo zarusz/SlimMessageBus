@@ -42,11 +42,6 @@ public abstract class EhPartitionConsumer
 
         var headers = GetHeadersFromTransportMessage(args.Data);
         var r = await MessageProcessor.ProcessMessage(args.Data, headers, cancellationToken: args.CancellationToken).ConfigureAwait(false);
-        if (r.Result == ProcessResult.Abandon)
-        {
-            throw new NotSupportedException("Transport does not support abandoning messages");
-        }
-
         if (r.Exception != null)
         {
             // Note: The OnMessageFaulted was called at this point by the MessageProcessor.

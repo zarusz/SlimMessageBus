@@ -16,7 +16,7 @@ public class RuntimeTypeCache : IRuntimeTypeCache
     public IGenericTypeCache<Func<object, object, Func<Task<object>>, IConsumerContext, Task<object>>> ConsumerInterceptorType { get; }
     public IGenericTypeCache2<Func<object, object, object, IConsumerContext, Task>> HandlerInterceptorType { get; }
 
-    public IGenericTypeCache<Func<object, object, IConsumerContext, Exception, int, Task<ConsumerErrorHandlerResult>>> ConsumerErrorHandlerType { get; }
+    public IGenericTypeCache<Func<object, object, IConsumerContext, Exception, int, Task<ProcessResult>>> ConsumerErrorHandlerType { get; }
 
     public RuntimeTypeCache()
     {
@@ -78,7 +78,7 @@ public class RuntimeTypeCache : IRuntimeTypeCache
             typeof(IRequestHandlerInterceptor<,>),
             nameof(IRequestHandlerInterceptor<object, object>.OnHandle));
 
-        ConsumerErrorHandlerType = new GenericTypeCache<Func<object, object, IConsumerContext, Exception, int, Task<ConsumerErrorHandlerResult>>>(
+        ConsumerErrorHandlerType = new GenericTypeCache<Func<object, object, IConsumerContext, Exception, int, Task<ProcessResult>>>(
             typeof(IConsumerErrorHandler<>),
             nameof(IConsumerErrorHandler<object>.OnHandleError));
     }

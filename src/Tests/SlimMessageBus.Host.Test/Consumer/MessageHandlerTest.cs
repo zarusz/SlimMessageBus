@@ -102,7 +102,7 @@ public class MessageHandlerTest
 
         consumerErrorHandlerMock
             .Setup(x => x.OnHandleError(someMessage, It.IsAny<IConsumerContext>(), someException, It.IsAny<int>()))
-            .ReturnsAsync(() => errorHandlerWasAbleToHandle ? ConsumerErrorHandlerResult.Success : ConsumerErrorHandlerResult.Failure);
+            .ReturnsAsync(() => errorHandlerWasAbleToHandle ? ProcessResult.Success : ProcessResult.Failure);
 
         if (errorHandlerRegistered)
         {
@@ -177,7 +177,7 @@ public class MessageHandlerTest
 
         consumerErrorHandlerMock
             .Setup(x => x.OnHandleError(someMessage, It.IsAny<IConsumerContext>(), someException, It.IsAny<int>()))
-            .ReturnsAsync(() => ConsumerErrorHandlerResult.Retry);
+            .ReturnsAsync(() => ProcessResult.Retry);
 
         busMock.ServiceProviderMock
             .Setup(x => x.GetService(typeof(IConsumerErrorHandler<SomeMessage>)))

@@ -13,7 +13,6 @@ internal sealed class RabbitMqAutoAcknowledgeMessageProcessor : IMessageProcesso
     private readonly ILogger _logger;
     private readonly RabbitMqMessageAcknowledgementMode _acknowledgementMode;
     private readonly IRabbitMqConsumer _consumer;
-    private readonly bool _requeueOnFailure;
 
     public RabbitMqAutoAcknowledgeMessageProcessor(
         IMessageProcessor<BasicDeliverEventArgs> target,
@@ -25,8 +24,6 @@ internal sealed class RabbitMqAutoAcknowledgeMessageProcessor : IMessageProcesso
         _logger = logger;
         _acknowledgementMode = acknowledgementMode;
         _consumer = consumer;
-
-        _requeueOnFailure = _target.ConsumerSettings?.All(x => x.GetOrDefault(RabbitMqProperties.ReqeueOnFailure, false)) ?? false;
     }
 
     public IReadOnlyCollection<AbstractConsumerSettings> ConsumerSettings => _target.ConsumerSettings;
@@ -47,10 +44,9 @@ internal sealed class RabbitMqAutoAcknowledgeMessageProcessor : IMessageProcesso
             // Acknowledge after processing
             var confirmOption = r.Result switch
             {
-                ProcessResult.Abandon => RabbitMqMessageConfirmOptions.Nack,                                                               // NAck after processing when message fails with non-transient exception (unless the user already acknowledged in any way).
-                ProcessResult.Fail when (_requeueOnFailure) => RabbitMqMessageConfirmOptions.Nack | RabbitMqMessageConfirmOptions.Requeue, // Re-queue after processing on transient failure
-                ProcessResult.Fail when (!_requeueOnFailure) => RabbitMqMessageConfirmOptions.Nack,                                        // Fail after processing failure (no re-queue)
-                ProcessResult.Success => RabbitMqMessageConfirmOptions.Ack,                                                                // Acknowledge after processing
+                RabbitMqProcessResult.RequeueState => RabbitMqMessageConfirmOptions.Nack | RabbitMqMessageConfirmOptions.Requeue, // Re-queue after processing on transient failure
+                ProcessResult.FailureState => RabbitMqMessageConfirmOptions.Nack,                                                            // Fail after processing failure (no re-queue)
+                ProcessResult.SuccessState => RabbitMqMessageConfirmOptions.Ack,                                                             // Acknowledge after processing
                 _ => throw new NotImplementedException()
             };
 

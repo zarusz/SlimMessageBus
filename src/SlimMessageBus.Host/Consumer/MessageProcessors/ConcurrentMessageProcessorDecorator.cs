@@ -58,7 +58,7 @@ public sealed class ConcurrentMessageProcessorDecorator<TMessage> : IMessageProc
         {
             // report the last exception
             _lastException = null;
-            return new(ProcessResult.Fail, e, _lastExceptionSettings, null);
+            return new(ProcessResult.Failure, e, _lastExceptionSettings, null);
         }
 
         Interlocked.Increment(ref _pendingCount);

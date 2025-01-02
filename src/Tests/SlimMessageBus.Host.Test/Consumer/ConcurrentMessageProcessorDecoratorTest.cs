@@ -147,7 +147,7 @@ public class ConcurrentMessageProcessorDecoratorTest
 
         _messageProcessorMock
             .Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IServiceProvider>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ProcessMessageResult(ProcessResult.Fail, exception, null, null));
+            .ReturnsAsync(new ProcessMessageResult(ProcessResult.Failure, exception, null, null));
 
         var msg = new SomeMessage();
         var msgHeaders = new Dictionary<string, object>();

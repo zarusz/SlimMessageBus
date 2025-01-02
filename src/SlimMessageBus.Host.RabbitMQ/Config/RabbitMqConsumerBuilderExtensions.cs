@@ -118,19 +118,4 @@ public static class RabbitMqConsumerBuilderExtensions
         builder.ConsumerSettings.Properties[RabbitMqProperties.MessageAcknowledgementMode] = mode;
         return builder;
     }
-
-    /// <summary>
-    /// <para>Requeues a message on failure. Abandoned messages will not be requeued.</para>
-    /// <para>This may lead to an infinite loop if the reason for the failure is not transient. Responsibility lies with the developer to ensure that this flow does not occur.</para>
-    /// </summary>
-    /// <typeparam name="TConsumerBuilder"></typeparam>
-    /// <param name="builder"></param>
-    /// <param name="mode"></param>
-    /// <returns></returns>
-    public static TConsumerBuilder RequeueOnFailure<TConsumerBuilder>(this TConsumerBuilder builder, bool state = true)
-       where TConsumerBuilder : AbstractConsumerBuilder
-    {
-        builder.ConsumerSettings.Properties[RabbitMqProperties.ReqeueOnFailure] = state;
-        return builder;
-    }
 }

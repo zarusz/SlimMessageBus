@@ -171,19 +171,19 @@ public abstract class AsbBaseConsumer : AbstractConsumer
         var r = await MessageProcessor.ProcessMessage(message, message.ApplicationProperties, cancellationToken: token).ConfigureAwait(false);
         switch (r.Result)
         {
-            case ProcessResult.Success:
+            case ProcessResult.SuccessState:
                 // Complete the message so that it is not received again.
                 // This can be done only if the subscriptionClient is created in ReceiveMode.PeekLock mode (which is the default).
                 Logger.LogDebug("Complete message - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
                 await completeMessage(message, token).ConfigureAwait(false);
                 return;
 
-            case ProcessResult.Abandon:
+            case ServiceBusProcessResult.DeadLetterState:
                 Logger.LogError(r.Exception, "Dead letter message - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
                 await deadLetterMessage(message, r.Exception?.GetType().Name ?? string.Empty, r.Exception?.Message ?? string.Empty, token).ConfigureAwait(false);
                 return;
 
-            case ProcessResult.Fail:
+            case ProcessResult.FailureState:
                 var messageProperties = new Dictionary<string, object>();
                 {
                     // Set the exception message

@@ -47,7 +47,7 @@ public class ResponseMessageProcessor<TTransportMessage> : ResponseMessageProces
             ex = e;
         }
 
-        var result = ex == null ? ProcessResult.Success : ProcessResult.Fail;
+        var result = ex == null ? ProcessResult.Success : ProcessResult.Failure;
         return Task.FromResult(new ProcessMessageResult(result, ex, _requestResponseSettings, null));
     }
 

@@ -371,7 +371,7 @@ public static class FakeExceptionUtil
 /// <typeparam name="T"></typeparam>
 public class CustomRabbitMqConsumerErrorHandler<T> : IRabbitMqConsumerErrorHandler<T>
 {
-    public Task<ConsumerErrorHandlerResult> OnHandleError(T message, IConsumerContext consumerContext, Exception exception, int attempts)
+    public Task<ProcessResult> OnHandleError(T message, IConsumerContext consumerContext, Exception exception, int attempts)
     {
         // Check if this is consumer context for RabbitMQ
         var isRabbitMqContext = consumerContext.GetTransportMessage() != null;
@@ -390,7 +390,7 @@ public class CustomRabbitMqConsumerErrorHandler<T> : IRabbitMqConsumerErrorHandl
         }
 
         return Task.FromResult(isRabbitMqContext
-            ? ConsumerErrorHandlerResult.Success
-            : ConsumerErrorHandlerResult.Failure);
+            ? ProcessResult.Success
+            : ProcessResult.Failure);
     }
 }

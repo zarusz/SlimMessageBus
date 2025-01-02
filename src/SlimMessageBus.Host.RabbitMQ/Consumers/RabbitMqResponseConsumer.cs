@@ -3,7 +3,6 @@
 public class RabbitMqResponseConsumer : AbstractRabbitMqConsumer
 {
     private readonly IMessageProcessor<BasicDeliverEventArgs> _messageProcessor;
-    private readonly bool _requeueOnFailure;
 
     protected override RabbitMqMessageAcknowledgementMode AcknowledgementMode => RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade;
 
@@ -19,7 +18,6 @@ public class RabbitMqResponseConsumer : AbstractRabbitMqConsumer
         : base(loggerFactory.CreateLogger<RabbitMqResponseConsumer>(), channel, queueName, headerValueConverter)
     {
         _messageProcessor = new ResponseMessageProcessor<BasicDeliverEventArgs>(loggerFactory, requestResponseSettings, messageProvider, pendingRequestStore, currentTimeProvider);
-        _requeueOnFailure = requestResponseSettings.GetOrDefault(RabbitMqProperties.ReqeueOnFailure, false);
     }
 
     protected override async Task<Exception> OnMessageReceived(Dictionary<string, object> messageHeaders, BasicDeliverEventArgs transportMessage)
@@ -27,15 +25,15 @@ public class RabbitMqResponseConsumer : AbstractRabbitMqConsumer
         var r = await _messageProcessor.ProcessMessage(transportMessage, messageHeaders: messageHeaders, cancellationToken: CancellationToken);
         switch (r.Result)
         {
-            case ProcessResult.Abandon:
+            case RabbitMqProcessResult.RequeueState:
+                NackMessage(transportMessage, requeue: true);
+                break;
+
+            case ProcessResult.FailureState:
                 NackMessage(transportMessage, requeue: false);
                 break;
 
-            case ProcessResult.Fail:
-                NackMessage(transportMessage, requeue: _requeueOnFailure);
-                break;
-
-            case ProcessResult.Success:
+            case ProcessResult.SuccessState:
                 AckMessage(transportMessage);
                 break;
 
