@@ -1,4 +1,7 @@
 ﻿namespace SlimMessageBus.Host.RabbitMQ;
+
+using Microsoft.Extensions.DependencyInjection;
+
 public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IRabbitMqChannel
 {
     private readonly ILogger _logger;
@@ -51,6 +54,7 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
         if (Settings.RequestResponse != null)
         {
             AddConsumer(new RabbitMqResponseConsumer(LoggerFactory,
+                interceptors: Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(),
                 channel: this,
                 queueName: Settings.RequestResponse.GetQueueName(),
                 Settings.RequestResponse,

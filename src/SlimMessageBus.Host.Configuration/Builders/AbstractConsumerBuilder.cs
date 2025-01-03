@@ -1,10 +1,12 @@
 namespace SlimMessageBus.Host;
 
-public abstract class AbstractConsumerBuilder : IAbstractConsumerBuilder, IConsumerBuilder
+public abstract class AbstractConsumerBuilder : IAbstractConsumerBuilder, IConsumerBuilder, IHasPostConfigurationActions
 {
     public MessageBusSettings Settings { get; }
 
     public ConsumerSettings ConsumerSettings { get; }
+
+    public IList<Action<IServiceCollection>> PostConfigurationActions { get; } = [];
 
     AbstractConsumerSettings IAbstractConsumerBuilder.ConsumerSettings => ConsumerSettings;
 
@@ -16,6 +18,7 @@ public abstract class AbstractConsumerBuilder : IAbstractConsumerBuilder, IConsu
 
         ConsumerSettings = new ConsumerSettings
         {
+            MessageBusSettings = settings,
             MessageType = messageType,
             Path = path,
         };

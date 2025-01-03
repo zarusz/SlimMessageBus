@@ -189,7 +189,7 @@ public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTes
     [InlineData(RabbitMqMessageAcknowledgementMode.AckMessageBeforeProcessing)]
     public async Task BasicReqRespOnTopic(RabbitMqMessageAcknowledgementMode acknowledgementMode)
     {
-        var topic = "test-echo";
+        const string topic = "test-echo";
 
         AddBusConfiguration(mbb =>
         {

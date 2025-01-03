@@ -9,7 +9,7 @@ public interface IConsumerControl
     Task Start();
 
     /// <summary>
-    /// Indicated whether the consumers are started.
+    /// Indicates whether the consumers are started.
     /// </summary>
     bool IsStarted { get; }
 

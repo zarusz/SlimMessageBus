@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Redis;
 
+using Microsoft.Extensions.DependencyInjection;
+
 public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
 {
     private readonly ILogger _logger;
@@ -90,10 +92,12 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
 
         object MessageProvider(Type messageType, MessageWithHeaders transportMessage) => Serializer.Deserialize(messageType, transportMessage.Payload);
 
-        void AddTopicConsumer(string topic, ISubscriber subscriber, IMessageProcessor<MessageWithHeaders> messageProcessor)
+        void AddTopicConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, string topic, ISubscriber subscriber, IMessageProcessor<MessageWithHeaders> messageProcessor)
         {
             var consumer = new RedisTopicConsumer(
                 LoggerFactory.CreateLogger<RedisTopicConsumer>(),
+                consumerSettings,
+                interceptors: Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(),
                 topic,
                 subscriber,
                 messageProcessor,
@@ -128,7 +132,7 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
             _logger.LogInformation("Creating consumer for redis {PathKind} {Path}", GetPathKindString(pathKind), path);
             if (pathKind == PathKind.Topic)
             {
-                AddTopicConsumer(path, subscriber, processor);
+                AddTopicConsumer(consumerSettings, path, subscriber, processor);
             }
             else
             {
@@ -141,7 +145,7 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
             _logger.LogInformation("Creating response consumer for redis {PathKind} {Path}", GetPathKindString(Settings.RequestResponse.PathKind), Settings.RequestResponse.Path);
             if (Settings.RequestResponse.PathKind == PathKind.Topic)
             {
-                AddTopicConsumer(Settings.RequestResponse.Path, subscriber, new ResponseMessageProcessor<MessageWithHeaders>(LoggerFactory, Settings.RequestResponse, MessageProvider, PendingRequestStore, CurrentTimeProvider));
+                AddTopicConsumer([Settings.RequestResponse], Settings.RequestResponse.Path, subscriber, new ResponseMessageProcessor<MessageWithHeaders>(LoggerFactory, Settings.RequestResponse, MessageProvider, PendingRequestStore, CurrentTimeProvider));
             }
             else
             {
@@ -151,7 +155,7 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
 
         if (queues.Count > 0)
         {
-            AddConsumer(new RedisListCheckerConsumer(LoggerFactory.CreateLogger<RedisListCheckerConsumer>(), Database, ProviderSettings.QueuePollDelay, ProviderSettings.QueuePollMaxIdle, queues, ProviderSettings.EnvelopeSerializer));
+            AddConsumer(new RedisListCheckerConsumer(LoggerFactory.CreateLogger<RedisListCheckerConsumer>(), Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(), Database, ProviderSettings.QueuePollDelay, ProviderSettings.QueuePollMaxIdle, queues, ProviderSettings.EnvelopeSerializer));
         }
     }
 

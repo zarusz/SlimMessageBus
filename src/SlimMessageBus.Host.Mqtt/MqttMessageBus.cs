@@ -3,6 +3,8 @@
 using System.Collections.Generic;
 using System.Threading;
 
+using Microsoft.Extensions.DependencyInjection;
+
 using MQTTnet.Extensions.ManagedClient;
 
 public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
@@ -52,10 +54,10 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
 
         object MessageProvider(Type messageType, MqttApplicationMessage transportMessage) => Serializer.Deserialize(messageType, transportMessage.PayloadSegment.Array);
 
-        void AddTopicConsumer(string topic, IMessageProcessor<MqttApplicationMessage> messageProcessor)
+        void AddTopicConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, string topic, IMessageProcessor<MqttApplicationMessage> messageProcessor)
         {
             _logger.LogInformation("Creating consumer for {Path}", topic);
-            var consumer = new MqttTopicConsumer(LoggerFactory.CreateLogger<MqttTopicConsumer>(), topic, messageProcessor);
+            var consumer = new MqttTopicConsumer(LoggerFactory.CreateLogger<MqttTopicConsumer>(), consumerSettings, interceptors: Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(), topic, messageProcessor);
             AddConsumer(consumer);
         }
 
@@ -69,7 +71,7 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
                 responseProducer: this,
                 consumerErrorHandlerOpenGenericType: typeof(IMqttConsumerErrorHandler<>));
 
-            AddTopicConsumer(path, processor);
+            AddTopicConsumer(consumerSettings, path, processor);
         }
 
         if (Settings.RequestResponse != null)
@@ -81,10 +83,10 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
                 PendingRequestStore,
                 CurrentTimeProvider);
 
-            AddTopicConsumer(Settings.RequestResponse.Path, processor);
+            AddTopicConsumer([Settings.RequestResponse], Settings.RequestResponse.Path, processor);
         }
 
-        var topics = Consumers.Cast<MqttTopicConsumer>().Select(x => new MqttTopicFilterBuilder().WithTopic(x.Topic).Build()).ToList();
+        var topics = Consumers.Cast<MqttTopicConsumer>().Select(x => new MqttTopicFilterBuilder().WithTopic(x.Path).Build()).ToList();
         await _mqttClient.SubscribeAsync(topics).ConfigureAwait(false);
     }
 
@@ -101,7 +103,7 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
 
     private Task OnMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs arg)
     {
-        var consumer = Consumers.Cast<MqttTopicConsumer>().FirstOrDefault(x => x.Topic == arg.ApplicationMessage.Topic);
+        var consumer = Consumers.Cast<MqttTopicConsumer>().FirstOrDefault(x => x.Path == arg.ApplicationMessage.Topic);
         if (consumer != null)
         {
             var headers = new Dictionary<string, object>();

@@ -29,6 +29,8 @@ public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBui
     public IList<Action<IServiceCollection>> PostConfigurationActions { get; } = [];
 
 
+    protected IList<IHasPostConfigurationActions> ConsumerPostConfigurationActions { get; } = [];
+
     protected MessageBusBuilder()
     {
     }
@@ -39,6 +41,14 @@ public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBui
         Children = other.Children;
         BusFactory = other.BusFactory;
         PostConfigurationActions = other.PostConfigurationActions;
+        ConsumerPostConfigurationActions = other.ConsumerPostConfigurationActions;
+    }
+
+    public IEnumerable<Action<IServiceCollection>> GetPostConfigurationActions()
+    {
+        return PostConfigurationActions
+            .Concat(ConsumerPostConfigurationActions.SelectMany(x => x.PostConfigurationActions))
+            .Concat(Children.Values.SelectMany(x => x.PostConfigurationActions.Concat(x.ConsumerPostConfigurationActions.SelectMany(z => z.PostConfigurationActions))));
     }
 
     public static MessageBusBuilder Create() => new();
@@ -101,6 +111,9 @@ public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBui
             // Apply default consumer type of not set
             b.WithConsumer<IConsumer<TMessage>>();
         }
+
+        ConsumerPostConfigurationActions.Add(b);
+
         return this;
     }
 
@@ -114,7 +127,11 @@ public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBui
     {
         if (builder == null) throw new ArgumentNullException(nameof(builder));
 
-        builder(new ConsumerBuilder<object>(Settings, messageType));
+        var b = new ConsumerBuilder<object>(Settings, messageType);
+        builder(b);
+
+        ConsumerPostConfigurationActions.Add(b);
+
         return this;
     }
 
@@ -138,6 +155,8 @@ public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBui
             b.WithHandler<IRequestHandler<TRequest, TResponse>>();
         }
 
+        ConsumerPostConfigurationActions.Add(b);
+
         return this;
     }
 
@@ -160,6 +179,8 @@ public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBui
             b.WithHandler<IRequestHandler<TRequest>>();
         }
 
+        ConsumerPostConfigurationActions.Add(b);
+
         return this;
     }
 
@@ -176,7 +197,11 @@ public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBui
         if (responseType == null) throw new ArgumentNullException(nameof(responseType));
         if (builder == null) throw new ArgumentNullException(nameof(builder));
 
-        builder(new HandlerBuilder<object, object>(Settings, requestType, responseType));
+        var b = new HandlerBuilder<object, object>(Settings, requestType, responseType);
+        builder(b);
+
+        ConsumerPostConfigurationActions.Add(b);
+
         return this;
     }
 
@@ -192,7 +217,11 @@ public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBui
         if (requestType == null) throw new ArgumentNullException(nameof(requestType));
         if (builder == null) throw new ArgumentNullException(nameof(builder));
 
-        builder(new HandlerBuilder<object>(Settings, requestType));
+        var b = new HandlerBuilder<object>(Settings, requestType);
+        builder(b);
+
+        ConsumerPostConfigurationActions.Add(b);
+
         return this;
     }
 

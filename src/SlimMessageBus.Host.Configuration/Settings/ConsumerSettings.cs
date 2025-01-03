@@ -2,15 +2,15 @@ namespace SlimMessageBus.Host;
 
 public class ConsumerSettings : AbstractConsumerSettings, IMessageTypeConsumerInvokerSettings
 {
-    private Type messageType;
+    private Type _messageType;
 
     /// <inheritdoc/>
     public Type MessageType
     {
-        get => messageType;
+        get => _messageType;
         set
         {
-            messageType = value;
+            _messageType = value;
             CalculateResponseType();
         }
     }
@@ -18,10 +18,11 @@ public class ConsumerSettings : AbstractConsumerSettings, IMessageTypeConsumerIn
     private void CalculateResponseType()
     {
         // Try to get T from IRequest<T>
-        ResponseType = messageType.GetInterfaces()
+        ResponseType = _messageType.GetInterfaces()
             .SingleOrDefault(i => i.GetTypeInfo().IsGenericType && i.GetTypeInfo().GetGenericTypeDefinition() == typeof(IRequest<>))?.GetGenericArguments()[0];
     }
 
+    /// <summary>
     /// Type of consumer that is configured (subscriber or request handler).
     /// </summary>
     public ConsumerMode ConsumerMode { get; set; }
