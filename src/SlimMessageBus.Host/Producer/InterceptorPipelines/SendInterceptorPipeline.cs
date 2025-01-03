@@ -2,13 +2,15 @@
 
 internal class SendInterceptorPipeline<TResponse> : ProducerInterceptorPipeline<SendContext>
 {
+    private readonly MessageBusBase _bus;
     private readonly Func<object, object, object, IProducerContext, Task> _sendInterceptorFunc;
     private IEnumerator<object> _sendInterceptorsEnumerator;
     private bool _sendInterceptorsVisited = false;
 
     public SendInterceptorPipeline(MessageBusBase bus, object message, ProducerSettings producerSettings, IMessageBusTarget targetBus, SendContext context, IEnumerable<object> producerInterceptors, IEnumerable<object> sendInterceptors)
-        : base(bus, message, producerSettings, targetBus, context, producerInterceptors)
+        : base(bus.RuntimeTypeCache, message, producerSettings, targetBus, context, producerInterceptors)
     {
+        _bus = bus;
         _sendInterceptorFunc = bus.RuntimeTypeCache.SendInterceptorType[(message.GetType(), typeof(TResponse))];
         _sendInterceptorsVisited = sendInterceptors is null;
         _sendInterceptorsEnumerator = sendInterceptors?.GetEnumerator();

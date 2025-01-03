@@ -161,6 +161,70 @@ public static class AsbConsumerBuilderExtensions
     }
 
     /// <summary>
+    /// Adds a named correlation filter to the subscription (Azure Service Bus). Setting relevant only if topology provisioning enabled.
+    /// </summary>
+    /// <typeparam name="TConsumerBuilder"></typeparam>
+    /// <param name="builder"></param>
+    /// <param name="ruleName">The name of the filter</param>
+    /// <param name="correlationId">Value to be applied as the 'CorrelationId' filter.<param>
+    /// <param name="messageId">Value to be applied as the 'MessageId' filter.<param>
+    /// <param name="to">Value to be applied as the 'To' filter.<param>
+    /// <param name="replyTo">Value to be applied as the 'ReplyTo' filter.<param>
+    /// <param name="subject">Value to be applied as the 'Subject' filter.<param>
+    /// <param name="sessionId">Value to be applied as the 'SessionId' filter.<param>
+    /// <param name="replyToSessionId">Value to be applied as the 'ReplyToSessionId' filter.<param>
+    /// <param name="contentType">Value to be applied as the 'ContentType' filter.<param></param>
+    /// <param name="applicationProperties">Filters to be applied to application specific properties.</param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentNullException"></exception>
+    public static TConsumerBuilder SubscriptionCorrelationFilter<TConsumerBuilder>(
+        this TConsumerBuilder builder,
+        string ruleName = "default",
+        string correlationId = "",
+        string messageId = "",
+        string to = "",
+        string replyTo = "",
+        string subject = "",
+        string sessionId = "",
+        string replyToSessionId = "",
+        string contentType = "",
+        IDictionary<string, object> applicationProperties = null)
+        where TConsumerBuilder : IAbstractConsumerBuilder
+    {
+        if (builder is null) throw new ArgumentNullException(nameof(builder));
+
+        if (string.IsNullOrWhiteSpace(correlationId)
+            && string.IsNullOrWhiteSpace(messageId)
+            && string.IsNullOrWhiteSpace(to)
+            && string.IsNullOrWhiteSpace(replyTo)
+            && string.IsNullOrWhiteSpace(subject)
+            && string.IsNullOrWhiteSpace(sessionId)
+            && string.IsNullOrWhiteSpace(replyToSessionId)
+            && string.IsNullOrWhiteSpace(contentType)
+            && (applicationProperties == null || applicationProperties?.Count == 0))
+        {
+            throw new ArgumentException("At least one property must contain a value to use as a filter");
+        }
+
+        var filterByName = builder.ConsumerSettings.GetRules(createIfNotExists: true);
+        filterByName[ruleName] = new SubscriptionCorrelationRule
+        {
+            Name = ruleName,
+            CorrelationId = correlationId,
+            MessageId = messageId,
+            To = to,
+            ReplyTo = replyTo,
+            Subject = subject,
+            SessionId = sessionId,
+            ReplyToSessionId = replyToSessionId,
+            ContentType = contentType,
+            ApplicationProperties = applicationProperties
+        };
+
+        return builder;
+    }
+
+    /// <summary>
     /// <see cref="CreateQueueOptions"/> when the ASB queue does not exist and needs to be created
     /// </summary>
     /// <typeparam name="TConsumerBuilder"></typeparam>

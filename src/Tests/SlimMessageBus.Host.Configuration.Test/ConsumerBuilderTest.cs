@@ -2,11 +2,13 @@
 
 public class ConsumerBuilderTest
 {
-    private readonly MessageBusSettings messageBusSettings;
+    private readonly MessageBusSettings _messageBusSettings;
+    private readonly string _path;
 
     public ConsumerBuilderTest()
     {
-        messageBusSettings = new MessageBusSettings();
+        _messageBusSettings = new MessageBusSettings();
+        _path = "topic";
     }
 
     [Fact]
@@ -15,7 +17,7 @@ public class ConsumerBuilderTest
         // arrange
 
         // act
-        var subject = new ConsumerBuilder<SomeMessage>(messageBusSettings);
+        var subject = new ConsumerBuilder<SomeMessage>(_messageBusSettings);
 
         // assert
         subject.ConsumerSettings.ConsumerMode.Should().Be(ConsumerMode.Consumer);
@@ -23,43 +25,51 @@ public class ConsumerBuilderTest
         subject.ConsumerSettings.MessageType.Should().Be(typeof(SomeMessage));
     }
 
-    [Fact]
-    public void Given_Path_Set_When_Configured_Then_Path_ProperlySet()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Given_Path_Set_When_Configured_Then_Path_ProperlySet(bool delegatePassed)
     {
         // arrange
-        var path = "topic";
+        var pathDelegate = new Mock<Action<ConsumerBuilder<SomeMessage>>>();
 
         // act
-        var subject = new ConsumerBuilder<SomeMessage>(messageBusSettings)
-            .Path(path);
+        var subject = new ConsumerBuilder<SomeMessage>(_messageBusSettings).Path(_path, delegatePassed ? pathDelegate.Object : null);
 
         // assert
-        subject.ConsumerSettings.Path.Should().Be(path);
+        subject.ConsumerSettings.Path.Should().Be(_path);
         subject.ConsumerSettings.PathKind.Should().Be(PathKind.Topic);
+        if (delegatePassed)
+        {
+            pathDelegate.Verify(x => x.Invoke(subject), Times.Once);
+        }
     }
 
-    [Fact]
-    public void Given_Topic_Set_When_Configured_Then_Topic_ProperlySet()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Given_Topic_Set_When_Configured_Then_Topic_ProperlySet(bool delegatePassed)
     {
         // arrange
-        var topic = "topic";
+        var pathDelegate = new Mock<Action<ConsumerBuilder<SomeMessage>>>();
 
         // act
-        var subject = new ConsumerBuilder<SomeMessage>(messageBusSettings)
-            .Topic(topic);
+        var subject = new ConsumerBuilder<SomeMessage>(_messageBusSettings).Topic(_path, delegatePassed ? pathDelegate.Object : null);
 
         // assert
-        subject.ConsumerSettings.Path.Should().Be(topic);
+        subject.ConsumerSettings.Path.Should().Be(_path);
         subject.ConsumerSettings.PathKind.Should().Be(PathKind.Topic);
+        if (delegatePassed)
+        {
+            pathDelegate.Verify(x => x.Invoke(subject), Times.Once);
+        }
     }
 
     [Fact]
     public void Given_Instances_Set_When_Configured_Then_Instances_ProperlySet()
     {
-        // arrange
-
         // act
-        var subject = new ConsumerBuilder<SomeMessage>(messageBusSettings)
+        var subject = new ConsumerBuilder<SomeMessage>(_messageBusSettings)
             .Instances(3);
 
         // assert
@@ -70,14 +80,12 @@ public class ConsumerBuilderTest
     public void Given_BaseMessageType_And_ItsHierarchy_When_WithConsumer_ForTheBaseTypeAndDerivedTypes_Then_TheConsumerSettingsAreCorrect()
     {
         // arrange
-        var topic = "topic";
-
         var consumerContextMock = new Mock<IConsumerContext>();
         consumerContextMock.SetupGet(x => x.CancellationToken).Returns(new CancellationToken());
 
         // act
-        var subject = new ConsumerBuilder<BaseMessage>(messageBusSettings)
-            .Topic(topic)
+        var subject = new ConsumerBuilder<BaseMessage>(_messageBusSettings)
+            .Topic(_path)
             .WithConsumer<BaseMessageConsumer>()
             .WithConsumer<DerivedAMessageConsumer, DerivedAMessage>()
             .WithConsumer<DerivedBMessageConsumer, DerivedBMessage>()
@@ -123,17 +131,69 @@ public class ConsumerBuilderTest
     }
 
     [Fact]
-    public void Given_BaseRequestType_And_ItsHierarchy_When_WithConsumer_ForTheBaseTypeAndDerivedTypes_Then_TheConsumerSettingsAreCorrect()
+    public void Given_BaseMessageType_And_ItsHierarchy_And_ConsumerOfContext_When_WithConsumer_ForTheBaseTypeAndDerivedTypes_Then_TheConsumerSettingsAreCorrect()
     {
         // arrange
-        var topic = "topic";
-
         var consumerContextMock = new Mock<IConsumerContext>();
         consumerContextMock.SetupGet(x => x.CancellationToken).Returns(new CancellationToken());
 
         // act
-        var subject = new ConsumerBuilder<BaseRequest>(messageBusSettings)
-            .Topic(topic)
+        var subject = new ConsumerBuilder<BaseMessage>(_messageBusSettings)
+            .Topic(_path)
+            .WithConsumerOfContext<BaseMessageConsumerOfContext>()
+            .WithConsumerOfContext<DerivedAMessageConsumerOfContext, DerivedAMessage>()
+            .WithConsumerOfContext<DerivedBMessageConsumerOfContext, DerivedBMessage>()
+            .WithConsumerOfContext<Derived2AMessageConsumerOfContext, Derived2AMessage>();
+
+        // assert
+        subject.ConsumerSettings.ResponseType.Should().BeNull();
+
+        subject.ConsumerSettings.ConsumerMode.Should().Be(ConsumerMode.Consumer);
+        subject.ConsumerSettings.ConsumerType.Should().Be(typeof(BaseMessageConsumerOfContext));
+        Func<Task> call = () => subject.ConsumerSettings.ConsumerMethod(new BaseMessageConsumerOfContext(), new BaseMessage(), consumerContextMock.Object, consumerContextMock.Object.CancellationToken);
+        call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(BaseMessage));
+
+        subject.ConsumerSettings.Invokers.Count.Should().Be(4);
+
+        var consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(BaseMessage));
+        consumerInvokerSettings.MessageType.Should().Be(typeof(BaseMessage));
+        consumerInvokerSettings.ConsumerType.Should().Be(typeof(BaseMessageConsumerOfContext));
+        consumerInvokerSettings.ParentSettings.Should().BeSameAs(subject.ConsumerSettings);
+        call = () => consumerInvokerSettings.ConsumerMethod(new BaseMessageConsumerOfContext(), new BaseMessage(), consumerContextMock.Object, consumerContextMock.Object.CancellationToken);
+        call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(BaseMessage));
+
+        consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(DerivedAMessage));
+        consumerInvokerSettings.MessageType.Should().Be(typeof(DerivedAMessage));
+        consumerInvokerSettings.ConsumerType.Should().Be(typeof(DerivedAMessageConsumerOfContext));
+        consumerInvokerSettings.ParentSettings.Should().BeSameAs(subject.ConsumerSettings);
+        call = () => consumerInvokerSettings.ConsumerMethod(new DerivedAMessageConsumerOfContext(), new DerivedAMessage(), consumerContextMock.Object, consumerContextMock.Object.CancellationToken);
+        call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(DerivedAMessage));
+
+        consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(DerivedBMessage));
+        consumerInvokerSettings.MessageType.Should().Be(typeof(DerivedBMessage));
+        consumerInvokerSettings.ConsumerType.Should().Be(typeof(DerivedBMessageConsumerOfContext));
+        consumerInvokerSettings.ParentSettings.Should().BeSameAs(subject.ConsumerSettings);
+        call = () => consumerInvokerSettings.ConsumerMethod(new DerivedBMessageConsumerOfContext(), new DerivedBMessage(), consumerContextMock.Object, consumerContextMock.Object.CancellationToken);
+        call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(DerivedBMessage));
+
+        consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(Derived2AMessage));
+        consumerInvokerSettings.MessageType.Should().Be(typeof(Derived2AMessage));
+        consumerInvokerSettings.ConsumerType.Should().Be(typeof(Derived2AMessageConsumerOfContext));
+        consumerInvokerSettings.ParentSettings.Should().BeSameAs(subject.ConsumerSettings);
+        call = () => consumerInvokerSettings.ConsumerMethod(new Derived2AMessageConsumerOfContext(), new Derived2AMessage(), consumerContextMock.Object, consumerContextMock.Object.CancellationToken);
+        call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(Derived2AMessage));
+    }
+
+    [Fact]
+    public void Given_BaseRequestType_And_ItsHierarchy_When_WithConsumer_ForTheBaseTypeAndDerivedTypes_Then_TheConsumerSettingsAreCorrect()
+    {
+        // arrange
+        var consumerContextMock = new Mock<IConsumerContext>();
+        consumerContextMock.SetupGet(x => x.CancellationToken).Returns(new CancellationToken());
+
+        // act
+        var subject = new ConsumerBuilder<BaseRequest>(_messageBusSettings)
+            .Topic(_path)
             .WithConsumer<BaseRequestConsumer>()
             .WithConsumer<DerivedRequestConsumer, DerivedRequest>();
 
@@ -162,6 +222,25 @@ public class ConsumerBuilderTest
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(DerivedRequest));
     }
 
+    [Fact]
+    public void When_WithConsumer_Given_CustomDelegateOverloadUsed_Then_ConsumerMethodSet()
+    {
+        // arrange
+        var message = new SomeMessage();
+        var consumerMock = new Mock<IConsumer<SomeMessage>>();
+        var subject = new ConsumerBuilder<SomeMessage>(_messageBusSettings);
+        var ct = new CancellationToken();
+
+        // act
+        subject.WithConsumer<IConsumer<SomeMessage>>((c, m, context, ct) => c.OnHandle(m, ct));
+
+        // assert
+        subject.ConsumerSettings.Invokers.Count.Should().Be(1);
+        subject.ConsumerSettings.ConsumerMethod(consumerMock.Object, message, null, ct);
+
+        consumerMock.Verify(x => x.OnHandle(message, ct), Times.Once);
+    }
+
     public class BaseMessage
     {
     }
@@ -180,22 +259,42 @@ public class ConsumerBuilderTest
 
     public class BaseMessageConsumer : IConsumer<BaseMessage>
     {
-        public Task OnHandle(BaseMessage message) => throw new NotImplementedException(nameof(BaseMessage));
+        public Task OnHandle(BaseMessage message, CancellationToken cancellationToken) => throw new NotImplementedException(nameof(BaseMessage));
     }
 
     public class DerivedAMessageConsumer : IConsumer<DerivedAMessage>
     {
-        public Task OnHandle(DerivedAMessage message) => throw new NotImplementedException(nameof(DerivedAMessage));
+        public Task OnHandle(DerivedAMessage message, CancellationToken cancellationToken) => throw new NotImplementedException(nameof(DerivedAMessage));
     }
 
     public class DerivedBMessageConsumer : IConsumer<DerivedBMessage>
     {
-        public Task OnHandle(DerivedBMessage message) => throw new NotImplementedException(nameof(DerivedBMessage));
+        public Task OnHandle(DerivedBMessage message, CancellationToken cancellationToken) => throw new NotImplementedException(nameof(DerivedBMessage));
     }
 
     public class Derived2AMessageConsumer : IConsumer<Derived2AMessage>
     {
-        public Task OnHandle(Derived2AMessage message) => throw new NotImplementedException(nameof(Derived2AMessage));
+        public Task OnHandle(Derived2AMessage message, CancellationToken cancellationToken) => throw new NotImplementedException(nameof(Derived2AMessage));
+    }
+
+    public class BaseMessageConsumerOfContext : IConsumer<IConsumerContext<BaseMessage>>
+    {
+        public Task OnHandle(IConsumerContext<BaseMessage> message, CancellationToken cancellationToken) => throw new NotImplementedException(nameof(BaseMessage));
+    }
+
+    public class DerivedAMessageConsumerOfContext : IConsumer<IConsumerContext<DerivedAMessage>>
+    {
+        public Task OnHandle(IConsumerContext<DerivedAMessage> message, CancellationToken cancellationToken) => throw new NotImplementedException(nameof(DerivedAMessage));
+    }
+
+    public class DerivedBMessageConsumerOfContext : IConsumer<IConsumerContext<DerivedBMessage>>
+    {
+        public Task OnHandle(IConsumerContext<DerivedBMessage> message, CancellationToken cancellationToken) => throw new NotImplementedException(nameof(DerivedBMessage));
+    }
+
+    public class Derived2AMessageConsumerOfContext : IConsumer<IConsumerContext<Derived2AMessage>>
+    {
+        public Task OnHandle(IConsumerContext<Derived2AMessage> message, CancellationToken cancellationToken) => throw new NotImplementedException(nameof(Derived2AMessage));
     }
 
     public class BaseResponse
@@ -212,11 +311,11 @@ public class ConsumerBuilderTest
 
     public class BaseRequestConsumer : IConsumer<BaseRequest>
     {
-        public Task OnHandle(BaseRequest message) => throw new NotImplementedException(nameof(BaseRequest));
+        public Task OnHandle(BaseRequest message, CancellationToken cancellationToken) => throw new NotImplementedException(nameof(BaseRequest));
     }
 
     public class DerivedRequestConsumer : IConsumer<DerivedRequest>
     {
-        public Task OnHandle(DerivedRequest message) => throw new NotImplementedException(nameof(DerivedRequest));
+        public Task OnHandle(DerivedRequest message, CancellationToken cancellationToken) => throw new NotImplementedException(nameof(DerivedRequest));
     }
 }

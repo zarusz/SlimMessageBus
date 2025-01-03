@@ -6,6 +6,7 @@ using System.Globalization;
 using Azure.Messaging.ServiceBus;
 
 using SlimMessageBus.Host;
+using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Serialization;
 
@@ -24,6 +25,9 @@ public class ServiceBusMessageBusTests : IDisposable
         serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(new Mock<IMessageSerializer>().Object);
         serviceProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
         serviceProviderMock.Setup(x => x.GetService(typeof(IEnumerable<IMessageBusLifecycleInterceptor>))).Returns(Array.Empty<IMessageBusLifecycleInterceptor>());
+        serviceProviderMock.Setup(x => x.GetService(typeof(ICurrentTimeProvider))).Returns(new CurrentTimeProvider());
+        serviceProviderMock.Setup(x => x.GetService(typeof(RuntimeTypeCache))).Returns(new RuntimeTypeCache());
+        serviceProviderMock.Setup(x => x.GetService(typeof(IPendingRequestManager))).Returns(() => new PendingRequestManager(new InMemoryPendingRequestStore(), new CurrentTimeProvider(), NullLoggerFactory.Instance));
 
         BusBuilder.WithDependencyResolver(serviceProviderMock.Object);
 

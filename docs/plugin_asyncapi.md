@@ -80,7 +80,7 @@ public class CustomerCreatedEventConsumer : IConsumer<CustomerCreatedEvent>
     /// </summary>
     /// <param name="message"></param>
     /// <returns></returns>
-    public Task OnHandle(CustomerCreatedEvent message) { }
+    public Task OnHandle(CustomerCreatedEvent message, CancellationToken cancellationToken) { }
 }
 ```
 

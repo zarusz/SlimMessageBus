@@ -16,8 +16,15 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
 
     protected override RabbitMqMessageAcknowledgementMode AcknowledgementMode => _acknowledgementMode;
 
-    public RabbitMqConsumer(ILoggerFactory loggerFactory, IRabbitMqChannel channel, string queueName, IList<ConsumerSettings> consumers, IMessageSerializer serializer, MessageBusBase messageBus, IHeaderValueConverter headerValueConverter)
-        : base(loggerFactory.CreateLogger<RabbitMqConsumer>(), channel, queueName: queueName, headerValueConverter)
+    public RabbitMqConsumer(
+        ILoggerFactory loggerFactory,
+        IRabbitMqChannel channel,
+        string queueName,
+        IList<ConsumerSettings> consumers,
+        MessageBusBase messageBus,
+        MessageProvider<BasicDeliverEventArgs> messageProvider,
+        IHeaderValueConverter headerValueConverter)
+        : base(loggerFactory.CreateLogger<RabbitMqConsumer>(), channel, queueName, headerValueConverter)
     {
         _acknowledgementMode = consumers.Select(x => x.GetOrDefault<RabbitMqMessageAcknowledgementMode?>(RabbitMqProperties.MessageAcknowledgementMode, messageBus.Settings)).FirstOrDefault(x => x != null)
             ?? RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade; // be default choose the safer acknowledgement mode
@@ -29,7 +36,7 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
                 messageBus,
                 path: queueName,
                 responseProducer: messageBus,
-                messageProvider: (messageType, m) => serializer.Deserialize(messageType, m.Body.ToArray()),
+                messageProvider: messageProvider,
                 consumerContextInitializer: InitializeConsumerContext,
                 consumerErrorHandlerOpenGenericType: typeof(IRabbitMqConsumerErrorHandler<>));
 
@@ -37,7 +44,7 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
 
             // pick the maximum number of instances
             var instances = consumers.Max(x => x.Instances);
-            // For a given rabbit channel, there is only 1 task that dispatches messages. We want to be be able to let each SMB consume process within its own task (1 or more)
+            // For a given rabbit channel, there is only 1 task that dispatches messages. We want to be able to let each SMB consume process within its own task (1 or more)
             messageProcessor = new ConcurrentMessageProcessorDecorator<BasicDeliverEventArgs>(instances, loggerFactory, messageProcessor);
 
             return messageProcessor;

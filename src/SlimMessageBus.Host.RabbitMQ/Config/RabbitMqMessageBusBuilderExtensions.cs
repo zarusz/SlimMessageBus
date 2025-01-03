@@ -14,8 +14,8 @@ public static class RabbitMqMessageBusBuilderExtensions
         if (mbb == null) throw new ArgumentNullException(nameof(mbb));
         if (configure == null) throw new ArgumentNullException(nameof(configure));
 
-        var providerSettings = mbb.Settings.GetOrCreate(RabbitMqProperties.ProvderSettings, () => new RabbitMqMessageBusSettings());
-        
+        var providerSettings = mbb.Settings.GetOrCreate(RabbitMqProperties.ProviderSettings, () => new RabbitMqMessageBusSettings());
+
         configure(providerSettings);
 
         return mbb.WithProvider(settings => new RabbitMqMessageBus(settings, providerSettings));

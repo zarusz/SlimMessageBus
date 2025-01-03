@@ -3,9 +3,9 @@
   <Import Project="../Host.Plugin.Properties.xml" />
 
   <PropertyGroup>
-    <PackageTags>Azure Event Hubs provider SlimMessageBus MessageBus bus facade messaging</PackageTags>
+    <Description>Ak,m Event Hubs provider for SlimMessageBus</Description>
     <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
-    <Description>Azure Event Hubs provider for SlimMessageBus</Description>
+    <PackageTags>Azure Event Hubs provider SlimMessageBus MessageBus bus facade messaging</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
@@ -16,7 +16,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
-    <ProjectReference Include="..\SlimMessageBus\SlimMessageBus.csproj" />
   </ItemGroup>
 
 </Project>

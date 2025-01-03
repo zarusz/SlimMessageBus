@@ -19,7 +19,10 @@ public static class SerializationBuilderExtensions
     {
         builder.RegisterSerializer<JsonMessageSerializer>(services =>
         {
+            // Add the implementation
             services.TryAddSingleton(svp => new JsonMessageSerializer(options ?? svp.GetService<JsonSerializerOptions>()));
+            // Add the serializer as IMessageSerializer<string>
+            services.TryAddSingleton(svp => svp.GetRequiredService<JsonMessageSerializer>() as IMessageSerializer<string>);
         });
         return builder;
     }

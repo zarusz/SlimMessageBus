@@ -11,7 +11,8 @@ using SlimMessageBus.Host.Serialization.Json;
 using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
 [Trait("Category", "Integration")]
-public class MemoryMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<MemoryMessageBusIt>(testOutputHelper)
+[Trait("Transport", "Memory")]
+public class MemoryMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<MemoryMessageBusIt>(output)
 {
     private const int NumberOfMessages = 1023;
 
@@ -242,7 +243,7 @@ public class MemoryMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegr
 
     internal record PingConsumer(TestEventCollector<PingMessage> Messages, SafeCounter SafeCounter) : IConsumer<PingMessage>
     {
-        public Task OnHandle(PingMessage message)
+        public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
         {
             message.ConsumerCounter = SafeCounter.NextValue();
             Messages.Add(message);
@@ -265,7 +266,7 @@ public class MemoryMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegr
 
     internal class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
     {
-        public Task<EchoResponse> OnHandle(EchoRequest request) =>
+        public Task<EchoResponse> OnHandle(EchoRequest request, CancellationToken cancellationToken) =>
             Task.FromResult(new EchoResponse { Message = request.Message });
     }
 }

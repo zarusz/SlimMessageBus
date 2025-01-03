@@ -6,12 +6,14 @@ SlimMessageBus additionally provides request-response implementation over messag
 
 Transports:
 
+- Amazon SQS/SNS
 - Apache Kafka
 - Azure Event Hub
 - Azure Service Bus
 - Hybrid (composition of the bus out of many transports)
 - In-Memory transport (domain events, mediator)
 - MQTT / Azure IoT Hub
+- NATS
 - RabbitMQ
 - Redis
 - SQL (MS SQL, PostgreSql)
