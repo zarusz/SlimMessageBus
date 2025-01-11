@@ -6,17 +6,8 @@ public static class Retry
 
     public static async Task WithDelay(Func<CancellationToken, Task> operation, Func<Exception, int, bool> shouldRetry, TimeSpan? delay, TimeSpan? jitter = default, CancellationToken cancellationToken = default)
     {
-#if NETSTANDARD2_0
         if (operation is null) throw new ArgumentNullException(nameof(operation));
-#else
-        ArgumentNullException.ThrowIfNull(operation);
-#endif
-
-#if NETSTANDARD2_0
         if (shouldRetry is null) throw new ArgumentNullException(nameof(shouldRetry));
-#else
-        ArgumentNullException.ThrowIfNull(shouldRetry);
-#endif
 
         var attempt = 0;
         do

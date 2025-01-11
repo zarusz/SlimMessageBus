@@ -3,7 +3,7 @@
 /// <summary>
 /// Manages the pending requests - ensure requests which exceeded the allotted timeout period are removed.
 /// </summary>
-public class PendingRequestManager : IPendingRequestManager, IDisposable
+public partial class PendingRequestManager : IPendingRequestManager, IDisposable
 {
     private readonly ILogger _logger;
 
@@ -85,10 +85,31 @@ public class PendingRequestManager : IPendingRequestManager, IDisposable
 
             if (canceled)
             {
-                _logger.LogDebug("Pending request timed-out: {RequestState}, now: {TimeNow}", requestState, now);
+                LogPendingRequestTimeout(now, requestState);
                 _onRequestTimeout?.Invoke(requestState.Request);
             }
         }
         Store.RemoveAll(requestsToCancel.Select(x => x.Id));
     }
+
+
+    #region Logging
+
+    [LoggerMessage(
+       EventId = 0,
+       Level = LogLevel.Debug,
+       Message = "Pending request timed-out: {RequestState}, now: {TimeNow}")]
+    private partial void LogPendingRequestTimeout(DateTimeOffset timeNow, PendingRequestState requestState);
+
+    #endregion
 }
+
+#if NETSTANDARD2_0
+
+public partial class PendingRequestManager
+{
+    private partial void LogPendingRequestTimeout(DateTimeOffset timeNow, PendingRequestState requestState)
+        => _logger.LogDebug("Pending request timed-out: {RequestState}, now: {TimeNow}", requestState, timeNow);
+}
+
+#endif

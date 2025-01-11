@@ -3,7 +3,7 @@
   <Import Project="../Common.NuGet.Properties.xml" />
 
   <PropertyGroup>
-    <Version>3.0.0-rc903</Version>
+    <Version>3.0.0-rc904</Version>
     <Description>Core interceptor interfaces of SlimMessageBus</Description>
     <PackageTags>SlimMessageBus</PackageTags>
   </PropertyGroup>

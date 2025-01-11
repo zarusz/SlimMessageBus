@@ -5,7 +5,7 @@
 /// The message type hierarchy is discovered at runtime and cached for faster access.
 /// </summary>
 /// <typeparam name="TProducer">The producer type</typeparam>
-public class ProducerByMessageTypeCache<TProducer> : IReadOnlyCache<Type, TProducer>
+public partial class ProducerByMessageTypeCache<TProducer> : IReadOnlyCache<Type, TProducer>
     where TProducer : class
 {
     private readonly ILogger _logger;
@@ -37,7 +37,7 @@ public class ProducerByMessageTypeCache<TProducer> : IReadOnlyCache<Type, TProdu
         var assignableProducer = assignableProducers.FirstOrDefault();
         if (assignableProducer.Key != null)
         {
-            _logger.LogDebug("Matched producer for message type {ProducerMessageType} for dispatched message type {MessageType}", assignableProducer.Key, messageType);
+            LogMatchedProducerForMessageType(messageType, assignableProducer.Key);
             return assignableProducer.Value;
         }
 
@@ -52,7 +52,7 @@ public class ProducerByMessageTypeCache<TProducer> : IReadOnlyCache<Type, TProdu
             }
         }
 
-        _logger.LogDebug("Unable to match any declared producer for dispatched message type {MessageType}", messageType);
+        LogUnmatchedProducerForMessageType(messageType);
 
         // Note: Nulls are also added to dictionary, so that we don't look them up using reflection next time (cached).
         return null;
@@ -74,4 +74,33 @@ public class ProducerByMessageTypeCache<TProducer> : IReadOnlyCache<Type, TProdu
 
         return distance;
     }
+
+    #region Logging
+
+    [LoggerMessage(
+       EventId = 0,
+       Level = LogLevel.Debug,
+       Message = "Matched producer for message type {ProducerMessageType} for dispatched message type {MessageType}")]
+    private partial void LogMatchedProducerForMessageType(Type messageType, Type producerMessageType);
+
+    [LoggerMessage(
+       EventId = 1,
+       Level = LogLevel.Debug,
+       Message = "Unable to match any declared producer for dispatched message type {MessageType}")]
+    private partial void LogUnmatchedProducerForMessageType(Type messageType);
+
+    #endregion
 }
+
+#if NETSTANDARD2_0
+
+public partial class ProducerByMessageTypeCache<TProducer>
+{
+    private partial void LogMatchedProducerForMessageType(Type messageType, Type producerMessageType)
+        => _logger.LogDebug("Matched producer for message type {ProducerMessageType} for dispatched message type {MessageType}", producerMessageType, messageType);
+
+    private partial void LogUnmatchedProducerForMessageType(Type messageType)
+        => _logger.LogDebug("Unable to match any declared producer for dispatched message type {MessageType}", messageType);
+}
+
+#endif

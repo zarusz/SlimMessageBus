@@ -3,7 +3,7 @@
 /// <summary>
 /// Circuit breaker to toggle consumer status on an external events.
 /// </summary>
-internal sealed class CircuitBreakerAbstractConsumerInterceptor : IAbstractConsumerInterceptor
+internal sealed class CircuitBreakerAbstractConsumerInterceptor(ILogger logger) : IAbstractConsumerInterceptor
 {
     public int Order => 100;
 
@@ -33,12 +33,12 @@ internal sealed class CircuitBreakerAbstractConsumerInterceptor : IAbstractConsu
                 var bus = consumer.Settings[0].MessageBusSettings.Name ?? "default";
                 if (shouldPause)
                 {
-                    consumer.Logger.LogWarning("Circuit breaker tripped for '{Path}' on '{Bus}' bus. Consumer paused.", path, bus);
+                    logger.LogWarning("Circuit breaker tripped for '{Path}' on '{Bus}' bus. Consumer paused.", path, bus);
                     await consumer.DoStop().ConfigureAwait(false);
                 }
                 else
                 {
-                    consumer.Logger.LogInformation("Circuit breaker restored for '{Path}' on '{Bus}' bus. Consumer resumed.", path, bus);
+                    logger.LogInformation("Circuit breaker restored for '{Path}' on '{Bus}' bus. Consumer resumed.", path, bus);
                     await consumer.DoStart().ConfigureAwait(false);
                 }
                 consumer.SetIsPaused(shouldPause);

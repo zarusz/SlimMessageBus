@@ -25,8 +25,6 @@ public static class DictionaryExtensions
 
     public static HashSet<T> ToHashSet<T>(this IEnumerable<T> items) => new(items);
 
-#if NETSTANDARD2_0
-
     public static IEnumerable<IReadOnlyCollection<T>> Chunk<T>(this IEnumerable<T> items, int size)
     {
         var chunk = new List<T>(size);
@@ -50,7 +48,6 @@ public static class DictionaryExtensions
         }
     }
 
-#endif
 }
 
 public static class TimeSpanExtensions

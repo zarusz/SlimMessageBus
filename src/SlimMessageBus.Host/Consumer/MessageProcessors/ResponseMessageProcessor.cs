@@ -6,7 +6,7 @@ public abstract class ResponseMessageProcessor;
 /// The <see cref="IMessageProcessor{TMessage}"/> implementation that processes the responses arriving to the bus.
 /// </summary>
 /// <typeparam name="TTransportMessage"></typeparam>
-public class ResponseMessageProcessor<TTransportMessage> : ResponseMessageProcessor, IMessageProcessor<TTransportMessage>
+public partial class ResponseMessageProcessor<TTransportMessage> : ResponseMessageProcessor, IMessageProcessor<TTransportMessage>
 {
     private readonly ILogger<ResponseMessageProcessor> _logger;
     private readonly RequestResponseSettings _requestResponseSettings;
@@ -42,7 +42,7 @@ public class ResponseMessageProcessor<TTransportMessage> : ResponseMessageProces
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "Error occurred while consuming response message, {Message}", transportMessage);
+            LogErrorConsumingResponse(transportMessage, e);
             // We can only continue and process all messages in the lease    
             ex = e;
         }
@@ -68,7 +68,7 @@ public class ResponseMessageProcessor<TTransportMessage> : ResponseMessageProces
         var requestState = _pendingRequestStore.GetById(requestId);
         if (requestState == null)
         {
-            _logger.LogDebug("The response message for request id {RequestId} arriving on path {Path} will be disregarded. Either the request had already expired, had been cancelled or it was already handled (this response message is a duplicate).", requestId, path);
+            LogResponseWillBeDiscarded(path, requestId);
             // ToDo: add and API hook to these kind of situation
             return null;
         }
@@ -77,8 +77,8 @@ public class ResponseMessageProcessor<TTransportMessage> : ResponseMessageProces
         {
             if (_logger.IsEnabled(LogLevel.Debug))
             {
-                var tookTimespan = _currentTimeProvider.CurrentTime.Subtract(requestState.Created);
-                _logger.LogDebug("Response arrived for {Request} on path {Path} (time: {RequestTime} ms)", requestState, path, tookTimespan);
+                var requestTime = _currentTimeProvider.CurrentTime.Subtract(requestState.Created);
+                LogResponseArrived(path, requestState, requestTime);
             }
 
             if (responseHeaders.TryGetHeader(ReqRespMessageHeaders.Error, out string errorMessage))
@@ -86,7 +86,7 @@ public class ResponseMessageProcessor<TTransportMessage> : ResponseMessageProces
                 // error response arrived
 
                 var responseException = new RequestHandlerFaultedMessageBusException(errorMessage);
-                _logger.LogDebug(responseException, "Response arrived for {Request} on path {Path} with error: {ResponseError}", requestState, path, responseException.Message);
+                LogResponseArrivedWithError(path, requestState, responseException, responseException.Message);
                 requestState.TaskCompletionSource.TrySetException(responseException);
             }
             else
@@ -104,7 +104,7 @@ public class ResponseMessageProcessor<TTransportMessage> : ResponseMessageProces
                 }
                 catch (Exception e)
                 {
-                    _logger.LogDebug(e, "Could not deserialize the response message for {Request} arriving on path {Path}", requestState, path);
+                    LogResponseCouldNotDeserialize(path, requestState, e);
                     requestState.TaskCompletionSource.TrySetException(e);
                 }
             }
@@ -117,4 +117,60 @@ public class ResponseMessageProcessor<TTransportMessage> : ResponseMessageProces
 
         return null;
     }
+
+    #region Logging
+
+    [LoggerMessage(
+       EventId = 0,
+       Level = LogLevel.Error,
+       Message = "Error occurred while consuming response message, {Message}")]
+    private partial void LogErrorConsumingResponse(TTransportMessage message, Exception e);
+
+    [LoggerMessage(
+       EventId = 1,
+       Level = LogLevel.Debug,
+       Message = "The response message for request id {RequestId} arriving on path {Path} will be disregarded. Either the request had already expired, had been cancelled or it was already handled (this response message is a duplicate).")]
+    private partial void LogResponseWillBeDiscarded(string path, string requestId);
+
+    [LoggerMessage(
+       EventId = 2,
+       Level = LogLevel.Debug,
+       Message = "Response arrived for {RequestState} on path {Path} (time: {RequestTime} ms)")]
+    private partial void LogResponseArrived(string path, PendingRequestState requestState, TimeSpan requestTime);
+
+    [LoggerMessage(
+       EventId = 3,
+       Level = LogLevel.Debug,
+       Message = "Response arrived for {RequestState} on path {Path} with error: {ResponseError}")]
+    private partial void LogResponseArrivedWithError(string path, PendingRequestState requestState, Exception e, string responseError);
+
+    [LoggerMessage(
+       EventId = 4,
+       Level = LogLevel.Debug,
+       Message = "Could not deserialize the response message for {RequestState} arriving on path {Path}")]
+    private partial void LogResponseCouldNotDeserialize(string path, PendingRequestState requestState, Exception e);
+
+    #endregion
 }
+
+#if NETSTANDARD2_0
+
+public partial class ResponseMessageProcessor<TTransportMessage>
+{
+    private partial void LogErrorConsumingResponse(TTransportMessage message, Exception e)
+        => _logger.LogError(e, "Error occurred while consuming response message, {Message}", message);
+
+    private partial void LogResponseWillBeDiscarded(string path, string requestId)
+        => _logger.LogDebug("The response message for request id {RequestId} arriving on path {Path} will be disregarded. Either the request had already expired, had been cancelled or it was already handled (this response message is a duplicate).", requestId, path);
+
+    private partial void LogResponseArrived(string path, PendingRequestState requestState, TimeSpan requestTime)
+        => _logger.LogDebug("Response arrived for {RequestState} on path {Path} (time: {RequestTime} ms)", requestState, path, requestTime);
+
+    private partial void LogResponseArrivedWithError(string path, PendingRequestState requestState, Exception e, string responseError)
+        => _logger.LogDebug(e, "Response arrived for {RequestState} on path {Path} with error: {ResponseError}", requestState, path, responseError);
+
+    private partial void LogResponseCouldNotDeserialize(string path, PendingRequestState requestState, Exception e)
+        => _logger.LogDebug(e, "Could not deserialize the response message for {RequestState} arriving on path {Path}", requestState, path);
+}
+
+#endif

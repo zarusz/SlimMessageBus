@@ -6,7 +6,7 @@ using System.Diagnostics;
 /// Implementation of <see cref="IMessageProcessor{TMessage}"/> that performs orchestration around processing of a new message using an instance of the declared consumer (<see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/> interface).
 /// </summary>
 /// <typeparam name="TTransportMessage"></typeparam>
-public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProcessor<TTransportMessage>
+public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProcessor<TTransportMessage>
 {
     private readonly ILogger _logger;
     private readonly MessageProvider<TTransportMessage> _messageProvider;
@@ -131,14 +131,14 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
                 }
                 catch (Exception e)
                 {
-                    _logger.LogDebug(e, "Processing of the message {TransportMessage} of type {MessageType} failed", transportMessage, messageType);
+                    LogProcessingMessageFailedTypeKnown(transportMessage, messageType, e);
                     lastException ??= e;
                 }
             }
         }
         catch (Exception e)
         {
-            _logger.LogDebug(e, "Processing of the message {TransportMessage} failed", transportMessage);
+            LogProcessingMessageFailed(transportMessage, e);
             lastException = e;
         }
         return new(result, lastException, lastException != null ? lastConsumerInvoker?.ParentSettings : null, lastResponse);
@@ -151,7 +151,7 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
             var messageType = MessageTypeResolver.ToType(messageTypeName);
             if (messageType != null)
             {
-                _logger.LogDebug("Message type {MessageType} was declared in the message header", messageType);
+                LogMessageTypeDeclaredInHeader(messageType);
                 return messageType;
             }
 
@@ -164,11 +164,11 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
 
         if (_singleInvoker != null)
         {
-            _logger.LogDebug("No message type header was present, defaulting to the only declared message type {MessageType}", _singleInvoker.MessageType);
+            LogMessageTypeHeaderMissingAndDefaulting(_singleInvoker.MessageType);
             return _singleInvoker.MessageType;
         }
 
-        _logger.LogDebug("No message type header was present in the message header, multiple consumer types declared therefore cannot infer the message type");
+        LogNoMessageTypeHeaderPresent();
 
         if (_shouldFailWhenUnrecognizedMessageType)
         {
@@ -198,7 +198,8 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
             {
                 if (_shouldLogWhenUnrecognizedMessageType)
                 {
-                    _logger.LogInformation("The message on path {Path} declared {HeaderName} header of type {MessageType}, but none of the known consumer types {ConsumerTypes} was able to handle it", Path, MessageHeaders.MessageType, messageType, string.Join(",", _invokers.Select(x => x.ConsumerType.Name)));
+                    var consumerTypes = string.Join(",", _invokers.Select(x => x.ConsumerType.Name));
+                    LogNoConsumerTypeMatched(messageType, Path, MessageHeaders.MessageType, consumerTypes);
                 }
 
                 if (_shouldFailWhenUnrecognizedMessageType)
@@ -208,4 +209,69 @@ public class MessageProcessor<TTransportMessage> : MessageHandler, IMessageProce
             }
         }
     }
+
+    #region Logging
+
+    [LoggerMessage(
+       EventId = 0,
+       Level = LogLevel.Debug,
+       Message = "Processing of the message {TransportMessage} of type {MessageType} failed")]
+    private partial void LogProcessingMessageFailedTypeKnown(TTransportMessage transportMessage, Type messageType, Exception e);
+
+    [LoggerMessage(
+       EventId = 1,
+       Level = LogLevel.Debug,
+       Message = "Processing of the message {TransportMessage} failed")]
+    private partial void LogProcessingMessageFailed(TTransportMessage transportMessage, Exception e);
+
+    [LoggerMessage(
+       EventId = 2,
+       Level = LogLevel.Debug,
+       Message = "Message type {MessageType} was declared in the message header")]
+    private partial void LogMessageTypeDeclaredInHeader(Type messageType);
+
+    [LoggerMessage(
+       EventId = 3,
+       Level = LogLevel.Debug,
+       Message = "No message type header was present, defaulting to the only declared message type {MessageType}")]
+    private partial void LogMessageTypeHeaderMissingAndDefaulting(Type messageType);
+
+    [LoggerMessage(
+       EventId = 4,
+       Level = LogLevel.Debug,
+       Message = "No message type header was present in the message header, multiple consumer types declared therefore cannot infer the message type")]
+    private partial void LogNoMessageTypeHeaderPresent();
+
+    [LoggerMessage(
+       EventId = 5,
+       Level = LogLevel.Information,
+       Message = "The message on path {Path} declared {HeaderName} header of type {MessageType}, but none of the known consumer types {ConsumerTypes} was able to handle it")]
+    private partial void LogNoConsumerTypeMatched(Type messageType, string path, string headerName, string consumerTypes);
+
+    #endregion
 }
+
+#if NETSTANDARD2_0
+
+public partial class MessageProcessor<TTransportMessage>
+{
+    private partial void LogProcessingMessageFailedTypeKnown(TTransportMessage transportMessage, Type messageType, Exception e)
+        => _logger.LogDebug(e, "Processing of the message {TransportMessage} of type {MessageType} failed", transportMessage, messageType);
+
+    private partial void LogProcessingMessageFailed(TTransportMessage transportMessage, Exception e)
+        => _logger.LogDebug(e, "Processing of the message {TransportMessage} failed", transportMessage);
+
+    private partial void LogMessageTypeDeclaredInHeader(Type messageType)
+        => _logger.LogDebug("Message type {MessageType} was declared in the message header", messageType);
+
+    private partial void LogMessageTypeHeaderMissingAndDefaulting(Type messageType)
+        => _logger.LogDebug("No message type header was present, defaulting to the only declared message type {MessageType}", messageType);
+
+    private partial void LogNoMessageTypeHeaderPresent()
+        => _logger.LogDebug("No message type header was present in the message header, multiple consumer types declared therefore cannot infer the message type");
+
+    private partial void LogNoConsumerTypeMatched(Type messageType, string path, string headerName, string consumerTypes)
+        => _logger.LogInformation("The message on path {Path} declared {HeaderName} header of type {MessageType}, but none of the known consumer types {ConsumerTypes} was able to handle it", path, headerName, messageType, consumerTypes);
+}
+
+#endif

@@ -4,7 +4,7 @@ using System.Collections.Concurrent;
 
 using SlimMessageBus.Host.Serialization;
 
-public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDisposable, IAsyncDisposable
+public partial class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDisposable, IAsyncDisposable
 {
     private readonly ILogger _logger;
     private readonly Dictionary<string, MessageBusBase> _busByName;
@@ -121,7 +121,8 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
         {
             if (_logger.IsEnabled(LogLevel.Debug))
             {
-                _logger.LogDebug("Resolved bus {BusName} for message type: {MessageType} and path {Path}", string.Join(",", buses.Select(x => x.Settings.Name)), messageType, path);
+                var busName = buses.JoinOrSingle(x => x.Settings.Name);
+                LogResolvedBus(path, messageType, busName);
             }
             return buses;
         }
@@ -134,7 +135,7 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
         // Add the message type, so that we only emit warn log once
         if (ProviderSettings.UndeclaredMessageTypeMode == UndeclaredMessageTypeMode.RaiseOneTimeLog && _undeclaredMessageType.TryAdd(messageType, true))
         {
-            _logger.LogInformation("Could not find any bus that produces the message type: {MessageType}. Messages of that type will not be delivered to any child bus. Double check the message bus configuration.", messageType);
+            LogCouldNotFindBus(messageType);
         }
 
         return [];
@@ -198,4 +199,33 @@ public class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus, IDispos
     public IEnumerable<IMasterMessageBus> GetChildBuses() => _busByName.Values;
 
     #endregion
+
+    #region Logging 
+
+    [LoggerMessage(
+       EventId = 0,
+       Level = LogLevel.Debug,
+       Message = "Resolved bus {BusName} for message type {MessageType} and path {Path}")]
+    private partial void LogResolvedBus(string path, Type messageType, string busName);
+
+    [LoggerMessage(
+       EventId = 1,
+       Level = LogLevel.Information,
+       Message = "Could not find any bus that produces the message type {MessageType}. Messages of that type will not be delivered to any child bus. Double check the message bus configuration.")]
+    private partial void LogCouldNotFindBus(Type messageType);
+
+    #endregion
 }
+
+#if NETSTANDARD2_0
+
+public partial class HybridMessageBus
+{
+    private partial void LogResolvedBus(string path, Type messageType, string busName)
+        => _logger.LogDebug("Resolved bus {BusName} for message type {MessageType} and path {Path}", busName, messageType, path);
+
+    private partial void LogCouldNotFindBus(Type messageType)
+        => _logger.LogInformation("Could not find any bus that produces the message type {MessageType}. Messages of that type will not be delivered to any child bus. Double check the message bus configuration.", messageType);
+}
+
+#endif

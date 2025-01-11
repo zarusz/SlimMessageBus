@@ -1,7 +1,8 @@
 ﻿namespace SlimMessageBus.Host;
 
-public abstract class AbstractConsumer : HasProviderExtensions, IAsyncDisposable, IConsumerControl
+public abstract partial class AbstractConsumer : HasProviderExtensions, IAsyncDisposable, IConsumerControl
 {
+    protected readonly ILogger Logger;
     private readonly SemaphoreSlim _semaphore;
     private readonly IReadOnlyList<IAbstractConsumerInterceptor> _interceptors;
     private CancellationTokenSource _cancellationTokenSource;
@@ -10,7 +11,6 @@ public abstract class AbstractConsumer : HasProviderExtensions, IAsyncDisposable
 
     public bool IsStarted { get; private set; }
     public string Path { get; }
-    public ILogger Logger { get; }
     public IReadOnlyList<AbstractConsumerSettings> Settings { get; }
     protected CancellationToken CancellationToken => _cancellationTokenSource.Token;
 
@@ -39,7 +39,7 @@ public abstract class AbstractConsumer : HasProviderExtensions, IAsyncDisposable
             }
             catch (Exception e)
             {
-                Logger.LogError(e, "Interceptor {Interceptor} failed with error: {Error}", interceptor.GetType().Name, e.Message);
+                LogInterceptorFailed(interceptor.GetType(), e.Message, e);
             }
         }
         return true;
@@ -178,4 +178,25 @@ public abstract class AbstractConsumer : HasProviderExtensions, IAsyncDisposable
     }
 
     #endregion
+
+    #region Logging 
+
+    [LoggerMessage(
+       EventId = 0,
+       Level = LogLevel.Error,
+       Message = "Interceptor {InterceptorType} failed with error: {Error}")]
+    private partial void LogInterceptorFailed(Type interceptorType, string error, Exception ex);
+
+    #endregion
 }
+
+
+#if NETSTANDARD2_0
+
+public partial class AbstractConsumer
+{
+    private partial void LogInterceptorFailed(Type interceptorType, string error, Exception ex)
+        => Logger.LogError(ex, "Interceptor {InterceptorType} failed with error: {Error}", interceptorType, error);
+}
+
+#endif

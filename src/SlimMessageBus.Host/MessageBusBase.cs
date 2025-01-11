@@ -12,7 +12,7 @@ public abstract class MessageBusBase<TProviderSettings>(MessageBusSettings setti
     public TProviderSettings ProviderSettings { get; } = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
 }
 
-public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
+public abstract partial class MessageBusBase : IDisposable, IAsyncDisposable,
     IMasterMessageBus,
     IMessageScopeFactory,
     IMessageHeadersFactory,
@@ -111,7 +111,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
 
     protected virtual IMessageSerializer GetSerializer() => Settings.GetSerializer(Settings.ServiceProvider);
 
-    protected virtual IMessageBusSettingsValidationService ValidationService { get => new DefaultMessageBusSettingsValidationService(Settings); }
+    protected virtual IMessageBusSettingsValidationService ValidationService => new DefaultMessageBusSettingsValidationService(Settings);
 
     /// <summary>
     /// Called by the provider to initialize the bus.
@@ -137,7 +137,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
                 }
                 catch (Exception e)
                 {
-                    _logger.LogError(e, "Could not auto start consumers");
+                    LogCouldNotStartConsumers(e);
                 }
             });
         }
@@ -191,17 +191,16 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
 
         try
         {
-            await InitTaskList.EnsureAllFinished();
-
-            _logger.LogInformation("Starting consumers for {BusName} bus...", Name);
+            await InitTaskList.EnsureAllFinished().ConfigureAwait(false);
+            LogStartingConsumers(Name);
             await OnBusLifecycle(MessageBusLifecycleEventType.Starting).ConfigureAwait(false);
 
-            await CreateConsumers();
+            await CreateConsumers().ConfigureAwait(false);
             await OnStart().ConfigureAwait(false);
             await Task.WhenAll(_consumers.Select(x => x.Start())).ConfigureAwait(false);
 
             await OnBusLifecycle(MessageBusLifecycleEventType.Started).ConfigureAwait(false);
-            _logger.LogInformation("Started consumers for {BusName} bus", Name);
+            LogStartedConsumers(Name);
 
             lock (_startLock)
             {
@@ -230,9 +229,9 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
 
         try
         {
-            await InitTaskList.EnsureAllFinished();
+            await InitTaskList.EnsureAllFinished().ConfigureAwait(false);
 
-            _logger.LogInformation("Stopping consumers for {BusName} bus...", Name);
+            LogStoppingConsumers(Name);
             await OnBusLifecycle(MessageBusLifecycleEventType.Stopping).ConfigureAwait(false);
 
             await Task.WhenAll(_consumers.Select(x => x.Stop())).ConfigureAwait(false);
@@ -240,7 +239,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
             await DestroyConsumers().ConfigureAwait(false);
 
             await OnBusLifecycle(MessageBusLifecycleEventType.Stopped).ConfigureAwait(false);
-            _logger.LogInformation("Stopped consumers for {BusName} bus", Name);
+            LogStoppedConsumers(Name);
 
             lock (_startLock)
             {
@@ -332,13 +331,13 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
 
     protected virtual Task CreateConsumers()
     {
-        _logger.LogInformation("Creating consumers for {BusName} bus...", Name);
+        LogCreatingConsumers(Name);
         return Task.CompletedTask;
     }
 
     protected async virtual Task DestroyConsumers()
     {
-        _logger.LogInformation("Destroying consumers for {BusName} bus...", Name);
+        LogDestroyingConsumers(Name);
 
         foreach (var consumer in _consumers)
         {
@@ -370,7 +369,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
         var path = producerSettings.DefaultPath
             ?? throw new ProducerMessageBusException($"An attempt to produce message of type {messageType} without specifying path, but there was no default path configured. Double check your configuration.");
 
-        _logger.LogDebug("Applying default path {Path} for message type {MessageType}", path, messageType);
+        LogApplyingDefaultPath(messageType, path);
         return path;
     }
 
@@ -383,10 +382,10 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
         CancellationToken cancellationToken);
 
     protected void OnProduceToTransport(object message,
-        Type messageType,
-        string path,
-        IDictionary<string, object> messageHeaders)
-        => _logger.LogDebug("Producing message {Message} of type {MessageType} to path {Path}", message, messageType, path);
+                                        Type messageType,
+                                        string path,
+                                        IDictionary<string, object> messageHeaders)
+        => LogProducingMessageToPath(message, messageType, path);
 
     public virtual int? MaxMessagesPerTransaction => null;
 
@@ -509,7 +508,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
         if (producerSettings == null) throw new ArgumentNullException(nameof(producerSettings));
 
         var timeout = producerSettings.Timeout ?? Settings.RequestResponse.Timeout;
-        _logger.LogDebug("Applying default timeout {MessageTimeout} for message type {MessageType}", timeout, requestType);
+        LogApplyingDefaultTimeout(requestType, timeout);
         return timeout;
     }
 
@@ -584,12 +583,12 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
 
         if (_logger.IsEnabled(LogLevel.Trace))
         {
-            _logger.LogTrace("Added to PendingRequests, total is {RequestCount}", PendingRequestStore.GetCount());
+            LogAddedToPendingRequests(PendingRequestStore.GetCount());
         }
 
         try
         {
-            _logger.LogDebug("Sending request message {MessageType} to path {Path} with reply to {ReplyTo}", requestState, path, Settings.RequestResponse.Path);
+            LogSendingRequestMessage(path, requestType, Settings.RequestResponse.Path);
 
             if (requestHeaders != null)
             {
@@ -601,7 +600,7 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
         }
         catch (Exception e)
         {
-            _logger.LogDebug(e, "Publishing of request message failed");
+            LogPublishOfRequestFailed(e);
             // remove from registry
             PendingRequestStore.Remove(requestId);
             throw;
@@ -620,11 +619,11 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
         var responseType = consumerInvoker.ParentSettings.ResponseType;
         if (!requestHeaders.TryGetHeader(ReqRespMessageHeaders.ReplyTo, out object replyTo))
         {
-            _logger.LogDebug($$"""Skipping sending response {Response} of type {MessageType} as the header {{ReqRespMessageHeaders.ReplyTo}} is missing for RequestId: {RequestId}""", response, responseType, requestId);
+            LogSkippingSendingResponseMessage(requestId, response, responseType, ReqRespMessageHeaders.ReplyTo);
             return Task.CompletedTask;
         }
 
-        _logger.LogDebug("Sending the response {Response} of type {MessageType} for RequestId: {RequestId}...", response, responseType, requestId);
+        LogSendingResponseMessage(requestId, response, responseType);
 
         var responseHeaders = CreateHeaders();
         responseHeaders.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
@@ -650,13 +649,166 @@ public abstract class MessageBusBase : IDisposable, IAsyncDisposable,
     public virtual IMessageScope CreateMessageScope(ConsumerSettings consumerSettings, object message, IDictionary<string, object> consumerContextProperties, IServiceProvider currentServiceProvider)
     {
         var createMessageScope = IsMessageScopeEnabled(consumerSettings, consumerContextProperties);
-
         if (createMessageScope)
         {
-            _logger.LogDebug("Creating message scope for {Message} of type {MessageType}", message, message.GetType());
+            LogCreatingScope(message, message.GetType());
         }
         return new MessageScopeWrapper(currentServiceProvider ?? Settings.ServiceProvider, createMessageScope);
     }
 
     public virtual Task ProvisionTopology() => Task.CompletedTask;
+
+    #region Logging
+
+    [LoggerMessage(
+       EventId = 0,
+       Level = LogLevel.Error,
+       Message = "Could not auto start consumers")]
+    private partial void LogCouldNotStartConsumers(Exception ex);
+
+    [LoggerMessage(
+       EventId = 1,
+       Level = LogLevel.Debug,
+       Message = "Creating message scope for {Message} of type {MessageType}")]
+    private partial void LogCreatingScope(object message, Type messageType);
+
+    [LoggerMessage(
+       EventId = 2,
+       Level = LogLevel.Debug,
+       Message = "Publishing of request message failed")]
+    private partial void LogPublishOfRequestFailed(Exception ex);
+
+    [LoggerMessage(
+       EventId = 3,
+       Level = LogLevel.Information,
+       Message = "Starting consumers for {BusName} bus...")]
+    private partial void LogStartingConsumers(string busName);
+
+    [LoggerMessage(
+       EventId = 4,
+       Level = LogLevel.Information,
+       Message = "Started consumers for {BusName} bus")]
+    private partial void LogStartedConsumers(string busName);
+
+    [LoggerMessage(
+       EventId = 5,
+       Level = LogLevel.Information,
+       Message = "Stopping consumers for {BusName} bus...")]
+    private partial void LogStoppingConsumers(string busName);
+
+    [LoggerMessage(
+       EventId = 6,
+       Level = LogLevel.Information,
+       Message = "Stopped consumers for {BusName} bus")]
+    private partial void LogStoppedConsumers(string busName);
+
+    [LoggerMessage(
+       EventId = 7,
+       Level = LogLevel.Information,
+       Message = "Creating consumers for {BusName} bus...")]
+    private partial void LogCreatingConsumers(string busName);
+
+    [LoggerMessage(
+       EventId = 8,
+       Level = LogLevel.Information,
+       Message = "Destroying consumers for {BusName} bus...")]
+    private partial void LogDestroyingConsumers(string busName);
+
+    [LoggerMessage(
+       EventId = 9,
+       Level = LogLevel.Debug,
+       Message = "Applying default path {Path} for message type {MessageType}")]
+    private partial void LogApplyingDefaultPath(Type messageType, string path);
+
+    [LoggerMessage(
+       EventId = 10,
+       Level = LogLevel.Debug,
+       Message = "Applying default timeout {MessageTimeout} for message type {MessageType}")]
+    private partial void LogApplyingDefaultTimeout(Type messageType, TimeSpan messageTimeout);
+
+    [LoggerMessage(
+       EventId = 11,
+       Level = LogLevel.Debug,
+       Message = "Producing message {Message} of type {MessageType} to path {Path}")]
+    private partial void LogProducingMessageToPath(object message, Type messageType, string path);
+
+    [LoggerMessage(
+       EventId = 12,
+       Level = LogLevel.Trace,
+       Message = "Added to PendingRequests, total is {RequestCount}")]
+    private partial void LogAddedToPendingRequests(int requestCount);
+
+    [LoggerMessage(
+       EventId = 13,
+       Level = LogLevel.Debug,
+       Message = "Sending request message {MessageType} to path {Path} with reply to {ReplyTo}")]
+    private partial void LogSendingRequestMessage(string path, Type messageType, string replyTo);
+
+    [LoggerMessage(
+       EventId = 14,
+       Level = LogLevel.Debug,
+       Message = "Skipping sending response {Response} of type {MessageType} as the header {HeaderName} is missing for RequestId: {RequestId}")]
+    private partial void LogSkippingSendingResponseMessage(string requestId, object response, Type messageType, string headerName);
+
+    [LoggerMessage(
+       EventId = 15,
+       Level = LogLevel.Debug,
+       Message = "Sending the response {Response} of type {MessageType} for RequestId: {RequestId}...")]
+    private partial void LogSendingResponseMessage(string requestId, object response, Type messageType);
+
+    #endregion
 }
+
+#if NETSTANDARD2_0
+public abstract partial class MessageBusBase
+{
+    private partial void LogCouldNotStartConsumers(Exception ex)
+        => _logger.LogError(ex, "Could not auto start consumers");
+
+    private partial void LogCreatingScope(object message, Type messageType)
+        => _logger.LogDebug("Creating message scope for {Message} of type {MessageType}", message, messageType);
+
+    private partial void LogPublishOfRequestFailed(Exception ex)
+        => _logger.LogDebug(ex, "Publishing of request message failed");
+
+    private partial void LogStartingConsumers(string busName)
+        => _logger.LogInformation("Starting consumers for {BusName} bus...", busName);
+
+    private partial void LogStartedConsumers(string busName)
+        => _logger.LogInformation("Started consumers for {BusName} bus", busName);
+
+    private partial void LogStoppingConsumers(string busName)
+        => _logger.LogInformation("Stopping consumers for {BusName} bus...", busName);
+
+    private partial void LogStoppedConsumers(string busName)
+        => _logger.LogInformation("Stopped consumers for {BusName} bus", busName);
+
+    private partial void LogCreatingConsumers(string busName)
+        => _logger.LogInformation("Creating consumers for {BusName} bus...", busName);
+
+    private partial void LogDestroyingConsumers(string busName)
+        => _logger.LogInformation("Destroying consumers for {BusName} bus...", busName);
+
+    private partial void LogApplyingDefaultPath(Type messageType, string path)
+        => _logger.LogDebug("Applying default path {Path} for message type {MessageType}", path, messageType);
+
+    private partial void LogApplyingDefaultTimeout(Type messageType, TimeSpan messageTimeout)
+        => _logger.LogDebug("Applying default timeout {MessageTimeout} for message type {MessageType}", messageTimeout, messageType);
+
+    private partial void LogProducingMessageToPath(object message, Type messageType, string path)
+        => _logger.LogDebug("Producing message {Message} of type {MessageType} to path {Path}", message, messageType, path);
+
+    private partial void LogAddedToPendingRequests(int requestCount)
+        => _logger.LogTrace("Added to PendingRequests, total is {RequestCount}", requestCount);
+
+    private partial void LogSendingRequestMessage(string path, Type messageType, string replyTo)
+        => _logger.LogDebug("Sending request message {MessageType} to path {Path} with reply to {ReplyTo}", messageType, path, replyTo);
+
+    private partial void LogSkippingSendingResponseMessage(string requestId, object response, Type messageType, string headerName)
+        => _logger.LogDebug("Skipping sending response {Response} of type {MessageType} as the header {HeaderName} is missing for RequestId: {RequestId}", response, messageType, headerName, requestId);
+
+    private partial void LogSendingResponseMessage(string requestId, object response, Type messageType)
+        => _logger.LogDebug("Sending the response {Response} of type {MessageType} for RequestId: {RequestId}...", response, messageType, requestId);
+}
+
+#endif
