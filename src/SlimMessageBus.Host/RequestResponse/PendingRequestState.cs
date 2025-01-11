@@ -24,12 +24,5 @@ public class PendingRequestState
         CancellationToken = cancellationToken;
     }
 
-    #region Overrides of Object
-
-    public override string ToString()
-    {
-        return $"Request(Id: {Id}, RequestType: {RequestType}, ResponseType: {ResponseType}, Created: {Created}, Expires: {Expires})";
-    }
-
-    #endregion
+    public override string ToString() => $"Request(Id: {Id}, RequestType: {RequestType}, ResponseType: {ResponseType}, Created: {Created}, Expires: {Expires})";
 }

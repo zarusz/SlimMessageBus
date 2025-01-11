@@ -507,6 +507,38 @@ public class MemoryMessageBusTests
             await act.Should().ThrowAsync<ApplicationException>();
         }
     }
+
+    [Fact]
+    public async Task When_Publish_Given_NoConsumerRegistered_Then_NoOp()
+    {
+        const string topic = "topic-a";
+
+        _builder.Produce<SomeRequest>(x => x.DefaultTopic(topic));
+
+        var request = new SomeRequest(Guid.NewGuid());
+
+        // act
+        Func<Task> act = () => _subject.Value.ProducePublish(request);
+
+        // assert
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task When_Send_Given_NoHandlerRegistered_Then_ResponseIsNull()
+    {
+        const string topic = "topic-a";
+
+        _builder.Produce<SomeRequest>(x => x.DefaultTopic(topic));
+
+        var request = new SomeRequest(Guid.NewGuid());
+
+        // act
+        var response = await _subject.Value.ProduceSend<SomeResponse>(request);
+
+        // assert
+        response.Should().BeNull();
+    }
 }
 
 public record SomeMessageA(Guid Value);

@@ -5,7 +5,7 @@ using System.Runtime.ExceptionServices;
 /// <summary>
 /// In-memory message bus <see cref="IMessageBus"/> implementation to use for in process message passing.
 /// </summary>
-public class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
+public partial class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
 {
     private readonly ILogger _logger;
     private IDictionary<string, IMessageProcessor<object>> _messageProcessorByPath;
@@ -63,11 +63,8 @@ public class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
 
     public override bool IsMessageScopeEnabled(ConsumerSettings consumerSettings, IDictionary<string, object> consumerContextProperties)
     {
-#if NETSTANDARD2_0
         if (consumerSettings is null) throw new ArgumentNullException(nameof(consumerSettings));
-#else
-        ArgumentNullException.ThrowIfNull(consumerSettings);
-#endif
+
         if (consumerContextProperties != null && consumerContextProperties.ContainsKey(MemoryMessageBusProperties.CreateScope))
         {
             return true;
@@ -133,7 +130,7 @@ public class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
         path ??= GetDefaultPath(producerSettings.MessageType, producerSettings);
         if (!_messageProcessorByPath.TryGetValue(path, out var messageProcessor))
         {
-            _logger.LogDebug("No consumers interested in message type {MessageType} on path {Path}", messageType, path);
+            LogNoConsumerInterestedInMessageType(path, messageType);
             return default;
         }
 
@@ -165,4 +162,24 @@ public class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
         }
         return (TResponseMessage)r.Response;
     }
+
+    #region Logging
+
+    [LoggerMessage(
+       EventId = 0,
+       Level = LogLevel.Debug,
+       Message = "No consumers interested in message type {MessageType} on path {Path}")]
+    private partial void LogNoConsumerInterestedInMessageType(string path, Type messageType);
+
+    #endregion
 }
+
+#if NETSTANDARD2_0
+
+public partial class MemoryMessageBus
+{
+    private partial void LogNoConsumerInterestedInMessageType(string path, Type messageType)
+        => _logger.LogDebug("No consumers interested in message type {MessageType} on path {Path}", messageType, path);
+}
+
+#endif

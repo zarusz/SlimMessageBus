@@ -2,7 +2,7 @@
 
 using SlimMessageBus.Host.Consumer;
 
-public class MessageHandler : IMessageHandler
+public partial class MessageHandler : IMessageHandler
 {
     private readonly ILogger _logger;
     private readonly IMessageScopeFactory _messageScopeFactory;
@@ -31,11 +31,7 @@ public class MessageHandler : IMessageHandler
         string path,
         Type consumerErrorHandlerOpenGenericType = null)
     {
-#if NETSTANDARD2_0
         if (messageBus is null) throw new ArgumentNullException(nameof(messageBus));
-#else
-        ArgumentNullException.ThrowIfNull(messageBus);
-#endif
 
         _logger = messageBus.LoggerFactory.CreateLogger<MessageHandler>();
         _messageScopeFactory = messageScopeFactory;
@@ -127,7 +123,7 @@ public class MessageHandler : IMessageHandler
             {
                 if (consumerInvoker.ParentSettings.IsDisposeConsumerEnabled && consumerInstance is IDisposable consumerInstanceDisposable)
                 {
-                    _logger.LogDebug("Disposing consumer instance {Consumer} of type {ConsumerType}", consumerInstance, consumerType);
+                    LogDisposingConsumer(consumerType, consumerInstance);
                     consumerInstanceDisposable.DisposeSilently("ConsumerInstance", _logger);
                 }
             }
@@ -162,7 +158,7 @@ public class MessageHandler : IMessageHandler
 
         if (consumerErrorHandler != null)
         {
-            _logger.LogDebug(ex, "Consumer error handler of type {ConsumerErrorHandlerType} will be used to handle the exception during processing of message of type {MessageType}", consumerErrorHandler.GetType(), messageType);
+            LogConsumerErrorHandlerWillBeUsed(messageType, consumerErrorHandler.GetType(), ex);
 
             var consumerErrorHandlerMethod = RuntimeTypeCache.ConsumerErrorHandlerType[messageType];
             errorHandlerResult = await consumerErrorHandlerMethod(consumerErrorHandler, message, consumerContext, ex, attempts).ConfigureAwait(false);
@@ -211,4 +207,33 @@ public class MessageHandler : IMessageHandler
 
         return null;
     }
+
+    #region Logging
+
+    [LoggerMessage(
+       EventId = 0,
+       Level = LogLevel.Debug,
+       Message = "Disposing consumer instance {Consumer} of type {ConsumerType}")]
+    private partial void LogDisposingConsumer(Type consumerType, object consumer);
+
+    [LoggerMessage(
+       EventId = 1,
+       Level = LogLevel.Debug,
+       Message = "Consumer error handler of type {ConsumerErrorHandlerType} will be used to handle the exception during processing of message of type {MessageType}")]
+    private partial void LogConsumerErrorHandlerWillBeUsed(Type messageType, Type consumerErrorHandlerType, Exception ex);
+
+    #endregion
 }
+
+#if NETSTANDARD2_0
+
+public partial class MessageHandler
+{
+    private partial void LogDisposingConsumer(Type consumerType, object consumer)
+        => _logger.LogDebug("Disposing consumer instance {Consumer} of type {ConsumerType}", consumer, consumerType);
+
+    private partial void LogConsumerErrorHandlerWillBeUsed(Type messageType, Type consumerErrorHandlerType, Exception ex)
+        => _logger.LogDebug(ex, "Consumer error handler of type {ConsumerErrorHandlerType} will be used to handle the exception during processing of message of type {MessageType}", consumerErrorHandlerType, messageType);
+}
+
+#endif

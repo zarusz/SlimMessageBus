@@ -5,7 +5,7 @@
 /// The expectation is that <see cref="IMessageProcessor{TMessage}.ProcessMessage(TMessage)"/> will be executed synchronously (in sequential order) by the caller on which we want to increase amount of concurrent transportMessage being processed.
 /// </summary>
 /// <typeparam name="TMessage"></typeparam>
-public sealed class ConcurrentMessageProcessorDecorator<TMessage> : IMessageProcessor<TMessage>, IDisposable
+public sealed partial class ConcurrentMessageProcessorDecorator<TMessage> : IMessageProcessor<TMessage>, IDisposable
 {
     private readonly ILogger _logger;
     private SemaphoreSlim _concurrentSemaphore;
@@ -87,7 +87,8 @@ public sealed class ConcurrentMessageProcessorDecorator<TMessage> : IMessageProc
     {
         try
         {
-            _logger.LogDebug("Entering ProcessMessages for message {MessageType}", typeof(TMessage));
+            LogEntering(typeof(TMessage));
+
             var r = await _target.ProcessMessage(transportMessage, messageHeaders, consumerContextProperties, currentServiceProvider, cancellationToken).ConfigureAwait(false);
             if (r.Exception != null)
             {
@@ -105,10 +106,39 @@ public sealed class ConcurrentMessageProcessorDecorator<TMessage> : IMessageProc
         }
         finally
         {
-            _logger.LogDebug("Leaving ProcessMessages for message {MessageType}", typeof(TMessage));
+            LogLeaving(typeof(TMessage));
             _concurrentSemaphore?.Release();
 
             Interlocked.Decrement(ref _pendingCount);
         }
     }
+
+    #region Logging
+
+    [LoggerMessage(
+       EventId = 0,
+       Level = LogLevel.Debug,
+       Message = "Entering ProcessMessages for message {MessageType}")]
+    private partial void LogEntering(Type messageType);
+
+    [LoggerMessage(
+       EventId = 1,
+       Level = LogLevel.Debug,
+       Message = "Leaving ProcessMessages for message {MessageType}")]
+    private partial void LogLeaving(Type messageType);
+
+    #endregion
 }
+
+#if NETSTANDARD2_0
+
+public partial class ConcurrentMessageProcessorDecorator<TMessage>
+{
+    private partial void LogEntering(Type messageType)
+        => _logger.LogDebug("Entering ProcessMessages for message {MessageType}", messageType);
+
+    private partial void LogLeaving(Type messageType)
+        => _logger.LogDebug("Leaving ProcessMessages for message {MessageType}", messageType);
+}
+
+#endif

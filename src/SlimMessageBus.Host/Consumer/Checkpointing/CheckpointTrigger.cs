@@ -2,7 +2,7 @@
 
 using System.Diagnostics;
 
-public class CheckpointTrigger : ICheckpointTrigger
+public partial class CheckpointTrigger : ICheckpointTrigger
 {
     private readonly ILogger<CheckpointTrigger> _logger;
 
@@ -35,7 +35,6 @@ public class CheckpointTrigger : ICheckpointTrigger
         => new(settings.GetOrDefault(CheckpointSettings.CheckpointCount, CheckpointSettings.CheckpointCountDefault),
             settings.GetOrDefault(CheckpointSettings.CheckpointDuration, CheckpointSettings.CheckpointDurationDefault));
 
-
     #region Implementation of ICheckpointTrigger
 
     public bool IsEnabled
@@ -53,7 +52,7 @@ public class CheckpointTrigger : ICheckpointTrigger
         var enabled = IsEnabled;
         if (enabled && _logger.IsEnabled(LogLevel.Debug))
         {
-            _logger.LogDebug("Checkpoint triggered after Count: {CheckpointCount}, Duration: {CheckpointDuration} (s)", _lastCheckpointCount, _lastCheckpointDuration.Elapsed.Seconds);
+            LogCheckpointTriggered(_lastCheckpointCount, _lastCheckpointDuration.Elapsed.Seconds);
         }
 
         return enabled;
@@ -66,4 +65,24 @@ public class CheckpointTrigger : ICheckpointTrigger
     }
 
     #endregion
+
+    #region Logging
+
+    [LoggerMessage(
+       EventId = 0,
+       Level = LogLevel.Debug,
+       Message = "Checkpoint triggered after Count: {CheckpointCount}, Duration: {CheckpointDuration} (s)")]
+    private partial void LogCheckpointTriggered(int checkpointCount, int checkpointDuration);
+
+    #endregion
 }
+
+#if NETSTANDARD2_0
+
+public partial class CheckpointTrigger
+{
+    private partial void LogCheckpointTriggered(int checkpointCount, int checkpointDuration)
+        => _logger.LogDebug("Checkpoint triggered after Count: {CheckpointCount}, Duration: {CheckpointDuration} (s)", checkpointCount, checkpointDuration);
+}
+
+#endif
