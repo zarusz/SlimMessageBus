@@ -11,8 +11,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.SecurityToken" Version="3.7.400.47" />
-    <PackageReference Include="AWSSDK.SQS" Version="3.7.400.47" />
+    <PackageReference Include="AWSSDK.SecurityToken" Version="3.7.401.27" />
+    <PackageReference Include="AWSSDK.SQS" Version="3.7.400.78" />
   </ItemGroup>
 
   <ItemGroup>
