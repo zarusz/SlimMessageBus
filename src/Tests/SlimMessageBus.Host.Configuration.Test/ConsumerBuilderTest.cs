@@ -22,7 +22,7 @@ public class ConsumerBuilderTest
         // assert
         subject.ConsumerSettings.ConsumerMode.Should().Be(ConsumerMode.Consumer);
         subject.ConsumerSettings.ConsumerType.Should().BeNull();
-        subject.ConsumerSettings.MessageType.Should().Be(typeof(SomeMessage));
+        subject.ConsumerSettings.MessageType.Should().Be<SomeMessage>();
     }
 
     [Theory]
@@ -95,36 +95,36 @@ public class ConsumerBuilderTest
         subject.ConsumerSettings.ResponseType.Should().BeNull();
 
         subject.ConsumerSettings.ConsumerMode.Should().Be(ConsumerMode.Consumer);
-        subject.ConsumerSettings.ConsumerType.Should().Be(typeof(BaseMessageConsumer));
+        subject.ConsumerSettings.ConsumerType.Should().Be<BaseMessageConsumer>();
         Func<Task> call = () => subject.ConsumerSettings.ConsumerMethod(new BaseMessageConsumer(), new BaseMessage(), consumerContextMock.Object, consumerContextMock.Object.CancellationToken);
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(BaseMessage));
 
         subject.ConsumerSettings.Invokers.Count.Should().Be(4);
 
         var consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(BaseMessage));
-        consumerInvokerSettings.MessageType.Should().Be(typeof(BaseMessage));
-        consumerInvokerSettings.ConsumerType.Should().Be(typeof(BaseMessageConsumer));
+        consumerInvokerSettings.MessageType.Should().Be<BaseMessage>();
+        consumerInvokerSettings.ConsumerType.Should().Be<BaseMessageConsumer>();
         consumerInvokerSettings.ParentSettings.Should().BeSameAs(subject.ConsumerSettings);
         call = () => consumerInvokerSettings.ConsumerMethod(new BaseMessageConsumer(), new BaseMessage(), consumerContextMock.Object, consumerContextMock.Object.CancellationToken);
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(BaseMessage));
 
         consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(DerivedAMessage));
-        consumerInvokerSettings.MessageType.Should().Be(typeof(DerivedAMessage));
-        consumerInvokerSettings.ConsumerType.Should().Be(typeof(DerivedAMessageConsumer));
+        consumerInvokerSettings.MessageType.Should().Be<DerivedAMessage>();
+        consumerInvokerSettings.ConsumerType.Should().Be<DerivedAMessageConsumer>();
         consumerInvokerSettings.ParentSettings.Should().BeSameAs(subject.ConsumerSettings);
         call = () => consumerInvokerSettings.ConsumerMethod(new DerivedAMessageConsumer(), new DerivedAMessage(), consumerContextMock.Object, consumerContextMock.Object.CancellationToken);
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(DerivedAMessage));
 
         consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(DerivedBMessage));
-        consumerInvokerSettings.MessageType.Should().Be(typeof(DerivedBMessage));
-        consumerInvokerSettings.ConsumerType.Should().Be(typeof(DerivedBMessageConsumer));
+        consumerInvokerSettings.MessageType.Should().Be<DerivedBMessage>();
+        consumerInvokerSettings.ConsumerType.Should().Be<DerivedBMessageConsumer>();
         consumerInvokerSettings.ParentSettings.Should().BeSameAs(subject.ConsumerSettings);
         call = () => consumerInvokerSettings.ConsumerMethod(new DerivedBMessageConsumer(), new DerivedBMessage(), consumerContextMock.Object, consumerContextMock.Object.CancellationToken);
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(DerivedBMessage));
 
         consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(Derived2AMessage));
-        consumerInvokerSettings.MessageType.Should().Be(typeof(Derived2AMessage));
-        consumerInvokerSettings.ConsumerType.Should().Be(typeof(Derived2AMessageConsumer));
+        consumerInvokerSettings.MessageType.Should().Be<Derived2AMessage>();
+        consumerInvokerSettings.ConsumerType.Should().Be<Derived2AMessageConsumer>();
         consumerInvokerSettings.ParentSettings.Should().BeSameAs(subject.ConsumerSettings);
         call = () => consumerInvokerSettings.ConsumerMethod(new Derived2AMessageConsumer(), new Derived2AMessage(), consumerContextMock.Object, consumerContextMock.Object.CancellationToken);
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(Derived2AMessage));
@@ -149,36 +149,36 @@ public class ConsumerBuilderTest
         subject.ConsumerSettings.ResponseType.Should().BeNull();
 
         subject.ConsumerSettings.ConsumerMode.Should().Be(ConsumerMode.Consumer);
-        subject.ConsumerSettings.ConsumerType.Should().Be(typeof(BaseMessageConsumerOfContext));
+        subject.ConsumerSettings.ConsumerType.Should().Be<BaseMessageConsumerOfContext>();
         Func<Task> call = () => subject.ConsumerSettings.ConsumerMethod(new BaseMessageConsumerOfContext(), new BaseMessage(), consumerContextMock.Object, consumerContextMock.Object.CancellationToken);
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(BaseMessage));
 
         subject.ConsumerSettings.Invokers.Count.Should().Be(4);
 
         var consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(BaseMessage));
-        consumerInvokerSettings.MessageType.Should().Be(typeof(BaseMessage));
-        consumerInvokerSettings.ConsumerType.Should().Be(typeof(BaseMessageConsumerOfContext));
+        consumerInvokerSettings.MessageType.Should().Be<BaseMessage>();
+        consumerInvokerSettings.ConsumerType.Should().Be<BaseMessageConsumerOfContext>();
         consumerInvokerSettings.ParentSettings.Should().BeSameAs(subject.ConsumerSettings);
         call = () => consumerInvokerSettings.ConsumerMethod(new BaseMessageConsumerOfContext(), new BaseMessage(), consumerContextMock.Object, consumerContextMock.Object.CancellationToken);
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(BaseMessage));
 
         consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(DerivedAMessage));
-        consumerInvokerSettings.MessageType.Should().Be(typeof(DerivedAMessage));
-        consumerInvokerSettings.ConsumerType.Should().Be(typeof(DerivedAMessageConsumerOfContext));
+        consumerInvokerSettings.MessageType.Should().Be<DerivedAMessage>();
+        consumerInvokerSettings.ConsumerType.Should().Be<DerivedAMessageConsumerOfContext>();
         consumerInvokerSettings.ParentSettings.Should().BeSameAs(subject.ConsumerSettings);
         call = () => consumerInvokerSettings.ConsumerMethod(new DerivedAMessageConsumerOfContext(), new DerivedAMessage(), consumerContextMock.Object, consumerContextMock.Object.CancellationToken);
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(DerivedAMessage));
 
         consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(DerivedBMessage));
-        consumerInvokerSettings.MessageType.Should().Be(typeof(DerivedBMessage));
-        consumerInvokerSettings.ConsumerType.Should().Be(typeof(DerivedBMessageConsumerOfContext));
+        consumerInvokerSettings.MessageType.Should().Be<DerivedBMessage>();
+        consumerInvokerSettings.ConsumerType.Should().Be<DerivedBMessageConsumerOfContext>();
         consumerInvokerSettings.ParentSettings.Should().BeSameAs(subject.ConsumerSettings);
         call = () => consumerInvokerSettings.ConsumerMethod(new DerivedBMessageConsumerOfContext(), new DerivedBMessage(), consumerContextMock.Object, consumerContextMock.Object.CancellationToken);
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(DerivedBMessage));
 
         consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(Derived2AMessage));
-        consumerInvokerSettings.MessageType.Should().Be(typeof(Derived2AMessage));
-        consumerInvokerSettings.ConsumerType.Should().Be(typeof(Derived2AMessageConsumerOfContext));
+        consumerInvokerSettings.MessageType.Should().Be<Derived2AMessage>();
+        consumerInvokerSettings.ConsumerType.Should().Be<Derived2AMessageConsumerOfContext>();
         consumerInvokerSettings.ParentSettings.Should().BeSameAs(subject.ConsumerSettings);
         call = () => consumerInvokerSettings.ConsumerMethod(new Derived2AMessageConsumerOfContext(), new Derived2AMessage(), consumerContextMock.Object, consumerContextMock.Object.CancellationToken);
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(Derived2AMessage));
@@ -198,25 +198,25 @@ public class ConsumerBuilderTest
             .WithConsumer<DerivedRequestConsumer, DerivedRequest>();
 
         // assert
-        subject.ConsumerSettings.ResponseType.Should().Be(typeof(BaseResponse));
+        subject.ConsumerSettings.ResponseType.Should().Be<BaseResponse>();
 
         subject.ConsumerSettings.ConsumerMode.Should().Be(ConsumerMode.Consumer);
-        subject.ConsumerSettings.ConsumerType.Should().Be(typeof(BaseRequestConsumer));
+        subject.ConsumerSettings.ConsumerType.Should().Be<BaseRequestConsumer>();
         Func<Task> call = () => subject.ConsumerSettings.ConsumerMethod(new BaseRequestConsumer(), new BaseRequest(), consumerContextMock.Object, consumerContextMock.Object.CancellationToken);
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(BaseRequest));
 
         subject.ConsumerSettings.Invokers.Count.Should().Be(2);
 
         var consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(BaseRequest));
-        consumerInvokerSettings.MessageType.Should().Be(typeof(BaseRequest));
-        consumerInvokerSettings.ConsumerType.Should().Be(typeof(BaseRequestConsumer));
+        consumerInvokerSettings.MessageType.Should().Be<BaseRequest>();
+        consumerInvokerSettings.ConsumerType.Should().Be<BaseRequestConsumer>();
         consumerInvokerSettings.ParentSettings.Should().BeSameAs(subject.ConsumerSettings);
         call = () => consumerInvokerSettings.ConsumerMethod(new BaseRequestConsumer(), new BaseRequest(), consumerContextMock.Object, consumerContextMock.Object.CancellationToken);
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(BaseRequest));
 
         consumerInvokerSettings = subject.ConsumerSettings.Invokers.Single(x => x.MessageType == typeof(DerivedRequest));
-        consumerInvokerSettings.MessageType.Should().Be(typeof(DerivedRequest));
-        consumerInvokerSettings.ConsumerType.Should().Be(typeof(DerivedRequestConsumer));
+        consumerInvokerSettings.MessageType.Should().Be<DerivedRequest>();
+        consumerInvokerSettings.ConsumerType.Should().Be<DerivedRequestConsumer>();
         consumerInvokerSettings.ParentSettings.Should().BeSameAs(subject.ConsumerSettings);
         call = () => consumerInvokerSettings.ConsumerMethod(new DerivedRequestConsumer(), new DerivedRequest(), consumerContextMock.Object, consumerContextMock.Object.CancellationToken);
         call.Should().ThrowAsync<NotImplementedException>().WithMessage(nameof(DerivedRequest));

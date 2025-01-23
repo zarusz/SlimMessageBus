@@ -20,8 +20,8 @@ public class HandlerBuilderTest
         var subject = new HandlerBuilder<SomeRequest, SomeResponse>(_messageBusSettings);
 
         // assert
-        subject.ConsumerSettings.MessageType.Should().Be(typeof(SomeRequest));
-        subject.ConsumerSettings.ResponseType.Should().Be(typeof(SomeResponse));
+        subject.ConsumerSettings.MessageType.Should().Be<SomeRequest>();
+        subject.ConsumerSettings.ResponseType.Should().Be<SomeResponse>();
         subject.ConsumerSettings.ConsumerMode.Should().Be(ConsumerMode.RequestResponse);
         subject.ConsumerSettings.ConsumerType.Should().BeNull();
         subject.ConsumerSettings.Invokers.Should().BeEmpty();
@@ -34,7 +34,7 @@ public class HandlerBuilderTest
         var subject = new HandlerBuilder<SomeRequestWithoutResponse>(_messageBusSettings);
 
         // assert
-        subject.ConsumerSettings.MessageType.Should().Be(typeof(SomeRequestWithoutResponse));
+        subject.ConsumerSettings.MessageType.Should().Be<SomeRequestWithoutResponse>();
         subject.ConsumerSettings.ResponseType.Should().BeNull();
         subject.ConsumerSettings.ConsumerMode.Should().Be(ConsumerMode.RequestResponse);
         subject.ConsumerSettings.ConsumerType.Should().BeNull();
@@ -101,14 +101,14 @@ public class HandlerBuilderTest
         }
 
         // assert
-        subject.ConsumerSettings.MessageType.Should().Be(typeof(SomeRequest));
+        subject.ConsumerSettings.MessageType.Should().Be<SomeRequest>();
         subject.ConsumerSettings.Path.Should().Be(_path);
         subject.ConsumerSettings.Instances.Should().Be(3);
 
         subject.ConsumerSettings.ConsumerType.Should().Be(consumerType);
         subject.ConsumerSettings.ConsumerMode.Should().Be(ConsumerMode.RequestResponse);
 
-        subject.ConsumerSettings.ResponseType.Should().Be(typeof(SomeResponse));
+        subject.ConsumerSettings.ResponseType.Should().Be<SomeResponse>();
 
         subject.ConsumerSettings.Invokers.Count.Should().Be(2);
 
@@ -153,7 +153,7 @@ public class HandlerBuilderTest
         }
 
         // assert
-        subject.ConsumerSettings.MessageType.Should().Be(typeof(SomeRequestWithoutResponse));
+        subject.ConsumerSettings.MessageType.Should().Be<SomeRequestWithoutResponse>();
         subject.ConsumerSettings.Path.Should().Be(_path);
         subject.ConsumerSettings.Instances.Should().Be(3);
 

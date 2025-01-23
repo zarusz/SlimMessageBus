@@ -4,20 +4,16 @@ using FluentAssertions;
 
 public class JsonMessageSerializerTests
 {
-    public static IEnumerable<object[]> Data =>
-        [
-            [null, null],
-            [10, 10],
-            [false, false],
-            [true, true],
-            ["string", "string"],
-            [DateTime.Now.Date, DateTime.Now.Date],
-            [Guid.Empty, "00000000-0000-0000-0000-000000000000"],
-        ];
-
-    public JsonMessageSerializerTests()
+    public static TheoryData<object, object> Data => new()
     {
-    }
+        { null, null },
+        { 10, 10 },
+        { false, false },
+        { true, true},
+        { "string", "string"},
+        { DateTime.Now.Date, DateTime.Now.Date},
+        { Guid.Empty, "00000000-0000-0000-0000-000000000000"},
+    };
 
     [Theory]
     [MemberData(nameof(Data))]

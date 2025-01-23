@@ -16,9 +16,7 @@ public class GoogleProtobufMessageSerializer : IMessageSerializer
     }
 
     public byte[] Serialize(Type t, object message)
-    {
-        return ((IMessage)message).ToByteArray();
-    }
+        => ((IMessage)message).ToByteArray();
 
     public object Deserialize(Type t, byte[] payload)
     {
@@ -31,7 +29,7 @@ public class GoogleProtobufMessageSerializer : IMessageSerializer
                                                      BindingFlags.Instance,
                                                      null,
                                                      messageParser,
-                                                     new object[] { payload });
+                                                     [payload]);
 
             return message;
         }

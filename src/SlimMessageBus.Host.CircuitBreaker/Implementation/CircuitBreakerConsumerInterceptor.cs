@@ -3,8 +3,10 @@
 /// <summary>
 /// Circuit breaker to toggle consumer status on an external events.
 /// </summary>
-internal sealed class CircuitBreakerConsumerInterceptor(ILogger<CircuitBreakerConsumerInterceptor> logger) : IAbstractConsumerInterceptor
+internal sealed partial class CircuitBreakerConsumerInterceptor(ILogger<CircuitBreakerConsumerInterceptor> logger) : IAbstractConsumerInterceptor
 {
+    private readonly ILogger<CircuitBreakerConsumerInterceptor> _logger = logger;
+
     public int Order => 100;
 
     public async Task<bool> CanStart(AbstractConsumer consumer)
@@ -33,12 +35,12 @@ internal sealed class CircuitBreakerConsumerInterceptor(ILogger<CircuitBreakerCo
                 var bus = consumer.Settings[0].MessageBusSettings.Name ?? "default";
                 if (shouldPause)
                 {
-                    logger.LogWarning("Circuit breaker tripped for '{Path}' on '{Bus}' bus. Consumer paused.", path, bus);
+                    LogCircuitTripped(path, bus);
                     await consumer.DoStop().ConfigureAwait(false);
                 }
                 else
                 {
-                    logger.LogInformation("Circuit breaker restored for '{Path}' on '{Bus}' bus. Consumer resumed.", path, bus);
+                    LogCircuitRestored(path, bus);
                     await consumer.DoStart().ConfigureAwait(false);
                 }
                 consumer.SetIsPaused(shouldPause);
@@ -89,4 +91,32 @@ internal sealed class CircuitBreakerConsumerInterceptor(ILogger<CircuitBreakerCo
     public Task Started(AbstractConsumer consumer) => Task.CompletedTask;
 
     public Task Stopped(AbstractConsumer consumer) => Task.CompletedTask;
+
+    #region Logging
+
+    [LoggerMessage(
+       EventId = 0,
+       Level = LogLevel.Warning,
+       Message = "Circuit breaker tripped for '{Path}' on '{Bus}' bus. Consumer paused.")]
+    private partial void LogCircuitTripped(string path, string bus);
+
+    [LoggerMessage(
+       EventId = 1,
+       Level = LogLevel.Information,
+       Message = "Circuit breaker restored for '{Path}' on '{Bus}' bus. Consumer resumed.")]
+    private partial void LogCircuitRestored(string path, string bus);
+
+    #endregion
 }
+
+#if NETSTANDARD2_0
+
+partial class CircuitBreakerConsumerInterceptor
+{
+    private partial void LogCircuitTripped(string path, string bus)
+        => _logger.LogWarning("Circuit breaker tripped for '{Path}' on '{Bus}' bus. Consumer paused.", path, bus);
+
+    private partial void LogCircuitRestored(string path, string bus)
+        => _logger.LogInformation("Circuit breaker restored for '{Path}' on '{Bus}' bus. Consumer resumed.", path, bus);
+}
+#endif

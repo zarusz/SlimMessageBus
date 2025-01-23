@@ -760,6 +760,7 @@ public abstract partial class MessageBusBase : IDisposable, IAsyncDisposable,
 }
 
 #if NETSTANDARD2_0
+
 public abstract partial class MessageBusBase
 {
     private partial void LogCouldNotStartConsumers(Exception ex)
