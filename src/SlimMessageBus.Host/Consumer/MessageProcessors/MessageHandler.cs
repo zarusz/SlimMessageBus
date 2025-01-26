@@ -104,7 +104,7 @@ public partial class MessageHandler : IMessageHandler
                 catch (Exception ex)
                 {
                     attempts++;
-                    var handleErrorResult = await DoHandleError(message, messageType, messageScope, consumerContext, ex, attempts, cancellationToken).ConfigureAwait(false);
+                    var handleErrorResult = await DoHandleError(message, messageType, messageScope, consumerContext, ex, attempts).ConfigureAwait(false);
                     if (handleErrorResult is ProcessResult.RetryState)
                     {
                         continue;
@@ -144,7 +144,7 @@ public partial class MessageHandler : IMessageHandler
         return await ExecuteConsumer(message, consumerContext, consumerInvoker, responseType).ConfigureAwait(false);
     }
 
-    private async Task<ProcessResult> DoHandleError(object message, Type messageType, IMessageScope messageScope, IConsumerContext consumerContext, Exception ex, int attempts, CancellationToken cancellationToken)
+    private async Task<ProcessResult> DoHandleError(object message, Type messageType, IMessageScope messageScope, IConsumerContext consumerContext, Exception ex, int attempts)
     {
         var errorHandlerResult = ProcessResult.Failure;
 

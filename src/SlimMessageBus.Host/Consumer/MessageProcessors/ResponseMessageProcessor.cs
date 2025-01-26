@@ -69,7 +69,6 @@ public partial class ResponseMessageProcessor<TTransportMessage> : ResponseMessa
         if (requestState == null)
         {
             LogResponseWillBeDiscarded(path, requestId);
-            // ToDo: add and API hook to these kind of situation
             return null;
         }
 

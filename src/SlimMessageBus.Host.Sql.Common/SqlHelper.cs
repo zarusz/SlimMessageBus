@@ -3,7 +3,7 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
-public static class SqlHelper
+public static partial class SqlHelper
 {
     private static readonly HashSet<int> TransientErrorNumbers =
     [
@@ -20,7 +20,7 @@ public static class SqlHelper
             {
                 if (tries > 1)
                 {
-                    logger.LogInformation("SQL error encountered. Will begin attempt number {SqlRetryNumber} of {SqlRetryCount} max...", tries, retrySettings.RetryCount);
+                    LogSqlError(logger, retrySettings.RetryCount, tries);
                     await Task.Delay(nextRetryInterval, token);
                     nextRetryInterval = nextRetryInterval.Multiply(retrySettings.RetryIntervalFactor);
                 }
@@ -36,7 +36,7 @@ public static class SqlHelper
                 }
                 // transient SQL error - continue trying
                 lastTransientException = sqlEx;
-                logger.LogDebug(sqlEx, "SQL error occurred {SqlErrorCode}. Will retry operation", sqlEx.Number);
+                LogWillRetry(logger, sqlEx.Number, sqlEx);
             }
         }
         throw lastTransientException;
@@ -47,4 +47,33 @@ public static class SqlHelper
 
     public static Task RetryIfTransientError(ILogger logger, SqlRetrySettings retrySettings, Func<Task> operation, CancellationToken token) =>
         RetryIfTransientError<object>(logger, retrySettings, async () => { await operation(); return null; }, token);
+
+    #region Logging
+
+    [LoggerMessage(
+       EventId = 0,
+       Level = LogLevel.Information,
+       Message = "SQL error encountered. Will begin attempt number {SqlRetryNumber} of {SqlRetryCount} max...")]
+    private static partial void LogSqlError(ILogger logger, int sqlRetryCount, int sqlRetryNumber);
+
+    [LoggerMessage(
+       EventId = 1,
+       Level = LogLevel.Debug,
+       Message = "SQL error occurred {SqlErrorCode}. Will retry operation")]
+    private static partial void LogWillRetry(ILogger logger, int sqlErrorCode, SqlException e);
+
+    #endregion
 }
+
+#if NETSTANDARD2_0
+
+partial class SqlHelper
+{
+    private static partial void LogSqlError(ILogger logger, int sqlRetryCount, int sqlRetryNumber)
+        => logger.LogInformation("SQL error encountered. Will begin attempt number {SqlRetryNumber} of {SqlRetryCount} max...", sqlRetryNumber, sqlRetryCount);
+
+    private static partial void LogWillRetry(ILogger logger, int sqlErrorCode, SqlException e)
+        => logger.LogDebug(e, "SQL error occurred {SqlErrorCode}. Will retry operation", sqlErrorCode);
+}
+
+#endif

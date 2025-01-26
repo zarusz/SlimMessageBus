@@ -9,7 +9,7 @@ public class OutboxLockRenewalTimerFactory<TOutboxMessage, TOutboxMessageKey>(IS
     private bool _isDisposed = false;
 
     public IOutboxLockRenewalTimer CreateRenewalTimer(TimeSpan lockDuration, TimeSpan interval, Action<Exception> lockLost, CancellationToken cancellationToken)
-        => (OutboxLockRenewalTimer<TOutboxMessage, TOutboxMessageKey>)ActivatorUtilities.CreateInstance(_scope.ServiceProvider, typeof(OutboxLockRenewalTimer<TOutboxMessage, TOutboxMessageKey>), lockDuration, interval, lockLost, cancellationToken);
+        => ActivatorUtilities.CreateInstance<OutboxLockRenewalTimer<TOutboxMessage, TOutboxMessageKey>>(_scope.ServiceProvider, lockDuration, interval, lockLost, cancellationToken);
 
     public async ValueTask DisposeAsync()
     {

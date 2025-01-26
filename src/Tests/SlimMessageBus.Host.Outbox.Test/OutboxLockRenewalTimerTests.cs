@@ -112,8 +112,7 @@ public class OutboxLockRenewalTimerTests
     }
 
     private OutboxLockRenewalTimer<OutboxMessage<Guid>, Guid> CreateTimer(Action<Exception> lockLostAction = null)
-    {
-        return new OutboxLockRenewalTimer<OutboxMessage<Guid>, Guid>(
+        => new(
             _loggerMock.Object,
             _outboxRepositoryMock.Object,
             _instanceIdProviderMock.Object,
@@ -121,7 +120,6 @@ public class OutboxLockRenewalTimerTests
             _lockRenewalInterval,
             lockLostAction ?? _lockLostAction,
             _cancellationTokenSource.Token);
-    }
 
     private static async Task InvokeCallbackAsync(OutboxLockRenewalTimer<OutboxMessage<Guid>, Guid> timer)
     {

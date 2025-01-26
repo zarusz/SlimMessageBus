@@ -9,7 +9,7 @@ public class TypeCollectionTests
         var collection = new TypeCollection<ISampleInterface>();
 
         // Act
-        collection.Add(typeof(SampleClass));
+        collection.Add<SampleClass>();
 
         // Assert
         collection.Count.Should().Be(1);
@@ -37,7 +37,7 @@ public class TypeCollectionTests
         collection.Add<SampleClass>();
 
         // Act
-        Action act = () => collection.Add(typeof(SampleClass));
+        Action act = () => collection.Add<SampleClass>();
 
         // Assert
         act.Should().Throw<ArgumentException>().WithMessage("Type already exists in the collection. (Parameter 'type')");
@@ -169,7 +169,7 @@ public class TypeCollectionTests
         collection.Add<SampleClass>();
 
         // Act
-        var removed = collection.Remove(typeof(SampleClass));
+        var removed = collection.Remove<SampleClass>();
 
         // Assert
         removed.Should().BeTrue();

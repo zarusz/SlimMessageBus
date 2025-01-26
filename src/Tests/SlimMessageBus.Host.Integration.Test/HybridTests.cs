@@ -115,12 +115,12 @@ public class HybridTests(ITestOutputHelper output) : BaseIntegrationTest<HybridT
         // all the internal messages should be processed by Memory bus
         store
             .Where(x => x.Name == nameof(InternalMessageConsumer) || x.Name == nameof(InternalMessageConsumerInterceptor) || x.Name == nameof(InternalMessageProducerInterceptor) || x.Name == nameof(InternalMessagePublishInterceptor))
-            .Should().AllSatisfy(x => x.ContextMessageBusType.Should().Be(typeof(MemoryMessageBus)));
+            .Should().AllSatisfy(x => x.ContextMessageBusType.Should().Be<MemoryMessageBus>());
 
         // all the external messages should be processed by Azure Service Bus
         store
             .Where(x => x.Name == nameof(ExternalMessageConsumer) || x.Name == nameof(ExternalMessageConsumerInterceptor))
-            .Should().AllSatisfy(x => x.ContextMessageBusType.Should().Be(typeof(ServiceBusMessageBus)));
+            .Should().AllSatisfy(x => x.ContextMessageBusType.Should().Be<ServiceBusMessageBus>());
 
         // in this order
         var eventsThatHappenedWhenExternalWasPublished = grouping.Values.SingleOrDefault(x => x.Count == 2);
