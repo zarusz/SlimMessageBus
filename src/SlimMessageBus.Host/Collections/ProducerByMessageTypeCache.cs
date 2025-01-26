@@ -5,19 +5,19 @@
 /// The message type hierarchy is discovered at runtime and cached for faster access.
 /// </summary>
 /// <typeparam name="TProducer">The producer type</typeparam>
-public class ProducerByMessageTypeCache<TProducer> : IReadOnlyCache<Type, TProducer>
+public partial class ProducerByMessageTypeCache<TProducer> : IReadOnlyCache<Type, TProducer>
     where TProducer : class
 {
     private readonly ILogger _logger;
-    private readonly IDictionary<Type, TProducer> _producerByBaseType;
     private readonly IRuntimeTypeCache _runtimeTypeCache;
+    private readonly IDictionary<Type, TProducer> _producerByBaseType;
     private readonly IReadOnlyCache<Type, TProducer> _producerByType;
 
     public ProducerByMessageTypeCache(ILogger logger, IDictionary<Type, TProducer> producerByBaseType, IRuntimeTypeCache runtimeTypeCache)
     {
         _logger = logger;
-        _producerByBaseType = producerByBaseType;
         _runtimeTypeCache = runtimeTypeCache;
+        _producerByBaseType = producerByBaseType;
         _producerByType = new SafeDictionaryWrapper<Type, TProducer>(CalculateProducer);
     }
 
@@ -30,15 +30,29 @@ public class ProducerByMessageTypeCache<TProducer> : IReadOnlyCache<Type, TProdu
 
     private TProducer CalculateProducer(Type messageType)
     {
-        var assignableProducers = _producerByBaseType.Where(x => _runtimeTypeCache.IsAssignableFrom(messageType, x.Key)).OrderBy(x => CalculateBaseClassDistance(messageType, x.Key));
+        var assignableProducers = _producerByBaseType
+            .Where(x => _runtimeTypeCache.IsAssignableFrom(messageType, x.Key))
+            .OrderBy(x => CalculateBaseClassDistance(messageType, x.Key));
+
         var assignableProducer = assignableProducers.FirstOrDefault();
         if (assignableProducer.Key != null)
         {
-            _logger.LogDebug("Matched producer for message type {ProducerMessageType} for dispatched message type {MessageType}", assignableProducer.Key, messageType);
+            LogMatchedProducerForMessageType(messageType, assignableProducer.Key);
             return assignableProducer.Value;
         }
 
-        _logger.LogDebug("Unable to match any declared producer for dispatched message type {MessageType}", messageType);
+        // Is is collection of message types?
+        var collectionInfo = _runtimeTypeCache.GetCollectionTypeInfo(messageType);
+        if (collectionInfo != null)
+        {
+            var innerProducer = CalculateProducer(collectionInfo.ItemType);
+            if (innerProducer != null)
+            {
+                return innerProducer;
+            }
+        }
+
+        LogUnmatchedProducerForMessageType(messageType);
 
         // Note: Nulls are also added to dictionary, so that we don't look them up using reflection next time (cached).
         return null;
@@ -60,4 +74,33 @@ public class ProducerByMessageTypeCache<TProducer> : IReadOnlyCache<Type, TProdu
 
         return distance;
     }
+
+    #region Logging
+
+    [LoggerMessage(
+       EventId = 0,
+       Level = LogLevel.Debug,
+       Message = "Matched producer for message type {ProducerMessageType} for dispatched message type {MessageType}")]
+    private partial void LogMatchedProducerForMessageType(Type messageType, Type producerMessageType);
+
+    [LoggerMessage(
+       EventId = 1,
+       Level = LogLevel.Debug,
+       Message = "Unable to match any declared producer for dispatched message type {MessageType}")]
+    private partial void LogUnmatchedProducerForMessageType(Type messageType);
+
+    #endregion
 }
+
+#if NETSTANDARD2_0
+
+public partial class ProducerByMessageTypeCache<TProducer>
+{
+    private partial void LogMatchedProducerForMessageType(Type messageType, Type producerMessageType)
+        => _logger.LogDebug("Matched producer for message type {ProducerMessageType} for dispatched message type {MessageType}", producerMessageType, messageType);
+
+    private partial void LogUnmatchedProducerForMessageType(Type messageType)
+        => _logger.LogDebug("Unable to match any declared producer for dispatched message type {MessageType}", messageType);
+}
+
+#endif

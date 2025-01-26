@@ -3,9 +3,11 @@
 - [Configuration](#configuration)
 - [Pub/Sub communication](#pubsub-communication)
   - [Producer](#producer)
+    - [Bulk (Batch) Publish](#bulk-batch-publish)
     - [Set message headers](#set-message-headers)
   - [Consumer](#consumer)
     - [Start or Stop message consumption](#start-or-stop-message-consumption)
+    - [Health check circuit breaker](#health-check-circuit-breaker)
     - [Consumer context (additional message information)](#consumer-context-additional-message-information)
     - [Per-message DI container scope](#per-message-di-container-scope)
     - [Hybrid bus and message scope reuse](#hybrid-bus-and-message-scope-reuse)
@@ -18,7 +20,7 @@
   - [Consume the request message (the request handler)](#consume-the-request-message-the-request-handler)
   - [Request without response](#request-without-response)
 - [Static accessor](#static-accessor)
-- [Dependency resolver](#dependency-resolver)
+- [Dependency Resolver](#dependency-resolver)
   - [Dependency auto-registration](#dependency-auto-registration)
   - [ASP.Net Core](#aspnet-core)
   - [Modularization of configuration](#modularization-of-configuration)
@@ -37,9 +39,14 @@
   - [Order of Execution](#order-of-execution)
   - [Generic interceptors](#generic-interceptors)
 - [Error Handling](#error-handling)
+  - [Azure Service Bus](#azure-service-bus)
+  - [RabbitMQ](#rabbitmq)
 - [Logging](#logging)
 - [Debugging](#debugging)
 - [Provider specific functionality](#provider-specific-functionality)
+- [Topology Provisioning](#topology-provisioning)
+  - [Triggering Topology Provisioning](#triggering-topology-provisioning)
+- [Versions](#versions)
 
 ## Configuration
 
@@ -152,9 +159,36 @@ await bus.Publish(msg);
 
 // OR delivered to the specified topic (or queue)
 await bus.Publish(msg, "other-topic");
+
+// pass cancellation token
+await bus.Publish(msg, cancellationToken: ct);
 ```
 
 > The transport plugins might introduce additional configuration options. Please check the relevant provider docs. For example, Azure Service Bus, Azure Event Hub and Kafka allow setting the partitioning key for a given message type.
+
+#### Bulk (Batch) Publish
+
+Several transports support publishing messages in bulk, including:
+
+- **Azure Service Bus**
+- **Azure Event Hub**
+- **RabbitMQ**
+
+To publish messages in bulk, pass a collection of message instances of the specified type, as shown below:
+
+```csharp
+// Assuming IMessageBus bus;
+IEnumerable<SomeMessage> messages = [ ];
+await bus.Publish(messages);
+```
+
+Any collection type that can be converted to `IEnumerable<T>` is supported.
+
+While there’s no upper limit enforced by SMB, be aware that the underlying transport may split messages into chunks to avoid exceeding its payload limits in a single publish operation. These chunks will retain the original message order.
+
+For transports that don’t natively support bulk publishing, messages are published individually in sequence.
+
+> **Note:** The [producer interceptor](#interceptors) pipeline is not executed during bulk publishing. This behavior may change in future updates.
 
 #### Set message headers
 
@@ -180,7 +214,7 @@ mbb
    })
 ```
 
-Finally, it is possible to specify a headers modifier for the entire bus:
+Finally, it is possible to specify a headers modifier for the entire bus (it will apply to all outgoing messages):
 
 ```cs
 mbb
@@ -200,7 +234,7 @@ mbb.Consume<SomeMessage>(x => x
   .WithConsumer<SomeConsumer>() // (1)
   // if you do not want to implement the IConsumer<T> interface
   // .WithConsumer<AddCommandConsumer>(nameof(AddCommandConsumer.MyHandleMethod)) // (2) uses reflection
-  // .WithConsumer<AddCommandConsumer>((consumer, message) => consumer.MyHandleMethod(message)) // (3) uses a delegate
+  // .WithConsumer<AddCommandConsumer>((consumer, message, consumerContext, cancellationToken) => consumer.MyHandleMethod(message)) // (3) uses a delegate
   .Instances(1)
   //.KafkaGroup("some-consumer-group")) // Kafka provider specific extensions
 ```
@@ -210,7 +244,7 @@ When the consumer implements the `IConsumer<SomeMessage>` interface:
 ```cs
 public class SomeConsumer : IConsumer<SomeMessage>
 {
-  public async Task OnHandle(SomeMessage msg)
+  public async Task OnHandle(SomeMessage msg, CancellationToken cancellationToken)
   {
     // handle the msg
   }
@@ -221,7 +255,7 @@ The `SomeConsumer` needs to be registered in the DI container. The SMB runtime w
 
 > When `.WithConsumer<TConsumer>()` is not declared, then a default consumer of type `IConsumer<TMessage>` will be assumed (since v2.0.0).
 
-Alternatively, if you do not want to implement the `IConsumer<SomeMessage>`, then you can provide the method name (2) or a delegate that calls the consumer method (3).
+Alternatively, if you do not want to implement the `IConsumer<SomeMessage>`, then you can provide the method name _(2)_ or a delegate that calls the consumer method _(3)_.
 `IConsumerContext` and/or `CancellationToken` can optionally be included as parameters to be populated on invocation when taking this approach:
 
 ```cs
@@ -259,9 +293,34 @@ await consumerControl.Stop();
 
 > Since version 1.15.5
 
-#### Consumer context (additional message information)
+#### Health check circuit breaker
 
-> Changed in version 1.15.0
+Consumers can be linked to [.NET app health checks](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/diagnostic-health-checks) [tags](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/health-checks#register-health-check-services), enabling or disabling the consumer based on the health check status reported by the [Health Check Publisher](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/health-checks#health-check-publisher). A consumer associated with one or more tags will only be active if all health checks linked to the tags are passing.
+
+```cs
+    // add health checks with tags
+    builder.Services
+        .AddHealthChecks()
+        .AddCheck<StorageHealthCheck>("Storage", tags: ["Storage"]);
+        .AddCheck<SqlServerHealthCheck>("SqlServer", tags: ["Sql"]);
+
+    builder.Services
+        .AddSlimMessageBus(mbb => {
+            ...
+
+            mbb.Consume<Message>(cfg => {
+                ...
+
+                // configure consumer to monitor tag/state
+                cfg.PauseOnUnhealthyCheck("Storage");
+                cfg.PauseOnDegradedHealthCheck("Sql");
+            })
+        })
+```
+
+_Requires: SlimMessageBus.Host.CircuitBreaker.HealthCheck_
+
+#### Consumer context (additional message information)
 
 The consumer can access the [`IConsumerContext`](../src/SlimMessageBus/IConsumerContext.cs) object which:
 
@@ -270,18 +329,42 @@ The consumer can access the [`IConsumerContext`](../src/SlimMessageBus/IConsumer
 
 Examples of such transport specific information are the Azure Service Bus UserProperties, or Kafka Topic-Partition offset.
 
-To use it the consumer has to implement the [`IConsumerWithContext`](../src/SlimMessageBus/IConsumerWithContext.cs) interface:
+The recommended (and newer) approach is to define a consumer type that implements `IConsumer<IConsumerContext<TMessage>>`.
+For example:
+
+```cs
+// The consumer wraps the message type in IConsumerContext<T>
+public class PingConsumer : IConsumer<IConsumerContext<PingMessage>>
+{
+   public Task OnHandle(IConsumerContext<PingMessage> context, CancellationToken cancellationToken)
+   {
+      var message = context.Message; // the message (here PingMessage)
+      var topic = context.Path; // the topic or queue name
+      var headers = context.Headers; // message headers
+      // Kafka transport specific extension (requires SlimMessageBus.Host.Kafka package):
+      var transportMessage = context.GetTransportMessage();
+      var partition = transportMessage.TopicPartition.Partition;
+   }
+}
+
+// To declare the consumer type use the .WithConsumerOfContext<TConsumer>() method
+mbb.Consume<SomeMessage>(x => x
+    .Topic("some-topic")
+    .WithConsumerOfContext<PingConsumer>()
+  );
+```
+
+The other approach is for the consumer to implement the [`IConsumerWithContext`](../src/SlimMessageBus/IConsumerWithContext.cs) interface:
 
 ```cs
 public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
 {
    public IConsumerContext Context { get; set; }
 
-   public Task OnHandle(PingMessage message)
+   public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
    {
       var topic = Context.Path; // the topic or queue name
       var headers = Context.Headers; // message headers
-      var cancellationToken = Context.CancellationToken;
       // Kafka transport specific extension (requires SlimMessageBus.Host.Kafka package):
       var transportMessage = Context.GetTransportMessage();
       var partition = transportMessage.TopicPartition.Partition;
@@ -457,7 +540,7 @@ The request handling micro-service needs to have a handler that implements `IReq
 ```cs
 public class SomeRequestHandler : IRequestHandler<SomeRequest, SomeResponse>
 {
-  public async Task<SomeResponse> OnHandle(SomeRequest request)
+  public async Task<SomeResponse> OnHandle(SomeRequest request, CancellationToken cancellationToken)
   {
     // handle the request
     return new SomeResponse();
@@ -497,7 +580,7 @@ public class SomeRequest : IRequest
 // The handler has to use IRequestHandler<T> interface
 public class SomeRequestHandler : IRequestHandler<SomeRequest>
 {
-  public async Task OnHandle(SomeRequest request)
+  public async Task OnHandle(SomeRequest request, CancellationToken cancellationToken)
   {
     // no response returned
   }
@@ -530,7 +613,7 @@ This allows to easily look up the `IMessageBus` instance in the domain model lay
 
 See [`DomainEvents`](../src/Samples/Sample.DomainEvents.WebApi/Startup.cs#L79) sample it works per-request scope and how to use it for domain events.
 
-## Dependency resolver
+## Dependency Resolver
 
 SMB uses the [`Microsoft.Extensions.DependencyInjection`](https://www.nuget.org/packages/Microsoft.Extensions.DependencyInjection) container to obtain and manage instances of the declared consumers (class instances that implement `IConsumer<>` or `IRequestHandler<>`) or interceptors.
 
@@ -623,9 +706,12 @@ services.AddSlimMessageBus(mbb =>
 
 > Since version 2.0.0
 
-The SMB bus configuration can be split into modules. This allows to keep the bus configuration alongside the relevant application module (or layer).
+The SMB bus configuration can be split into modules. This allows to keep the bus configuration alongside the relevant application module (or layer):
 
-The `services.AddSlimMessageBus(mbb => { })` can be called multiple times. The end result will be a sum of the configurations (the supplied `MessageBusBuilder` instance will be the same). Consider the example:
+- The `services.AddSlimMessageBus(mbb => { })` can be called multiple times.
+- The end result will be a sum of the configurations (the supplied `MessageBusBuilder` instance will be the same).
+
+Consider the example:
 
 ```cs
 // Module 1
@@ -653,7 +739,8 @@ services.AddSlimMessageBus(mbb =>
 });
 ```
 
-Before version 2.0.0 there was support for modularity using `IMessageBusConfigurator` implementation. However, the interface was deprecated in favor of the `AddSlimMessageBus()` extension method that was made additive.
+Before version 2.0.0 there was support for modularity using `IMessageBusConfigurator` implementation.
+However, the interface was deprecated in favor of the `AddSlimMessageBus()` extension method that was made additive.
 
 ### Auto registration of consumers and interceptors
 
@@ -716,12 +803,12 @@ mbb.Produce<OrderEvent>(x => x.DefaultTopic("events"));
 
 public class CustomerEventConsumer : IConsumer<CustomerEvent>
 {
-  public Task OnHandle(CustomerEvent e) { }
+  public Task OnHandle(CustomerEvent e, CancellationToken cancellationToken) { }
 }
 
 public class OrderEventConsumer : IConsumer<OrderEvent>
 {
-  public Task OnHandle(OrderEvent e) { }
+  public Task OnHandle(OrderEvent e, CancellationToken cancellationToken) { }
 }
 
 // which consume from the same topic
@@ -796,12 +883,12 @@ Given the following consumers:
 ```cs
 public class CustomerEventConsumer : IConsumer<CustomerEvent>
 {
-  public Task OnHandle(CustomerEvent e) { }
+  public Task OnHandle(CustomerEvent e, CancellationToken cancellationToken) { }
 }
 
 public class CustomerCreatedEventConsumer : IConsumer<CustomerCreatedEvent>
 {
-  public Task OnHandle(CustomerCreatedEvent e) { }
+  public Task OnHandle(CustomerCreatedEvent e, CancellationToken cancellationToken) { }
 }
 ```
 
@@ -1003,28 +1090,40 @@ public class LoggingConsumerInterceptor<TMessage> : IConsumerInterceptor<TMessag
 
 ## Error Handling
 
-Message processing by consumers or handlers may result in exceptions.
-Starting with version 2.3.0, SMB introduces a standard way to integrate custom error handling logic across different transports.
-
-The interface [IConsumerErrorHandler<T>](../src/SlimMessageBus.Host/Consumer/ErrorHandling/IConsumerErrorHandler.cs) enables the definition of custom error handling for specific message types:
+Message processing by consumers or handlers may result in exceptions. The [IConsumerErrorHandler<T>](../src/SlimMessageBus.Host/Consumer/ErrorHandling/IConsumerErrorHandler.cs) provides a standard way to integrate custom error handling logic across different transports.
 
 ```cs
 public interface IConsumerErrorHandler<in T>
 {
     /// <summary>
-    /// Executed when the message consumer (or handler) errors out. This interface allows to intercept and handle the exception. 
-    /// Use the consumer context to get ahold of transport specific options to proceed (acknowledge/reject message).
+    /// <para>
+    /// Executed when the message consumer (or handler) errors out. The interface allows for interception of 
+    /// exceptions to manipulate the processing pipeline (success/fail/retry).
+    /// </para>
+    /// <para>
+    /// The consumer context is available to apply transport specific operations (acknowledge/reject/dead letter/etc).
+    /// </para>
+    /// <para>
+    /// If message execution is to be re-attempted, any delays/jitter should be applied before the method returns.
+    /// </para>
     /// </summary>
     /// <param name="message">The message that failed to process.</param>
-    /// <param name="retry">Performs another message processing try. The return value is relevant if the consumer was a request handler (it will be its response value). Ensure to pass the return value to the result of the error handler.</param>
     /// <param name="consumerContext">The consumer context for the message processing pipeline.</param>
     /// <param name="exception">Exception that occurred during message processing.</param>
+    /// <param name="attempts">The number of times the message has been attempted to be processed.</param>
     /// <returns>The error handling result.</returns>
-    Task<ConsumerErrorHandlerResult> OnHandleError(T message, Func<Task<object>> retry, IConsumerContext consumerContext, Exception exception);
+    Task<ProcessResult> OnHandleError(T message, IConsumerContext consumerContext, Exception exception, int attempts);
 }
 ```
 
-> The `retry()` parameter allows the message processing pipeline, including consumer interceptors, to retry processing when transient errors occur and retries are desired.
+The returned `ProcessResult` object is used to override the execution for the remainder of the execution pipeline. Some transports provide additional options.
+
+| ProcessResult       | Description                                                                                                                                                                                                                 |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Failure             | The message failed to be processed and should be returned to the queue                                                                                                                                                      |
+| Success             | The pipeline must treat the message as having been processed successfully                                                                                                                                                   |
+| SuccessWithResponse | The pipeline to treat the message as having been processed successfully, returning the response to the request/response invocation ([IRequestResponseBus<T>](../src/SlimMessageBus/RequestResponse/IRequestResponseBus.cs)) |
+| Retry               | Re-create and execute the pipeline (including the message scope when using [per-message DI container scopes](#per-message-di-container-scope))                                                                              |
 
 To enable SMB to recognize the error handler, it must be registered within the Microsoft Dependency Injection (MSDI) framework:
 
@@ -1036,19 +1135,75 @@ services.AddTransient(typeof(IRabbitMqConsumerErrorHandler<>), typeof(CustomRabb
 services.AddTransient(typeof(IConsumerErrorHandler<>), typeof(CustomConsumerErrorHandler<>));
 ```
 
-Transport plugins provide specialized error handling interfaces. Examples include:
+Transport plugins provide specialized error handling interfaces with a default implementation that includes any additional `ProcessResult` options. Examples include:
 
-- [IMemoryConsumerErrorHandler<T>](../src/SlimMessageBus.Host.Memory/Consumers/IMemoryConsumerErrorHandler.cs)
-- [IRabbitMqConsumerErrorHandler<T>](../src/SlimMessageBus.Host.RabbitMQ/Consumers/IRabbitMqConsumerErrorHandler.cs)
-- [IKafkaConsumerErrorHandler<T>](../src/SlimMessageBus.Host.Kafka/Consumer/IKafkaConsumerErrorHandler.cs)
-- [IRedisConsumerErrorHandler<T>](../src/SlimMessageBus.Host.Redis/Consumers/IRedisConsumerErrorHandler.cs)
-- [INatsConsumerErrorHandler<T>](../src/SlimMessageBus.Host.Nats/INatsConsumerErrorHandler.cs)
-- [IServiceBusConsumerErrorHandler<T>](../src/SlimMessageBus.Host.AzureServiceBus/Consumer/IServiceBusConsumerErrorHandler.cs)
-- [IEventHubConsumerErrorHandler<T>](../src/SlimMessageBus.Host.AzureEventHub/Consumer/IEventHubConsumerErrorHandler.cs)
+| Interface                                                                                                                    | Implementation including reference to additional options (if any)                                                           |
+| ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| [IMemoryConsumerErrorHandler<T>](../src/SlimMessageBus.Host.Memory/Consumers/IMemoryConsumerErrorHandler.cs)                 | [MemoryConsumerErrorHandler<T>](../src/SlimMessageBus.Host.Memory/Consumers/IMemoryConsumerErrorHandler.cs)                 |
+| [IRabbitMqConsumerErrorHandler<T>](../src/SlimMessageBus.Host.RabbitMQ/Consumers/IRabbitMqConsumerErrorHandler.cs)           | [RabbitMqConsumerErrorHandler<T>](../src/SlimMessageBus.Host.RabbitMQ/Consumers/IRabbitMqConsumerErrorHandler.cs)           |
+| [IKafkaConsumerErrorHandler<T>](../src/SlimMessageBus.Host.Kafka/Consumer/IKafkaConsumerErrorHandler.cs)                     | [KafkaConsumerErrorHandler<T>](../src/SlimMessageBus.Host.Kafka/Consumer/IKafkaConsumerErrorHandler.cs)                     |
+| [IRedisConsumerErrorHandler<T>](../src/SlimMessageBus.Host.Redis/Consumers/IRedisConsumerErrorHandler.cs)                    | [RedisConsumerErrorHandler<T>](../src/SlimMessageBus.Host.Redis/Consumers/IRedisConsumerErrorHandler.cs)                    |
+| [INatsConsumerErrorHandler<T>](../src/SlimMessageBus.Host.Nats/INatsConsumerErrorHandler.cs)                                 | [NatsConsumerErrorHandler<T>](../src/SlimMessageBus.Host.Nats/INatsConsumerErrorHandler.cs)                                 |
+| [IServiceBusConsumerErrorHandler<T>](../src/SlimMessageBus.Host.AzureServiceBus/Consumer/IServiceBusConsumerErrorHandler.cs) | [ServiceBusConsumerErrorHandler<T>](../src/SlimMessageBus.Host.AzureServiceBus/Consumer/IServiceBusConsumerErrorHandler.cs) |
+| [IEventHubConsumerErrorHandler<T>](../src/SlimMessageBus.Host.AzureEventHub/Consumer/IEventHubConsumerErrorHandler.cs)       | [EventHubConsumerErrorHandler<T>](../src/SlimMessageBus.Host.AzureEventHub/Consumer/IEventHubConsumerErrorHandler.cs)       |
+| [ISqsConsumerErrorHandler<T>](../src/SlimMessageBus.Host.AmazonSQS/Consumer/ISqsConsumerErrorHandler.cs)                     | [SqsConsumerErrorHandler<T>](../src/SlimMessageBus.Host.AmazonSQS/Consumer/ISqsConsumerErrorHandler.cs)                     |
 
 > The message processing pipeline will always attempt to use the transport-specific error handler (e.g., `IMemoryConsumerErrorHandler<T>`) first. If unavailable, it will then look for the generic error handler (`IConsumerErrorHandler<T>`).
 
 This approach allows for transport-specific error handling, ensuring that specialized handlers can be prioritized.
+
+#### Azure Service Bus
+
+| ProcessResult | Description                                                                        |
+| ------------- | ---------------------------------------------------------------------------------- |
+| DeadLetter    | Abandons further processing of the message by sending it to the dead letter queue. |
+
+#### RabbitMQ
+
+| ProcessResult | Description                                                     |
+| ------------- | --------------------------------------------------------------- |
+| Requeue       | Return the message to the queue for re-processing <sup>1</sup>. |
+
+<sup>1</sup> RabbitMQ does not have a maximum delivery count. Please use `Requeue` with caution as, if no other conditions are applied, it may result in an infinite message loop.
+
+Example retry with exponential back-off and short-curcuit to dead letter exchange on non-transient exceptions (using the [RabbitMqConsumerErrorHandler](../src/SlimMessageBus.Host.RabbitMQ/Consumers/IRabbitMqConsumerErrorHandler.cs) abstract implementation):
+
+```cs
+public class RetryHandler<T> : RabbitMqConsumerErrorHandler<T>
+{
+    private static readonly Random _random = new();
+
+    public override async Task<ConsumerErrorHandlerResult> OnHandleError(T message, IConsumerContext consumerContext, Exception exception, int attempts)
+    {
+        if (!IsTranientException(exception))
+        {
+          return Failure();
+        }
+
+        if (attempts < 3)
+        {
+            var delay = (attempts * 1000) + (_random.Next(1000) - 500);
+            await Task.Delay(delay, consumerContext.CancellationToken);
+
+            // in process retry
+            return Retry();
+        }
+
+        // re-qeuue for out of process execution
+        return Requeue();
+    }
+
+    private static bool IsTransientException(Exception exception)
+    {
+        while (exception is not SqlException && exception.InnerException != null)
+        {
+            exception = exception.InnerException;
+        }
+
+        return exception is SqlException { Number: -2 or 1205 }; // Timeout or deadlock
+    }
+}
+```
 
 ## Logging
 
@@ -1081,8 +1236,32 @@ For example, Apache Kafka requires `mbb.KafkaGroup(string)` for consumers to dec
 Providers:
 
 - [Apache Kafka](provider_kafka.md)
-- [Azure Service Bus](provider_azure_servicebus.md)
 - [Azure Event Hubs](provider_azure_eventhubs.md)
-- [Redis](provider_redis.md)
-- [Memory](provider_memory.md)
+- [Azure Service Bus](provider_azure_servicebus.md)
 - [Hybrid](provider_hybrid.md)
+- [MQTT](provider_mqtt.md)
+- [Memory](provider_memory.md)
+- [RabbitMQ](provider_rabbitmq.md)
+- [Redis](provider_redis.md)
+- [SQL](provider_sql.md)
+
+## Topology Provisioning
+
+Most of the transport providers support the automatic creation of the needed messaging topology (queues, topics, subscriptions, etc).
+
+### Triggering Topology Provisioning
+
+Topology provisioning occurs when the bus is first created (e.g., at application startup). If the underlying topology changes (e.g., queues or topics are manually deleted), you may need to re-trigger provisioning programmatically:
+
+```csharp
+ITopologyControl ctrl = // injected
+
+await ctrl.ProvisionTopology();
+```
+
+This allows to recreate missing elements in the infrastructure without restarting the whole application.
+
+## Versions
+
+- The v3 release [migration guide](https://github.com/zarusz/SlimMessageBus/tree/release/v3).
+- The v2 release [migration guide](https://github.com/zarusz/SlimMessageBus/releases/tag/Host.Transport-2.0.0).

@@ -5,12 +5,7 @@ using SlimMessageBus.Host.Interceptor;
 
 public class RuntimeTypeCacheTests
 {
-    private readonly RuntimeTypeCache _subject;
-
-    public RuntimeTypeCacheTests()
-    {
-        _subject = new RuntimeTypeCache();
-    }
+    private readonly RuntimeTypeCache _subject = new();
 
     [Theory]
     [InlineData(typeof(bool), typeof(int), false)]
@@ -81,5 +76,38 @@ public class RuntimeTypeCacheTests
 
         // assert
         result.Should().Be(expectedResult);
+    }
+
+    public static TheoryData<object, bool> Data => new()
+    {
+        { (new SomeMessage[] { new() }).Concat([new SomeMessage()]), true },
+        { new List<SomeMessage> { new(), new() }, true },
+        { new SomeMessage[] { new(), new() }, true},
+        { new HashSet<SomeMessage> { new(), new() }, true },
+        { new object(), false },
+    };
+
+    [Theory]
+    [MemberData(nameof(Data))]
+    public void Given_ObjectThatIsCollection_When_Then(object collection, bool isCollection)
+    {
+        // arrange
+
+        // actr
+        var collectionInfo = _subject.GetCollectionTypeInfo(collection.GetType());
+
+        // assert
+        if (isCollection)
+        {
+            collectionInfo.Should().NotBeNull();
+            collectionInfo.ItemType.Should().Be<SomeMessage>();
+            var col = collectionInfo.ToCollection(collection);
+            col.Should().NotBeNull();
+            col.Should().BeSameAs((IEnumerable<object>)collection);
+        }
+        else
+        {
+            collectionInfo.Should().BeNull();
+        }
     }
 }

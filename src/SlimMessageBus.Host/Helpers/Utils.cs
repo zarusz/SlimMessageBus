@@ -30,22 +30,18 @@ public static class Utils
     }
 
     public static void DisposeSilently(this IDisposable disposable, string name, ILogger logger)
-    {
-        disposable.DisposeSilently(e => logger.LogWarning(e, "Error occurred while disposing {Name}", name));
-    }
-
-    public static void DisposeSilently(this IDisposable disposable, Func<string> nameFunc, ILogger logger)
-    {
-        disposable.DisposeSilently(e => logger.LogWarning(e, "Error occurred while disposing {Name}", nameFunc()));
-    }
+        => disposable.DisposeSilently(e => logger.LogWarning(e, "Error occurred while disposing {Name}", name));
 
     public static ValueTask DisposeSilently(this IAsyncDisposable disposable, Func<string> nameFunc, ILogger logger)
-    {
-        return disposable.DisposeSilently(e => logger.LogWarning(e, "Error occurred while disposing {Name}", nameFunc()));
-    }
+        => disposable.DisposeSilently(e => logger.LogWarning(e, "Error occurred while disposing {Name}", nameFunc()));
 
     public static ValueTask DisposeSilently(this IAsyncDisposable disposable, string name, ILogger logger)
+        => disposable.DisposeSilently(e => logger.LogWarning(e, "Error occurred while disposing {Name}", name));
+
+    public static string JoinOrSingle<T>(this T[] values, Func<T, string> selector, string separator = ",") => values.Length switch
     {
-        return disposable.DisposeSilently(e => logger.LogWarning(e, "Error occurred while disposing {Name}", name));
-    }
+        0 => string.Empty,
+        1 => selector(values[0]),
+        _ => string.Join(separator, values.Select(selector))
+    };
 }

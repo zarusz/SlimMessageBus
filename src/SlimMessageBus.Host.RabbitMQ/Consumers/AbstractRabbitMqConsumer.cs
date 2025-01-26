@@ -10,15 +10,21 @@ public abstract class AbstractRabbitMqConsumer : AbstractConsumer
     private AsyncEventingBasicConsumer _consumer;
     private string _consumerTag;
 
-    public string QueueName { get; }
     protected abstract RabbitMqMessageAcknowledgementMode AcknowledgementMode { get; }
 
-    protected AbstractRabbitMqConsumer(ILogger logger, IRabbitMqChannel channel, string queueName, IHeaderValueConverter headerValueConverter)
-        : base(logger)
+    protected AbstractRabbitMqConsumer(ILogger logger,
+                                       IEnumerable<AbstractConsumerSettings> consumerSettings,
+                                       IEnumerable<IAbstractConsumerInterceptor> interceptors,
+                                       IRabbitMqChannel channel,
+                                       string queueName,
+                                       IHeaderValueConverter headerValueConverter)
+        : base(logger,
+               consumerSettings,
+               path: queueName,
+               interceptors)
     {
         _channel = channel;
         _headerValueConverter = headerValueConverter;
-        QueueName = queueName;
     }
 
     protected override Task OnStart()
@@ -28,7 +34,7 @@ public abstract class AbstractRabbitMqConsumer : AbstractConsumer
 
         lock (_channel.ChannelLock)
         {
-            _consumerTag = _channel.Channel.BasicConsume(QueueName, autoAck: AcknowledgementMode == RabbitMqMessageAcknowledgementMode.AckAutomaticByRabbit, _consumer);
+            _consumerTag = _channel.Channel.BasicConsume(Path, autoAck: AcknowledgementMode == RabbitMqMessageAcknowledgementMode.AckAutomaticByRabbit, _consumer);
         }
 
         return Task.CompletedTask;
@@ -54,7 +60,7 @@ public abstract class AbstractRabbitMqConsumer : AbstractConsumer
             return;
         }
 
-        Logger.LogDebug("Message arrived on queue {QueueName} from exchange {ExchangeName} with delivery tag {DeliveryTag}", QueueName, @event.Exchange, @event.DeliveryTag);
+        Logger.LogDebug("Message arrived on queue {QueueName} from exchange {ExchangeName} with delivery tag {DeliveryTag}", Path, @event.Exchange, @event.DeliveryTag);
         Exception exception;
         try
         {
@@ -76,7 +82,7 @@ public abstract class AbstractRabbitMqConsumer : AbstractConsumer
         }
         if (exception != null)
         {
-            Logger.LogError(exception, "Error while processing message on queue {QueueName} from exchange {ExchangeName}: {ErrorMessage}", QueueName, @event.Exchange, exception.Message);
+            Logger.LogError(exception, "Error while processing message on queue {QueueName} from exchange {ExchangeName}: {ErrorMessage}", Path, @event.Exchange, exception.Message);
         }
     }
 

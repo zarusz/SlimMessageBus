@@ -7,10 +7,9 @@ using SlimMessageBus.Host.Memory;
 /// <summary>
 /// This test verifies that the <see cref="IMessageScopeAccessor"/> correctly looks up the <see cref="IServiceProvider"/> for the current message scope.
 /// </summary>
-/// <param name="testOutputHelper"></param>
+/// <param name="output"></param>
 [Trait("Category", "Integration")]
-public class MessageScopeAccessorTests(ITestOutputHelper testOutputHelper)
-    : BaseIntegrationTest<MessageScopeAccessorTests>(testOutputHelper)
+public class MessageScopeAccessorTests(ITestOutputHelper output) : BaseIntegrationTest<MessageScopeAccessorTests>(output)
 {
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
@@ -49,7 +48,7 @@ public class MessageScopeAccessorTests(ITestOutputHelper testOutputHelper)
 
     public class TestMessageConsumer(TestValueHolder holder, IServiceProvider serviceProvider, IMessageScopeAccessor messageScopeAccessor) : IRequestHandler<TestMessage>
     {
-        public Task OnHandle(TestMessage request)
+        public Task OnHandle(TestMessage request, CancellationToken cancellationToken)
         {
             holder.ServiceProvider = serviceProvider;
             holder.MessageScopeAccessorServiceProvider = messageScopeAccessor.Current;

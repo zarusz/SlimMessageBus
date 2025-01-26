@@ -32,7 +32,7 @@ internal class RabbitMqMessageBusSettingsValidationService : DefaultMessageBusSe
         if (routingKeyProvider == null)
         {
             // Requirement for the routing key depends on the ExchangeType
-            var exchangeType = producerSettings.GetExchageType(ProviderSettings);
+            var exchangeType = producerSettings.GetExchangeType(ProviderSettings);
             if (exchangeType == global::RabbitMQ.Client.ExchangeType.Direct || exchangeType == global::RabbitMQ.Client.ExchangeType.Topic)
             {
                 ThrowProducerFieldNotSet(producerSettings, nameof(RabbitMqProducerBuilderExtensions.RoutingKeyProvider), $"is neither provided on the producer for exchange {producerSettings.DefaultPath} nor a default provider exists at the bus level (check that .{nameof(RabbitMqProducerBuilderExtensions.RoutingKeyProvider)}() exists on the producer or bus level). Exchange type {exchangeType} requires the producer to has a routing key provider.");
@@ -75,6 +75,5 @@ internal class RabbitMqMessageBusSettingsValidationService : DefaultMessageBusSe
                 ThrowRequestResponseFieldNotSet(nameof(RabbitMqConsumerBuilderExtensions.Queue));
             }
         }
-
     }
 }

@@ -8,8 +8,8 @@ using Config;
 using Serialization.Json;
 
 [Trait("Category", "Integration")]
-[Trait("Transport", "Nats")]
-public class NatsMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegrationTest<NatsMessageBusIt>(testOutputHelper)
+[Trait("Transport", "NATS")]
+public class NatsMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<NatsMessageBusIt>(output)
 {
     private const int NumberOfMessages = 100;
 
@@ -35,8 +35,10 @@ public class NatsMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegrat
 
     public IMessageBus MessageBus => ServiceProvider.GetRequiredService<IMessageBus>();
 
-    [Fact]
-    public async Task BasicPubSubOnTopic()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BasicPubSubOnTopic(bool bulkProduce)
     {
         var concurrency = 2;
         var topic = "test-ping";
@@ -48,10 +50,10 @@ public class NatsMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegrat
                 .Consume<PingMessage>(x => x.Topic(topic).Instances(concurrency));
         });
 
-        await BasicPubSub(1);
+        await BasicPubSub(1, bulkProduce);
     }
 
-    private async Task BasicPubSub(int expectedMessageCopies)
+    private async Task BasicPubSub(int expectedMessageCopies, bool bulkProduce)
     {
         // arrange
         var messageBus = MessageBus;
@@ -72,9 +74,16 @@ public class NatsMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegrat
             .Select(i => new PingMessage(i, Guid.NewGuid()))
             .ToList();
 
-        var messageTasks = producedMessages.Select(m => messageBus.Publish(m));
-        // wait until all messages are sent
-        await Task.WhenAll(messageTasks);
+        if (bulkProduce)
+        {
+            await messageBus.Publish(producedMessages);
+        }
+        else
+        {
+            var messageTasks = producedMessages.Select(m => messageBus.Publish(m));
+            // wait until all messages are sent
+            await Task.WhenAll(messageTasks);
+        }
 
         stopwatch.Stop();
         Logger.LogInformation("Published {MessageCount} messages in {Duration}", producedMessages.Count, stopwatch.Elapsed);
@@ -165,7 +174,7 @@ public class NatsMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegrat
     private async Task WaitUntilConnected()
     {
         // Wait until connected
-        var natsMessageBus = (NatsMessageBus) ServiceProvider.GetRequiredService<IConsumerControl>();
+        var natsMessageBus = (NatsMessageBus)ServiceProvider.GetRequiredService<IConsumerControl>();
         while (!natsMessageBus.IsConnected)
         {
             await Task.Delay(200);
@@ -176,15 +185,13 @@ public class NatsMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegrat
 
     private class PingConsumer(ILogger<PingConsumer> logger, TestEventCollector<PingMessage> messages) : IConsumer<PingMessage>, IConsumerWithContext
     {
-        private readonly ILogger _logger = logger;
-
         public IConsumerContext Context { get; set; }
 
-        public Task OnHandle(PingMessage message)
+        public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
         {
             messages.Add(message);
 
-            _logger.LogInformation("Got message {Counter} on topic {Path}", message.Counter, Context.Path);
+            logger.LogInformation("Got message {Counter} on topic {Path}", message.Counter, Context.Path);
             return Task.CompletedTask;
         }
     }
@@ -195,7 +202,7 @@ public class NatsMessageBusIt(ITestOutputHelper testOutputHelper) : BaseIntegrat
 
     private class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
     {
-        public Task<EchoResponse> OnHandle(EchoRequest request)
+        public Task<EchoResponse> OnHandle(EchoRequest request, CancellationToken cancellationToken)
         {
             return Task.FromResult(new EchoResponse(request.Message));
         }

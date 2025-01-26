@@ -1,4 +1,4 @@
-# Azure Event Hub Provider for SlimMessageBus  <!-- omit in toc -->
+# Azure Event Hub Provider for SlimMessageBus <!-- omit in toc -->
 
 Please read the [Introduction](intro.md) before reading this provider documentation.
 
@@ -20,13 +20,13 @@ var storageContainerName = ""; // Azure Blob Storage container name
 
 services.AddSlimMessageBus(mbb =>
 {
-    // Use Azure Event Hub as provider    
+    // Use Azure Event Hub as provider
     mbb.WithProviderEventHub(cfg =>
     {
         cfg.ConnectionString = eventHubConnectionString;
         cfg.StorageConnectionString = storageConnectionString;
         cfg.StorageBlobContainerName = storageContainerName;
-    });    
+    });
     mbb.AddJsonSerializer();
 
     // ...
@@ -72,14 +72,14 @@ services.AddSlimMessageBus(mbb =>
         {
             Identifier = $"MyService_{Guid.NewGuid()}"
         };
-        
+
         cfg.EventHubProcessorClientOptionsFactory = (consumerParams) => new Azure.Messaging.EventHubs.EventProcessorClientOptions
         {
             // Force partition lease rebalancing to happen faster (if new consumers join they can quickly gain a partition lease)
             LoadBalancingUpdateInterval = TimeSpan.FromSeconds(2),
             PartitionOwnershipExpirationInterval = TimeSpan.FromSeconds(5),
         };
-    });    
+    });
 });
 ```
 
@@ -89,7 +89,7 @@ To produce a given `TMessage` to an Azure Event Hub named `my-event-hub` use:
 
 ```cs
 // send TMessage to Azure SB queues
-mbb.Produce<TMessage>(x => x.DefaultPath("my-event-hub")); 
+mbb.Produce<TMessage>(x => x.DefaultPath("my-event-hub"));
 ```
 
 ### Selecting message partition
@@ -102,7 +102,7 @@ Azure EventHub topics are broken into partitions:
 SMB Azure EventHub allows to set a provider (selector) that will assign the partition key for a given message. Here is an example:
 
 ```cs
-mbb.Produce<CustomerUpdated>(x => 
+mbb.Produce<CustomerUpdated>(x =>
 {
     x.DefaultPath("topic1");
     // Message key could be set for the message
@@ -135,7 +135,7 @@ mbb.Consume<SomeMessage>(x => x
     .Path(hubName) // hub name
     .Group(consumerGroupName) // consumer group name on the hub
     .WithConsumer<SomeConsumer>()
-    .CheckpointAfter(TimeSpan.FromSeconds(10)) // trigger checkpoint after 10 seconds 
+    .CheckpointAfter(TimeSpan.FromSeconds(10)) // trigger checkpoint after 10 seconds
     .CheckpointEvery(50)); // trigger checkpoint every 50 messages
 ```
 

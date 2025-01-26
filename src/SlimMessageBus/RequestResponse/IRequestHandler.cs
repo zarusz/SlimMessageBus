@@ -11,8 +11,9 @@ public interface IRequestHandler<in TRequest, TResponse>
     /// Handles the incoming request message.
     /// </summary>
     /// <param name="request">The request message</param>
+    /// <param name="cancellationToken">The cancellation token</param>
     /// <returns></returns>
-    Task<TResponse> OnHandle(TRequest request);
+    Task<TResponse> OnHandle(TRequest request, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -25,6 +26,7 @@ public interface IRequestHandler<in TRequest>
     /// Handles the incoming request message.
     /// </summary>
     /// <param name="request">The request message</param>
+    /// <param name="cancellationToken">The cancellation token</param>
     /// <returns></returns>
-    Task OnHandle(TRequest request);
+    Task OnHandle(TRequest request, CancellationToken cancellationToken);
 }

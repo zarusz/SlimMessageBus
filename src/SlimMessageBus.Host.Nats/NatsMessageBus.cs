@@ -1,5 +1,6 @@
 namespace SlimMessageBus.Host.Nats;
 
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Primitives;
 
 public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
@@ -20,7 +21,7 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
     protected override void Build()
     {
         base.Build();
-        AddInit(CreateConnectionAsync());
+        InitTaskList.Add(CreateConnectionAsync, CancellationToken);
     }
 
     private Task CreateConnectionAsync()
@@ -53,30 +54,32 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
 
         await base.CreateConsumers();
 
+        object MessageProvider(Type messageType, NatsMsg<byte[]> transportMessage) => Serializer.Deserialize(messageType, transportMessage.Data);
+
         foreach (var (subject, consumerSettings) in Settings.Consumers.GroupBy(x => x.Path).ToDictionary(x => x.Key, x => x.ToList()))
         {
             var processor = new MessageProcessor<NatsMsg<byte[]>>(
                 consumerSettings,
                 messageBus: this,
-                messageProvider: (type, message) => Serializer.Deserialize(type, message.Data),
+                messageProvider: MessageProvider,
                 subject,
                 this,
                 consumerErrorHandlerOpenGenericType: typeof(INatsConsumerErrorHandler<>));
 
-            AddSubjectConsumer(subject, processor);
+            AddSubjectConsumer(consumerSettings, subject, processor);
         }
 
         if (Settings.RequestResponse != null)
         {
-            var processor = new ResponseMessageProcessor<NatsMsg<byte[]>>(LoggerFactory, Settings.RequestResponse, this, message => message.Data);
-            AddSubjectConsumer(Settings.RequestResponse.Path, processor);
+            var processor = new ResponseMessageProcessor<NatsMsg<byte[]>>(LoggerFactory, Settings.RequestResponse, MessageProvider, PendingRequestStore, CurrentTimeProvider);
+            AddSubjectConsumer([], Settings.RequestResponse.Path, processor);
         }
     }
 
-    private void AddSubjectConsumer(string subject, IMessageProcessor<NatsMsg<byte[]>> processor)
+    private void AddSubjectConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, string subject, IMessageProcessor<NatsMsg<byte[]>> processor)
     {
         _logger.LogInformation("Creating consumer for {Subject}", subject);
-        var consumer = new NatsSubjectConsumer<byte[]>(LoggerFactory.CreateLogger<NatsSubjectConsumer<byte[]>>(), subject, _connection, processor);
+        var consumer = new NatsSubjectConsumer<byte[]>(LoggerFactory.CreateLogger<NatsSubjectConsumer<byte[]>>(), consumerSettings, interceptors: Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(), subject, _connection, processor);
         AddConsumer(consumer);
     }
 
@@ -91,22 +94,17 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
         }
     }
 
-    protected override async Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus,
-        CancellationToken cancellationToken)
+    public override async Task ProduceToTransport(object message, Type messageType, string path, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
-
-        await EnsureInitFinished();
-
-        if (_connection == null)
+        try
         {
-            throw new ProducerMessageBusException("The connection is not available at this time");
-        }
+            OnProduceToTransport(message, messageType, path, messageHeaders);
 
-        var messages = envelopes.Select(envelope =>
-        {
-            var messagePayload = Serializer.Serialize(envelope.MessageType, envelope.Message);
+            var messagePayload = Serializer.Serialize(messageType, message);
 
-            var replyTo = envelope.Headers.TryGetValue("ReplyTo", out var replyToValue) ? replyToValue.ToString() : null;
+            var replyTo = messageHeaders.TryGetValue("ReplyTo", out var replyToValue)
+                ? replyToValue.ToString()
+                : null;
 
             NatsMsg<byte[]> m = new()
             {
@@ -116,28 +114,17 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
                 ReplyTo = replyTo
             };
 
-            foreach (var header in envelope.Headers)
+            foreach (var header in messageHeaders)
             {
                 m.Headers.Add(new KeyValuePair<string, StringValues>(header.Key, header.Value.ToString()));
             }
 
-            return (Envelope: envelope, Message: m);
-        });
-
-        var dispatched = new List<T>(envelopes.Count);
-        foreach (var item in messages)
+            await _connection.PublishAsync(m, cancellationToken: cancellationToken);
+        }
+        catch (Exception ex) when (ex is not ProducerMessageBusException && ex is not TaskCanceledException)
         {
-            try
-            {
-                await _connection.PublishAsync(item.Message, cancellationToken: cancellationToken);
-                dispatched.Add(item.Envelope);
-            }
-            catch (Exception ex)
-            {
-                return new ProduceToTransportBulkResult<T>(dispatched, ex);
-            }
+            throw new ProducerMessageBusException(GetProducerErrorMessage(path, message, messageType, ex), ex);
         }
 
-        return new ProduceToTransportBulkResult<T>(dispatched, null);
     }
 }

@@ -2,8 +2,8 @@
 
 public class KindMapping
 {
-    private readonly Dictionary<string, PathKind> _kindByTopic = new();
-    private readonly Dictionary<Type, PathKind> _kindByMessageType = new();
+    private readonly Dictionary<string, PathKind> _kindByTopic = [];
+    private readonly Dictionary<Type, PathKind> _kindByMessageType = [];
 
     public void Configure(MessageBusSettings settings)
     {

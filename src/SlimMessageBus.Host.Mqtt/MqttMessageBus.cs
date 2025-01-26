@@ -1,5 +1,10 @@
 ﻿namespace SlimMessageBus.Host.Mqtt;
 
+using System.Collections.Generic;
+using System.Threading;
+
+using Microsoft.Extensions.DependencyInjection;
+
 using MQTTnet.Extensions.ManagedClient;
 
 public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
@@ -49,10 +54,10 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
 
         object MessageProvider(Type messageType, MqttApplicationMessage transportMessage) => Serializer.Deserialize(messageType, transportMessage.PayloadSegment.Array);
 
-        void AddTopicConsumer(string topic, IMessageProcessor<MqttApplicationMessage> messageProcessor)
+        void AddTopicConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, string topic, IMessageProcessor<MqttApplicationMessage> messageProcessor)
         {
             _logger.LogInformation("Creating consumer for {Path}", topic);
-            var consumer = new MqttTopicConsumer(LoggerFactory.CreateLogger<MqttTopicConsumer>(), topic, messageProcessor);
+            var consumer = new MqttTopicConsumer(LoggerFactory.CreateLogger<MqttTopicConsumer>(), consumerSettings, interceptors: Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(), topic, messageProcessor);
             AddConsumer(consumer);
         }
 
@@ -66,7 +71,7 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
                 responseProducer: this,
                 consumerErrorHandlerOpenGenericType: typeof(IMqttConsumerErrorHandler<>));
 
-            AddTopicConsumer(path, processor);
+            AddTopicConsumer(consumerSettings, path, processor);
         }
 
         if (Settings.RequestResponse != null)
@@ -74,13 +79,14 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
             var processor = new ResponseMessageProcessor<MqttApplicationMessage>(
                 LoggerFactory,
                 Settings.RequestResponse,
-                responseConsumer: this,
-                messagePayloadProvider: m => m.PayloadSegment.Array);
+                messageProvider: MessageProvider,
+                PendingRequestStore,
+                CurrentTimeProvider);
 
-            AddTopicConsumer(Settings.RequestResponse.Path, processor);
+            AddTopicConsumer([Settings.RequestResponse], Settings.RequestResponse.Path, processor);
         }
 
-        var topics = Consumers.Cast<MqttTopicConsumer>().Select(x => new MqttTopicFilterBuilder().WithTopic(x.Topic).Build()).ToList();
+        var topics = Consumers.Cast<MqttTopicConsumer>().Select(x => new MqttTopicFilterBuilder().WithTopic(x.Path).Build()).ToList();
         await _mqttClient.SubscribeAsync(topics).ConfigureAwait(false);
     }
 
@@ -97,7 +103,7 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
 
     private Task OnMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs arg)
     {
-        var consumer = Consumers.Cast<MqttTopicConsumer>().FirstOrDefault(x => x.Topic == arg.ApplicationMessage.Topic);
+        var consumer = Consumers.Cast<MqttTopicConsumer>().FirstOrDefault(x => x.Path == arg.ApplicationMessage.Topic);
         if (consumer != null)
         {
             var headers = new Dictionary<string, object>();
@@ -113,63 +119,51 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
         return Task.CompletedTask;
     }
 
-    protected override async Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
+    public override async Task ProduceToTransport(object message, Type messageType, string path, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
-        var messages = envelopes
-            .Select(envelope =>
-            {
-                var messagePayload = Serializer.Serialize(envelope.MessageType, envelope.Message);
-
-                var m = new MqttApplicationMessage
-                {
-                    PayloadSegment = new ArraySegment<byte>(messagePayload),
-                    Topic = path
-                };
-
-                if (envelope.Headers != null)
-                {
-                    m.UserProperties = new List<MQTTnet.Packets.MqttUserProperty>(envelope.Headers.Count);
-                    foreach (var header in envelope.Headers)
-                    {
-                        m.UserProperties.Add(new(header.Key, header.Value.ToString()));
-                    }
-                }
-
-                var messageType = envelope.Message?.GetType();
-                try
-                {
-                    var messageModifier = Settings.GetMessageModifier();
-                    messageModifier?.Invoke(envelope.Message, m);
-
-                    if (messageType != null)
-                    {
-                        var producerSettings = GetProducerSettings(messageType);
-                        messageModifier = producerSettings.GetMessageModifier();
-                        messageModifier?.Invoke(envelope.Message, m);
-                    }
-                }
-                catch (Exception e)
-                {
-                    _logger.LogWarning(e, "The configured message modifier failed for message type {MessageType} and message {Message}", messageType, envelope.Message);
-                }
-
-                return (Envelope: envelope, Message: m);
-            });
-
-        var dispatched = new List<T>(envelopes.Count);
-        foreach (var item in messages)
+        try
         {
+            OnProduceToTransport(message, messageType, path, messageHeaders);
+
+            var messagePayload = Serializer.Serialize(messageType, message);
+
+            var m = new MqttApplicationMessage
+            {
+                PayloadSegment = new ArraySegment<byte>(messagePayload),
+                Topic = path
+            };
+
+            if (messageHeaders != null)
+            {
+                m.UserProperties = new List<MQTTnet.Packets.MqttUserProperty>(messageHeaders.Count);
+                foreach (var header in messageHeaders)
+                {
+                    m.UserProperties.Add(new(header.Key, header.Value.ToString()));
+                }
+            }
+
             try
             {
-                await _mqttClient.EnqueueAsync(item.Message);
-                dispatched.Add(item.Envelope);
-            }
-            catch (Exception ex)
-            {
-                return new(dispatched, ex);
-            }
-        }
+                var messageModifier = Settings.GetMessageModifier();
+                messageModifier?.Invoke(message, m);
 
-        return new(dispatched, null);
+                if (messageType != null)
+                {
+                    var producerSettings = GetProducerSettings(messageType);
+                    messageModifier = producerSettings.GetMessageModifier();
+                    messageModifier?.Invoke(message, m);
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogWarning(e, "The configured message modifier failed for message type {MessageType} and message {Message}", messageType, message);
+            }
+
+            await _mqttClient.EnqueueAsync(m);
+        }
+        catch (Exception ex) when (ex is not ProducerMessageBusException && ex is not TaskCanceledException)
+        {
+            throw new ProducerMessageBusException(GetProducerErrorMessage(path, message, messageType, ex), ex);
+        }
     }
 }

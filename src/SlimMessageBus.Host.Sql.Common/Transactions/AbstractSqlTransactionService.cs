@@ -31,13 +31,19 @@ public abstract class AbstractSqlTransactionService(SqlConnection connection) : 
 
     public async virtual Task BeginTransaction()
     {
-        if (_transactionCount++ == 0)
+        if (_transactionCompleted)
+        {
+            throw new MessageBusException("Transaction was completed already");
+        }
+
+        if (_transactionCount == 0)
         {
             // Start transaction
+            await OnBeginTransaction();
             _transactionFailed = false;
             _transactionCompleted = false;
-            await OnBeginTransaction();
         }
+        _transactionCount++;
     }
 
     private async Task TryCompleteTransaction(bool transactionFailed = false)
@@ -58,6 +64,7 @@ public abstract class AbstractSqlTransactionService(SqlConnection connection) : 
         if (!_transactionCompleted && (_transactionCount == 0 || transactionFailed))
         {
             _transactionCompleted = true;
+            _transactionCount = 0;
             await OnCompleteTransaction(_transactionFailed);
         }
     }

@@ -11,8 +11,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=vulnerabilities)](https://sonarcloud.io/summary/overall?id=zarusz_SlimMessageBus)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=alert_status)](https://sonarcloud.io/summary/overall?id=zarusz_SlimMessageBus)
 
-> The v2 release is available (see [migration guide](https://github.com/zarusz/SlimMessageBus/releases/tag/Host.Transport-2.0.0)).
-> The v3 release is [under construction](https://github.com/zarusz/SlimMessageBus/tree/release/v3).
+> The v3 release is [available](https://github.com/zarusz/SlimMessageBus/releases/tag/3.0.0).
 
 - [Key elements of SlimMessageBus](#key-elements-of-slimmessagebus)
 - [Docs](#docs)
@@ -47,6 +46,7 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 
 - [Introduction](docs/intro.md)
 - Providers:
+  - [Amazon SQS/SNS](docs/provider_amazon_sqs.md)
   - [Apache Kafka](docs/provider_kafka.md)
   - [Azure EventHubs](docs/provider_azure_eventhubs.md)
   - [Azure ServiceBus](docs/provider_azure_servicebus.md)
@@ -69,11 +69,12 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SlimMessageBus`                     | The core API for SlimMessageBus                                                                                     | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.svg)](https://www.nuget.org/packages/SlimMessageBus)                                                                     |
 | **Transport providers**              |                                                                                                                     |                                                                                                                                                                                  |
+| `.Host.AmazonSQS`                    | Transport provider for Amazon SQS / SNS                                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AmazonSQS.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AmazonSQS)                                       |
 | `.Host.AzureEventHub`                | Transport provider for Azure Event Hubs                                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AzureEventHub.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)                               |
 | `.Host.AzureServiceBus`              | Transport provider for Azure Service Bus                                                                            | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AzureServiceBus.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AzureServiceBus)                           |
 | `.Host.Kafka`                        | Transport provider for Apache Kafka                                                                                 | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Kafka.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)                                               |
-| `.Host.Memory`                       | Transport provider implementation for in-process (in memory) message passing (no messaging infrastructure required) | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Memory.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Memory)                                             |
 | `.Host.MQTT`                         | Transport provider for MQTT                                                                                         | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.MQTT.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.MQTT)                                                 |
+| `.Host.Memory`                       | Transport provider implementation for in-process (in memory) message passing (no messaging infrastructure required) | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Memory.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Memory)                                             |
 | `.Host.NATS`                         | Transport provider for [NATS](https://nats.io/)                                                                     | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.NATS.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.NATS)                                                 |
 | `.Host.RabbitMQ`                     | Transport provider for RabbitMQ                                                                                     | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.RabbitMQ.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.RabbitMQ)                                         |
 | `.Host.Redis`                        | Transport provider for Redis                                                                                        | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Redis.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Redis)                                               |
@@ -88,9 +89,10 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 | `.Host.AspNetCore`                   | Integration for ASP.NET Core                                                                                        | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AspNetCore.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AspNetCore)                                     |
 | `.Host.Interceptor`                  | Core interface for interceptors                                                                                     | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Interceptor.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Interceptor)                                   |
 | `.Host.FluentValidation`             | Validation for messages based on [FluentValidation](https://www.nuget.org/packages/FluentValidation)                | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.FluentValidation.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.FluentValidation)                         |
-| `.Host.Outbox.Sql`                   | Transactional Outbox using SQL                                                                                      | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Outbox.Sql.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql)                                     |
-| `.Host.Outbox.DbContext`             | Transactional Outbox using EF DbContext                                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Outbox.DbContext.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.DbContext)                         |
+| `.Host.Outbox.Sql`                   | Transactional Outbox using MSSQL                                                                                    | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Outbox.Sql.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql)                                     |
+| `.Host.Outbox.Sql.DbContext`         | Transactional Outbox using MSSQL with EF DataContext integration                                                    | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Outbox.Sql.DbContext.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql.DbContext)                 |
 | `.Host.AsyncApi`                     | [AsyncAPI](https://www.asyncapi.com/) specification generation via [Saunter](https://github.com/tehmantra/saunter)  | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AsyncApi.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AsyncApi)                                         |
+| `.Host.CircuitBreaker.HealthCheck`   | Consumer circuit breaker based on [health checks](docs/intro.md#health-check-circuit-breaker)                       | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.CircuitBreaker.HealthCheck.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.CircuitBreaker.HealthCheck)     |
 
 Typically the application layers (domain model, business logic) only need to depend on `SlimMessageBus` which is the facade, and ultimately the application hosting layer (ASP.NET, Console App, Windows Service) will reference and configure the other packages (`SlimMessageBus.Host.*`) which are the messaging transport providers and additional plugins.
 
@@ -111,7 +113,7 @@ Another service (or application layer) handles the message:
 ```cs
 public class SomeMessageConsumer : IConsumer<SomeMessage>
 {
-   public async Task OnHandle(SomeMessage message)
+   public async Task OnHandle(SomeMessage message, CancellationToken cancellationToken)
    {
        // handle the message
    }
@@ -134,7 +136,7 @@ The receiving side handles the request and replies:
 ```cs
 public class SomeRequestHandler : IRequestHandler<SomeRequest, SomeResponse>
 {
-   public async Task<SomeResponse> OnHandle(SomeRequest request)
+   public async Task<SomeResponse> OnHandle(SomeRequest request, CancellationToken cancellationToken)
    {
       // handle the request message and return a response
       return new SomeResponse { /* ... */ };
@@ -186,7 +188,7 @@ services.AddSlimMessageBus(mbb =>
 
       // Scan assembly for consumers, handlers, interceptors, and register into MSDI
       .AddServicesFromAssemblyContaining<SomeMessageConsumer>()
-      //.AddServicesFromAssembly(Assembly.GetExecutingAssembly());
+      //.AddServicesFromAssembly(Assembly.GetExecutingAssembly())
 
       // Add JSON serializer
       .AddJsonSerializer(); // requires SlimMessageBus.Host.Serialization.Json or SlimMessageBus.Host.Serialization.SystemTextJson package
@@ -213,7 +215,7 @@ The domain event handler implements the `IConsumer<T>` interface:
 // domain event handler
 public class OrderSubmittedHandler : IConsumer<OrderSubmittedEvent>
 {
-   public Task OnHandle(OrderSubmittedEvent e)
+   public Task OnHandle(OrderSubmittedEvent e, CancellationToken cancellationToken)
    {
       // ...
    }

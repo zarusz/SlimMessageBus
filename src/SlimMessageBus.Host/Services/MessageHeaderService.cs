@@ -6,7 +6,7 @@ internal interface IMessageHeaderService
     void AddMessageTypeHeader(object message, IDictionary<string, object> headers);
 }
 
-internal class MessageHeaderService : IMessageHeaderService
+internal partial class MessageHeaderService : IMessageHeaderService
 {
     private readonly ILogger _logger;
     private readonly MessageBusSettings _settings;
@@ -35,14 +35,14 @@ internal class MessageHeaderService : IMessageHeaderService
         if (producerSettings.HeaderModifier != null)
         {
             // Call header hook        
-            _logger.LogTrace($"Executing producer {nameof(ProducerSettings.HeaderModifier)}");
+            LogExecutingHeaderModifier("producer");
             producerSettings.HeaderModifier(messageHeaders, message);
         }
 
         if (_settings.HeaderModifier != null)
         {
             // Call header hook
-            _logger.LogTrace($"Executing bus {nameof(MessageBusSettings.HeaderModifier)}");
+            LogExecutingHeaderModifier("bus");
             _settings.HeaderModifier(messageHeaders, message);
         }
     }
@@ -54,5 +54,24 @@ internal class MessageHeaderService : IMessageHeaderService
             headers.SetHeader(MessageHeaders.MessageType, _messageTypeResolver.ToName(message.GetType()));
         }
     }
+
+    #region Logging
+
+    [LoggerMessage(
+       EventId = 0,
+       Level = LogLevel.Trace,
+       Message = $"Executing {{ConfigLevel}} {nameof(ProducerSettings.HeaderModifier)}")]
+    private partial void LogExecutingHeaderModifier(string configLevel);
+
+    #endregion
 }
 
+#if NETSTANDARD2_0
+
+internal partial class MessageHeaderService
+{
+    private partial void LogExecutingHeaderModifier(string configLevel)
+        => _logger.LogTrace($"Executing {{ConfigLevel}} {nameof(ProducerSettings.HeaderModifier)}", configLevel);
+}
+
+#endif

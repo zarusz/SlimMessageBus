@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Test;
 
-using Microsoft.Extensions.Logging.Abstractions;
-
 public class PendingRequestManagerTest : IDisposable
 {
     private readonly PendingRequestManager _subject;
@@ -20,7 +18,10 @@ public class PendingRequestManagerTest : IDisposable
         _store = new Mock<IPendingRequestStore>();
         _timeoutCallback = new Mock<Action<object>>();
 
-        _subject = new PendingRequestManager(_store.Object, () => _timeNow, _cleanInterval, NullLoggerFactory.Instance, _timeoutCallback.Object);
+        var currentTimeProviderMock = new Mock<ICurrentTimeProvider>();
+        currentTimeProviderMock.Setup(x => x.CurrentTime).Returns(() => _timeNow);
+
+        _subject = new PendingRequestManager(_store.Object, currentTimeProviderMock.Object, NullLoggerFactory.Instance, _cleanInterval, _timeoutCallback.Object);
     }
 
     [Fact]

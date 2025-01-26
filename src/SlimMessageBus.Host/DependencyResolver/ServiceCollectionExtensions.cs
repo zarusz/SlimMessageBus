@@ -26,7 +26,7 @@ public static class ServiceCollectionExtensions
                 configure(mbb);
 
                 // Execute post config actions for the master bus and its children
-                foreach (var postConfigure in mbb.PostConfigurationActions.Concat(mbb.Children.Values.SelectMany(x => x.PostConfigurationActions)))
+                foreach (var postConfigure in mbb.GetPostConfigurationActions())
                 {
                     postConfigure(services);
                 }
@@ -93,6 +93,18 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IMessageScopeAccessor, MessageScopeAccessor>();
 
         services.AddHostedService<MessageBusHostedService>();
+
+        // Register the default providers
+        services.TryAddSingleton<GuidGenerator>();
+        services.TryAddSingleton<IGuidGenerator>(svp => svp.GetRequiredService<GuidGenerator>());
+
+        services.TryAddSingleton<CurrentTimeProvider>();
+        services.TryAddSingleton<ICurrentTimeProvider>(svp => svp.GetRequiredService<CurrentTimeProvider>());
+
+        services.TryAddSingleton<RuntimeTypeCache>();
+
+        services.TryAddTransient<IPendingRequestStore, InMemoryPendingRequestStore>();
+        services.TryAddSingleton<IPendingRequestManager, PendingRequestManager>();
 
         return services;
     }

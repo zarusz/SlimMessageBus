@@ -9,7 +9,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
     - [Producer side validation](#producer-side-validation)
     - [Consumer side validation](#consumer-side-validation)
   - [Configuring without MSDI](#configuring-without-msdi)
-  
+
 ## Introduction
 
 The [`SlimMessageBus.Host.FluentValidation`](https://www.nuget.org/packages/SlimMessageBus.Host.FluentValidation) introduces validation on the producer or consumer side by leveraging the [FluentValidation](https://www.nuget.org/packages/FluentValidation) library.
@@ -66,7 +66,7 @@ builder.Services.AddSlimMessageBus(mbb =>
         .WithProviderMemory()
         .AutoDeclareFrom(Assembly.GetExecutingAssembly())
         .AddServicesFromAssembly(Assembly.GetExecutingAssembly())
-        .AddFluentValidation(opts => 
+        .AddFluentValidation(opts =>
         {
             // SMB FluentValidation setup goes here
         });
@@ -84,7 +84,7 @@ It is possible to configure custom exception (or perhaps to supress the validati
 ```cs
 builder.Services.AddSlimMessageBus(mbb =>
 {
-    mbb.AddFluentValidation(opts => 
+    mbb.AddFluentValidation(opts =>
     {
         // SMB FluentValidation setup goes here
         opts.AddValidationErrorsHandler(errors => new ApplicationException("Custom exception"));
@@ -99,7 +99,7 @@ The `.AddProducerValidatorsFromAssemblyContaining()` will register an SMB interc
 ```cs
 builder.Services.AddSlimMessageBus(mbb =>
 {
-    mbb.AddFluentValidation(opts => 
+    mbb.AddFluentValidation(opts =>
     {
         // Register validation interceptors for message (here command) producers inside message bus
         // Required Package: SlimMessageBus.Host.FluentValidation
@@ -108,18 +108,18 @@ builder.Services.AddSlimMessageBus(mbb =>
 });
 ```
 
-For example given an ASP.NET Mimimal WebApi, the request can be delegated to SlimMessageBus in memory transport:
+For example given an ASP.NET Minimal WebApi, the request can be delegated to SlimMessageBus in memory transport:
 
 ```cs
 // Using minimal APIs
 var app = builder.Build();
 
-app.MapPost("/customer", (CreateCustomerCommand command, IMessageBus bus) => bus.Send(command));    
+app.MapPost("/customer", (CreateCustomerCommand command, IMessageBus bus) => bus.Send(command));
 
 await app.RunAsync();
 ```
 
-In the situation that the incomming HTTP request where to deliver an invalid command, the request will fail with `FluentValidation.ValidationException: Validation failed` exception.
+In the situation that the incoming HTTP request where to deliver an invalid command, the request will fail with `FluentValidation.ValidationException: Validation failed` exception.
 
 For full example, please see the [Sample.ValidatingWebApi](../src/Samples/Sample.ValidatingWebApi/) sample.
 
@@ -131,7 +131,7 @@ Such validation would be needed in scenarios when an external system delivers me
 ```cs
 builder.Services.AddSlimMessageBus(mbb =>
 {
-    mbb.AddFluentValidation(opts => 
+    mbb.AddFluentValidation(opts =>
     {
         // Register validation interceptors for message (here command) consumers inside message bus
         // Required Package: SlimMessageBus.Host.FluentValidation
@@ -150,5 +150,3 @@ If you are using another DI container than Microsoft.Extensions.DependencyInject
 - register the respective `ProducerValidationInterceptor<T>` as `IProducerInterceptor<T>` for each of the message type `T` that needs to be validated on producer side,
 - register the respective `ConsumerValidationInterceptor<T>` as `IConsumerInterceptor<T>` for each of the message type `T` that needs to be validated on consumer side,
 - the scope of can be anything that you need (scoped, transient, singleton)
-
-> Packages for other DI containers (Autofac/Unity) will likely also be created in the future. PRs are also welcome.

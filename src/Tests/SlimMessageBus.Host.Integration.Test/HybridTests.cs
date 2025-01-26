@@ -7,7 +7,7 @@ using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Memory;
 
 [Trait("Category", "Integration")]
-public class HybridTests : BaseIntegrationTest<HybridTests>
+public class HybridTests(ITestOutputHelper output) : BaseIntegrationTest<HybridTests>(output)
 {
     public enum SerializerType
     {
@@ -16,10 +16,6 @@ public class HybridTests : BaseIntegrationTest<HybridTests>
     }
 
     public record RunOptions(SerializerType SerializerType, Action<IServiceCollection> ServicesBuilder);
-
-    public HybridTests(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
-    {
-    }
 
     protected RunOptions Options { get; set; }
 
@@ -119,12 +115,12 @@ public class HybridTests : BaseIntegrationTest<HybridTests>
         // all the internal messages should be processed by Memory bus
         store
             .Where(x => x.Name == nameof(InternalMessageConsumer) || x.Name == nameof(InternalMessageConsumerInterceptor) || x.Name == nameof(InternalMessageProducerInterceptor) || x.Name == nameof(InternalMessagePublishInterceptor))
-            .Should().AllSatisfy(x => x.ContextMessageBusType.Should().Be(typeof(MemoryMessageBus)));
+            .Should().AllSatisfy(x => x.ContextMessageBusType.Should().Be<MemoryMessageBus>());
 
         // all the external messages should be processed by Azure Service Bus
         store
             .Where(x => x.Name == nameof(ExternalMessageConsumer) || x.Name == nameof(ExternalMessageConsumerInterceptor))
-            .Should().AllSatisfy(x => x.ContextMessageBusType.Should().Be(typeof(ServiceBusMessageBus)));
+            .Should().AllSatisfy(x => x.ContextMessageBusType.Should().Be<ServiceBusMessageBus>());
 
         // in this order
         var eventsThatHappenedWhenExternalWasPublished = grouping.Values.SingleOrDefault(x => x.Count == 2);
@@ -154,7 +150,7 @@ public class HybridTests : BaseIntegrationTest<HybridTests>
     {
         public IConsumerContext Context { get; set; }
 
-        public async Task OnHandle(ExternalMessage message)
+        public async Task OnHandle(ExternalMessage message, CancellationToken cancellationToken)
         {
             lock (store)
             {
@@ -162,7 +158,7 @@ public class HybridTests : BaseIntegrationTest<HybridTests>
             }
             // some processing
 
-            await bus.Publish(new InternalMessage(message.CustomerId));
+            await bus.Publish(new InternalMessage(message.CustomerId), cancellationToken: cancellationToken);
 
             // some processing
 
@@ -174,7 +170,7 @@ public class HybridTests : BaseIntegrationTest<HybridTests>
     {
         public IConsumerContext Context { get; set; }
 
-        public Task OnHandle(InternalMessage message)
+        public Task OnHandle(InternalMessage message, CancellationToken cancellationToken)
         {
             lock (store)
             {

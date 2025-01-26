@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Namotion.Reflection" Version="3.1.1" />
+    <PackageReference Include="Namotion.Reflection" Version="3.2.0" />
     <PackageReference Include="Saunter" Version="0.13.0" />
   </ItemGroup>
 

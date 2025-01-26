@@ -3,6 +3,11 @@ namespace SlimMessageBus.Host;
 public abstract class AbstractConsumerSettings : HasProviderExtensions
 {
     /// <summary>
+    /// The settings for the message bus to which the consumer belongs.
+    /// </summary>
+    public MessageBusSettings MessageBusSettings { get; set; }
+
+    /// <summary>
     /// The topic or queue name.
     /// </summary>
     public string Path { get; set; }

@@ -1,6 +1,9 @@
 ﻿namespace SlimMessageBus.Host.Memory;
 
-public class MessageProcessorQueue(IMessageProcessor<object> messageProcessor, ILogger<MessageProcessorQueue> logger, CancellationToken cancellationToken) : AbstractMessageProcessorQueue(messageProcessor, logger)
+public class MessageProcessorQueue(IMessageProcessor<object> messageProcessor,
+                                   ILogger<MessageProcessorQueue> logger,
+                                   CancellationToken cancellationToken)
+    : AbstractMessageProcessorQueue(messageProcessor, logger)
 {
     private readonly object _prevTaskLock = new();
     private Task _prevTask = null;

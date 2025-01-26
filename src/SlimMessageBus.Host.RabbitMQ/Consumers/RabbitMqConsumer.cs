@@ -1,8 +1,10 @@
 ﻿namespace SlimMessageBus.Host.RabbitMQ;
 
+using Microsoft.Extensions.DependencyInjection;
+
 public interface IRabbitMqConsumer
 {
-    string QueueName { get; }
+    string Path { get; }
     void ConfirmMessage(BasicDeliverEventArgs transportMessage, RabbitMqMessageConfirmOptions option, IDictionary<string, object> properties, bool warnIfAlreadyConfirmed = false);
 }
 
@@ -16,8 +18,20 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
 
     protected override RabbitMqMessageAcknowledgementMode AcknowledgementMode => _acknowledgementMode;
 
-    public RabbitMqConsumer(ILoggerFactory loggerFactory, IRabbitMqChannel channel, string queueName, IList<ConsumerSettings> consumers, IMessageSerializer serializer, MessageBusBase messageBus, IHeaderValueConverter headerValueConverter)
-        : base(loggerFactory.CreateLogger<RabbitMqConsumer>(), channel, queueName: queueName, headerValueConverter)
+    public RabbitMqConsumer(
+        ILoggerFactory loggerFactory,
+        IRabbitMqChannel channel,
+        string queueName,
+        IList<ConsumerSettings> consumers,
+        MessageBusBase messageBus,
+        MessageProvider<BasicDeliverEventArgs> messageProvider,
+        IHeaderValueConverter headerValueConverter)
+        : base(loggerFactory.CreateLogger<RabbitMqConsumer>(),
+               consumers,
+               messageBus.Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(),
+               channel,
+               queueName,
+               headerValueConverter)
     {
         _acknowledgementMode = consumers.Select(x => x.GetOrDefault<RabbitMqMessageAcknowledgementMode?>(RabbitMqProperties.MessageAcknowledgementMode, messageBus.Settings)).FirstOrDefault(x => x != null)
             ?? RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade; // be default choose the safer acknowledgement mode
@@ -29,7 +43,7 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
                 messageBus,
                 path: queueName,
                 responseProducer: messageBus,
-                messageProvider: (messageType, m) => serializer.Deserialize(messageType, m.Body.ToArray()),
+                messageProvider: messageProvider,
                 consumerContextInitializer: InitializeConsumerContext,
                 consumerErrorHandlerOpenGenericType: typeof(IRabbitMqConsumerErrorHandler<>));
 
@@ -37,7 +51,7 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
 
             // pick the maximum number of instances
             var instances = consumers.Max(x => x.Instances);
-            // For a given rabbit channel, there is only 1 task that dispatches messages. We want to be be able to let each SMB consume process within its own task (1 or more)
+            // For a given rabbit channel, there is only 1 task that dispatches messages. We want to be able to let each SMB consume process within its own task (1 or more)
             messageProcessor = new ConcurrentMessageProcessorDecorator<BasicDeliverEventArgs>(instances, loggerFactory, messageProcessor);
 
             return messageProcessor;
@@ -92,7 +106,7 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
             // Note: We want to makes sure the 1st message confirmation is handled
             if (warnIfAlreadyConfirmed)
             {
-                Logger.LogWarning("Exchange {Exchange} - Queue {Queue}: The message (delivery tag {MessageDeliveryTag}) was already confirmed, subsequent message confirmation will have no effect", transportMessage.Exchange, QueueName, transportMessage.DeliveryTag);
+                Logger.LogWarning("Exchange {Exchange} - Queue {Queue}: The message (delivery tag {MessageDeliveryTag}) was already confirmed, subsequent message confirmation will have no effect", transportMessage.Exchange, Path, transportMessage.DeliveryTag);
             }
             return;
         }
@@ -132,7 +146,7 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
         }
         else
         {
-            Logger.LogDebug("Exchange {Exchange} - Queue {Queue}: No message processor found for routing key {RoutingKey}", transportMessage.Exchange, QueueName, transportMessage.RoutingKey);
+            Logger.LogDebug("Exchange {Exchange} - Queue {Queue}: No message processor found for routing key {RoutingKey}", transportMessage.Exchange, Path, transportMessage.RoutingKey);
         }
 
         // error handling happens in the message processor

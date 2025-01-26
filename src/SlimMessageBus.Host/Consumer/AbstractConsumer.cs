@@ -1,18 +1,95 @@
 ﻿namespace SlimMessageBus.Host;
 
-public abstract class AbstractConsumer : IAsyncDisposable, IConsumerControl
+public abstract partial class AbstractConsumer : HasProviderExtensions, IAsyncDisposable, IConsumerControl
 {
+    protected readonly ILogger Logger;
+    private readonly SemaphoreSlim _semaphore;
+    private readonly IReadOnlyList<IAbstractConsumerInterceptor> _interceptors;
     private CancellationTokenSource _cancellationTokenSource;
     private bool _starting;
     private bool _stopping;
 
-    protected ILogger Logger { get; }
-
     public bool IsStarted { get; private set; }
-
+    public string Path { get; }
+    public IReadOnlyList<AbstractConsumerSettings> Settings { get; }
     protected CancellationToken CancellationToken => _cancellationTokenSource.Token;
 
-    protected AbstractConsumer(ILogger logger) => Logger = logger;
+    protected AbstractConsumer(ILogger logger,
+                               IEnumerable<AbstractConsumerSettings> consumerSettings,
+                               string path,
+                               IEnumerable<IAbstractConsumerInterceptor> interceptors)
+    {
+        _semaphore = new(1, 1);
+        _interceptors = [.. interceptors.OrderBy(x => x.Order)];
+        Logger = logger;
+        Settings = [.. consumerSettings];
+        Path = path;
+    }
+
+    private async Task<bool> CallInterceptor(Func<IAbstractConsumerInterceptor, Task<bool>> func)
+    {
+        foreach (var interceptor in _interceptors)
+        {
+            try
+            {
+                if (!await func(interceptor).ConfigureAwait(false))
+                {
+                    return false;
+                }
+            }
+            catch (Exception e)
+            {
+                LogInterceptorFailed(interceptor.GetType(), e.Message, e);
+            }
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Starts the underlying transport consumer (synchronized).
+    /// </summary>
+    /// <returns></returns>
+    public async Task DoStart()
+    {
+        await _semaphore.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            await InternalOnStart().ConfigureAwait(false);
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
+    }
+
+    private async Task InternalOnStart()
+    {
+        await OnStart().ConfigureAwait(false);
+        await CallInterceptor(async x => { await x.Started(this); return true; }).ConfigureAwait(false);
+    }
+
+    private async Task InternalOnStop()
+    {
+        await OnStop().ConfigureAwait(false);
+        await CallInterceptor(async x => { await x.Stopped(this); return true; }).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Stops the underlying transport consumer (synchronized).
+    /// </summary>
+    /// <returns></returns>
+    public async Task DoStop()
+    {
+        await _semaphore.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            await InternalOnStop().ConfigureAwait(false);
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
+    }
 
     public async Task Start()
     {
@@ -21,22 +98,27 @@ public abstract class AbstractConsumer : IAsyncDisposable, IConsumerControl
             return;
         }
 
+        await _semaphore.WaitAsync();
         _starting = true;
         try
         {
-            if (_cancellationTokenSource == null || _cancellationTokenSource.IsCancellationRequested)
+            if (_cancellationTokenSource?.IsCancellationRequested != false)
             {
                 _cancellationTokenSource?.Dispose();
                 _cancellationTokenSource = new CancellationTokenSource();
             }
 
-            await OnStart().ConfigureAwait(false);
+            if (await CallInterceptor(x => x.CanStart(this)).ConfigureAwait(false))
+            {
+                await InternalOnStart().ConfigureAwait(false);
+            }
 
             IsStarted = true;
         }
         finally
         {
             _starting = false;
+            _semaphore.Release();
         }
     }
 
@@ -47,23 +129,37 @@ public abstract class AbstractConsumer : IAsyncDisposable, IConsumerControl
             return;
         }
 
+        await _semaphore.WaitAsync();
         _stopping = true;
         try
         {
-            await _cancellationTokenSource.CancelAsync();
+            await _cancellationTokenSource.CancelAsync().ConfigureAwait(false);
 
-            await OnStop().ConfigureAwait(false);
+            if (await CallInterceptor(x => x.CanStop(this)).ConfigureAwait(false))
+            {
+                await InternalOnStop().ConfigureAwait(false);
+            }
 
             IsStarted = false;
         }
         finally
         {
             _stopping = false;
+            _semaphore.Release();
         }
     }
 
-    protected abstract Task OnStart();
-    protected abstract Task OnStop();
+    /// <summary>
+    /// Initializes the transport specific consumer loop after the consumer has been started.
+    /// </summary>
+    /// <returns></returns>
+    internal protected abstract Task OnStart();
+
+    /// <summary>
+    /// Destroys the transport specific consumer loop before the consumer is stopped.
+    /// </summary>
+    /// <returns></returns>
+    internal protected abstract Task OnStop();
 
     #region IAsyncDisposable
 
@@ -82,4 +178,25 @@ public abstract class AbstractConsumer : IAsyncDisposable, IConsumerControl
     }
 
     #endregion
+
+    #region Logging 
+
+    [LoggerMessage(
+       EventId = 0,
+       Level = LogLevel.Error,
+       Message = "Interceptor {InterceptorType} failed with error: {Error}")]
+    private partial void LogInterceptorFailed(Type interceptorType, string error, Exception ex);
+
+    #endregion
 }
+
+
+#if NETSTANDARD2_0
+
+public partial class AbstractConsumer
+{
+    private partial void LogInterceptorFailed(Type interceptorType, string error, Exception ex)
+        => Logger.LogError(ex, "Interceptor {InterceptorType} failed with error: {Error}", interceptorType, error);
+}
+
+#endif

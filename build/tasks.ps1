@@ -35,12 +35,16 @@ $projects = @(
 	"SlimMessageBus.Host.Sql",
 	"SlimMessageBus.Host.Sql.Common",
 	"SlimMessageBus.Host.Nats",
-	
+	"SlimMessageBus.Host.AmazonSQS",
+
 	"SlimMessageBus.Host.FluentValidation",
 
 	"SlimMessageBus.Host.Outbox",
 	"SlimMessageBus.Host.Outbox.Sql",
-	"SlimMessageBus.Host.Outbox.DbContext",
+	"SlimMessageBus.Host.Outbox.Sql.DbContext",
+
+	"SlimMessageBus.Host.CircuitBreaker",
+	"SlimMessageBus.Host.CircuitBreaker.HealthCheck",
 
 	"SlimMessageBus.Host.AsyncApi"
 )

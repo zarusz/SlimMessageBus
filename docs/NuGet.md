@@ -6,12 +6,14 @@ SlimMessageBus additionally provides request-response implementation over messag
 
 Transports:
 
+- Amazon SQS/SNS
 - Apache Kafka
 - Azure Event Hub
 - Azure Service Bus
 - Hybrid (composition of the bus out of many transports)
 - In-Memory transport (domain events, mediator)
 - MQTT / Azure IoT Hub
+- NATS
 - RabbitMQ
 - Redis
 - SQL (MS SQL, PostgreSql)
@@ -22,5 +24,6 @@ Plugins:
 - Transactional Outbox pattern (SQL, DbContext)
 - Serialization using JSON, Avro, ProtoBuf
 - AsyncAPI specification generation
+- Consumer Circuit Breaker based on Health Checks
 
 Find out more [https://github.com/zarusz/SlimMessageBus](https://github.com/zarusz/SlimMessageBus).

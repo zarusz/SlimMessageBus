@@ -10,5 +10,5 @@ using SlimMessageBus;
 /// </summary>
 public class AuditingHandler(IAuditService auditService) : IConsumer<OrderSubmittedEvent>
 {
-    public Task OnHandle(OrderSubmittedEvent e) => auditService.Append(e.Order.Id, "The Order was submitted");
+    public Task OnHandle(OrderSubmittedEvent e, CancellationToken cancellationToken) => auditService.Append(e.Order.Id, "The Order was submitted");
 }

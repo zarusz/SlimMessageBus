@@ -8,7 +8,16 @@ using ConsumeResult = ConsumeResult<Ignore, byte[]>;
 /// </summary>
 public class KafkaPartitionConsumerForResponses : KafkaPartitionConsumer
 {
-    public KafkaPartitionConsumerForResponses(ILoggerFactory loggerFactory, RequestResponseSettings requestResponseSettings, string group, TopicPartition topicPartition, IKafkaCommitController commitController, IResponseConsumer responseConsumer, IMessageSerializer headerSerializer)
+    public KafkaPartitionConsumerForResponses(
+        ILoggerFactory loggerFactory,
+        RequestResponseSettings requestResponseSettings,
+        string group,
+        TopicPartition topicPartition,
+        IKafkaCommitController commitController,
+        MessageProvider<ConsumeResult> messageProvider,
+        IPendingRequestStore pendingRequestStore,
+        ICurrentTimeProvider currentTimeProvider,
+        IMessageSerializer headerSerializer)
         : base(
             loggerFactory,
             [requestResponseSettings],
@@ -19,8 +28,9 @@ public class KafkaPartitionConsumerForResponses : KafkaPartitionConsumer
             messageProcessor: new ResponseMessageProcessor<ConsumeResult>(
                 loggerFactory,
                 requestResponseSettings,
-                responseConsumer,
-                messagePayloadProvider: m => m.Message.Value))
+                messageProvider,
+                pendingRequestStore,
+                currentTimeProvider))
     {
     }
 }

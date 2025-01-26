@@ -11,7 +11,7 @@ using SlimMessageBus;
 /// </summary>
 public class OrderSubmittedHandler(ILogger<OrderSubmittedHandler> logger) : IConsumer<OrderSubmittedEvent>
 {
-    public Task OnHandle(OrderSubmittedEvent e)
+    public Task OnHandle(OrderSubmittedEvent e, CancellationToken cancellationToken)
     {
         logger.LogInformation("Customer {Firstname} {Lastname} just placed an order for:", e.Order.Customer.Firstname, e.Order.Customer.Lastname);
         foreach (var orderLine in e.Order.Lines)
@@ -20,6 +20,6 @@ public class OrderSubmittedHandler(ILogger<OrderSubmittedHandler> logger) : ICon
         }
 
         logger.LogInformation("Generating a shipping order...");
-        return Task.Delay(1000);
+        return Task.Delay(1000, cancellationToken);
     }
 }

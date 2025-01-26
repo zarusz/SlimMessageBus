@@ -4,13 +4,11 @@ using SlimMessageBus;
 
 public class PingConsumer(ILogger<PingConsumer> logger) : IConsumer<PingMessage>, IConsumerWithContext
 {
-    private readonly ILogger _logger = logger;
+    public IConsumerContext? Context { get; set; }
 
-    public IConsumerContext Context { get; set; } = default!;
-
-    public Task OnHandle(PingMessage message)
+    public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Got message {Counter} on topic {Path}", message.Counter, Context.Path);
+        logger.LogInformation("Got message {Counter} on topic {Path}", message.Counter, Context?.Path);
         return Task.CompletedTask;
     }
 }

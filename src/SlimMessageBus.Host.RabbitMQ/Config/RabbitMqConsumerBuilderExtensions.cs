@@ -119,4 +119,3 @@ public static class RabbitMqConsumerBuilderExtensions
         return builder;
     }
 }
-

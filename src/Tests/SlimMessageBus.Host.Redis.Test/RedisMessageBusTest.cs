@@ -5,6 +5,8 @@ using System.Text;
 
 using Newtonsoft.Json;
 
+using SlimMessageBus.Host.Collections;
+using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Serialization;
 
 using StackExchange.Redis;
@@ -25,7 +27,12 @@ public class RedisMessageBusTest
     {
         _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(_messageSerializerMock.Object);
         _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
+        _serviceProviderMock.Setup(x => x.GetService(typeof(ICurrentTimeProvider))).Returns(new CurrentTimeProvider());
+        _serviceProviderMock.Setup(x => x.GetService(typeof(RuntimeTypeCache))).Returns(new RuntimeTypeCache());
         _serviceProviderMock.Setup(x => x.GetService(It.Is<Type>(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)))).Returns(Enumerable.Empty<object>());
+        _serviceProviderMock.Setup(x => x.GetService(typeof(IEnumerable<IMessageBusLifecycleInterceptor>))).Returns(Array.Empty<IMessageBusLifecycleInterceptor>());
+        _serviceProviderMock.Setup(x => x.GetService(typeof(IPendingRequestManager))).Returns(() => new PendingRequestManager(new InMemoryPendingRequestStore(), new CurrentTimeProvider(), NullLoggerFactory.Instance));
+
 
         _settings.ServiceProvider = _serviceProviderMock.Object;
 
@@ -171,7 +178,7 @@ public class SomeMessageAConsumer : IConsumer<SomeMessageA>, IDisposable
 
     #region Implementation of IConsumer<in SomeMessageA>
 
-    public virtual Task OnHandle(SomeMessageA messageA)
+    public virtual Task OnHandle(SomeMessageA messageA, CancellationToken cancellationToken)
     {
         return Task.CompletedTask;
     }
@@ -183,7 +190,7 @@ public class SomeMessageAConsumer2 : IConsumer<SomeMessageA>
 {
     #region Implementation of IConsumer<in SomeMessageA>
 
-    public virtual Task OnHandle(SomeMessageA messageA)
+    public virtual Task OnHandle(SomeMessageA messageA, CancellationToken cancellationToken)
     {
         return Task.CompletedTask;
     }
@@ -195,7 +202,7 @@ public class SomeMessageBConsumer : IConsumer<SomeMessageB>
 {
     #region Implementation of IConsumer<in SomeMessageB>
 
-    public virtual Task OnHandle(SomeMessageB message)
+    public virtual Task OnHandle(SomeMessageB message, CancellationToken cancellationToken)
     {
         return Task.CompletedTask;
     }

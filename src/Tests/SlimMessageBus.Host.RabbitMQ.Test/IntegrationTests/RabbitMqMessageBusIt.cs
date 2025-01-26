@@ -12,8 +12,7 @@ using SlimMessageBus.Host.Test.Common.IntegrationTest;
 
 [Trait("Category", "Integration")]
 [Trait("Transport", "RabbitMQ")]
-public class RabbitMqMessageBusIt(ITestOutputHelper testOutputHelper)
-    : BaseIntegrationTest<RabbitMqMessageBusIt>(testOutputHelper)
+public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<RabbitMqMessageBusIt>(output)
 {
     private const int NumberOfMessages = 300;
 
@@ -190,7 +189,7 @@ public class RabbitMqMessageBusIt(ITestOutputHelper testOutputHelper)
     [InlineData(RabbitMqMessageAcknowledgementMode.AckMessageBeforeProcessing)]
     public async Task BasicReqRespOnTopic(RabbitMqMessageAcknowledgementMode acknowledgementMode)
     {
-        var topic = "test-echo";
+        const string topic = "test-echo";
 
         AddBusConfiguration(mbb =>
         {
@@ -295,7 +294,7 @@ public abstract class AbstractPingConsumer<T> : IConsumer<T>, IConsumerWithConte
 
     public IConsumerContext Context { get; set; }
 
-    public async Task OnHandle(T message)
+    public async Task OnHandle(T message, CancellationToken cancellationToken)
     {
         _testMetric.OnProcessingStart();
         try
@@ -307,7 +306,7 @@ public abstract class AbstractPingConsumer<T> : IConsumer<T>, IConsumerWithConte
             _logger.LogInformation("Got message {Counter:000} on path {Path}.", message.Counter, Context.Path);
 
             // simulate work
-            await Task.Delay(20);
+            await Task.Delay(20, cancellationToken);
 
             await FakeExceptionUtil.SimulateFakeException(message.Counter);
         }
@@ -344,7 +343,7 @@ public class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
         testMetric.OnCreatedConsumer();
     }
 
-    public Task<EchoResponse> OnHandle(EchoRequest request)
+    public Task<EchoResponse> OnHandle(EchoRequest request, CancellationToken cancellationToken)
     {
         return Task.FromResult(new EchoResponse(request.Message));
     }
@@ -372,7 +371,7 @@ public static class FakeExceptionUtil
 /// <typeparam name="T"></typeparam>
 public class CustomRabbitMqConsumerErrorHandler<T> : IRabbitMqConsumerErrorHandler<T>
 {
-    public Task<ConsumerErrorHandlerResult> OnHandleError(T message, Func<Task<object>> next, IConsumerContext consumerContext, Exception exception)
+    public Task<ProcessResult> OnHandleError(T message, IConsumerContext consumerContext, Exception exception, int attempts)
     {
         // Check if this is consumer context for RabbitMQ
         var isRabbitMqContext = consumerContext.GetTransportMessage() != null;
@@ -389,8 +388,9 @@ public class CustomRabbitMqConsumerErrorHandler<T> : IRabbitMqConsumerErrorHandl
                 consumerContext.Nack();
             }
         }
+
         return Task.FromResult(isRabbitMqContext
-            ? ConsumerErrorHandlerResult.Success
-            : ConsumerErrorHandlerResult.Failure);
+            ? ProcessResult.Success
+            : ProcessResult.Failure);
     }
 }

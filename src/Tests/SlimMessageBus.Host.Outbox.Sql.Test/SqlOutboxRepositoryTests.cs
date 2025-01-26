@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Sql.Test;
 
+[Trait("Category", "Integration")]
+[Trait("Transport", "Outbox.Sql")]
 public static class SqlOutboxRepositoryTests
 {
     public class SaveTests : BaseSqlOutboxRepositoryTest
@@ -11,12 +13,18 @@ public static class SqlOutboxRepositoryTests
             var message = CreateOutboxMessages(1).Single();
 
             // act
-            await _target.Save(message, CancellationToken.None);
-            var actual = await _target.GetAllMessages(CancellationToken.None);
+            message.Id = (Guid)(await _target.Create(message.BusName, message.Headers, message.Path, message.MessageType, message.MessagePayload, CancellationToken.None)).Id;
+            var messages = await _target.GetAllMessages(CancellationToken.None);
 
             // assert
-            actual.Count.Should().Be(1);
-            actual.Single().Should().BeEquivalentTo(message);
+            messages.Count.Should().Be(1);
+            var actual = messages.Single();
+            actual.Id.Should().Be(message.Id);
+            actual.BusName.Should().Be(message.BusName);
+            actual.Headers.Should().BeEquivalentTo(message.Headers);
+            actual.Path.Should().Be(message.Path);
+            actual.MessageType.Should().Be(message.MessageType);
+            actual.MessagePayload.Should().BeEquivalentTo(message.MessagePayload);
         }
     }
 
@@ -50,10 +58,12 @@ public static class SqlOutboxRepositoryTests
 
             var seedMessages = await SeedOutbox(10, (i, x) =>
             {
-                x.DeliveryAttempt = 1;
-                x.DeliveryComplete = true;
-                x.Timestamp = i < 5 ? expired : active;
+                // affect the timestamp to make the message expired
+                _currentTimeProvider.CurrentTime = i < 5 ? expired : active;
             });
+
+            // mark the first 5 messages as sent
+            await _target.UpdateToSent(seedMessages.Select(x => x.Id).Take(5).ToList(), CancellationToken.None);
 
             // act
             await _target.DeleteSent(active, CancellationToken.None);

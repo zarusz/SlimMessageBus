@@ -7,7 +7,7 @@ public interface IRuntimeTypeCache
     /// <summary>
     /// Cache for generic methods that match this signature <see cref="Func{TResult}"/>.
     /// </summary>
-    IReadOnlyCache<(Type ClassType, string MethodName, Type GenericArgument), Func<object, object>> GenericMethod { get; }
+    IReadOnlyCache<(Type ClassType, string MethodName, Type GenericArgument), Func<object, Task<object>>> GenericMethod { get; }
 
     /// <summary>
     /// Provides a closed generic type for <see cref="openGenericType"> with <see cref="genericParameterType"> as the generic parameter.
@@ -16,4 +16,6 @@ public interface IRuntimeTypeCache
     /// <param name="genericParameterType"></param>
     /// <returns></returns>
     Type GetClosedGenericType(Type openGenericType, Type genericParameterType);
+
+    CollectionTypeInfo GetCollectionTypeInfo(Type type);
 }

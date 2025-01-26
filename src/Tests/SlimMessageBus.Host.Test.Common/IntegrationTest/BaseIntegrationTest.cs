@@ -1,18 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Test.Common.IntegrationTest;
 
-using System.Diagnostics;
-
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-
-using Serilog;
-using Serilog.Extensions.Logging;
-
-using SlimMessageBus.Host;
-
-using Xunit;
-
 /// <summary>
 /// Base integration test setup that:
 /// - uses MS Dependency Injection
@@ -25,6 +12,7 @@ public abstract class BaseIntegrationTest<T> : IAsyncLifetime
 {
     private readonly Lazy<ServiceProvider> _serviceProvider;
     private Action<MessageBusBuilder> messageBusBuilderAction = (mbb) => { };
+    private Action<IServiceCollection, IConfigurationRoot> testServicesBuilderAction = (services, configuration) => { };
 
     private ILogger<T>? _logger;
     protected ILogger<T> Logger => _logger ??= ServiceProvider.GetRequiredService<ILogger<T>>();
@@ -32,7 +20,7 @@ public abstract class BaseIntegrationTest<T> : IAsyncLifetime
     protected IConfigurationRoot Configuration { get; }
     protected ServiceProvider ServiceProvider => _serviceProvider.Value;
 
-    protected BaseIntegrationTest(ITestOutputHelper testOutputHelper)
+    protected BaseIntegrationTest(ITestOutputHelper output)
     {
         // Creating a `LoggerProviderCollection` lets Serilog optionally write
         // events through other dynamically-added MEL ILoggerProviders.
@@ -42,7 +30,7 @@ public abstract class BaseIntegrationTest<T> : IAsyncLifetime
 
         Log.Logger = new LoggerConfiguration()
             //.WriteTo.Providers(providers)
-            .WriteTo.TestOutput(testOutputHelper, outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}")
+            .WriteTo.TestOutput(output, outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}")
             .ReadFrom.Configuration(Configuration)
             .CreateLogger();
 
@@ -58,6 +46,7 @@ public abstract class BaseIntegrationTest<T> : IAsyncLifetime
             services.AddSingleton<TestMetric>();
 
             SetupServices(services, Configuration);
+            ApplyTestServices(services, Configuration);
 
             return services.BuildServiceProvider();
         });
@@ -75,7 +64,18 @@ public abstract class BaseIntegrationTest<T> : IAsyncLifetime
         };
     }
 
+    protected void AddTestServices(Action<IServiceCollection, IConfigurationRoot> action)
+    {
+        var prevAction = testServicesBuilderAction;
+        testServicesBuilderAction = (services, configuration) =>
+        {
+            prevAction(services, configuration);
+            action(services, configuration);
+        };
+    }
+
     protected void ApplyBusConfiguration(MessageBusBuilder mbb) => messageBusBuilderAction?.Invoke(mbb);
+    protected void ApplyTestServices(IServiceCollection services, IConfigurationRoot configuration) => testServicesBuilderAction?.Invoke(services, configuration);
 
     protected async Task EnsureConsumersStarted()
     {
@@ -87,10 +87,7 @@ public abstract class BaseIntegrationTest<T> : IAsyncLifetime
         while (!consumerControl.IsStarted && timeout.ElapsedMilliseconds < 5000) await Task.Delay(100);
     }
 
-    public Task InitializeAsync()
-    {
-        return Task.CompletedTask;
-    }
+    public Task InitializeAsync() => Task.CompletedTask;
 
     async Task IAsyncLifetime.DisposeAsync()
     {

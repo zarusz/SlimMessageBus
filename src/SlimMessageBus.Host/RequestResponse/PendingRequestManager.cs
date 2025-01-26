@@ -3,34 +3,29 @@
 /// <summary>
 /// Manages the pending requests - ensure requests which exceeded the allotted timeout period are removed.
 /// </summary>
-public class PendingRequestManager : IDisposable
+public partial class PendingRequestManager : IPendingRequestManager, IDisposable
 {
     private readonly ILogger _logger;
 
     private readonly Timer _timer;
     private readonly object _timerSync = new();
-    private readonly TimeSpan _timerInterval;
 
-    private readonly Func<DateTimeOffset> _timeProvider;
+    private readonly ICurrentTimeProvider _timeProvider;
     private readonly Action<object> _onRequestTimeout;
     private bool _cleanInProgress;
 
     public IPendingRequestStore Store { get; }
 
-    public PendingRequestManager(IPendingRequestStore store, Func<DateTimeOffset> timeProvider, TimeSpan interval, ILoggerFactory loggerFactory, Action<object> onRequestTimeout = null)
+    public PendingRequestManager(IPendingRequestStore store, ICurrentTimeProvider timeProvider, ILoggerFactory loggerFactory, TimeSpan? interval = null, Action<object> onRequestTimeout = null)
     {
         _logger = loggerFactory.CreateLogger<PendingRequestManager>();
         Store = store;
 
         _onRequestTimeout = onRequestTimeout;
         _timeProvider = timeProvider;
-        _timerInterval = interval;
-        _timer = new Timer(state => TimerCallback(), null, Timeout.Infinite, Timeout.Infinite);
-    }
 
-    public void Start()
-    {
-        _timer.Change(TimeSpan.Zero, _timerInterval);
+        var timerInterval = interval ?? TimeSpan.FromSeconds(3);
+        _timer = new Timer(state => TimerCallback(), null, timerInterval, timerInterval);
     }
 
     #region IDisposable
@@ -78,7 +73,7 @@ public class PendingRequestManager : IDisposable
     /// </summary>
     public virtual void CleanPendingRequests()
     {
-        var now = _timeProvider();
+        var now = _timeProvider.CurrentTime;
 
         var requestsToCancel = Store.FindAllToCancel(now);
         foreach (var requestState in requestsToCancel)
@@ -90,10 +85,31 @@ public class PendingRequestManager : IDisposable
 
             if (canceled)
             {
-                _logger.LogDebug("Pending request timed-out: {RequestState}, now: {TimeNow}", requestState, now);
+                LogPendingRequestTimeout(now, requestState);
                 _onRequestTimeout?.Invoke(requestState.Request);
             }
         }
         Store.RemoveAll(requestsToCancel.Select(x => x.Id));
     }
+
+
+    #region Logging
+
+    [LoggerMessage(
+       EventId = 0,
+       Level = LogLevel.Debug,
+       Message = "Pending request timed-out: {RequestState}, now: {TimeNow}")]
+    private partial void LogPendingRequestTimeout(DateTimeOffset timeNow, PendingRequestState requestState);
+
+    #endregion
 }
+
+#if NETSTANDARD2_0
+
+public partial class PendingRequestManager
+{
+    private partial void LogPendingRequestTimeout(DateTimeOffset timeNow, PendingRequestState requestState)
+        => _logger.LogDebug("Pending request timed-out: {RequestState}, now: {TimeNow}", requestState, timeNow);
+}
+
+#endif

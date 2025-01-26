@@ -6,18 +6,32 @@ using SlimMessageBus.Host.Collections;
 
 public class ProducerByMessageTypeCacheTests
 {
-    public static IEnumerable<object[]> Data => new List<object[]>
-    {
-        new object[] { typeof(Message), typeof(Message) },
-        new object[] { typeof(AMessage), typeof(AMessage) },
-        new object[] { typeof(BMessage), typeof(Message)},
-        new object[] { typeof(B1Message), typeof(Message) },
-        new object[] { typeof(B2Message), typeof(B2Message) },
-        new object[] { typeof(ISomeMessage), typeof(ISomeMessage) },
-        new object[] { typeof(SomeMessage), typeof(ISomeMessage) },
-        new object[] { typeof(object), null },
-        new object[] { typeof(int), null },
-    };
+    public static IEnumerable<object[]> Data =>
+    [
+        [typeof(Message), typeof(Message)],
+
+        [typeof(AMessage), typeof(AMessage)],
+
+        [typeof(BMessage), typeof(Message)],
+        [typeof(B1Message), typeof(Message)],
+
+        [typeof(B2Message), typeof(B2Message)],
+
+        [typeof(ISomeMessage), typeof(ISomeMessage)],
+        [typeof(SomeMessage), typeof(ISomeMessage)],
+
+        [typeof(object), null],
+        [typeof(int), null],
+
+        [typeof(IEnumerable<Message>), typeof(Message)],
+        [typeof(Message[]), typeof(Message)],
+
+        [typeof(IEnumerable<BMessage>), typeof(Message)],
+        [typeof(BMessage[]), typeof(Message)],
+
+        [typeof(IEnumerable<B1Message>), typeof(Message)]        ,
+        [typeof(B1Message[]), typeof(Message)],
+    ];
 
     [Theory]
     [MemberData(nameof(Data))]
@@ -25,10 +39,10 @@ public class ProducerByMessageTypeCacheTests
     {
         // arrange
         var mbb = MessageBusBuilder.Create();
-        mbb.Produce<Message>(x => x.DefaultTopic("t1"));
-        mbb.Produce<AMessage>(x => x.DefaultTopic("t2"));
-        mbb.Produce<B2Message>(x => x.DefaultTopic("t3"));
-        mbb.Produce<ISomeMessage>(x => x.DefaultTopic("t4"));
+        mbb.Produce<Message>(x => x.DefaultPath("t1"));
+        mbb.Produce<AMessage>(x => x.DefaultPath("t2"));
+        mbb.Produce<B2Message>(x => x.DefaultPath("t3"));
+        mbb.Produce<ISomeMessage>(x => x.DefaultPath("t4"));
 
         var producerByBaseMessageType = mbb.Settings.Producers.ToDictionary(x => x.MessageType);
 
@@ -49,20 +63,6 @@ public class ProducerByMessageTypeCacheTests
         {
             subject[messageType].Should().BeNull();
         }
-
-        subject[typeof(Message)].Should().BeSameAs(producerByBaseMessageType[typeof(Message)]);
-
-        subject[typeof(AMessage)].Should().BeSameAs(producerByBaseMessageType[typeof(AMessage)]);
-        subject[typeof(BMessage)].Should().BeSameAs(producerByBaseMessageType[typeof(Message)]);
-
-        subject[typeof(B1Message)].Should().BeSameAs(producerByBaseMessageType[typeof(Message)]);
-        subject[typeof(B2Message)].Should().BeSameAs(producerByBaseMessageType[typeof(B2Message)]);
-
-        subject[typeof(ISomeMessage)].Should().BeSameAs(producerByBaseMessageType[typeof(ISomeMessage)]);
-        subject[typeof(SomeMessage)].Should().BeSameAs(producerByBaseMessageType[typeof(ISomeMessage)]);
-
-        subject[typeof(object)].Should().BeNull();
-        subject[typeof(int)].Should().BeNull();
     }
 
     internal record Message;
