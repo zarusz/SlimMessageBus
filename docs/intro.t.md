@@ -7,7 +7,7 @@
     - [Set message headers](#set-message-headers)
   - [Consumer](#consumer)
     - [Start or Stop message consumption](#start-or-stop-message-consumption)
-        - [Health check circuit breaker](#health-check-circuit-breaker)
+    - [Health check circuit breaker](#health-check-circuit-breaker)
     - [Consumer context (additional message information)](#consumer-context-additional-message-information)
     - [Per-message DI container scope](#per-message-di-container-scope)
     - [Hybrid bus and message scope reuse](#hybrid-bus-and-message-scope-reuse)
@@ -39,13 +39,14 @@
   - [Order of Execution](#order-of-execution)
   - [Generic interceptors](#generic-interceptors)
 - [Error Handling](#error-handling)
-    - [Azure Service Bus](#azure-service-bus)
-    - [RabbitMQ](#rabbitmq)
+  - [Azure Service Bus](#azure-service-bus)
+  - [RabbitMQ](#rabbitmq)
 - [Logging](#logging)
 - [Debugging](#debugging)
 - [Provider specific functionality](#provider-specific-functionality)
 - [Topology Provisioning](#topology-provisioning)
   - [Triggering Topology Provisioning](#triggering-topology-provisioning)
+- [Versions](#versions)
 
 ## Configuration
 
@@ -316,7 +317,8 @@ Consumers can be linked to [.NET app health checks](https://learn.microsoft.com/
             })
         })
 ```
-*Requires: SlimMessageBus.Host.CircuitBreaker.HealthCheck*
+
+_Requires: SlimMessageBus.Host.CircuitBreaker.HealthCheck_
 
 #### Consumer context (additional message information)
 
@@ -1129,11 +1131,13 @@ Transport plugins provide specialized error handling interfaces with a default i
 This approach allows for transport-specific error handling, ensuring that specialized handlers can be prioritized.
 
 #### Azure Service Bus
+
 | ProcessResult | Description                                                                        |
 | ------------- | ---------------------------------------------------------------------------------- |
 | DeadLetter    | Abandons further processing of the message by sending it to the dead letter queue. |
 
 #### RabbitMQ
+
 | ProcessResult | Description                                                     |
 | ------------- | --------------------------------------------------------------- |
 | Requeue       | Return the message to the queue for re-processing <sup>1</sup>. |
@@ -1141,6 +1145,7 @@ This approach allows for transport-specific error handling, ensuring that specia
 <sup>1</sup> RabbitMQ does not have a maximum delivery count. Please use `Requeue` with caution as, if no other conditions are applied, it may result in an infinite message loop.
 
 Example retry with exponential back-off and short-curcuit to dead letter exchange on non-transient exceptions (using the [RabbitMqConsumerErrorHandler](../src/SlimMessageBus.Host.RabbitMQ/Consumers/IRabbitMqConsumerErrorHandler.cs) abstract implementation):
+
 ```cs
 public class RetryHandler<T> : RabbitMqConsumerErrorHandler<T>
 {
@@ -1157,7 +1162,7 @@ public class RetryHandler<T> : RabbitMqConsumerErrorHandler<T>
         {
             var delay = (attempts * 1000) + (_random.Next(1000) - 500);
             await Task.Delay(delay, consumerContext.CancellationToken);
-            
+
             // in process retry
             return Retry();
         }
@@ -1177,6 +1182,7 @@ public class RetryHandler<T> : RabbitMqConsumerErrorHandler<T>
     }
 }
 ```
+
 ## Logging
 
 SlimMessageBus uses [Microsoft.Extensions.Logging.Abstractions](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Abstractions):
@@ -1232,3 +1238,8 @@ await ctrl.ProvisionTopology();
 ```
 
 This allows to recreate missing elements in the infrastructure without restarting the whole application.
+
+## Versions
+
+- The v3 release [migration guide](https://github.com/zarusz/SlimMessageBus/releases/tag/3.0.0).
+- The v2 release [migration guide](https://github.com/zarusz/SlimMessageBus/releases/tag/Host.Transport-2.0.0).
