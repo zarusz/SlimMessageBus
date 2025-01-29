@@ -165,6 +165,8 @@ public abstract class AsbBaseConsumer : AbstractConsumer
         Func<ServiceBusReceivedMessage, string, string, CancellationToken, Task> deadLetterMessage,
         CancellationToken token)
     {
+        const string smbException = "SMB.Exception";
+
         // Process the message.
         Logger.LogDebug("Received message - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
 
@@ -188,16 +190,33 @@ public abstract class AsbBaseConsumer : AbstractConsumer
                 await completeMessage(message, token).ConfigureAwait(false);
                 return;
 
-            case ServiceBusProcessResult.DeadLetterState:
+            case ServiceBusProcessResult.DeadLetterState deadLetterState:
                 Logger.LogError(r.Exception, "Dead letter message - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
-                await deadLetterMessage(message, r.Exception?.GetType().Name ?? string.Empty, r.Exception?.Message ?? string.Empty, token).ConfigureAwait(false);
+
+                var reason = deadLetterState.Reason ?? r.Exception?.GetType().Name ?? string.Empty;
+                var descripiton = deadLetterState.Description ?? r.Exception?.GetType().Name ?? string.Empty;
+                await deadLetterMessage(message, reason, descripiton, token).ConfigureAwait(false);
+                return;
+
+            case ServiceBusProcessResult.FailureStateWithProperties withProperties:
+                var dict = new Dictionary<string, object>(withProperties.Properties.Count + 1);
+                foreach (var properties in withProperties.Properties)
+                {
+                    dict.Add(properties.Key, properties.Value);
+                }
+
+                // Set the exception message if it has not been provided
+                dict.TryAdd(smbException, r.Exception.Message);
+
+                Logger.LogError(r.Exception, "Abandon message (exception occurred while processing) - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
+                await abandonMessage(message, dict, token).ConfigureAwait(false);
                 return;
 
             case ProcessResult.FailureState:
                 var messageProperties = new Dictionary<string, object>();
                 {
                     // Set the exception message
-                    messageProperties.Add("SMB.Exception", r.Exception.Message);
+                    messageProperties.Add(smbException, r.Exception.Message);
                 }
 
                 Logger.LogError(r.Exception, "Abandon message (exception occurred while processing) - Path: {Path}, SubscriptionName: {SubscriptionName}, SequenceNumber: {SequenceNumber}, DeliveryCount: {DeliveryCount}, MessageId: {MessageId}", TopicSubscription.Path, TopicSubscription.SubscriptionName, message.SequenceNumber, message.DeliveryCount, message.MessageId);
