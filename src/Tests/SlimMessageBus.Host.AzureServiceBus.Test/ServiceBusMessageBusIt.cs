@@ -116,7 +116,88 @@ public class ServiceBusMessageBusIt(ITestOutputHelper output)
     }
 
     [Fact]
-    public async Task DeadLetterMessage_IsDeliveredTo_DeadLetterQueue()
+    public async Task Failure_WithProperties_UpdatesServiceBusMessage()
+    {
+        // arrange
+        var queue = QueueName();
+
+        var expectedProperties = new Dictionary<string, object>
+        {
+            { "key", "value" },
+            { "SMB.Exception", "Do not overwrite" }
+        };
+
+        AddTestServices((services, configuration) =>
+        {
+            services.AddTransient(sp =>
+            {
+                var connectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
+                return ActivatorUtilities.CreateInstance<ServiceBusClient>(sp, connectionString);
+            });
+
+            services.AddTransient(sp =>
+            {
+                var connectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
+                return ActivatorUtilities.CreateInstance<ServiceBusAdministrationClient>(sp, connectionString);
+            });
+
+            services.AddScoped(typeof(IConsumerInterceptor<>), typeof(ThrowExceptionPingMessageInterceptor<>));
+            services.AddSingleton<IServiceBusConsumerErrorHandler<PingMessage>>(_ => new DelegatedConsumerErrorHandler<PingMessage>((handler, message, context, exception, attempts) => handler.Failure(expectedProperties)));
+        });
+
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+            .Produce<PingMessage>(x => x.DefaultQueue(queue).WithModifier(MessageModifier))
+            .Consume<PingMessage>(x => x
+                    .Queue(queue)
+                    .CreateQueueOptions(z => z.MaxDeliveryCount = 1)
+                    .WithConsumer<PingConsumer>()
+                    .Instances(20));
+        });
+
+        var adminClient = ServiceProvider.GetRequiredService<ServiceBusAdministrationClient>();
+        var testMetric = ServiceProvider.GetRequiredService<TestMetric>();
+        var consumedMessages = ServiceProvider.GetRequiredService<TestEventCollector<TestEvent>>();
+        var client = ServiceProvider.GetRequiredService<ServiceBusClient>();
+        var deadLetterReceiver = client.CreateReceiver($"{queue}/$DeadLetterQueue");
+
+        // act
+        var messageBus = MessageBus;
+
+        var producedMessages = Enumerable
+            .Range(0, NumberOfMessages)
+            .Select(i => new PingMessage { Counter = i })
+            .ToList();
+
+        await messageBus.Publish(producedMessages);
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 5);
+
+        // assert
+        // ensure number of instances of consumers created matches
+        testMetric.CreatedConsumerCount.Should().Be(NumberOfMessages);
+        consumedMessages.Count.Should().Be(NumberOfMessages);
+
+        // all messages should be in the DLQ
+        var properties = await adminClient.GetQueueRuntimePropertiesAsync(queue);
+        properties.Value.ActiveMessageCount.Should().Be(0);
+        properties.Value.DeadLetterMessageCount.Should().Be(NumberOfMessages);
+
+        // all messages should have been sent directly to the DLQ
+        var messages = await deadLetterReceiver.PeekMessagesAsync(NumberOfMessages);
+        messages.Count.Should().Be(NumberOfMessages);
+        foreach (var message in messages)
+        {
+            message.DeliveryCount.Should().Be(1);
+            foreach (var property in expectedProperties)
+            {
+                message.ApplicationProperties[property.Key].Should().Be(property.Value);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task DeadLetterMessageWithoutReasonOrDescription_IsDeliveredTo_DeadLetterQueueWithExceptionDetails()
     {
         // arrange
         var queue = QueueName();
@@ -136,7 +217,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper output)
             });
 
             services.AddScoped(typeof(IConsumerInterceptor<>), typeof(ThrowExceptionPingMessageInterceptor<>));
-            services.AddScoped(typeof(IServiceBusConsumerErrorHandler<>), typeof(DeadLetterMessageConsumerErrorHandler<>));
+            services.AddSingleton<IServiceBusConsumerErrorHandler<PingMessage>>(_ => new DelegatedConsumerErrorHandler<PingMessage>((handler, message, context, exception, attempts) => handler.DeadLetter()));
         });
 
         AddBusConfiguration(mbb =>
@@ -186,6 +267,81 @@ public class ServiceBusMessageBusIt(ITestOutputHelper output)
         }
     }
 
+    [Fact]
+    public async Task DeadLetterMessageWithReasonAndDescription_IsDeliveredTo_DeadLetterQueueWithReasonAndDescription()
+    {
+        // arrange
+        const string expectedReason = "Reason";
+        const string expectedDescription = "Description";
+
+        var queue = QueueName();
+
+        AddTestServices((services, configuration) =>
+        {
+            services.AddTransient(sp =>
+            {
+                var connectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
+                return ActivatorUtilities.CreateInstance<ServiceBusClient>(sp, connectionString);
+            });
+
+            services.AddTransient(sp =>
+            {
+                var connectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
+                return ActivatorUtilities.CreateInstance<ServiceBusAdministrationClient>(sp, connectionString);
+            });
+
+            services.AddScoped(typeof(IConsumerInterceptor<>), typeof(ThrowExceptionPingMessageInterceptor<>));
+            services.AddSingleton<IServiceBusConsumerErrorHandler<PingMessage>>(_ => new DelegatedConsumerErrorHandler<PingMessage>((handler, message, context, exception, attempts) => handler.DeadLetter(expectedReason, expectedDescription)));
+        });
+
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+            .Produce<PingMessage>(x => x.DefaultQueue(queue).WithModifier(MessageModifier))
+            .Consume<PingMessage>(x => x
+                    .Queue(queue)
+                    .WithConsumer<PingConsumer>()
+                    .Instances(20));
+        });
+
+        var adminClient = ServiceProvider.GetRequiredService<ServiceBusAdministrationClient>();
+        var testMetric = ServiceProvider.GetRequiredService<TestMetric>();
+        var consumedMessages = ServiceProvider.GetRequiredService<TestEventCollector<TestEvent>>();
+        var client = ServiceProvider.GetRequiredService<ServiceBusClient>();
+        var deadLetterReceiver = client.CreateReceiver($"{queue}/$DeadLetterQueue");
+
+        // act
+        var messageBus = MessageBus;
+
+        var producedMessages = Enumerable
+            .Range(0, NumberOfMessages)
+            .Select(i => new PingMessage { Counter = i })
+            .ToList();
+
+        await messageBus.Publish(producedMessages);
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 5);
+
+        // assert
+        // ensure number of instances of consumers created matches
+        testMetric.CreatedConsumerCount.Should().Be(NumberOfMessages);
+        consumedMessages.Count.Should().Be(NumberOfMessages);
+
+        // all messages should be in the DLQ
+        var properties = await adminClient.GetQueueRuntimePropertiesAsync(queue);
+        properties.Value.ActiveMessageCount.Should().Be(0);
+        properties.Value.DeadLetterMessageCount.Should().Be(NumberOfMessages);
+
+        // all messages should have been sent directly to the DLQ
+        var messages = await deadLetterReceiver.PeekMessagesAsync(NumberOfMessages);
+        messages.Count.Should().Be(NumberOfMessages);
+        foreach (var message in messages)
+        {
+            message.DeliveryCount.Should().Be(0);
+            message.ApplicationProperties["DeadLetterReason"].Should().Be(expectedReason);
+            message.ApplicationProperties["DeadLetterErrorDescription"].Should().Be(expectedDescription);
+        }
+    }
+
     public class ThrowExceptionPingMessageInterceptor<T> : IConsumerInterceptor<T>
     {
         public async Task<object> OnHandle(T message, Func<Task<object>> next, IConsumerContext context)
@@ -196,12 +352,16 @@ public class ServiceBusMessageBusIt(ITestOutputHelper output)
         }
     }
 
-    public class DeadLetterMessageConsumerErrorHandler<T> : ServiceBusConsumerErrorHandler<T>
+    public class DelegatedConsumerErrorHandler<T>(DelegatedConsumerErrorHandler<T>.OnHandleErrorDelegate onHandleError) : ServiceBusConsumerErrorHandler<T>
     {
+        private readonly OnHandleErrorDelegate _onHandleError = onHandleError;
+
         public override Task<ProcessResult> OnHandleError(T message, IConsumerContext consumerContext, Exception exception, int attempts)
         {
-            return Task.FromResult(DeadLetter());
+            return Task.FromResult(_onHandleError(this, message, consumerContext, exception, attempts));
         }
+
+        public delegate ProcessResult OnHandleErrorDelegate(ServiceBusConsumerErrorHandler<T> handler, T message, IConsumerContext contrext, Exception exception, int attempts);
     }
 
     [Fact]

@@ -1263,5 +1263,5 @@ This allows to recreate missing elements in the infrastructure without restartin
 
 ## Versions
 
-- The v3 release [migration guide](https://github.com/zarusz/SlimMessageBus/tree/release/v3).
+- The v3 release [migration guide](https://github.com/zarusz/SlimMessageBus/releases/tag/3.0.0).
 - The v2 release [migration guide](https://github.com/zarusz/SlimMessageBus/releases/tag/Host.Transport-2.0.0).

@@ -10,6 +10,8 @@ Please read the [Introduction](intro.md) before reading this provider documentat
   - [Default Subscription Name](#default-subscription-name)
   - [Consumer context](#consumer-context)
   - [Exception Handling for Consumers](#exception-handling-for-consumers)
+    - [DeadLetter: Application-Level Dead-Lettering](#deadletter-application-level-dead-lettering)
+    - [Failure: Modify Application Properties on Failure](#failure-modify-application-properties-on-failure)
   - [Transport Specific Settings](#transport-specific-settings)
 - [Request-Response Configuration](#request-response-configuration)
   - [Produce Request Messages](#produce-request-messages)
@@ -18,6 +20,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 - [Topology Provisioning](#topology-provisioning)
   - [Validation of Topology](#validation-of-topology)
   - [Trigger Topology Provisioning](#trigger-topology-provisioning)
+
 
 ## Configuration
 
@@ -193,12 +196,52 @@ This could be useful to extract the message's `CorrelationId` or `ApplicationPro
 
 ### Exception Handling for Consumers
 
-In case the consumer was to throw an exception while processing a message, SMB marks the message as abandoned.
-This results in a message delivery retry performed by Azure SB (potentially event in another running instance of your service). By default, Azure SB retries 10 times. After last attempt the message Azure SB moves the message to a dead letter queue (DLQ). More information [here](https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-dead-letter-queues).
+In the case where the consumer throws an exception while processing a message, SMB marks the message as abandoned.
+This results in a message delivery retry performed by Azure SB (potentially as an event in another running instance of your service). By default, Azure SB retries 10 times. After last attempt, Azure SB will move the message to the [dead letter queue (DLQ)](https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-dead-letter-queues).
 
-If you need to send only selected messages to DLQ, wrap the body of your consumer method in a `try-catch` block and rethrow the exception for only the messages you want to be moved to DLQ (after the retry limit is reached).
+SMB will also add a user property, `SMB.Exception`, on the message with the exception details (just the message, no stack trace). This should be helpful when reviewing messages on the DLQ.
 
-SMB will also set a user property `SMB.Exception` on the message with the exception details (just the message, no stack trace). This should be helpful when reviewing messages on the DLQ.
+For finer control, a custom error handler can be added by registering an instance of `IConsumerErrorHandler<T>` with the DI. The offending message and the raised exception can then be inspected to determine if the message should be retried (in proceess), failed, or considered as having executed successfully.
+
+In addition to the standard `IConsumerErrorHandler<T>` return types, `ServiceBusConsumerErrorHandler<T>` provides additional, specialized responses for use with the Azure Service Bus transport.
+
+#### DeadLetter: Application-Level Dead-Lettering
+
+[Application-level dead-lettering](https://learn.microsoft.com/en-us/azure/service-bus-messaging/service-bus-dead-letter-queues#application-level-dead-lettering) is supported via `DeadLetter(string reason, string description)`. If neither a `reason` nor `description` are supplied, the raised exception type and message will be used as the `reason` and `description`.
+
+```cs
+public sealed class SampleConsumerErrorHandler<T> : ServiceBusConsumerErrorHandler<T>
+{
+    public override Task<ProcessResult> OnHandleError(T message, IConsumerContext consumerContext, Exception exception, int attempts)
+    {
+        return Task.FromResult(DeadLetter("reason", "description"));
+    }
+}
+```
+
+#### Failure: Modify Application Properties on Failure
+
+An overload to `Failure(IReadOnlyDictionary<string, object)` is included to facilitate the modification of application properites on a failed message. This includes the `SMB.Exception` property should alternative detail be required.
+
+```cs
+public sealed class SampleConsumerErrorHandler<T> : ServiceBusConsumerErrorHandler<T>
+{
+    public override Task<ProcessResult> OnHandleError(T message, IConsumerContext consumerContext, Exception exception, int attempts)
+    {
+        var properties = new Dictionary<string, object>
+        {
+            { "Key", "value" },
+            { "Attempts", attempts },
+            { "SMB.Exception", exception.ToString().Substring(0, 1000) }
+        };
+
+        return Task.FromResult(Failure(properties));
+    }
+}
+```
+
+> By using `IConsumerContext.Properties` (`IConsumerWithContext`) to pass state to the `IConsumerErrorHandler<T>` instance, consumer state can be persisted with the message. This can then be retrieved from `IConsumerContext.Headers` in a subsequent execution to resume processing from a checkpoint, supporting idempotency, especially when distributed transactions are not possible.
+
 
 ### Transport Specific Settings
 
