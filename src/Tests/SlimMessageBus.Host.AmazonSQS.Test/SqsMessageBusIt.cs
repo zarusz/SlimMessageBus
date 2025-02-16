@@ -49,10 +49,17 @@ public class SqsMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<Sqs
                 var r = await client.ListQueuesAsync(QueueNamePrefix);
                 foreach (var queueUrl in r.QueueUrls)
                 {
-                    var tagsResponse = await client.ListQueueTagsAsync(new ListQueueTagsRequest { QueueUrl = queueUrl });
-                    if (!tagsResponse.Tags.TryGetValue(CreatedDateTag, out var createdDateTag) || createdDateTag != today)
+                    try
                     {
-                        await client.DeleteQueueAsync(queueUrl);
+                        var tagsResponse = await client.ListQueueTagsAsync(new ListQueueTagsRequest { QueueUrl = queueUrl });
+                        if (!tagsResponse.Tags.TryGetValue(CreatedDateTag, out var createdDateTag) || createdDateTag != today)
+                        {
+                            await client.DeleteQueueAsync(queueUrl);
+                        }
+                    }
+                    catch (QueueDoesNotExistException)
+                    {
+                        // ignore, other tests might already have deleted the queue
                     }
                 }
                 await provision();

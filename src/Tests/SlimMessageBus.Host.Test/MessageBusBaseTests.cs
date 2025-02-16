@@ -638,15 +638,17 @@ public class MessageBusBaseTests : IDisposable
         // trigger lazy bus creation here ahead of the Tasks
         var bus = Bus;
 
+        await bus.Start();
+
         // act
         for (var i = 0; i < 10; i++)
         {
-            await Task.WhenAll(Enumerable.Range(0, 1000).Select(x => bus.Start()).ToList());
+            await Task.WhenAll(Enumerable.Range(0, 10000).Select(x => bus.Start()).AsParallel());
         }
 
         // assert
-        bus._startedCount.Should().Be(1);
         bus._stoppedCount.Should().Be(0);
+        bus._startedCount.Should().Be(1);
     }
 
     [Fact]
@@ -668,8 +670,8 @@ public class MessageBusBaseTests : IDisposable
         }
 
         // assert
-        bus._startedCount.Should().Be(1);
         bus._stoppedCount.Should().Be(1);
+        bus._startedCount.Should().Be(1);
     }
 
     public class ProduceResponseTests
