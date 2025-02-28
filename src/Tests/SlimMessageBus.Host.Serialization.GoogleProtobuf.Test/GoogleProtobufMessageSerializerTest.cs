@@ -6,6 +6,8 @@ using global::Test;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
+using Moq;
+
 using Xunit;
 
 public class GoogleProtobufMessageSerializerTest
@@ -22,10 +24,10 @@ public class GoogleProtobufMessageSerializerTest
             Id = 1,
             Name = "SlimMessageBus"
         };
-        var serializedPerson = serializer.Serialize(personMessage.GetType(), personMessage);
+        var serializedPerson = serializer.Serialize(personMessage.GetType(), personMessage, It.IsAny<IMessageContext>());
 
         // assert
-        var deserializedPerson = serializer.Deserialize(typeof(PersonMessage), serializedPerson);
+        var deserializedPerson = serializer.Deserialize(typeof(PersonMessage), serializedPerson, It.IsAny<IMessageContext>());
         ((PersonMessage)deserializedPerson).Should().BeEquivalentTo(personMessage);
     }
 }

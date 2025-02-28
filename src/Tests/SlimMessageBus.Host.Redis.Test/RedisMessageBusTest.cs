@@ -37,10 +37,10 @@ public class RedisMessageBusTest
         _settings.ServiceProvider = _serviceProviderMock.Object;
 
         _messageSerializerMock
-            .Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<object>()))
+            .Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<object>(), It.IsAny<IMessageContext>()))
             .Returns((Type type, object message) => Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(message)));
         _messageSerializerMock
-            .Setup(x => x.Deserialize(It.IsAny<Type>(), It.IsAny<byte[]>()))
+            .Setup(x => x.Deserialize(It.IsAny<Type>(), It.IsAny<byte[]>(), It.IsAny<IMessageContext>()))
             .Returns((Type type, byte[] payload) => JsonConvert.DeserializeObject(Encoding.UTF8.GetString(payload), type));
 
         _databaseMock = new Mock<IDatabase>();
@@ -74,7 +74,7 @@ public class RedisMessageBusTest
     }
 
     private MessageWithHeaders UnwrapPayload(RedisValue redisValue)
-        => (MessageWithHeaders)_providerSettings.EnvelopeSerializer.Deserialize(typeof(MessageWithHeaders), redisValue);
+        => (MessageWithHeaders)_providerSettings.EnvelopeSerializer.Deserialize(typeof(MessageWithHeaders), redisValue, It.IsAny<IMessageContext>());
 
     [Fact]
     public async Task When_Publish_Given_QueueAndTopic_Then_RoutesToRespectiveChannels()
@@ -89,8 +89,8 @@ public class RedisMessageBusTest
         var mA = new SomeMessageA { Value = Guid.NewGuid() };
         var mB = new SomeMessageB { Value = Guid.NewGuid() };
 
-        var payloadA = _messageSerializerMock.Object.Serialize(typeof(SomeMessageA), mA);
-        var payloadB = _messageSerializerMock.Object.Serialize(typeof(SomeMessageB), mB);
+        var payloadA = _messageSerializerMock.Object.Serialize(typeof(SomeMessageA), mA, It.Is<IMessageContext>(x => x.Path == topicA));
+        var payloadB = _messageSerializerMock.Object.Serialize(typeof(SomeMessageB), mB, It.Is<IMessageContext>(x => x.Path == queueB));
 
         // act
         await _subject.Value.ProducePublish(mA);

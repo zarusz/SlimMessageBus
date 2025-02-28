@@ -48,7 +48,7 @@ public class RedisTopicConsumer : AbstractConsumer, IRedisConsumer
         Exception exception;
         try
         {
-            var messageWithHeaders = (MessageWithHeaders)_envelopeSerializer.Deserialize(typeof(MessageWithHeaders), m.Message);
+            var messageWithHeaders = (MessageWithHeaders)_envelopeSerializer.Deserialize(typeof(MessageWithHeaders), m.Message, new MessageContext(Path));
 
             var r = await _messageProcessor.ProcessMessage(messageWithHeaders, messageWithHeaders.Headers, cancellationToken: CancellationToken);
             exception = r.Exception;

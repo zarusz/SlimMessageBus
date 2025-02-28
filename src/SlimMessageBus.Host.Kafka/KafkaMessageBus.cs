@@ -69,11 +69,11 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
             AddConsumer(new KafkaGroupConsumer(LoggerFactory, ProviderSettings, consumerSettings, interceptors: Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(), group, topics, processorFactory));
         }
 
-        object MessageProvider(Type messageType, ConsumeResult<Ignore, byte[]> transportMessage)
-            => Serializer.Deserialize(messageType, transportMessage.Message.Value);
+        object MessageProvider(string path, Type messageType, ConsumeResult<Ignore, byte[]> transportMessage)
+            => Serializer.Deserialize(messageType, transportMessage.Message.Value, new MessageContext(path));
 
         IKafkaPartitionConsumer ResponseProcessorFactory(TopicPartition tp, IKafkaCommitController cc)
-            => new KafkaPartitionConsumerForResponses(LoggerFactory, Settings.RequestResponse, Settings.RequestResponse.GetGroup(), tp, cc, MessageProvider, PendingRequestStore, CurrentTimeProvider, HeaderSerializer);
+            => new KafkaPartitionConsumerForResponses(LoggerFactory, Settings.RequestResponse, Settings.RequestResponse.GetGroup(), tp, cc, (type, message) => MessageProvider(tp.Topic, type, message), PendingRequestStore, CurrentTimeProvider, HeaderSerializer);
 
         foreach (var consumersByGroup in Settings.Consumers.GroupBy(x => x.GetGroup()))
         {
@@ -135,7 +135,7 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
         try
         {
             var producerSettings = messageType != null ? GetProducerSettings(messageType) : null;
-            var messagePayload = Serializer.Serialize(messageType, message);
+            var messagePayload = Serializer.Serialize(messageType, message, new MessageContext(path));
 
             // calculate message key
             var key = GetMessageKey(producerSettings, messageType, message, path);
@@ -147,7 +147,7 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
 
                 foreach (var keyValue in messageHeaders)
                 {
-                    var valueBytes = HeaderSerializer.Serialize(typeof(object), keyValue.Value);
+                    var valueBytes = HeaderSerializer.Serialize(typeof(object), keyValue.Value, new MessageContext(path));
                     transportMessage.Headers.Add(keyValue.Key, valueBytes);
                 }
             }

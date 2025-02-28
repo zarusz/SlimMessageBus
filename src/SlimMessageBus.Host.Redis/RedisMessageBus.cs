@@ -90,7 +90,7 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
 
         var queues = new List<(string, IMessageProcessor<MessageWithHeaders>)>();
 
-        object MessageProvider(Type messageType, MessageWithHeaders transportMessage) => Serializer.Deserialize(messageType, transportMessage.Payload);
+        object MessageProvider(string path, Type messageType, MessageWithHeaders transportMessage) => Serializer.Deserialize(messageType, transportMessage.Payload, new MessageContext(path));
 
         void AddTopicConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, string topic, ISubscriber subscriber, IMessageProcessor<MessageWithHeaders> messageProcessor)
         {
@@ -111,7 +111,7 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
             IMessageProcessor<MessageWithHeaders> processor = new MessageProcessor<MessageWithHeaders>(
                 consumerSettings,
                 messageBus: this,
-                messageProvider: MessageProvider,
+                messageProvider: (type, message) => MessageProvider(path, type, message),
                 path: path,
                 responseProducer: this,
                 consumerErrorHandlerOpenGenericType: typeof(IRedisConsumerErrorHandler<>));
@@ -145,11 +145,11 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
             _logger.LogInformation("Creating response consumer for redis {PathKind} {Path}", GetPathKindString(Settings.RequestResponse.PathKind), Settings.RequestResponse.Path);
             if (Settings.RequestResponse.PathKind == PathKind.Topic)
             {
-                AddTopicConsumer([Settings.RequestResponse], Settings.RequestResponse.Path, subscriber, new ResponseMessageProcessor<MessageWithHeaders>(LoggerFactory, Settings.RequestResponse, MessageProvider, PendingRequestStore, CurrentTimeProvider));
+                AddTopicConsumer([Settings.RequestResponse], Settings.RequestResponse.Path, subscriber, new ResponseMessageProcessor<MessageWithHeaders>(LoggerFactory, Settings.RequestResponse, (type, message) => MessageProvider(Settings.RequestResponse.Path, type, message), PendingRequestStore, CurrentTimeProvider));
             }
             else
             {
-                queues.Add((Settings.RequestResponse.Path, new ResponseMessageProcessor<MessageWithHeaders>(LoggerFactory, Settings.RequestResponse, MessageProvider, PendingRequestStore, CurrentTimeProvider)));
+                queues.Add((Settings.RequestResponse.Path, new ResponseMessageProcessor<MessageWithHeaders>(LoggerFactory, Settings.RequestResponse, (type, message) => MessageProvider(Settings.RequestResponse.Path, type, message), PendingRequestStore, CurrentTimeProvider)));
             }
         }
 
@@ -167,13 +167,13 @@ public class RedisMessageBus : MessageBusBase<RedisMessageBusSettings>
     {
         try
         {
-            var messagePayload = Serializer.Serialize(messageType, message);
+            var messagePayload = Serializer.Serialize(messageType, message, new MessageContext(path));
 
             // determine the SMB topic name if its a Azure SB queue or topic
             var kind = _kindMapping.GetKind(messageType, path);
 
             var messageWithHeaders = new MessageWithHeaders(messagePayload, messageHeaders);
-            var messageWithHeadersBytes = ProviderSettings.EnvelopeSerializer.Serialize(typeof(MessageWithHeaders), messageWithHeaders);
+            var messageWithHeadersBytes = ProviderSettings.EnvelopeSerializer.Serialize(typeof(MessageWithHeaders), messageWithHeaders, new MessageContext(path));
 
             _logger.LogDebug(
                 "Producing message {Message} of type {MessageType} to redis {PathKind} {Path} with size {MessageSize}",

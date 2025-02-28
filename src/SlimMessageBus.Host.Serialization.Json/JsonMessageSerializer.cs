@@ -27,20 +27,20 @@ public partial class JsonMessageSerializer : IMessageSerializer, IMessageSeriali
 
     #region Implementation of IMessageSerializer
 
-    public byte[] Serialize(Type t, object message)
+    public byte[] Serialize(Type t, object message, IMessageContext context)
     {
         var jsonPayload = JsonConvert.SerializeObject(message, t, _serializerSettings);
         LogSerialized(t, message, jsonPayload);
         return _encoding.GetBytes(jsonPayload);
     }
 
-    public object Deserialize(Type t, byte[] payload)
+    public object Deserialize(Type t, byte[] payload, IMessageContext context)
     {
         var jsonPayload = string.Empty;
         try
         {
             jsonPayload = _encoding.GetString(payload);
-            return Deserialize(t, jsonPayload);
+            return Deserialize(t, jsonPayload, context);
         }
         catch (Exception e)
         {
@@ -57,14 +57,14 @@ public partial class JsonMessageSerializer : IMessageSerializer, IMessageSeriali
 
     #region Implementation of IMessageSerializer<string>
 
-    string IMessageSerializer<string>.Serialize(Type t, object message)
+    string IMessageSerializer<string>.Serialize(Type t, object message, IMessageContext context)
     {
         var payload = JsonConvert.SerializeObject(message, t, _serializerSettings);
         LogSerialized(t, message, payload);
         return payload;
     }
 
-    public object Deserialize(Type t, string payload)
+    public object Deserialize(Type t, string payload, IMessageContext context)
     {
         try
         {

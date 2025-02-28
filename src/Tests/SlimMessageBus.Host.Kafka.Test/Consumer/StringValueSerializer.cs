@@ -8,9 +8,9 @@ using System.Text;
 /// </summary>
 public class StringValueSerializer : IMessageSerializer
 {
-    public object Deserialize(Type t, byte[] payload)
+    public object Deserialize(Type t, byte[] payload, IMessageContext context)
         => Encoding.UTF8.GetString(payload);
 
-    public byte[] Serialize(Type t, object message)
+    public byte[] Serialize(Type t, object message, IMessageContext context)
         => Encoding.UTF8.GetBytes((string)message);
 }

@@ -3,6 +3,8 @@ namespace SlimMessageBus.Host.Nats;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Primitives;
 
+using Serialization;
+
 public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
 {
     private readonly ILogger _logger;
@@ -54,14 +56,14 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
 
         await base.CreateConsumers();
 
-        object MessageProvider(Type messageType, NatsMsg<byte[]> transportMessage) => Serializer.Deserialize(messageType, transportMessage.Data);
+        object MessageProvider(string path, Type messageType, NatsMsg<byte[]> transportMessage) => Serializer.Deserialize(messageType, transportMessage.Data, new MessageContext(path));
 
         foreach (var (subject, consumerSettings) in Settings.Consumers.GroupBy(x => x.Path).ToDictionary(x => x.Key, x => x.ToList()))
         {
             var processor = new MessageProcessor<NatsMsg<byte[]>>(
                 consumerSettings,
                 messageBus: this,
-                messageProvider: MessageProvider,
+                messageProvider: (type, message) => MessageProvider(subject, type, message),
                 subject,
                 this,
                 consumerErrorHandlerOpenGenericType: typeof(INatsConsumerErrorHandler<>));
@@ -71,7 +73,7 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
 
         if (Settings.RequestResponse != null)
         {
-            var processor = new ResponseMessageProcessor<NatsMsg<byte[]>>(LoggerFactory, Settings.RequestResponse, MessageProvider, PendingRequestStore, CurrentTimeProvider);
+            var processor = new ResponseMessageProcessor<NatsMsg<byte[]>>(LoggerFactory, Settings.RequestResponse, (type, message) => MessageProvider(Settings.RequestResponse.Path, type, message), PendingRequestStore, CurrentTimeProvider);
             AddSubjectConsumer([], Settings.RequestResponse.Path, processor);
         }
     }
@@ -100,7 +102,7 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
         {
             OnProduceToTransport(message, messageType, path, messageHeaders);
 
-            var messagePayload = Serializer.Serialize(messageType, message);
+            var messagePayload = Serializer.Serialize(messageType, message, new MessageContext(path));
 
             var replyTo = messageHeaders.TryGetValue("ReplyTo", out var replyToValue)
                 ? replyToValue.ToString()

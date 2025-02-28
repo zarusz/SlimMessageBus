@@ -21,7 +21,7 @@ public class KafkaPartitionConsumerForConsumers : KafkaPartitionConsumer
                 messageBus,
                 path: topicPartition.Topic,
                 responseProducer: messageBus,
-                messageProvider: (messageType, transportMessage) => messageBus.Serializer.Deserialize(messageType, transportMessage.Message.Value),
+                messageProvider: (messageType, transportMessage) => messageBus.Serializer.Deserialize(messageType, transportMessage.Message.Value, new MessageContext(topicPartition.Topic)),
                 consumerContextInitializer: (m, ctx) => ctx.SetTransportMessage(m),
                 consumerErrorHandlerOpenGenericType: typeof(IKafkaConsumerErrorHandler<>)))
     {

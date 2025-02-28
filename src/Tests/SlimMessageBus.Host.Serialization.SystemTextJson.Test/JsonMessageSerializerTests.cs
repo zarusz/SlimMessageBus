@@ -1,5 +1,7 @@
 namespace SlimMessageBus.Host.Serialization.SystemTextJson.Test;
 
+using Moq;
+
 public class JsonMessageSerializerTests
 {
     public static TheoryData<object, object> Data => new()
@@ -21,8 +23,8 @@ public class JsonMessageSerializerTests
         var subject = new JsonMessageSerializer();
 
         // act
-        var bytes = subject.Serialize(typeof(object), value);
-        var deserializedValue = subject.Deserialize(typeof(object), bytes);
+        var bytes = subject.Serialize(typeof(object), value, It.IsAny<IMessageContext>());
+        var deserializedValue = subject.Deserialize(typeof(object), bytes, It.IsAny<IMessageContext>());
 
         // assert
         deserializedValue.Should().Be(expectedValue);
@@ -36,8 +38,8 @@ public class JsonMessageSerializerTests
         var subject = new JsonMessageSerializer() as IMessageSerializer<string>;
 
         // act
-        var json = subject.Serialize(typeof(object), value);
-        var deserializedValue = subject.Deserialize(typeof(object), json);
+        var json = subject.Serialize(typeof(object), value, It.IsAny<IMessageContext>());
+        var deserializedValue = subject.Deserialize(typeof(object), json, It.IsAny<IMessageContext>());
 
         // assert
         deserializedValue.Should().Be(expectedValue);

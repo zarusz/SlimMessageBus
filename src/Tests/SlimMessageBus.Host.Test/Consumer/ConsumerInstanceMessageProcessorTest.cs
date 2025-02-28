@@ -31,7 +31,7 @@ public class ConsumerInstanceMessageProcessorTest
 
         var p = new MessageProcessor<byte[]>([_handlerSettings], _busMock.Bus, MessageProvider, "path", responseProducer: _busMock.Bus);
 
-        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<byte[]>())).Returns(mockMessage.Object);
+        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<byte[]>(), It.IsAny<IMessageContext>())).Returns(mockMessage.Object);
 
         // act
         await p.ProcessMessage(_transportMessage, new Dictionary<string, object>(), default);
@@ -52,7 +52,7 @@ public class ConsumerInstanceMessageProcessorTest
 
         var p = new MessageProcessor<byte[]>(new[] { _handlerSettings }, _busMock.Bus, MessageProvider, "path", responseProducer: _busMock.Bus);
 
-        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<byte[]>())).Returns(mockMessage.Object);
+        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<byte[]>(), It.IsAny<IMessageContext>())).Returns(mockMessage.Object);
 
         // act
         await p.ProcessMessage(_transportMessage, new Dictionary<string, object>(), default);
@@ -73,7 +73,7 @@ public class ConsumerInstanceMessageProcessorTest
 
         var p = new MessageProcessor<byte[]>(new[] { _handlerSettings }, _busMock.Bus, MessageProvider, "path", responseProducer: _busMock.Bus);
 
-        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<byte[]>())).Returns(mockMessage.Object);
+        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<byte[]>(), It.IsAny<IMessageContext>())).Returns(mockMessage.Object);
 
         // act
         await p.ProcessMessage(_transportMessage, new Dictionary<string, object>(), default);
@@ -96,7 +96,7 @@ public class ConsumerInstanceMessageProcessorTest
 
         var p = new MessageProcessor<byte[]>([_handlerSettings], _busMock.Bus, MessageProvider, "path", responseProducer: _busMock.Bus);
 
-        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<byte[]>())).Returns(request);
+        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<byte[]>(), It.IsAny<IMessageContext>())).Returns(request);
 
         // act
         await p.ProcessMessage(_transportMessage, headers, default);
@@ -123,7 +123,7 @@ public class ConsumerInstanceMessageProcessorTest
 
         var p = new MessageProcessor<byte[]>([_handlerSettings], _busMock.Bus, MessageProvider, _topic, responseProducer: _busMock.Bus);
 
-        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<byte[]>())).Returns(request);
+        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<byte[]>(), It.IsAny<IMessageContext>())).Returns(request);
 
         var ex = new Exception("Something went bad");
         _busMock.HandlerMock.Setup(x => x.OnHandle(request, It.IsAny<CancellationToken>())).Returns(Task.FromException<SomeResponse>(ex));
@@ -471,7 +471,7 @@ public class ConsumerInstanceMessageProcessorTest
             _topic,
             responseProducer: _busMock.Bus);
 
-        _busMock.SerializerMock.Setup(x => x.Deserialize(message.GetType(), _transportMessage)).Returns(message);
+        _busMock.SerializerMock.Setup(x => x.Deserialize(message.GetType(), _transportMessage, It.Is<IMessageContext>(c => c.Path == _topic))).Returns(message);
         messageWithHeaderProviderMock.Setup(x => x(message.GetType(), _transportMessage)).Returns(message);
 
         var someMessageConsumerMock = new Mock<IConsumer<SomeMessage>>();

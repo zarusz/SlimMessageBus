@@ -15,10 +15,10 @@ public class GoogleProtobufMessageSerializer : IMessageSerializer
         _messageParserFactory = messageParserFactory ?? new MessageParserFactory();
     }
 
-    public byte[] Serialize(Type t, object message)
+    public byte[] Serialize(Type t, object message, IMessageContext context)
         => ((IMessage)message).ToByteArray();
 
-    public object Deserialize(Type t, byte[] payload)
+    public object Deserialize(Type t, byte[] payload, IMessageContext context)
     {
         var messageParser = _messageParserFactory.CreateMessageParser(t);
         try

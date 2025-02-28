@@ -43,8 +43,8 @@ public class SerDesBenchmark
     [Benchmark]
     public void SerDes()
     {
-        var payload = scenario.Serializer.Serialize(scenario.MessageType, scenario.Message);
-        scenario.Serializer.Deserialize(scenario.MessageType, payload);
+        var payload = scenario.Serializer.Serialize(scenario.MessageType, scenario.Message, new MessageContext("path"));
+        scenario.Serializer.Deserialize(scenario.MessageType, payload, new MessageContext("path"));
     }
 
     public class Scenario

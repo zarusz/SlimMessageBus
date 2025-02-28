@@ -32,20 +32,20 @@ public class JsonMessageSerializer : IMessageSerializer, IMessageSerializer<stri
 
     #region Implementation of IMessageSerializer
 
-    public byte[] Serialize(Type t, object message) =>
+    public byte[] Serialize(Type t, object message, IMessageContext context) =>
         JsonSerializer.SerializeToUtf8Bytes(message, t, Options);
 
-    public object Deserialize(Type t, byte[] payload) =>
+    public object Deserialize(Type t, byte[] payload, IMessageContext context) =>
         JsonSerializer.Deserialize(payload, t, Options)!;
 
     #endregion
 
     #region Implementation of IMessageSerializer<string>
 
-    string IMessageSerializer<string>.Serialize(Type t, object message)
+    string IMessageSerializer<string>.Serialize(Type t, object message, IMessageContext context)
         => JsonSerializer.Serialize(message, t, Options);
 
-    object IMessageSerializer<string>.Deserialize(Type t, string payload)
+    object IMessageSerializer<string>.Deserialize(Type t, string payload, IMessageContext context)
         => JsonSerializer.Deserialize(payload, t, Options)!;
 
     #endregion
