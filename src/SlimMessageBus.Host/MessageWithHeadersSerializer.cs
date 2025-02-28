@@ -255,10 +255,10 @@ public class MessageWithHeadersSerializer : IMessageSerializer
 
     #region Implementation of IMessageSerializer
 
-    public byte[] Serialize(Type t, object message)
+    public byte[] Serialize(Type t, object message, IMessageContext context)
         => Serialize((MessageWithHeaders)message);
 
-    public object Deserialize(Type t, byte[] payload)
+    public object Deserialize(Type t, byte[] payload, IMessageContext context)
         => Deserialize(payload);
 
     #endregion

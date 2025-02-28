@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Services;
 
+using Serialization;
+
 internal class OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>(
     ILoggerFactory loggerFactory,
     OutboxSettings outboxSettings,
@@ -307,7 +309,7 @@ internal class OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>(
                             return null;
                         }
 
-                        var message = bus.Serializer.Deserialize(messageType, outboxMessage.MessagePayload);
+                        var message = bus.Serializer.Deserialize(messageType, outboxMessage.MessagePayload, new MessageContext(path));
                         return new OutboxBulkMessage(outboxMessage.Id, message, messageType, outboxMessage.Headers ?? new Dictionary<string, object>());
                     })
                     .Where(x => x != null)

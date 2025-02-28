@@ -75,7 +75,7 @@ public class RedisListCheckerConsumer : AbstractConsumer, IRedisConsumer
                     Logger.LogDebug("Retrieved value on queue {Queue}", queue.Name);
                     try
                     {
-                        var transportMessage = (MessageWithHeaders)_envelopeSerializer.Deserialize(typeof(MessageWithHeaders), value);
+                        var transportMessage = (MessageWithHeaders)_envelopeSerializer.Deserialize(typeof(MessageWithHeaders), value, new MessageContext(Path));
 
                         // for loop to avoid iterator allocation
                         for (var i = 0; i < queue.Processors.Count && !CancellationToken.IsCancellationRequested; i++)

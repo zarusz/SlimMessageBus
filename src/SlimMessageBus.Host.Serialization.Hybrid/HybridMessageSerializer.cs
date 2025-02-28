@@ -58,15 +58,15 @@ public class HybridMessageSerializer : IMessageSerializer
         return serializer;
     }
 
-    public object Deserialize(Type t, byte[] payload)
+    public object Deserialize(Type t, byte[] payload, IMessageContext context)
     {
         var serializer = MatchSerializer(t);
-        return serializer.Deserialize(t, payload);
+        return serializer.Deserialize(t, payload, context);
     }
 
-    public byte[] Serialize(Type t, object message)
+    public byte[] Serialize(Type t, object message, IMessageContext context)
     {
         var serializer = MatchSerializer(t);
-        return serializer.Serialize(t, message);
+        return serializer.Serialize(t, message, context);
     }
 }

@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.AzureEventHub;
 
+using Serialization;
+
 using SlimMessageBus.Host.Services;
 
 /// <summary>
@@ -55,19 +57,19 @@ public class EventHubMessageBus : MessageBusBase<EventHubMessageBusSettings>
     {
         await base.CreateConsumers();
 
-        object MessageProvider(Type messageType, EventData transportMessage) => Serializer.Deserialize(messageType, transportMessage.Body.ToArray());
+        object MessageProvider(string path, Type messageType, EventData transportMessage) => Serializer.Deserialize(messageType, transportMessage.Body.ToArray(), new MessageContext(path));
 
         foreach (var (groupPath, consumerSettings) in Settings.Consumers.GroupBy(x => new GroupPath(path: x.Path, group: x.GetGroup())).ToDictionary(x => x.Key, x => x.ToList()))
         {
             _logger.LogInformation("Creating consumer for Path: {Path}, Group: {Group}", groupPath.Path, groupPath.Group);
-            AddConsumer(new EhGroupConsumer(consumerSettings, this, groupPath, groupPathPartition => new EhPartitionConsumerForConsumers(this, consumerSettings, groupPathPartition, MessageProvider)));
+            AddConsumer(new EhGroupConsumer(consumerSettings, this, groupPath, groupPathPartition => new EhPartitionConsumerForConsumers(this, consumerSettings, groupPathPartition, (type, message) => MessageProvider(groupPath.Path, type, message))));
         }
 
         if (Settings.RequestResponse != null)
         {
             var pathGroup = new GroupPath(Settings.RequestResponse.Path, Settings.RequestResponse.GetGroup());
             _logger.LogInformation("Creating response consumer for Path: {Path}, Group: {Group}", pathGroup.Path, pathGroup.Group);
-            AddConsumer(new EhGroupConsumer([Settings.RequestResponse], this, pathGroup, groupPathPartition => new EhPartitionConsumerForResponses(this, Settings.RequestResponse, groupPathPartition, MessageProvider, PendingRequestStore, CurrentTimeProvider)));
+            AddConsumer(new EhGroupConsumer([Settings.RequestResponse], this, pathGroup, groupPathPartition => new EhPartitionConsumerForResponses(this, Settings.RequestResponse, groupPathPartition, (type, message) => MessageProvider(pathGroup.Path, type, message), PendingRequestStore, CurrentTimeProvider)));
         }
 
     }
@@ -111,7 +113,7 @@ public class EventHubMessageBus : MessageBusBase<EventHubMessageBusSettings>
         OnProduceToTransport(message, messageType, path, messageHeaders);
 
         var messagePayload = message != null
-            ? Serializer.Serialize(messageType, message)
+            ? Serializer.Serialize(messageType, message, new MessageContext(path))
             : null;
 
         var transportMessage = message != null

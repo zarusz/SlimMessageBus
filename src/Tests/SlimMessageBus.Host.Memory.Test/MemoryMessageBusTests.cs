@@ -44,10 +44,10 @@ public class MemoryMessageBusTests
         _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(IPendingRequestManager))).Returns(() => new PendingRequestManager(new InMemoryPendingRequestStore(), new CurrentTimeProvider(), NullLoggerFactory.Instance));
 
         _messageSerializerMock
-            .Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<object>()))
+            .Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<object>(), It.IsAny<IMessageContext>()))
             .Returns((Type type, object message) => Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(message)));
         _messageSerializerMock
-            .Setup(x => x.Deserialize(It.IsAny<Type>(), It.IsAny<byte[]>()))
+            .Setup(x => x.Deserialize(It.IsAny<Type>(), It.IsAny<byte[]>(), It.IsAny<IMessageContext>()))
             .Returns((Type type, byte[] payload) => JsonConvert.DeserializeObject(Encoding.UTF8.GetString(payload), type));
 
         _subject = new Lazy<MemoryMessageBus>(() => new MemoryMessageBus(_settings, _providerSettings));

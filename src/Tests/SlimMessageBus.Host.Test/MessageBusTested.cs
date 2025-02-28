@@ -55,8 +55,8 @@ public class MessageBusTested : MessageBusBase
 
         if (messageType.GetInterfaces().Any(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IRequest<>)))
         {
-            var messagePayload = Serializer.Serialize(messageType, message);
-            var req = Serializer.Deserialize(messageType, messagePayload);
+            var messagePayload = Serializer.Serialize(messageType, message, new MessageContext(path));
+            var req = Serializer.Deserialize(messageType, messagePayload, new MessageContext(path));
 
             var resp = OnReply(messageType, path, req);
             if (resp == null)

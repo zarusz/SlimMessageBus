@@ -13,6 +13,6 @@ public interface IMessageSerializer : IMessageSerializer<byte[]>
 /// <typeparam name="TPayload"></typeparam>
 public interface IMessageSerializer<TPayload>
 {
-    TPayload Serialize(Type t, object message);
-    object Deserialize(Type t, TPayload payload);
+    TPayload Serialize(Type t, object message, IMessageContext context);
+    object Deserialize(Type t, TPayload payload, IMessageContext context);
 }

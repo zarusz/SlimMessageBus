@@ -110,12 +110,12 @@ public class SerializationBuilderExtensionsTests
 
     public abstract class AbstractSerializer : IMessageSerializer
     {
-        public object Deserialize(Type t, byte[] payload)
+        public object Deserialize(Type t, byte[] payload, IMessageContext context)
         {
             throw new NotImplementedException();
         }
 
-        public byte[] Serialize(Type t, object message)
+        public byte[] Serialize(Type t, object message, IMessageContext context)
         {
             throw new NotImplementedException();
         }

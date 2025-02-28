@@ -70,7 +70,7 @@ public class AvroMessageSerializer : IMessageSerializer
         ReadSchemaLookup = readerSchemaLookupStrategy.Lookup;
     }
 
-    public object Deserialize(Type t, byte[] payload)
+    public object Deserialize(Type t, byte[] payload, IMessageContext context)
     {
         using var ms = ReadMemoryStreamFactory(payload);
 
@@ -100,7 +100,7 @@ public class AvroMessageSerializer : IMessageSerializer
         }
     }
 
-    public byte[] Serialize(Type t, object message)
+    public byte[] Serialize(Type t, object message, IMessageContext context)
     {
         using var ms = WriteMemoryStreamFactory();
         var enc = new BinaryEncoder(ms);

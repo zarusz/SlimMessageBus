@@ -24,14 +24,14 @@ public class DefaultKafkaHeaderSerializer : IMessageSerializer
 
     #region Implementation of IMessageSerializer
 
-    public byte[] Serialize(Type t, object message)
+    public byte[] Serialize(Type t, object message, IMessageContext context)
     {
         if (message == null) return null;
         var payload = _encoding.GetBytes(Convert.ToString(message, CultureInfo.InvariantCulture));
         return payload;
     }
 
-    public object Deserialize(Type t, byte[] payload)
+    public object Deserialize(Type t, byte[] payload, IMessageContext context)
     {
         if (payload == null) return null;
 

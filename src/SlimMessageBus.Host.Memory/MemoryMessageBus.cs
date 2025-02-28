@@ -100,7 +100,7 @@ public partial class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
             path: path,
             responseProducer: null,
             messageProvider: ProviderSettings.EnableMessageSerialization
-                ? (messageType, transportMessage) => Serializer.Deserialize(messageType, (byte[])transportMessage)
+                ? (messageType, transportMessage) => Serializer.Deserialize(messageType, (byte[])transportMessage, new MessageContext(path))
                 : (messageType, transportMessage) => transportMessage,
             messageTypeProvider: ProviderSettings.EnableMessageSerialization
                 ? null
@@ -135,7 +135,7 @@ public partial class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
         }
 
         var transportMessage = ProviderSettings.EnableMessageSerialization
-            ? Serializer.Serialize(producerSettings.MessageType, message)
+            ? Serializer.Serialize(producerSettings.MessageType, message, new MessageContext(path))
             : message;
 
         var messageHeadersReadOnly = requestHeaders != null

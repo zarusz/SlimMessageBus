@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.AzureServiceBus;
 
+using Serialization;
+
 using SlimMessageBus.Host.AzureServiceBus.Consumer;
 
 public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
@@ -86,7 +88,7 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
         }
 
         static void InitConsumerContext(ServiceBusReceivedMessage m, ConsumerContext ctx) => ctx.SetTransportMessage(m);
-        object MessageProvider(Type messageType, ServiceBusReceivedMessage m) => Serializer.Deserialize(messageType, m.Body.ToArray());
+        object MessageProvider(string path, Type messageType, ServiceBusReceivedMessage m) => Serializer.Deserialize(messageType, m.Body.ToArray(), new MessageContext(path));
 
         foreach (var ((path, subscriptionName), consumerSettings) in Settings.Consumers
                 .GroupBy(x => (x.Path, SubscriptionName: x.GetSubscriptionName(ProviderSettings)))
@@ -96,7 +98,7 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
             var messageProcessor = new MessageProcessor<ServiceBusReceivedMessage>(
                 consumerSettings,
                 this,
-                messageProvider: MessageProvider,
+                messageProvider: (type, message) => MessageProvider(path, type, message),
                 path: path.ToString(),
                 responseProducer: this,
                 consumerContextInitializer: InitConsumerContext,
@@ -111,7 +113,7 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
             var messageProcessor = new ResponseMessageProcessor<ServiceBusReceivedMessage>(
                 LoggerFactory,
                 Settings.RequestResponse,
-                MessageProvider,
+                (type, message) => MessageProvider(Settings.RequestResponse.Path, type, message),
                 PendingRequestStore,
                 CurrentTimeProvider);
 
@@ -223,7 +225,7 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
 
     private ServiceBusMessage GetTransportMessage(object message, Type messageType, IDictionary<string, object> messageHeaders, string path)
     {
-        var messagePayload = Serializer.Serialize(messageType, message);
+        var messagePayload = Serializer.Serialize(messageType, message, new MessageContext(path));
 
         OnProduceToTransport(message, messageType, path, messageHeaders);
 

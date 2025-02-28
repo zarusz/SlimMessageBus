@@ -2,6 +2,8 @@
 
 using Microsoft.Extensions.DependencyInjection;
 
+using Serialization;
+
 public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IRabbitMqChannel
 {
     private readonly ILogger _logger;
@@ -38,7 +40,7 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
     {
         await base.CreateConsumers();
 
-        object MessageProvider(Type messageType, BasicDeliverEventArgs transportMessage) => Serializer.Deserialize(messageType, transportMessage.Body.ToArray());
+        object MessageProvider(string path, Type messageType, BasicDeliverEventArgs transportMessage) => Serializer.Deserialize(messageType, transportMessage.Body.ToArray(), new MessageContext(path));
 
         foreach (var (queueName, consumers) in Settings.Consumers.GroupBy(x => x.GetQueueName()).ToDictionary(x => x.Key, x => x.ToList()))
         {
@@ -47,7 +49,7 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
                 queueName: queueName,
                 consumers,
                 messageBus: this,
-                MessageProvider,
+                (type, message) => MessageProvider(queueName, type, message),
                 ProviderSettings.HeaderValueConverter));
         }
 
@@ -58,7 +60,7 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
                 channel: this,
                 queueName: Settings.RequestResponse.GetQueueName(),
                 Settings.RequestResponse,
-                MessageProvider,
+                (type, message) => MessageProvider(Settings.RequestResponse.GetQueueName(), type, message),
                 PendingRequestStore,
                 CurrentTimeProvider,
                 ProviderSettings.HeaderValueConverter));
@@ -152,7 +154,7 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
 
             lock (_channelLock)
             {
-                GetTransportMessage(message, messageType, messageHeaders, out var messagePayload, out var messageProperties, out var routingKey);
+                GetTransportMessage(path, message, messageType, messageHeaders, out var messagePayload, out var messageProperties, out var routingKey);
                 _channel.BasicPublish(path, routingKey: routingKey, mandatory: false, basicProperties: messageProperties, body: messagePayload);
             }
 
@@ -175,7 +177,7 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
                 var batch = _channel.CreateBasicPublishBatch();
                 foreach (var envelope in envelopes)
                 {
-                    GetTransportMessage(envelope.Message, envelope.MessageType, envelope.Headers, out var messagePayload, out var messageProperties, out var routingKey);
+                    GetTransportMessage(path, envelope.Message, envelope.MessageType, envelope.Headers, out var messagePayload, out var messageProperties, out var routingKey);
                     batch.Add(path, routingKey: routingKey, mandatory: false, properties: messageProperties, body: messagePayload.AsMemory());
                 }
                 batch.Publish();
@@ -196,10 +198,10 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
         }
     }
 
-    private void GetTransportMessage(object message, Type messageType, IDictionary<string, object> messageHeaders, out byte[] messagePayload, out IBasicProperties messageProperties, out string routingKey)
+    private void GetTransportMessage(string path, object message, Type messageType, IDictionary<string, object> messageHeaders, out byte[] messagePayload, out IBasicProperties messageProperties, out string routingKey)
     {
         var producer = GetProducerSettings(messageType);
-        messagePayload = Serializer.Serialize(messageType, message);
+        messagePayload = Serializer.Serialize(messageType, message, new MessageContext(path));
         messageProperties = _channel.CreateBasicProperties();
         if (messageHeaders != null)
         {

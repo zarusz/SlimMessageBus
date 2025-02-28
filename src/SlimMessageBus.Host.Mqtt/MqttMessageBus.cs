@@ -7,6 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 using MQTTnet.Extensions.ManagedClient;
 
+using Serialization;
+
 public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
 {
     private readonly ILogger _logger;
@@ -52,7 +54,7 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
         _mqttClient = ProviderSettings.MqttFactory.CreateManagedMqttClient();
         _mqttClient.ApplicationMessageReceivedAsync += OnMessageReceivedAsync;
 
-        object MessageProvider(Type messageType, MqttApplicationMessage transportMessage) => Serializer.Deserialize(messageType, transportMessage.PayloadSegment.Array);
+        object MessageProvider(string path, Type messageType, MqttApplicationMessage transportMessage) => Serializer.Deserialize(messageType, transportMessage.PayloadSegment.Array, new MessageContext(path));
 
         void AddTopicConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, string topic, IMessageProcessor<MqttApplicationMessage> messageProcessor)
         {
@@ -66,7 +68,7 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
             var processor = new MessageProcessor<MqttApplicationMessage>(
                 consumerSettings,
                 messageBus: this,
-                messageProvider: MessageProvider,
+                messageProvider: (type, message) => MessageProvider(path, type, message),
                 path: path,
                 responseProducer: this,
                 consumerErrorHandlerOpenGenericType: typeof(IMqttConsumerErrorHandler<>));
@@ -79,7 +81,7 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
             var processor = new ResponseMessageProcessor<MqttApplicationMessage>(
                 LoggerFactory,
                 Settings.RequestResponse,
-                messageProvider: MessageProvider,
+                messageProvider: (type, message) => MessageProvider(Settings.RequestResponse.Path, type, message),
                 PendingRequestStore,
                 CurrentTimeProvider);
 
@@ -125,7 +127,7 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
         {
             OnProduceToTransport(message, messageType, path, messageHeaders);
 
-            var messagePayload = Serializer.Serialize(messageType, message);
+            var messagePayload = Serializer.Serialize(messageType, message, new MessageContext(path));
 
             var m = new MqttApplicationMessage
             {

@@ -54,7 +54,7 @@
             var mockDefaultSerializer = new Mock<IMessageSerializer>();
 
             var mockSerializer1 = new Mock<IMessageSerializer>();
-            mockSerializer1.Setup(x => x.Serialize(typeof(SampleOne), It.IsAny<SampleOne>())).Verifiable(Times.Once());
+            mockSerializer1.Setup(x => x.Serialize(typeof(SampleOne), It.IsAny<SampleOne>(), It.IsAny<IMessageContext>())).Verifiable(Times.Once());
 
             var mockSerializer2 = new Mock<IMessageSerializer>();
 
@@ -67,10 +67,10 @@
 
             // act
             var target = new HybridMessageSerializer(mockLogger.Object, serializers, mockDefaultSerializer.Object);
-            var _ = target.Serialize(typeof(SampleOne), new SampleOne());
+            var _ = target.Serialize(typeof(SampleOne), new SampleOne(), It.IsAny<IMessageContext>());
 
             // assert
-            mockSerializer1.Verify(x => x.Serialize(typeof(SampleOne), It.IsAny<SampleOne>()));
+            mockSerializer1.Verify(x => x.Serialize(typeof(SampleOne), It.IsAny<SampleOne>(), It.IsAny<IMessageContext>()));
             mockSerializer2.VerifyNoOtherCalls();
             mockDefaultSerializer.VerifyNoOtherCalls();
         }
@@ -80,7 +80,7 @@
         {
             // arrange
             var mockDefaultSerializer = new Mock<IMessageSerializer>();
-            mockDefaultSerializer.Setup(x => x.Serialize(typeof(SampleOne), It.IsAny<SampleOne>())).Verifiable(Times.Once());
+            mockDefaultSerializer.Setup(x => x.Serialize(typeof(SampleOne), It.IsAny<SampleOne>(), It.IsAny<IMessageContext>())).Verifiable(Times.Once());
 
             var mockSerializer1 = new Mock<IMessageSerializer>();
 
@@ -92,10 +92,10 @@
 
             // act
             var target = new HybridMessageSerializer(mockLogger.Object, serializers, mockDefaultSerializer.Object);
-            var _ = target.Serialize(typeof(SampleOne), new SampleOne());
+            var _ = target.Serialize(typeof(SampleOne), new SampleOne(), It.IsAny<IMessageContext>());
 
             // assert
-            mockDefaultSerializer.Verify(x => x.Serialize(typeof(SampleOne), It.IsAny<SampleOne>()));
+            mockDefaultSerializer.Verify(x => x.Serialize(typeof(SampleOne), It.IsAny<SampleOne>(), It.IsAny<IMessageContext>()));
             mockSerializer1.VerifyNoOtherCalls();
         }
     }
