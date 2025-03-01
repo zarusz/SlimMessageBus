@@ -80,7 +80,7 @@ public class MessageBusMock : ICurrentTimeProvider
 
         BusMock = new Mock<MessageBusBase>(mbSettings);
         BusMock.SetupGet(x => x.Settings).Returns(mbSettings);
-        BusMock.SetupGet(x => x.Serializer).CallBase();
+        BusMock.SetupGet(x => x.SerializerProvider).CallBase();
         BusMock.SetupGet(x => x.MessageBusTarget).CallBase();
         BusMock.Setup(x => x.CreateHeaders()).CallBase();
         BusMock.Setup(x => x.CreateMessageScope(It.IsAny<ConsumerSettings>(), It.IsAny<object>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IServiceProvider>())).CallBase();

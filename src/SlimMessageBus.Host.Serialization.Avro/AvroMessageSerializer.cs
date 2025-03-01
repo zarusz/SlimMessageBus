@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 /// <summary>
 /// Apache Avro serialization implementation of <see cref="IMessageSerializer"/>
 /// </summary>
-public class AvroMessageSerializer : IMessageSerializer
+public class AvroMessageSerializer : IMessageSerializer, IMessageSerializerProvider
 {
     private readonly ILogger _logger;
 
@@ -114,4 +114,7 @@ public class AvroMessageSerializer : IMessageSerializer
         writer.Write(message, enc);
         return ms.ToArray();
     }
+
+    // ToDo: Leverage to implement Avro specific feature: https://github.com/zarusz/SlimMessageBus/issues/370
+    public IMessageSerializer GetSerializer(string path) => this;
 }

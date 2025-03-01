@@ -44,7 +44,7 @@ public class MessageBusSettings : HasProviderExtensions
         _children = [];
         Producers = [];
         Consumers = [];
-        SerializerType = typeof(IMessageSerializer);
+        SerializerType = typeof(IMessageSerializerProvider);
         AutoStartConsumers = true;
 
         if (parent != null)

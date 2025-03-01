@@ -9,24 +9,24 @@ using SlimMessageBus.Host;
 public static class SerializationBuilderExtensions
 {
     /// <summary>
-    /// Registers the <see cref="IMessageSerializer"/> with implementation as <see cref="HybridMessageSerializer"/>.
+    /// Registers the <see cref="IMessageSerializer"/> with implementation as <see cref="HybridMessageSerializerProvider"/>.
     /// </summary>
     /// <param name="builder"></param>
     /// <param name="registration"></param>
     /// <param name="defaultMessageSerializer">The default serializer to be used when the message type cannot be matched</param>
     /// <returns></returns>
-    public static TBuilder AddHybridSerializer<TBuilder>(this TBuilder builder, IDictionary<IMessageSerializer, Type[]> registration, IMessageSerializer defaultMessageSerializer)
+    public static TBuilder AddHybridSerializer<TBuilder>(this TBuilder builder, IDictionary<IMessageSerializerProvider, Type[]> registration, IMessageSerializerProvider defaultMessageSerializer)
         where TBuilder : ISerializationBuilder
     {
-        builder.RegisterSerializer<HybridMessageSerializer>(services =>
+        builder.RegisterSerializer<HybridMessageSerializerProvider>(services =>
         {
-            services.TryAddSingleton(svp => new HybridMessageSerializer(svp.GetRequiredService<ILogger<HybridMessageSerializer>>(), registration, defaultMessageSerializer));
+            services.TryAddSingleton(svp => new HybridMessageSerializerProvider(svp.GetRequiredService<ILogger<HybridMessageSerializerProvider>>(), registration, defaultMessageSerializer));
         });
         return builder;
     }
 
     /// <summary>
-    /// Registers the <see cref="IMessageSerializer"/> with implementation as <see cref="HybridMessageSerializer"/> using serializers as registered in the <see cref="IServiceCollection"/>.
+    /// Registers the <see cref="IMessageSerializerProvider"/> with implementation as <see cref="HybridMessageSerializerProvider"/> using serializers as registered in the <see cref="IServiceCollection"/>.
     /// </summary>
     /// <param name="mbb"><see cref="MessageBusBuilder"/></param>
     /// <param name="registration">Action to register serializers for dependency injection resolution.</param>
@@ -45,18 +45,18 @@ public static class SerializationBuilderExtensions
         {
             services.TryAddSingleton(svp =>
             {
-                if (services.Count(x => x.ServiceType == typeof(IMessageSerializer)) > 1)
+                if (services.Count(x => x.ServiceType == typeof(IMessageSerializerProvider)) > 1)
                 {
-                    throw new NotSupportedException($"Registering instances of {nameof(IMessageSerializer)} outside of {nameof(AddHybridSerializer)} is not supported.");
+                    throw new NotSupportedException($"Registering instances of {nameof(IMessageSerializerProvider)} outside of {nameof(AddHybridSerializer)} is not supported.");
                 }
 
                 var defaultMessageSerializerType = builder.GetDefaultSerializer();
-                var defaultMessageSerializer = defaultMessageSerializerType != null ? (IMessageSerializer)svp.GetRequiredService(builder.GetDefaultSerializer()) : null;
-                var typeRegistrations = builder.GetTypeRegistrations().ToDictionary(x => (IMessageSerializer)svp.GetRequiredService(x.Key), x => x.Value);
-                return new HybridMessageSerializer(svp.GetRequiredService<ILogger<HybridMessageSerializer>>(), typeRegistrations, defaultMessageSerializer);
+                var defaultMessageSerializer = defaultMessageSerializerType != null ? (IMessageSerializerProvider)svp.GetRequiredService(builder.GetDefaultSerializer()) : null;
+                var typeRegistrations = builder.GetTypeRegistrations().ToDictionary(x => (IMessageSerializerProvider)svp.GetRequiredService(x.Key), x => x.Value);
+                return new HybridMessageSerializerProvider(svp.GetRequiredService<ILogger<HybridMessageSerializerProvider>>(), typeRegistrations, defaultMessageSerializer);
             });
 
-            services.AddSingleton<IMessageSerializer>(svp => svp.GetRequiredService<HybridMessageSerializer>());
+            services.AddSingleton<IMessageSerializerProvider>(svp => svp.GetRequiredService<HybridMessageSerializerProvider>());
         });
         return mbb;
     }
@@ -110,7 +110,7 @@ public static class SerializationBuilderExtensions
             public Type Type { get; private set; } = null;
 
             public void RegisterSerializer<TMessageSerializer>(Action<IServiceCollection> services)
-                where TMessageSerializer : class, IMessageSerializer
+                where TMessageSerializer : class, IMessageSerializerProvider
             {
                 Type = typeof(TMessageSerializer);
                 Action = services;

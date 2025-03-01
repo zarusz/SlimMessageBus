@@ -2,5 +2,5 @@
 
 public interface IMasterMessageBus : IMessageBusProducer, IConsumerControl, ITopologyControl, IMessageBusProvider
 {
-    IMessageSerializer Serializer { get; }
+    IMessageSerializerProvider SerializerProvider { get; }
 }

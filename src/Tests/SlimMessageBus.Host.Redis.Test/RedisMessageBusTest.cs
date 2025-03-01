@@ -17,6 +17,7 @@ public class RedisMessageBusTest
     private readonly MessageBusSettings _settings = new();
     private readonly RedisMessageBusSettings _providerSettings;
     private readonly Mock<IServiceProvider> _serviceProviderMock = new();
+    private readonly Mock<IMessageSerializerProvider> _messageSerializerProviderMock = new();
     private readonly Mock<IMessageSerializer> _messageSerializerMock = new();
 
     private readonly Mock<IConnectionMultiplexer> _connectionMultiplexerMock;
@@ -25,7 +26,7 @@ public class RedisMessageBusTest
 
     public RedisMessageBusTest()
     {
-        _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(_messageSerializerMock.Object);
+        _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializerProvider))).Returns(_messageSerializerProviderMock.Object);
         _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
         _serviceProviderMock.Setup(x => x.GetService(typeof(ICurrentTimeProvider))).Returns(new CurrentTimeProvider());
         _serviceProviderMock.Setup(x => x.GetService(typeof(RuntimeTypeCache))).Returns(new RuntimeTypeCache());
@@ -33,8 +34,9 @@ public class RedisMessageBusTest
         _serviceProviderMock.Setup(x => x.GetService(typeof(IEnumerable<IMessageBusLifecycleInterceptor>))).Returns(Array.Empty<IMessageBusLifecycleInterceptor>());
         _serviceProviderMock.Setup(x => x.GetService(typeof(IPendingRequestManager))).Returns(() => new PendingRequestManager(new InMemoryPendingRequestStore(), new CurrentTimeProvider(), NullLoggerFactory.Instance));
 
-
         _settings.ServiceProvider = _serviceProviderMock.Object;
+
+        _messageSerializerProviderMock.Setup(x => x.GetSerializer(It.IsAny<string>())).Returns(_messageSerializerMock.Object);
 
         _messageSerializerMock
             .Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<object>()))

@@ -52,8 +52,6 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
         _mqttClient = ProviderSettings.MqttFactory.CreateManagedMqttClient();
         _mqttClient.ApplicationMessageReceivedAsync += OnMessageReceivedAsync;
 
-        object MessageProvider(Type messageType, MqttApplicationMessage transportMessage) => Serializer.Deserialize(messageType, transportMessage.PayloadSegment.Array);
-
         void AddTopicConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, string topic, IMessageProcessor<MqttApplicationMessage> messageProcessor)
         {
             _logger.LogInformation("Creating consumer for {Path}", topic);
@@ -63,6 +61,9 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
 
         foreach (var (path, consumerSettings) in Settings.Consumers.GroupBy(x => x.Path).ToDictionary(x => x.Key, x => x.ToList()))
         {
+            var messageSerializer = SerializerProvider.GetSerializer(path);
+            object MessageProvider(Type messageType, MqttApplicationMessage transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.PayloadSegment.Array);
+
             var processor = new MessageProcessor<MqttApplicationMessage>(
                 consumerSettings,
                 messageBus: this,
@@ -76,6 +77,11 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
 
         if (Settings.RequestResponse != null)
         {
+            var path = Settings.RequestResponse.Path;
+
+            var messageSerializer = SerializerProvider.GetSerializer(path);
+            object MessageProvider(Type messageType, MqttApplicationMessage transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.PayloadSegment.Array);
+
             var processor = new ResponseMessageProcessor<MqttApplicationMessage>(
                 LoggerFactory,
                 Settings.RequestResponse,
@@ -83,7 +89,7 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
                 PendingRequestStore,
                 CurrentTimeProvider);
 
-            AddTopicConsumer([Settings.RequestResponse], Settings.RequestResponse.Path, processor);
+            AddTopicConsumer([Settings.RequestResponse], path, processor);
         }
 
         var topics = Consumers.Cast<MqttTopicConsumer>().Select(x => new MqttTopicFilterBuilder().WithTopic(x.Path).Build()).ToList();
@@ -125,7 +131,7 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
         {
             OnProduceToTransport(message, messageType, path, messageHeaders);
 
-            var messagePayload = Serializer.Serialize(messageType, message);
+            var messagePayload = SerializerProvider.GetSerializer(path).Serialize(messageType, message);
 
             var m = new MqttApplicationMessage
             {

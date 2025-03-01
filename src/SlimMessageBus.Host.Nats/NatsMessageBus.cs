@@ -54,15 +54,17 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
 
         await base.CreateConsumers();
 
-        object MessageProvider(Type messageType, NatsMsg<byte[]> transportMessage) => Serializer.Deserialize(messageType, transportMessage.Data);
 
         foreach (var (subject, consumerSettings) in Settings.Consumers.GroupBy(x => x.Path).ToDictionary(x => x.Key, x => x.ToList()))
         {
+            var messageSerializer = SerializerProvider.GetSerializer(subject);
+            object MessageProvider(Type messageType, NatsMsg<byte[]> transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Data);
+
             var processor = new MessageProcessor<NatsMsg<byte[]>>(
                 consumerSettings,
                 messageBus: this,
                 messageProvider: MessageProvider,
-                subject,
+                path: subject,
                 this,
                 consumerErrorHandlerOpenGenericType: typeof(INatsConsumerErrorHandler<>));
 
@@ -71,8 +73,13 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
 
         if (Settings.RequestResponse != null)
         {
+            var subject = Settings.RequestResponse.Path;
+
+            var messageSerializer = SerializerProvider.GetSerializer(subject);
+            object MessageProvider(Type messageType, NatsMsg<byte[]> transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Data);
+
             var processor = new ResponseMessageProcessor<NatsMsg<byte[]>>(LoggerFactory, Settings.RequestResponse, MessageProvider, PendingRequestStore, CurrentTimeProvider);
-            AddSubjectConsumer([], Settings.RequestResponse.Path, processor);
+            AddSubjectConsumer([], subject, processor);
         }
     }
 
@@ -100,7 +107,7 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
         {
             OnProduceToTransport(message, messageType, path, messageHeaders);
 
-            var messagePayload = Serializer.Serialize(messageType, message);
+            var messagePayload = SerializerProvider.GetSerializer(path).Serialize(messageType, message);
 
             var replyTo = messageHeaders.TryGetValue("ReplyTo", out var replyToValue)
                 ? replyToValue.ToString()

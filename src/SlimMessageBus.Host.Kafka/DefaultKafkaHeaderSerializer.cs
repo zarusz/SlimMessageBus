@@ -6,7 +6,7 @@ using System.Text;
 /// <summary>
 /// Serializes the headers values by doing a Convert.ToString(value, CultureInfo.InvariantCulture) on them.
 /// </summary>
-public class DefaultKafkaHeaderSerializer : IMessageSerializer
+public class DefaultKafkaHeaderSerializer : IMessageSerializer, IMessageSerializerProvider
 {
     private readonly Encoding _encoding;
     private readonly bool _inferType;
@@ -59,4 +59,6 @@ public class DefaultKafkaHeaderSerializer : IMessageSerializer
     }
 
     #endregion
+
+    public IMessageSerializer GetSerializer(string path) => this;
 }

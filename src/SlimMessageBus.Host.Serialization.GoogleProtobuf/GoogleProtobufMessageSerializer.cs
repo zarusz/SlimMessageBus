@@ -4,7 +4,7 @@ using System.Reflection;
 
 using Google.Protobuf;
 
-public class GoogleProtobufMessageSerializer : IMessageSerializer
+public class GoogleProtobufMessageSerializer : IMessageSerializer, IMessageSerializerProvider
 {
     private readonly ILogger _logger;
     private readonly IMessageParserFactory _messageParserFactory;
@@ -40,4 +40,6 @@ public class GoogleProtobufMessageSerializer : IMessageSerializer
             throw exception.InnerException ?? exception;
         }
     }
+
+    public IMessageSerializer GetSerializer(string path) => this;
 }

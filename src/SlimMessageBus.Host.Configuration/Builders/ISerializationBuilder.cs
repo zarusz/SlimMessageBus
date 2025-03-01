@@ -2,5 +2,6 @@
 
 public interface ISerializationBuilder
 {
-    void RegisterSerializer<TMessageSerializer>(Action<IServiceCollection> services) where TMessageSerializer : class, IMessageSerializer;
+    void RegisterSerializer<TMessageSerializerProvider>(Action<IServiceCollection> services)
+        where TMessageSerializerProvider : class, IMessageSerializerProvider;
 }

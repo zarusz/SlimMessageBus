@@ -93,6 +93,8 @@ public sealed class OutboxSendingTaskTests
         private readonly Mock<IMessageBusTarget> _mockMessageBusTarget;
         private readonly Mock<IMasterMessageBus> _mockMasterMessageBus;
         private readonly Mock<ITransportBulkProducer> _mockMessageBusBulkProducer;
+        private readonly Mock<IMessageSerializer> _mockMessageSerializer;
+        private readonly Mock<IMessageSerializerProvider> _mockMessageSerializerProvider;
         private readonly OutboxSettings _outboxSettings;
         private readonly OutboxSendingTask<OutboxMessage<Guid>, Guid> _sut;
 
@@ -110,6 +112,13 @@ public sealed class OutboxSendingTaskTests
                 MessageTypeResolver = new Mock<IMessageTypeResolver>().Object
             };
 
+            _mockMessageSerializer = new Mock<IMessageSerializer>();
+
+            _mockMessageSerializerProvider = new Mock<IMessageSerializerProvider>();
+            _mockMessageSerializerProvider.Setup(x => x.GetSerializer(It.IsAny<string>())).Returns(_mockMessageSerializer.Object);
+
+            _mockMasterMessageBus.Setup(x => x.SerializerProvider).Returns(_mockMessageSerializerProvider.Object);
+
             _sut = new OutboxSendingTask<OutboxMessage<Guid>, Guid>(NullLoggerFactory.Instance, _outboxSettings, new CurrentTimeProvider(), null);
         }
 
@@ -122,7 +131,6 @@ public sealed class OutboxSendingTaskTests
 
             _mockCompositeMessageBus.Setup(x => x.GetChildBus(It.IsAny<string>())).Returns(_mockMasterMessageBus.Object);
             _mockMessageBusBulkProducer.Setup(x => x.MaxMessagesPerTransaction).Returns(10);
-            _mockMasterMessageBus.Setup(x => x.Serializer).Returns(new Mock<IMessageSerializer>().Object);
 
             _mockMessageBusBulkProducer.Setup(x => x.ProduceToTransportBulk(It.IsAny<IReadOnlyCollection<OutboxBulkMessage>>(), It.IsAny<string>(), It.IsAny<IMessageBusTarget>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((IReadOnlyCollection<OutboxBulkMessage> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken) => new ProduceToTransportBulkResult<OutboxBulkMessage>(envelopes, null));
@@ -149,7 +157,6 @@ public sealed class OutboxSendingTaskTests
 
             _mockCompositeMessageBus.Setup(x => x.GetChildBus(It.IsAny<string>())).Returns(_mockMasterMessageBus.Object);
             _mockMessageBusBulkProducer.Setup(x => x.MaxMessagesPerTransaction).Returns(10);
-            _mockMasterMessageBus.Setup(x => x.Serializer).Returns(new Mock<IMessageSerializer>().Object);
 
             _mockMessageBusBulkProducer.Setup(x => x.ProduceToTransportBulk(It.IsAny<IReadOnlyCollection<OutboxBulkMessage>>(), It.IsAny<string>(), It.IsAny<IMessageBusTarget>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((IReadOnlyCollection<OutboxBulkMessage> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken) => new ProduceToTransportBulkResult<OutboxBulkMessage>(envelopes, null));
@@ -182,7 +189,6 @@ public sealed class OutboxSendingTaskTests
 
             _mockCompositeMessageBus.Setup(x => x.GetChildBus(It.IsAny<string>())).Returns(_mockMasterMessageBus.Object);
             _mockMessageBusBulkProducer.Setup(x => x.MaxMessagesPerTransaction).Returns(10);
-            _mockMasterMessageBus.Setup(x => x.Serializer).Returns(new Mock<IMessageSerializer>().Object);
 
             _mockMessageBusBulkProducer.Setup(x => x.ProduceToTransportBulk(It.IsAny<IReadOnlyCollection<OutboxBulkMessage>>(), It.IsAny<string>(), It.IsAny<IMessageBusTarget>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((IReadOnlyCollection<OutboxBulkMessage> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken) => new ProduceToTransportBulkResult<OutboxBulkMessage>(envelopes, null));
@@ -216,7 +222,6 @@ public sealed class OutboxSendingTaskTests
 
             _mockCompositeMessageBus.Setup(x => x.GetChildBus(It.IsAny<string>())).Returns(_mockMasterMessageBus.Object);
             _mockMessageBusBulkProducer.Setup(x => x.MaxMessagesPerTransaction).Returns(10);
-            _mockMasterMessageBus.Setup(x => x.Serializer).Returns(new Mock<IMessageSerializer>().Object);
 
             _mockMessageBusBulkProducer.Setup(x => x.ProduceToTransportBulk(It.IsAny<IReadOnlyCollection<OutboxBulkMessage>>(), It.IsAny<string>(), It.IsAny<IMessageBusTarget>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((IReadOnlyCollection<OutboxBulkMessage> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken) => new ProduceToTransportBulkResult<OutboxBulkMessage>(envelopes, null));

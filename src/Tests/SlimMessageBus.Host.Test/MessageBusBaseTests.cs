@@ -30,7 +30,7 @@ public class MessageBusBaseTests : IDisposable
         currentTimeProviderMock.SetupGet(x => x.CurrentTime).Returns(() => _timeNow);
 
         _serviceProviderMock = new Mock<IServiceProvider>();
-        _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(new JsonMessageSerializer());
+        _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializerProvider))).Returns(new JsonMessageSerializer());
         _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
         _serviceProviderMock.Setup(x => x.GetService(typeof(ICurrentTimeProvider))).Returns(() => currentTimeProviderMock.Object);
         _serviceProviderMock.Setup(x => x.GetService(It.Is<Type>(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)))).Returns((Type t) => Array.CreateInstance(t.GetGenericArguments()[0], 0));
@@ -619,7 +619,7 @@ public class MessageBusBaseTests : IDisposable
     {
         _serviceProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IMessageBusLifecycleInterceptor>)), Times.Between(0, 2, Moq.Range.Inclusive));
         _serviceProviderMock.Verify(x => x.GetService(typeof(ILoggerFactory)), Times.Once);
-        _serviceProviderMock.Verify(x => x.GetService(typeof(IMessageSerializer)), Times.Between(0, 1, Moq.Range.Inclusive));
+        _serviceProviderMock.Verify(x => x.GetService(typeof(IMessageSerializerProvider)), Times.Between(0, 1, Moq.Range.Inclusive));
         _serviceProviderMock.Verify(x => x.GetService(typeof(IMessageTypeResolver)), Times.Once);
         _serviceProviderMock.Verify(x => x.GetService(typeof(ICurrentTimeProvider)), Times.Once);
         _serviceProviderMock.Verify(x => x.GetService(typeof(RuntimeTypeCache)), Times.Once);

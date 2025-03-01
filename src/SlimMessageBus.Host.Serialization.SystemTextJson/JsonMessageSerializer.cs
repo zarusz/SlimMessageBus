@@ -6,7 +6,7 @@ using System.Text.Json.Serialization;
 /// <summary>
 /// Implementation of <see cref="IMessageSerializer"/> using <see cref="JsonSerializer"/>.
 /// </summary>
-public class JsonMessageSerializer : IMessageSerializer, IMessageSerializer<string>
+public class JsonMessageSerializer : IMessageSerializer, IMessageSerializer<string>, IMessageSerializerProvider
 {
     /// <summary>
     /// <see cref="JsonSerializerOptions"/> options for the JSON serializer. By default adds <see cref="ObjectToInferredTypesConverter"/> converter.
@@ -47,6 +47,12 @@ public class JsonMessageSerializer : IMessageSerializer, IMessageSerializer<stri
 
     object IMessageSerializer<string>.Deserialize(Type t, string payload)
         => JsonSerializer.Deserialize(payload, t, Options)!;
+
+    #endregion
+
+    #region Implementation of IMessageSerializerProvider
+
+    public IMessageSerializer GetSerializer(string path) => this;
 
     #endregion
 }

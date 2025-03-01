@@ -258,11 +258,11 @@ public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBui
         return this;
     }
 
-    public void RegisterSerializer<TMessageSerializer>(Action<IServiceCollection> services)
-        where TMessageSerializer : class, IMessageSerializer
+    public void RegisterSerializer<TMessageSerializerProvider>(Action<IServiceCollection> services)
+        where TMessageSerializerProvider : class, IMessageSerializerProvider
     {
         PostConfigurationActions.Add(services);
-        PostConfigurationActions.Add(services => services.TryAddSingleton<IMessageSerializer>(sp => sp.GetRequiredService<TMessageSerializer>()));
+        PostConfigurationActions.Add(services => services.TryAddSingleton<IMessageSerializerProvider>(sp => sp.GetRequiredService<TMessageSerializerProvider>()));
     }
 
     public MessageBusBuilder WithDependencyResolver(IServiceProvider serviceProvider)

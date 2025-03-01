@@ -22,7 +22,7 @@ public abstract partial class MessageBusBase : IDisposable, IAsyncDisposable,
 {
     private readonly ILogger _logger;
     private CancellationTokenSource _cancellationTokenSource = new();
-    private IMessageSerializer _serializer;
+    private IMessageSerializerProvider _serializerProvider;
     private readonly MessageHeaderService _headerService;
     private readonly List<AbstractConsumer> _consumers = [];
     public ILoggerFactory LoggerFactory { get; protected set; }
@@ -36,7 +36,7 @@ public abstract partial class MessageBusBase : IDisposable, IAsyncDisposable,
 
     public virtual MessageBusSettings Settings { get; }
 
-    public virtual IMessageSerializer Serializer => _serializer ??= GetSerializer();
+    public virtual IMessageSerializerProvider SerializerProvider => _serializerProvider ??= GetSerializerProvider();
 
     public IMessageTypeResolver MessageTypeResolver { get; }
 
@@ -109,7 +109,7 @@ public abstract partial class MessageBusBase : IDisposable, IAsyncDisposable,
         PendingRequestStore = PendingRequestManager.Store;
     }
 
-    protected virtual IMessageSerializer GetSerializer() => Settings.GetSerializer(Settings.ServiceProvider);
+    protected virtual IMessageSerializerProvider GetSerializerProvider() => Settings.GetSerializerProvider(Settings.ServiceProvider);
 
     protected virtual IMessageBusSettingsValidationService ValidationService => new DefaultMessageBusSettingsValidationService(Settings);
 
