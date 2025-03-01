@@ -1,7 +1,5 @@
 namespace SlimMessageBus.Host.Serialization.Hybrid.Test;
 
-using System;
-
 using Microsoft.Extensions.DependencyInjection;
 
 public class SerializationBuilderExtensionsTests
@@ -10,7 +8,7 @@ public class SerializationBuilderExtensionsTests
 
     public SerializationBuilderExtensionsTests()
     {
-        var mockLogger = new Mock<ILogger<HybridMessageSerializer>>();
+        var mockLogger = new Mock<ILogger<HybridMessageSerializerProvider>>();
 
         _services = new ServiceCollection();
         _services.AddSingleton(mockLogger.Object);
@@ -41,11 +39,11 @@ public class SerializationBuilderExtensionsTests
         var serviceProvider = _services.BuildServiceProvider();
 
         // act
-        var target = serviceProvider.GetServices<IMessageSerializer>().ToList();
+        var target = serviceProvider.GetServices<IMessageSerializerProvider>().ToList();
 
         // assert
         target.Count.Should().Be(1);
-        target.Single().GetType().Should().Be(typeof(HybridMessageSerializer));
+        target.Single().GetType().Should().Be(typeof(HybridMessageSerializerProvider));
     }
 
     [Fact]
@@ -73,7 +71,7 @@ public class SerializationBuilderExtensionsTests
         var serviceProvider = _services.BuildServiceProvider();
 
         // act
-        var target = serviceProvider.GetService<HybridMessageSerializer>();
+        var target = serviceProvider.GetService<HybridMessageSerializerProvider>();
 
         // assert
         target.DefaultSerializer.GetType().Should().Be(typeof(SerializerOne));
@@ -101,14 +99,14 @@ public class SerializationBuilderExtensionsTests
         var serviceProvider = _services.BuildServiceProvider();
 
         // act
-        var act = () => serviceProvider.GetService<HybridMessageSerializer>();
+        var act = () => serviceProvider.GetService<HybridMessageSerializerProvider>();
 
 
         // arrange
         act.Should().Throw<NotSupportedException>();
     }
 
-    public abstract class AbstractSerializer : IMessageSerializer
+    public abstract class AbstractSerializer : IMessageSerializer, IMessageSerializerProvider
     {
         public object Deserialize(Type t, byte[] payload)
         {
@@ -119,6 +117,8 @@ public class SerializationBuilderExtensionsTests
         {
             throw new NotImplementedException();
         }
+
+        public IMessageSerializer GetSerializer(string path) => this;
     }
 
     public class SerializerOne : AbstractSerializer { }

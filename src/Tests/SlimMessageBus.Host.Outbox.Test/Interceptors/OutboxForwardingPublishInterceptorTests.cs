@@ -44,6 +44,7 @@ public static class OutboxForwardingPublishInterceptorTests
         private readonly Mock<IOutboxMessageRepository<OutboxMessage<Guid>, Guid>> _mockOutboxRepository;
         private readonly Mock<IOutboxMessageFactory> _mockOutboxFactory;
         private readonly Mock<IMessageSerializer> _mockSerializer;
+        private readonly Mock<IMessageSerializerProvider> _mockSerializerProvider;
         private readonly Mock<IMasterMessageBus> _mockMasterMessageBus;
         private readonly Mock<IOutboxNotificationService> _mockOutboxNotificationService;
         private readonly Mock<OutboxSettings> _mockOutboxSettings;
@@ -61,8 +62,11 @@ public static class OutboxForwardingPublishInterceptorTests
 
             _mockSerializer = new Mock<IMessageSerializer>();
 
+            _mockSerializerProvider = new Mock<IMessageSerializerProvider>();
+            _mockSerializerProvider.Setup(x => x.GetSerializer(It.IsAny<string>())).Returns(_mockSerializer.Object).Verifiable();
+
             _mockMasterMessageBus = new Mock<IMasterMessageBus>();
-            _mockMasterMessageBus.SetupGet(x => x.Serializer).Returns(_mockSerializer.Object).Verifiable();
+            _mockMasterMessageBus.SetupGet(x => x.SerializerProvider).Returns(_mockSerializerProvider.Object).Verifiable();
 
             _mockTargetBus = new Mock<IMessageBusTarget>();
             _mockTargetBus.SetupGet(x => x.Target).Returns(_mockMasterMessageBus.Object);
@@ -73,7 +77,7 @@ public static class OutboxForwardingPublishInterceptorTests
             _mockOutboxMessageFactory = new Mock<IOutboxMessageFactory>();
             _mockOutboxMessageFactory
                 .Setup(x => x.Create(It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync( new OutboxMessage<Guid> { Id = Guid.NewGuid() });
+                .ReturnsAsync(new OutboxMessage<Guid> { Id = Guid.NewGuid() });
         }
 
         [Fact]

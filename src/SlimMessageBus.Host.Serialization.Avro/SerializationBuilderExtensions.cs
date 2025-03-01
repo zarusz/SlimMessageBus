@@ -9,7 +9,7 @@ using SlimMessageBus.Host;
 public static class SerializationBuilderExtensions
 {
     /// <summary>
-    /// Registers the <see cref="IMessageSerializer"/> with implementation as <see cref="AvroMessageSerializer"/>.
+    /// Registers the <see cref="IMessageSerializerProvider"/> with implementation as <see cref="AvroMessageSerializer"/>.
     /// </summary>
     /// <param name="builder"></param>
     /// <param name="messageCreationStrategy"></param>
@@ -26,7 +26,7 @@ public static class SerializationBuilderExtensions
     }
 
     /// <summary>
-    /// Registers the <see cref="IMessageSerializer"/> with implementation as <see cref="AvroMessageSerializer"/>.
+    /// Registers the <see cref="IMessageSerializerProvider"/> with implementation as <see cref="AvroMessageSerializer"/>.
     /// Uses <see cref="ReflectionSchemaLookupStrategy"/> and <see cref="ReflectionMessageCreationStrategy"/> strategies.
     /// </summary>
     /// <param name="builder"></param>

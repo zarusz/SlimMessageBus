@@ -85,6 +85,6 @@ public class JsonMessageSerializerTests
         }
 
         // assert
-        serviceProvider.GetService<IMessageSerializer>().Should().BeSameAs(subject);
+        serviceProvider.GetService<IMessageSerializerProvider>().Should().BeSameAs(subject);
     }
 }

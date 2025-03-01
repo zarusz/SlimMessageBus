@@ -7,7 +7,6 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
     private readonly ILogger _logger;
     private readonly ISqsClientProvider _clientProvider;
     private readonly Dictionary<string, string> _queueUrlByPath = [];
-    private readonly IMessageSerializer<string> _messageSerializer;
 
     public ISqsHeaderSerializer HeaderSerializer { get; }
 
@@ -16,8 +15,6 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
     {
         _logger = LoggerFactory.CreateLogger<SqsMessageBus>();
         _clientProvider = settings.ServiceProvider.GetRequiredService<ISqsClientProvider>();
-        _messageSerializer = Serializer as IMessageSerializer<string>
-            ?? throw new ConfigurationMessageBusException($"Serializer for Amazon SQS must be able to serialize into a string (it needs to implement {nameof(IMessageSerializer<string>)})");
         HeaderSerializer = providerSettings.SqsHeaderSerializer;
         OnBuildProvider();
     }
@@ -27,6 +24,9 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
         base.Build();
         InitTaskList.Add(InitAsync, CancellationToken);
     }
+
+    private IMessageSerializer<string> GetMessageSerializer(string path) => SerializerProvider.GetSerializer(path) as IMessageSerializer<string>
+        ?? throw new ConfigurationMessageBusException($"Serializer for Amazon SQS must be able to serialize into a string (it needs to implement {nameof(IMessageSerializer<string>)})");
 
     protected override async Task CreateConsumers()
     {
@@ -44,12 +44,13 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
 
         static void InitConsumerContext(Message m, ConsumerContext ctx) => ctx.SetTransportMessage(m);
 
-        object MessageProvider(Type messageType, Message transportMessage) => _messageSerializer.Deserialize(messageType, transportMessage.Body);
-
         foreach (var ((path, pathKind), consumerSettings) in Settings.Consumers
                 .GroupBy(x => (x.Path, x.PathKind))
                 .ToDictionary(x => x.Key, x => x.ToList()))
         {
+            var messageSerializer = GetMessageSerializer(path);
+            object MessageProvider(Type messageType, Message transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Body);
+
             var messageProcessor = new MessageProcessor<Message>(
                 consumerSettings,
                 this,
@@ -64,6 +65,11 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
 
         if (Settings.RequestResponse != null)
         {
+            var path = Settings.RequestResponse.Path;
+
+            var messageSerializer = GetMessageSerializer(path);
+            object MessageProvider(Type messageType, Message transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Body);
+
             var messageProcessor = new ResponseMessageProcessor<Message>(
                 LoggerFactory,
                 Settings.RequestResponse,
@@ -72,7 +78,7 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
                 CurrentTimeProvider);
 
             AddConsumerFrom(
-                Settings.RequestResponse.Path,
+                path,
                 Settings.RequestResponse.PathKind,
                 messageProcessor,
                 [Settings.RequestResponse]);
@@ -150,10 +156,11 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
     {
         OnProduceToTransport(message, messageType, path, messageHeaders);
 
+        var messageSerializer = GetMessageSerializer(path);
         var queueUrl = GetQueueUrlOrException(path);
         try
         {
-            var (payload, attributes, deduplicationId, groupId) = GetTransportMessage(message, messageType, messageHeaders);
+            var (payload, attributes, deduplicationId, groupId) = GetTransportMessage(message, messageType, messageHeaders, messageSerializer);
 
             await _clientProvider.Client.SendMessageAsync(new SendMessageRequest(queueUrl, payload)
             {
@@ -176,6 +183,7 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
         var dispatched = new List<T>(envelopes.Count);
         try
         {
+            var messageSerializer = GetMessageSerializer(path);
             var queueUrl = GetQueueUrlOrException(path);
 
             var entries = new List<SendMessageBatchRequestEntry>(MaxMessagesInBatch);
@@ -185,7 +193,7 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
             {
                 foreach (var envelope in envelopeChunk)
                 {
-                    var (payload, attributes, deduplicationId, groupId) = GetTransportMessage(envelope.Message, envelope.MessageType, envelope.Headers);
+                    var (payload, attributes, deduplicationId, groupId) = GetTransportMessage(envelope.Message, envelope.MessageType, envelope.Headers, messageSerializer);
 
                     entries.Add(new SendMessageBatchRequestEntry(Guid.NewGuid().ToString(), payload)
                     {
@@ -211,7 +219,7 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
         }
     }
 
-    private (string Payload, Dictionary<string, MessageAttributeValue> Attributes, string DeduplicationId, string GroupId) GetTransportMessage(object message, Type messageType, IDictionary<string, object> messageHeaders)
+    private (string Payload, Dictionary<string, MessageAttributeValue> Attributes, string DeduplicationId, string GroupId) GetTransportMessage(object message, Type messageType, IDictionary<string, object> messageHeaders, IMessageSerializer<string> messageSerializer)
     {
         var producerSettings = GetProducerSettings(messageType);
 
@@ -232,7 +240,7 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
             }
         }
 
-        var messagePayload = _messageSerializer.Serialize(messageType, message);
+        var messagePayload = messageSerializer.Serialize(messageType, message);
         return (messagePayload, messageAttributes, deduplicationId, groupId);
     }
 }

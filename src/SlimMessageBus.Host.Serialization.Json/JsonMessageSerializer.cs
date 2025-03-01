@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 using Newtonsoft.Json;
 
-public partial class JsonMessageSerializer : IMessageSerializer, IMessageSerializer<string>
+public partial class JsonMessageSerializer : IMessageSerializer, IMessageSerializer<string>, IMessageSerializerProvider
 {
     private readonly ILogger _logger;
     private readonly Encoding _encoding;
@@ -78,6 +78,12 @@ public partial class JsonMessageSerializer : IMessageSerializer, IMessageSeriali
             throw;
         }
     }
+
+    #endregion
+
+    #region Implementation of IMessageSerializerProvider
+
+    public IMessageSerializer GetSerializer(string path) => this;
 
     #endregion
 

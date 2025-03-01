@@ -23,8 +23,8 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
         OnBuildProvider();
     }
 
-    public IMessageSerializer HeaderSerializer
-        => ProviderSettings.HeaderSerializer ?? Serializer;
+    public IMessageSerializerProvider HeaderSerializerProvider
+        => ProviderSettings.HeaderSerializer ?? SerializerProvider;
 
     protected override IMessageBusSettingsValidationService ValidationService => new KafkaMessageBusSettingsValidationService(Settings, ProviderSettings);
 
@@ -69,11 +69,15 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
             AddConsumer(new KafkaGroupConsumer(LoggerFactory, ProviderSettings, consumerSettings, interceptors: Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(), group, topics, processorFactory));
         }
 
-        object MessageProvider(Type messageType, ConsumeResult<Ignore, byte[]> transportMessage)
-            => Serializer.Deserialize(messageType, transportMessage.Message.Value);
-
         IKafkaPartitionConsumer ResponseProcessorFactory(TopicPartition tp, IKafkaCommitController cc)
-            => new KafkaPartitionConsumerForResponses(LoggerFactory, Settings.RequestResponse, Settings.RequestResponse.GetGroup(), tp, cc, MessageProvider, PendingRequestStore, CurrentTimeProvider, HeaderSerializer);
+        {
+            var headerSerializer = HeaderSerializerProvider.GetSerializer(tp.Topic);
+
+            var messageSerializer = SerializerProvider.GetSerializer(tp.Topic);
+            object MessageProvider(Type messageType, ConsumeResult<Ignore, byte[]> transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Message.Value);
+
+            return new KafkaPartitionConsumerForResponses(LoggerFactory, Settings.RequestResponse, Settings.RequestResponse.GetGroup(), tp, cc, MessageProvider, PendingRequestStore, CurrentTimeProvider, headerSerializer);
+        }
 
         foreach (var consumersByGroup in Settings.Consumers.GroupBy(x => x.GetGroup()))
         {
@@ -82,7 +86,10 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
             var topics = consumersByTopic.Keys.ToList();
 
             IKafkaPartitionConsumer ConsumerProcessorFactory(TopicPartition tp, IKafkaCommitController cc)
-                => new KafkaPartitionConsumerForConsumers(LoggerFactory, consumersByTopic[tp.Topic], group, tp, cc, HeaderSerializer, this);
+            {
+                var headerSerializer = HeaderSerializerProvider.GetSerializer(tp.Topic);
+                return new KafkaPartitionConsumerForConsumers(LoggerFactory, consumersByTopic[tp.Topic], group, tp, cc, headerSerializer, this);
+            }
 
             var processorFactory = ConsumerProcessorFactory;
 
@@ -104,7 +111,7 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
 
         if (Settings.RequestResponse != null && !responseConsumerCreated)
         {
-            AddGroupConsumer([Settings.RequestResponse], Settings.RequestResponse.GetGroup(), new[] { Settings.RequestResponse.Path }, ResponseProcessorFactory);
+            AddGroupConsumer([Settings.RequestResponse], Settings.RequestResponse.GetGroup(), [Settings.RequestResponse.Path], ResponseProcessorFactory);
         }
     }
 
@@ -135,7 +142,7 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
         try
         {
             var producerSettings = messageType != null ? GetProducerSettings(messageType) : null;
-            var messagePayload = Serializer.Serialize(messageType, message);
+            var messagePayload = SerializerProvider.GetSerializer(path).Serialize(messageType, message);
 
             // calculate message key
             var key = GetMessageKey(producerSettings, messageType, message, path);
@@ -143,11 +150,13 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
 
             if (messageHeaders != null && messageHeaders.Count > 0)
             {
+                var headerSerializer = HeaderSerializerProvider.GetSerializer(path);
+
                 transportMessage.Headers = [];
 
                 foreach (var keyValue in messageHeaders)
                 {
-                    var valueBytes = HeaderSerializer.Serialize(typeof(object), keyValue.Value);
+                    var valueBytes = headerSerializer.Serialize(typeof(object), keyValue.Value);
                     transportMessage.Headers.Add(keyValue.Key, valueBytes);
                 }
             }

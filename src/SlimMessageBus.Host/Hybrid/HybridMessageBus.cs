@@ -19,7 +19,7 @@ public partial class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus,
 
     public bool IsStarted => _busByName.Values.All(x => x.IsStarted);
 
-    public IMessageSerializer Serializer => Settings.GetSerializer(Settings.ServiceProvider);
+    public IMessageSerializerProvider SerializerProvider => Settings.GetSerializerProvider(Settings.ServiceProvider);
 
     public HybridMessageBus(MessageBusSettings settings, HybridMessageBusSettings providerSettings, MessageBusBuilder mbb)
     {

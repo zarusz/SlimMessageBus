@@ -52,7 +52,7 @@ public sealed class OutboxForwardingPublishInterceptor<T>(
 
         var messageType = message.GetType();
         // Take the proper serializer (meant for the bus)
-        var messagePayload = busMaster.Serializer?.Serialize(messageType, message)
+        var messagePayload = busMaster.SerializerProvider?.GetSerializer(context.Path).Serialize(messageType, message)
                 ?? throw new PublishMessageBusException($"The {busMaster.Name} bus has no configured serializer, so it cannot be used with the outbox plugin");
 
         var outboxMessageEntity = await outboxMessageFactory.Create(

@@ -9,7 +9,7 @@ using SlimMessageBus.Host;
 public static class SerializationBuilderExtensions
 {
     /// <summary>
-    /// Registers the <see cref="IMessageSerializer"/> with implementation as <see cref="GoogleProtobufMessageSerializer"/>.
+    /// Registers the <see cref="IMessageSerializerProvider"/> with implementation as <see cref="GoogleProtobufMessageSerializer"/>.
     /// </summary>
     /// <param name="builder"></param>
     /// <param name="messageParserFactory"></param>

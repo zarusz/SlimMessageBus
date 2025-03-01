@@ -38,14 +38,14 @@ public partial class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
         _messageProcessorByPath.Clear();
     }
 
-    protected override IMessageSerializer GetSerializer()
+    protected override IMessageSerializerProvider GetSerializerProvider()
     {
         if (ProviderSettings.EnableMessageSerialization)
         {
-            return base.GetSerializer();
+            return base.GetSerializerProvider();
         }
         // No serialization
-        return new NullMessageSerializer();
+        return new NullMessageSerializerProvider();
     }
 
     public override IDictionary<string, object> CreateHeaders()
@@ -94,18 +94,21 @@ public partial class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
     }
 
     private IMessageProcessor<object> CreateMessageProcessor(IEnumerable<ConsumerSettings> consumerSettings, string path)
-        => new MessageProcessor<object>(
-            consumerSettings,
-            this,
-            path: path,
-            responseProducer: null,
-            messageProvider: ProviderSettings.EnableMessageSerialization
-                ? (messageType, transportMessage) => Serializer.Deserialize(messageType, (byte[])transportMessage)
-                : (messageType, transportMessage) => transportMessage,
-            messageTypeProvider: ProviderSettings.EnableMessageSerialization
-                ? null
-                : transportMessage => transportMessage.GetType(),
-            consumerErrorHandlerOpenGenericType: typeof(IMemoryConsumerErrorHandler<>));
+    {
+        var messageSerializer = SerializerProvider.GetSerializer(path);
+        return new MessageProcessor<object>(
+                consumerSettings,
+                this,
+                path: path,
+                responseProducer: null,
+                messageProvider: ProviderSettings.EnableMessageSerialization
+                    ? (messageType, transportMessage) => messageSerializer.Deserialize(messageType, (byte[])transportMessage)
+                    : (messageType, transportMessage) => transportMessage,
+                messageTypeProvider: ProviderSettings.EnableMessageSerialization
+                    ? null
+                    : transportMessage => transportMessage.GetType(),
+                consumerErrorHandlerOpenGenericType: typeof(IMemoryConsumerErrorHandler<>));
+    }
 
     private IMessageProcessorQueue CreateMessageProcessorQueue(IMessageProcessor<object> messageProcessor)
     {
@@ -135,7 +138,7 @@ public partial class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
         }
 
         var transportMessage = ProviderSettings.EnableMessageSerialization
-            ? Serializer.Serialize(producerSettings.MessageType, message)
+            ? SerializerProvider.GetSerializer(path).Serialize(producerSettings.MessageType, message)
             : message;
 
         var messageHeadersReadOnly = requestHeaders != null

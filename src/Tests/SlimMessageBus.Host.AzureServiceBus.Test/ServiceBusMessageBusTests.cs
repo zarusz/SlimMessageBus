@@ -20,9 +20,12 @@ public class ServiceBusMessageBusTests : IDisposable
 
     public ServiceBusMessageBusTests()
     {
+        var messageSerializerProviderMock = new Mock<IMessageSerializerProvider>();
+        messageSerializerProviderMock.Setup(x => x.GetSerializer(It.IsAny<string>())).Returns(new Mock<IMessageSerializer>().Object);
+
         var serviceProviderMock = new Mock<IServiceProvider>();
         serviceProviderMock.Setup(x => x.GetService(It.Is<Type>(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)))).Returns(Enumerable.Empty<object>());
-        serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(new Mock<IMessageSerializer>().Object);
+        serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializerProvider))).Returns(messageSerializerProviderMock.Object);
         serviceProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
         serviceProviderMock.Setup(x => x.GetService(typeof(IEnumerable<IMessageBusLifecycleInterceptor>))).Returns(Array.Empty<IMessageBusLifecycleInterceptor>());
         serviceProviderMock.Setup(x => x.GetService(typeof(ICurrentTimeProvider))).Returns(new CurrentTimeProvider());

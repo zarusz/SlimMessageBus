@@ -35,7 +35,7 @@ public class KafkaMessageBusSettings
     /// <summary>
     /// Serializer used to serialize Kafka message header values. If not specified the default serializer will be used (setup as part of the bus config). By default the <see cref="DefaultKafkaHeaderSerializer"/> is used.
     /// </summary>
-    public IMessageSerializer HeaderSerializer { get; set; }
+    public IMessageSerializerProvider HeaderSerializer { get; set; }
 
     /// <summary>
     /// Should the commit on partitions for the consumed messages happen when the bus is stopped (or disposed)?

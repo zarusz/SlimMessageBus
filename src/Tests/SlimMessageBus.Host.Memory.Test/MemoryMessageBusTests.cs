@@ -22,6 +22,7 @@ public class MemoryMessageBusTests
     private readonly MemoryMessageBusSettings _providerSettings = new();
     private readonly ServiceProviderMock _serviceProviderMock = new();
     private readonly Mock<IMessageSerializer> _messageSerializerMock = new();
+    private readonly Mock<IMessageSerializerProvider> _messageSerializerProviderMock = new();
 
     public MemoryMessageBusTests()
     {
@@ -35,7 +36,9 @@ public class MemoryMessageBusTests
 
         _settings = _builder.Settings;
 
-        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(_messageSerializerMock.Object);
+        _messageSerializerProviderMock.Setup(x => x.GetSerializer(It.IsAny<string>())).Returns(_messageSerializerMock.Object);
+
+        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(IMessageSerializerProvider))).Returns(_messageSerializerProviderMock.Object);
         _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
         _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(ICurrentTimeProvider))).Returns(new CurrentTimeProvider());
         _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(RuntimeTypeCache))).Returns(new RuntimeTypeCache());
@@ -59,12 +62,12 @@ public class MemoryMessageBusTests
     public void When_Create_Given_MessageSerializationEnabled_And_NoSerializerProvided_Then_ThrowsExceptionOrNot(bool serializationEnabled)
     {
         // arrange
-        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(null);
+        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(IMessageSerializerProvider))).Returns(null);
 
         _providerSettings.EnableMessageSerialization = serializationEnabled;
 
         // act
-        Action act = () => { var _ = _subject.Value.Serializer; };
+        Action act = () => { var _ = _subject.Value.SerializerProvider; };
 
         // assert          
         if (serializationEnabled)

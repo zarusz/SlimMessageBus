@@ -296,6 +296,7 @@ internal class OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>(
                 }
 
                 var path = pathGroup.Key;
+                var messageSerializer = bus.SerializerProvider.GetSerializer(path);
                 var batches = pathGroup
                     .Select(outboxMessage =>
                     {
@@ -307,7 +308,7 @@ internal class OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>(
                             return null;
                         }
 
-                        var message = bus.Serializer.Deserialize(messageType, outboxMessage.MessagePayload);
+                        var message = messageSerializer.Deserialize(messageType, outboxMessage.MessagePayload);
                         return new OutboxBulkMessage(outboxMessage.Id, message, messageType, outboxMessage.Headers ?? new Dictionary<string, object>());
                     })
                     .Where(x => x != null)
