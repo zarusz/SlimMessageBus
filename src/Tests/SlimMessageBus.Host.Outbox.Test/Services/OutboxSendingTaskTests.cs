@@ -23,7 +23,7 @@ public sealed class OutboxSendingTaskTests
             _serviceProvider = Mock.Of<IServiceProvider>();
             _loggerFactory = new NullLoggerFactory();
 
-            _sut = new OutboxSendingTask<OutboxMessage<Guid>, Guid>(_loggerFactory, _outboxSettings, new CurrentTimeProvider(), _serviceProvider);
+            _sut = new OutboxSendingTask<OutboxMessage<Guid>, Guid>(_loggerFactory, _outboxSettings, TimeProvider.System, _serviceProvider);
         }
 
         [Fact]
@@ -119,7 +119,7 @@ public sealed class OutboxSendingTaskTests
 
             _mockMasterMessageBus.Setup(x => x.SerializerProvider).Returns(_mockMessageSerializerProvider.Object);
 
-            _sut = new OutboxSendingTask<OutboxMessage<Guid>, Guid>(NullLoggerFactory.Instance, _outboxSettings, new CurrentTimeProvider(), null);
+            _sut = new OutboxSendingTask<OutboxMessage<Guid>, Guid>(NullLoggerFactory.Instance, _outboxSettings, TimeProvider.System, null);
         }
 
         [Fact]

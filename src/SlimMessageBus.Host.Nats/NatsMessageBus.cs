@@ -78,7 +78,7 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
             var messageSerializer = SerializerProvider.GetSerializer(subject);
             object MessageProvider(Type messageType, NatsMsg<byte[]> transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Data);
 
-            var processor = new ResponseMessageProcessor<NatsMsg<byte[]>>(LoggerFactory, Settings.RequestResponse, MessageProvider, PendingRequestStore, CurrentTimeProvider);
+            var processor = new ResponseMessageProcessor<NatsMsg<byte[]>>(LoggerFactory, Settings.RequestResponse, MessageProvider, PendingRequestStore, TimeProvider);
             AddSubjectConsumer([], subject, processor);
         }
     }

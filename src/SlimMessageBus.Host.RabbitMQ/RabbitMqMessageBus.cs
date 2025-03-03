@@ -66,7 +66,7 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
                 Settings.RequestResponse,
                 MessageProvider,
                 PendingRequestStore,
-                CurrentTimeProvider,
+                TimeProvider,
                 ProviderSettings.HeaderValueConverter));
         }
     }

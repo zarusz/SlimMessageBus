@@ -85,11 +85,10 @@ public class ConsumerInstanceMessageProcessorTest
     [Fact]
     public async Task When_ProcessMessage_Given_ExpiredRequest_Then_HandlerNeverCalled_Nor_ProduceResponseCalled()
     {
-        // arrange
         var requestId = "request-id";
         var request = new SomeRequest();
         var headers = new Dictionary<string, object>();
-        headers.SetHeader(ReqRespMessageHeaders.Expires, _busMock.CurrentTime.AddSeconds(-10));
+        headers.SetHeader(ReqRespMessageHeaders.Expires, _busMock.TimeProvider.GetUtcNow().Subtract(TimeSpan.FromSeconds(10)));
         headers.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
 
         object MessageProvider(Type messageType, byte[] payload) => request;

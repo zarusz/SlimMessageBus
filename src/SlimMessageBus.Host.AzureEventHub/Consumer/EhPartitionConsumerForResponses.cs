@@ -15,12 +15,12 @@ public class EhPartitionConsumerForResponses : EhPartitionConsumer
         GroupPathPartitionId pathGroupPartition,
         MessageProvider<EventData> messageProvider,
         IPendingRequestStore pendingRequestStore,
-        ICurrentTimeProvider currentTimeProvider)
+        TimeProvider timeProvider)
         : base(messageBus, pathGroupPartition)
     {
         if (requestResponseSettings == null) throw new ArgumentNullException(nameof(requestResponseSettings));
 
-        MessageProcessor = new ResponseMessageProcessor<EventData>(MessageBus.LoggerFactory, requestResponseSettings, messageProvider, pendingRequestStore, currentTimeProvider);
+        MessageProcessor = new ResponseMessageProcessor<EventData>(MessageBus.LoggerFactory, requestResponseSettings, messageProvider, pendingRequestStore, timeProvider);
         CheckpointTrigger = new CheckpointTrigger(requestResponseSettings, MessageBus.LoggerFactory);
     }
 }

@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Sql;
 
+using System;
+
 /// <summary>
 /// The MS SQL implmentation of the <see cref="IOutboxMessageRepository{TOutboxMessage, TOutboxMessageKey}"/>
 /// </summary>
@@ -17,7 +19,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
 
     private readonly SqlOutboxTemplate _sqlTemplate;
     private readonly IGuidGenerator _guidGenerator;
-    private readonly ICurrentTimeProvider _currentTimeProvider;
+    private readonly TimeProvider _timeProvider;
     private readonly IInstanceIdProvider _instanceIdProvider;
     private readonly bool _idDatabaseGenerated;
 
@@ -28,7 +30,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
         SqlOutboxSettings settings,
         SqlOutboxTemplate sqlOutboxTemplate,
         IGuidGenerator guidGenerator,
-        ICurrentTimeProvider currentTimeProvider,
+        TimeProvider timeProvider,
         IInstanceIdProvider instanceIdProvider,
         SqlConnection connection,
         ISqlTransactionService transactionService)
@@ -36,7 +38,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
     {
         _sqlTemplate = sqlOutboxTemplate;
         _guidGenerator = guidGenerator;
-        _currentTimeProvider = currentTimeProvider;
+        _timeProvider = timeProvider;
         _instanceIdProvider = instanceIdProvider;
         _idDatabaseGenerated = settings.IdGeneration.Mode == SqlOutboxMessageIdGenerationMode.DatabaseGeneratedSequentialGuid;
         Settings = settings;
@@ -46,7 +48,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
     {
         var om = new SqlOutboxMessage
         {
-            Timestamp = _currentTimeProvider.CurrentTime.DateTime,
+            Timestamp = _timeProvider.GetUtcNow().DateTime,
             InstanceId = _instanceIdProvider.GetInstanceId(),
 
             BusName = busName,

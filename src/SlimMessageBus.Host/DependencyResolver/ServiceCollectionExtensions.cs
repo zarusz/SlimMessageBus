@@ -98,8 +98,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<GuidGenerator>();
         services.TryAddSingleton<IGuidGenerator>(svp => svp.GetRequiredService<GuidGenerator>());
 
-        services.TryAddSingleton<CurrentTimeProvider>();
-        services.TryAddSingleton<ICurrentTimeProvider>(svp => svp.GetRequiredService<CurrentTimeProvider>());
+        services.TryAddSingleton(TimeProvider.System);
 
         services.TryAddSingleton<RuntimeTypeCache>();
 

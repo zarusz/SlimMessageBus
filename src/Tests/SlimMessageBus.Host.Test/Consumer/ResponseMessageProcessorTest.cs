@@ -18,7 +18,7 @@ public class ResponseMessageProcessorTest
                                                         _settings,
                                                         _messageProviderMock.Object,
                                                         _pendingRequestStoreMock.Object,
-                                                        new CurrentTimeProvider());
+                                                        TimeProvider.System);
         _transportMessage = new object();
         _messageHeaders = [];
     }

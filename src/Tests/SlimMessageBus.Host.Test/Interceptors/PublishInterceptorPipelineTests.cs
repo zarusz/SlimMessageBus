@@ -16,7 +16,7 @@ public class PublishInterceptorPipelineTests
     [InlineData(false, false)]
     [InlineData(true, false)]
     [InlineData(true, true)]
-    public async Task When_Next_Then_InterceptorIsCalledAndTargetIsCalled(bool producerInterceptorRegisterd, bool publishInterceptorRegisterd)
+    public async Task When_Next_Then_InterceptorIsCalledAndTargetIsCalled(bool producerInterceptorRegistered, bool publishInterceptorRegistered)
     {
         // arrange
         var message = new SomeMessage();
@@ -27,14 +27,14 @@ public class PublishInterceptorPipelineTests
             .Setup(x => x.OnHandle(message, It.IsAny<Func<Task<object>>>(), It.IsAny<IProducerContext>()))
             .Returns((SomeMessage message, Func<Task<object>> next, IProducerContext context) => next());
 
-        var producerInterceptors = producerInterceptorRegisterd ? new[] { producerInterceptorMock.Object } : null;
+        var producerInterceptors = producerInterceptorRegistered ? new[] { producerInterceptorMock.Object } : null;
 
         var publishInterceptorMock = new Mock<IPublishInterceptor<SomeMessage>>();
         publishInterceptorMock
             .Setup(x => x.OnHandle(message, It.IsAny<Func<Task>>(), It.IsAny<IProducerContext>()))
             .Returns((SomeMessage message, Func<Task> next, IProducerContext context) => next());
 
-        var publishInterceptors = publishInterceptorRegisterd ? new[] { publishInterceptorMock.Object } : null;
+        var publishInterceptors = publishInterceptorRegistered ? new[] { publishInterceptorMock.Object } : null;
 
         var producerSettings = new ProducerBuilder<SomeMessage>(new ProducerSettings())
             .DefaultTopic(topic)
@@ -58,13 +58,13 @@ public class PublishInterceptorPipelineTests
         // assert
         result.Should().BeNull();
 
-        if (producerInterceptorRegisterd)
+        if (producerInterceptorRegistered)
         {
             producerInterceptorMock.Verify(x => x.OnHandle(message, It.IsAny<Func<Task<object>>>(), It.IsAny<IProducerContext>()), Times.Once);
         }
         producerInterceptorMock.VerifyNoOtherCalls();
 
-        if (publishInterceptorRegisterd)
+        if (publishInterceptorRegistered)
         {
             publishInterceptorMock.Verify(x => x.OnHandle(message, It.IsAny<Func<Task>>(), It.IsAny<IProducerContext>()), Times.Once);
         }

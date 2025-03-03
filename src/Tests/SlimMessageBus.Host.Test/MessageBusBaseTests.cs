@@ -9,7 +9,7 @@ public class MessageBusBaseTests : IDisposable
     private readonly Lazy<MessageBusTested> _busLazy;
     private MessageBusTested Bus => _busLazy.Value;
     private readonly DateTimeOffset _timeZero;
-    private DateTimeOffset _timeNow;
+    private FakeTimeProvider _timeProvider;
 
     private const int TimeoutFor5 = 5;
     private const int TimeoutDefault10 = 10;
@@ -22,20 +22,17 @@ public class MessageBusBaseTests : IDisposable
     public MessageBusBaseTests()
     {
         _timeZero = DateTimeOffset.Now;
-        _timeNow = _timeZero;
+        _timeProvider = new FakeTimeProvider(_timeZero);
 
         _producedMessages = [];
-
-        var currentTimeProviderMock = new Mock<ICurrentTimeProvider>();
-        currentTimeProviderMock.SetupGet(x => x.CurrentTime).Returns(() => _timeNow);
 
         _serviceProviderMock = new Mock<IServiceProvider>();
         _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializerProvider))).Returns(new JsonMessageSerializer());
         _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
-        _serviceProviderMock.Setup(x => x.GetService(typeof(ICurrentTimeProvider))).Returns(() => currentTimeProviderMock.Object);
+        _serviceProviderMock.Setup(x => x.GetService(typeof(TimeProvider))).Returns(() => _timeProvider);
         _serviceProviderMock.Setup(x => x.GetService(It.Is<Type>(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)))).Returns((Type t) => Array.CreateInstance(t.GetGenericArguments()[0], 0));
         _serviceProviderMock.Setup(x => x.GetService(typeof(RuntimeTypeCache))).Returns(new RuntimeTypeCache());
-        _serviceProviderMock.Setup(x => x.GetService(typeof(IPendingRequestManager))).Returns(() => new PendingRequestManager(new InMemoryPendingRequestStore(), currentTimeProviderMock.Object, NullLoggerFactory.Instance));
+        _serviceProviderMock.Setup(x => x.GetService(typeof(IPendingRequestManager))).Returns(() => new PendingRequestManager(new InMemoryPendingRequestStore(), _timeProvider, NullLoggerFactory.Instance));
 
         BusBuilder = MessageBusBuilder.Create()
             .Produce<RequestA>(x =>
@@ -55,7 +52,7 @@ public class MessageBusBaseTests : IDisposable
             .WithDependencyResolver(_serviceProviderMock.Object)
             .WithProvider(s =>
             {
-                return new MessageBusTested(s, currentTimeProviderMock.Object)
+                return new MessageBusTested(s, _timeProvider)
                 {
                     // provide current time
                     OnProduced = (mt, n, m) => _producedMessages.Add(new(mt, n, m))
@@ -174,7 +171,7 @@ public class MessageBusBaseTests : IDisposable
         var rbTask = Bus.ProduceSend<ResponseB>(rb);
 
         // after 10 seconds
-        _timeNow = _timeZero.AddSeconds(TimeoutFor5 + 1);
+        _timeProvider.SetUtcNow(_timeZero.AddSeconds(TimeoutFor5 + 1));
         Bus.TriggerPendingRequestCleanup();
 
         // assert
@@ -184,7 +181,7 @@ public class MessageBusBaseTests : IDisposable
         rbTask.IsCanceled.Should().BeFalse();
 
         // after 20 seconds
-        _timeNow = _timeZero.AddSeconds(TimeoutDefault10 + 1);
+        _timeProvider.SetUtcNow(_timeZero.AddSeconds(TimeoutDefault10 + 1));
         Bus.TriggerPendingRequestCleanup();
 
         await WaitForTasks(2000, rbTask);
@@ -250,7 +247,7 @@ public class MessageBusBaseTests : IDisposable
         var r3Task = Bus.ProduceSend<ResponseA>(r3);
 
         // 2 seconds later
-        _timeNow = _timeZero.AddSeconds(2);
+        _timeProvider.SetUtcNow(_timeZero.AddSeconds(2));
         Bus.TriggerPendingRequestCleanup();
 
         await WaitForTasks(2000, r1Task, r2Task, r3Task);
@@ -263,7 +260,7 @@ public class MessageBusBaseTests : IDisposable
     }
 
     [Fact]
-    public async Task When_CancellationTokenCancelled_Then_CancellsPendingRequest()
+    public async Task When_CancellationTokenCancelled_Then_CancelsPendingRequest()
     {
         // arrange
         var r1 = new RequestA();
@@ -621,7 +618,7 @@ public class MessageBusBaseTests : IDisposable
         _serviceProviderMock.Verify(x => x.GetService(typeof(ILoggerFactory)), Times.Once);
         _serviceProviderMock.Verify(x => x.GetService(typeof(IMessageSerializerProvider)), Times.Between(0, 1, Moq.Range.Inclusive));
         _serviceProviderMock.Verify(x => x.GetService(typeof(IMessageTypeResolver)), Times.Once);
-        _serviceProviderMock.Verify(x => x.GetService(typeof(ICurrentTimeProvider)), Times.Once);
+        _serviceProviderMock.Verify(x => x.GetService(typeof(TimeProvider)), Times.Once);
         _serviceProviderMock.Verify(x => x.GetService(typeof(RuntimeTypeCache)), Times.Once);
         _serviceProviderMock.Verify(x => x.GetService(typeof(IPendingRequestManager)), Times.Once);
     }
@@ -694,9 +691,9 @@ public class MessageBusBaseTests : IDisposable
 
             var mockServiceProvider = new Mock<IServiceProvider>();
             mockServiceProvider.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(mockMessageTypeResolver.Object);
-            mockServiceProvider.Setup(x => x.GetService(typeof(ICurrentTimeProvider))).Returns(new CurrentTimeProvider());
+            mockServiceProvider.Setup(x => x.GetService(typeof(TimeProvider))).Returns(TimeProvider.System);
             mockServiceProvider.Setup(x => x.GetService(typeof(RuntimeTypeCache))).Returns(new RuntimeTypeCache());
-            mockServiceProvider.Setup(x => x.GetService(typeof(IPendingRequestManager))).Returns(new PendingRequestManager(new InMemoryPendingRequestStore(), new CurrentTimeProvider(), NullLoggerFactory.Instance));
+            mockServiceProvider.Setup(x => x.GetService(typeof(IPendingRequestManager))).Returns(new PendingRequestManager(new InMemoryPendingRequestStore(), TimeProvider.System, NullLoggerFactory.Instance));
 
             var mockMessageTypeConsumerInvokerSettings = new Mock<IMessageTypeConsumerInvokerSettings>();
             mockMessageTypeConsumerInvokerSettings.SetupGet(x => x.ParentSettings).Returns(() => new ConsumerSettings() { ResponseType = response.GetType() });

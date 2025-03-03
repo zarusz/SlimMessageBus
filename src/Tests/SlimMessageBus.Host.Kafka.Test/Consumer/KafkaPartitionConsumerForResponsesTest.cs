@@ -39,7 +39,7 @@ public class KafkaPartitionConsumerForResponsesTest : IDisposable
                                                           _commitControllerMock.Object,
                                                           _messageProvider.Object,
                                                           _pendingRequestStore.Object,
-                                                          _messageBusMock.CurrentTimeProvider,
+                                                          _messageBusMock.TimeProvider,
                                                           new DefaultKafkaHeaderSerializer())
         {
             CheckpointTrigger = _checkpointTrigger.Object

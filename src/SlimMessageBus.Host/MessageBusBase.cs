@@ -103,7 +103,7 @@ public abstract partial class MessageBusBase : IDisposable, IAsyncDisposable,
 
         MessageBusTarget = new MessageBusProxy(this, Settings.ServiceProvider);
 
-        CurrentTimeProvider = settings.ServiceProvider.GetRequiredService<ICurrentTimeProvider>();
+        TimeProvider = settings.ServiceProvider.GetRequiredService<TimeProvider>();
 
         PendingRequestManager = settings.ServiceProvider.GetRequiredService<IPendingRequestManager>();
         PendingRequestStore = PendingRequestManager.Store;
@@ -350,7 +350,7 @@ public abstract partial class MessageBusBase : IDisposable, IAsyncDisposable,
 
     protected void AddConsumer(AbstractConsumer consumer) => _consumers.Add(consumer);
 
-    public ICurrentTimeProvider CurrentTimeProvider { get; protected set; }
+    public TimeProvider TimeProvider { get; protected set; }
 
     protected ProducerSettings GetProducerSettings(Type messageType)
     {
@@ -530,7 +530,7 @@ public abstract partial class MessageBusBase : IDisposable, IAsyncDisposable,
         path ??= GetDefaultPath(requestType, producerSettings);
         timeout ??= GetDefaultRequestTimeout(requestType, producerSettings);
 
-        var created = CurrentTimeProvider.CurrentTime;
+        var created = TimeProvider.GetUtcNow();
         var expires = created.Add(timeout.Value);
 
         // generate the request guid

@@ -72,9 +72,8 @@ public class EventHubMessageBus : MessageBusBase<EventHubMessageBusSettings>
             object MessageProvider(Type messageType, EventData transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Body.ToArray());
 
             _logger.LogInformation("Creating response consumer for Path: {Path}, Group: {Group}", groupPath.Path, groupPath.Group);
-            AddConsumer(new EhGroupConsumer([Settings.RequestResponse], this, groupPath, groupPathPartition => new EhPartitionConsumerForResponses(this, Settings.RequestResponse, groupPathPartition, MessageProvider, PendingRequestStore, CurrentTimeProvider)));
+            AddConsumer(new EhGroupConsumer([Settings.RequestResponse], this, groupPath, groupPathPartition => new EhPartitionConsumerForResponses(this, Settings.RequestResponse, groupPathPartition, MessageProvider, PendingRequestStore, TimeProvider)));
         }
-
     }
 
     protected override async ValueTask DisposeAsyncCore()

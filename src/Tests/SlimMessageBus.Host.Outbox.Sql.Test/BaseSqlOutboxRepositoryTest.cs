@@ -10,7 +10,7 @@ public class BaseSqlOutboxRepositoryTest : BaseSqlTest
     protected SqlOutboxMessageRepository _target;
     protected SqlOutboxTemplate _template;
     protected ISqlTransactionService _transactionService;
-    protected CurrentTimeProviderFake _currentTimeProvider;
+    protected FakeTimeProvider _currentTimeProvider;
 
     public override async Task InitializeAsync()
     {

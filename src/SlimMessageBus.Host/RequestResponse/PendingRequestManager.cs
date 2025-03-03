@@ -10,13 +10,13 @@ public partial class PendingRequestManager : IPendingRequestManager, IDisposable
     private readonly Timer _timer;
     private readonly object _timerSync = new();
 
-    private readonly ICurrentTimeProvider _timeProvider;
+    private readonly TimeProvider _timeProvider;
     private readonly Action<object> _onRequestTimeout;
     private bool _cleanInProgress;
 
     public IPendingRequestStore Store { get; }
 
-    public PendingRequestManager(IPendingRequestStore store, ICurrentTimeProvider timeProvider, ILoggerFactory loggerFactory, TimeSpan? interval = null, Action<object> onRequestTimeout = null)
+    public PendingRequestManager(IPendingRequestStore store, TimeProvider timeProvider, ILoggerFactory loggerFactory, TimeSpan? interval = null, Action<object> onRequestTimeout = null)
     {
         _logger = loggerFactory.CreateLogger<PendingRequestManager>();
         Store = store;
@@ -73,7 +73,7 @@ public partial class PendingRequestManager : IPendingRequestManager, IDisposable
     /// </summary>
     public virtual void CleanPendingRequests()
     {
-        var now = _timeProvider.CurrentTime;
+        var now = _timeProvider.GetUtcNow();
 
         var requestsToCancel = Store.FindAllToCancel(now);
         foreach (var requestState in requestsToCancel)

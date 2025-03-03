@@ -87,7 +87,7 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
                 Settings.RequestResponse,
                 messageProvider: MessageProvider,
                 PendingRequestStore,
-                CurrentTimeProvider);
+                TimeProvider);
 
             AddTopicConsumer([Settings.RequestResponse], path, processor);
         }

@@ -16,7 +16,7 @@ public class KafkaPartitionConsumerForResponses : KafkaPartitionConsumer
         IKafkaCommitController commitController,
         MessageProvider<ConsumeResult> messageProvider,
         IPendingRequestStore pendingRequestStore,
-        ICurrentTimeProvider currentTimeProvider,
+        TimeProvider timeProvider,
         IMessageSerializer headerSerializer)
         : base(
             loggerFactory,
@@ -30,7 +30,7 @@ public class KafkaPartitionConsumerForResponses : KafkaPartitionConsumer
                 requestResponseSettings,
                 messageProvider,
                 pendingRequestStore,
-                currentTimeProvider))
+                timeProvider))
     {
     }
 }

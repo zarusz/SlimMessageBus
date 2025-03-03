@@ -16,7 +16,7 @@ public class RabbitMqResponseConsumer : AbstractRabbitMqConsumer
         RequestResponseSettings requestResponseSettings,
         MessageProvider<BasicDeliverEventArgs> messageProvider,
         IPendingRequestStore pendingRequestStore,
-        ICurrentTimeProvider currentTimeProvider,
+        TimeProvider timeProvider,
         IHeaderValueConverter headerValueConverter)
 
         : base(loggerFactory.CreateLogger<RabbitMqResponseConsumer>(),
@@ -26,7 +26,7 @@ public class RabbitMqResponseConsumer : AbstractRabbitMqConsumer
                queueName,
                headerValueConverter)
     {
-        _messageProcessor = new ResponseMessageProcessor<BasicDeliverEventArgs>(loggerFactory, requestResponseSettings, messageProvider, pendingRequestStore, currentTimeProvider);
+        _messageProcessor = new ResponseMessageProcessor<BasicDeliverEventArgs>(loggerFactory, requestResponseSettings, messageProvider, pendingRequestStore, timeProvider);
     }
 
     protected override async Task<Exception> OnMessageReceived(Dictionary<string, object> messageHeaders, BasicDeliverEventArgs transportMessage)

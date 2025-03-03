@@ -9,7 +9,7 @@ public class ConsumerInterceptorPipelineTests
     [InlineData(false, false)]
     [InlineData(true, false)]
     [InlineData(true, true)]
-    public async Task When_Next_Given_RequestResponse_Then_InterceptorIsCalledAndTargetIsCalled(bool consumerInterceptorRegisterd, bool handlerInterceptorRegisterd)
+    public async Task When_Next_Given_RequestResponse_Then_InterceptorIsCalledAndTargetIsCalled(bool consumerInterceptorRegistered, bool handlerInterceptorRegistered)
     {
         // arrange
         var request = new SomeRequest();
@@ -21,14 +21,14 @@ public class ConsumerInterceptorPipelineTests
             .Setup(x => x.OnHandle(request, It.IsAny<Func<Task<object>>>(), It.IsAny<IConsumerContext>()))
             .Returns((SomeRequest message, Func<Task<object>> next, IConsumerContext context) => next());
 
-        var consumerInterceptors = consumerInterceptorRegisterd ? new[] { consumerInterceptorMock.Object } : null;
+        var consumerInterceptors = consumerInterceptorRegistered ? new[] { consumerInterceptorMock.Object } : null;
 
         var requestHandlerInterceptorMock = new Mock<IRequestHandlerInterceptor<SomeRequest, SomeResponse>>();
         requestHandlerInterceptorMock
             .Setup(x => x.OnHandle(request, It.IsAny<Func<Task<SomeResponse>>>(), It.IsAny<IConsumerContext>()))
             .Returns((SomeRequest message, Func<Task<SomeResponse>> next, IConsumerContext context) => next());
 
-        var handlerInterceptors = handlerInterceptorRegisterd ? new[] { requestHandlerInterceptorMock.Object } : null;
+        var handlerInterceptors = handlerInterceptorRegistered ? new[] { requestHandlerInterceptorMock.Object } : null;
 
         var consumerSettings = new HandlerBuilder<SomeRequest, SomeResponse>(new MessageBusSettings())
             .Topic(topic)
@@ -57,13 +57,13 @@ public class ConsumerInterceptorPipelineTests
         // assert
         result.Should().BeSameAs(response);
 
-        if (consumerInterceptorRegisterd)
+        if (consumerInterceptorRegistered)
         {
             consumerInterceptorMock.Verify(x => x.OnHandle(request, It.IsAny<Func<Task<object>>>(), It.IsAny<IConsumerContext>()), Times.Once);
         }
         consumerInterceptorMock.VerifyNoOtherCalls();
 
-        if (handlerInterceptorRegisterd)
+        if (handlerInterceptorRegistered)
         {
             requestHandlerInterceptorMock.Verify(x => x.OnHandle(request, It.IsAny<Func<Task<SomeResponse>>>(), It.IsAny<IConsumerContext>()), Times.Once);
         }
@@ -77,7 +77,7 @@ public class ConsumerInterceptorPipelineTests
     [InlineData(false, false)]
     [InlineData(true, false)]
     [InlineData(true, true)]
-    public async Task When_Next_Given_RequestWithoutResponse_Then_InterceptorIsCalledAndTargetIsCalled(bool consumerInterceptorRegisterd, bool handlerInterceptorRegisterd)
+    public async Task When_Next_Given_RequestWithoutResponse_Then_InterceptorIsCalledAndTargetIsCalled(bool consumerInterceptorRegistered, bool handlerInterceptorRegistered)
     {
         // arrange
         var request = new SomeRequestWithoutResponse();
@@ -88,14 +88,14 @@ public class ConsumerInterceptorPipelineTests
             .Setup(x => x.OnHandle(request, It.IsAny<Func<Task<object>>>(), It.IsAny<IConsumerContext>()))
             .Returns((SomeRequestWithoutResponse message, Func<Task<object>> next, IConsumerContext context) => next());
 
-        var consumerInterceptors = consumerInterceptorRegisterd ? new[] { consumerInterceptorMock.Object } : null;
+        var consumerInterceptors = consumerInterceptorRegistered ? new[] { consumerInterceptorMock.Object } : null;
 
         var requestHandlerInterceptorMock = new Mock<IRequestHandlerInterceptor<SomeRequestWithoutResponse, Void>>();
         requestHandlerInterceptorMock
             .Setup(x => x.OnHandle(request, It.IsAny<Func<Task<Void>>>(), It.IsAny<IConsumerContext>()))
             .Returns((SomeRequestWithoutResponse message, Func<Task<Void>> next, IConsumerContext context) => next());
 
-        var handlerInterceptors = handlerInterceptorRegisterd ? new[] { requestHandlerInterceptorMock.Object } : null;
+        var handlerInterceptors = handlerInterceptorRegistered ? new[] { requestHandlerInterceptorMock.Object } : null;
 
         var consumerSettings = new HandlerBuilder<SomeRequestWithoutResponse>(new MessageBusSettings())
             .Topic(topic)
@@ -124,13 +124,13 @@ public class ConsumerInterceptorPipelineTests
         // assert
         result.Should().BeSameAs(null);
 
-        if (consumerInterceptorRegisterd)
+        if (consumerInterceptorRegistered)
         {
             consumerInterceptorMock.Verify(x => x.OnHandle(request, It.IsAny<Func<Task<object>>>(), It.IsAny<IConsumerContext>()), Times.Once);
         }
         consumerInterceptorMock.VerifyNoOtherCalls();
 
-        if (handlerInterceptorRegisterd)
+        if (handlerInterceptorRegistered)
         {
             requestHandlerInterceptorMock.Verify(x => x.OnHandle(request, It.IsAny<Func<Task<Void>>>(), It.IsAny<IConsumerContext>()), Times.Once);
         }

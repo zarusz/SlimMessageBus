@@ -5,8 +5,9 @@ using Microsoft.Extensions.DependencyInjection;
 using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Serialization;
+using SlimMessageBus.Host.Test.Common;
 
-public class MessageBusMock : ICurrentTimeProvider
+public class MessageBusMock
 {
     public Mock<IServiceProvider> ServiceProviderMock { get; }
     public IList<Mock<IServiceScope>> ChildDependencyResolverMocks { get; }
@@ -14,7 +15,7 @@ public class MessageBusMock : ICurrentTimeProvider
     public Mock<IMessageSerializer> SerializerMock { get; }
     public Mock<IConsumer<SomeMessage>> ConsumerMock { get; }
     public Mock<IRequestHandler<SomeRequest, SomeResponse>> HandlerMock { get; }
-    public DateTimeOffset CurrentTime { get; set; }
+    public FakeTimeProvider TimeProvider { get; set; }
     public Mock<MessageBusBase> BusMock { get; }
     public MessageBusBase Bus => BusMock.Object;
 
@@ -22,13 +23,12 @@ public class MessageBusMock : ICurrentTimeProvider
 
     public MessageBusMock()
     {
+        TimeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
+
         ConsumerMock = new Mock<IConsumer<SomeMessage>>();
         HandlerMock = new Mock<IRequestHandler<SomeRequest, SomeResponse>>();
 
         ChildDependencyResolverMocks = [];
-
-        var currentTimeProviderMock = new Mock<ICurrentTimeProvider>();
-        currentTimeProviderMock.SetupGet(x => x.CurrentTime).Returns(() => CurrentTime);
 
         void SetupDependencyResolver<T>(Mock<T> mock) where T : class, IServiceProvider
         {
@@ -38,7 +38,7 @@ public class MessageBusMock : ICurrentTimeProvider
             mock.Setup(x => x.GetService(It.Is<Type>(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>) && t.GetGenericArguments().Length == 1 && t.GetGenericArguments()[0].IsGenericType && InterceptorTypes.Contains(t.GetGenericArguments()[0].GetGenericTypeDefinition()))))
                 .Returns(Enumerable.Empty<object>());
             mock.Setup(x => x.GetService(typeof(RuntimeTypeCache))).Returns(new RuntimeTypeCache());
-            mock.Setup(x => x.GetService(typeof(IPendingRequestManager))).Returns(() => new PendingRequestManager(new InMemoryPendingRequestStore(), currentTimeProviderMock.Object, NullLoggerFactory.Instance));
+            mock.Setup(x => x.GetService(typeof(IPendingRequestManager))).Returns(() => new PendingRequestManager(new InMemoryPendingRequestStore(), TimeProvider, NullLoggerFactory.Instance));
         }
 
         ServiceProviderMock = new Mock<IServiceProvider>();
@@ -57,10 +57,7 @@ public class MessageBusMock : ICurrentTimeProvider
 
             OnChildDependencyResolverCreated?.Invoke(mock, svpMock);
 
-            mock.Setup(x => x.Dispose()).Callback(() =>
-            {
-                ChildDependencyResolverMocks.Remove(mock);
-            });
+            mock.Setup(x => x.Dispose()).Callback(() => ChildDependencyResolverMocks.Remove(mock));
 
             return mock.Object;
         });
@@ -69,14 +66,12 @@ public class MessageBusMock : ICurrentTimeProvider
 
         ServiceProviderMock.Setup(x => x.GetService(typeof(IServiceScopeFactory))).Returns(serviceScopeFactoryMock.Object);
         ServiceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(SerializerMock.Object);
-        ServiceProviderMock.Setup(x => x.GetService(typeof(ICurrentTimeProvider))).Returns(this);
+        ServiceProviderMock.Setup(x => x.GetService(typeof(TimeProvider))).Returns(TimeProvider);
 
         var mbSettings = new MessageBusSettings
         {
             ServiceProvider = ServiceProviderMock.Object
         };
-
-        CurrentTime = DateTimeOffset.UtcNow;
 
         BusMock = new Mock<MessageBusBase>(mbSettings);
         BusMock.SetupGet(x => x.Settings).Returns(mbSettings);
