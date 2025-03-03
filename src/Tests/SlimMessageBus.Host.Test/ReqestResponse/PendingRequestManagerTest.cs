@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Test;
 
+using SlimMessageBus.Host.Test.Common;
+
 public class PendingRequestManagerTest : IDisposable
 {
     private readonly PendingRequestManager _subject;
@@ -8,27 +10,24 @@ public class PendingRequestManagerTest : IDisposable
     private readonly Mock<Action<object>> _timeoutCallback;
     private readonly TimeSpan _cleanInterval = TimeSpan.FromMilliseconds(50);
 
-    private readonly DateTimeOffset _timeNow;
+    private readonly FakeTimeProvider _timeProvider;
 
     public PendingRequestManagerTest()
     {
-        var timeZero = DateTimeOffset.Now;
-        _timeNow = timeZero;
+        var timeZero = DateTimeOffset.UtcNow;
+        _timeProvider = new FakeTimeProvider(timeZero);
 
         _store = new Mock<IPendingRequestStore>();
         _timeoutCallback = new Mock<Action<object>>();
 
-        var currentTimeProviderMock = new Mock<ICurrentTimeProvider>();
-        currentTimeProviderMock.Setup(x => x.CurrentTime).Returns(() => _timeNow);
-
-        _subject = new PendingRequestManager(_store.Object, currentTimeProviderMock.Object, NullLoggerFactory.Instance, _cleanInterval, _timeoutCallback.Object);
+        _subject = new PendingRequestManager(_store.Object, _timeProvider, NullLoggerFactory.Instance, _cleanInterval, _timeoutCallback.Object);
     }
 
     [Fact]
     public void When_NothingExpired_Then_NoActionIsTaken()
     {
         // arrange
-        _store.Setup(x => x.FindAllToCancel(_timeNow)).Returns(Array.Empty<PendingRequestState>());
+        _store.Setup(x => x.FindAllToCancel(_timeProvider.GetUtcNow())).Returns(Array.Empty<PendingRequestState>());
 
         // act
         _subject.CleanPendingRequests();
@@ -42,9 +41,9 @@ public class PendingRequestManagerTest : IDisposable
     public void When_RequestExpired_Then_ItIsRemoved()
     {
         // arrange
-        var r1 = new PendingRequestState("r1", "request1", typeof(string), typeof(string), _timeNow, _timeNow.AddSeconds(30), CancellationToken.None);
+        var r1 = new PendingRequestState("r1", "request1", typeof(string), typeof(string), _timeProvider.GetUtcNow(), _timeProvider.GetUtcNow().AddSeconds(30), CancellationToken.None);
 
-        _store.Setup(x => x.FindAllToCancel(_timeNow)).Returns(new[] { r1 });
+        _store.Setup(x => x.FindAllToCancel(_timeProvider.GetUtcNow())).Returns(new[] { r1 });
         _store.Setup(x => x.Remove("r1")).Returns(true);
 
         // act

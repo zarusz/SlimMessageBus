@@ -6,7 +6,7 @@ public partial class MessageHandler : IMessageHandler
 {
     private readonly ILogger _logger;
     private readonly IMessageScopeFactory _messageScopeFactory;
-    private readonly ICurrentTimeProvider _currentTimeProvider;
+    private readonly TimeProvider _timeProvider;
 
     protected RuntimeTypeCache RuntimeTypeCache { get; }
     protected IMessageTypeResolver MessageTypeResolver { get; }
@@ -27,7 +27,7 @@ public partial class MessageHandler : IMessageHandler
         IMessageTypeResolver messageTypeResolver,
         IMessageHeadersFactory messageHeadersFactory,
         RuntimeTypeCache runtimeTypeCache,
-        ICurrentTimeProvider currentTimeProvider,
+        TimeProvider timeProvider,
         string path,
         Type consumerErrorHandlerOpenGenericType = null)
     {
@@ -35,7 +35,7 @@ public partial class MessageHandler : IMessageHandler
 
         _logger = messageBus.LoggerFactory.CreateLogger<MessageHandler>();
         _messageScopeFactory = messageScopeFactory;
-        _currentTimeProvider = currentTimeProvider;
+        _timeProvider = timeProvider;
 
         RuntimeTypeCache = runtimeTypeCache;
         MessageTypeResolver = messageTypeResolver;
@@ -81,7 +81,7 @@ public partial class MessageHandler : IMessageHandler
             cancellationToken.ThrowIfCancellationRequested();
 
             await using var messageScope = _messageScopeFactory.CreateMessageScope(consumerInvoker.ParentSettings, message, consumerContextProperties, currentServiceProvider);
-            if (messageExpires != null && messageExpires < _currentTimeProvider.CurrentTime)
+            if (messageExpires != null && messageExpires < _timeProvider.GetUtcNow())
             {
                 // ToDo: Call interceptor
                 // Do not process the expired message

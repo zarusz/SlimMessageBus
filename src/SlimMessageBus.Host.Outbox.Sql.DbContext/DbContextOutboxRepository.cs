@@ -10,7 +10,7 @@ public class DbContextOutboxRepository<TDbContext> : SqlOutboxMessageRepository
         SqlOutboxSettings settings,
         SqlOutboxTemplate sqlOutboxTemplate,
         IGuidGenerator guidGenerator,
-        ICurrentTimeProvider currentTimeProvider,
+        TimeProvider timeProvider,
         IInstanceIdProvider instanceIdProvider,
         TDbContext dbContext,
         ISqlTransactionService transactionService)
@@ -19,7 +19,7 @@ public class DbContextOutboxRepository<TDbContext> : SqlOutboxMessageRepository
             settings,
             sqlOutboxTemplate,
             guidGenerator,
-            currentTimeProvider,
+            timeProvider,
             instanceIdProvider,
             (SqlConnection)dbContext.Database.GetDbConnection(),
             transactionService)

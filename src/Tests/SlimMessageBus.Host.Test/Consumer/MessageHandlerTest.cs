@@ -39,7 +39,7 @@ public class MessageHandlerTest
             messageTypeResolver: messageTypeResolverMock.Object,
             messageHeadersFactory: messageHeaderFactoryMock.Object,
             runtimeTypeCache: new Host.Collections.RuntimeTypeCache(),
-            currentTimeProvider: busMock,
+            timeProvider: busMock.TimeProvider,
             path: "topic1");
     }
 

@@ -75,7 +75,7 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
                 Settings.RequestResponse,
                 messageProvider: MessageProvider,
                 PendingRequestStore,
-                CurrentTimeProvider);
+                TimeProvider);
 
             AddConsumerFrom(
                 path,

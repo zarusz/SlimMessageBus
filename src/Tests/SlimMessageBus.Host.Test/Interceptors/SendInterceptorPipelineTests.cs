@@ -15,7 +15,7 @@ public class SendInterceptorPipelineTests
     [InlineData(false, false)]
     [InlineData(true, false)]
     [InlineData(true, true)]
-    public async Task When_Next_Then_InterceptorIsCalledAndTargetIsCalled(bool producerInterceptorRegisterd, bool sendInterceptorRegisterd)
+    public async Task When_Next_Then_InterceptorIsCalledAndTargetIsCalled(bool producerInterceptorRegistered, bool sendInterceptorRegistered)
     {
         // arrange
         var request = new SomeRequest();
@@ -27,14 +27,14 @@ public class SendInterceptorPipelineTests
             .Setup(x => x.OnHandle(request, It.IsAny<Func<Task<object>>>(), It.IsAny<IProducerContext>()))
             .Returns((SomeRequest message, Func<Task<object>> next, IProducerContext context) => next());
 
-        var producerInterceptors = producerInterceptorRegisterd ? new[] { producerInterceptorMock.Object } : null;
+        var producerInterceptors = producerInterceptorRegistered ? new[] { producerInterceptorMock.Object } : null;
 
         var sendInterceptorMock = new Mock<ISendInterceptor<SomeRequest, SomeResponse>>();
         sendInterceptorMock
             .Setup(x => x.OnHandle(request, It.IsAny<Func<Task<SomeResponse>>>(), It.IsAny<IProducerContext>()))
             .Returns((SomeRequest message, Func<Task<SomeResponse>> next, IProducerContext context) => next());
 
-        var sendInterceptors = sendInterceptorRegisterd ? new[] { sendInterceptorMock.Object } : null;
+        var sendInterceptors = sendInterceptorRegistered ? new[] { sendInterceptorMock.Object } : null;
 
         var producerSettings = new ProducerBuilder<SomeRequest>(new ProducerSettings())
             .DefaultTopic(topic)
@@ -58,13 +58,13 @@ public class SendInterceptorPipelineTests
         // assert
         result.Should().BeSameAs(response);
 
-        if (producerInterceptorRegisterd)
+        if (producerInterceptorRegistered)
         {
             producerInterceptorMock.Verify(x => x.OnHandle(request, It.IsAny<Func<Task<object>>>(), It.IsAny<IProducerContext>()), Times.Once);
         }
         producerInterceptorMock.VerifyNoOtherCalls();
 
-        if (sendInterceptorRegisterd)
+        if (sendInterceptorRegistered)
         {
             sendInterceptorMock.Verify(x => x.OnHandle(request, It.IsAny<Func<Task<SomeResponse>>>(), It.IsAny<IProducerContext>()), Times.Once);
         }

@@ -120,7 +120,7 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
                 Settings.RequestResponse,
                 MessageProvider,
                 PendingRequestStore,
-                CurrentTimeProvider);
+                TimeProvider);
 
             AddConsumerFrom(topicSubscription, messageProcessor, [Settings.RequestResponse]);
         }

@@ -7,13 +7,13 @@ public class MessageBusTested : MessageBusBase
 
     public IMessageProcessor<object> RequestResponseMessageProcessor { get; private set; }
 
-    public MessageBusTested(MessageBusSettings settings, ICurrentTimeProvider currentTimeProvider)
+    public MessageBusTested(MessageBusSettings settings, TimeProvider timeProvider)
         : base(settings)
     {
         // by default no responses will arrive
         OnReply = (type, payload, req) => null;
 
-        CurrentTimeProvider = currentTimeProvider;
+        TimeProvider = timeProvider;
         OnBuildProvider();
     }
 
@@ -23,7 +23,7 @@ public class MessageBusTested : MessageBusBase
 
         if (Settings.RequestResponse != null)
         {
-            RequestResponseMessageProcessor = new ResponseMessageProcessor<object>(LoggerFactory, Settings.RequestResponse, (mt, m) => m, PendingRequestStore, CurrentTimeProvider);
+            RequestResponseMessageProcessor = new ResponseMessageProcessor<object>(LoggerFactory, Settings.RequestResponse, (mt, m) => m, PendingRequestStore, TimeProvider);
             AddConsumer(new MessageBusTestedConsumer(NullLogger.Instance));
         }
     }

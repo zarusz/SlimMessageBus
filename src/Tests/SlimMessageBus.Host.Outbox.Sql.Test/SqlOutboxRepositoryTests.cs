@@ -59,7 +59,9 @@ public static class SqlOutboxRepositoryTests
             var seedMessages = await SeedOutbox(10, (i, x) =>
             {
                 // affect the timestamp to make the message expired
-                _currentTimeProvider.CurrentTime = i < 5 ? expired : active;
+#pragma warning disable EXTEXP0004 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+                _currentTimeProvider.AdjustTime(i < 5 ? expired : active);
+#pragma warning restore EXTEXP0004 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
             });
 
             // mark the first 5 messages as sent

@@ -76,7 +76,7 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
             var messageSerializer = SerializerProvider.GetSerializer(tp.Topic);
             object MessageProvider(Type messageType, ConsumeResult<Ignore, byte[]> transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Message.Value);
 
-            return new KafkaPartitionConsumerForResponses(LoggerFactory, Settings.RequestResponse, Settings.RequestResponse.GetGroup(), tp, cc, MessageProvider, PendingRequestStore, CurrentTimeProvider, headerSerializer);
+            return new KafkaPartitionConsumerForResponses(LoggerFactory, Settings.RequestResponse, Settings.RequestResponse.GetGroup(), tp, cc, MessageProvider, PendingRequestStore, TimeProvider, headerSerializer);
         }
 
         foreach (var consumersByGroup in Settings.Consumers.GroupBy(x => x.GetGroup()))

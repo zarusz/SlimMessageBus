@@ -13,13 +13,13 @@ public partial class ResponseMessageProcessor<TTransportMessage> : ResponseMessa
     private readonly IReadOnlyCollection<AbstractConsumerSettings> _consumerSettings;
     private readonly MessageProvider<TTransportMessage> _messageProvider;
     private readonly IPendingRequestStore _pendingRequestStore;
-    private readonly ICurrentTimeProvider _currentTimeProvider;
+    private readonly TimeProvider _timeProvider;
 
     public ResponseMessageProcessor(ILoggerFactory loggerFactory,
                                     RequestResponseSettings requestResponseSettings,
                                     MessageProvider<TTransportMessage> messageProvider,
                                     IPendingRequestStore pendingRequestStore,
-                                    ICurrentTimeProvider currentTimeProvider)
+                                    TimeProvider timeProvider)
     {
         if (loggerFactory is null) throw new ArgumentNullException(nameof(loggerFactory));
 
@@ -28,7 +28,7 @@ public partial class ResponseMessageProcessor<TTransportMessage> : ResponseMessa
         _consumerSettings = [_requestResponseSettings];
         _messageProvider = messageProvider ?? throw new ArgumentNullException(nameof(messageProvider));
         _pendingRequestStore = pendingRequestStore;
-        _currentTimeProvider = currentTimeProvider;
+        _timeProvider = timeProvider;
     }
 
     public IReadOnlyCollection<AbstractConsumerSettings> ConsumerSettings => _consumerSettings;
@@ -76,7 +76,7 @@ public partial class ResponseMessageProcessor<TTransportMessage> : ResponseMessa
         {
             if (_logger.IsEnabled(LogLevel.Debug))
             {
-                var requestTime = _currentTimeProvider.CurrentTime.Subtract(requestState.Created);
+                var requestTime = _timeProvider.GetUtcNow().Subtract(requestState.Created);
                 LogResponseArrived(path, requestState, requestTime);
             }
 
