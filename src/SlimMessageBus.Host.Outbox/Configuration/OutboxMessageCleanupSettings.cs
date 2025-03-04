@@ -14,4 +14,8 @@ public class OutboxMessageCleanupSettings
     /// Message age from which the sent messages are removed from.
     /// </summary>
     public TimeSpan Age { get; set; } = TimeSpan.FromHours(1);
+    /// <summary>
+    /// Maximum number of sent messages to remove per statement.
+    /// </summary>
+    public int BatchSize { get; set; } = 10_000;
 }

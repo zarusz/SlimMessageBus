@@ -39,14 +39,19 @@ public class SqlOutboxTemplate
         SqlOutboxMessageInsertWithDatabaseIdSequential = insertWith("NEWSEQUENTIALID()");
 
         SqlOutboxMessageDeleteSent = $"""
+            SET DEADLOCK_PRIORITY LOW;
+            WITH CTE AS (SELECT TOP (@BatchSize) Id
+                         FROM {TableNameQualified} WITH (ROWLOCK, READPAST)
+                         WHERE DeliveryComplete = 1
+                           AND Timestamp < @Timestamp
+                         ORDER BY Timestamp ASC)
             DELETE FROM {TableNameQualified} 
-            WHERE [DeliveryComplete] = 1 
-              AND [Timestamp] < @Timestamp
+            WHERE Id IN (SELECT Id FROM CTE);
             """;
 
         SqlOutboxMessageLockAndSelect = $"""
             WITH Batch AS (SELECT TOP (@BatchSize) *
-                           FROM {TableNameQualified}
+                           FROM {TableNameQualified} WITH (ROWLOCK, UPDLOCK, READPAST)
                            WHERE DeliveryComplete = 0
                              AND (LockInstanceId = @InstanceId
                                OR LockExpiresOn < GETUTCDATE())
@@ -56,18 +61,11 @@ public class SqlOutboxTemplate
             SET LockInstanceId = @InstanceId,
                 LockExpiresOn = DATEADD(SECOND, @LockDuration, GETUTCDATE())
             OUTPUT INSERTED.Id
-                 , INSERTED.Timestamp
                  , INSERTED.BusName
                  , INSERTED.MessageType
                  , INSERTED.MessagePayload
                  , INSERTED.Headers
-                 , INSERTED.Path
-                 , INSERTED.InstanceId
-                 , INSERTED.LockInstanceId
-                 , INSERTED.LockExpiresOn
-                 , INSERTED.DeliveryAttempt
-                 , INSERTED.DeliveryComplete
-                 , INSERTED.DeliveryAborted;
+                 , INSERTED.Path;
             """;
 
         // Only create lock if there are no active locks from another instance.
@@ -93,18 +91,11 @@ public class SqlOutboxTemplate
                 END;
 
             SELECT TOP (@BatchSize) Id
-                                  , Timestamp
                                   , BusName
                                   , MessageType
                                   , MessagePayload
                                   , Headers
                                   , Path
-                                  , InstanceId
-                                  , LockInstanceId
-                                  , LockExpiresOn
-                                  , DeliveryAttempt
-                                  , DeliveryComplete
-                                  , DeliveryAborted
             FROM {TableNameQualified}
             WHERE LockInstanceId = @InstanceId
                 AND LockExpiresOn > GETUTCDATE()
@@ -115,27 +106,30 @@ public class SqlOutboxTemplate
 
         // See https://learn.microsoft.com/en-us/sql/t-sql/functions/string-split-transact-sql?view=sql-server-ver16
         // See https://stackoverflow.com/a/47777878/1906057
-        var inIdsSql = $"SELECT CONVERT(uniqueidentifier, [value]) from STRING_SPLIT(@Ids, '{InIdsSeparator}')";
+        var inIdsSql = $"SELECT CAST([value] AS uniqueidentifier) Id from STRING_SPLIT(@Ids, '{InIdsSeparator}')";
 
         SqlOutboxMessageUpdateSent = $"""
-            UPDATE {TableNameQualified}
+            UPDATE T
             SET [DeliveryComplete] = 1,
                 [DeliveryAttempt] = DeliveryAttempt + 1
-            WHERE [Id] IN ({inIdsSql});
+            FROM {TableNameQualified} T
+                     INNER JOIN ({inIdsSql}) Ids ON T.Id = Ids.id;
             """;
 
         SqlOutboxMessageIncrementDeliveryAttempt = $"""
-            UPDATE {TableNameQualified}
+            UPDATE T
             SET [DeliveryAttempt] = DeliveryAttempt + 1,
                 [DeliveryAborted] = CASE WHEN [DeliveryAttempt] >= @MaxDeliveryAttempts THEN 1 ELSE 0 END
-            WHERE [Id] IN ({inIdsSql});
+            FROM {TableNameQualified} T
+                     INNER JOIN ({inIdsSql}) Ids ON T.Id = Ids.id;
             """;
 
         SqlOutboxMessageAbortDelivery = $"""
-            UPDATE {TableNameQualified}
+            UPDATE T
             SET [DeliveryAttempt] = DeliveryAttempt + 1,
                 [DeliveryAborted] = 1
-            WHERE [Id] IN ({inIdsSql});
+            FROM {TableNameQualified} T
+                     INNER JOIN ({inIdsSql}) Ids ON T.Id = Ids.id;
             """;
 
         SqlOutboxMessageRenewLock = $"""

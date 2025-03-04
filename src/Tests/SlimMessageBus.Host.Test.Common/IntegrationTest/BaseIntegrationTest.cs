@@ -1,5 +1,8 @@
 ﻿namespace SlimMessageBus.Host.Test.Common.IntegrationTest;
 
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
 /// <summary>
 /// Base integration test setup that:
 /// - uses MS Dependency Injection
@@ -44,6 +47,9 @@ public abstract class BaseIntegrationTest<T> : IAsyncLifetime
             services.AddLogging(loggingBuilder => loggingBuilder.AddSerilog(dispose: true));
 
             services.AddSingleton<TestMetric>();
+
+            var mockHostApplicationLifetime = new Mock<IHostApplicationLifetime>(MockBehavior.Loose);
+            services.AddSingleton<IHostApplicationLifetime>(mockHostApplicationLifetime.Object);
 
             SetupServices(services, Configuration);
             ApplyTestServices(services, Configuration);
