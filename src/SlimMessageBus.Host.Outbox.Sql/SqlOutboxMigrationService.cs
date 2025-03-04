@@ -92,5 +92,19 @@ public class SqlOutboxMigrationService(
             DROP TYPE IF EXISTS {qualifiedOutboxIdTypeName};
             """,
             token);
+
+        await TryApplyMigration("20250307000000_SMB_BatchedDeletes",
+            $"""
+            -- drop old indexes
+            DROP INDEX IF EXISTS IX_Outbox_LockExpiresOn_LockInstanceId_DeliveryComplete_0_DeliveryAborted_0 ON {qualifiedTableName};
+            DROP INDEX IF EXISTS IX_Outbox_Timestamp_DeliveryComplete_1_DeliveryAborted_0 ON {qualifiedTableName};
+            
+            -- SqlOutboxTemplate.SqlOutboxMessageDeleteSent + SqlOutboxTemplate.SqlOutboxMessageLockTableAndSelect
+            CREATE CLUSTERED INDEX IX_Outbox_DeliveryComplete_Timestamp ON {qualifiedTableName} (DeliveryComplete, Timestamp);
+
+            -- SqlOutboxTemplate.SqlOutboxMessageDeleteSent
+            CREATE INDEX IX_Outbox_LockExpiredOn_LockInstanceId__DeliveryComplete_0_DeliveryAborted_0 ON {qualifiedTableName} (LockExpiresOn, LockInstanceId) WHERE [DeliveryComplete] = 0 and [DeliveryAborted] = 0;
+            """,
+            token);
     }
 }

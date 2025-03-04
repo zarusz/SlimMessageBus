@@ -42,8 +42,8 @@ public class MeasuringSqlMessageOutboxRepositoryDecorator(
     public Task<IHasId> Create(string busName, IDictionary<string, object> headers, string path, string messageType, byte[] messagePayload, CancellationToken cancellationToken)
         => MeasureMethod(nameof(Create), () => target.Create(busName, headers, path, messageType, messagePayload, cancellationToken));
 
-    public Task DeleteSent(DateTime olderThan, CancellationToken cancellationToken)
-        => MeasureMethod(nameof(DeleteSent), () => target.DeleteSent(olderThan, cancellationToken));
+    public Task<int> DeleteSent(DateTimeOffset olderThan, int batchSize, CancellationToken cancellationToken)
+        => MeasureMethod(nameof(DeleteSent), () => target.DeleteSent(olderThan, batchSize, cancellationToken));
 
     public Task IncrementDeliveryAttempt(IReadOnlyCollection<Guid> ids, int maxDeliveryAttempts, CancellationToken cancellationToken)
         => MeasureMethod(nameof(IncrementDeliveryAttempt), () => target.IncrementDeliveryAttempt(ids, maxDeliveryAttempts, cancellationToken));

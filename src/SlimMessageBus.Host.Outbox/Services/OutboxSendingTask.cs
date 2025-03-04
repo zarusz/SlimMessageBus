@@ -3,7 +3,6 @@
 internal class OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>(
     ILoggerFactory loggerFactory,
     OutboxSettings outboxSettings,
-    TimeProvider timeProvider,
     IServiceProvider serviceProvider)
     : IMessageBusLifecycleInterceptor, IOutboxNotificationService, IAsyncDisposable
     where TOutboxMessage : OutboxMessage<TOutboxMessageKey>
@@ -22,24 +21,6 @@ internal class OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>(
     private Task _stopBusTask;
 
     private int _busStartCount;
-
-    private DateTimeOffset? _cleanupNextRun;
-
-    private bool ShouldRunCleanup()
-    {
-        if (_outboxSettings.MessageCleanup?.Enabled == true)
-        {
-            var currentTime = timeProvider.GetUtcNow();
-            var trigger = !_cleanupNextRun.HasValue || currentTime > _cleanupNextRun.Value;
-            if (trigger)
-            {
-                _cleanupNextRun = currentTime.Add(_outboxSettings.MessageCleanup.Interval);
-            }
-
-            return trigger;
-        }
-        return false;
-    }
 
     public async ValueTask DisposeAsync()
     {
@@ -177,12 +158,6 @@ internal class OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>(
                     try
                     {
                         await SendMessages(scope.ServiceProvider, outboxRepository, _loopCts.Token);
-
-                        if (!_loopCts.IsCancellationRequested && ShouldRunCleanup())
-                        {
-                            _logger.LogTrace("Running cleanup of sent messages");
-                            await outboxRepository.DeleteSent(timeProvider.GetUtcNow().DateTime.Add(-_outboxSettings.MessageCleanup.Age), _loopCts.Token).ConfigureAwait(false);
-                        }
                     }
                     catch (Exception e)
                     {

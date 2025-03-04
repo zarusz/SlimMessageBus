@@ -12,6 +12,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
     - [UseTransactionScope](#usetransactionscope)
     - [UseSqlTransaction](#usesqltransaction)
 - [How it works](#how-it-works)
+- [Clean up](#clean-up)
 - [Important note](#important-note)
 
 ## Introduction
@@ -215,7 +216,15 @@ When applied on the (child) bus level then all consumers (or handlers) will inhe
 
 - Once a message is picked from outbox and successfully delivered then it is marked as sent in the outbox table.
 
-- At configured intervals (`MessageCleanup.Interval`), and after a configured time span (`MessageCleanup.Age`), the sent messages are removed from the outbox table.
+## Clean up
+On starting SMB, messages that are older than `MessageCleanup.Age` will be removed from the `Outbox` table in batches of `MessageCleanup.BatchSize` until no sent messages of the specified age remain. The process is then repeated every `MessageCleanup.Interval` period.
+
+| Property  | Description                                        | Default |
+| --------- | -------------------------------------------------- | ------- |
+| Enabled   | `True` if messages are to be removed               | true    |
+| Interval  | Time between exections                             | 1 hour  |
+| Age       | Minimum age of a sent message to delete            | 1 hour  |
+| BatchSize | Number of messages to be removed in each iteration | 10 000  |
 
 ## Important note
 

@@ -1,9 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-	<Import Project="../Host.Test.Properties.xml" />
+  <Import Project="../Host.Test.Properties.xml" />
 
-	<ItemGroup>
-		<ProjectReference Include="..\..\SlimMessageBus.Host.Outbox\SlimMessageBus.Host.Outbox.csproj" />
-	</ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SlimMessageBus.Host.Test.Common\SlimMessageBus.Host.Test.Common.csproj" />
+    <ProjectReference Include="..\..\SlimMessageBus.Host.Outbox\SlimMessageBus.Host.Outbox.csproj" />
+  </ItemGroup>
 
 </Project>

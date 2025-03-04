@@ -68,11 +68,36 @@ public static class SqlOutboxRepositoryTests
             await _target.UpdateToSent(seedMessages.Select(x => x.Id).Take(5).ToList(), CancellationToken.None);
 
             // act
-            await _target.DeleteSent(active, CancellationToken.None);
+            await _target.DeleteSent(active, 10, CancellationToken.None);
             var messages = await _target.GetAllMessages(CancellationToken.None);
 
             // assert
             messages.Should().OnlyContain(x => x.Timestamp == active);
+        }
+
+        [Fact]
+        public async Task BatchSize_IsDeleted()
+        {
+            const int batchSize = 10;
+            const int messageCount = batchSize * 2;
+            const int expectedRemainingMessages = messageCount - batchSize;
+
+            // arrange
+            var seedMessages = await SeedOutbox(messageCount);
+
+            // mark all as sent
+            await _target.UpdateToSent([.. seedMessages.Select(x => x.Id)], CancellationToken.None);
+
+            // advance time to allow messages to expire
+            _currentTimeProvider.Advance(TimeSpan.FromDays(1));
+
+            // act
+            var actualDeletedCount = await _target.DeleteSent(_currentTimeProvider.GetUtcNow(), batchSize, CancellationToken.None);
+            var messages = await _target.GetAllMessages(CancellationToken.None);
+
+            // assert
+            actualDeletedCount.Should().Be(batchSize);
+            messages.Count.Should().Be(expectedRemainingMessages);
         }
     }
 

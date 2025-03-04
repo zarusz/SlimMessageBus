@@ -33,7 +33,7 @@ public class BaseSqlOutboxRepositoryTest : BaseSqlTest
         return base.DisposeAsync();
     }
 
-    protected async Task<IReadOnlyList<SqlOutboxMessage>> SeedOutbox(int count, Action<int, SqlOutboxMessage> action = null, CancellationToken cancellationToken = default)
+    protected async Task<IReadOnlyList<SqlOutboxAdminMessage>> SeedOutbox(int count, Action<int, SqlOutboxAdminMessage> action = null, CancellationToken cancellationToken = default)
     {
         var messages = CreateOutboxMessages(count);
         for (var i = 0; i < messages.Count; i++)
@@ -45,7 +45,7 @@ public class BaseSqlOutboxRepositoryTest : BaseSqlTest
         return messages;
     }
 
-    protected IReadOnlyList<SqlOutboxMessage> CreateOutboxMessages(int count) => Enumerable
+    protected IReadOnlyList<SqlOutboxAdminMessage> CreateOutboxMessages(int count) => Enumerable
         .Range(0, count)
         .Select(_ =>
         {
@@ -62,7 +62,7 @@ public class BaseSqlOutboxRepositoryTest : BaseSqlTest
             };
 
             // Configure fixture to use the generated values
-            _fixture.Customize<SqlOutboxMessage>(om => om
+            _fixture.Customize<SqlOutboxAdminMessage>(om => om
                 .With(x => x.MessagePayload, jsonPayload)
                 .With(x => x.Headers, headers)
                 .With(x => x.LockExpiresOn, DateTime.MinValue)
@@ -71,7 +71,7 @@ public class BaseSqlOutboxRepositoryTest : BaseSqlTest
                 .With(x => x.DeliveryAttempt, 0)
                 .With(x => x.DeliveryComplete, false));
 
-            return _fixture.Create<SqlOutboxMessage>();
+            return _fixture.Create<SqlOutboxAdminMessage>();
         })
         .ToList();
 }
