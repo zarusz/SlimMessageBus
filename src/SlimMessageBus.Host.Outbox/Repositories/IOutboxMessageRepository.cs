@@ -7,7 +7,6 @@ public interface IOutboxMessageRepository<TOutboxMessage, TOutboxMessageKey>
     Task AbortDelivery(IReadOnlyCollection<TOutboxMessageKey> ids, CancellationToken cancellationToken);
     Task UpdateToSent(IReadOnlyCollection<TOutboxMessageKey> ids, CancellationToken cancellationToken);
     Task IncrementDeliveryAttempt(IReadOnlyCollection<TOutboxMessageKey> ids, int maxDeliveryAttempts, CancellationToken cancellationToken);
-    Task DeleteSent(DateTime olderThan, CancellationToken cancellationToken);
+    Task<int> DeleteSent(DateTimeOffset olderThan, int batchSize, CancellationToken cancellationToken);
     Task<bool> RenewLock(string instanceId, TimeSpan lockDuration, CancellationToken cancellationToken);
 }
-

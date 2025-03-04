@@ -38,6 +38,9 @@ public static class MessageBusBuilderExtensions
             services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageBusLifecycleInterceptor, OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>>(sp => sp.GetRequiredService<OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>>()));
             services.TryAddSingleton<IOutboxNotificationService>(sp => sp.GetRequiredService<OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>>());
 
+            services.AddSingleton<OutboxCleanUpTask<TOutboxMessage, TOutboxMessageKey>>();
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageBusLifecycleInterceptor, OutboxCleanUpTask<TOutboxMessage, TOutboxMessageKey>>(sp => sp.GetRequiredService<OutboxCleanUpTask<TOutboxMessage, TOutboxMessageKey>>()));
+
             services.TryAddSingleton<IInstanceIdProvider, DefaultInstanceIdProvider>();
             services.TryAddSingleton<IOutboxLockRenewalTimerFactory, OutboxLockRenewalTimerFactory<TOutboxMessage, TOutboxMessageKey>>();
 

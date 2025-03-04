@@ -201,7 +201,13 @@ public class OutboxTests(ITestOutputHelper output) : BaseOutboxIntegrationTest<O
             await context.Database.MigrateAsync();
             await context.Customers.ExecuteDeleteAsync();
 #pragma warning disable EF1002 // Risk of vulnerability to SQL injection.
-            await context.Database.ExecuteSqlRawAsync($"delete from {context.Model.GetDefaultSchema()}.Outbox");
+            await context.Database.ExecuteSqlRawAsync($"""
+                if exists (select 1
+                           from INFORMATION_SCHEMA.TABLES
+                           where TABLE_SCHEMA = '{context.Model.GetDefaultSchema()}'
+                             and TABLE_NAME = 'Outbox')
+                    truncate table {context.Model.GetDefaultSchema()}.Outbox;
+                """);
 #pragma warning restore EF1002 // Risk of vulnerability to SQL injection.
         });
 
