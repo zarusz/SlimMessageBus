@@ -76,6 +76,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper output)
     {
         var subscribers = 2;
         var topic = TopicName();
+        var expectedSubscriptionPrefix = "subscriber";
 
         AddBusConfiguration(mbb =>
         {
@@ -84,14 +85,14 @@ public class ServiceBusMessageBusIt(ITestOutputHelper output)
                 {
                     builder.Consume<PingMessage>(x => x
                         .Topic(topic)
-                        .SubscriptionName($"subscriber-{i}") // ensure subscription exists on the ServiceBus topic
+                        .SubscriptionName($"{expectedSubscriptionPrefix}-{i}") // ensure subscription exists on the ServiceBus topic
                         .WithConsumer<PingConsumer>()
                         .WithConsumer<PingDerivedConsumer, PingDerivedMessage>()
                         .Instances(20));
                 }));
         });
 
-        await BasicPubSub(subscribers, bulkProduce: bulkProduce);
+        await BasicPubSub(subscribers, bulkProduce: bulkProduce, expectedSubscriptionPrefix: expectedSubscriptionPrefix);
     }
 
     [Theory]
@@ -112,7 +113,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper output)
                     .Instances(20));
         });
 
-        await BasicPubSub(1, bulkProduce: bulkProduce);
+        await BasicPubSub(1, bulkProduce: bulkProduce, expectedSubscriptionPrefix: null);
     }
 
     [Fact]
@@ -380,7 +381,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper output)
                     .Instances(20));
         });
 
-        await BasicPubSub(1);
+        await BasicPubSub(1, expectedSubscriptionPrefix: null);
     }
 
     private static string GetMessageId(PingMessage message) => $"ID_{message.Counter}";
@@ -391,7 +392,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper output)
         public IReadOnlyCollection<TestEvent> ConsumedMessages { get; set; }
     }
 
-    private async Task BasicPubSub(int expectedMessageCopies, Action<TestData> additionalAssertion = null, bool bulkProduce = false)
+    private async Task BasicPubSub(int expectedMessageCopies, Action<TestData> additionalAssertion = null, bool bulkProduce = false, string expectedSubscriptionPrefix = null)
     {
         // arrange
         var testMetric = ServiceProvider.GetRequiredService<TestMetric>();
@@ -442,7 +443,11 @@ public class ServiceBusMessageBusIt(ITestOutputHelper output)
         // ... the content should match
         foreach (var producedMessage in producedMessages)
         {
-            var messageCopies = consumedMessages.Snapshot().Count(x => x.Message.Counter == producedMessage.Counter && x.Message.Value == producedMessage.Value && x.MessageId == GetMessageId(x.Message));
+            var messageCopies = consumedMessages.Snapshot()
+                .Count(x => x.Message.Counter == producedMessage.Counter
+                    && x.Message.Value == producedMessage.Value && x.MessageId == GetMessageId(x.Message)
+                    && (expectedSubscriptionPrefix == null || x.SubscriptionName.StartsWith(expectedSubscriptionPrefix, StringComparison.InvariantCulture)));
+
             messageCopies.Should().Be((producedMessage is PingDerivedMessage ? 2 : 1) * expectedMessageCopies);
         }
 
@@ -603,7 +608,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper output)
         => QueueName(testName);
 }
 
-public record TestEvent(PingMessage Message, string MessageId, string SessionId);
+public record TestEvent(PingMessage Message, string MessageId, string SessionId, string SubscriptionName);
 
 public record PingMessage
 {
@@ -635,8 +640,9 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
     public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
     {
         var sbMessage = Context.GetTransportMessage();
+        var subscriptionName = Context.GetSubscriptionName();
 
-        _messages.Add(new(message, sbMessage.MessageId, sbMessage.SessionId));
+        _messages.Add(new(message, sbMessage.MessageId, sbMessage.SessionId, subscriptionName));
 
         _logger.LogInformation("Got message {Counter:000} on path {Path}.", message.Counter, Context.Path);
         return Task.CompletedTask;
@@ -659,19 +665,16 @@ public class PingDerivedConsumer : IConsumer<PingDerivedMessage>, IConsumerWithC
 
     public IConsumerContext Context { get; set; }
 
-    #region Implementation of IConsumer<in PingMessage>
-
     public Task OnHandle(PingDerivedMessage message, CancellationToken cancellationToken)
     {
         var sbMessage = Context.GetTransportMessage();
+        var subscriptionName = Context.GetSubscriptionName();
 
-        _messages.Add(new(message, sbMessage.MessageId, sbMessage.SessionId));
+        _messages.Add(new(message, sbMessage.MessageId, sbMessage.SessionId, subscriptionName));
 
         _logger.LogInformation("Got message {Counter:000} on path {Path}.", message.Counter, Context.Path);
         return Task.CompletedTask;
     }
-
-    #endregion
 }
 
 public class CustomPingConsumer
@@ -691,8 +694,9 @@ public class CustomPingConsumer
         cancellationToken.ThrowIfCancellationRequested();
 
         var sbMessage = context.GetTransportMessage();
+        var subscriptionName = context.GetSubscriptionName();
 
-        _messages.Add(new(message, sbMessage.MessageId, sbMessage.SessionId));
+        _messages.Add(new(message, sbMessage.MessageId, sbMessage.SessionId, subscriptionName));
 
         _logger.LogInformation("Got message {Counter:000} on path {Path}.", message.Counter, context.Path);
         return Task.CompletedTask;
@@ -703,8 +707,9 @@ public class CustomPingConsumer
         cancellationToken.ThrowIfCancellationRequested();
 
         var sbMessage = context.GetTransportMessage();
+        var subscriptionName = context.GetSubscriptionName();
 
-        _messages.Add(new(message, sbMessage.MessageId, sbMessage.SessionId));
+        _messages.Add(new(message, sbMessage.MessageId, sbMessage.SessionId, subscriptionName));
 
         _logger.LogInformation("Got message {Counter:000} on path {Path}.", message.Counter, context.Path);
         return Task.CompletedTask;
