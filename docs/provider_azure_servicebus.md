@@ -21,7 +21,6 @@ Please read the [Introduction](intro.md) before reading this provider documentat
   - [Validation of Topology](#validation-of-topology)
   - [Trigger Topology Provisioning](#trigger-topology-provisioning)
 
-
 ## Configuration
 
 Azure Service Bus provider requires a connection string:
@@ -186,6 +185,7 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
    {
       // Azure SB transport specific extension:
       var transportMessage = Context.GetTransportMessage(); // Of type Azure.Messaging.ServiceBus.ServiceBusReceivedMessage
+      var subscriptionName = Context.GetSubscriptionName(); // For topic/subscription consumers this will be the subscription name
    }
 }
 ```
@@ -241,7 +241,6 @@ public sealed class SampleConsumerErrorHandler<T> : ServiceBusConsumerErrorHandl
 ```
 
 > By using `IConsumerContext.Properties` (`IConsumerWithContext`) to pass state to the `IConsumerErrorHandler<T>` instance, consumer state can be persisted with the message. This can then be retrieved from `IConsumerContext.Headers` in a subsequent execution to resume processing from a checkpoint, supporting idempotency, especially when distributed transactions are not possible.
-
 
 ### Transport Specific Settings
 
@@ -385,7 +384,7 @@ When there is a need to get ahold of the `SessionId` for the message processed, 
 > Since 1.19.0
 
 ASB transport provider can automatically create the required ASB queue/topic/subscription/rule that have been declared as part of the SMB configuration.
-The provisioning happens as soon as the SMB instance is created and prior to consumers starting to process messages. The creation happens only when a particular topic/queue/subscription/rule does not exist, and will not be modified if it already exists. 
+The provisioning happens as soon as the SMB instance is created and prior to consumers starting to process messages. The creation happens only when a particular topic/queue/subscription/rule does not exist, and will not be modified if it already exists.
 
 SMB supports both [SQL](https://learn.microsoft.com/en-us/azure/service-bus-messaging/topic-filters#sql-filters) and [Correlation](https://learn.microsoft.com/en-us/azure/service-bus-messaging/topic-filters#correlation-filters) filters through the `SubscriptionSqlFilter` and `SubscriptionCorrelationFilter` consumer builders.
 

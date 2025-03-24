@@ -85,12 +85,16 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
             AddConsumer(consumer);
         }
 
-        static void InitConsumerContext(ServiceBusReceivedMessage m, ConsumerContext ctx) => ctx.SetTransportMessage(m);
-
         foreach (var ((path, subscriptionName), consumerSettings) in Settings.Consumers
                 .GroupBy(x => (x.Path, SubscriptionName: x.GetSubscriptionName(ProviderSettings)))
                 .ToDictionary(x => x.Key, x => x.ToList()))
         {
+            void InitConsumerContext(ServiceBusReceivedMessage m, ConsumerContext ctx)
+            {
+                ctx.SetTransportMessage(m);
+                ctx.SetSubscriptionName(subscriptionName);
+            }
+
             var messageSerializer = SerializerProvider.GetSerializer(path);
             object MessageProvider(Type messageType, ServiceBusReceivedMessage m) => messageSerializer.Deserialize(messageType, m.Body.ToArray());
 
