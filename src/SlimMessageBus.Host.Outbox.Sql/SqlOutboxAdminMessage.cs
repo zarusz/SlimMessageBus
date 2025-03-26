@@ -1,6 +1,14 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Sql;
 
-public class SqlOutboxMessage : OutboxMessage<Guid>;
+public class SqlOutboxMessage : OutboxMessage
+{
+    public Guid Id { get; set; }
+
+    public override string ToString()
+    {
+        return Id.ToString();
+    }
+}
 
 public class SqlOutboxAdminMessage : SqlOutboxMessage
 {

@@ -1,13 +1,10 @@
 ﻿namespace SlimMessageBus.Host.Outbox;
 
-public class OutboxMessage<TOutboxMessageKey> : IHasId<TOutboxMessageKey>
+public class OutboxMessage
 {
-    public TOutboxMessageKey Id { get; set; }
     public string BusName { get; set; }
     public string MessageType { get; set; }
     public byte[] MessagePayload { get; set; }
     public string Path { get; set; }
     public IDictionary<string, object> Headers { get; set; }
-
-    object IHasId.Id => Id;
 }
