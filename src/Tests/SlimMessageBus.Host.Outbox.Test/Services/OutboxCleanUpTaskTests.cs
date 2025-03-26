@@ -6,28 +6,28 @@ public class OutboxCleanUpTaskTests
     {
         private readonly OutboxSettings _outboxSettings;
         private readonly Mock<IHostApplicationLifetime> _hostApplicationLifetimeMock;
-        private readonly Mock<IOutboxMessageRepository<OutboxMessage<int>, int>> _outboxMessageRepositoryMock;
+        private readonly Mock<IOutboxMessageRepository<OutboxMessage>> _outboxMessageRepositoryMock;
 
         private readonly FakeTimeProvider _timeProvider;
         private readonly ServiceProvider _serviceProvider;
 
-        private readonly OutboxCleanUpTaskAccessor<OutboxMessage<int>, int> _outboxCleanUpTaskAccessor;
+        private readonly OutboxCleanUpTaskAccessor<OutboxMessage> _outboxCleanUpTaskAccessor;
 
         public CleanUpLoopTests()
         {
-            var logger = NullLoggerFactory.Instance.CreateLogger<OutboxCleanUpTask<OutboxMessage<int>, int>>();
+            var logger = NullLoggerFactory.Instance.CreateLogger<OutboxCleanUpTask<OutboxMessage>>();
 
             _hostApplicationLifetimeMock = new Mock<IHostApplicationLifetime>();
-            _outboxMessageRepositoryMock = new Mock<IOutboxMessageRepository<OutboxMessage<int>, int>>();
+            _outboxMessageRepositoryMock = new Mock<IOutboxMessageRepository<OutboxMessage>>();
 
             var services = new ServiceCollection();
-            services.AddSingleton<IOutboxMessageRepository<OutboxMessage<int>, int>>(_outboxMessageRepositoryMock.Object);
+            services.AddSingleton<IOutboxMessageRepository<OutboxMessage>>(_outboxMessageRepositoryMock.Object);
             _serviceProvider = services.BuildServiceProvider();
 
             _outboxSettings = new OutboxSettings();
             _timeProvider = new FakeTimeProvider();
 
-            _outboxCleanUpTaskAccessor = new OutboxCleanUpTaskAccessor<OutboxMessage<int>, int>(
+            _outboxCleanUpTaskAccessor = new OutboxCleanUpTaskAccessor<OutboxMessage>(
                 logger,
                 _outboxSettings,
                 _timeProvider,
@@ -116,13 +116,13 @@ public class OutboxCleanUpTaskTests
             _outboxCleanUpTaskAccessor.SleepCount.Should().Be(2);
         }
 
-        public class OutboxCleanUpTaskAccessor<TOutboxMessage, TOutboxMessageKey>(
-            ILogger<OutboxCleanUpTask<TOutboxMessage, TOutboxMessageKey>> logger,
+        public class OutboxCleanUpTaskAccessor<TOutboxMessage>(
+            ILogger<OutboxCleanUpTask<TOutboxMessage>> logger,
             OutboxSettings outboxSettings,
             TimeProvider timeProvider,
             IHostApplicationLifetime hostApplicationLifetime,
-            IServiceProvider serviceProvider) : OutboxCleanUpTask<TOutboxMessage, TOutboxMessageKey>(logger, outboxSettings, timeProvider, hostApplicationLifetime, serviceProvider)
-            where TOutboxMessage : OutboxMessage<TOutboxMessageKey>
+            IServiceProvider serviceProvider) : OutboxCleanUpTask<TOutboxMessage>(logger, outboxSettings, timeProvider, hostApplicationLifetime, serviceProvider)
+            where TOutboxMessage : OutboxMessage
         {
             private int _sleepCount;
             private Action<int> _onSleep;

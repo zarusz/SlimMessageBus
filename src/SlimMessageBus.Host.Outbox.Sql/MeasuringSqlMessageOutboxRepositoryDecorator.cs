@@ -36,17 +36,17 @@ public class MeasuringSqlMessageOutboxRepositoryDecorator(
     private void LogTime(string name, Stopwatch sw)
         => logger.LogInformation("Method {MethodName} took {Elapsed}", name, sw.Elapsed);
 
-    public Task AbortDelivery(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
-        => MeasureMethod(nameof(AbortDelivery), () => target.AbortDelivery(ids, cancellationToken));
+    public Task AbortDelivery(IReadOnlyCollection<SqlOutboxMessage> messages, CancellationToken cancellationToken)
+        => MeasureMethod(nameof(AbortDelivery), () => target.AbortDelivery(messages, cancellationToken));
 
-    public Task<IHasId> Create(string busName, IDictionary<string, object> headers, string path, string messageType, byte[] messagePayload, CancellationToken cancellationToken)
+    public Task<OutboxMessage> Create(string busName, IDictionary<string, object> headers, string path, string messageType, byte[] messagePayload, CancellationToken cancellationToken)
         => MeasureMethod(nameof(Create), () => target.Create(busName, headers, path, messageType, messagePayload, cancellationToken));
 
     public Task<int> DeleteSent(DateTimeOffset olderThan, int batchSize, CancellationToken cancellationToken)
         => MeasureMethod(nameof(DeleteSent), () => target.DeleteSent(olderThan, batchSize, cancellationToken));
 
-    public Task IncrementDeliveryAttempt(IReadOnlyCollection<Guid> ids, int maxDeliveryAttempts, CancellationToken cancellationToken)
-        => MeasureMethod(nameof(IncrementDeliveryAttempt), () => target.IncrementDeliveryAttempt(ids, maxDeliveryAttempts, cancellationToken));
+    public Task IncrementDeliveryAttempt(IReadOnlyCollection<SqlOutboxMessage> messages, int maxDeliveryAttempts, CancellationToken cancellationToken)
+        => MeasureMethod(nameof(IncrementDeliveryAttempt), () => target.IncrementDeliveryAttempt(messages, maxDeliveryAttempts, cancellationToken));
 
     public Task<IReadOnlyCollection<SqlOutboxMessage>> LockAndSelect(string instanceId, int batchSize, bool tableLock, TimeSpan lockDuration, CancellationToken cancellationToken)
         => MeasureMethod(nameof(LockAndSelect), () => target.LockAndSelect(instanceId, batchSize, tableLock, lockDuration, cancellationToken));
@@ -54,6 +54,6 @@ public class MeasuringSqlMessageOutboxRepositoryDecorator(
     public Task<bool> RenewLock(string instanceId, TimeSpan lockDuration, CancellationToken cancellationToken)
         => MeasureMethod(nameof(RenewLock), () => target.RenewLock(instanceId, lockDuration, cancellationToken));
 
-    public Task UpdateToSent(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
-        => MeasureMethod(nameof(UpdateToSent), () => target.UpdateToSent(ids, cancellationToken));
+    public Task UpdateToSent(IReadOnlyCollection<SqlOutboxMessage> messages, CancellationToken cancellationToken)
+        => MeasureMethod(nameof(UpdateToSent), () => target.UpdateToSent(messages, cancellationToken));
 }

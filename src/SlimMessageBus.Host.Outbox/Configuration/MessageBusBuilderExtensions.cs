@@ -4,8 +4,8 @@ using SlimMessageBus.Host.Outbox.Services;
 
 public static class MessageBusBuilderExtensions
 {
-    public static MessageBusBuilder AddOutbox<TOutboxMessage, TOutboxMessageKey>(this MessageBusBuilder mbb, Action<OutboxSettings> configure = null)
-        where TOutboxMessage : OutboxMessage<TOutboxMessageKey>
+    public static MessageBusBuilder AddOutbox<TOutboxMessage>(this MessageBusBuilder mbb, Action<OutboxSettings> configure = null)
+        where TOutboxMessage : OutboxMessage
     {
         mbb.PostConfigurationActions.Add(services =>
         {
@@ -34,15 +34,15 @@ public static class MessageBusBuilderExtensions
                 services.TryAddEnumerable(ServiceDescriptor.Transient(serviceType, implementationType));
             }
 
-            services.AddSingleton<OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>>();
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageBusLifecycleInterceptor, OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>>(sp => sp.GetRequiredService<OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>>()));
-            services.TryAddSingleton<IOutboxNotificationService>(sp => sp.GetRequiredService<OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>>());
+            services.AddSingleton<OutboxSendingTask<TOutboxMessage>>();
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageBusLifecycleInterceptor, OutboxSendingTask<TOutboxMessage>>(sp => sp.GetRequiredService<OutboxSendingTask<TOutboxMessage>>()));
+            services.TryAddSingleton<IOutboxNotificationService>(sp => sp.GetRequiredService<OutboxSendingTask<TOutboxMessage>>());
 
-            services.AddSingleton<OutboxCleanUpTask<TOutboxMessage, TOutboxMessageKey>>();
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageBusLifecycleInterceptor, OutboxCleanUpTask<TOutboxMessage, TOutboxMessageKey>>(sp => sp.GetRequiredService<OutboxCleanUpTask<TOutboxMessage, TOutboxMessageKey>>()));
+            services.AddSingleton<OutboxCleanUpTask<TOutboxMessage>>();
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageBusLifecycleInterceptor, OutboxCleanUpTask<TOutboxMessage>>(sp => sp.GetRequiredService<OutboxCleanUpTask<TOutboxMessage>>()));
 
             services.TryAddSingleton<IInstanceIdProvider, DefaultInstanceIdProvider>();
-            services.TryAddSingleton<IOutboxLockRenewalTimerFactory, OutboxLockRenewalTimerFactory<TOutboxMessage, TOutboxMessageKey>>();
+            services.TryAddSingleton<IOutboxLockRenewalTimerFactory, OutboxLockRenewalTimerFactory<TOutboxMessage>>();
 
             services.TryAddSingleton(svp =>
             {

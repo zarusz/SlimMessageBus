@@ -1,10 +1,10 @@
 ﻿#nullable enable
 namespace SlimMessageBus.Host.Outbox.Services;
 
-public class OutboxCleanUpTask<TOutboxMessage, TOutboxMessageKey> : IMessageBusLifecycleInterceptor, IAsyncDisposable
-    where TOutboxMessage : OutboxMessage<TOutboxMessageKey>
+public class OutboxCleanUpTask<TOutboxMessage> : IMessageBusLifecycleInterceptor, IAsyncDisposable
+    where TOutboxMessage : OutboxMessage
 {
-    private readonly ILogger<OutboxCleanUpTask<TOutboxMessage, TOutboxMessageKey>> _logger;
+    private readonly ILogger<OutboxCleanUpTask<TOutboxMessage>> _logger;
     private readonly OutboxSettings _outboxSettings;
     private readonly TimeProvider _timeProvider;
     private readonly IHostApplicationLifetime _hostApplicationLifetime;
@@ -16,7 +16,7 @@ public class OutboxCleanUpTask<TOutboxMessage, TOutboxMessageKey> : IMessageBusL
     private int _busStartCount;
 
     public OutboxCleanUpTask(
-        ILogger<OutboxCleanUpTask<TOutboxMessage, TOutboxMessageKey>> logger,
+        ILogger<OutboxCleanUpTask<TOutboxMessage>> logger,
         OutboxSettings outboxSettings,
         TimeProvider currentTimeProvider,
         IHostApplicationLifetime hostApplicationLifetime,
@@ -73,7 +73,7 @@ public class OutboxCleanUpTask<TOutboxMessage, TOutboxMessageKey> : IMessageBusL
             var scope = _serviceProvider.CreateScope();
             try
             {
-                var outboxRepository = scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository<TOutboxMessage, TOutboxMessageKey>>();
+                var outboxRepository = scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository<TOutboxMessage>>();
                 var timestamp = _timeProvider.GetUtcNow().Add(-_outboxSettings.MessageCleanup.Age);
                 while (!cancellationToken.IsCancellationRequested)
                 {

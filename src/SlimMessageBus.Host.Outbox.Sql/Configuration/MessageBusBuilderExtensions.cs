@@ -43,7 +43,7 @@ public static class MessageBusBuilderExtensions
             });
 
             services.TryAddScoped<IOutboxMessageFactory>(svp => svp.GetRequiredService<TOutboxRepository>());
-            services.TryAddScoped<IOutboxMessageRepository<SqlOutboxMessage, Guid>>(svp => svp.GetRequiredService<ISqlMessageOutboxRepository>());
+            services.TryAddScoped<IOutboxMessageRepository<SqlOutboxMessage>>(svp => svp.GetRequiredService<ISqlMessageOutboxRepository>());
 
             services.TryAddSingleton<SqlOutboxTemplate>();
             services.TryAddTransient<IOutboxMigrationService>(svp => new SqlOutboxMigrationService(
@@ -52,7 +52,7 @@ public static class MessageBusBuilderExtensions
                 svp.GetRequiredService<ISqlTransactionService>(),
                 svp.GetRequiredService<SqlOutboxSettings>()));
         });
-        return mbb.AddOutbox<SqlOutboxMessage, Guid>();
+        return mbb.AddOutbox<SqlOutboxMessage>();
     }
 
     public static MessageBusBuilder AddOutboxUsingSql(this MessageBusBuilder mbb, Action<SqlOutboxSettings> configure)

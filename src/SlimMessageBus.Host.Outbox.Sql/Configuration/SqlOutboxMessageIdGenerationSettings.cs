@@ -7,7 +7,7 @@ public class SqlOutboxMessageIdGenerationSettings
     /// </summary>
     public SqlOutboxMessageIdGenerationMode Mode { get; set; } = SqlOutboxMessageIdGenerationMode.ClientGuidGenerator;
     /// <summary>
-    /// The type to resolve from MSDI that implementes the <see cref="IGuidGenerator"/>.
+    /// The type to resolve from MSDI that implements the <see cref="IGuidGenerator"/>.
     /// Default is <see cref="IGuidGenerator"/>.
     /// Guid generator is used to generate unique identifiers for the outbox messages.
     /// </summary>
@@ -19,4 +19,3 @@ public class SqlOutboxMessageIdGenerationSettings
     /// </summary>
     public IGuidGenerator GuidGenerator { get; set; } = null;
 }
-

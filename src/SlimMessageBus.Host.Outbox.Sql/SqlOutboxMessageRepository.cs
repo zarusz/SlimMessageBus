@@ -3,7 +3,7 @@
 using System;
 
 /// <summary>
-/// The MS SQL implementation of the <see cref="IOutboxMessageRepository{TOutboxMessage, TOutboxMessageKey}"/>
+/// The MS SQL implementation of the <see cref="IOutboxMessageRepository{TOutboxMessage}"/>
 /// </summary>
 public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutboxRepository
 {
@@ -44,7 +44,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
         Settings = settings;
     }
 
-    public virtual async Task<IHasId> Create(string busName, IDictionary<string, object> headers, string path, string messageType, byte[] messagePayload, CancellationToken cancellationToken)
+    public virtual async Task<OutboxMessage> Create(string busName, IDictionary<string, object> headers, string path, string messageType, byte[] messagePayload, CancellationToken cancellationToken)
     {
         var om = new SqlOutboxAdminMessage
         {
@@ -138,9 +138,9 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
         return items;
     }
 
-    public async Task AbortDelivery(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
+    public async Task AbortDelivery(IReadOnlyCollection<SqlOutboxMessage> messages, CancellationToken cancellationToken)
     {
-        if (ids.Count == 0)
+        if (messages.Count == 0)
         {
             return;
         }
@@ -149,21 +149,18 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
 
         var affected = await ExecuteNonQuery(Settings.SqlSettings.OperationRetry,
             _sqlTemplate.SqlOutboxMessageAbortDelivery,
-            cmd =>
-            {
-                cmd.Parameters.AddWithValue("@Ids", ToIdsString(ids));
-            },
+            cmd => cmd.Parameters.AddWithValue("@Ids", ToIdsString(messages)),
             token: cancellationToken);
 
-        if (affected != ids.Count)
+        if (affected != messages.Count)
         {
-            throw new MessageBusException($"The number of affected rows was {affected}, but {ids.Count} was expected");
+            throw new MessageBusException($"The number of affected rows was {affected}, but {messages.Count} was expected");
         }
     }
 
-    public async Task UpdateToSent(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
+    public async Task UpdateToSent(IReadOnlyCollection<SqlOutboxMessage> messages, CancellationToken cancellationToken)
     {
-        if (ids.Count == 0)
+        if (messages.Count == 0)
         {
             return;
         }
@@ -172,23 +169,20 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
 
         var affected = await ExecuteNonQuery(Settings.SqlSettings.OperationRetry,
             _sqlTemplate.SqlOutboxMessageUpdateSent,
-            cmd =>
-            {
-                cmd.Parameters.AddWithValue("@Ids", ToIdsString(ids));
-            },
+            cmd => cmd.Parameters.AddWithValue("@Ids", ToIdsString(messages)),
             token: cancellationToken);
 
-        if (affected != ids.Count)
+        if (affected != messages.Count)
         {
-            throw new MessageBusException($"The number of affected rows was {affected}, but {ids.Count} was expected");
+            throw new MessageBusException($"The number of affected rows was {affected}, but {messages.Count} was expected");
         }
     }
 
-    private string ToIdsString(IReadOnlyCollection<Guid> ids) => string.Join(_sqlTemplate.InIdsSeparator, ids);
+    private string ToIdsString(IReadOnlyCollection<SqlOutboxMessage> messages) => string.Join(_sqlTemplate.InIdsSeparator, messages.Select(x => x.Id));
 
-    public async Task IncrementDeliveryAttempt(IReadOnlyCollection<Guid> ids, int maxDeliveryAttempts, CancellationToken cancellationToken)
+    public async Task IncrementDeliveryAttempt(IReadOnlyCollection<SqlOutboxMessage> messages, int maxDeliveryAttempts, CancellationToken cancellationToken)
     {
-        if (ids.Count == 0)
+        if (messages.Count == 0)
         {
             return;
         }
@@ -204,14 +198,14 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
             _sqlTemplate.SqlOutboxMessageIncrementDeliveryAttempt,
             cmd =>
             {
-                cmd.Parameters.AddWithValue("@Ids", ToIdsString(ids));
+                cmd.Parameters.AddWithValue("@Ids", ToIdsString(messages));
                 cmd.Parameters.AddWithValue("@MaxDeliveryAttempts", maxDeliveryAttempts);
             },
             token: cancellationToken);
 
-        if (affected != ids.Count)
+        if (affected != messages.Count)
         {
-            throw new MessageBusException($"The number of affected rows was {affected}, but {ids.Count} was expected");
+            throw new MessageBusException($"The number of affected rows was {affected}, but {messages.Count} was expected");
         }
     }
 

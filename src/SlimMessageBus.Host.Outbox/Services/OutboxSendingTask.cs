@@ -1,13 +1,13 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Services;
 
-internal class OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>(
+internal class OutboxSendingTask<TOutboxMessage>(
     ILoggerFactory loggerFactory,
     OutboxSettings outboxSettings,
     IServiceProvider serviceProvider)
     : IMessageBusLifecycleInterceptor, IOutboxNotificationService, IAsyncDisposable
-    where TOutboxMessage : OutboxMessage<TOutboxMessageKey>
+    where TOutboxMessage : OutboxMessage
 {
-    private readonly ILogger<OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>> _logger = loggerFactory.CreateLogger<OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>>();
+    private readonly ILogger<OutboxSendingTask<TOutboxMessage>> _logger = loggerFactory.CreateLogger<OutboxSendingTask<TOutboxMessage>>();
     private readonly OutboxSettings _outboxSettings = outboxSettings;
     private readonly IServiceProvider _serviceProvider = serviceProvider;
 
@@ -147,7 +147,7 @@ internal class OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>(
             try
             {
                 await EnsureMigrateSchema(scope.ServiceProvider, _loopCts.Token);
-                var outboxRepository = scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository<TOutboxMessage, TOutboxMessageKey>>();
+                var outboxRepository = scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository<TOutboxMessage>>();
                 do
                 {
                     if (_loopCts.Token.IsCancellationRequested)
@@ -189,7 +189,7 @@ internal class OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>(
         }
     }
 
-    async internal Task<int> SendMessages(IServiceProvider serviceProvider, IOutboxMessageRepository<TOutboxMessage, TOutboxMessageKey> outboxRepository, CancellationToken cancellationToken)
+    async internal Task<int> SendMessages(IServiceProvider serviceProvider, IOutboxMessageRepository<TOutboxMessage> outboxRepository, CancellationToken cancellationToken)
     {
         var lockDuration = TimeSpan.FromSeconds(Math.Min(Math.Max(_outboxSettings.LockExpiration.TotalSeconds, 5), 30));
         if (lockDuration != _outboxSettings.LockExpiration)
@@ -233,14 +233,14 @@ internal class OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>(
         return count;
     }
 
-    async internal Task<(bool RunAgain, int Count)> ProcessMessages(IOutboxMessageRepository<TOutboxMessage, TOutboxMessageKey> outboxRepository, IReadOnlyCollection<TOutboxMessage> outboxMessages, ICompositeMessageBus compositeMessageBus, IMessageBusTarget messageBusTarget, CancellationToken cancellationToken)
+    async internal Task<(bool RunAgain, int Count)> ProcessMessages(IOutboxMessageRepository<TOutboxMessage> outboxRepository, IReadOnlyCollection<TOutboxMessage> outboxMessages, ICompositeMessageBus compositeMessageBus, IMessageBusTarget messageBusTarget, CancellationToken cancellationToken)
     {
         const int defaultBatchSize = 50;
 
         var runAgain = outboxMessages.Count == _outboxSettings.PollBatchSize;
         var count = 0;
 
-        var abortedIds = new List<TOutboxMessageKey>(_outboxSettings.PollBatchSize);
+        var aborted = new List<TOutboxMessage>(_outboxSettings.PollBatchSize);
         foreach (var busGroup in outboxMessages.GroupBy(x => x.BusName))
         {
             var busName = busGroup.Key;
@@ -251,14 +251,14 @@ internal class OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>(
                 {
                     if (bus == null)
                     {
-                        _logger.LogWarning("Not able to find matching bus provider for the outbox message with Id {MessageId} of type {MessageType} to path {Path} using {BusName} bus. The message will be skipped.", outboxMessage.Id, outboxMessage.MessageType, outboxMessage.Path, outboxMessage.BusName);
+                        _logger.LogWarning("Not able to find matching bus provider for the outbox message with Id {MessageId} of type {MessageType} to path {Path} using {BusName} bus. The message will be skipped.", outboxMessage, outboxMessage.MessageType, outboxMessage.Path, outboxMessage.BusName);
                     }
                     else
                     {
-                        _logger.LogWarning("Bus provider for the outbox message with Id {MessageId} of type {MessageType} to path {Path} using {BusName} bus does not support bulk processing. The message will be skipped.", outboxMessage.Id, outboxMessage.MessageType, outboxMessage.Path, outboxMessage.BusName);
+                        _logger.LogWarning("Bus provider for the outbox message with Id {MessageId} of type {MessageType} to path {Path} using {BusName} bus does not support bulk processing. The message will be skipped.", outboxMessage, outboxMessage.MessageType, outboxMessage.Path, outboxMessage.BusName);
                     }
 
-                    abortedIds.Add(outboxMessage.Id);
+                    aborted.Add(outboxMessage);
                 }
                 continue;
             }
@@ -278,35 +278,35 @@ internal class OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>(
                         var messageType = _outboxSettings.MessageTypeResolver.ToType(outboxMessage.MessageType);
                         if (messageType == null)
                         {
-                            abortedIds.Add(outboxMessage.Id);
-                            _logger.LogError("Outbox message with Id {Id} - the MessageType {MessageType} is not recognized. The type might have been renamed or moved namespaces.", outboxMessage.Id, outboxMessage.MessageType);
+                            aborted.Add(outboxMessage);
+                            _logger.LogError("Outbox message with Id {Id} - the MessageType {MessageType} is not recognised. The type might have been renamed or moved namespaces.", outboxMessage, outboxMessage.MessageType);
                             return null;
                         }
 
                         var message = messageSerializer.Deserialize(messageType, outboxMessage.MessagePayload);
-                        return new OutboxBulkMessage(outboxMessage.Id, message, messageType, outboxMessage.Headers ?? new Dictionary<string, object>());
+                        return new OutboxBulkMessage(outboxMessage, message, messageType, outboxMessage.Headers ?? new Dictionary<string, object>());
                     })
                     .Where(x => x != null)
                     .Batch(bulkProducer.MaxMessagesPerTransaction ?? defaultBatchSize);
 
                 foreach (var batch in batches)
                 {
-                    var result = await DispatchBatch(outboxRepository, bulkProducer, messageBusTarget, batch, busName, path, cancellationToken);
-                    runAgain |= !result.Success;
-                    count += result.Published;
+                    var (success, published) = await DispatchBatch(outboxRepository, bulkProducer, messageBusTarget, batch, busName, path, cancellationToken);
+                    runAgain |= !success;
+                    count += published;
                 }
             }
         }
 
-        if (abortedIds.Count > 0)
+        if (aborted.Count > 0)
         {
-            await outboxRepository.AbortDelivery(abortedIds, cancellationToken);
+            await outboxRepository.AbortDelivery(aborted, cancellationToken);
         }
 
         return (runAgain, count);
     }
 
-    async internal Task<(bool Success, int Published)> DispatchBatch(IOutboxMessageRepository<TOutboxMessage, TOutboxMessageKey> outboxRepository, ITransportBulkProducer producer, IMessageBusTarget messageBusTarget, IReadOnlyCollection<OutboxBulkMessage> batch, string busName, string path, CancellationToken cancellationToken)
+    async internal Task<(bool Success, int Published)> DispatchBatch(IOutboxMessageRepository<TOutboxMessage> outboxRepository, ITransportBulkProducer producer, IMessageBusTarget messageBusTarget, IReadOnlyCollection<OutboxBulkMessage> batch, string busName, string path, CancellationToken cancellationToken)
     {
         _logger.LogDebug("Publishing batch of {MessageCount} messages to pathGroup {Path} on {BusName} bus", batch.Count, path, busName);
 
@@ -318,19 +318,19 @@ internal class OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>(
             return (false, 0);
         }
 
-        var updatedIds = results.Dispatched.Select(x => x.Id).ToHashSet();
-        await outboxRepository.UpdateToSent(updatedIds, CancellationToken.None).ConfigureAwait(false);
+        var updated = results.Dispatched.Select(x => x.OutboxMessage).ToHashSet();
+        await outboxRepository.UpdateToSent(updated, CancellationToken.None).ConfigureAwait(false);
 
-        if (updatedIds.Count != batch.Count)
+        if (updated.Count != batch.Count)
         {
-            var failedIds = batch.Where(x => !updatedIds.Contains(x.Id!)).Select(x => x.Id).ToHashSet();
-            await outboxRepository.IncrementDeliveryAttempt(failedIds, _outboxSettings.MaxDeliveryAttempts, CancellationToken.None).ConfigureAwait(false);
+            var failed = batch.Where(x => !updated.Contains(x.OutboxMessage!)).Select(x => x.OutboxMessage).ToHashSet();
+            await outboxRepository.IncrementDeliveryAttempt(failed, _outboxSettings.MaxDeliveryAttempts, CancellationToken.None).ConfigureAwait(false);
 
-            _logger.LogDebug("Failed to publish {MessageCount} messages in a batch of {BatchSize} to pathGroup {Path} on {BusName} bus", failedIds.Count, batch.Count, path, busName);
-            return (false, updatedIds.Count);
+            _logger.LogDebug("Failed to publish {MessageCount} messages in a batch of {BatchSize} to pathGroup {Path} on {BusName} bus", failed.Count, batch.Count, path, busName);
+            return (false, updated.Count);
         }
 
-        return (true, updatedIds.Count);
+        return (true, updated.Count);
     }
 
     private static IMasterMessageBus GetBus(ICompositeMessageBus compositeMessageBus, IMessageBusTarget messageBusTarget, string name)
@@ -352,12 +352,12 @@ internal class OutboxSendingTask<TOutboxMessage, TOutboxMessageKey>(
 
     public record OutboxBulkMessage : BulkMessageEnvelope
     {
-        public TOutboxMessageKey Id { get; }
-
-        public OutboxBulkMessage(TOutboxMessageKey id, object message, Type messageType, IDictionary<string, object> headers)
+        public OutboxBulkMessage(TOutboxMessage outboxMessage, object message, Type messageType, IDictionary<string, object> headers)
             : base(message, messageType, headers)
         {
-            Id = id;
+            OutboxMessage = outboxMessage;
         }
+
+        public TOutboxMessage OutboxMessage { get; }
     }
 }

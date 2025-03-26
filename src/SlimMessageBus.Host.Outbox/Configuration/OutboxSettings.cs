@@ -41,4 +41,3 @@ public class OutboxSettings
     /// </summary>
     public IMessageTypeResolver MessageTypeResolver { get; set; } = new AssemblyQualifiedNameMessageTypeResolver();
 }
-

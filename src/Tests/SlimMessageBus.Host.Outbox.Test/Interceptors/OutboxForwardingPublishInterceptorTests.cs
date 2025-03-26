@@ -14,7 +14,7 @@ public static class OutboxForwardingPublishInterceptorTests
             var expected = int.MaxValue;
 
             var mockLogger = new Mock<ILogger<OutboxForwardingPublishInterceptor>>();
-            var mockOutboxRepository = new Mock<IOutboxMessageRepository<OutboxMessage<Guid>, Guid>>();
+            var mockOutboxRepository = new Mock<IOutboxMessageRepository<OutboxMessage>>();
             var mockOutboxNotificationService = new Mock<IOutboxNotificationService>();
             var mockOutboxSettings = new Mock<OutboxSettings>();
             var mockOutboxMessageFactory = new Mock<IOutboxMessageFactory>();
@@ -41,7 +41,7 @@ public static class OutboxForwardingPublishInterceptorTests
     public class OnHandleTests
     {
         private readonly Mock<ILogger<OutboxForwardingPublishInterceptor>> _mockLogger;
-        private readonly Mock<IOutboxMessageRepository<OutboxMessage<Guid>, Guid>> _mockOutboxRepository;
+        private readonly Mock<IOutboxMessageRepository<OutboxMessage>> _mockOutboxRepository;
         private readonly Mock<IOutboxMessageFactory> _mockOutboxFactory;
         private readonly Mock<IMessageSerializer> _mockSerializer;
         private readonly Mock<IMessageSerializerProvider> _mockSerializerProvider;
@@ -55,7 +55,7 @@ public static class OutboxForwardingPublishInterceptorTests
         public OnHandleTests()
         {
             _mockLogger = new Mock<ILogger<OutboxForwardingPublishInterceptor>>();
-            _mockOutboxRepository = new Mock<IOutboxMessageRepository<OutboxMessage<Guid>, Guid>>();
+            _mockOutboxRepository = new Mock<IOutboxMessageRepository<OutboxMessage>>();
             _mockOutboxFactory = new Mock<IOutboxMessageFactory>();
             _mockOutboxNotificationService = new Mock<IOutboxNotificationService>();
             _mockOutboxSettings = new Mock<OutboxSettings>();
@@ -77,7 +77,7 @@ public static class OutboxForwardingPublishInterceptorTests
             _mockOutboxMessageFactory = new Mock<IOutboxMessageFactory>();
             _mockOutboxMessageFactory
                 .Setup(x => x.Create(It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new OutboxMessage<Guid> { Id = Guid.NewGuid() });
+                .ReturnsAsync(new OutboxMessage());
         }
 
         [Fact]

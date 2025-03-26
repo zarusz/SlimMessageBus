@@ -155,10 +155,10 @@ public class OutboxBenchmarkTests(ITestOutputHelper output) : BaseOutboxIntegrat
         var events = Enumerable.Range(0, messageCount).Select(x => new CustomerCreatedEvent(Guid.NewGuid(), $"John {x:000}", surnames[x % surnames.Length])).ToList();
         var store = ServiceProvider!.GetRequiredService<TestEventCollector<CustomerCreatedEvent>>();
 
-        OutboxSendingTask<SqlOutboxMessage, Guid> outboxSendingTask = null;
+        OutboxSendingTask<SqlOutboxMessage> outboxSendingTask = null;
         if (_useOutbox)
         {
-            outboxSendingTask = ServiceProvider.GetRequiredService<OutboxSendingTask<SqlOutboxMessage, Guid>>();
+            outboxSendingTask = ServiceProvider.GetRequiredService<OutboxSendingTask<SqlOutboxMessage>>();
 
             // migrate data context
             await outboxSendingTask.OnBusLifecycle(Interceptor.MessageBusLifecycleEventType.Created, null);
@@ -201,7 +201,7 @@ public class OutboxBenchmarkTests(ITestOutputHelper output) : BaseOutboxIntegrat
         var outboxPublishTimerElapsed = TimeSpan.Zero;
         if (_useOutbox)
         {
-            var outputRepository = ServiceProvider.GetRequiredService<IOutboxMessageRepository<SqlOutboxMessage, Guid>>();
+            var outputRepository = ServiceProvider.GetRequiredService<IOutboxMessageRepository<SqlOutboxMessage>>();
 
             var outboxTimer = Stopwatch.StartNew();
             var publishCount = await outboxSendingTask.SendMessages(ServiceProvider, outputRepository, CancellationToken.None);
