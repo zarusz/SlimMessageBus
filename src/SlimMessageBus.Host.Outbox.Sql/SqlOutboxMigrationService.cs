@@ -76,14 +76,11 @@ public class SqlOutboxMigrationService(
             -- SqlOutboxTemplate.SqlOutboxMessageDeleteSent
             CREATE INDEX IX_Outbox_Timestamp_DeliveryComplete_1_DeliveryAborted_0 ON {qualifiedTableName} (Timestamp) WHERE (DeliveryComplete = 1 and DeliveryAborted = 0);
                         
-            BEGIN TRY
-                -- SqlOutboxTemplate.SqlOutboxMessageUpdateSent
-                CREATE TYPE {qualifiedOutboxIdTypeName} AS TABLE (Id uniqueidentifier);
-            END TRY
-            BEGIN CATCH
-                -- Ignore when there is lack of permissions to create a custom type.
-                -- In the next migration we will drop the type see: https://github.com/zarusz/SlimMessageBus/issues/297
-            END CATCH;
+            -- Reverted:
+            --   In the next migration we will drop the type see: https://github.com/zarusz/SlimMessageBus/issues/297
+            
+            --   SqlOutboxTemplate.SqlOutboxMessageUpdateSent
+            --   CREATE TYPE {qualifiedOutboxIdTypeName} AS TABLE (Id uniqueidentifier);
             """,
             token);
 
@@ -104,6 +101,24 @@ public class SqlOutboxMigrationService(
 
             -- SqlOutboxTemplate.SqlOutboxMessageDeleteSent
             CREATE INDEX IX_Outbox_LockExpiredOn_LockInstanceId__DeliveryComplete_0_DeliveryAborted_0 ON {qualifiedTableName} (LockExpiresOn, LockInstanceId) WHERE [DeliveryComplete] = 0 and [DeliveryAborted] = 0;
+            """,
+            token);
+
+        await TryApplyMigration("20250405000000_SMB_DistributedMigration",
+            $"""
+            -- Bug fix - Ensure dropped objects are removed
+            -- When deploying a migration in a distributed environment, the type/indexes 
+            -- might not be dropped if schema migration was executed concurrently by multiple processes.
+
+            -- SqlOutboxTemplate.SqlOutboxMessageUpdateSent
+            DROP TYPE IF EXISTS {qualifiedOutboxIdTypeName};
+            
+            -- drop old indexes
+            DROP INDEX IF EXISTS IX_Outbox_InstanceId ON {qualifiedTableName};
+            DROP INDEX IF EXISTS IX_Outbox_LockExpiresOn ON {qualifiedTableName};
+            DROP INDEX IF EXISTS IX_Outbox_Timestamp_LockInstanceId ON {qualifiedTableName};
+            DROP INDEX IF EXISTS IX_Outbox_LockExpiresOn_LockInstanceId_DeliveryComplete_0_DeliveryAborted_0 ON {qualifiedTableName};
+            DROP INDEX IF EXISTS IX_Outbox_Timestamp_DeliveryComplete_1_DeliveryAborted_0 ON {qualifiedTableName};
             """,
             token);
     }

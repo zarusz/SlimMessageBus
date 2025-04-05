@@ -49,6 +49,33 @@ public abstract class CommonSqlRepository : ISqlConnectionProvider
             return await cmd.ExecuteNonQueryAsync(token);
         }, token);
 
+    public Task<T> ExecuteNonQuery<T>(SqlRetrySettings retrySettings, string sql, Func<SqlCommand, SqlParameter> setParameters = null, CancellationToken token = default) =>
+        SqlHelper.RetryIfTransientError(Logger, retrySettings, async () =>
+        {
+            using var cmd = CreateCommand();
+            cmd.CommandText = sql;
+            var returnParameter = setParameters?.Invoke(cmd);
+
+            if (returnParameter == null)
+            {
+                throw new InvalidOperationException("Return parameter is required");
+            }
+
+            if (returnParameter.Direction != ParameterDirection.ReturnValue)
+            {
+                throw new InvalidOperationException("Return parameter must be of type ReturnValue");
+            }
+
+            if (!cmd.Parameters.Contains(returnParameter))
+            {
+                throw new InvalidOperationException("Parameter collection does not contain return parameter");
+            }
+
+            await cmd.ExecuteNonQueryAsync(token);
+
+            return (T)Convert.ChangeType(returnParameter.Value, typeof(T));
+        }, token);
+
     public Task<object> ExecuteScalarAsync(SqlRetrySettings retrySettings, string sql, Action<SqlCommand> setParameters = null, CancellationToken token = default) =>
         SqlHelper.RetryIfTransientError(Logger, retrySettings, async () =>
         {
