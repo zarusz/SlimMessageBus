@@ -4,7 +4,7 @@
 [Trait("Transport", "Outbox.Sql")]
 public static class SqlOutboxRepositoryTests
 {
-    public class SaveTests : BaseSqlOutboxRepositoryTest
+    public class SaveTests(SqlServerFixture sqlServerFixture) : BaseSqlOutboxRepositoryTest(sqlServerFixture)
     {
         [Fact]
         public async Task SavedMessage_IsPersisted()
@@ -28,7 +28,7 @@ public static class SqlOutboxRepositoryTests
         }
     }
 
-    public class AbortDeliveryTests : BaseSqlOutboxRepositoryTest
+    public class AbortDeliveryTests(SqlServerFixture sqlServerFixture) : BaseSqlOutboxRepositoryTest(sqlServerFixture)
     {
         [Fact]
         public async Task ShouldUpdateStatus()
@@ -47,7 +47,7 @@ public static class SqlOutboxRepositoryTests
         }
     }
 
-    public class DeleteSentTests : BaseSqlOutboxRepositoryTest
+    public class DeleteSentTests(SqlServerFixture sqlServerFixture) : BaseSqlOutboxRepositoryTest(sqlServerFixture)
     {
         [Fact]
         public async Task ExpiredItems_AreDeleted()
@@ -101,7 +101,7 @@ public static class SqlOutboxRepositoryTests
         }
     }
 
-    public class LockAndSelectTests : BaseSqlOutboxRepositoryTest
+    public class LockAndSelectTests(SqlServerFixture sqlServerFixture) : BaseSqlOutboxRepositoryTest(sqlServerFixture)
     {
         [Fact]
         public async Task TableLock_RestrictsConcurrentLocks()
@@ -170,7 +170,7 @@ public static class SqlOutboxRepositoryTests
         }
     }
 
-    public class IncrementDeliveryAttemptTests : BaseSqlOutboxRepositoryTest
+    public class IncrementDeliveryAttemptTests(SqlServerFixture sqlServerFixture) : BaseSqlOutboxRepositoryTest(sqlServerFixture)
     {
         [Fact]
         public async Task WithinMaxAttempts_DoesNotAbortDelivery()
@@ -217,7 +217,7 @@ public static class SqlOutboxRepositoryTests
         }
     }
 
-    public class UpdateToSentTests : BaseSqlOutboxRepositoryTest
+    public class UpdateToSentTests(SqlServerFixture sqlServerFixture) : BaseSqlOutboxRepositoryTest(sqlServerFixture)
     {
         [Fact]
         public async Task ShouldUpdateStatus()
@@ -236,7 +236,7 @@ public static class SqlOutboxRepositoryTests
         }
     }
 
-    public class RenewLockTests : BaseSqlOutboxRepositoryTest
+    public class RenewLockTests(SqlServerFixture sqlServerFixture) : BaseSqlOutboxRepositoryTest(sqlServerFixture)
     {
         [Fact]
         public async Task WithinLock_ExtendsLockTimeout()
