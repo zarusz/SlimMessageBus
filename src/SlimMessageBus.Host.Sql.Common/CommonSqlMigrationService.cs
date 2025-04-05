@@ -1,5 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Sql.Common;
 
+using System.Diagnostics;
 using System.Reflection;
 
 using Microsoft.Data.SqlClient;
@@ -80,6 +81,7 @@ public abstract class CommonSqlMigrationService<TRepository, TSettings>
     public async virtual Task Migrate(CancellationToken token)
     {
         await Repository.EnsureConnection();
+
         try
         {
             Logger.LogInformation("Database schema provisioning started...");
@@ -90,6 +92,12 @@ public abstract class CommonSqlMigrationService<TRepository, TSettings>
                 await TransactionService.BeginTransaction();
                 try
                 {
+                    if (!await TryAcquireLock($"SMB_Migration.{Settings.DatabaseSchemaName}", TimeSpan.FromSeconds(10), token))
+                    {
+                        Logger.LogWarning("Failed to obtain exclusive lock on database migration");
+                        throw new TimeoutException("Failed to obtain exclusive lock on database migration");
+                    }
+
                     await CreateTable(Settings.DatabaseMigrationsTableName, new[] {
                             "MigrationId nvarchar(150) NOT NULL",
                             "ProductVersion nvarchar(32) NOT NULL",
@@ -119,4 +127,22 @@ public abstract class CommonSqlMigrationService<TRepository, TSettings>
     }
 
     protected abstract Task OnMigrate(CancellationToken token);
+
+    private async Task<bool> TryAcquireLock(string lockName, TimeSpan timeout, CancellationToken token = default)
+    {
+        Debug.Assert(!string.IsNullOrWhiteSpace(lockName));
+
+        var result = await Repository.ExecuteNonQuery<int>(Settings.SchemaCreationRetry, "sp_getapplock", cmd =>
+        {
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.AddWithValue("@Resource", lockName);
+            cmd.Parameters.AddWithValue("@LockMode", "Update");
+            cmd.Parameters.AddWithValue("@LockOwner", "transaction");
+            cmd.Parameters.AddWithValue("@LockTimeout", timeout.TotalMilliseconds);
+            cmd.Parameters.AddWithValue("@DbPrincipal", "public");
+            return cmd.Parameters.Add(new SqlParameter { Direction = ParameterDirection.ReturnValue });
+        }, token: token);
+
+        return result == 0;
+    }
 }
