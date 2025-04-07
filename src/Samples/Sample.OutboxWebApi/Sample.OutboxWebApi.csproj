@@ -13,6 +13,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.1" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="8.1.0" />
   </ItemGroup>
 
@@ -20,6 +21,7 @@
     <ProjectReference Include="..\..\SlimMessageBus.Host.AspNetCore\SlimMessageBus.Host.AspNetCore.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.AzureServiceBus\SlimMessageBus.Host.AzureServiceBus.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Memory\SlimMessageBus.Host.Memory.csproj" />
+    <ProjectReference Include="..\..\SlimMessageBus.Host.Outbox.PostgreSql.DbContext\SlimMessageBus.Host.Outbox.PostgreSql.DbContext.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Outbox.Sql.DbContext\SlimMessageBus.Host.Outbox.Sql.DbContext.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Json\SlimMessageBus.Host.Serialization.Json.csproj" />
     <ProjectReference Include="..\..\Tools\SecretStore\SecretStore.csproj" />

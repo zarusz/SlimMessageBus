@@ -1,24 +1,24 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Sql;
 
-public class SqlOutboxTemplate
+public class SqlOutboxTemplate : ISqlOutboxTemplate
 {
     public string TableNameQualified { get; }
     public string MigrationsTableNameQualified { get; }
-    public string SqlOutboxMessageInsertWithClientId { get; }
-    public string SqlOutboxMessageInsertWithDatabaseId { get; }
-    public string SqlOutboxMessageInsertWithDatabaseIdSequential { get; }
-    public string SqlOutboxMessageDeleteSent { get; }
-    public string SqlOutboxMessageLockAndSelect { get; }
-    public string SqlOutboxMessageLockTableAndSelect { get; }
-    public string SqlOutboxMessageUpdateSent { get; }
-    public string SqlOutboxMessageIncrementDeliveryAttempt { get; }
-    public string SqlOutboxMessageAbortDelivery { get; }
-    public string SqlOutboxMessageRenewLock { get; }
+    public string InsertWithClientId { get; }
+    public string InsertWithDatabaseId { get; }
+    public string InsertWithDatabaseIdSequential { get; }
+    public string DeleteSent { get; }
+    public string LockAndSelect { get; }
+    public string LockTableAndSelect { get; }
+    public string UpdateSent { get; }
+    public string IncrementDeliveryAttempt { get; }
+    public string AbortDelivery { get; }
+    public string RenewLock { get; }
 
     /// <summary>
     /// Used by tests only.
     /// </summary>
-    internal string SqlOutboxAllMessages { get; }
+    public string AllMessages { get; }
 
     public string InIdsSeparator { get; } = "|";
 
@@ -34,11 +34,11 @@ public class SqlOutboxTemplate
             VALUES ({idFunc}, @Timestamp, @BusName, @MessageType, @MessagePayload, @Headers, @Path, @InstanceId, @LockInstanceId, @LockExpiresOn, @DeliveryAttempt, @DeliveryComplete, @DeliveryAborted)
             """;
 
-        SqlOutboxMessageInsertWithClientId = insertWith("@Id");
-        SqlOutboxMessageInsertWithDatabaseId = insertWith("NEWID()");
-        SqlOutboxMessageInsertWithDatabaseIdSequential = insertWith("NEWSEQUENTIALID()");
+        InsertWithClientId = insertWith("@Id");
+        InsertWithDatabaseId = insertWith("NEWID()");
+        InsertWithDatabaseIdSequential = insertWith("NEWSEQUENTIALID()");
 
-        SqlOutboxMessageDeleteSent = $"""
+        DeleteSent = $"""
             SET DEADLOCK_PRIORITY LOW;
             WITH CTE AS (SELECT TOP (@BatchSize) Id
                          FROM {TableNameQualified} WITH (ROWLOCK, READPAST)
@@ -49,7 +49,7 @@ public class SqlOutboxTemplate
             WHERE Id IN (SELECT Id FROM CTE);
             """;
 
-        SqlOutboxMessageLockAndSelect = $"""
+        LockAndSelect = $"""
             WITH Batch AS (SELECT TOP (@BatchSize) *
                            FROM {TableNameQualified} WITH (ROWLOCK, UPDLOCK, READPAST)
                            WHERE DeliveryComplete = 0
@@ -70,7 +70,7 @@ public class SqlOutboxTemplate
 
         // Only create lock if there are no active locks from another instance.
         // Lock batch + 1 to give preference to current instance in reacquiring table lock.
-        SqlOutboxMessageLockTableAndSelect = $"""
+        LockTableAndSelect = $"""
             IF NOT EXISTS (SELECT 1
                            FROM {TableNameQualified}
                            WHERE LockInstanceId <> @InstanceId
@@ -108,7 +108,7 @@ public class SqlOutboxTemplate
         // See https://stackoverflow.com/a/47777878/1906057
         var inIdsSql = $"SELECT CAST([value] AS uniqueidentifier) Id from STRING_SPLIT(@Ids, '{InIdsSeparator}')";
 
-        SqlOutboxMessageUpdateSent = $"""
+        UpdateSent = $"""
             UPDATE T
             SET [DeliveryComplete] = 1,
                 [DeliveryAttempt] = DeliveryAttempt + 1
@@ -116,7 +116,7 @@ public class SqlOutboxTemplate
                      INNER JOIN ({inIdsSql}) Ids ON T.Id = Ids.id;
             """;
 
-        SqlOutboxMessageIncrementDeliveryAttempt = $"""
+        IncrementDeliveryAttempt = $"""
             UPDATE T
             SET [DeliveryAttempt] = DeliveryAttempt + 1,
                 [DeliveryAborted] = CASE WHEN [DeliveryAttempt] >= @MaxDeliveryAttempts THEN 1 ELSE 0 END
@@ -124,7 +124,7 @@ public class SqlOutboxTemplate
                      INNER JOIN ({inIdsSql}) Ids ON T.Id = Ids.id;
             """;
 
-        SqlOutboxMessageAbortDelivery = $"""
+        AbortDelivery = $"""
             UPDATE T
             SET [DeliveryAttempt] = DeliveryAttempt + 1,
                 [DeliveryAborted] = 1
@@ -132,7 +132,7 @@ public class SqlOutboxTemplate
                      INNER JOIN ({inIdsSql}) Ids ON T.Id = Ids.id;
             """;
 
-        SqlOutboxMessageRenewLock = $"""
+        RenewLock = $"""
             UPDATE {TableNameQualified}
             SET LockExpiresOn = DATEADD(SECOND, @LockDuration, GETUTCDATE())
             WHERE LockInstanceId = @InstanceId
@@ -141,7 +141,7 @@ public class SqlOutboxTemplate
                 AND DeliveryAborted = 0
             """;
 
-        SqlOutboxAllMessages = $"""
+        AllMessages = $"""
             SELECT Id
                  , Timestamp
                  , BusName

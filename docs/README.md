@@ -13,7 +13,12 @@
   - [RabbitMQ](provider_rabbitmq.md)
   - [Redis](provider_redis.md)
   - [SQL](provider_sql.md)
-- [Serialization Plugins](serialization.md)
+- Plugins
+  - [Serialization](serialization.md)
+  - [Transactional Outbox](plugin_outbox.md)
+  - [Validation using FluentValidation](plugin_fluent_validation.md)
+  - [AsyncAPI specification generation](plugin_asyncapi.md)
+  - [Consumer Circuit Breaker](intro.md#health-check-circuit-breaker)
 - [Use Cases](UseCases/)
 - For Maintainers:
   - [Build & Test](Maintainers/build.md)

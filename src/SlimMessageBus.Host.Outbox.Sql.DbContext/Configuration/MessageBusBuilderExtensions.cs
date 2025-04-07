@@ -14,7 +14,7 @@ public static class MessageBusBuilderExtensions
                 return new DbContextOutboxRepository<TDbContext>(
                         svp.GetRequiredService<ILogger<DbContextOutboxRepository<TDbContext>>>(),
                         settings,
-                        svp.GetRequiredService<SqlOutboxTemplate>(),
+                        svp.GetRequiredService<ISqlOutboxTemplate>(),
                         settings.IdGeneration.GuidGenerator ?? (IGuidGenerator)svp.GetRequiredService(settings.IdGeneration.GuidGeneratorType),
                         svp.GetRequiredService<TimeProvider>(),
                         svp.GetRequiredService<IInstanceIdProvider>(),

@@ -33,6 +33,7 @@ public class OutboxCleanUpTask<TOutboxMessage> : IMessageBusLifecycleInterceptor
     public async ValueTask DisposeAsync()
     {
         await Shutdown();
+        _semaphore.Dispose();
         GC.SuppressFinalize(this);
     }
 

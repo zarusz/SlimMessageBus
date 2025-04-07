@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="../Host.Plugin.Properties.xml" />
+
+  <PropertyGroup>
+    <Description>Plugin for SlimMessageBus that adds Transactional Outbox pattern support using Entity Framework with PostgreSQL</Description>
+    <PackageTags>SlimMessageBus MessageBus Transactional Outbox PostgreSQL Entity Framework EF</PackageTags>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SlimMessageBus.Host.Outbox.PostgreSql\SlimMessageBus.Host.Outbox.PostgreSql.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="3.1.18" Condition="'$(TargetFramework)' == 'netstandard2.0'" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="6.0.29" Condition="'$(TargetFramework)' == 'net6.0'" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="7.0.18" Condition="'$(TargetFramework)' == 'net7.0'" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" Condition="'$(TargetFramework)' == 'net8.0'" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.3" Condition="'$(TargetFramework)' == 'net9.0'" />
+  </ItemGroup>
+
+</Project>

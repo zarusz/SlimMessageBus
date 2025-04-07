@@ -5,11 +5,16 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 - [Introduction](#introduction)
 - [Configuration](#configuration)
   - [Entity Framework](#entity-framework)
-  - [SQL Connection](#sql-connection)
+    - [PostgreSQL](#postgresql)
+    - [SQL Server](#sql-server)
+  - [Direct Connection](#direct-connection)
+    - [PostgreSQL](#postgresql-1)
+    - [SQL Server](#sql-server-1)
 - [Options](#options)
   - [UseOutbox for Producers](#useoutbox-for-producers)
   - [Transactions for Consumers](#transactions-for-consumers)
     - [UseTransactionScope](#usetransactionscope)
+    - [UsePostgreSqlTransaction](#usepostgresqltransaction)
     - [UseSqlTransaction](#usesqltransaction)
 - [How it works](#how-it-works)
 - [Clean up](#clean-up)
@@ -18,16 +23,29 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 ## Introduction
 
 The [`Host.Outbox`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox) introduces [Transactional Outbox](https://microservices.io/patterns/data/transactional-outbox.html) pattern to the SlimMessageBus.
-It comes in two flavors:
 
+PostgreSQL
+- [`Host.Outbox.PostgreSql`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.PostgreSql) as integration with the [Npgsql](https://www.npgsql.org/) client
+- [`Host.Outbox.PostgreSql.DbContext`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.PostgreSql.DbContext) as integration with Entity Framework Core using Npgsql
+
+SQL server
 - [`Host.Outbox.Sql`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql) as integration with the System.Data.Sql client (MSSQL)
-- [`Host.Outbox.Sql.DbContext`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql.DbContext) as integration with Entity Framework Core
+- [`Host.Outbox.Sql.DbContext`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql.DbContext) as integration with Entity Framework Core using System.Data.Sql
 
 Outbox plugin can work in combination with any transport provider.
 
 ## Configuration
 
 ### Entity Framework
+#### PostgreSQL
+
+> Required: [`SlimMessageBus.Host.Outbox.PostgreSql.DbContext`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.PostgreSql.DbContext)
+
+```cs
+using SlimMessageBus.Host.Outbox.PostgreSql.DbContext;
+```
+
+#### SQL Server
 
 > Required: [`SlimMessageBus.Host.Outbox.Sql.DbContext`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql.DbContext)
 
@@ -40,7 +58,7 @@ Consider the following example (from [Samples](../src/Samples/Sample.OutboxWebAp
 - `services.AddOutboxUsingDbContext<CustomerContext>(...)` is used to add the [Outbox.DbContext](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql.DbContext) plugin to the container.
 - `CustomerContext` is the application specific Entity Framework `DbContext`.
 - `CustomerCreatedEvent` is produced on the `AzureSB` child bus, the bus will deliver these events via outbox - see `.UseOutbox()`
-- `CreateCustomerCommand` is consumed on the `Memory` child bus, each command is wrapped in an SQL transaction - see `UseSqlTransaction()`
+- `CreateCustomerCommand` is consumed on the `Memory` child bus, each command is wrapped in an SQL transaction - see `UsePostgreSqlTransaction()` / `UseSqlTransaction()`
 
 Startup setup:
 
@@ -50,7 +68,16 @@ Command handler:
 
 @[:cs](../src/Samples/Sample.OutboxWebApi/Application/CreateCustomerCommandHandler.cs,Handler)
 
-### SQL Connection
+### Direct Connection
+#### PostgreSQL
+
+> Required: [`SlimMessageBus.Host.Outbox.PostgreSql`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.PostgreSql)
+
+```cs
+using SlimMessageBus.Host.Outbox.PostgreSql;
+```
+
+#### SQL Server
 
 > Required: [`SlimMessageBus.Host.Outbox.Sql`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql)
 
@@ -60,7 +87,7 @@ using SlimMessageBus.Host.Outbox.Sql;
 
 Consider the following example:
 
-- `services.AddMessageBusOutboxUsingSql(...)` is used to add the [Outbox.Sql](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql) plugin to the container.
+- `services.AddOutboxUsingSql(...)` is used to add the [Outbox.Sql](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql) plugin to the container.
 - `SqlConnection` is registered in the container
 
 ```cs
@@ -112,6 +139,20 @@ using SlimMessageBus.Host.Outbox;
 
 When applied on the (child) bus level then all consumers (or handlers) will inherit that option.
 
+#### UsePostgreSqlTransaction
+
+> Required: [`SlimMessageBus.Host.Outbox.PostgreSql`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.PostgreSql) or [`SlimMessageBus.Host.Outbox.PostgreSql.DbContext`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.PostgreSql.DbContext)
+
+```cs
+using SlimMessageBus.Host.Outbox.PostgreSql;
+```
+
+`.UsePostgreSqlTransaction()` can be used on consumers (or handlers) declaration to force the consumer to start a `PostgreSqlTransaction` prior the message `OnHandle` and to complete that transaction after it. Any exception raised by the consumer would cause the transaction to be rolled back.
+
+When applied on the (child) bus level then all consumers (or handlers) will inherit that option.
+
+`PostgreSqlTransaction`-s are created off the associated `NpgsqlConnection`.
+
 #### UseSqlTransaction
 
 > Required: [`SlimMessageBus.Host.Outbox.Sql`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql) or [`SlimMessageBus.Host.Outbox.Sql.DbContext`](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql.DbContext)
@@ -135,7 +176,7 @@ When applied on the (child) bus level then all consumers (or handlers) will inhe
 - When a message is sent via a bus or producer marked with `.UseOutbox()` then such message will be inserted into the `Outbox` table.
   It is important that message publish happens in the context of an transaction to ensure consistency.
 
-- When the message publication happens in the context of a consumer (or handler) of another message, the `.UseTransactionScope()`, `.UseSqlTransaction()` can be used to start a transaction.
+- When the message publication happens in the context of a consumer (or handler) of another message, the `.UseTransactionScope()`, `.UseSqlTransaction()` or `.UseSqlTransaction()` can be used to start a transaction.
 
 - The transaction can be managed by the application, starting it either explicitly using `DbContext.Database.BeginTransactionAsync()` or creating a `TransactionScope()`.
 

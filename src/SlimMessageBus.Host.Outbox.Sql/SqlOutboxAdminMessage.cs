@@ -4,10 +4,7 @@ public class SqlOutboxMessage : OutboxMessage
 {
     public Guid Id { get; set; }
 
-    public override string ToString()
-    {
-        return Id.ToString();
-    }
+    public override string ToString() => Id.ToString();
 }
 
 public class SqlOutboxAdminMessage : SqlOutboxMessage
