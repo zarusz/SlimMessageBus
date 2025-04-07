@@ -93,12 +93,15 @@ public abstract class BaseIntegrationTest<T> : IAsyncLifetime
         while (!consumerControl.IsStarted && timeout.ElapsedMilliseconds < 5000) await Task.Delay(100);
     }
 
-    public Task InitializeAsync() => Task.CompletedTask;
+    public virtual Task InitializeAsync() => Task.CompletedTask;
 
-    async Task IAsyncLifetime.DisposeAsync()
+    public virtual async Task DisposeAsync()
     {
         if (_serviceProvider.IsValueCreated)
         {
+            var consumerControl = _serviceProvider.Value.GetRequiredService<IConsumerControl>();
+            await consumerControl.Stop();
+
             await _serviceProvider.Value.DisposeAsync().ConfigureAwait(false);
         }
     }

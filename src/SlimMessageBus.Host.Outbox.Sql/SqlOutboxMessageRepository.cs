@@ -17,7 +17,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
 
     private static readonly DateTime _defaultExpiresOn = new(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private readonly SqlOutboxTemplate _sqlTemplate;
+    private readonly ISqlOutboxTemplate _sqlTemplate;
     private readonly IGuidGenerator _guidGenerator;
     private readonly TimeProvider _timeProvider;
     private readonly IInstanceIdProvider _instanceIdProvider;
@@ -28,7 +28,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
     public SqlOutboxMessageRepository(
         ILogger<SqlOutboxMessageRepository> logger,
         SqlOutboxSettings settings,
-        SqlOutboxTemplate sqlOutboxTemplate,
+        ISqlOutboxTemplate sqlOutboxTemplate,
         IGuidGenerator guidGenerator,
         TimeProvider timeProvider,
         IInstanceIdProvider instanceIdProvider,
@@ -64,8 +64,8 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
         }
 
         var template = _idDatabaseGenerated
-            ? _sqlTemplate.SqlOutboxMessageInsertWithDatabaseId
-            : _sqlTemplate.SqlOutboxMessageInsertWithClientId;
+            ? _sqlTemplate.InsertWithDatabaseId
+            : _sqlTemplate.InsertWithClientId;
 
         await EnsureConnection();
 
@@ -97,7 +97,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
         await EnsureConnection();
 
         using var cmd = CreateCommand();
-        cmd.CommandText = tableLock ? _sqlTemplate.SqlOutboxMessageLockTableAndSelect : _sqlTemplate.SqlOutboxMessageLockAndSelect;
+        cmd.CommandText = tableLock ? _sqlTemplate.LockTableAndSelect : _sqlTemplate.LockAndSelect;
         cmd.Parameters.Add("@InstanceId", SqlDbType.NVarChar).Value = instanceId;
         cmd.Parameters.Add("@BatchSize", SqlDbType.Int).Value = batchSize;
         cmd.Parameters.Add("@LockDuration", SqlDbType.Int).Value = lockDuration.TotalSeconds;
@@ -148,7 +148,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
         await EnsureConnection();
 
         var affected = await ExecuteNonQuery(Settings.SqlSettings.OperationRetry,
-            _sqlTemplate.SqlOutboxMessageAbortDelivery,
+            _sqlTemplate.AbortDelivery,
             cmd => cmd.Parameters.AddWithValue("@Ids", ToIdsString(messages)),
             token: cancellationToken);
 
@@ -168,7 +168,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
         await EnsureConnection();
 
         var affected = await ExecuteNonQuery(Settings.SqlSettings.OperationRetry,
-            _sqlTemplate.SqlOutboxMessageUpdateSent,
+            _sqlTemplate.UpdateSent,
             cmd => cmd.Parameters.AddWithValue("@Ids", ToIdsString(messages)),
             token: cancellationToken);
 
@@ -195,7 +195,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
         await EnsureConnection();
 
         var affected = await ExecuteNonQuery(Settings.SqlSettings.OperationRetry,
-            _sqlTemplate.SqlOutboxMessageIncrementDeliveryAttempt,
+            _sqlTemplate.IncrementDeliveryAttempt,
             cmd =>
             {
                 cmd.Parameters.AddWithValue("@Ids", ToIdsString(messages));
@@ -215,7 +215,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
 
         var affected = await ExecuteNonQuery(
             Settings.SqlSettings.OperationRetry,
-            _sqlTemplate.SqlOutboxMessageDeleteSent,
+            _sqlTemplate.DeleteSent,
             cmd =>
             {
                 cmd.Parameters.Add("@BatchSize", SqlDbType.Int).Value = batchSize;
@@ -233,7 +233,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
         await EnsureConnection();
 
         using var cmd = CreateCommand();
-        cmd.CommandText = _sqlTemplate.SqlOutboxMessageRenewLock;
+        cmd.CommandText = _sqlTemplate.RenewLock;
         cmd.Parameters.Add("@InstanceId", SqlDbType.NVarChar).Value = instanceId;
         cmd.Parameters.Add("@LockDuration", SqlDbType.Int).Value = lockDuration.TotalSeconds;
 
@@ -245,7 +245,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
         await EnsureConnection();
 
         using var cmd = CreateCommand();
-        cmd.CommandText = _sqlTemplate.SqlOutboxAllMessages;
+        cmd.CommandText = _sqlTemplate.AllMessages;
 
         using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 

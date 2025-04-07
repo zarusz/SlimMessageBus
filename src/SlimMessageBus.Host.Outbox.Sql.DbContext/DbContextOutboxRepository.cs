@@ -8,7 +8,7 @@ public class DbContextOutboxRepository<TDbContext> : SqlOutboxMessageRepository
     public DbContextOutboxRepository(
         ILogger<DbContextOutboxRepository<TDbContext>> logger,
         SqlOutboxSettings settings,
-        SqlOutboxTemplate sqlOutboxTemplate,
+        ISqlOutboxTemplate sqlOutboxTemplate,
         IGuidGenerator guidGenerator,
         TimeProvider timeProvider,
         IInstanceIdProvider instanceIdProvider,

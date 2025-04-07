@@ -146,7 +146,6 @@ internal class OutboxSendingTask<TOutboxMessage>(
             var scope = _serviceProvider.CreateScope();
             try
             {
-                await EnsureMigrateSchema(scope.ServiceProvider, _loopCts.Token);
                 var outboxRepository = scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository<TOutboxMessage>>();
                 do
                 {

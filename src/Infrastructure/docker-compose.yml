@@ -34,6 +34,17 @@ services:
     networks:
       - slim
 
+  psqldb:
+    container_name: slim.psql
+    image: postgres:17.4
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=SecretP@55word
+    ports:
+      - 5432:5432
+    networks:
+      - slim      
+
   rabbitmq:
     container_name: slim.rabbitmq
     image: rabbitmq:3.12.14-management-alpine

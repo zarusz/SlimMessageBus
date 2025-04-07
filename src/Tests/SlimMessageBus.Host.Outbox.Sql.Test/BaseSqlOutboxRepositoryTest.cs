@@ -11,7 +11,7 @@ public class BaseSqlOutboxRepositoryTest : IAsyncLifetime
     protected SqlOutboxMigrationService _migrationService;
     protected SqlOutboxSettings _settings;
     protected SqlOutboxMessageRepository _target;
-    protected SqlOutboxTemplate _template;
+    protected ISqlOutboxTemplate _template;
     protected ISqlTransactionService _transactionService;
     protected FakeTimeProvider _currentTimeProvider;
 

@@ -193,3 +193,7 @@ dotnet_diagnostic.CA1512.severity = none
 [*.{csproj,xml}]
 indent_style = space
 indent_size = 2
+[*]
+vsspell_section_id = daca5ed3693a4c3eac05361d1ff57a49
+vsspell_ignored_words_daca5ed3693a4c3eac05361d1ff57a49 = Postgre
+

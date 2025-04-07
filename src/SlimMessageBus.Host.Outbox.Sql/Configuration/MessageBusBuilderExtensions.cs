@@ -45,7 +45,7 @@ public static class MessageBusBuilderExtensions
             services.TryAddScoped<IOutboxMessageFactory>(svp => svp.GetRequiredService<TOutboxRepository>());
             services.TryAddScoped<IOutboxMessageRepository<SqlOutboxMessage>>(svp => svp.GetRequiredService<ISqlMessageOutboxRepository>());
 
-            services.TryAddSingleton<SqlOutboxTemplate>();
+            services.TryAddSingleton<ISqlOutboxTemplate, SqlOutboxTemplate>();
             services.TryAddTransient<IOutboxMigrationService>(svp => new SqlOutboxMigrationService(
                 svp.GetRequiredService<ILogger<SqlOutboxMigrationService>>(),
                 svp.GetRequiredService<TOutboxRepository>(),
@@ -66,7 +66,7 @@ public static class MessageBusBuilderExtensions
                 return new SqlOutboxMessageRepository(
                         svp.GetRequiredService<ILogger<SqlOutboxMessageRepository>>(),
                         settings,
-                        svp.GetRequiredService<SqlOutboxTemplate>(),
+                        svp.GetRequiredService<ISqlOutboxTemplate>(),
                         settings.IdGeneration.GuidGenerator ?? (IGuidGenerator)svp.GetRequiredService(settings.IdGeneration.GuidGeneratorType),
                         svp.GetRequiredService<TimeProvider>(),
                         svp.GetRequiredService<IInstanceIdProvider>(),
