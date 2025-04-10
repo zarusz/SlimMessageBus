@@ -72,10 +72,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Configure SlimMessageBus with In-Memory provider
 builder.Services.AddSlimMessageBus(mbb =>
 {
-    mbb
-        .WithProviderMemory()
-        .AutoDeclareFrom(typeof(Program).Assembly)
-        .AddServicesFromAssemblyContaining<Program>();
+    mbb.WithProviderMemory().AutoDeclareFrom(typeof(Program).Assembly);
 });
 
 var app = builder.Build();
@@ -112,6 +109,9 @@ public class PingRequestHandler : IRequestHandler<PingRequest, string>
 
 - **Interceptors**: You can easily add cross-cutting concerns such as logging, authorization, or auditing.
 - **FluentValidation Integration**: Direct support for request validation via FluentValidation.
+- **Hybrid Messaging**: Seamlessly transition from in-memory to out-of-process messaging if your application evolves (or combine both).
+
+For more advanced usage and additional features, please review the [SlimMessageBus documentation](/docs/).
 - **Hybrid Messaging**: Seamlessly transition from in-memory to out-of-process messaging if your application evolves (or combine both).
 
 For more advanced usage and additional features, please review the [SlimMessageBus documentation](/docs/).

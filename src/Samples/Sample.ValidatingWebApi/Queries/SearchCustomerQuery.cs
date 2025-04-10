@@ -1,8 +1,6 @@
 ﻿namespace Sample.ValidatingWebApi.Queries;
 
-using SlimMessageBus;
-
-public record SearchCustomerQuery : IRequest<SearchCustomerResult>
+public record SearchCustomerQuery : IRequest<SearchCustomerQueryResult>
 {
     public Guid? CustomerId { get; set; }
     public string? FirstName { get; set; }

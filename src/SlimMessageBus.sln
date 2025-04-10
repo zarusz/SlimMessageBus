@@ -61,7 +61,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.AzureEv
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Memory", "SlimMessageBus.Host.Memory\SlimMessageBus.Host.Memory.csproj", "{1BB013BD-AB93-406E-8E1F-E719C23FC252}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sample.Simple.ConsoleApp", "Samples\Sample.Simple.ConsoleApp\Sample.Simple.ConsoleApp.csproj", "{118EF006-EF86-4A31-83FA-81DEDF32CB91}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sample.ConsoleApp", "Samples\Sample.Simple.ConsoleApp\Sample.ConsoleApp.csproj", "{118EF006-EF86-4A31-83FA-81DEDF32CB91}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sample.Images.FileStore", "Samples\Sample.Images.FileStore\Sample.Images.FileStore.csproj", "{D6382E8D-6EFC-4255-9925-A574BC627614}"
 EndProject

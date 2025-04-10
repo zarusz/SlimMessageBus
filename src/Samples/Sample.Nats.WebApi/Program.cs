@@ -7,7 +7,7 @@ using SecretStore;
 using SlimMessageBus;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.Nats.Config;
-using SlimMessageBus.Host.Serialization.Json;
+using SlimMessageBus.Host.Serialization.SystemTextJson;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,21 +20,21 @@ var endpoint = Secrets.Service.PopulateSecrets(builder.Configuration["Nats:Endpo
 var topic = Secrets.Service.PopulateSecrets(builder.Configuration["Nats:Topic"]);
 
 // doc:fragment:ExampleConfiguringMessageBus
-builder.Services.AddSlimMessageBus(messageBusBuilder =>
+builder.Services.AddSlimMessageBus(mbb =>
 {
-    messageBusBuilder.WithProviderNats(cfg =>
+    mbb.WithProviderNats(cfg =>
     {
         cfg.Endpoint = endpoint;
         cfg.ClientName = $"MyService_{Environment.MachineName}";
         cfg.AuthOpts = NatsAuthOpts.Default;
     });
 
-    messageBusBuilder
+    mbb
         .Produce<PingMessage>(x => x.DefaultTopic(topic))
         .Consume<PingMessage>(x => x.Topic(topic).Instances(1));
 
-    messageBusBuilder.AddServicesFromAssemblyContaining<PingConsumer>();
-    messageBusBuilder.AddJsonSerializer();
+    mbb.AddServicesFromAssemblyContaining<PingConsumer>();
+    mbb.AddJsonSerializer();
 });
 // doc:fragment:ExampleConfiguringMessageBus
 
@@ -48,10 +48,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.MapGet("/publish-message", (IMessageBus messageBus, CancellationToken cancellationToken) =>
+app.MapGet("/publish-message", (IMessageBus bus, CancellationToken cancellationToken) =>
 {
     PingMessage pingMessage = new(0, Guid.NewGuid());
-    messageBus.Publish(pingMessage, cancellationToken: cancellationToken);
+    bus.Publish(pingMessage, cancellationToken: cancellationToken);
 });
 
 app.Run();

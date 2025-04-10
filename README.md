@@ -137,6 +137,7 @@ The configuration can be [modularized](docs/intro.md#modularization-of-configura
   - [Transactional Outbox](docs/plugin_outbox.md)
   - [Validation using FluentValidation](docs/plugin_fluent_validation.md)
   - [AsyncAPI specification generation](docs/plugin_asyncapi.md)
+  - [Consumer Circuit Breaker](docs/intro.md#health-check-circuit-breaker)
 - [Samples](src/Samples/README.md)
 - [Use Cases](docs/UseCases/)
 

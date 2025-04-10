@@ -4,11 +4,11 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 
 - [Introduction](#introduction)
 - [Configuration](#configuration)
-  - [Serialization](#serialization)
-  - [Headers](#headers)
   - [Virtual Topics](#virtual-topics)
   - [Auto Declaration](#auto-declaration)
     - [Polymorphic message support](#polymorphic-message-support)
+  - [Serialization](#serialization)
+  - [Headers](#headers)
 - [Lifecycle](#lifecycle)
   - [Concurrency and Ordering](#concurrency-and-ordering)
   - [Blocking Publish](#blocking-publish)
@@ -43,6 +43,76 @@ services.AddSlimMessageBus(mbb =>
   mbb.WithProviderMemory(); // requires SlimMessageBus.Host.Memory package
 });
 ```
+
+### Virtual Topics
+
+Unlike other transport providers, memory transport does not have true notion of topics (or queues). However, it is still required to use topic names. This is required, so that the bus knows on which virtual topic to deliver the message to, and from what virtual topic to consume from.
+
+The consumer configuration side should use `.Topic()` to set the virtual topic name:
+
+```cs
+// declare that OrderSubmittedEvent will be consumed
+mbb.Consume<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<OrderSubmittedHandler>());
+
+// alternatively
+mbb.Consume<OrderSubmittedEvent>(x => x.Topic("OrderSubmittedEvent").WithConsumer<OrderSubmittedHandler>());
+```
+
+The producer configuration side should use `.DefaultTopic()` to set the virtual topic name:
+
+```cs
+mbb.Produce<OrderSubmittedEvent>(x => x.DefaultTopic("OrderSubmittedEvent"));
+```
+
+> The virtual topic name can be any string. It helps to connect the relevant producers and consumers together.
+
+### Auto Declaration
+
+For bus configuration, we can leverage `.AutoDeclareFrom()` method to discover all the consumers (`IConsumer<T>`) and handlers (`IRequestHandler<T,R>`) types in an assembly and auto declare the respective producers and consumers/handlers in the bus.
+This can be useful to auto declare all of the domain event handlers in an application layer.
+
+```cs
+mbb
+   .WithProviderMemory()
+   .AutoDeclareFrom(Assembly.GetExecutingAssembly());
+   // Alternatively specify the type of which assembly should be scanned
+   // .AutoDeclareFromAssemblyContaining<CustomerCreateHandler>();
+
+   // If we want to filter to specific consumer/handler types then we can supply an additional filter:
+   // .AutoDeclareFrom(Assembly.GetExecutingAssembly(), consumerTypeFilter: (consumerType) => consumerType.Name.EndsWith("Handler"));
+   // .AutoDeclareFromAssemblyContaining<CustomerCreateHandler>(Assembly.GetExecutingAssembly(), consumerTypeFilter: (consumerType) => consumerType.Name.EndsWith("Handler"));
+```
+
+For example, assuming this is the discovered handler type:
+
+```cs
+public class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
+{
+   public Task<EchoResponse> OnHandle(EchoRequest request, CancellationToken cancellationToken) { /* ... */ }
+}
+```
+
+The bus auto registrations will set-up the producer and handler to the equivalent:
+
+```cs
+mbb.Produce<EchoRequest>(x => x.DefaultTopic(x.MessageType.Name));
+mbb.Handle<EchoRequest, EchoResponse>(x => x.Topic(x.MessageType.Name).WithConsumer<EchoRequestHandler>());
+```
+
+The virtual topic name will be derived from the message type name by default. This can be customized by passing an additional parameter to the `AutoDeclareFrom()` method.
+
+Using `.AutoDeclareFrom()` to configure the memory bus is recommended, as it will declare the producers and consumers automatically as consumer types are added over time.
+
+> The `.AutoDeclareFrom()` and `.AutoDeclareFromAssembly<T>()` will also register the found consumers/handlers into MSDI (see [here](intro.md#autoregistration-of-consumers-interceptors-and-configurators)).
+
+#### Polymorphic message support
+
+The polymorphic message types (message that share a common ancestry) are supported by the `AutoDeclareFrom()`:
+
+- for every consumer / handler implementation found it analyzes the message type inheritance tree,
+- it declares a producer in the bus for the oldest ancestor of the message type hierarchy,
+- it declares a consumer in the bus for the oldest ancestor message type and within that, configures a consumer for derived message type,
+- topic names are derived from the ancestor message type.
 
 ### Serialization
 
@@ -87,76 +157,6 @@ services.AddSlimMessageBus(mbb =>
 
 Before version v2.5.1, to enable header passing the [serialization](#serialization) had to be enabled.
 
-### Virtual Topics
-
-Unlike other transport providers, memory transport does not have true notion of topics (or queues). However, it is still required to use topic names. This is required, so that the bus knows on which virtual topic to deliver the message to, and from what virtual topic to consume from.
-
-The consumer configuration side should use `.Topic()` to set the virtual topic name:
-
-```cs
-// declare that OrderSubmittedEvent will be consumed
-mbb.Consume<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<OrderSubmittedHandler>());
-
-// alternatively
-mbb.Consume<OrderSubmittedEvent>(x => x.Topic("OrderSubmittedEvent").WithConsumer<OrderSubmittedHandler>());
-```
-
-The producer configuration side should use `.DefaultTopic()` to set the virtual topic name:
-
-```cs
-mbb.Produce<OrderSubmittedEvent>(x => x.DefaultTopic("OrderSubmittedEvent"));
-```
-
-> The virtual topic name can be any string. It helps to connect the relevant producers and consumers together.
-
-### Auto Declaration
-
-> Since 1.19.1
-
-For bus configuration, we can leverage `.AutoDeclareFrom()` method to discover all the consumers (`IConsumer<T>`) and handlers (`IRequestHandler<T,R>`) types in an assembly and auto declare the respective producers and consumers/handlers in the bus.
-This can be useful to auto declare all of the domain event handlers in an application layer.
-
-```cs
-mbb
-   .WithProviderMemory()
-   .AutoDeclareFrom(Assembly.GetExecutingAssembly());
-   // If we want to filter to specific consumer/handler types then we can supply an additional filter:
-   //.AutoDeclareFrom(Assembly.GetExecutingAssembly(), consumerTypeFilter: (consumerType) => consumerType.Name.EndsWith("Handler"));
-```
-
-For example, assuming this is the discovered handler type:
-
-```cs
-public class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
-{
-   public Task<EchoResponse> OnHandle(EchoRequest request, CancellationToken cancellationToken) { /* ... */ }
-}
-```
-
-The bus auto registrations will set-up the producer and handler to the equivalent:
-
-```cs
-mbb.Produce<EchoRequest>(x => x.DefaultTopic(x.MessageType.Name));
-mbb.Handle<EchoRequest, EchoResponse>(x => x.Topic(x.MessageType.Name).WithConsumer<EchoRequestHandler>());
-```
-
-The virtual topic name will be derived from the message type name by default. This can be customized by passing an additional parameter to the `AutoDeclareFrom()` method.
-
-Using `AutoDeclareFrom()` to configure the memory bus is recommended, as it will declare the producers and consumers automatically as consumer types are added over time.
-
-> Note that it is still required to register (or auto register) the consumer/handler types in the underlying DI (see [here](intro.md#autoregistration-of-consumers-interceptors-and-configurators)).
-
-#### Polymorphic message support
-
-> Since 1.21.0
-
-The polymorphic message types (message that share a common ancestry) are supported by the `AutoDeclareFrom()`:
-
-- for every consumer / handler implementation found it analyzes the message type inheritance tree,
-- it declares a producer in the bus for the oldest ancestor of the message type hierarchy,
-- it declares a consumer in the bus for the oldest ancestor message type and within that, configures a consumer for derived message type,
-- topic names are derived from the ancestor message type.
-
 ## Lifecycle
 
 ### Concurrency and Ordering
@@ -182,8 +182,6 @@ Often we want all the side effect to finish within the unit of work (ongoing web
 That behavior is optimized for domain-events where the side effects are to be executed synchronously within the unit of work.
 
 ### Asynchronous Publish
-
-> Since 2.3.0
 
 To use non-blocking publish use the `EnableBlockingPublish` property setting:
 

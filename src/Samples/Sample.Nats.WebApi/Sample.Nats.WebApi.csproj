@@ -13,7 +13,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\SlimMessageBus.Host.Nats\SlimMessageBus.Host.Nats.csproj" />
-      <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.Json\SlimMessageBus.Host.Serialization.Json.csproj" />
+      <ProjectReference Include="..\..\SlimMessageBus.Host.Serialization.SystemTextJson\SlimMessageBus.Host.Serialization.SystemTextJson.csproj" />
       <ProjectReference Include="..\..\Tools\SecretStore\SecretStore.csproj" />
     </ItemGroup>
 

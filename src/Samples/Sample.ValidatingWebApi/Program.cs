@@ -8,34 +8,33 @@ using Microsoft.AspNetCore.Diagnostics;
 using Sample.ValidatingWebApi.Commands;
 using Sample.ValidatingWebApi.Queries;
 
-using SlimMessageBus;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.FluentValidation;
 using SlimMessageBus.Host.Memory;
 
+// doc:fragment:Configuration
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure SMB
 builder.Services.AddSlimMessageBus(mbb => mbb
     .WithProviderMemory()
-    .AutoDeclareFrom(Assembly.GetExecutingAssembly())
-    .AddServicesFromAssembly(Assembly.GetExecutingAssembly())
+        .AutoDeclareFrom(Assembly.GetExecutingAssembly())
     .AddAspNet()
     .AddFluentValidation(cfg =>
     {
         // Configure SlimMessageBus.Host.FluentValidation plugin
         cfg.AddProducerValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();
+
         // You can map the validation errors into a custom exception
         //cfg.AddValidationErrorsHandler(errors => new ApplicationException("Custom Validation Exception"));
     }));
 
 // FluentValidation library - find and register IValidator<T> implementations:
 builder.Services.AddValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();
+// doc:fragment:Configuration
 
 // Required for SlimMessageBus.Host.AspNetCore package
 builder.Services.AddHttpContextAccessor();
 
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

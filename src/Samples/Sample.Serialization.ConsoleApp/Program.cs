@@ -1,6 +1,4 @@
-﻿namespace Sample.Serialization.ConsoleApp;
-
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 using Sample.Serialization.MessagesAvro;
@@ -15,6 +13,100 @@ using SlimMessageBus.Host.Serialization.Avro;
 using SlimMessageBus.Host.Serialization.Hybrid;
 using SlimMessageBus.Host.Serialization.Json;
 
+/// <summary>
+/// This sample shows:
+/// 1. How to use the Avro serializer (for contract Avro IDL first approach to generate C# code)
+/// 2. How to combine two serializer approaches in one app (using the Hybrid serializer).
+/// </summary>
+await Host.CreateDefaultBuilder(args)
+    .ConfigureServices((ctx, services) =>
+    {
+        // Local file with secrets
+        Secrets.Load(@"..\..\..\..\..\secrets.txt");
+
+        services.AddHostedService<MainProgram>();
+        services
+            .AddSlimMessageBus(mbb =>
+            {
+                // Note: remember that Memory provider does not support req-resp yet.
+                var provider = Provider.Memory;
+
+                mbb
+                    .AddServicesFromAssemblyContaining<AddCommandConsumer>()
+
+                    // Note: Certain messages will be serialized by the Avro serializer, others will fall back to the Json serializer (the default)
+                    .AddHybridSerializer(builder =>
+                    {
+                        builder
+                            .AsDefault()
+                            .AddJsonSerializer();
+
+                        builder
+                            .For(typeof(AddCommand), typeof(MultiplyRequest), typeof(MultiplyResponse))
+                            .AddAvroSerializer();
+                    })
+
+                    .Produce<AddCommand>(x => x.DefaultTopic("AddCommand"))
+                    .Consume<AddCommand>(x => x.Topic("AddCommand").WithConsumer<AddCommandConsumer>())
+
+                    .Produce<SubtractCommand>(x => x.DefaultTopic("SubtractCommand"))
+                    .Consume<SubtractCommand>(x => x.Topic("SubtractCommand").WithConsumer<SubtractCommandConsumer>())
+
+                    .Produce<MultiplyRequest>(x => x.DefaultTopic("MultiplyRequest"))
+                    .Handle<MultiplyRequest, MultiplyResponse>(x => x.Topic("MultiplyRequest").WithHandler<MultiplyRequestHandler>())
+
+                    .ExpectRequestResponses(x => x.ReplyToTopic("ConsoleApp"))
+
+                    .Do(builder =>
+                    {
+                        Console.WriteLine($"Using {provider} as the transport provider");
+                        switch (provider)
+                        {
+                            case Provider.Memory:
+                                builder.WithProviderMemory(cfg => cfg.EnableMessageSerialization = true);
+                                break;
+
+                            //case Provider.AzureServiceBus:
+                            //    // Provide connection string to your Azure SB
+                            //    var serviceBusConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
+
+                            //    builder.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString)); // Use Azure Service Bus as provider
+                            //    break;
+
+                            //case Provider.AzureEventHub:
+                            //    // Provide connection string to your event hub namespace
+                            //    var eventHubConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub:ConnectionString"]);
+                            //    var storageConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub:Storage"]);
+                            //    var storageContainerName = configuration["Azure:EventHub:ContainerName"];
+
+                            //    builder.WithProviderEventHub(new EventHubMessageBusSettings(eventHubConnectionString, storageConnectionString, storageContainerName)); // Use Azure Event Hub as provider
+                            //    break;
+
+                            //case Provider.Kafka:
+                            //    // Ensure your Kafka broker is running
+                            //    var kafkaBrokers = Secrets.Service.PopulateSecrets(configuration["Kafka:Brokers"]);
+                            //    var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
+                            //    var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
+                            //    var kafkaSecure = Secrets.Service.PopulateSecrets(configuration["Kafka:Secure"]);
+
+                            //    builder.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)); // Or use Apache Kafka as provider
+                            //    break;
+
+                            case Provider.Redis:
+                                // Ensure your Redis broker is running
+                                // Or use Redis as provider
+                                builder.WithProviderRedis(cfg => cfg.ConnectionString = Secrets.Service.PopulateSecrets(ctx.Configuration["Redis:ConnectionString"]));
+                                break;
+
+                            default:
+                                throw new NotSupportedException();
+                        }
+                    });
+            });
+    })
+    .Build()
+    .RunAsync();
+
 enum Provider
 {
     //Kafka,
@@ -22,103 +114,6 @@ enum Provider
     //AzureEventHub,
     Redis,
     Memory
-}
-
-/// <summary>
-/// This sample shows:
-/// 1. How to use the Avro serializer (for contract Avro IDL first approach to generate C# code)
-/// 2. How to combine two serializer approaches in one app (using the Hybrid serializer).
-/// </summary>
-class Program
-{
-    static async Task Main(string[] args) => await Host.CreateDefaultBuilder(args)
-        .ConfigureServices((ctx, services) =>
-        {
-            // Local file with secrets
-            Secrets.Load(@"..\..\..\..\..\secrets.txt");
-
-            services.AddHostedService<MainProgram>();
-            services
-                .AddSlimMessageBus(mbb =>
-                {
-                    // Note: remember that Memory provider does not support req-resp yet.
-                    var provider = Provider.Memory;
-
-                    mbb
-                        .AddServicesFromAssemblyContaining<AddCommandConsumer>()
-
-                        // Note: Certain messages will be serialized by the Avro serializer, others will fall back to the Json serializer (the default)
-                        .AddHybridSerializer(builder =>
-                        {
-                            builder
-                                .AsDefault()
-                                .AddJsonSerializer();
-
-                            builder
-                                .For(typeof(AddCommand), typeof(MultiplyRequest), typeof(MultiplyResponse))
-                                .AddAvroSerializer();
-                        })
-
-                        .Produce<AddCommand>(x => x.DefaultTopic("AddCommand"))
-                        .Consume<AddCommand>(x => x.Topic("AddCommand").WithConsumer<AddCommandConsumer>())
-
-                        .Produce<SubtractCommand>(x => x.DefaultTopic("SubtractCommand"))
-                        .Consume<SubtractCommand>(x => x.Topic("SubtractCommand").WithConsumer<SubtractCommandConsumer>())
-
-                        .Produce<MultiplyRequest>(x => x.DefaultTopic("MultiplyRequest"))
-                        .Handle<MultiplyRequest, MultiplyResponse>(x => x.Topic("MultiplyRequest").WithHandler<MultiplyRequestHandler>())
-
-                        .ExpectRequestResponses(x => x.ReplyToTopic("ConsoleApp"))
-
-                        .Do(builder =>
-                        {
-                            Console.WriteLine($"Using {provider} as the transport provider");
-                            switch (provider)
-                            {
-                                case Provider.Memory:
-                                    builder.WithProviderMemory(cfg => cfg.EnableMessageSerialization = true);
-                                    break;
-
-                                //case Provider.AzureServiceBus:
-                                //    // Provide connection string to your Azure SB
-                                //    var serviceBusConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:ServiceBus"]);
-
-                                //    builder.WithProviderServiceBus(new ServiceBusMessageBusSettings(serviceBusConnectionString)); // Use Azure Service Bus as provider
-                                //    break;
-
-                                //case Provider.AzureEventHub:
-                                //    // Provide connection string to your event hub namespace
-                                //    var eventHubConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub:ConnectionString"]);
-                                //    var storageConnectionString = Secrets.Service.PopulateSecrets(configuration["Azure:EventHub:Storage"]);
-                                //    var storageContainerName = configuration["Azure:EventHub:ContainerName"];
-
-                                //    builder.WithProviderEventHub(new EventHubMessageBusSettings(eventHubConnectionString, storageConnectionString, storageContainerName)); // Use Azure Event Hub as provider
-                                //    break;
-
-                                //case Provider.Kafka:
-                                //    // Ensure your Kafka broker is running
-                                //    var kafkaBrokers = Secrets.Service.PopulateSecrets(configuration["Kafka:Brokers"]);
-                                //    var kafkaUsername = Secrets.Service.PopulateSecrets(configuration["Kafka:Username"]);
-                                //    var kafkaPassword = Secrets.Service.PopulateSecrets(configuration["Kafka:Password"]);
-                                //    var kafkaSecure = Secrets.Service.PopulateSecrets(configuration["Kafka:Secure"]);
-
-                                //    builder.WithProviderKafka(new KafkaMessageBusSettings(kafkaBrokers)); // Or use Apache Kafka as provider
-                                //    break;
-
-                                case Provider.Redis:
-                                    // Ensure your Redis broker is running
-                                    // Or use Redis as provider
-                                    builder.WithProviderRedis(cfg => cfg.ConnectionString = Secrets.Service.PopulateSecrets(ctx.Configuration["Redis:ConnectionString"]));
-                                    break;
-
-                                default:
-                                    throw new NotSupportedException();
-                            }
-                        });
-                });
-        })
-        .Build()
-        .RunAsync();
 }
 
 public class MainProgram : IHostedService

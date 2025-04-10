@@ -2,6 +2,7 @@
 
 using FluentValidation;
 
+// doc:fragment:Example
 public class CreateCustomerCommandValidator : AbstractValidator<CreateCustomerCommand>
 {
     public CreateCustomerCommandValidator()
@@ -12,3 +13,4 @@ public class CreateCustomerCommandValidator : AbstractValidator<CreateCustomerCo
         RuleFor(x => x.Phone).NotEmpty().Length(6).When(x => x.Phone != null);
     }
 }
+// doc:fragment:Example

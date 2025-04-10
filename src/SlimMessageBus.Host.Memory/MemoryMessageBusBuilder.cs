@@ -19,6 +19,16 @@ public class MemoryMessageBusBuilder : MessageBusBuilder
 
     private static string DefaultMessageTypeToTopicConverter(Type type) => type.Name;
 
+    private static ISet<Type> GetAncestorTypes(Type messageType)
+    {
+        var ancestors = new HashSet<Type>();
+        for (var mt = messageType; mt.BaseType != typeof(object) && mt.BaseType != null; mt = mt.BaseType)
+        {
+            ancestors.Add(mt.BaseType);
+        }
+        return ancestors;
+    }
+
     /// <summary>
     /// Searches for any types that implement <see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/> in the specified assemblies. 
     /// For every found type declares the produced and consumer/handler by applying the topic name that corresponds to the message name.
@@ -26,8 +36,9 @@ public class MemoryMessageBusBuilder : MessageBusBuilder
     /// <param name="assemblies"></param>
     /// <param name="consumerTypeFilter">Allows to apply a filter for the found consumer/handler types.</param>
     /// <param name="messageTypeToTopicConverter">By default the type name is used for the topic name. This can be used to customize the topic name. For example, if have types that have same names but are in the namespaces, you might want to include the full type in the topic name.</param>
+    /// <param name="addServicesFromAssembly">If true, will add all the services from the assemblies to MSDI.</param>
     /// <returns></returns>
-    public MemoryMessageBusBuilder AutoDeclareFrom(IEnumerable<Assembly> assemblies, Func<Type, bool> consumerTypeFilter = null, Func<Type, string> messageTypeToTopicConverter = null)
+    public MemoryMessageBusBuilder AutoDeclareFrom(IEnumerable<Assembly> assemblies, Func<Type, bool> consumerTypeFilter = null, Func<Type, string> messageTypeToTopicConverter = null, bool addServicesFromAssembly = true)
     {
         messageTypeToTopicConverter ??= DefaultMessageTypeToTopicConverter;
 
@@ -148,29 +159,43 @@ public class MemoryMessageBusBuilder : MessageBusBuilder
             }
         }
 
+        if (addServicesFromAssembly)
+        {
+            // Register all the services from the assemblies
+            foreach (var assembly in assemblies)
+            {
+                this.AddServicesFromAssembly(assembly, filter: consumerTypeFilter);
+            }
+        }
+
         return this;
     }
 
-    private static ISet<Type> GetAncestorTypes(Type messageType)
-    {
-        var ancestors = new HashSet<Type>();
-        for (var mt = messageType; mt.BaseType != typeof(object) && mt.BaseType != null; mt = mt.BaseType)
-        {
-            ancestors.Add(mt.BaseType);
-        }
-        return ancestors;
-    }
-
-    public MemoryMessageBusBuilder AutoDeclareFrom(params Assembly[] assemblies)
-        => AutoDeclareFrom(assemblies.AsEnumerable());
-
     /// <summary>
-    /// In the specified assemblies, searches for any types that implement <see cref="IConsumer{TMessage}"/>, <see cref="IRequestHandler{TRequest, TResponse}"/> or <see cref="IRequestHandler{TRequest}"/>. 
-    /// For every found type declares the producer and consumer/handler by applying the topic name that corresponds to the message name (provide custom converter to override this behavior).
+    /// Searches for any types that implement <see cref="IConsumer{TMessage}"/>, <see cref="IRequestHandler{TRequest, TResponse}"/> or <see cref="IRequestHandler{TRequest}"/> in the assembly.
+    /// For consumer type found will declares a producer and consumer/handler by applying the topic name that corresponds to the message name (provide custom converter to override this behavior).
     /// </summary>
     /// <param name="assembly"></param>
     /// <param name="consumerTypeFilter">Allows to apply a filter for any found consumer/handler.</param>
     /// <param name="messageTypeToTopicConverter">By default the type name is used for the topic name. This can be used to customize the topic name. For example, if have types that have same names but are in the namespaces, you might want to include the full type in the topic name.</param>
-    public MemoryMessageBusBuilder AutoDeclareFrom(Assembly assembly, Func<Type, bool> consumerTypeFilter = null, Func<Type, string> messageTypeToTopicConverter = null)
-        => AutoDeclareFrom([assembly], consumerTypeFilter, messageTypeToTopicConverter);
+    /// <param name="addServicesFromAssembly">If true, will add all the services from the assemblies to MSDI.</param>
+    public MemoryMessageBusBuilder AutoDeclareFrom(Assembly assembly, Func<Type, bool> consumerTypeFilter = null, Func<Type, string> messageTypeToTopicConverter = null, bool addServicesFromAssembly = true)
+        => AutoDeclareFrom([assembly], consumerTypeFilter, messageTypeToTopicConverter, addServicesFromAssembly);
+
+    /// <summary>
+    /// Searches for any types that implement <see cref="IConsumer{TMessage}"/>, <see cref="IRequestHandler{TRequest, TResponse}"/> or <see cref="IRequestHandler{TRequest}"/> in the assembly.
+    /// For consumer type found will declares a producer and consumer/handler by applying the topic name that corresponds to the message name (provide custom converter to override this behavior).
+    /// </summary>
+    public MemoryMessageBusBuilder AutoDeclareFrom(params Assembly[] assemblies)
+        => AutoDeclareFrom(assemblies.AsEnumerable());
+
+    /// <summary>
+    /// Searches for any types that implement <see cref="IConsumer{TMessage}"/>, <see cref="IRequestHandler{TRequest, TResponse}"/> or <see cref="IRequestHandler{TRequest}"/> in the assembly of the specified type.
+    /// For consumer type found will declares a producer and consumer/handler by applying the topic name that corresponds to the message name (provide custom converter to override this behavior).
+    /// </summary>
+    /// <param name="consumerTypeFilter">Allows to apply a filter for any found consumer/handler.</param>
+    /// <param name="messageTypeToTopicConverter">By default the type name is used for the topic name. This can be used to customize the topic name. For example, if have types that have same names but are in the namespaces, you might want to include the full type in the topic name.</param>
+    /// <param name="addServicesFromAssembly">If true, will add all the services from the assemblies to MSDI.</param>
+    public MemoryMessageBusBuilder AutoDeclareFromAssemblyContaining<T>(Func<Type, bool> consumerTypeFilter = null, Func<Type, string> messageTypeToTopicConverter = null, bool addServicesFromAssembly = true)
+        => AutoDeclareFrom([typeof(T).Assembly], consumerTypeFilter, messageTypeToTopicConverter, addServicesFromAssembly);
 }

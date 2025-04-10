@@ -40,10 +40,8 @@ public class Startup
         services.AddSlimMessageBus(mbb =>
         {
             mbb.WithProviderMemory()
-               .AutoDeclareFrom(typeof(OrderSubmittedHandler).Assembly);
-
-            mbb.AddServicesFromAssemblyContaining<OrderSubmittedHandler>();
-            mbb.AddAspNet();
+               .AutoDeclareFromAssemblyContaining<OrderSubmittedHandler>()
+               .AddAspNet();
         });
         services.AddHttpContextAccessor(); // This is required for the SlimMessageBus.Host.AspNetCore plugin
     }
