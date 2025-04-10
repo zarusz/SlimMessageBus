@@ -10,27 +10,14 @@ using Sample.Images.Messages;
 
 using SlimMessageBus;
 
-public class GenerateThumbnailRequestHandler : IRequestHandler<GenerateThumbnailRequest, GenerateThumbnailResponse>
+public class GenerateThumbnailRequestHandler(IFileStore fileStore, IThumbnailFileIdStrategy fileIdStrategy)
+    : IRequestHandler<GenerateThumbnailRequest, GenerateThumbnailResponse>
 {
-    private readonly IFileStore fileStore;
-    private readonly IThumbnailFileIdStrategy fileIdStrategy;
-
-    public GenerateThumbnailRequestHandler(IFileStore fileStore, IThumbnailFileIdStrategy fileIdStrategy)
-    {
-        this.fileStore = fileStore;
-        this.fileIdStrategy = fileIdStrategy;
-    }
-
-    #region Implementation of IRequestHandler<in GenerateThumbnailRequest,GenerateThumbnailResponse>
-
     public async Task<GenerateThumbnailResponse> OnHandle(GenerateThumbnailRequest request, CancellationToken cancellationToken)
     {
-        var image = await LoadImage(request.FileId).ConfigureAwait(false);
-        if (image == null)
-        {
-            // Note: This will cause RequestHandlerFaultedMessageBusException thrown on the other side (IRequestResponseBus.Send() method)
-            throw new InvalidOperationException($"Image with id '{request.FileId}' does not exist");
-        }
+        var image = await LoadImage(request.FileId).ConfigureAwait(false)
+            ?? throw new InvalidOperationException($"Image with id '{request.FileId}' does not exist");
+
         using (image)
         {
             var thumbnailFileId = fileIdStrategy.GetFileId(request.FileId, request.Width, request.Height, request.Mode);
@@ -47,8 +34,6 @@ public class GenerateThumbnailRequestHandler : IRequestHandler<GenerateThumbnail
             }
         }
     }
-
-    #endregion
 
     private async Task<Image> LoadImage(string fileId)
     {

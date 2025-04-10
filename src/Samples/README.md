@@ -3,17 +3,11 @@
 These are some selected samples for SlimMessageBus.
 
 - [Samples](#samples)
-  - [Sample.Simple.ConsoleApp](#samplesimpleconsoleapp)
   - [Sample.DomainEvents](#sampledomainevents)
   - [Sample.Images](#sampleimages)
     - [Sequence diagram](#sequence-diagram)
     - [Key snippet](#key-snippet)
   - [Sample.Serialization](#sampleserialization)
-
-## Sample.Simple.ConsoleApp
-
-This is the simplest, one-class code example.
-It shows how it is easy to change providers in one place while having the rest of the code intact.
 
 ## Sample.DomainEvents
 
@@ -50,7 +44,7 @@ The sample project uses request-response to generate image thumbnails. It consis
 - WebApi (ASP.NET WebApi)
 - Worker (.NET Console App)
 
-The WebApi serves thumbnails of an original image given the desired *Width x Height*. To request a thumbnail of size `120x80` of the image `DSC0843.jpg` use:
+The WebApi serves thumbnails of an original image given the desired _Width x Height_. To request a thumbnail of size `120x80` of the image `DSC0843.jpg` use:
 
 `https://localhost:56788/api/image/DSC3781.jpg/r/?w=120&h=80&mode=1`
 

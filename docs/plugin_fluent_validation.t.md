@@ -21,62 +21,17 @@ See the [full sample](/src/Samples/Sample.ValidatingWebApi/).
 
 Consider the following command, with the validator (using FluentValidation) and command handler:
 
-```cs
-public record CreateCustomerCommand : IRequest<CreateCustomerCommandResult>
-{
-    public string? FirstName { get; set; }
-    public string? LastName { get; set; }
-    public string? Email { get; set; }
-    public string? Phone { get; set; }
-}
-```
+@[:cs](../src/Samples/Sample.ValidatingWebApi/Commands/CreateCustomerCommand.cs,Example)
 
-```cs
-public class CreateCustomerCommandValidator : AbstractValidator<CreateCustomerCommand>
-{
-    public CreateCustomerCommandValidator()
-    {
-        RuleFor(x => x.FirstName).NotEmpty();
-        RuleFor(x => x.LastName).NotEmpty();
-        RuleFor(x => x.Email).NotEmpty();
-        RuleFor(x => x.Phone).NotEmpty().Length(6).When(x => x.Phone != null);
-    }
-}
-```
+@[:cs](../src/Samples/Sample.ValidatingWebApi/Commands/CreateCustomerCommandValidator.cs,Example)
 
-```cs
-public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerCommand, CreateCustomerCommandResult>
-{
-    public Task<CreateCustomerCommandResult> OnHandle(CreateCustomerCommand command, CancellationToken cancellationToken)
-    {
-        return Task.FromResult(new CreateCustomerCommandResult(Guid.NewGuid()));
-    }
-}
-```
+@[:cs](../src/Samples/Sample.ValidatingWebApi/Commands/CreateCustomerCommandHandler.cs,Example)
 
 ### Configuring FluentValidation
 
 Consider an in-process command that is delivered using the memory bus:
 
-```cs
-var builder = WebApplication.CreateBuilder(args);
-
-builder.Services.AddSlimMessageBus(mbb => mbb
-    .WithProviderMemory()
-        .AutoDeclareFrom(Assembly.GetExecutingAssembly())
-    .AddAspNet()
-    .AddFluentValidation(cfg =>
-    {
-        // Configure SlimMessageBus.Host.FluentValidation plugin
-        cfg.AddProducerValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();
-
-        // You can map the validation errors into a custom exception
-        //cfg.AddValidationErrorsHandler(errors => new ApplicationException("Custom Validation Exception"));
-    }));
-
-// FluentValidation library - find and register IValidator<T> implementations:
-builder.Services.AddValidatorsFromAssemblyContaining<CreateCustomerCommandValidator>();
-```
+@[:cs](../src/Samples/Sample.ValidatingWebApi/Program.cs,Configuration)
 
 #### Custom exception
 

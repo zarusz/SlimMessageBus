@@ -19,6 +19,8 @@ The configuration is arranged via the `.WithProviderNats(cfg => {})` method on t
 The `NatsMessageBusSettings` property is used to configure the underlying [Nats.Net library client](https://github.com/nats-io/nats.net).
 Please consult the NATS.Net library docs for more configuration options.
 
+See the [full sample](/src/Samples/Sample.Nats.WebApi/).
+
 ## Message Serialization
 
 Nats offers native serialization functionality. This functionality conflicts with the serialization functionality provided by SlimMessageBus. We have chosen to leave the responsibility for serialization to SlimMessageBus and leave the default configuration of Nats serialization, which is raw serialization. This means that the message body is serialized as a byte array.
