@@ -1,6 +1,6 @@
 # SlimMessageBus <!-- omit in toc -->
 
-SlimMessageBus is a client façade for message brokers for .NET. It comes with implementations for specific brokers (RabbitMQ, Kafka, Azure EventHub, MQTT, Redis Pub/Sub) and in-memory message passing (in-process communication). SlimMessageBus additionally provides request-response implementation over message queues.
+SlimMessageBus is a lightweight, flexible, and extensible messaging framework for .NET, supporting multiple message brokers, including Kafka, RabbitMQ, Azure EventHubs, MQTT, Redis Pub/Sub, and more. It simplifies asynchronous communication and integrates seamlessly with modern .NET applications.
 
 [![GitHub license](https://img.shields.io/github/license/zarusz/SlimMessageBus)](https://github.com/zarusz/SlimMessageBus/blob/master/LICENSE)
 [![Build](https://github.com/zarusz/SlimMessageBus/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/zarusz/SlimMessageBus/actions/workflows/build.yml)
@@ -10,41 +10,117 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=vulnerabilities)](https://sonarcloud.io/summary/overall?id=zarusz_SlimMessageBus)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=zarusz_SlimMessageBus&metric=alert_status)](https://sonarcloud.io/summary/overall?id=zarusz_SlimMessageBus)
 
-> The v3 release is [available](https://github.com/zarusz/SlimMessageBus/releases/tag/3.0.0).
+> See how to migrate from [MediatR](/docs/UseCases/ReplaceMediatR.md) or [MassTransit](/docs/UseCases/ReplaceMassTransit.md)
 
-- [Key elements of SlimMessageBus](#key-elements-of-slimmessagebus)
-- [Docs](#docs)
-- [Packages](#packages)
-- [Samples](#samples)
-  - [Basic usage](#basic-usage)
-  - [Configuration](#configuration)
-  - [Use Case: Domain Events (in-process pub/sub messaging)](#use-case-domain-events-in-process-pubsub-messaging)
-  - [Use Case: MediatR replacement](#use-case-mediatr-replacement)
-  - [Use Case: Request-response over Kafka topics](#use-case-request-response-over-kafka-topics)
-- [Features](#features)
-- [Principles](#principles)
-- [License](#license)
-- [Build](#build)
-- [Testing](#testing)
-- [Credits](#credits)
+## 🚀 Quick Start
 
-## Key elements of SlimMessageBus
+### Installation
 
-- Consumers:
-  - `IConsumer<in TMessage>` - subscriber in pub/sub (or queue consumer)
-  - `IRequestHandler<in TRequest, TResponse>` & `IRequestHandler<in TRequest>` - request handler in request-response
-- Producers:
-  - `IPublishBus` - publisher in pub/sub (or queue producer)
-  - `IRequestResponseBus` - sender in req/resp
-  - `IMessageBus` - extends `IPublishBus` and `IRequestResponseBus`
-- Misc:
-  - `IRequest<out TResponse>` & `IRequest` - a marker for request messages
-  - `MessageBus` - static accessor for current context `IMessageBus`
+```bash
+dotnet add package SlimMessageBus
+# Add specific transport provider, e.g. Kafka
+dotnet add package SlimMessageBus.Host.Kafka
+# Add serialization plugin
+dotnet add package SlimMessageBus.Host.Serialization.SystemTextJson
+```
 
-## Docs
+### Basic Usage
+
+#### Publishing Messages
+
+```csharp
+IMessageBus bus; // injected
+
+public record OrderCreatedEvent(int OrderId);
+
+await bus.Publish(new OrderCreatedEvent(123));
+```
+
+#### Consuming Messages
+
+```csharp
+public class OrderCreatedEventConsumer : IConsumer<OrderCreatedEvent>
+{
+    public async Task OnHandle(OrderCreatedEvent message, CancellationToken cancellationToken)
+    {
+        // Handle the event
+    }
+}
+```
+
+### Request-Response Example
+
+#### Sending a Request
+
+```csharp
+public record CreateCustomerCommand(string Name) : IRequest<CreateCustomerCommandResult>;
+public record CreateCustomerCommandResult(Guid CustomerId);
+
+var result = await bus.Send(new CreateCustomerCommand("John Doe"));
+```
+
+#### Handling a Request
+
+```csharp
+
+public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerCommand, CreateCustomerCommandResult>
+{
+    public async Task<CreateCustomerCommandResult> OnHandle(CreateCustomerCommand request, CancellationToken cancellationToken)
+    {
+        // Create customer logic
+        return new(Guid.NewGuid());
+    }
+}
+```
+
+### Configuration Example
+
+```csharp
+services.AddSlimMessageBus(mbb =>
+{
+    mbb.AddChildBus("Bus1", builder =>
+    {
+         builder
+               // the pub-sub events
+               .Produce<OrderCreatedEvent>(x => x.DefaultPath("orders-topic"))
+               .Consume<OrderCreatedEvent>(x => x.Path("orders-topic")
+                  //.WithConsumer<OrderCreatedEventConsumer>() // Optional: can be skipped as IConsumer<OrderCreatedEvent> will be resolved from DI
+                  //.KafkaGroup("kafka-consumer-group") // Kafka: Consumer Group
+                  //.SubscriptionName("azure-sb-topic-subscription") // Azure ServiceBus: Subscription Name
+               )
+
+               // the request-response
+               .Produce<CreateCustomerCommand>(x => x.DefaultPath("customer-requests"))
+               .Handle<CreateCustomerCommand, CreateCustomerCommandResult>(x => x.Path("customer-requests"))
+
+               // Use Kafka transport provider (requires SlimMessageBus.Host.Kafka package)
+               .WithProviderKafka(cfg => cfg.BrokerList = "localhost:9092");
+
+            // Use Azure Service Bus transport provider
+            //.WithProviderServiceBus(cfg => { ... }) // requires SlimMessageBus.Host.AzureServiceBus package
+            // Use Azure Event Hub transport provider
+            //.WithProviderEventHub(cfg => { ... }) // requires SlimMessageBus.Host.AzureEventHub package
+            // Use Redis transport provider
+            //.WithProviderRedis(cfg => { ... }) // requires SlimMessageBus.Host.Redis package
+            // Use RabbitMQ transport provider
+            //.WithProviderRabbitMQ(cfg => { ... }) // requires SlimMessageBus.Host.RabbitMQ package
+
+            // Use in-memory transport provider
+            //.WithProviderMemory(cfg => { ... }) // requires SlimMessageBus.Host.Memory package
+   })
+   // Add other bus transports (as child bus for in memory domain events), if needed
+   //.AddChildBus("Bus2", (builder) => {  })
+   .AddJsonSerializer() // requires SlimMessageBus.Host.Serialization.SystemTextJson or SlimMessageBus.Host.Serialization.Json package
+   .AddServicesFromAssemblyContaining<OrderCreatedEventConsumer>();
+});
+```
+
+The configuration can be [modularized](docs/intro.md#modularization-of-configuration) (for modular monoliths).
+
+## 📖 Documentation
 
 - [Introduction](docs/intro.md)
-- Providers:
+- Transports:
   - [Amazon SQS/SNS](docs/provider_amazon_sqs.md)
   - [Apache Kafka](docs/provider_kafka.md)
   - [Azure EventHubs](docs/provider_azure_eventhubs.md)
@@ -61,13 +137,15 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
   - [Transactional Outbox](docs/plugin_outbox.md)
   - [Validation using FluentValidation](docs/plugin_fluent_validation.md)
   - [AsyncAPI specification generation](docs/plugin_asyncapi.md)
+- [Samples](src/Samples/README.md)
+- [Use Cases](docs/UseCases/)
 
-## Packages
+## 📦 NuGet Packages
 
 | Name                                 | Description                                                                                                         | NuGet                                                                                                                                                                            |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SlimMessageBus`                     | The core API for SlimMessageBus                                                                                     | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.svg)](https://www.nuget.org/packages/SlimMessageBus)                                                                     |
-| **Transport providers**              |                                                                                                                     |                                                                                                                                                                                  |
+| **Transports**                       |                                                                                                                     |                                                                                                                                                                                  |
 | `.Host.AmazonSQS`                    | Transport provider for Amazon SQS / SNS                                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AmazonSQS.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AmazonSQS)                                       |
 | `.Host.AzureEventHub`                | Transport provider for Azure Event Hubs                                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AzureEventHub.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)                               |
 | `.Host.AzureServiceBus`              | Transport provider for Azure Service Bus                                                                            | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AzureServiceBus.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AzureServiceBus)                           |
@@ -95,292 +173,35 @@ SlimMessageBus is a client façade for message brokers for .NET. It comes with i
 
 Typically the application layers (domain model, business logic) only need to depend on `SlimMessageBus` which is the facade, and ultimately the application hosting layer (ASP.NET, Console App, Windows Service) will reference and configure the other packages (`SlimMessageBus.Host.*`) which are the messaging transport providers and additional plugins.
 
-## Samples
+## 🎯 Features
 
-### Basic usage
-
-Some service (or domain layer) publishes a message:
-
-```cs
-IMessageBus bus; // injected
-
-await bus.Publish(new SomeMessage());
-```
-
-Another service (or application layer) handles the message:
-
-```cs
-public class SomeMessageConsumer : IConsumer<SomeMessage>
-{
-   public async Task OnHandle(SomeMessage message, CancellationToken cancellationToken)
-   {
-       // handle the message
-   }
-}
-```
-
-> Note: It is also possible to avoid having to implement the interface `IConsumer<T>` (see [here](docs/intro.md#consumer)).
-
-The bus also supports request-response implemented via queues, topics or in-memory - depending on the chosen transport provider.
-The sender side sends a request message:
-
-```cs
-var response = await bus.Send(new SomeRequest());
-```
-
-> Note: It is possible to configure the bus to timeout a request when the response does not arrive within the allotted time (see [here](docs/intro.md#produce-request-message)).
-
-The receiving side handles the request and replies:
-
-```cs
-public class SomeRequestHandler : IRequestHandler<SomeRequest, SomeResponse>
-{
-   public async Task<SomeResponse> OnHandle(SomeRequest request, CancellationToken cancellationToken)
-   {
-      // handle the request message and return a response
-      return new SomeResponse { /* ... */ };
-   }
-}
-```
-
-The bus will ask the DI container to provide the consumer instances (`SomeMessageConsumer`, `SomeRequestHandler`).
-
-There is also support for [one-way request-response](docs/intro.md#request-without-response).
-
-### Configuration
-
-The `Microsoft.Extensions.DependencyInjection` is used to compose the bus:
-
-```cs
-// IServiceCollection services;
-
-services.AddSlimMessageBus(mbb =>
-{
-   mbb
-      // First child bus - in this example Kafka transport
-      .AddChildBus("Bus1", (builder) =>
-      {
-         builder
-            .Produce<SomeMessage>(x => x.DefaultTopic("some-topic"))
-            .Consume<SomeMessage>(x => x.Topic("some-topic")
-               //.WithConsumer<SomeMessageConsumer>() // Optional: can be skipped as IConsumer<SomeMessage> will be resolved from DI
-               //.KafkaGroup("some-kafka-consumer-group") // Kafka: Consumer Group
-               //.SubscriptionName("some-azure-sb-topic-subscription") // Azure ServiceBus: Subscription Name
-            );
-            // ...
-            // Use Kafka transport provider (requires SlimMessageBus.Host.Kafka package)
-            .WithProviderKafka(cfg => { cfg.BrokerList = "localhost:9092"; }); // requires SlimMessageBus.Host.Kafka package
-            // Use Azure Service Bus transport provider
-            //.WithProviderServiceBus(cfg => { ... }) // requires SlimMessageBus.Host.AzureServiceBus package
-            // Use Azure Event Hub transport provider
-            //.WithProviderEventHub(cfg => { ... }) // requires SlimMessageBus.Host.AzureEventHub package
-            // Use Redis transport provider
-            //.WithProviderRedis(cfg => { ... }) // requires SlimMessageBus.Host.Redis package
-            // Use RabbitMQ transport provider
-            //.WithProviderRabbitMQ(cfg => { ... }) // requires SlimMessageBus.Host.RabbitMQ package
-            // Use in-memory transport provider
-            //.WithProviderMemory(cfg => { ... }) // requires SlimMessageBus.Host.Memory package
-      })
-
-      // Add other bus transports (as child bus), if needed
-      //.AddChildBus("Bus2", (builder) => {  })
-
-      // Scan assembly for consumers, handlers, interceptors, and register into MSDI
-      .AddServicesFromAssemblyContaining<SomeMessageConsumer>()
-      //.AddServicesFromAssembly(Assembly.GetExecutingAssembly())
-
-      // Add JSON serializer
-      .AddJsonSerializer(); // requires SlimMessageBus.Host.Serialization.Json or SlimMessageBus.Host.Serialization.SystemTextJson package
-});
-```
-
-The configuration can be [modularized](docs/intro.md#modularization-of-configuration).
-
-### Use Case: Domain Events (in-process pub/sub messaging)
-
-This example shows how `SlimMessageBus` and `SlimMessageBus.Host.Memory` can be used to implement the Domain Events pattern.
-The provider passes messages in the same process (no external message broker is required).
-
-The domain event is a simple POCO:
-
-```cs
-// domain event
-public record OrderSubmittedEvent(Order Order, DateTime Timestamp);
-```
-
-The domain event handler implements the `IConsumer<T>` interface:
-
-```cs
-// domain event handler
-public class OrderSubmittedHandler : IConsumer<OrderSubmittedEvent>
-{
-   public Task OnHandle(OrderSubmittedEvent e, CancellationToken cancellationToken)
-   {
-      // ...
-   }
-}
-```
-
-The domain event handler (consumer) is obtained from the MSDI at the time of event publication.
-The event publish enlists in the ongoing scope (web request scope, external message scope of the ongoing message).
-
-In the domain model layer, the domain event gets raised:
-
-```cs
-// aggregate root
-public class Order
-{
-   public Customer Customer { get; }
-   public OrderState State { get; private set; }
-
-   private IList<OrderLine> lines = new List<OrderLine>();
-   public IEnumerable<OrderLine> Lines => lines.AsEnumerable();
-
-   public Order(Customer customer)
-   {
-      Customer = customer;
-      State = OrderState.New;
-   }
-
-   public OrderLine Add(string productId, int quantity) { }
-
-   public Task Submit()
-   {
-      State = OrderState.Submitted;
-
-      // Raise domain event
-      return MessageBus.Current.Publish(new OrderSubmittedEvent(this));
-   }
-}
-```
-
-Sample logic executed by the client of the domain model:
-
-```cs
-var john = new Customer("John", "Whick");
-
-var order = new Order(john);
-order.Add("id_machine_gun", 2);
-order.Add("id_grenade", 4);
-
-await order.Submit(); // events fired here
-```
-
-Notice the static [`MessageBus.Current`](src/SlimMessageBus/MessageBus.cs) property is configured to resolve a scoped `IMessageBus` instance (web request-scoped or pick-up message scope from a currently processed message).
-
-The `SlimMessageBus` configuration for the in-memory provider looks like this:
-
-```cs
-//IServiceCollection services;
-
-// Configure the message bus
-services.AddSlimMessageBus(mbb =>
-{
-   mbb.WithProviderMemory();
-   // Find types that implement IConsumer<T> and IRequestHandler<T, R> and declare producers and consumers on the mbb
-   mbb.AutoDeclareFrom(Assembly.GetExecutingAssembly());
-   // Scan assembly for consumers, handlers, interceptors, and register into MSDI
-   mbb.AddServicesFromAssemblyContaining<OrderSubmittedHandler>();
-});
-```
-
-For the ASP.NET project, set up the `MessageBus.Current` helper (if you want to use it, and pick up the current web-request scope):
-
-```cs
-services.AddSlimMessageBus(mbb =>
-{
-   // ...
-   mbb.AddAspNet(); // requires SlimMessageBus.Host.AspNetCore package
-});
-services.AddHttpContextAccessor(); // This is required by the SlimMessageBus.Host.AspNetCore plugin
-```
-
-See the complete [sample](/src/Samples#sampledomainevents) for ASP.NET Core where the handler and bus are web-request scoped.
-
-### Use Case: MediatR replacement
-
-The SlimMessageBus [in-memory provider](docs/provider_memory.md) can replace the need to use [MediatR](https://github.com/jbogard/MediatR) library:
-
-- It has similar semantics and has the [interceptor pipeline](docs/intro.md#interceptors) enabling the addition of custom behavior.
-- The [generic interceptors](docs/intro.md#generic-interceptors) can introduce common behavior like logging, authorization or audit of messages.
-- The [FluentValidation plugin](docs/plugin_fluent_validation.md) can introduce request/command/query validation.
-- The external communication can be layered on top of SlimMessageBus which allows having one library for in-memory and out-of-process messaging ([Hybrid Provider](docs/provider_hybrid.md)).
-
-See the [CQRS and FluentValidation](/src/Samples/Sample.ValidatingWebApi/) samples.
-
-### Use Case: Request-response over Kafka topics
-
-See [sample](/src/Samples/README.md#sampleimages).
-
-## Features
-
-- Types of messaging patterns supported:
-  - Publish-subscribe
-  - Request-response
-  - Queues
-  - A hybrid of the above (e.g. Kafka with multiple topic consumers in one group)
-- Modern async/await syntax and TPL
-- Fluent configuration
+- Supports multiple messaging patterns: pub/sub, request-response, queues
+- Compatible with popular brokers: Kafka, RabbitMQ, Azure EventHubs, MQTT, Redis, and more
+- Fluent API for easy configuration
+- Plugin architecture for serialization, validation, outbox patterns and [interceptor pipeline](docs/intro.md#interceptors)
+- Integration with .NET dependency injection
+- Modern async/await support
+- Minimal external dependencies
 - [SourceLink](docs/intro.md#debugging) support
 - Because SlimMessageBus is a facade, chosen messaging transports can be swapped without impacting the overall application architecture.
 
-## Principles
+## 🚧 Contributing
 
-- The core of `SlimMessageBus` is "slim"
-  - Simple, common and friendly API to work with messaging systems
-  - No external dependencies.
-  - The core interface can be used in the domain model (e.g. Domain Events)
-- Plugin architecture:
-  - Message serialization (JSON, Avro, Protobuf)
-  - Use your favorite messaging broker as a provider by simply pulling a NuGet package
-  - Add transactional outbox pattern or message validation
-- No threads created (pure TPL)
-- Async/Await support
-- Fluent configuration
-- Logging is done via [`Microsoft.Extensions.Logging.Abstractions`](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Abstractions/) so that you can connect to your favorite logger provider.
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for details on submitting issues, feature requests, and pull requests.
+See [here](docs/Maintainers/).
 
-## License
+## 💬 Community
 
-[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
+- Raise issues, discussions, questions and feature requests [here](https://github.com/zarusz/SlimMessageBus/issues).
 
-## Build
+## 📜 License
 
-```cmd
-cd src
-dotnet build
-dotnet pack --output ../dist
-```
+SlimMessageBus is licensed under the [Apache License 2.0](LICENSE).
 
-NuGet packages end up in `dist` folder
+## 🙌 Credits
 
-## Testing
+Special thanks to:
 
-To run tests you need to update the `secrets.txt` to match your cloud infrastructure or [local infrastructure](src/Infrastructure/README.md).
-SMB has some message brokers set up on Azure for integration tests (secrets not shared).
-
-Run all tests:
-
-```cmd
-dotnet test
-```
-
-Run all tests except integration tests that require local/cloud infrastructure:
-
-```cmd
-dotnet test --filter Category!=Integration
-```
-
-## Credits
-
-Thanks to [Gravity9](https://www.gravity9.com/) for providing an Azure subscription that allows running the integration test infrastructure.
-
-<a href="https://www.gravity9.com/" target="_blank"><img src="https://uploads-ssl.webflow.com/5ce7ef1205884e25c3d2daa4/5f71f56c89fd4db58dd214d3_Gravity9_logo.svg" width="100" alt="Gravity9"></a>
-
-Thanks to the following service cloud providers for providing free instances for our integration tests:
-
-- Redis - [Redis Labs](https://redislabs.com/)
-- Kafka - [CloudKarafka](https://www.cloudkarafka.com/)
-- MQTT - [HiveMQ](https://www.hivemq.com/)
-- RabbitMQ - [CloudAMQP](https://www.cloudamqp.com/)
-
-If you want to help and sponsor, please write to me.
+- Our maintainers
+- [Gravity9](https://www.gravity9.com/) for Azure infrastructure support.
+- [Redis Labs](https://redislabs.com/), [CloudKarafka](https://www.cloudkarafka.com/), [HiveMQ](https://www.hivemq.com/), [CloudAMQP](https://www.cloudamqp.com/) for providing infrastructure for testing.
