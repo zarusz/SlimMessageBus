@@ -3,8 +3,8 @@
 Please read the [Introduction](intro.md) before reading this provider documentation.
 
 - [Configuration](#configuration)
-- [Json (Newtonsoft.Json)](#json-newtonsoftjson)
 - [Json (System.Text.Json)](#json-systemtextjson)
+- [Json (Newtonsoft.Json)](#json-newtonsoftjson)
 - [Avro](#avro)
 - [GoogleProtobuf](#googleprotobuf)
 - [Hybrid](#hybrid)
@@ -52,31 +52,6 @@ services.AddSlimMessageBus(mbb =>
 
 > The serializer will be a singleton used across all the concurrently running tasks of producing and consuming messages in a given bus instance. The serializers are designed, so that they are Thread-safe.
 
-## Json (Newtonsoft.Json)
-
-Nuget package: [SlimMessageBus.Host.Serialization.Json](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json)
-
-The Json plugin brings in JSON serialization using the [Newtonsoft.Json](https://www.nuget.org/packages/Newtonsoft.Json) library.
-
-To use it install the nuget package `SlimMessageBus.Host.Serialization.Json` and then configure the bus:
-
-```cs
-mbb.AddJsonSerializer();
-```
-
-This will apply the `Newtonsoft.Json` default serialization settings and will use `UTF8` encoding for converting `string` to `byte[]`.
-
-In order to customize the JSON formatting use the additional parameters:
-
-```cs
-var jsonSerializerSettings = new Newtonsoft.Json.JsonSerializerSettings
-{
-   TypeNameHandling = Newtonsoft.Json.TypeNameHandling.Objects
-};
-
-mbb.AddJsonSerializer(jsonSerializerSettings, Encoding.UTF8);
-```
-
 ## Json (System.Text.Json)
 
 Nuget package: [SlimMessageBus.Host.Serialization.SystemTextJson](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.SystemTextJson)
@@ -109,6 +84,31 @@ services.AddSlimMessageBus(mbb =>
 ```
 
 By default the plugin adds a custom converter (see [`ObjectToInferredTypesConverter`](../src/SlimMessageBus.Host.Serialization.SystemTextJson/ObjectToInferredTypesConverter.cs)) that infers primitive types whenever the type to deseriaize is object (unknown). This helps with header value serialization for transport providers that transmit the headers as binary (Kafka). See the source code for better explanation.
+
+## Json (Newtonsoft.Json)
+
+Nuget package: [SlimMessageBus.Host.Serialization.Json](https://www.nuget.org/packages/SlimMessageBus.Host.Serialization.Json)
+
+The Json plugin brings in JSON serialization using the [Newtonsoft.Json](https://www.nuget.org/packages/Newtonsoft.Json) library.
+
+To use it install the nuget package `SlimMessageBus.Host.Serialization.Json` and then configure the bus:
+
+```cs
+mbb.AddJsonSerializer();
+```
+
+This will apply the `Newtonsoft.Json` default serialization settings and will use `UTF8` encoding for converting `string` to `byte[]`.
+
+In order to customize the JSON formatting use the additional parameters:
+
+```cs
+var jsonSerializerSettings = new Newtonsoft.Json.JsonSerializerSettings
+{
+   TypeNameHandling = Newtonsoft.Json.TypeNameHandling.Objects
+};
+
+mbb.AddJsonSerializer(jsonSerializerSettings, Encoding.UTF8);
+```
 
 ## Avro
 
