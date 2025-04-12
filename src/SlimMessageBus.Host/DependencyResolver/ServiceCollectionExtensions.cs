@@ -91,6 +91,7 @@ public static class ServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageBusSettingsPostProcessor, ConsumerMethodPostProcessor>());
 
         services.TryAddSingleton<IMessageScopeAccessor, MessageScopeAccessor>();
+        services.TryAddSingleton<IConsumerContextAccessor, ConsumerContextAccessor>();
 
         services.AddHostedService<MessageBusHostedService>();
 
