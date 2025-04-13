@@ -224,7 +224,7 @@ void ConfigureMessageBus(MessageBusBuilder mbb, IConfiguration configuration)
                     builder.WithProviderAmazonSQS(cfg =>
                     {
                         cfg.UseRegion(Amazon.RegionEndpoint.EUCentral1);
-                        cfg.UseCredentials(accessKey, secretAccess);
+                        cfg.UseStaticCredentials(accessKey, secretAccess);
                     });
                     break;
             }
