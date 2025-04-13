@@ -14,6 +14,26 @@ public static class SqsConsumerBuilderExtensions
     }
 
     /// <summary>
+    /// Subscribes the SQS queue to an SNS topic.
+    /// </summary>
+    /// <typeparam name="TConsumerBuilder"></typeparam>
+    /// <param name="consumerBuilder"></param>
+    /// <param name="topic"></param>
+    /// <param name="filterPolicy"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentNullException"></exception>
+    public static TConsumerBuilder SubscribeToTopic<TConsumerBuilder>(this TConsumerBuilder consumerBuilder, string topic, string filterPolicy = null)
+        where TConsumerBuilder : AbstractConsumerBuilder
+    {
+        if (consumerBuilder is null) throw new ArgumentNullException(nameof(consumerBuilder));
+        if (topic is null) throw new ArgumentNullException(nameof(topic));
+
+        SqsProperties.SubscribeToTopic.Set(consumerBuilder.Settings, topic);
+        SqsProperties.SubscribeToTopicFilterPolicy.Set(consumerBuilder.Settings, filterPolicy);
+        return consumerBuilder;
+    }
+
+    /// <summary>
     /// Specifies the visibility timeout for the message. Default is 30 seconds.
     /// <see cref="ReceiveMessageRequest.VisibilityTimeout"/> for more information.
     /// </summary>

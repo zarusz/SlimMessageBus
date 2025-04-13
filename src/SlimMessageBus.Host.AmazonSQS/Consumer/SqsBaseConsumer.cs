@@ -13,7 +13,7 @@ public abstract class SqsBaseConsumer : AbstractConsumer
 
     public SqsMessageBus MessageBus { get; }
     protected IMessageProcessor<Message> MessageProcessor { get; }
-    protected ISqsHeaderSerializer HeaderSerializer { get; }
+    protected ISqsHeaderSerializer<Amazon.SQS.Model.MessageAttributeValue> HeaderSerializer { get; }
 
     protected SqsBaseConsumer(
         SqsMessageBus messageBus,
@@ -30,7 +30,7 @@ public abstract class SqsBaseConsumer : AbstractConsumer
         _clientProvider = clientProvider ?? throw new ArgumentNullException(nameof(clientProvider));
         MessageBus = messageBus;
         MessageProcessor = messageProcessor ?? throw new ArgumentNullException(nameof(messageProcessor));
-        HeaderSerializer = messageBus.HeaderSerializer;
+        HeaderSerializer = messageBus.SqsHeaderSerializer;
         T GetSingleValue<T>(Func<AbstractConsumerSettings, T> selector, string settingName, T defaultValue = default)
         {
             var set = consumerSettings.Select(x => selector(x)).Where(x => x is not null && !x.Equals(defaultValue)).ToHashSet();
@@ -43,7 +43,7 @@ public abstract class SqsBaseConsumer : AbstractConsumer
 
         _maxMessages = GetSingleValue(x => x.GetOrDefault(SqsProperties.MaxMessages), nameof(SqsConsumerBuilderExtensions.MaxMessages)) ?? messageBus.ProviderSettings.MaxMessageCount;
         _visibilityTimeout = GetSingleValue(x => x.GetOrDefault(SqsProperties.VisibilityTimeout), nameof(SqsConsumerBuilderExtensions.VisibilityTimeout)) ?? 30;
-        _messageAttributeNames = new List<string>(GetSingleValue(x => x.GetOrDefault(SqsProperties.MessageAttributes), nameof(SqsConsumerBuilderExtensions.FetchMessageAttributes)) ?? ["All"]);
+        _messageAttributeNames = [.. GetSingleValue(x => x.GetOrDefault(SqsProperties.MessageAttributes), nameof(SqsConsumerBuilderExtensions.FetchMessageAttributes)) ?? ["All"]];
     }
 
     private async Task<IReadOnlyCollection<Message>> ReceiveMessagesByUrl(string queueUrl)
@@ -101,7 +101,7 @@ public abstract class SqsBaseConsumer : AbstractConsumer
 
     protected async Task Run()
     {
-        var queueUrl = MessageBus.GetQueueUrlOrException(Path);
+        var queueUrl = MessageBus.TopologyCache.GetMetaOrException(Path).Url;
 
         var messagesToDelete = new List<Message>(_maxMessages);
 
