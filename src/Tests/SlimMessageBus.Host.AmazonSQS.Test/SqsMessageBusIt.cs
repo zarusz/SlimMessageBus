@@ -43,18 +43,18 @@ public class SqsMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<Sqs
                 // Tag the queue with the creation date
                 opts.Tags.Add(CreatedDateTag, today);
             };
-            cfg.TopologyProvisioning.OnProvisionTopology = async (client, provision) =>
+            cfg.TopologyProvisioning.OnProvisionTopology = async (clientSqs, clientSns, provision, cancellationToken) =>
             {
                 // Remove all older test queues (SQS does not support queue auto deletion)
-                var r = await client.ListQueuesAsync(QueueNamePrefix);
+                var r = await clientSqs.ListQueuesAsync(QueueNamePrefix);
                 foreach (var queueUrl in r.QueueUrls)
                 {
                     try
                     {
-                        var tagsResponse = await client.ListQueueTagsAsync(new ListQueueTagsRequest { QueueUrl = queueUrl });
+                        var tagsResponse = await clientSqs.ListQueueTagsAsync(new ListQueueTagsRequest { QueueUrl = queueUrl });
                         if (!tagsResponse.Tags.TryGetValue(CreatedDateTag, out var createdDateTag) || createdDateTag != today)
                         {
-                            await client.DeleteQueueAsync(queueUrl);
+                            await clientSqs.DeleteQueueAsync(queueUrl);
                         }
                     }
                     catch (QueueDoesNotExistException)
@@ -80,7 +80,7 @@ public class SqsMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<Sqs
                 cfg.UseRegion(Amazon.RegionEndpoint.EUCentral1);
 
                 // Use static credentials: https://docs.aws.amazon.com/sdkref/latest/guide/access-iam-users.html
-                cfg.UseCredentials(accessKey, secretAccessKey);
+                cfg.UseCredentials(accessKey, secretAccessKey, SqsMessageBusMode.Sqs);
 
                 // Use temporary credentials: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_use-resources.html#RequestWithSTS
                 //cfg.UseTemporaryCredentials(roleArn, roleSessionName);
