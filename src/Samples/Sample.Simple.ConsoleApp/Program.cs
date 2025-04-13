@@ -26,7 +26,7 @@ using SlimMessageBus.Host.Serialization.Json;
 void ConfigureMessageBus(MessageBusBuilder mbb, IConfiguration configuration)
 {
     // Choose your transport
-    var provider = Provider.AzureServiceBus;
+    var provider = Provider.Memory;
 
     // Provide your event hub-names OR kafka/service bus topic names
     var topicForAddCommand = "add-command";
@@ -224,7 +224,7 @@ void ConfigureMessageBus(MessageBusBuilder mbb, IConfiguration configuration)
                     builder.WithProviderAmazonSQS(cfg =>
                     {
                         cfg.UseRegion(Amazon.RegionEndpoint.EUCentral1);
-                        cfg.UseCredentials(accessKey, secretAccess);
+                        cfg.UseStaticCredentials(accessKey, secretAccess);
                     });
                     break;
             }
