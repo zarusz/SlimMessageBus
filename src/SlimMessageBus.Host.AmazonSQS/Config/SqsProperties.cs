@@ -15,4 +15,7 @@ static internal class SqsProperties
     static readonly internal ProviderExtensionProperty<int?> VisibilityTimeout = new("Sqs_VisibilityTimeout");
     static readonly internal ProviderExtensionProperty<int?> WaitTimeSeconds = new("Sqs_WaitTimeSeconds");
     static readonly internal ProviderExtensionProperty<string[]> MessageAttributes = new("Sqs_MessageAttributes");
+    static readonly internal ProviderExtensionProperty<string> SubscribeToTopic = new("Sqs_SubscribeToTopic");
+    static readonly internal ProviderExtensionProperty<string> SubscribeToTopicFilterPolicy = new("Sqs_SubscribeToTopic_FilterPolicy");
+    static readonly internal ProviderExtensionProperty<string> UnderlyingQueue = new("Sqs_UnderlyingQueue");
 }

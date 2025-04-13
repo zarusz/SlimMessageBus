@@ -43,18 +43,24 @@ public class SqsMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<Sqs
                 // Tag the queue with the creation date
                 opts.Tags.Add(CreatedDateTag, today);
             };
-            cfg.TopologyProvisioning.OnProvisionTopology = async (client, provision) =>
+            cfg.TopologyProvisioning.CreateTopicOptions = opts =>
+            {
+                // Tag the queue with the creation date
+                opts.Tags.Add(new() { Key = CreatedDateTag, Value = today });
+            };
+            cfg.TopologyProvisioning.OnProvisionTopology = async (clientSqs, clientSns, provision, cancellationToken) =>
             {
                 // Remove all older test queues (SQS does not support queue auto deletion)
-                var r = await client.ListQueuesAsync(QueueNamePrefix);
+                var r = await clientSqs.ListQueuesAsync(QueueNamePrefix, cancellationToken);
                 foreach (var queueUrl in r.QueueUrls)
                 {
                     try
                     {
-                        var tagsResponse = await client.ListQueueTagsAsync(new ListQueueTagsRequest { QueueUrl = queueUrl });
-                        if (!tagsResponse.Tags.TryGetValue(CreatedDateTag, out var createdDateTag) || createdDateTag != today)
+                        var tagsResponse = await clientSqs.ListQueueTagsAsync(new ListQueueTagsRequest { QueueUrl = queueUrl }, cancellationToken);
+                        var createdDateTagValue = tagsResponse.Tags.FirstOrDefault(x => x.Key == CreatedDateTag).Value;
+                        if (createdDateTagValue is not null && createdDateTagValue != today)
                         {
-                            await client.DeleteQueueAsync(queueUrl);
+                            await clientSqs.DeleteQueueAsync(queueUrl, cancellationToken);
                         }
                     }
                     catch (QueueDoesNotExistException)
@@ -62,6 +68,19 @@ public class SqsMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<Sqs
                         // ignore, other tests might already have deleted the queue
                     }
                 }
+
+                // Remove all older test topics
+                var topicsResponse = await clientSns.ListTopicsAsync(cancellationToken);
+                foreach (var topic in topicsResponse.Topics)
+                {
+                    var tagsResponse = await clientSns.ListTagsForResourceAsync(new() { ResourceArn = topic.TopicArn }, cancellationToken);
+                    var createdDateTagValue = tagsResponse.Tags.FirstOrDefault(x => x.Key == CreatedDateTag)?.Value;
+                    if (createdDateTagValue is not null && createdDateTagValue != today)
+                    {
+                        await clientSns.DeleteTopicAsync(topic.TopicArn, cancellationToken);
+                    }
+                }
+
                 await provision();
             };
         }
@@ -80,10 +99,13 @@ public class SqsMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<Sqs
                 cfg.UseRegion(Amazon.RegionEndpoint.EUCentral1);
 
                 // Use static credentials: https://docs.aws.amazon.com/sdkref/latest/guide/access-iam-users.html
-                cfg.UseCredentials(accessKey, secretAccessKey);
+                cfg.UseStaticCredentials(accessKey, secretAccessKey, SqsMessageBusModes.All);
+
+                // Use default credentials pulled from environment variables (EC2, ECS, Fargate, etc.):
+                // cfg.UseDefaultCredentials(); // This is the default, so you can skip this line if you want to use the default credentials.
 
                 // Use temporary credentials: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_use-resources.html#RequestWithSTS
-                //cfg.UseTemporaryCredentials(roleArn, roleSessionName);
+                // cfg.UseTemporaryCredentials(roleArn, roleSessionName);
 
                 AdditionalSqsSetup(cfg);
             });
@@ -98,7 +120,7 @@ public class SqsMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<Sqs
     [InlineData(true, true)]
     [InlineData(false, false)]
     [InlineData(true, false)]
-    public async Task BasicQueue(bool fifo, bool bulkProduce)
+    public async Task Queue(bool fifo, bool bulkProduce)
     {
         var queue = string.Concat(QueueName(), fifo ? ".fifo" : string.Empty);
         AddBusConfiguration(mbb =>
@@ -123,6 +145,52 @@ public class SqsMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<Sqs
         });
 
         await BasicProducerConsumer(1, bulkProduce: bulkProduce);
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    public async Task TopicPubSub(bool fifo, bool bulkProduce)
+    {
+        var subscribers = 2;
+        var topic = string.Concat(TopicName(), fifo ? ".fifo" : string.Empty);
+
+        AddBusConfiguration(mbb =>
+        {
+            mbb.Produce<PingMessage>(x =>
+                {
+                    x.DefaultTopic(topic);
+                    if (fifo)
+                    {
+                        x.EnableFifo(f => f
+                            .DeduplicationId((m, h) => (m.Counter + 1000).ToString())
+                            .GroupId((m, h) => m.Counter % 2 == 0 ? "even" : "odd")
+                        );
+                    }
+                })
+                .Do(builder => Enumerable.Range(0, subscribers).ToList().ForEach(i =>
+                {
+                    var queue = string.Concat(QueueName(), fifo ? ".fifo" : string.Empty);
+                    builder.Consume<PingMessage>(x =>
+                    {
+                        x
+                        .Queue(queue)
+                        .SubscribeToTopic(topic)
+                        .WithConsumer<PingConsumer>()
+                        .WithConsumer<PingDerivedConsumer, PingDerivedMessage>()
+                        .Instances(20);
+
+                        if (fifo)
+                        {
+                            x.EnableFifo();
+                        }
+                    });
+                }));
+        });
+
+        await BasicProducerConsumer(subscribers, bulkProduce: bulkProduce);
     }
 
     public class TestData
@@ -194,25 +262,26 @@ public class SqsMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<Sqs
     }
 
     [Fact]
-    public async Task BasicReqRespOnQueue()
+    public async Task ReqRespOnQueue()
     {
         var queue = QueueName();
         var responseQueue = $"{queue}-resp";
 
         AddBusConfiguration(mbb =>
         {
-            mbb.Produce<EchoRequest>(x =>
-            {
-                x.DefaultQueue(queue);
-            })
-            .Handle<EchoRequest, EchoResponse>(x => x.Queue(queue)
-                .WithHandler<EchoRequestHandler>()
-                .Instances(20))
-            .ExpectRequestResponses(x =>
-            {
-                x.ReplyToQueue(responseQueue);
-                x.DefaultTimeout(TimeSpan.FromSeconds(60));
-            });
+            mbb
+                .Produce<EchoRequest>(x =>
+                {
+                    x.DefaultQueue(queue);
+                })
+                .Handle<EchoRequest, EchoResponse>(x => x.Queue(queue)
+                    .WithHandler<EchoRequestHandler>()
+                    .Instances(20))
+                .ExpectRequestResponses(x =>
+                {
+                    x.ReplyToQueue(responseQueue);
+                    x.DefaultTimeout(TimeSpan.FromSeconds(60));
+                });
         });
         await BasicReqResp();
     }
@@ -250,8 +319,14 @@ public class SqsMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<Sqs
         responses.All(x => x.Item1.Message == x.Item2.Message).Should().BeTrue();
     }
 
-    private static string QueueName([CallerMemberName] string testName = null)
-        => $"{QueueNamePrefix}_{DateTimeOffset.UtcNow.Ticks}_{testName}";
+    private int _nameIndex = 0;
+    private readonly string _namePrefix = $"{DateTimeOffset.UtcNow:hhMMss}";
+
+    private string QueueName([CallerMemberName] string testName = null)
+        => $"{_namePrefix}_{testName}_Q{_nameIndex++:00}";
+
+    private string TopicName([CallerMemberName] string testName = null)
+        => $"{_namePrefix}_{testName}_T{_nameIndex++:00}";
 }
 
 public record TestEvent(PingMessage Message);
@@ -264,52 +339,52 @@ public record PingMessage(int Counter)
 
 public record PingDerivedMessage(int Counter) : PingMessage(Counter);
 
-public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
+public class PingConsumer : IConsumer<PingMessage>
 {
     private readonly ILogger _logger;
     private readonly TestEventCollector<TestEvent> _messages;
+    private readonly IConsumerContext _consumerContext;
 
-    public PingConsumer(ILogger<PingConsumer> logger, TestEventCollector<TestEvent> messages, TestMetric testMetric)
+    public PingConsumer(ILogger<PingConsumer> logger, TestEventCollector<TestEvent> messages, TestMetric testMetric, IConsumerContext consumerContext)
     {
         _logger = logger;
         _messages = messages;
+        _consumerContext = consumerContext;
         testMetric.OnCreatedConsumer();
     }
 
-    public IConsumerContext Context { get; set; }
-
     public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
     {
-        var transportMessage = Context.GetTransportMessage();
+        var transportMessage = _consumerContext.GetTransportMessage();
 
         _messages.Add(new(message));
 
-        _logger.LogInformation("Got message {Counter:000} on path {Path} message id {MessageId}.", message.Counter, Context.Path, transportMessage.MessageId);
+        _logger.LogInformation("Got message {Counter:000} on path {Path} message id {MessageId}.", message.Counter, _consumerContext.Path, transportMessage.MessageId);
         return Task.CompletedTask;
     }
 }
 
-public class PingDerivedConsumer : IConsumer<PingDerivedMessage>, IConsumerWithContext
+public class PingDerivedConsumer : IConsumer<PingDerivedMessage>
 {
     private readonly ILogger _logger;
     private readonly TestEventCollector<TestEvent> _messages;
+    private readonly IConsumerContext _consumerContext;
 
-    public PingDerivedConsumer(ILogger<PingDerivedConsumer> logger, TestEventCollector<TestEvent> messages, TestMetric testMetric)
+    public PingDerivedConsumer(ILogger<PingDerivedConsumer> logger, TestEventCollector<TestEvent> messages, TestMetric testMetric, IConsumerContext consumerContext)
     {
         _logger = logger;
         _messages = messages;
         testMetric.OnCreatedConsumer();
+        _consumerContext = consumerContext;
     }
-
-    public IConsumerContext Context { get; set; }
 
     public Task OnHandle(PingDerivedMessage message, CancellationToken cancellationToken)
     {
-        var transportMessage = Context.GetTransportMessage();
+        var transportMessage = _consumerContext.GetTransportMessage();
 
         _messages.Add(new(message));
 
-        _logger.LogInformation("Got message {Counter:000} on path {Path} message id {MessageId}.", message.Counter, Context.Path, transportMessage.MessageId);
+        _logger.LogInformation("Got message {Counter:000} on path {Path} message id {MessageId}.", message.Counter, _consumerContext.Path, transportMessage.MessageId);
         return Task.CompletedTask;
     }
 }

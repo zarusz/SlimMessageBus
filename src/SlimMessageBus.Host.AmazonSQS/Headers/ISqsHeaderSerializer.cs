@@ -1,7 +1,8 @@
 ﻿namespace SlimMessageBus.Host.AmazonSQS;
 
-public interface ISqsHeaderSerializer
+public interface ISqsHeaderSerializer<THeaderValue> where THeaderValue : class
 {
-    MessageAttributeValue Serialize(string key, object value);
-    object Deserialize(string key, MessageAttributeValue value);
+    THeaderValue Serialize(string key, object value);
+    object Deserialize(string key, THeaderValue value);
 }
+

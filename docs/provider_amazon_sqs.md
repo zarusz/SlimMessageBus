@@ -1,11 +1,10 @@
-# Amazon SQS Provider for SlimMessageBus <!-- omit in toc -->
+# SlimMessageBus - Amazon SQS and SNS Transport <!-- omit in toc -->
 
 Before diving into this provider documentation, please make sure to read the [Introduction](intro.md).
 
 ### Table of Contents
 
 - [Configuration](#configuration)
-- [Amazon SNS](#amazon-sns)
 - [Producing Messages](#producing-messages)
 - [Consuming Messages](#consuming-messages)
   - [Consumer Context](#consumer-context)
@@ -15,11 +14,14 @@ Before diving into this provider documentation, please make sure to read the [In
   - [Producing Request Messages](#producing-request-messages)
   - [Handling Request Messages](#handling-request-messages)
 - [Topology Provisioning](#topology-provisioning)
+- [Future Ideas](#future-ideas)
+  - [Application-to-Person (A2P) Support](#application-to-person-a2p-support)
 
 ## Configuration
 
-To configure Amazon SQS as your transport provider, you need to specify the AWS region and choose an authentication method:
+To configure Amazon SQS / SNS as the transport provider, you need to specify the AWS region and choose an authentication method:
 
+- **Ambient Credential**: Connect to AWS using default credentials that are pulled from the environment variables (e.g. Fargate, ECS, EC2, etc.).
 - **Static Credentials**: [Learn more](https://docs.aws.amazon.com/sdkref/latest/guide/access-iam-users.html)
 - **Temporary Credentials**: [Learn more](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_use-resources.html#RequestWithSTS)
 
@@ -35,21 +37,23 @@ services.AddSlimMessageBus((mbb) =>
         cfg.UseRegion(Amazon.RegionEndpoint.EUCentral1);
 
         // Use static credentials: https://docs.aws.amazon.com/sdkref/latest/guide/access-iam-users.html
-        cfg.UseCredentials(accessKey, secretAccessKey);
+        cfg.UseStaticCredentials(accessKey, secretAccessKey, SqsMessageBusMode.All);
+
+        // Use default credentials pulled from environment variables (EC2, ECS, Fargate, etc.):
+        // cfg.UseDefaultCredentials(); // This is the default, so you can skip this line if you want to use the default credentials.
 
         // Use temporary credentials: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_use-resources.html#RequestWithSTS
-        //cfg.UseTemporaryCredentials(roleArn, roleSessionName);
+        // cfg.UseTemporaryCredentials(roleArn, roleSessionName);
 
         AdditionalSqsSetup(cfg);
     });
 });
 ```
 
-For an example configuration, check out this file: [`SqsMessageBusSettings`](../src/SlimMessageBus.Host.AmazonSQS/SqsMessageBusSettings.cs). The settings allow you to customize the SQS client object and control topology provisioning for advanced scenarios.
+For an example configuration, check out this file: [`SqsMessageBusSettings`](../src/SlimMessageBus.Host.AmazonSQS/SqsMessageBusSettings.cs). The settings allow you to customize the SQS and SNS client object and control topology provisioning for advanced scenarios.
 
-## Amazon SNS
-
-Support for Amazon SNS (Simple Notification Service) will be added soon to this transport plugin.
+The plugin supports both SQS (Simple Queue Service Queues) and SNS (Simple Notification Service).
+However, if you want to use just one specify the `mode` parameter in either `.UseStaticCredentials(mode: SqsMessageBusMode.Sqs)` or `.UseStaticCredentials(mode: SqsMessageBusMode.Sns)`.
 
 ## Producing Messages
 
@@ -72,7 +76,6 @@ TMessage msg;
 
 // Send msg to "some-queue"
 await bus.Publish(msg, "some-queue");
-
 // OR
 
 // Send msg to "some-topic"
@@ -102,15 +105,7 @@ Note that if no explicit configuration is provided, the system assumes the messa
 
 ## Consuming Messages
 
-To consume messages of type `TMessage` by `TConsumer` from an Amazon SNS topic named `some-topic`:
-
-```csharp
-mbb.Consume<TMessage>(x => x
-   .Queue("some-topic")
-   //.WithConsumer<TConsumer>());
-```
-
-To consume messages from an Amazon SQS queue named `some-queue`:
+To consume messages of type `TMessage` by `TConsumer` from an Amazon SQS queue named `some-queue`:
 
 ```csharp
 mbb.Consume<TMessage>(x => x
@@ -118,19 +113,28 @@ mbb.Consume<TMessage>(x => x
    //.WithConsumer<TConsumer>());
 ```
 
-### Consumer Context
-
-The consumer can implement the `IConsumerWithContext` interface to access native Amazon SQS messages:
+To consume messages from an Amazon SQS queue `some-queue` that is subscribed to a `some-topic` Amazon SNS topic:
 
 ```csharp
-public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
-{
-   public IConsumerContext Context { get; set; }
+mbb.Consume<TMessage>(x => x
+   .Queue("some-queue")
+   .SubscribeToTopic("some-topic")
+   //.WithConsumer<TConsumer>());
+```
 
+> The `.SubscribeToTopic()` will create a subscription on the SNS and setup a policy on the SQS queue to accept messages from that topic.
+
+### Consumer Context
+
+The consumer can get the `IConsumerContext` interface injected to access native Amazon SQS messages:
+
+```csharp
+public class PingConsumer(IConsumerContext context) : IConsumer<PingMessage>
+{
    public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
    {
       // Access the native Amazon SQS message:
-      var transportMessage = Context.GetTransportMessage(); // Amazon.SQS.Model.Message type
+      var transportMessage = context.GetTransportMessage(); // Amazon.SQS.Model.Message type
    }
 }
 ```
@@ -161,6 +165,7 @@ For a consumer:
 mbb.Consume<TMessage>(x => x
    .WithConsumer<TConsumer>()
    .Queue("some-queue")
+   .EnableFifo()
    .MaxMessageCount(10)
    .Instances(1));
 ```
@@ -284,3 +289,9 @@ mbb.WithProviderAmazonSQS(cfg =>
 > By default, both flags are enabled (`true`).
 
 This flexibility allows you to define ownership of queues/topics clearly—e.g., producers handle queue creation while consumers manage subscriptions.
+
+## Future Ideas
+
+### Application-to-Person (A2P) Support
+
+The SNS supports sending SMS messages and Email to persons. While this is not a typical system to system communication, there could be few configuration and mapping features that could be added to leverage that capability from SMB. If you need that, please raise an issue (feature request).
