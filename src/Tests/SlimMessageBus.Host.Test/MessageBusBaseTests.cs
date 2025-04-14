@@ -49,7 +49,7 @@ public class MessageBusBaseTests : IDisposable
                 x.ReplyToTopic("app01-responses");
                 x.DefaultTimeout(TimeSpan.FromSeconds(TimeoutDefault10));
             })
-            .WithDependencyResolver(_serviceProviderMock.Object)
+            .WithServiceProvider(_serviceProviderMock.Object)
             .WithProvider(s =>
             {
                 return new MessageBusTested(s, _timeProvider)

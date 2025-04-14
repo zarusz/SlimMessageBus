@@ -265,7 +265,11 @@ public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBui
         PostConfigurationActions.Add(services => services.TryAddSingleton<IMessageSerializerProvider>(sp => sp.GetRequiredService<TMessageSerializerProvider>()));
     }
 
+    [Obsolete("Use WithServiceProvider()")]
     public MessageBusBuilder WithDependencyResolver(IServiceProvider serviceProvider)
+        => WithServiceProvider(serviceProvider);
+
+    public MessageBusBuilder WithServiceProvider(IServiceProvider serviceProvider)
     {
         Settings.ServiceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         return this;

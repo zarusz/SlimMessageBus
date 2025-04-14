@@ -80,6 +80,7 @@ public partial class MessageHandler : IMessageHandler
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            // Creates message scope for the message processing pass (every attempt)
             await using var messageScope = _messageScopeFactory.CreateMessageScope(consumerInvoker.ParentSettings, message, consumerContextProperties, currentServiceProvider);
             if (messageExpires != null && messageExpires < _timeProvider.GetUtcNow())
             {
@@ -95,7 +96,7 @@ public partial class MessageHandler : IMessageHandler
                 consumerInstance = messageScope.ServiceProvider.GetService(consumerType)
                     ?? throw new ConfigurationMessageBusException($"Could not resolve consumer/handler type {consumerType} from the DI container. Please check that the configured type {consumerType} is registered within the DI container.");
 
-                var consumerContext = CreateConsumerContext(messageHeaders, consumerInvoker, transportMessage, consumerInstance, messageBusTarget, consumerContextProperties, cancellationToken);
+                var consumerContext = CreateConsumerContext(messageScope, messageHeaders, consumerInvoker, transportMessage, consumerInstance, messageBusTarget, consumerContextProperties, cancellationToken);
                 try
                 {
                     var response = await DoHandleInternal(message, consumerInvoker, messageType, hasResponse, responseType, messageScope, consumerContext).ConfigureAwait(false);
@@ -173,16 +174,29 @@ public partial class MessageHandler : IMessageHandler
         return messageScope.GetService(consumerErrorHandlerType);
     }
 
-    protected virtual ConsumerContext CreateConsumerContext(IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, object transportMessage, object consumerInstance, IMessageBus messageBus, IDictionary<string, object> consumerContextProperties, CancellationToken cancellationToken)
-        => new(consumerContextProperties)
-        {
-            Path = Path,
-            Headers = messageHeaders,
-            Bus = messageBus,
-            CancellationToken = cancellationToken,
-            Consumer = consumerInstance,
-            ConsumerInvoker = consumerInvoker
-        };
+    protected virtual ConsumerContext CreateConsumerContext(
+        IMessageScope messageScope,
+        IReadOnlyDictionary<string, object> messageHeaders,
+        IMessageTypeConsumerInvokerSettings consumerInvoker,
+        object transportMessage,
+        object consumerInstance,
+        IMessageBus messageBus,
+        IDictionary<string, object> consumerContextProperties,
+        CancellationToken cancellationToken)
+    {
+        // Obtain from the current message scope (a scoped instance)
+        var consumerContext = messageScope.ServiceProvider.GetRequiredService<ConsumerContext>();
+
+        consumerContext.Path = Path;
+        consumerContext.Headers = messageHeaders;
+        consumerContext.Bus = messageBus;
+        consumerContext.CancellationToken = cancellationToken;
+        consumerContext.Consumer = consumerInstance;
+        consumerContext.ConsumerInvoker = consumerInvoker;
+        consumerContext.Properties = consumerContextProperties;
+
+        return consumerContext;
+    }
 
     public async Task<object> ExecuteConsumer(object message, IConsumerContext consumerContext, IMessageTypeConsumerInvokerSettings consumerInvoker, Type responseType)
     {
