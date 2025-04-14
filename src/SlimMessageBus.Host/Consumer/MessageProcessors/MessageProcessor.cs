@@ -2,6 +2,8 @@
 
 using System.Diagnostics;
 
+using SlimMessageBus.Host.Consumer;
+
 /// <summary>
 /// Implementation of <see cref="IMessageProcessor{TMessage}"/> that performs orchestration around processing of a new message using an instance of the declared consumer (<see cref="IConsumer{TMessage}"/> or <see cref="IRequestHandler{TRequest, TResponse}"/> interface).
 /// </summary>
@@ -56,9 +58,16 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
         _shouldLogWhenUnrecognizedMessageType = consumerSettings.OfType<ConsumerSettings>().Any(x => x.UndeclaredMessageType.Log);
     }
 
-    protected override ConsumerContext CreateConsumerContext(IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, object transportMessage, object consumerInstance, IMessageBus messageBus, IDictionary<string, object> consumerContextProperties, CancellationToken cancellationToken)
+    protected override ConsumerContext CreateConsumerContext(IMessageScope messageScope,
+                                                             IReadOnlyDictionary<string, object> messageHeaders,
+                                                             IMessageTypeConsumerInvokerSettings consumerInvoker,
+                                                             object transportMessage,
+                                                             object consumerInstance,
+                                                             IMessageBus messageBus,
+                                                             IDictionary<string, object> consumerContextProperties,
+                                                             CancellationToken cancellationToken)
     {
-        var context = base.CreateConsumerContext(messageHeaders, consumerInvoker, transportMessage, consumerInstance, messageBus, consumerContextProperties, cancellationToken);
+        var context = base.CreateConsumerContext(messageScope, messageHeaders, consumerInvoker, transportMessage, consumerInstance, messageBus, consumerContextProperties, cancellationToken);
 
         _consumerContextInitializer?.Invoke((TTransportMessage)transportMessage, context);
 

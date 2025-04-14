@@ -1,8 +1,8 @@
 ﻿namespace SlimMessageBus.Host;
 
-public class ConsumerContext(IDictionary<string, object> properties = null) : IConsumerContext
+public class ConsumerContext : IConsumerContext
 {
-    private IDictionary<string, object> _properties = properties;
+    private IDictionary<string, object> _properties;
 
     public string Path { get; set; }
 
@@ -14,11 +14,8 @@ public class ConsumerContext(IDictionary<string, object> properties = null) : IC
 
     public IDictionary<string, object> Properties
     {
-        get
-        {
-            _properties ??= new Dictionary<string, object>();
-            return _properties;
-        }
+        get => _properties ??= new Dictionary<string, object>();
+        set => _properties = value;
     }
 
     public object Consumer { get; set; }

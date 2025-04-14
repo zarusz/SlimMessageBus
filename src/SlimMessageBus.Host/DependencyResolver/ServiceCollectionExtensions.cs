@@ -61,7 +61,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton(svp =>
         {
             var mbb = svp.GetRequiredService<MessageBusBuilder>();
-            mbb.WithDependencyResolver(svp);
+            mbb.WithServiceProvider(svp);
 
             // Apply settings post processing
             foreach (var postProcessor in svp.GetServices<IMessageBusSettingsPostProcessor>())
@@ -90,6 +90,8 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IMessageTypeResolver, AssemblyQualifiedNameMessageTypeResolver>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageBusSettingsPostProcessor, ConsumerMethodPostProcessor>());
 
+        services.TryAddScoped<ConsumerContext>();
+        services.TryAddTransient<IConsumerContext>(svp => svp.GetRequiredService<ConsumerContext>());
         services.TryAddSingleton<IMessageScopeAccessor, MessageScopeAccessor>();
 
         services.AddHostedService<MessageBusHostedService>();

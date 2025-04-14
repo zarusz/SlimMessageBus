@@ -22,7 +22,6 @@ public class MessageScopeAccessorTests(ITestOutputHelper output) : BaseIntegrati
                     .AutoDeclareFrom(Assembly.GetExecutingAssembly(), t => t.Namespace.Contains("MessageScopeAccessor"))
                     .PerMessageScopeEnabled();
             });
-            mbb.AddServicesFromAssemblyContaining<TestMessageConsumer>();
         });
         services.AddScoped<TestValueHolder>();
     }
@@ -40,18 +39,27 @@ public class MessageScopeAccessorTests(ITestOutputHelper output) : BaseIntegrati
         await bus.Publish(new TestMessage(value));
 
         // Assert
-        var holder = scope.ServiceProvider.GetRequiredService<TestValueHolder>();
-        holder.ServiceProvider.Should().BeSameAs(holder.MessageScopeAccessorServiceProvider);
     }
 
     public record TestMessage(Guid Value);
 
-    public class TestMessageConsumer(TestValueHolder holder, IServiceProvider serviceProvider, IMessageScopeAccessor messageScopeAccessor) : IRequestHandler<TestMessage>
+    public class TestMessageConsumer(IServiceProvider serviceProvider,
+                                     IMessageScopeAccessor messageScopeAccessor,
+                                     IConsumerContext consumerContext)
+        : IRequestHandler<TestMessage>, IConsumerWithContext
     {
+        public required IConsumerContext Context { get; set; }
+
         public Task OnHandle(TestMessage request, CancellationToken cancellationToken)
         {
-            holder.ServiceProvider = serviceProvider;
-            holder.MessageScopeAccessorServiceProvider = messageScopeAccessor.Current;
+            // The ServcieProvider should match what is reported by IMessageScopeAccessor
+            serviceProvider.Should().BeSameAs(messageScopeAccessor.Current);
+
+            // The consumer context set should match what is injected
+            Context.Should().BeSameAs(consumerContext);
+            Context.Should().BeSameAs(serviceProvider.GetRequiredService<IConsumerContext>());
+
+
             return Task.CompletedTask;
         }
     }
@@ -60,6 +68,8 @@ public class MessageScopeAccessorTests(ITestOutputHelper output) : BaseIntegrati
     {
         public IServiceProvider ServiceProvider { get; set; }
         public IServiceProvider MessageScopeAccessorServiceProvider { get; set; }
+        public IConsumerContext ConsumerContextSetter { get; set; }
+        public IConsumerContext ConsumerContextInjected { get; set; }
     }
 
 }

@@ -5,13 +5,12 @@ using Microsoft.Extensions.DependencyInjection;
 using SlimMessageBus.Host.Collections;
 using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Serialization;
-using SlimMessageBus.Host.Test.Common;
 
 public class MessageBusMock
 {
     public Mock<IServiceProvider> ServiceProviderMock { get; }
-    public IList<Mock<IServiceScope>> ChildDependencyResolverMocks { get; }
-    public Action<Mock<IServiceScope>, Mock<IServiceProvider>> OnChildDependencyResolverCreated { get; set; }
+    public IList<Mock<IServiceScope>> ChildServieProviderMocks { get; }
+    public Action<Mock<IServiceScope>, Mock<IServiceProvider>> OnChildServiceProviderCreated { get; set; }
     public Mock<IMessageSerializer> SerializerMock { get; }
     public Mock<IConsumer<SomeMessage>> ConsumerMock { get; }
     public Mock<IRequestHandler<SomeRequest, SomeResponse>> HandlerMock { get; }
@@ -28,17 +27,24 @@ public class MessageBusMock
         ConsumerMock = new Mock<IConsumer<SomeMessage>>();
         HandlerMock = new Mock<IRequestHandler<SomeRequest, SomeResponse>>();
 
-        ChildDependencyResolverMocks = [];
+        ChildServieProviderMocks = [];
 
         void SetupDependencyResolver<T>(Mock<T> mock) where T : class, IServiceProvider
         {
-            mock.Setup(x => x.GetService(typeof(IConsumer<SomeMessage>))).Returns(ConsumerMock.Object);
-            mock.Setup(x => x.GetService(typeof(IRequestHandler<SomeRequest, SomeResponse>))).Returns(HandlerMock.Object);
-            mock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
+            mock.Setup(x => x.GetService(typeof(IConsumer<SomeMessage>)))
+                .Returns(ConsumerMock.Object);
+            mock.Setup(x => x.GetService(typeof(IRequestHandler<SomeRequest, SomeResponse>)))
+                .Returns(HandlerMock.Object);
+            mock.Setup(x => x.GetService(typeof(IMessageTypeResolver)))
+                .Returns(new AssemblyQualifiedNameMessageTypeResolver());
             mock.Setup(x => x.GetService(It.Is<Type>(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>) && t.GetGenericArguments().Length == 1 && t.GetGenericArguments()[0].IsGenericType && InterceptorTypes.Contains(t.GetGenericArguments()[0].GetGenericTypeDefinition()))))
                 .Returns(Enumerable.Empty<object>());
-            mock.Setup(x => x.GetService(typeof(RuntimeTypeCache))).Returns(new RuntimeTypeCache());
-            mock.Setup(x => x.GetService(typeof(IPendingRequestManager))).Returns(() => new PendingRequestManager(new InMemoryPendingRequestStore(), TimeProvider, NullLoggerFactory.Instance));
+            mock.Setup(x => x.GetService(typeof(RuntimeTypeCache)))
+                .Returns(new RuntimeTypeCache());
+            mock.Setup(x => x.GetService(typeof(IPendingRequestManager)))
+                .Returns(() => new PendingRequestManager(new InMemoryPendingRequestStore(), TimeProvider, NullLoggerFactory.Instance));
+            mock.Setup(x => x.GetService(typeof(ConsumerContext)))
+                .Returns(() => new ConsumerContext());
         }
 
         ServiceProviderMock = new Mock<IServiceProvider>();
@@ -53,11 +59,11 @@ public class MessageBusMock
             var mock = new Mock<IServiceScope>();
             mock.SetupGet(x => x.ServiceProvider).Returns(svpMock.Object);
 
-            ChildDependencyResolverMocks.Add(mock);
+            ChildServieProviderMocks.Add(mock);
 
-            OnChildDependencyResolverCreated?.Invoke(mock, svpMock);
+            OnChildServiceProviderCreated?.Invoke(mock, svpMock);
 
-            mock.Setup(x => x.Dispose()).Callback(() => ChildDependencyResolverMocks.Remove(mock));
+            mock.Setup(x => x.Dispose()).Callback(() => ChildServieProviderMocks.Remove(mock));
 
             return mock.Object;
         });

@@ -405,7 +405,7 @@ public class ConsumerInstanceMessageProcessorTest
 
         Mock<IServiceProvider> childScopeMock = null;
 
-        _busMock.OnChildDependencyResolverCreated = (_, mock) =>
+        _busMock.OnChildServiceProviderCreated = (_, mock) =>
         {
             childScopeMock = mock;
         };
@@ -416,7 +416,7 @@ public class ConsumerInstanceMessageProcessorTest
         // assert
         _busMock.ConsumerMock.Verify(x => x.OnHandle(message, It.IsAny<CancellationToken>()), Times.Once); // handler called once
         _busMock.ServiceProviderMock.Verify(x => x.GetService(typeof(IServiceScopeFactory)), Times.Once);
-        _busMock.ChildDependencyResolverMocks.Count.Should().Be(0); // it has been disposed
+        _busMock.ChildServieProviderMocks.Count.Should().Be(0); // it has been disposed
         childScopeMock.Should().NotBeNull();
         childScopeMock.Verify(x => x.GetService(typeof(IConsumer<SomeMessage>)), Times.Once);
     }

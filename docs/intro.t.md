@@ -9,7 +9,11 @@
   - [Consumer](#consumer)
     - [Start or Stop message consumption](#start-or-stop-message-consumption)
     - [Health check circuit breaker](#health-check-circuit-breaker)
-    - [Consumer context (additional message information)](#consumer-context-additional-message-information)
+  - [Consumer Context (Accessing Additional Message Information)](#consumer-context-accessing-additional-message-information)
+    - [Recommended Approach: Constructor Injection](#recommended-approach-constructor-injection)
+  - [Obsolete Approaches](#obsolete-approaches)
+    - [1. Wrapping the Message in `IConsumerContext<TMessage>`](#1-wrapping-the-message-in-iconsumercontexttmessage)
+    - [2. Implementing `IConsumerWithContext`](#2-implementing-iconsumerwithcontext)
     - [Per-message DI container scope](#per-message-di-container-scope)
     - [Hybrid bus and message scope reuse](#hybrid-bus-and-message-scope-reuse)
     - [Concurrently processed messages](#concurrently-processed-messages)
@@ -26,6 +30,7 @@
   - [ASP.Net Core](#aspnet-core)
   - [Modularization of configuration](#modularization-of-configuration)
   - [Auto registration of consumers and interceptors](#auto-registration-of-consumers-and-interceptors)
+  - [Services Registered with MSDI](#services-registered-with-msdi)
   - [Message Scope Accessor](#message-scope-accessor)
 - [Serialization](#serialization)
 - [Multiple message types on one topic (or queue)](#multiple-message-types-on-one-topic-or-queue)
@@ -338,64 +343,97 @@ Consumers can be linked to [.NET app health checks](https://learn.microsoft.com/
 
 _Requires: SlimMessageBus.Host.CircuitBreaker.HealthCheck_
 
-#### Consumer context (additional message information)
+Here’s a clearer, more structured rewrite of that section with improved readability, while keeping all the technical details intact:
 
-The consumer can access the [`IConsumerContext`](../src/SlimMessageBus/IConsumerContext.cs) object which:
+---
 
-- allows to access additional message information - topic (or queue) name the message arrived on, headers, cancellation token,
-- enable the transport provider to pass additional message information specific to the chosen transport.
+### Consumer Context (Accessing Additional Message Information)
 
-Examples of such transport specific information are the Azure Service Bus UserProperties, or Kafka Topic-Partition offset.
+Within a message consumer, you can access the [`IConsumerContext`](/src/SlimMessageBus/IConsumerContext.cs) to retrieve detailed metadata about the message being processed. This includes:
 
-The recommended (and newer) approach is to define a consumer type that implements `IConsumer<IConsumerContext<TMessage>>`.
-For example:
+- The topic or queue name the message was received from
+- Message headers
+- The `CancellationToken` for cooperative cancellation
+- Transport-specific metadata passed by the message broker (e.g., Kafka offsets, Azure Service Bus properties)
 
-```cs
-// The consumer wraps the message type in IConsumerContext<T>
+This is especially useful when you need low-level information provided by the transport layer—for example, accessing Kafka’s Topic-Partition-Offset or Azure Service Bus's `UserProperties`.
+
+#### Recommended Approach: Constructor Injection
+
+The preferred and modern way to use `IConsumerContext` is through constructor injection:
+
+```csharp
+public class PingConsumer(IConsumerContext context) : IConsumer<PingMessage>
+{
+    public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
+    {
+        var path = context.Path; // topic or queue name
+        var headers = context.Headers; // message headers
+
+        // Example: Kafka-specific metadata (requires SlimMessageBus.Host.Kafka)
+        var transportMessage = context.GetTransportMessage();
+        var partition = transportMessage.TopicPartition.Partition;
+
+        return Task.CompletedTask;
+    }
+}
+```
+
+> Check the documentation of your specific transport provider for details on what transport-level metadata is accessible (e.g., Kafka’s topic/partition information).
+
+### Obsolete Approaches
+
+Although still supported, the following methods are no longer recommended and may be phased out in the future.
+
+#### 1. Wrapping the Message in `IConsumerContext<TMessage>`
+
+This approach involves defining the consumer to accept a contextualized message wrapper:
+
+```csharp
 public class PingConsumer : IConsumer<IConsumerContext<PingMessage>>
 {
-   public Task OnHandle(IConsumerContext<PingMessage> context, CancellationToken cancellationToken)
-   {
-      var message = context.Message; // the message (here PingMessage)
-      var topic = context.Path; // the topic or queue name
-      var headers = context.Headers; // message headers
-      // Kafka transport specific extension (requires SlimMessageBus.Host.Kafka package):
-      var transportMessage = context.GetTransportMessage();
-      var partition = transportMessage.TopicPartition.Partition;
-   }
+    public Task OnHandle(IConsumerContext<PingMessage> context, CancellationToken cancellationToken)
+    {
+        var message = context.Message;
+        var path = context.Path;
+        var headers = context.Headers;
+
+        var transportMessage = context.GetTransportMessage();
+        var partition = transportMessage.TopicPartition.Partition;
+
+        return Task.CompletedTask;
+    }
 }
 
-// To declare the consumer type use the .WithConsumerOfContext<TConsumer>() method
+// Register the consumer with .WithConsumerOfContext<T>()
 mbb.Consume<SomeMessage>(x => x
     .Topic("some-topic")
-    .WithConsumerOfContext<PingConsumer>()
-  );
+    .WithConsumerOfContext<PingConsumer>());
 ```
 
-The other approach is for the consumer to implement the [`IConsumerWithContext`](../src/SlimMessageBus/IConsumerWithContext.cs) interface:
+#### 2. Implementing `IConsumerWithContext`
 
-```cs
+Another legacy option is to implement the [`IConsumerWithContext`](/src/SlimMessageBus/IConsumerWithContext.cs) interface, which exposes a `Context` property:
+
+```csharp
 public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
 {
-   public IConsumerContext Context { get; set; }
+    public required IConsumerContext Context { get; set; }
 
-   public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
-   {
-      var topic = Context.Path; // the topic or queue name
-      var headers = Context.Headers; // message headers
-      // Kafka transport specific extension (requires SlimMessageBus.Host.Kafka package):
-      var transportMessage = Context.GetTransportMessage();
-      var partition = transportMessage.TopicPartition.Partition;
-   }
+    public Task OnHandle(PingMessage message, CancellationToken cancellationToken)
+    {
+        var path = Context.Path;
+        var headers = Context.Headers;
+
+        var transportMessage = Context.GetTransportMessage();
+        var partition = transportMessage.TopicPartition.Partition;
+
+        return Task.CompletedTask;
+    }
 }
 ```
 
-SMB will set the `Context` property before executing `OnHandle`.
-
-Please consult the individual transport provider documentation to see what is available.
-
-> It is important that the consumer type is registered as either transient (prototype) or scoped (per message) for the `Context` property to work properly.
-> If the consumer type would be a singleton, then somewhere between the setting of `Headers` and running the `OnHandle` there would be a race condition.
+> ⚠️ **Important:** When using this approach, the consumer must be registered as either **transient** or **scoped**. Using a **singleton** would result in a race condition between setting the `Context` and executing `OnHandle`.
 
 #### Per-message DI container scope
 
@@ -780,13 +818,23 @@ services.AddSlimMessageBus(mbb =>
 });
 ```
 
+### Services Registered with MSDI
+
+The following key interfaces are registered with the Microsoft Dependency Injection (MSDI) container:
+
+- [`IMessageBus`](/src/SlimMessageBus/IMessageBus.cs): Provides the ability to produce messages, such as publishing or sending them.
+- [`IConsumerContext`](/src/SlimMessageBus/IConsumerContext.cs): Available within a message consumer, this gives access to contextual information like the message path, cancellation token, and message headers.
+- [`IMessageScopeAccessor`](/src/SlimMessageBus.Host/Consumer/IMessageScopeAccessor.cs): See [section](#message-scope-accessor).
+
 ### Message Scope Accessor
 
-During normal consumer/handler and interceptor life cycles, we can inject any scoped dependencies (services) using the constructor. All is nicely handled by MSDI.
+In typical scenarios involving consumers, handlers, or interceptors, scoped dependencies (services) can be injected directly via constructors. This behavior is seamlessly managed by the Microsoft Dependency Injection (MSDI) framework.
 
-However, for advanced framework integration, if there is a need to get ahold of the `IServiceProvider` tied to the scope of the currently consumed message the [`IMessageScopeAccessor`](../src/SlimMessageBus.Host/Consumer/IMessageScope.cs) can be used.
-It works in a similar way how the [`IHttpContextAccessor`](https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.http.ihttpcontextaccessor?view=aspnetcore-8.0) works in ASP.NET Core to lookup the current ongoing HTTP request and the per request scoped services.
-This is useful when the other framework is not managed by MSDI and we still want to hook into the current message scope.
+However, for more advanced integration scenarios - particularly when you need access to the `IServiceProvider` associated with the currently processed message - you can use the [`IMessageScopeAccessor`](/src/SlimMessageBus.Host/Consumer/IMessageScopeAccessor.cs).
+
+This interface functions similarly to [`IHttpContextAccessor`](https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.http.ihttpcontextaccessor?view=aspnetcore-8.0) in ASP.NET Core, which provides access to the current HTTP request and its scoped services.
+
+The `IMessageScopeAccessor` is particularly useful in cases where you're working with frameworks or components not directly managed by MSDI but still need to interact with the current message's scoped services.
 
 ## Serialization
 

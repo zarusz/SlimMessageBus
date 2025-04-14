@@ -32,7 +32,7 @@ public class ServiceBusMessageBusTests : IDisposable
         serviceProviderMock.Setup(x => x.GetService(typeof(RuntimeTypeCache))).Returns(new RuntimeTypeCache());
         serviceProviderMock.Setup(x => x.GetService(typeof(IPendingRequestManager))).Returns(() => new PendingRequestManager(new InMemoryPendingRequestStore(), TimeProvider.System, NullLoggerFactory.Instance));
 
-        BusBuilder.WithDependencyResolver(serviceProviderMock.Object);
+        BusBuilder.WithServiceProvider(serviceProviderMock.Object);
 
         ProviderBusSettings = new ServiceBusMessageBusSettings("connection-string")
         {
