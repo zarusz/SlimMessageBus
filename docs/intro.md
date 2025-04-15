@@ -29,7 +29,11 @@
   - [Message Scope Accessor](#message-scope-accessor)
 - [Serialization](#serialization)
 - [Multiple message types on one topic (or queue)](#multiple-message-types-on-one-topic-or-queue)
-  - [Message Type Resolver](#message-type-resolver)
+- [Message Type Resolver](#message-type-resolver)
+  - [Custom Message Type Resolver](#custom-message-type-resolver)
+    - [Example: Registering a Custom Message Type Resolver](#example-registering-a-custom-message-type-resolver)
+  - [Use Case: Type Redirection for Evolving Services](#use-case-type-redirection-for-evolving-services)
+    - [Extending the Default Resolver with Redirects](#extending-the-default-resolver-with-redirects)
   - [Polymorphic messages](#polymorphic-messages)
     - [Polymorphic producer](#polymorphic-producer)
     - [Polymorphic consumer](#polymorphic-consumer)
@@ -842,18 +846,93 @@ mbb.Consume<OrderEvent>(x =>
 
 ![Multiple messages types on one topic](/docs/images/SlimMessageBus%20-%20Multiple%20message%20types%20on%20one%20topic.jpg)
 
-### Message Type Resolver
+## Message Type Resolver
 
-By default, the message header `MessageType` conveys the message type information using the assembly qualified name of the .NET type (see `AssemblyQualifiedNameMessageTypeResolver`).
+SlimMessageBus uses a message header named `MessageType` to communicate the type information of messages as a `string`.
+This header allows consumers to identify the appropriate .NET `Type` required to deserialize the message payload correctly.
 
-A custom resolver could be used. Some scenarios include a desire to send short type names (to optimize overall message size) or adjust interoperability with other messaging systems.
-The following can be used to provide a custom `IMessageTypeResolver` implementation:
+- **Producer side**: Converts the .NET `Type` into a string and adds it to the message header.
+- **Consumer side**: Reads the type information from the header, resolves it back to the corresponding .NET `Type`, and then passes this type information to the serializer. Once deserialized, the message is passed to its registered handler.
 
-```cs
-IMessageTypeResolver mtr = new AssemblyQualifiedNameMessageTypeResolver();
+The type resolution logic is encapsulated within the [`IMessageTypeResolver`](/src/SlimMessageBus.Host/MessageTypeResolver/IMessageTypeResolver.cs) interface, typically provided via dependency injection (DI).
 
-mbb.WithMessageTypeResolver(mtr)
+By default, SlimMessageBus uses the built-in [`AssemblyQualifiedNameMessageTypeResolver`](/src/SlimMessageBus.Host/MessageTypeResolver/AssemblyQualifiedNameMessageTypeResolver.cs). This resolver formats type names as assembly-qualified names without version information.
+For example:
+
 ```
+MyNamespace.MyMessage, MyAssembly
+```
+
+> **Note:**  
+> If a `MessageType` header is missing—such as when messages originate from non-SMB producers—SlimMessageBus assumes the message type based on the consumer definition for that specific Topic or Queue. However, if the consumer handles multiple message types, resolution fails, and the message processing will be unsuccessful.
+
+### Custom Message Type Resolver
+
+SlimMessageBus allows you to implement custom message type resolvers by creating your own implementations of `IMessageTypeResolver`. Common scenarios for custom resolvers include:
+
+- Reducing message overhead by utilizing short or alias-based type identifiers.
+- Integrating with external messaging platforms that use different naming conventions.
+- Managing versioning and structural refactorings, such as changes in namespaces or assemblies.
+
+#### Example: Registering a Custom Message Type Resolver
+
+Below is an example of how to create and register a custom resolver:
+
+```csharp
+public class MyShortNameMessageTypeResolver : IMessageTypeResolver
+{
+    // Custom logic to map .NET Type to string representation and vice versa.
+    // Useful for shorter identifiers or legacy mappings.
+}
+
+// Registration with Microsoft's DI container
+services.AddSingleton<MyShortNameMessageTypeResolver>();
+
+services.AddSlimMessageBus(mbb =>
+{
+    // Hybrid buses can specify distinct resolvers per child bus
+    mbb.WithMessageTypeResolver<MyShortNameMessageTypeResolver>();
+});
+```
+
+### Use Case: Type Redirection for Evolving Services
+
+When refactoring or evolving your service—such as moving message types to new assemblies or namespaces—consumers and producers might temporarily reference different versions of a message type. In this scenario, type redirection becomes necessary to ensure compatibility.
+
+Custom resolvers help you:
+
+- **Redirect** legacy message type names to their new corresponding `Type`.
+- **Emit** legacy type names for backward compatibility with older consumers.
+
+#### Extending the Default Resolver with Redirects
+
+If you prefer to retain the default resolver (`AssemblyQualifiedNameMessageTypeResolver`) but need type redirection capability, implement the [`IAssemblyQualifiedNameMessageTypeResolverRedirect`](/src/SlimMessageBus.Host/MessageTypeResolver/IAssemblyQualifiedNameMessageTypeResolverRedirect.cs) interface:
+
+```csharp
+public class MyTypeResolverRedirect : IAssemblyQualifiedNameMessageTypeResolverRedirect
+{
+    public Type TryGetType(string name)
+    {
+        if (name == "MyNamespace.MyMessage, MyAssembly")
+        {
+            return Type.GetType("NewNamespace.MyMessage, NewAssembly");
+            // or directly: return typeof(NewNamespace.MyMessage);
+        }
+        return null; // Return null if there's no redirect match.
+    }
+
+    public string TryGetName(Type messageType) => null; // No outgoing redirects
+}
+```
+
+These redirect implementations must also be registered in the DI container.
+You can register multiple redirectors for flexibility and modularity:
+
+```csharp
+services.TryAddEnumerable<IAssemblyQualifiedNameMessageTypeResolverRedirect, MyTypeResolverRedirect>();
+```
+
+This approach simplifies maintaining compatibility during service evolution, avoiding disruptions to running production systems.
 
 ### Polymorphic messages
 

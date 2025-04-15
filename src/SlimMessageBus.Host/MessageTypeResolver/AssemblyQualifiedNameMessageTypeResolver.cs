@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 using SlimMessageBus.Host.Collections;
 
 /// <summary>
-/// <see cref="IMessageTypeResolver"/> that uses the <see cref="Type.AssemblyQualifiedName"/> for the message type string passed in the message header.
+/// <see cref="IMessageTypeResolver"/> that uses the <see cref="Type.AssemblyQualifiedName"/> for mapping the <see cref="Type"/ to a string header value.
 /// </summary>
 public class AssemblyQualifiedNameMessageTypeResolver : IMessageTypeResolver
 {
@@ -16,32 +16,59 @@ public class AssemblyQualifiedNameMessageTypeResolver : IMessageTypeResolver
     /// </summary>
     public bool EmitAssemblyStrongName { get; set; } = false;
 
-    private readonly SafeDictionaryWrapper<Type, string> toNameCache;
-    private readonly SafeDictionaryWrapper<string, Type> toTypeCache;
+    private readonly SafeDictionaryWrapper<Type, string> _toNameCache;
+    private readonly SafeDictionaryWrapper<string, Type> _toTypeCache;
+    private readonly IAssemblyQualifiedNameMessageTypeResolverRedirect[] _items;
 
-    public AssemblyQualifiedNameMessageTypeResolver()
+    public AssemblyQualifiedNameMessageTypeResolver(IEnumerable<IAssemblyQualifiedNameMessageTypeResolverRedirect> items = null)
     {
-        toNameCache = new SafeDictionaryWrapper<Type, string>(ToNameInternal);
-        toTypeCache = new SafeDictionaryWrapper<string, Type>(ToTypeInternal);
+        _toNameCache = new SafeDictionaryWrapper<Type, string>(ToNameInternal);
+        _toTypeCache = new SafeDictionaryWrapper<string, Type>(ToTypeInternal);
+        _items = items is not null ? [.. items] : [];
     }
 
     private string ToNameInternal(Type messageType)
     {
-        var assemblyQualifiedName = messageType?.AssemblyQualifiedName ?? throw new ArgumentNullException(nameof(messageType));
+        if (messageType is null) throw new ArgumentNullException(nameof(messageType));
 
-        if (EmitAssemblyStrongName)
+        string assemblyQualifiedName = null;
+
+        foreach (var item in _items)
         {
-            return assemblyQualifiedName;
+            assemblyQualifiedName = item.TryGetName(messageType);
+            if (assemblyQualifiedName is not null)
+            {
+                break;
+            }
         }
 
-        var reducedName = RedundantAssemblyTokens.Replace(assemblyQualifiedName, string.Empty);
+        assemblyQualifiedName ??= messageType.AssemblyQualifiedName;
 
-        return reducedName;
+        if (!EmitAssemblyStrongName)
+        {
+            assemblyQualifiedName = RedundantAssemblyTokens.Replace(assemblyQualifiedName, string.Empty);
+        }
+
+        return assemblyQualifiedName;
     }
 
-    private Type ToTypeInternal(string name) => Type.GetType(name ?? throw new ArgumentNullException(nameof(name)));
+    private Type ToTypeInternal(string name)
+    {
+        if (name is null) throw new ArgumentNullException(nameof(name));
 
-    public string ToName(Type messageType) => toNameCache.GetOrAdd(messageType);
+        foreach (var item in _items)
+        {
+            var type = item.TryGetType(name);
+            if (type is not null)
+            {
+                return type;
+            }
+        }
 
-    public Type ToType(string name) => toTypeCache.GetOrAdd(name);
+        return Type.GetType(name);
+    }
+
+    public string ToName(Type messageType) => _toNameCache.GetOrAdd(messageType);
+
+    public Type ToType(string name) => _toTypeCache.GetOrAdd(name);
 }
