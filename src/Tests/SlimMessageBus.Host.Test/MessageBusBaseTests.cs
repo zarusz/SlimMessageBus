@@ -28,7 +28,7 @@ public class MessageBusBaseTests : IDisposable
 
         _serviceProviderMock = new Mock<IServiceProvider>();
         _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializerProvider))).Returns(new JsonMessageSerializer());
-        _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
+        _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver([]));
         _serviceProviderMock.Setup(x => x.GetService(typeof(TimeProvider))).Returns(() => _timeProvider);
         _serviceProviderMock.Setup(x => x.GetService(It.Is<Type>(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)))).Returns((Type t) => Array.CreateInstance(t.GetGenericArguments()[0], 0));
         _serviceProviderMock.Setup(x => x.GetService(typeof(RuntimeTypeCache))).Returns(new RuntimeTypeCache());
