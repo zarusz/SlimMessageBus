@@ -34,6 +34,14 @@ public class SqsTopologySettings
     /// Default configuration to be applied when a topic needs to be created (<see cref="CreateTopicRequest"/>).
     /// </summary>
     public Action<CreateTopicRequest> CreateTopicOptions { get; set; }
+    /// <summary>
+    /// A filter that allows (or not) for declared consumers to provision needed subscription. True by default.
+    /// </summary>
+    public bool CanConsumerCreateTopicSubscription { get; set; } = true;
+    /// <summary>
+    /// Default configuration to be applied when a topic needs to be created (<see cref="SubscribeRequest"/>).
+    /// </summary>
+    public Action<SubscribeRequest> CreateSubscriptionOptions { get; set; }
 
     /// <summary>
     /// Interceptor that allows to intercept the topology provisioning process (SQS and SNS) and to apply custom logic before and after the provisioning process.

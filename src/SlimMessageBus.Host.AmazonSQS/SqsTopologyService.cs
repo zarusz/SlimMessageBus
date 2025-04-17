@@ -32,21 +32,36 @@ public class SqsTopologyService
                                    string policy,
                                    Dictionary<string, string> attributes,
                                    Dictionary<string, string> tags,
+                                   Dictionary<string, string> urlByPath,
+                                   bool canCreate,
                                    CancellationToken cancellationToken)
     {
         try
         {
+            if (urlByPath.ContainsKey(path))
+            {
+                // already created
+                return;
+            }
+
             try
             {
                 var queueUrl = await _clientProviderSqs.Client.GetQueueUrlAsync(path, cancellationToken);
                 if (queueUrl != null)
                 {
+                    urlByPath[path] = queueUrl.QueueUrl;
                     return;
                 }
             }
             catch (QueueDoesNotExistException)
             {
                 // proceed to create the queue
+            }
+
+            if (!canCreate)
+            {
+                _logger.LogWarning("Cannot create queue {QueueName} as the provider does not allow it", path);
+                return;
             }
 
             var createQueueRequest = new CreateQueueRequest
@@ -85,6 +100,7 @@ public class SqsTopologyService
             try
             {
                 var createQueueResponse = await _clientProviderSqs.Client.CreateQueueAsync(createQueueRequest, cancellationToken);
+                urlByPath[path] = createQueueResponse.QueueUrl;
                 _logger.LogInformation("Created queue {QueueName} with URL {QueueUrl}", path, createQueueResponse.QueueUrl);
             }
             catch (QueueNameExistsException)
@@ -101,21 +117,36 @@ public class SqsTopologyService
     private async Task EnsureTopic(string path,
                                    Dictionary<string, string> attributes,
                                    Dictionary<string, string> tags,
+                                   Dictionary<string, string> urlByPath,
+                                   bool canCreate,
                                    CancellationToken cancellationToken)
     {
         try
         {
+            if (urlByPath.ContainsKey(path))
+            {
+                // already created
+                return;
+            }
+
             try
             {
                 var topicModel = await _clientProviderSns.Client.FindTopicAsync(path);
                 if (topicModel != null)
                 {
+                    urlByPath[path] = topicModel.TopicArn;
                     return;
                 }
             }
             catch (QueueDoesNotExistException)
             {
                 // proceed to create the queue
+            }
+
+            if (!canCreate)
+            {
+                _logger.LogWarning("Cannot create topic {TopicName} as the provider does not allow it", path);
+                return;
             }
 
             var createTopicRequest = new CreateTopicRequest
@@ -139,6 +170,7 @@ public class SqsTopologyService
             try
             {
                 var createTopicResponse = await _clientProviderSns.Client.CreateTopicAsync(createTopicRequest, cancellationToken);
+                urlByPath[path] = createTopicResponse.TopicArn;
                 _logger.LogInformation("Created topic {TopicName}", path);
             }
             catch (QueueNameExistsException)
@@ -152,6 +184,54 @@ public class SqsTopologyService
         }
     }
 
+    private async Task EnsureSubscription(string topic,
+                                          string queue,
+                                          string filterPolicy,
+                                          Dictionary<string, string> urlByPath,
+                                          bool canCreate,
+                                          CancellationToken cancellationToken)
+    {
+        try
+        {
+            var topicUrl = urlByPath[topic];
+            var queueUrl = urlByPath[queue];
+            var subscriptions = await _clientProviderSns.Client.ListSubscriptionsByTopicAsync(topicUrl, cancellationToken);
+
+            var subscription = subscriptions.Subscriptions.FirstOrDefault(x => x.Endpoint == queueUrl && x.Protocol == "sqs");
+            if (subscription != null)
+            {
+                return; // it exists
+            }
+
+            if (!canCreate)
+            {
+                _logger.LogWarning("Cannot create subscription for topic {TopicName} and queue {QueueName} as the provider does not allow it", topic, queue);
+                return;
+            }
+
+            var subscribeRequest = new SubscribeRequest
+            {
+                TopicArn = topicUrl,
+                Protocol = "sqs",
+                Endpoint = queueUrl,
+                Attributes = []
+            };
+
+            if (!string.IsNullOrEmpty(filterPolicy))
+            {
+                subscribeRequest.Attributes["FilterPolicy"] = filterPolicy;
+            }
+
+            _providerSettings.TopologyProvisioning.CreateSubscriptionOptions?.Invoke(subscribeRequest);
+
+            var createTopicResponse = await _clientProviderSns.Client.SubscribeAsync(subscribeRequest, cancellationToken);
+            _logger.LogInformation("Created subscription for topic {TopicName} and queue {QueueName}", topic, queue);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating subscription for topic {TopicName} and queue {QueueName}", topic, queue);
+        }
+    }
 
     private async Task DoProvisionTopology(CancellationToken cancellationToken)
     {
@@ -159,36 +239,7 @@ public class SqsTopologyService
         {
             _logger.LogInformation("Topology provisioning started...");
 
-            var consumersSettingsByPath = _settings
-                .Consumers
-                .OfType<AbstractConsumerSettings>()
-                .Concat([_settings.RequestResponse])
-                .Where(x => x != null)
-                .GroupBy(x => (x.Path, x.PathKind))
-                .ToDictionary(x => x.Key, x => x.ToList());
-
-            foreach (var ((path, pathKind), consumerSettingsList) in consumersSettingsByPath)
-            {
-                if (pathKind == PathKind.Queue && _providerSettings.TopologyProvisioning.CanConsumerCreateQueue)
-                {
-                    await EnsureQueue(
-                        path: path,
-                        fifo: consumerSettingsList.Any(cs => cs.GetOrDefault(SqsProperties.EnableFifo, _settings, false)),
-                        visibilityTimeout: consumerSettingsList.Select(cs => cs.GetOrDefault(SqsProperties.VisibilityTimeout, _settings, null)).FirstOrDefault(x => x != null),
-                        policy: consumerSettingsList.Select(cs => cs.GetOrDefault(SqsProperties.Policy, _settings, null)).FirstOrDefault(x => x != null),
-                        attributes: [],
-                        tags: [],
-                        cancellationToken);
-                }
-                if (pathKind == PathKind.Topic && _providerSettings.TopologyProvisioning.CanConsumerCreateTopic)
-                {
-                    await EnsureTopic(
-                        path: path,
-                        attributes: [],
-                        tags: [],
-                        cancellationToken);
-                }
-            }
+            var urlByPath = new Dictionary<string, string>();
 
             foreach (var producer in _settings.Producers)
             {
@@ -202,7 +253,7 @@ public class SqsTopologyService
                      .GroupBy(x => x.Key, x => x.Value)
                      .ToDictionary(x => x.Key, x => x.First());
 
-                if (producer.PathKind == PathKind.Queue && _providerSettings.TopologyProvisioning.CanProducerCreateQueue)
+                if (producer.PathKind == PathKind.Queue)
                 {
                     await EnsureQueue(
                         path: producer.DefaultPath,
@@ -211,22 +262,71 @@ public class SqsTopologyService
                         policy: producer.GetOrDefault(SqsProperties.Policy, _settings, null),
                         attributes: attributes,
                         tags: tags,
+                        urlByPath,
+                        _providerSettings.TopologyProvisioning.CanProducerCreateQueue,
                         cancellationToken);
 
                 }
-                if (producer.PathKind == PathKind.Topic && _providerSettings.TopologyProvisioning.CanProducerCreateTopic)
+                else
                 {
                     await EnsureTopic(
                         path: producer.DefaultPath,
                         attributes: attributes,
                         tags: tags,
+                        urlByPath,
+                        _providerSettings.TopologyProvisioning.CanProducerCreateTopic,
                         cancellationToken);
+                }
+            }
+
+            var consumersSettingsByPath = _settings
+                .Consumers
+                .OfType<AbstractConsumerSettings>()
+                .Concat([_settings.RequestResponse])
+                .Where(x => x != null)
+                .GroupBy(x => (x.Path, x.PathKind))
+                .ToDictionary(x => x.Key, x => x.Single());
+
+            foreach (var ((path, pathKind), consumerSettings) in consumersSettingsByPath)
+            {
+                if (pathKind == PathKind.Queue)
+                {
+                    await EnsureQueue(
+                        path: path,
+                        fifo: consumerSettings.GetOrDefault(SqsProperties.EnableFifo, _settings, false),
+                        visibilityTimeout: consumerSettings.GetOrDefault(SqsProperties.VisibilityTimeout, _settings, null),
+                        policy: consumerSettings.GetOrDefault(SqsProperties.Policy, _settings, null),
+                        attributes: [],
+                        tags: [],
+                        urlByPath,
+                        _providerSettings.TopologyProvisioning.CanConsumerCreateQueue,
+                        cancellationToken);
+
+                    var subscribeToTopic = consumerSettings.GetOrDefault(SqsProperties.SubscribeToTopic, _settings);
+                    if (subscribeToTopic != null)
+                    {
+                        await EnsureTopic(
+                            path: subscribeToTopic,
+                            attributes: [],
+                            tags: [],
+                            urlByPath,
+                            _providerSettings.TopologyProvisioning.CanConsumerCreateTopic,
+                            cancellationToken);
+
+                        await EnsureSubscription(
+                            topic: subscribeToTopic,
+                            queue: path,
+                            filterPolicy: consumerSettings.GetOrDefault(SqsProperties.SubscribeToTopicFilterPolicy, _settings),
+                            urlByPath,
+                            _providerSettings.TopologyProvisioning.CanConsumerCreateTopicSubscription,
+                            cancellationToken);
+                    }
                 }
             }
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "Could not provision Amazon SQS topology");
+            _logger.LogError(e, "Could not provision Amazon SQS/SNS topology");
         }
         finally
         {

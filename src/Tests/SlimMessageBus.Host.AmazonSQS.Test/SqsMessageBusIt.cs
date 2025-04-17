@@ -43,6 +43,11 @@ public class SqsMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<Sqs
                 // Tag the queue with the creation date
                 opts.Tags.Add(CreatedDateTag, today);
             };
+            cfg.TopologyProvisioning.CreateTopicOptions = opts =>
+            {
+                // Tag the queue with the creation date
+                opts.Tags.Add(new() { Key = CreatedDateTag, Value = today });
+            };
             cfg.TopologyProvisioning.OnProvisionTopology = async (clientSqs, clientSns, provision, cancellationToken) =>
             {
                 // Remove all older test queues (SQS does not support queue auto deletion)
@@ -80,7 +85,7 @@ public class SqsMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<Sqs
                 cfg.UseRegion(Amazon.RegionEndpoint.EUCentral1);
 
                 // Use static credentials: https://docs.aws.amazon.com/sdkref/latest/guide/access-iam-users.html
-                cfg.UseCredentials(accessKey, secretAccessKey, SqsMessageBusMode.Sqs);
+                cfg.UseCredentials(accessKey, secretAccessKey, SqsMessageBusMode.All);
 
                 // Use temporary credentials: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_use-resources.html#RequestWithSTS
                 //cfg.UseTemporaryCredentials(roleArn, roleSessionName);
