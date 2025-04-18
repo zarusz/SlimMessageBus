@@ -42,6 +42,8 @@ $projects = @(
 	"SlimMessageBus.Host.Outbox",
 	"SlimMessageBus.Host.Outbox.Sql",
 	"SlimMessageBus.Host.Outbox.Sql.DbContext",
+	"SlimMessageBus.Host.Outbox.PostgreSql",
+	"SlimMessageBus.Host.Outbox.PostgreSql.DbContext",
 
 	"SlimMessageBus.Host.CircuitBreaker",
 	"SlimMessageBus.Host.CircuitBreaker.HealthCheck",
