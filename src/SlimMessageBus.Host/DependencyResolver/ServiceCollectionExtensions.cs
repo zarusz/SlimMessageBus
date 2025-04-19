@@ -93,6 +93,7 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<ConsumerContext>();
         services.TryAddTransient<IConsumerContext>(svp => svp.GetRequiredService<ConsumerContext>());
         services.TryAddSingleton<IMessageScopeAccessor, MessageScopeAccessor>();
+        services.TryAddSingleton<IConsumerContextAccessor, ConsumerContextAccessor>();
 
         services.AddHostedService<MessageBusHostedService>();
 
