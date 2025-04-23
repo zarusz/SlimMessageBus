@@ -110,6 +110,8 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
 
     private static bool CheckTopic(string allowedTopic, string topic)
     {
+        if (string.Equals(allowedTopic, topic))
+            return true;
         var realTopicRegex = allowedTopic.Replace(@"/", @"\/").Replace("+", @"[a-zA-Z0-9 _.-]*").Replace("#", @"[a-zA-Z0-9 \/_#+.-]*");
         var regex = new Regex(realTopicRegex);
         return regex.IsMatch(topic);
