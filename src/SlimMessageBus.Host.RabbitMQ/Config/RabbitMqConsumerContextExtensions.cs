@@ -8,24 +8,16 @@ public static class RabbitMqConsumerContextExtensions
 
     public static BasicDeliverEventArgs GetTransportMessage(this IConsumerContext context)
     {
-#if NETSTANDARD2_0
         if (context is null) throw new ArgumentNullException(nameof(context));
-#else
-        ArgumentNullException.ThrowIfNull(context);
-#endif
 
-        return context.GetPropertyOrDefault<BasicDeliverEventArgs>(RabbitMqProperties.Message);
+        return context.GetPropertyOrDefault<BasicDeliverEventArgs>(RabbitMqProperties.Message.Key);
     }
 
     static internal void SetTransportMessage(this IConsumerContext context, BasicDeliverEventArgs message)
     {
-#if NETSTANDARD2_0
         if (context is null) throw new ArgumentNullException(nameof(context));
-#else
-        ArgumentNullException.ThrowIfNull(context);
-#endif
 
-        context.Properties[RabbitMqProperties.Message] = message;
+        context.Properties[RabbitMqProperties.Message.Key] = message;
     }
 
     static internal void SetConfirmAction(this IConsumerContext consumerContext, RabbitMqMessageConfirmAction messageConfirmAction)

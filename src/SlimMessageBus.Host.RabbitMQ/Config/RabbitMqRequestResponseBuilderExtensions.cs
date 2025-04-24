@@ -8,12 +8,12 @@ public static class RabbitMqRequestResponseBuilderExtensions
     /// <remarks>Setting the name is equivalent to using <see cref="RequestResponseBuilder.DefaultPath(string)"/>.</remarks>
     /// <param name="builder"></param>
     /// <param name="exchangeName"></param>
-    /// <param name="exchangeType"></param>
+    /// <param name="exchangeType">See <see cref="ExchangeType"/></param>
     /// <param name="durable"></param>
     /// <param name="autoDelete"></param>
     /// <param name="arguments"></param>
     /// <returns></returns>
-    public static RequestResponseBuilder ReplyToExchange(this RequestResponseBuilder builder, string exchangeName, ExchangeType? exchangeType = null, bool? durable = null, bool? autoDelete = null, IDictionary<string, object> arguments = null)
+    public static RequestResponseBuilder ReplyToExchange(this RequestResponseBuilder builder, string exchangeName, string exchangeType = null, bool? durable = null, bool? autoDelete = null, IDictionary<string, object> arguments = null)
     {
         if (string.IsNullOrEmpty(exchangeName)) throw new ArgumentNullException(nameof(exchangeName));
 
@@ -30,8 +30,7 @@ public static class RabbitMqRequestResponseBuilderExtensions
     /// <returns></returns>
     public static RequestResponseBuilder ExchangeBinding(this RequestResponseBuilder builder, string routingKey = "")
     {
-        builder.Settings.Properties[RabbitMqProperties.BindingRoutingKey] = routingKey;
-
+        RabbitMqProperties.BindingRoutingKey.Set(builder.Settings, routingKey);
         return builder;
     }
 }

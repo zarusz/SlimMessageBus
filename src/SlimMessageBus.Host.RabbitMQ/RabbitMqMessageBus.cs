@@ -112,7 +112,7 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
 
                     var topologyService = new RabbitMqTopologyService(LoggerFactory, _channel, Settings, ProviderSettings);
 
-                    var customAction = ProviderSettings.GetOrDefault<RabbitMqTopologyInitializer>(RabbitMqProperties.TopologyInitializer);
+                    var customAction = ProviderSettings.GetOrDefault(RabbitMqProperties.TopologyInitializer);
                     if (customAction != null)
                     {
                         // Allow the user to specify its own initializer
