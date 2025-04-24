@@ -21,7 +21,7 @@ public class RabbitMqConsumerBuilderExtensionsTests
         _consumerBuilder.AcknowledgementMode(mode);
 
         // assert
-        var modeReturned = _consumerBuilder.Settings.GetOrDefault<RabbitMqMessageAcknowledgementMode>(RabbitMqProperties.MessageAcknowledgementMode);
+        var modeReturned = _consumerBuilder.ConsumerSettings.GetOrDefault(RabbitMqProperties.MessageAcknowledgementMode);
         modeReturned.Should().Be(mode);
     }
 }

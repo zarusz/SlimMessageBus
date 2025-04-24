@@ -9,12 +9,12 @@ public static class RabbitMqProducerBuilderExtensions
     /// <typeparam name="T"></typeparam>
     /// <param name="builder"></param>
     /// <param name="exchangeName"></param>
-    /// <param name="exchangeType"></param>
+    /// <param name="exchangeType">See <see cref="ExchangeType"/></param>
     /// <param name="durable"></param>
     /// <param name="autoDelete"></param>
     /// <param name="arguments"></param>
     /// <returns></returns>
-    public static ProducerBuilder<T> Exchange<T>(this ProducerBuilder<T> builder, string exchangeName, ExchangeType? exchangeType = null, bool? durable = null, bool? autoDelete = null, IDictionary<string, object> arguments = null)
+    public static ProducerBuilder<T> Exchange<T>(this ProducerBuilder<T> builder, string exchangeName, string exchangeType = null, bool? durable = null, bool? autoDelete = null, IDictionary<string, object> arguments = null)
     {
         if (string.IsNullOrEmpty(exchangeName)) throw new ArgumentNullException(nameof(exchangeName));
 
@@ -23,23 +23,23 @@ public static class RabbitMqProducerBuilderExtensions
         return builder;
     }
 
-    static internal void SetExchangeProperties(this HasProviderExtensions settings, ExchangeType? exchangeType = null, bool? durable = null, bool? autoDelete = null, IDictionary<string, object> arguments = null)
+    static internal void SetExchangeProperties(this HasProviderExtensions settings, string exchangeType = null, bool? durable = null, bool? autoDelete = null, IDictionary<string, object> arguments = null)
     {
         if (exchangeType != null)
         {
-            settings.Properties[RabbitMqProperties.ExchangeType] = MapExchangeType(exchangeType.Value);
+            RabbitMqProperties.ExchangeType.Set(settings, exchangeType);
         }
         if (durable != null)
         {
-            settings.Properties[RabbitMqProperties.ExchangeDurable] = durable.Value;
+            RabbitMqProperties.ExchangeDurable.Set(settings, durable.Value);
         }
         if (autoDelete != null)
         {
-            settings.Properties[RabbitMqProperties.ExchangeAutoDelete] = autoDelete.Value;
+            RabbitMqProperties.ExchangeAutoDelete.Set(settings, autoDelete.Value);
         }
         if (arguments != null)
         {
-            settings.Properties[RabbitMqProperties.ExchangeArguments] = arguments;
+            RabbitMqProperties.ExchangeArguments.Set(settings, arguments);
         }
     }
 
@@ -54,7 +54,7 @@ public static class RabbitMqProducerBuilderExtensions
     {
         if (routingKeyProvider == null) throw new ArgumentNullException(nameof(routingKeyProvider));
 
-        RabbitMqMessageRoutingKeyProvider<object> typed = (object message, IBasicProperties properties) =>
+        RabbitMqMessageRoutingKeyProvider<object> untyped = (object message, IBasicProperties properties) =>
         {
             if (message is T typedMessage)
             {
@@ -62,7 +62,7 @@ public static class RabbitMqProducerBuilderExtensions
             }
             return default;
         };
-        builder.Settings.Properties[RabbitMqProperties.MessageRoutingKeyProvider] = typed;
+        RabbitMqProperties.MessageRoutingKeyProvider.Set(builder.Settings, untyped);
         return builder;
     }
 
@@ -77,23 +77,14 @@ public static class RabbitMqProducerBuilderExtensions
     {
         if (messagePropertiesModifier == null) throw new ArgumentNullException(nameof(messagePropertiesModifier));
 
-        RabbitMqMessagePropertiesModifier<object> typed = (object message, IBasicProperties properties) =>
+        RabbitMqMessagePropertiesModifier<object> untyped = (object message, IBasicProperties properties) =>
         {
             if (message is T typedMessage)
             {
                 messagePropertiesModifier(typedMessage, properties);
             }
         };
-        builder.Settings.Properties[RabbitMqProperties.MessagePropertiesModifier] = typed;
+        RabbitMqProperties.MessagePropertiesModifier.Set(builder.Settings, untyped);
         return builder;
     }
-
-    static internal string MapExchangeType(ExchangeType exchangeType) => exchangeType switch
-    {
-        RabbitMQ.ExchangeType.Direct => global::RabbitMQ.Client.ExchangeType.Direct,
-        RabbitMQ.ExchangeType.Fanout => global::RabbitMQ.Client.ExchangeType.Fanout,
-        RabbitMQ.ExchangeType.Headers => global::RabbitMQ.Client.ExchangeType.Headers,
-        RabbitMQ.ExchangeType.Topic => global::RabbitMQ.Client.ExchangeType.Topic,
-        _ => throw new ArgumentOutOfRangeException(nameof(exchangeType))
-    };
 }
