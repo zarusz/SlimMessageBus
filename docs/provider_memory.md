@@ -6,7 +6,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 - [Configuration](#configuration)
   - [Virtual Topics](#virtual-topics)
   - [Auto Declaration](#auto-declaration)
-    - [Polymorphic message support](#polymorphic-message-support)
+    - [Polymorphic Message Support](#polymorphic-message-support)
   - [Serialization](#serialization)
   - [Headers](#headers)
 - [Lifecycle](#lifecycle)
@@ -19,125 +19,151 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 
 ## Introduction
 
-The Memory transport provider can be used for internal communication within the same process. It is the simplest transport provider and does not require any external messaging infrastructure.
+The **Memory transport provider** enables message-based communication within a single process. It’s the simplest transport option in SlimMessageBus and doesn’t require any external infrastructure like Kafka or Azure Service Bus.
 
-> Since messages are passed in memory and never persisted, they will be lost if the application process terminates while consuming these messages.
+> ⚠️ Messages are passed entirely in memory and are never persisted. If the application process terminates while messages are in-flight, those messages will be lost.
 
-Good use case for in memory communication is:
+**Common use cases for in-memory transport include:**
 
-- to integrate the domain layer with other application layers via domain events pattern,
-- to implement mediator pattern (when combined with [interceptors](intro.md#interceptors)),
-- to run unit tests against application code that normally runs with an out of process transport provider (Kafka, Azure Service Bus, etc),
-- to start simple messaging without having to provision messaging infrastructure, but when time comes reconfigure SMB to leverage messaging infrastructure.
+- Integrating the domain layer with other application layers using the **domain events** pattern.
+- Implementing the **mediator pattern** (especially when combined with [interceptors](intro.md#interceptors)).
+- Writing **unit tests** for messaging logic without requiring a full transport setup.
+- Starting with messaging quickly and easily — no infrastructure required — and switching to an external provider later by reconfiguring SlimMessageBus.
 
 ## Configuration
 
-The memory transport is configured using the `.WithProviderMemory()`:
+First, install the NuGet package:
 
-```cs
+```bash
+dotnet add package SlimMessageBus.Host.Memory
+```
+
+Then, configure the memory transport using `.WithProviderMemory()`:
+
+```csharp
 using SlimMessageBus.Host.Memory;
 
 services.AddSlimMessageBus(mbb =>
 {
-  // Bus configuration happens here (...)
-  mbb.WithProviderMemory(); // requires SlimMessageBus.Host.Memory package
+    // Configure your bus here...
+    mbb.WithProviderMemory(); // Requires SlimMessageBus.Host.Memory package
 });
 ```
+
+> 💡 No serializer is needed by default for the in-memory transport — unless you [opt in to serialization](#serialization).
 
 ### Virtual Topics
 
-Unlike other transport providers, memory transport does not have true notion of topics (or queues). However, it is still required to use topic names. This is required, so that the bus knows on which virtual topic to deliver the message to, and from what virtual topic to consume from.
+The in-memory transport doesn't use real topics or queues like other transport providers. However, **virtual topic names** are still required. These names allow the bus to correctly route messages to and from the appropriate consumers.
 
-The consumer configuration side should use `.Topic()` to set the virtual topic name:
+On the **consumer side**, use `.Topic()` to specify the virtual topic:
 
-```cs
-// declare that OrderSubmittedEvent will be consumed
+```csharp
+// Register a consumer for OrderSubmittedEvent
 mbb.Consume<OrderSubmittedEvent>(x => x.Topic(x.MessageType.Name).WithConsumer<OrderSubmittedHandler>());
 
-// alternatively
+// Or use a hardcoded topic name
 mbb.Consume<OrderSubmittedEvent>(x => x.Topic("OrderSubmittedEvent").WithConsumer<OrderSubmittedHandler>());
 ```
 
-The producer configuration side should use `.DefaultTopic()` to set the virtual topic name:
+On the **producer side**, use `.DefaultTopic()` to define where messages should be published:
 
-```cs
+```csharp
 mbb.Produce<OrderSubmittedEvent>(x => x.DefaultTopic("OrderSubmittedEvent"));
 ```
 
-> The virtual topic name can be any string. It helps to connect the relevant producers and consumers together.
+> Virtual topic names can be any string, as long as producers and consumers use the same value. This is what links them together internally.
 
 ### Auto Declaration
 
-For bus configuration, we can leverage `.AutoDeclareFrom()` method to discover all the consumers (`IConsumer<T>`) and handlers (`IRequestHandler<T,R>`) types in an assembly and auto declare the respective producers and consumers/handlers in the bus.
-This can be useful to auto declare all of the domain event handlers in an application layer.
+You can simplify your bus configuration using the `.AutoDeclareFrom()` method, which scans an assembly to automatically discover all consumers (`IConsumer<T>`) and handlers (`IRequestHandler<T,R>`). It then declares the corresponding producers and consumers/handlers on the bus for you.  
+This is especially useful for automatically registering all domain event handlers within an application layer.
 
-```cs
+Example usage:
+
+```csharp
 mbb
    .WithProviderMemory()
    .AutoDeclareFrom(Assembly.GetExecutingAssembly());
-   // Alternatively specify the type of which assembly should be scanned
-   // .AutoDeclareFromAssemblyContaining<CustomerCreateHandler>();
 
-   // If we want to filter to specific consumer/handler types then we can supply an additional filter:
-   // .AutoDeclareFrom(Assembly.GetExecutingAssembly(), consumerTypeFilter: (consumerType) => consumerType.Name.EndsWith("Handler"));
-   // .AutoDeclareFromAssemblyContaining<CustomerCreateHandler>(Assembly.GetExecutingAssembly(), consumerTypeFilter: (consumerType) => consumerType.Name.EndsWith("Handler"));
+// Alternatively, specify a type from the assembly you want to scan:
+// .AutoDeclareFromAssemblyContaining<CustomerCreateHandler>();
+
+// You can also filter which consumers/handlers are picked up:
+// .AutoDeclareFrom(Assembly.GetExecutingAssembly(), consumerTypeFilter: consumerType => consumerType.Name.EndsWith("Handler"));
+// .AutoDeclareFromAssemblyContaining<CustomerCreateHandler>(consumerTypeFilter: consumerType => consumerType.Name.EndsWith("Handler"));
 ```
 
-For example, assuming this is the discovered handler type:
+For example, given a handler like this:
 
-```cs
+```csharp
 public class EchoRequestHandler : IRequestHandler<EchoRequest, EchoResponse>
 {
-   public Task<EchoResponse> OnHandle(EchoRequest request, CancellationToken cancellationToken) { /* ... */ }
+   public Task<EchoResponse> OnHandle(EchoRequest request, CancellationToken cancellationToken)
+   {
+       // ...
+   }
 }
 ```
 
-The bus auto registrations will set-up the producer and handler to the equivalent:
+The bus will automatically configure registrations equivalent to:
 
-```cs
-mbb.Produce<EchoRequest>(x => x.DefaultTopic(x.MessageType.Name));
-mbb.Handle<EchoRequest, EchoResponse>(x => x.Topic(x.MessageType.Name).WithConsumer<EchoRequestHandler>());
+```csharp
+mbb.Produce<EchoRequest>(x => x.DefaultTopic(x.MessageType.FullName));
+mbb.Handle<EchoRequest, EchoResponse>(x => x.Topic(x.MessageType.FullName).WithConsumer<EchoRequestHandler>());
 ```
 
-The virtual topic name will be derived from the message type name by default. This can be customized by passing an additional parameter to the `AutoDeclareFrom()` method.
+By default, the virtual topic name is derived from the message type’s [`FullName`](https://learn.microsoft.com/en-us/dotnet/api/system.type.fullname?view=net-9.0) — meaning it includes both the namespace and any outer class names.  
+You can customize this by providing your own `messageTypeToTopicConverter`:
 
-Using `.AutoDeclareFrom()` to configure the memory bus is recommended, as it will declare the producers and consumers automatically as consumer types are added over time.
+```csharp
+services.AddSlimMessageBus(builder =>
+    builder.WithProviderMemory()
+           .AutoDeclareFrom(Assembly.GetExecutingAssembly(), messageTypeToTopicConverter: messageType => messageType.FullName)
+);
+```
 
-> The `.AutoDeclareFrom()` and `.AutoDeclareFromAssembly<T>()` will also register the found consumers/handlers into MSDI (see [here](intro.md#autoregistration-of-consumers-interceptors-and-configurators)).
+Using `.AutoDeclareFrom()` is highly recommended when configuring the memory bus, as it ensures producers and consumers are kept up to date automatically as your application evolves.
 
-#### Polymorphic message support
+> Note: `.AutoDeclareFrom()` and `.AutoDeclareFromAssemblyContaining<T>()` will also register discovered consumers and handlers into the Microsoft Dependency Injection (MSDI) container. [Learn more here](intro.md#autoregistration-of-consumers-interceptors-and-configurators).
 
-The polymorphic message types (message that share a common ancestry) are supported by the `AutoDeclareFrom()`:
+#### Polymorphic Message Support
 
-- for every consumer / handler implementation found it analyzes the message type inheritance tree,
-- it declares a producer in the bus for the oldest ancestor of the message type hierarchy,
-- it declares a consumer in the bus for the oldest ancestor message type and within that, configures a consumer for derived message type,
-- topic names are derived from the ancestor message type.
+The memory transport supports **polymorphic message types**—messages that share a common base class or interface—via the `AutoDeclareFrom()` method.
+
+Here’s how it works:
+
+- For each discovered consumer or handler, the message type's inheritance hierarchy is analyzed.
+- A producer is registered for the **root ancestor** of the message type.
+- A consumer is registered for the **root ancestor**, and configured to handle the specific **derived** message type.
+- The topic name is based on the **ancestor message type**, ensuring consistent routing for all related messages.
+
+This allows you to declare base-level contracts and consume polymorphic messages seamlessly.
 
 ### Serialization
 
-Since messages are passed within the same process, serializing and deserializing them is redundant. Also, disabling serialization gives a performance improvement.
+Because messages are exchanged entirely within the same process, serialization is typically unnecessary—and skipping it can yield performance benefits.
 
-> Serialization is disabled by default for memory bus.
+> 🟢 **Serialization is disabled by default** for the memory transport.
 
-Serialization can be disabled or enabled:
+However, you can opt-in to serialization if needed—for example, to simulate production scenarios during testing or to enforce immutability:
 
-```cs
+```csharp
 services.AddSlimMessageBus(mbb =>
 {
-   // Bus configuration happens here (...)
-   mbb.WithProviderMemory(cfg =>
-   {
-      // Serialize the domain events instead of passing the same instance across to handlers/consumers
-      cfg.EnableMessageSerialization = true
-   });
-   // Serializer not needed if EnableMessageSerialization = false
-   mbb.AddJsonSerializer();
+    mbb.WithProviderMemory(cfg =>
+    {
+        // Enable serialization for in-memory messages
+        cfg.EnableMessageSerialization = true;
+    });
+
+    // Required only if serialization is enabled
+    mbb.AddJsonSerializer();
 });
 ```
 
-> When serialization is disabled for in memory passed messages, the exact same object instance send by the producer will be received by the consumer. Therefore state changes on the consumer end will be visible by the producer.
-> Consider making the messages immutable (read only) in that case.
+> ⚠️ When serialization is disabled, the **same object instance** sent by the producer is received by the consumer.  
+> This means any changes made by the consumer will be visible to the producer. To avoid side effects, it’s recommended to use **immutable message types** in such cases.
 
 ### Headers
 
