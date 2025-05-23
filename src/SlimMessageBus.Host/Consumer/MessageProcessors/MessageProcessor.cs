@@ -17,6 +17,7 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
     private readonly bool _shouldLogWhenUnrecognizedMessageType;
     private readonly IResponseProducer _responseProducer;
     private readonly ConsumerContextInitializer<TTransportMessage> _consumerContextInitializer;
+    private readonly ConsumerContextAccessor _consumerContextAccessor;
 
     protected IReadOnlyCollection<AbstractConsumerSettings> _consumerSettings;
     protected IReadOnlyCollection<IMessageTypeConsumerInvokerSettings> _invokers;
@@ -56,6 +57,8 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
 
         _shouldFailWhenUnrecognizedMessageType = consumerSettings.OfType<ConsumerSettings>().Any(x => x.UndeclaredMessageType.Fail);
         _shouldLogWhenUnrecognizedMessageType = consumerSettings.OfType<ConsumerSettings>().Any(x => x.UndeclaredMessageType.Log);
+
+        _consumerContextAccessor = new ConsumerContextAccessor();
     }
 
     protected override ConsumerContext CreateConsumerContext(IMessageScope messageScope,
@@ -70,7 +73,7 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
         var context = base.CreateConsumerContext(messageScope, messageHeaders, consumerInvoker, transportMessage, consumerInstance, messageBus, consumerContextProperties, cancellationToken);
 
         _consumerContextInitializer?.Invoke((TTransportMessage)transportMessage, context);
-
+        _consumerContextAccessor.ConsumerContext = context;
         return context;
     }
 
