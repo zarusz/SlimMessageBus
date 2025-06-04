@@ -65,16 +65,16 @@ public class HybridMessageSerializerProvider : IMessageSerializerProvider
 
     sealed class HybidMessageSerializer(HybridMessageSerializerProvider provider, string path) : IMessageSerializer
     {
-        public object Deserialize(Type t, byte[] payload)
+        public object Deserialize(Type messageType, IReadOnlyDictionary<string, object> headers, byte[] payload, object transportMessage)
         {
-            var serializer = provider.MatchSerializer(path, t);
-            return serializer.Deserialize(t, payload);
+            var serializer = provider.MatchSerializer(path, messageType);
+            return serializer.Deserialize(messageType, headers, payload, transportMessage);
         }
 
-        public byte[] Serialize(Type t, object message)
+        public byte[] Serialize(Type messageType, IDictionary<string, object> headers, object message, object transportMessage)
         {
-            var serializer = provider.MatchSerializer(path, t);
-            return serializer.Serialize(t, message);
+            var serializer = provider.MatchSerializer(path, messageType);
+            return serializer.Serialize(messageType, headers, message, transportMessage);
         }
     }
 }

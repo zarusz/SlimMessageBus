@@ -126,7 +126,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
                 MessagePayload = reader.GetSqlBinary(payloadOrdinal).Value,
                 Headers = headers == null
                     ? null
-                    : JsonSerializer.Deserialize<IDictionary<string, object>>(headers, _jsonOptions),
+                    : JsonSerializer.Deserialize<Dictionary<string, object>>(headers, _jsonOptions),
                 Path = reader.IsDBNull(pathOrdinal)
                     ? null
                     : reader.GetString(pathOrdinal)
@@ -279,7 +279,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
                 MessagePayload = reader.GetSqlBinary(payloadOrdinal).Value,
                 Headers = headers == null
                     ? null
-                    : JsonSerializer.Deserialize<IDictionary<string, object>>(headers, _jsonOptions),
+                    : JsonSerializer.Deserialize<Dictionary<string, object>>(headers, _jsonOptions),
                 Path = reader.IsDBNull(pathOrdinal)
                     ? null
                     : reader.GetString(pathOrdinal),

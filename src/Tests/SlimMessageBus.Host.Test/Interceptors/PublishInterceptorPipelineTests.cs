@@ -5,12 +5,7 @@ using SlimMessageBus.Host.Interceptor;
 
 public class PublishInterceptorPipelineTests
 {
-    private readonly MessageBusMock _busMock;
-
-    public PublishInterceptorPipelineTests()
-    {
-        _busMock = new MessageBusMock();
-    }
+    private readonly MessageBusMock _busMock = new();
 
     [Theory]
     [InlineData(false, false)]

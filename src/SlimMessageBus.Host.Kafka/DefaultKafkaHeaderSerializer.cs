@@ -1,5 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Kafka;
 
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
@@ -24,14 +25,14 @@ public class DefaultKafkaHeaderSerializer : IMessageSerializer, IMessageSerializ
 
     #region Implementation of IMessageSerializer
 
-    public byte[] Serialize(Type t, object message)
+    public byte[] Serialize(Type messageType, IDictionary<string, object> headers, object message, object transportMessage)
     {
         if (message == null) return null;
         var payload = _encoding.GetBytes(Convert.ToString(message, CultureInfo.InvariantCulture));
         return payload;
     }
 
-    public object Deserialize(Type t, byte[] payload)
+    public object Deserialize(Type messageType, IReadOnlyDictionary<string, object> headers, byte[] payload, object transportMessage)
     {
         if (payload == null) return null;
 

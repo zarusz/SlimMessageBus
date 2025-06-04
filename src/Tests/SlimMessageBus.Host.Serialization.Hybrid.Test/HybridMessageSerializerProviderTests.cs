@@ -1,5 +1,4 @@
 ﻿namespace SlimMessageBus.Host.Serialization.Hybrid.Test;
-
 public class HybridMessageSerializerProviderTests
 {
     [Fact]
@@ -53,7 +52,7 @@ public class HybridMessageSerializerProviderTests
         var mockDefaultSerializer = new Mock<IMessageSerializerProvider>();
 
         var mockSerializer1 = new Mock<IMessageSerializer>();
-        mockSerializer1.Setup(x => x.Serialize(typeof(SampleOne), It.IsAny<SampleOne>())).Verifiable(Times.Once());
+        mockSerializer1.Setup(x => x.Serialize(typeof(SampleOne), It.IsAny<IDictionary<string, object>>(), It.IsAny<SampleOne>(), It.IsAny<object>())).Verifiable(Times.Once());
 
         var mockSerializerProvider1 = new Mock<IMessageSerializerProvider>();
         mockSerializerProvider1.Setup(x => x.GetSerializer(It.IsAny<string>())).Returns(mockSerializer1.Object);
@@ -67,13 +66,15 @@ public class HybridMessageSerializerProviderTests
             { mockSerializerProvider2.Object, new[] { typeof(SampleTwo) } },
         };
 
+        var headersMock = new Mock<IDictionary<string, object>>();
+
         var target = new HybridMessageSerializerProvider(mockLogger.Object, serializers, mockDefaultSerializer.Object);
 
         // act
-        var _ = target.GetSerializer("").Serialize(typeof(SampleOne), new SampleOne());
+        var _ = target.GetSerializer("").Serialize(typeof(SampleOne), headersMock.Object, new SampleOne(), null);
 
         // assert
-        mockSerializer1.Verify(x => x.Serialize(typeof(SampleOne), It.IsAny<SampleOne>()));
+        mockSerializer1.Verify(x => x.Serialize(typeof(SampleOne), headersMock.Object, It.IsAny<SampleOne>(), null));
         mockSerializer1.VerifyNoOtherCalls();
 
         mockSerializerProvider1.Verify(x => x.GetSerializer(It.IsAny<string>()));
@@ -88,8 +89,10 @@ public class HybridMessageSerializerProviderTests
     public void When_AGenericMessageIsSerialized_Then_UseDefaultSerializer()
     {
         // arrange
+        var headersMock = new Mock<IDictionary<string, object>>();
+
         var mockDefaultSerializer = new Mock<IMessageSerializer>();
-        mockDefaultSerializer.Setup(x => x.Serialize(typeof(SampleOne), It.IsAny<SampleOne>())).Verifiable(Times.Once());
+        mockDefaultSerializer.Setup(x => x.Serialize(typeof(SampleOne), It.IsAny<IDictionary<string, object>>(), It.IsAny<SampleOne>(), It.IsAny<object>())).Verifiable(Times.Once());
 
         var mockDefaultSerializerProvider = new Mock<IMessageSerializerProvider>();
         mockDefaultSerializerProvider.Setup(x => x.GetSerializer(It.IsAny<string>())).Returns(mockDefaultSerializer.Object);
@@ -105,10 +108,10 @@ public class HybridMessageSerializerProviderTests
         var target = new HybridMessageSerializerProvider(mockLogger.Object, serializers, mockDefaultSerializerProvider.Object);
 
         // act
-        var _ = target.GetSerializer("").Serialize(typeof(SampleOne), new SampleOne());
+        var _ = target.GetSerializer("").Serialize(typeof(SampleOne), headersMock.Object, new SampleOne(), null);
 
         // assert
-        mockDefaultSerializer.Verify(x => x.Serialize(typeof(SampleOne), It.IsAny<SampleOne>()));
+        mockDefaultSerializer.Verify(x => x.Serialize(typeof(SampleOne), headersMock.Object, It.IsAny<SampleOne>(), null));
         mockDefaultSerializer.VerifyNoOtherCalls();
 
         mockDefaultSerializerProvider.Verify(x => x.GetSerializer(""));

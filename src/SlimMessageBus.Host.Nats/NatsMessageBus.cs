@@ -54,16 +54,15 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
 
         await base.CreateConsumers();
 
+        MessageProvider<NatsMsg<byte[]>> GetMessageProvider(string path)
+            => SerializerProvider.GetSerializer(path).GetMessageProvider<byte[], NatsMsg<byte[]>>(t => t.Data);
 
         foreach (var (subject, consumerSettings) in Settings.Consumers.GroupBy(x => x.Path).ToDictionary(x => x.Key, x => x.ToList()))
         {
-            var messageSerializer = SerializerProvider.GetSerializer(subject);
-            object MessageProvider(Type messageType, NatsMsg<byte[]> transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Data);
-
             var processor = new MessageProcessor<NatsMsg<byte[]>>(
                 consumerSettings,
                 messageBus: this,
-                messageProvider: MessageProvider,
+                messageProvider: GetMessageProvider(subject),
                 path: subject,
                 this,
                 consumerErrorHandlerOpenGenericType: typeof(INatsConsumerErrorHandler<>));
@@ -75,10 +74,7 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
         {
             var subject = Settings.RequestResponse.Path;
 
-            var messageSerializer = SerializerProvider.GetSerializer(subject);
-            object MessageProvider(Type messageType, NatsMsg<byte[]> transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Data);
-
-            var processor = new ResponseMessageProcessor<NatsMsg<byte[]>>(LoggerFactory, Settings.RequestResponse, MessageProvider, PendingRequestStore, TimeProvider);
+            var processor = new ResponseMessageProcessor<NatsMsg<byte[]>>(LoggerFactory, Settings.RequestResponse, GetMessageProvider(subject), PendingRequestStore, TimeProvider);
             AddSubjectConsumer([], subject, processor);
         }
     }
@@ -107,18 +103,16 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
         {
             OnProduceToTransport(message, messageType, path, messageHeaders);
 
-            var messagePayload = SerializerProvider.GetSerializer(path).Serialize(messageType, message);
-
             var replyTo = messageHeaders.TryGetValue("ReplyTo", out var replyToValue)
                 ? replyToValue.ToString()
                 : null;
 
-            NatsMsg<byte[]> m = new()
+            var m = new NatsMsg<byte[]>()
             {
-                Data = messagePayload,
                 Subject = path,
                 Headers = [],
-                ReplyTo = replyTo
+                ReplyTo = replyTo,
+                Data = SerializerProvider.GetSerializer(path).Serialize(messageType, messageHeaders, message, null)
             };
 
             foreach (var header in messageHeaders)

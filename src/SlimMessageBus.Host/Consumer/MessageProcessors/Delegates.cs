@@ -22,14 +22,16 @@ public delegate void ConsumerContextInitializer<T>(T transportMessage, ConsumerC
 /// </summary>
 /// <typeparam name="T"></typeparam>
 /// <param name="transportMessage"></param>
+/// <param name="messageHeaders"></param>
 /// <returns></returns>
-public delegate Type MessageTypeProvider<in T>(T transportMessage);
+public delegate Type MessageTypeProvider<in T>(T transportMessage, IReadOnlyDictionary<string, object> messageHeaders);
 
 /// <summary>
 /// For a given message type and transport message return the application message.
 /// </summary>
 /// <typeparam name="T">Type of the transport message</typeparam>
 /// <param name="messageType"></param>
+/// <param name="messageHeaders"></param>
 /// <param name="transportMessage"></param>
 /// <returns></returns>
-public delegate object MessageProvider<in T>(Type messageType, T transportMessage);
+public delegate object MessageProvider<in T>(Type messageType, IReadOnlyDictionary<string, object> messageHeaders, T transportMessage);

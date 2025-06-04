@@ -16,7 +16,7 @@ internal static class KafkaExtensions
         var headers = new Dictionary<string, object>();
         foreach (var header in consumeResult.Message.Headers)
         {
-            var value = headerSerializer.Deserialize(typeof(object), header.GetValueBytes());
+            var value = headerSerializer.Deserialize(typeof(object), null, header.GetValueBytes(), null);
             headers[header.Key] = value;
         }
 

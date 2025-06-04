@@ -122,7 +122,7 @@ public static class OutboxForwardingPublishInterceptorTests
             // arrange
             var message = new object();
 
-            _mockSerializer.Setup(x => x.Serialize(typeof(object), message)).Verifiable();
+            _mockSerializer.Setup(x => x.Serialize(typeof(object), new Dictionary<string, object>(), message, null)).Verifiable();
             _mockOutboxFactory.Setup(x => x.Create(It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<CancellationToken>())).Verifiable();
 
             var nextCalled = 0;
@@ -182,7 +182,7 @@ public static class OutboxForwardingPublishInterceptorTests
             // arrange
             var message = new object();
 
-            _mockSerializer.Setup(x => x.Serialize(typeof(object), message)).Verifiable();
+            _mockSerializer.Setup(x => x.Serialize(typeof(object), new Dictionary<string, object>(), message, null)).Verifiable();
             _mockOutboxFactory.Setup(x => x.Create(It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<CancellationToken>())).Verifiable();
             _mockOutboxNotificationService.Setup(x => x.Notify()).Verifiable();
 

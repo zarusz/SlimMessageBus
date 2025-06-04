@@ -1,11 +1,15 @@
-﻿#if NETSTANDARD2_0
+﻿#if NETSTANDARD2_0 || NET6_0
 
 namespace SlimMessageBus.Host;
+
+#endif
+
+#if NETSTANDARD2_0
 
 /// <summary>
 /// Helper for netstandard2.0
 /// </summary>
-public static class DictionaryExtensions
+public static partial class DictionaryExtensions
 {
     public static void Deconstruct<TKey, TValue>(this KeyValuePair<TKey, TValue> keyValuePair, out TKey key, out TValue value)
     {
@@ -23,7 +27,7 @@ public static class DictionaryExtensions
         return false;
     }
 
-    public static HashSet<T> ToHashSet<T>(this IEnumerable<T> items) => new(items);
+    public static HashSet<T> ToHashSet<T>(this IEnumerable<T> items) => [.. items];
 
     public static IEnumerable<IReadOnlyCollection<T>> Chunk<T>(this IEnumerable<T> items, int size)
     {
@@ -47,13 +51,26 @@ public static class DictionaryExtensions
             yield return chunk;
         }
     }
-
 }
 
 public static class TimeSpanExtensions
 {
     public static TimeSpan Multiply(this TimeSpan timeSpan, double factor)
         => TimeSpan.FromMilliseconds(timeSpan.TotalMilliseconds * factor);
+}
+
+#endif
+
+#if NETSTANDARD2_0 || NET6_0
+
+public static partial class DictionaryExtensions
+{
+    public static IReadOnlyDictionary<string, object> AsReadOnly(this IDictionary<string, object> dict) => dict switch
+    {
+        Dictionary<string, object> d => d,
+        null => null,
+        _ => new Dictionary<string, object>(dict)
+    };
 }
 
 #endif

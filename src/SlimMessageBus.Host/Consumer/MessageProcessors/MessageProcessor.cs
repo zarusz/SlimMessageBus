@@ -46,12 +46,12 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
         _logger = messageBus.LoggerFactory.CreateLogger<MessageProcessor<TTransportMessage>>();
         _messageProvider = messageProvider ?? throw new ArgumentNullException(nameof(messageProvider));
         _messageTypeProvider = messageTypeProvider;
-        _consumerSettings = (consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings))).ToList();
+        _consumerSettings = [.. (consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings)))];
         _responseProducer = responseProducer;
 
         _consumerContextInitializer = consumerContextInitializer;
 
-        _invokers = consumerSettings.OfType<ConsumerSettings>().SelectMany(x => x.Invokers).ToList();
+        _invokers = [.. consumerSettings.OfType<ConsumerSettings>().SelectMany(x => x.Invokers)];
         _singleInvoker = _invokers.Count == 1 ? _invokers.First() : null;
 
         _shouldFailWhenUnrecognizedMessageType = consumerSettings.OfType<ConsumerSettings>().Any(x => x.UndeclaredMessageType.Fail);
@@ -84,14 +84,14 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
         try
         {
             var messageType = _messageTypeProvider != null
-                ? _messageTypeProvider(transportMessage)
+                ? _messageTypeProvider(transportMessage, messageHeaders)
                 : GetMessageType(messageHeaders);
 
             if (messageType != null)
             {
                 try
                 {
-                    var message = _messageProvider(messageType, transportMessage);
+                    var message = _messageProvider(messageType, messageHeaders, transportMessage);
                     try
                     {
                         var consumerInvokers = TryMatchConsumerInvoker(messageType);

@@ -39,11 +39,11 @@ public class RedisMessageBusTest
         _messageSerializerProviderMock.Setup(x => x.GetSerializer(It.IsAny<string>())).Returns(_messageSerializerMock.Object);
 
         _messageSerializerMock
-            .Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<object>()))
-            .Returns((Type type, object message) => Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(message)));
+            .Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<object>(), It.IsAny<object>()))
+            .Returns((Type type, IDictionary<string, object> headers, object message, object transportMessage) => Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(message)));
         _messageSerializerMock
-            .Setup(x => x.Deserialize(It.IsAny<Type>(), It.IsAny<byte[]>()))
-            .Returns((Type type, byte[] payload) => JsonConvert.DeserializeObject(Encoding.UTF8.GetString(payload), type));
+            .Setup(x => x.Deserialize(It.IsAny<Type>(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<byte[]>(), It.IsAny<object>()))
+            .Returns((Type type, IReadOnlyDictionary<string, object> headers, byte[] payload, object transportMessage) => JsonConvert.DeserializeObject(Encoding.UTF8.GetString(payload), type));
 
         _databaseMock = new Mock<IDatabase>();
         _subscriberMock = new Mock<ISubscriber>();
@@ -76,7 +76,7 @@ public class RedisMessageBusTest
     }
 
     private MessageWithHeaders UnwrapPayload(RedisValue redisValue)
-        => (MessageWithHeaders)_providerSettings.EnvelopeSerializer.Deserialize(typeof(MessageWithHeaders), redisValue);
+        => (MessageWithHeaders)_providerSettings.EnvelopeSerializer.Deserialize(typeof(MessageWithHeaders), null, redisValue, redisValue);
 
     [Fact]
     public async Task When_Publish_Given_QueueAndTopic_Then_RoutesToRespectiveChannels()
@@ -91,8 +91,8 @@ public class RedisMessageBusTest
         var mA = new SomeMessageA { Value = Guid.NewGuid() };
         var mB = new SomeMessageB { Value = Guid.NewGuid() };
 
-        var payloadA = _messageSerializerMock.Object.Serialize(typeof(SomeMessageA), mA);
-        var payloadB = _messageSerializerMock.Object.Serialize(typeof(SomeMessageB), mB);
+        var payloadA = _messageSerializerMock.Object.Serialize(typeof(SomeMessageA), null, mA, null);
+        var payloadB = _messageSerializerMock.Object.Serialize(typeof(SomeMessageB), null, mB, null);
 
         // act
         await _subject.Value.ProducePublish(mA);
@@ -122,10 +122,7 @@ public class SomeMessageA
 
     #region Equality members
 
-    protected bool Equals(SomeMessageA other)
-    {
-        return Value.Equals(other.Value);
-    }
+    protected bool Equals(SomeMessageA other) => Value.Equals(other.Value);
 
     public override bool Equals(object obj)
     {
@@ -135,10 +132,7 @@ public class SomeMessageA
         return Equals((SomeMessageA)obj);
     }
 
-    public override int GetHashCode()
-    {
-        return Value.GetHashCode();
-    }
+    public override int GetHashCode() => Value.GetHashCode();
 
     #endregion
 }
@@ -149,10 +143,7 @@ public class SomeMessageB
 
     #region Equality members
 
-    protected bool Equals(SomeMessageB other)
-    {
-        return Value.Equals(other.Value);
-    }
+    protected bool Equals(SomeMessageB other) => Value.Equals(other.Value);
 
     public override bool Equals(object obj)
     {
@@ -162,10 +153,7 @@ public class SomeMessageB
         return Equals((SomeMessageB)obj);
     }
 
-    public override int GetHashCode()
-    {
-        return Value.GetHashCode();
-    }
+    public override int GetHashCode() => Value.GetHashCode();
 
     #endregion
 }
@@ -178,36 +166,15 @@ public class SomeMessageAConsumer : IConsumer<SomeMessageA>, IDisposable
         GC.SuppressFinalize(this);
     }
 
-    #region Implementation of IConsumer<in SomeMessageA>
-
-    public virtual Task OnHandle(SomeMessageA messageA, CancellationToken cancellationToken)
-    {
-        return Task.CompletedTask;
-    }
-
-    #endregion
+    public virtual Task OnHandle(SomeMessageA messageA, CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
 public class SomeMessageAConsumer2 : IConsumer<SomeMessageA>
 {
-    #region Implementation of IConsumer<in SomeMessageA>
-
-    public virtual Task OnHandle(SomeMessageA messageA, CancellationToken cancellationToken)
-    {
-        return Task.CompletedTask;
-    }
-
-    #endregion
+    public virtual Task OnHandle(SomeMessageA messageA, CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
 public class SomeMessageBConsumer : IConsumer<SomeMessageB>
 {
-    #region Implementation of IConsumer<in SomeMessageB>
-
-    public virtual Task OnHandle(SomeMessageB message, CancellationToken cancellationToken)
-    {
-        return Task.CompletedTask;
-    }
-
-    #endregion
+    public virtual Task OnHandle(SomeMessageB message, CancellationToken cancellationToken) => Task.CompletedTask;
 }

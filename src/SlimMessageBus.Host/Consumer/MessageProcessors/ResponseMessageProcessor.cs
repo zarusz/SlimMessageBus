@@ -95,7 +95,7 @@ public partial class ResponseMessageProcessor<TTransportMessage> : ResponseMessa
                 {
                     // deserialize the response message
                     var response = transportMessage != null
-                        ? _messageProvider(requestState.ResponseType, transportMessage)
+                        ? _messageProvider(requestState.ResponseType, responseHeaders, transportMessage)
                         : null;
 
                     // resolve the response

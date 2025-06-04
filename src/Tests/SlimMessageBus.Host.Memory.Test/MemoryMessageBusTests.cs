@@ -58,11 +58,11 @@ public class MemoryMessageBusTests
             .Returns(() => new ConsumerContext());
 
         _messageSerializerMock
-            .Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<object>()))
-            .Returns((Type type, object message) => Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(message)));
+            .Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<object>(), It.IsAny<object>()))
+            .Returns((Type type, IDictionary<string, object> headers, object message, object transportMessage) => Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(message)));
         _messageSerializerMock
-            .Setup(x => x.Deserialize(It.IsAny<Type>(), It.IsAny<byte[]>()))
-            .Returns((Type type, byte[] payload) => JsonConvert.DeserializeObject(Encoding.UTF8.GetString(payload), type));
+            .Setup(x => x.Deserialize(It.IsAny<Type>(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<byte[]>(), It.IsAny<object>()))
+            .Returns((Type type, IReadOnlyDictionary<string, object> headers, byte[] payload, object transportMessage) => JsonConvert.DeserializeObject(Encoding.UTF8.GetString(payload), type));
 
         _subject = new Lazy<MemoryMessageBus>(() => new MemoryMessageBus(_settings, _providerSettings));
     }
