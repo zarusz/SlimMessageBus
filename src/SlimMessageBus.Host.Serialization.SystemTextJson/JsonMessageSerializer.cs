@@ -1,5 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Serialization.SystemTextJson;
 
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -32,21 +33,21 @@ public class JsonMessageSerializer : IMessageSerializer, IMessageSerializer<stri
 
     #region Implementation of IMessageSerializer
 
-    public byte[] Serialize(Type t, object message) =>
-        JsonSerializer.SerializeToUtf8Bytes(message, t, Options);
+    public byte[] Serialize(Type messageType, IDictionary<string, object> headers, object message, object transportMessage)
+        => JsonSerializer.SerializeToUtf8Bytes(message, messageType, Options);
 
-    public object Deserialize(Type t, byte[] payload) =>
-        JsonSerializer.Deserialize(payload, t, Options)!;
+    public object Deserialize(Type messageType, IReadOnlyDictionary<string, object> headers, byte[] payload, object transportMessage)
+        => JsonSerializer.Deserialize(payload, messageType, Options)!;
 
     #endregion
 
     #region Implementation of IMessageSerializer<string>
 
-    string IMessageSerializer<string>.Serialize(Type t, object message)
-        => JsonSerializer.Serialize(message, t, Options);
+    string IMessageSerializer<string>.Serialize(Type messageType, IDictionary<string, object> headers, object message, object transportMessage)
+        => JsonSerializer.Serialize(message, messageType, Options);
 
-    object IMessageSerializer<string>.Deserialize(Type t, string payload)
-        => JsonSerializer.Deserialize(payload, t, Options)!;
+    public object Deserialize(Type messageType, IReadOnlyDictionary<string, object> headers, string payload, object transportMessage)
+        => JsonSerializer.Deserialize(payload, messageType, Options)!;
 
     #endregion
 

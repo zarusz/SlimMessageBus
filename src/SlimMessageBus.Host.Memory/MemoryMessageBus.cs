@@ -11,6 +11,8 @@ public partial class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
     private IDictionary<string, IMessageProcessor<object>> _messageProcessorByPath;
     private IDictionary<string, IMessageProcessorQueue> _messageProcessorQueueByPath;
 
+    private static readonly IMessageSerializerProvider _nullMessageSerializerProvider = new NullMessageSerializerProvider();
+
     public MemoryMessageBus(MessageBusSettings settings, MemoryMessageBusSettings providerSettings)
         : base(settings, providerSettings)
     {
@@ -45,10 +47,10 @@ public partial class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
             return base.GetSerializerProvider();
         }
         // No serialization
-        return new NullMessageSerializerProvider();
+        return _nullMessageSerializerProvider;
     }
 
-    public override IDictionary<string, object> CreateHeaders()
+    public override Dictionary<string, object> CreateHeaders()
     {
         if (ProviderSettings.EnableMessageHeaders)
         {
@@ -96,17 +98,18 @@ public partial class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
     private IMessageProcessor<object> CreateMessageProcessor(IEnumerable<ConsumerSettings> consumerSettings, string path)
     {
         var messageSerializer = SerializerProvider.GetSerializer(path);
+
         return new MessageProcessor<object>(
                 consumerSettings,
                 this,
                 path: path,
                 responseProducer: null,
                 messageProvider: ProviderSettings.EnableMessageSerialization
-                    ? (messageType, transportMessage) => messageSerializer.Deserialize(messageType, (byte[])transportMessage)
-                    : (messageType, transportMessage) => transportMessage,
+                    ? (messageType, messageHeaders, transportMessage) => messageSerializer.Deserialize(messageType, messageHeaders, (byte[])transportMessage, transportMessage)
+                    : (messageType, messageHeaders, transportMessage) => transportMessage,
                 messageTypeProvider: ProviderSettings.EnableMessageSerialization
                     ? null
-                    : transportMessage => transportMessage.GetType(),
+                    : (transportMessage, messageHeaders) => transportMessage.GetType(),
                 consumerErrorHandlerOpenGenericType: typeof(IMemoryConsumerErrorHandler<>));
     }
 
@@ -137,27 +140,25 @@ public partial class MemoryMessageBus : MessageBusBase<MemoryMessageBusSettings>
             return default;
         }
 
-        var transportMessage = ProviderSettings.EnableMessageSerialization
-            ? SerializerProvider.GetSerializer(path).Serialize(producerSettings.MessageType, message)
-            : message;
+        var requestHeadersReadOnlyOrNull = requestHeaders?.AsReadOnly();
 
-        var messageHeadersReadOnly = requestHeaders != null
-            ? requestHeaders as IReadOnlyDictionary<string, object> ?? new Dictionary<string, object>(requestHeaders)
-            : null;
+        var transportMessage = ProviderSettings.EnableMessageSerialization
+            ? SerializerProvider.GetSerializer(path).Serialize(producerSettings.MessageType, requestHeaders, message, message)
+            : message;
 
         if (isPublish && !ProviderSettings.EnableBlockingPublish)
         {
             // Execute the message processor in asynchronous manner
             if (_messageProcessorQueueByPath.TryGetValue(path, out var messageProcessorQueue))
             {
-                messageProcessorQueue.Enqueue(transportMessage, messageHeadersReadOnly);
+                messageProcessorQueue.Enqueue(transportMessage, requestHeadersReadOnlyOrNull);
             }
             return default;
         }
 
         var serviceProvider = targetBus?.ServiceProvider ?? Settings.ServiceProvider;
         // Execute the message processor in synchronous manner
-        var r = await messageProcessor.ProcessMessage(transportMessage, messageHeadersReadOnly, currentServiceProvider: serviceProvider, cancellationToken: cancellationToken);
+        var r = await messageProcessor.ProcessMessage(transportMessage, requestHeadersReadOnlyOrNull, currentServiceProvider: serviceProvider, cancellationToken: cancellationToken);
         if (r.Exception != null)
         {
             // We want to pass the same exception to the sender as it happened in the handler/consumer

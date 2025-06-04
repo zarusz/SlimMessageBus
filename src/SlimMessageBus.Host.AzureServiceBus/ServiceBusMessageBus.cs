@@ -85,6 +85,9 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
             AddConsumer(consumer);
         }
 
+        MessageProvider<ServiceBusReceivedMessage> GetMessageProvider(string path)
+            => SerializerProvider.GetSerializer(path).GetMessageProvider<byte[], ServiceBusReceivedMessage>(t => t.Body.ToArray());
+
         foreach (var ((path, subscriptionName), consumerSettings) in Settings.Consumers
                 .GroupBy(x => (x.Path, SubscriptionName: x.GetSubscriptionName(ProviderSettings)))
                 .ToDictionary(x => x.Key, x => x.ToList()))
@@ -95,14 +98,11 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
                 ctx.SetSubscriptionName(subscriptionName);
             }
 
-            var messageSerializer = SerializerProvider.GetSerializer(path);
-            object MessageProvider(Type messageType, ServiceBusReceivedMessage m) => messageSerializer.Deserialize(messageType, m.Body.ToArray());
-
             var topicSubscription = new TopicSubscriptionParams(path: path, subscriptionName: subscriptionName);
             var messageProcessor = new MessageProcessor<ServiceBusReceivedMessage>(
                 consumerSettings,
                 this,
-                messageProvider: MessageProvider,
+                messageProvider: GetMessageProvider(path),
                 path: path.ToString(),
                 responseProducer: this,
                 consumerContextInitializer: InitConsumerContext,
@@ -115,14 +115,11 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
         {
             var path = Settings.RequestResponse.Path;
 
-            var messageSerializer = SerializerProvider.GetSerializer(path);
-            object MessageProvider(Type messageType, ServiceBusReceivedMessage m) => messageSerializer.Deserialize(messageType, m.Body.ToArray());
-
             var topicSubscription = new TopicSubscriptionParams(path, Settings.RequestResponse.GetSubscriptionName(ProviderSettings));
             var messageProcessor = new ResponseMessageProcessor<ServiceBusReceivedMessage>(
                 LoggerFactory,
                 Settings.RequestResponse,
-                MessageProvider,
+                messageProvider: GetMessageProvider(path),
                 PendingRequestStore,
                 TimeProvider);
 
@@ -234,33 +231,34 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
 
     private ServiceBusMessage GetTransportMessage(object message, Type messageType, IDictionary<string, object> messageHeaders, string path)
     {
-        var messagePayload = SerializerProvider.GetSerializer(path).Serialize(messageType, message);
-
         OnProduceToTransport(message, messageType, path, messageHeaders);
 
-        var m = messagePayload != null
-            ? new ServiceBusMessage(messagePayload)
-            : new ServiceBusMessage();
+        var transportMessage = new ServiceBusMessage();
+
+        if (message != null)
+        {
+            transportMessage.Body = new BinaryData(SerializerProvider.GetSerializer(path).Serialize(messageType, messageHeaders, message, transportMessage));
+        }
 
         // add headers
         if (messageHeaders != null)
         {
             foreach (var header in messageHeaders)
             {
-                m.ApplicationProperties.Add(header.Key, header.Value);
+                transportMessage.ApplicationProperties.Add(header.Key, header.Value);
             }
         }
 
         // global modifier first
-        InvokeMessageModifier(message, messageType, m, ProviderSettings);
+        InvokeMessageModifier(message, messageType, transportMessage, ProviderSettings);
         if (messageType != null)
         {
             // local producer modifier second
             var producerSettings = GetProducerSettings(messageType);
-            InvokeMessageModifier(message, messageType, m, producerSettings);
+            InvokeMessageModifier(message, messageType, transportMessage, producerSettings);
         }
 
-        return m;
+        return transportMessage;
     }
 
     private void InvokeMessageModifier(object message, Type messageType, ServiceBusMessage m, HasProviderExtensions settings)

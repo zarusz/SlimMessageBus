@@ -1,5 +1,7 @@
 namespace SlimMessageBus.Host.Serialization.Hybrid.Test;
 
+using System.Collections.Generic;
+
 using Microsoft.Extensions.DependencyInjection;
 
 public class SerializationBuilderExtensionsTests
@@ -108,12 +110,12 @@ public class SerializationBuilderExtensionsTests
 
     public abstract class AbstractSerializer : IMessageSerializer, IMessageSerializerProvider
     {
-        public object Deserialize(Type t, byte[] payload)
+        public byte[] Serialize(Type messageType, IDictionary<string, object> headers, object message, object transportMessage)
         {
             throw new NotImplementedException();
         }
 
-        public byte[] Serialize(Type t, object message)
+        public object Deserialize(Type messageType, IReadOnlyDictionary<string, object> headers, byte[] payload, object transportMessage)
         {
             throw new NotImplementedException();
         }

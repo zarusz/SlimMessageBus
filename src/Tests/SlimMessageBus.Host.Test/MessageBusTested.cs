@@ -23,7 +23,7 @@ public class MessageBusTested : MessageBusBase
 
         if (Settings.RequestResponse != null)
         {
-            RequestResponseMessageProcessor = new ResponseMessageProcessor<object>(LoggerFactory, Settings.RequestResponse, (mt, m) => m, PendingRequestStore, TimeProvider);
+            RequestResponseMessageProcessor = new ResponseMessageProcessor<object>(LoggerFactory, Settings.RequestResponse, (mt, h, m) => m, PendingRequestStore, TimeProvider);
             AddConsumer(new MessageBusTestedConsumer(NullLogger.Instance));
         }
     }
@@ -56,8 +56,8 @@ public class MessageBusTested : MessageBusBase
         if (messageType.GetInterfaces().Any(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IRequest<>)))
         {
             var messageSerializer = SerializerProvider.GetSerializer(path);
-            var messagePayload = messageSerializer.Serialize(messageType, message);
-            var req = messageSerializer.Deserialize(messageType, messagePayload);
+            var messagePayload = messageSerializer.Serialize(messageType, messageHeaders, message, null);
+            var req = messageSerializer.Deserialize(messageType, messageHeaders.AsReadOnly(), messagePayload, null);
 
             var resp = OnReply(messageType, path, req);
             if (resp == null)

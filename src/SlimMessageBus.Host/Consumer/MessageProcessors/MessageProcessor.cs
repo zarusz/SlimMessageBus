@@ -89,12 +89,12 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
         try
         {
             messageType = _messageTypeProvider != null
-                ? _messageTypeProvider(transportMessage)
+                ? _messageTypeProvider(transportMessage, messageHeaders)
                 : GetMessageType(messageHeaders);
 
             if (messageType != null)
             {
-                var message = _messageProvider(messageType, transportMessage);
+                    var message = _messageProvider(messageType, messageHeaders, transportMessage);
                 try
                 {
                     var consumerInvokers = TryMatchConsumerInvoker(messageType);
