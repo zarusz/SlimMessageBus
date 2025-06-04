@@ -90,7 +90,7 @@ public class ResponseMessageProcessorTest
         var requestId = "requestId";
         var response = new object();
 
-        _messageProviderMock.Setup(x => x(response.GetType(), _transportMessage)).Returns(response);
+        _messageProviderMock.Setup(x => x(response.GetType(), It.IsAny<IReadOnlyDictionary<string, object>>(), _transportMessage)).Returns(response);
 
         _messageHeaders[ReqRespMessageHeaders.RequestId] = requestId;
 
@@ -123,7 +123,7 @@ public class ResponseMessageProcessorTest
         var requestId = "requestId";
         var ex = new Exception("Boom!");
 
-        _messageProviderMock.Setup(x => x(typeof(object), _transportMessage)).Throws(ex);
+        _messageProviderMock.Setup(x => x(typeof(object), It.IsAny<IReadOnlyDictionary<string, object>>(), _transportMessage)).Throws(ex);
 
         _messageHeaders[ReqRespMessageHeaders.RequestId] = requestId;
 

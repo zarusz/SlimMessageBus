@@ -60,14 +60,14 @@ public class MessageProcessorTest
         var deserializationException = new InvalidOperationException("Deserialization failed");
 
         messageProviderMock
-            .Setup(x => x.Invoke(typeof(SomeMessage), transportMessageMock.Object))
+            .Setup(x => x.Invoke(typeof(SomeMessage), headers, transportMessageMock.Object))
             .Throws(deserializationException);
 
         // act
         var result = await subject.Value.ProcessMessage(transportMessageMock.Object, headers);
 
         // assert
-        messageProviderMock.Verify(x => x(typeof(SomeMessage), transportMessageMock.Object), Times.Once);
+        messageProviderMock.Verify(x => x(typeof(SomeMessage), headers, transportMessageMock.Object), Times.Once);
         messageProviderMock.VerifyNoOtherCalls();
 
         result.Should().NotBeNull();

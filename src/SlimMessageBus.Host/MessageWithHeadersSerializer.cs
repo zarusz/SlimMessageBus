@@ -6,7 +6,7 @@ using SlimMessageBus.Host.Serialization;
 
 public class MessageWithHeadersSerializer : IMessageSerializer
 {
-    private readonly Encoding encoding;
+    private readonly Encoding _encoding;
 
     private const int StringLengthFieldSize = sizeof(short);
 
@@ -23,7 +23,7 @@ public class MessageWithHeadersSerializer : IMessageSerializer
     }
 
     public MessageWithHeadersSerializer(Encoding encoding)
-        => this.encoding = encoding;
+        => _encoding = encoding;
 
     protected byte[] Serialize(MessageWithHeaders message)
     {
@@ -34,7 +34,7 @@ public class MessageWithHeadersSerializer : IMessageSerializer
         foreach (var header in message.Headers)
         {
             // 2 byte for key length + string length
-            payloadLength += StringLengthFieldSize + encoding.GetByteCount(header.Key);
+            payloadLength += StringLengthFieldSize + _encoding.GetByteCount(header.Key);
             // TypeId discriminator + value length in bytes
             payloadLength += CalculateWriteObjectByteLength(header.Value);
         }
@@ -90,7 +90,7 @@ public class MessageWithHeadersSerializer : IMessageSerializer
         var byteLength = v switch
         {
             null => 0,
-            string s => StringLengthFieldSize + encoding.GetByteCount(s),
+            string s => StringLengthFieldSize + _encoding.GetByteCount(s),
             bool _ => sizeof(byte),
             int _ => sizeof(int),
             long _ => sizeof(long),
@@ -102,7 +102,7 @@ public class MessageWithHeadersSerializer : IMessageSerializer
 
     private int WriteString(byte[] payload, int index, string s)
     {
-        var count = encoding.GetBytes(s, 0, s.Length, payload, index + StringLengthFieldSize);
+        var count = _encoding.GetBytes(s, 0, s.Length, payload, index + StringLengthFieldSize);
 
         // Write string length (byte length)
 
@@ -126,7 +126,7 @@ public class MessageWithHeadersSerializer : IMessageSerializer
     {
         var targetSpan = payload.AsSpan(index);
 #if NETSTANDARD2_0
-        BitConverter.GetBytes(v).CopyTo(targetSpan);        
+        BitConverter.GetBytes(v).CopyTo(targetSpan);
 #else
         BitConverter.TryWriteBytes(targetSpan, v);
 #endif
@@ -137,7 +137,7 @@ public class MessageWithHeadersSerializer : IMessageSerializer
     {
         var targetSpan = payload.AsSpan(index);
 #if NETSTANDARD2_0
-        BitConverter.GetBytes(v).CopyTo(targetSpan);        
+        BitConverter.GetBytes(v).CopyTo(targetSpan);
 #else
         BitConverter.TryWriteBytes(targetSpan, v);
 #endif
@@ -196,7 +196,7 @@ public class MessageWithHeadersSerializer : IMessageSerializer
     private int ReadString(byte[] payload, int index, out string v)
     {
         var count = BitConverter.ToInt16(payload, index);
-        v = encoding.GetString(payload, index + StringLengthFieldSize, count);
+        v = _encoding.GetString(payload, index + StringLengthFieldSize, count);
         return count + StringLengthFieldSize;
     }
 
@@ -255,10 +255,10 @@ public class MessageWithHeadersSerializer : IMessageSerializer
 
     #region Implementation of IMessageSerializer
 
-    public byte[] Serialize(Type t, object message)
+    public byte[] Serialize(Type messageType, IDictionary<string, object> headers, object message, object transportMessage)
         => Serialize((MessageWithHeaders)message);
 
-    public object Deserialize(Type t, byte[] payload)
+    public object Deserialize(Type messageType, IReadOnlyDictionary<string, object> headers, byte[] payload, object transportMessage)
         => Deserialize(payload);
 
     #endregion

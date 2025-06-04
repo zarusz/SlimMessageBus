@@ -151,12 +151,14 @@ abstract internal class SqsBaseConsumer : AbstractConsumer
         }
     }
 
+    private static readonly IReadOnlyDictionary<string, object> EmptyHeaders = new Dictionary<string, object>();
+
     private void GetPayloadAndHeadersFromMessage(Message message, out string messagePayload, out Dictionary<string, object> messageHeaders)
     {
         if (_isSubscribedToTopic)
         {
             // Note: Messages ariving from SNS topics are wrapped in an envelope like SnsEnvelope type. We need to get the actual message and headers from it.
-            var snsEnvelope = (SnsEnvelope)MessageSerializer.Deserialize(typeof(SnsEnvelope), message.Body);
+            var snsEnvelope = (SnsEnvelope)MessageSerializer.Deserialize(typeof(SnsEnvelope), EmptyHeaders, message.Body, message);
 
             messagePayload = snsEnvelope.Message ?? throw new ConsumerMessageBusException("Message of the SNS Envelope was null");
             messageHeaders = (snsEnvelope.MessageAttributes ?? throw new ConsumerMessageBusException("Message of the SNS Envelope was null"))

@@ -55,24 +55,25 @@ public class EventHubMessageBus : MessageBusBase<EventHubMessageBusSettings>
     {
         await base.CreateConsumers();
 
+        MessageProvider<EventData> GetMessageProvider(string path)
+            => SerializerProvider.GetSerializer(path).GetMessageProvider<byte[], EventData>(t => t.Body.ToArray());
+
         foreach (var (groupPath, consumerSettings) in Settings.Consumers.GroupBy(x => new GroupPath(path: x.Path, group: x.GetGroup())).ToDictionary(x => x.Key, x => x.ToList()))
         {
-            var messageSerializer = SerializerProvider.GetSerializer(groupPath.Path);
-            object MessageProvider(Type messageType, EventData transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Body.ToArray());
+            var messageProvider = GetMessageProvider(groupPath.Path);
 
             _logger.LogInformation("Creating consumer for Path: {Path}, Group: {Group}", groupPath.Path, groupPath.Group);
-            AddConsumer(new EhGroupConsumer(consumerSettings, this, groupPath, groupPathPartition => new EhPartitionConsumerForConsumers(this, consumerSettings, groupPathPartition, MessageProvider)));
+            AddConsumer(new EhGroupConsumer(consumerSettings, this, groupPath, groupPathPartition => new EhPartitionConsumerForConsumers(this, consumerSettings, groupPathPartition, messageProvider)));
         }
 
         if (Settings.RequestResponse != null)
         {
             var groupPath = new GroupPath(Settings.RequestResponse.Path, Settings.RequestResponse.GetGroup());
 
-            var messageSerializer = SerializerProvider.GetSerializer(groupPath.Path);
-            object MessageProvider(Type messageType, EventData transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Body.ToArray());
+            var messageProvider = GetMessageProvider(groupPath.Path);
 
             _logger.LogInformation("Creating response consumer for Path: {Path}, Group: {Group}", groupPath.Path, groupPath.Group);
-            AddConsumer(new EhGroupConsumer([Settings.RequestResponse], this, groupPath, groupPathPartition => new EhPartitionConsumerForResponses(this, Settings.RequestResponse, groupPathPartition, MessageProvider, PendingRequestStore, TimeProvider)));
+            AddConsumer(new EhGroupConsumer([Settings.RequestResponse], this, groupPath, groupPathPartition => new EhPartitionConsumerForResponses(this, Settings.RequestResponse, groupPathPartition, messageProvider, PendingRequestStore, TimeProvider)));
         }
     }
 
@@ -114,13 +115,12 @@ public class EventHubMessageBus : MessageBusBase<EventHubMessageBusSettings>
     {
         OnProduceToTransport(message, messageType, path, messageHeaders);
 
-        var messagePayload = message != null
-            ? SerializerProvider.GetSerializer(path).Serialize(messageType, message)
-            : null;
+        var transportMessage = new EventData();
 
-        var transportMessage = message != null
-            ? new EventData(messagePayload)
-            : new EventData();
+        if (message != null)
+        {
+            transportMessage.EventBody = new BinaryData(SerializerProvider.GetSerializer(path).Serialize(messageType, messageHeaders, message, transportMessage));
+        }
 
         if (messageHeaders != null)
         {

@@ -174,7 +174,7 @@ public class PostgreSqlOutboxMessageRepository : IPostgreSqlMessageOutboxReposit
                 MessagePayload = await reader.GetFieldValueAsync<byte[]>(payloadOrdinal, cancellationToken),
                 Headers = headers == null
                     ? null
-                    : JsonSerializer.Deserialize<IDictionary<string, object>>(headers, _jsonOptions),
+                    : JsonSerializer.Deserialize<Dictionary<string, object>>(headers, _jsonOptions),
                 Path = await reader.IsDBNullAsync(pathOrdinal, cancellationToken)
                     ? null
                     : reader.GetString(pathOrdinal)
@@ -283,7 +283,7 @@ public class PostgreSqlOutboxMessageRepository : IPostgreSqlMessageOutboxReposit
                 MessagePayload = await reader.GetFieldValueAsync<byte[]>(payloadOrdinal, cancellationToken),
                 Headers = headers == null
                     ? null
-                    : JsonSerializer.Deserialize<IDictionary<string, object>>(headers, _jsonOptions),
+                    : JsonSerializer.Deserialize<Dictionary<string, object>>(headers, _jsonOptions),
                 Path = await reader.IsDBNullAsync(pathOrdinal, cancellationToken)
                     ? null
                     : reader.GetString(pathOrdinal),

@@ -59,7 +59,7 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
                 .ToDictionary(x => x.Key, x => x.ToList()))
         {
             var messageSerializer = GetMessageSerializer(queue);
-            object MessageProvider(Type messageType, SqsTransportMessageWithPayload transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Payload);
+            object MessageProvider(Type messageType, IReadOnlyDictionary<string, object> headers, SqsTransportMessageWithPayload transportMessage) => messageSerializer.Deserialize(messageType, headers, transportMessage.Payload, transportMessage);
 
             var messageProcessor = new MessageProcessor<SqsTransportMessageWithPayload>(
                 consumerSettings,
@@ -78,7 +78,7 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
             var queue = Settings.RequestResponse.GetOrDefault(SqsProperties.UnderlyingQueue);
 
             var messageSerializer = GetMessageSerializer(queue);
-            object MessageProvider(Type messageType, SqsTransportMessageWithPayload transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Payload);
+            object MessageProvider(Type messageType, IReadOnlyDictionary<string, object> headers, SqsTransportMessageWithPayload transportMessage) => messageSerializer.Deserialize(messageType, headers, transportMessage.Payload, transportMessage);
 
             var messageProcessor = new ResponseMessageProcessor<SqsTransportMessageWithPayload>(
                 LoggerFactory,
@@ -207,7 +207,8 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
                         });
                     }
 
-                    await _clientProviderSqs.Client.SendMessageBatchAsync(new SendMessageBatchRequest(pathMeta.Url, entries), cancellationToken);
+                    var r = new SendMessageBatchRequest(pathMeta.Url, entries);
+                    await _clientProviderSqs.Client.SendMessageBatchAsync(r, cancellationToken);
 
                     entries.Clear();
 
@@ -268,9 +269,8 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
         var messageGroupIdProvider = producerSettings.GetOrDefault(SqsProperties.MessageGroupId, null);
         var groupId = messageGroupIdProvider?.Invoke(message, messageHeaders);
 
+        var messagePayload = messageSerializer.Serialize(messageType, messageHeaders, message, null);
         var messageAttributes = GetTransportMessageAttibutes(messageHeaders, headerSerializer);
-
-        var messagePayload = messageSerializer.Serialize(messageType, message);
 
         return (messagePayload, messageAttributes, deduplicationId, groupId);
     }

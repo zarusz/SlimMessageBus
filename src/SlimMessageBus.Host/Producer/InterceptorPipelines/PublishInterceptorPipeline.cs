@@ -42,7 +42,12 @@ internal class PublishInterceptorPipeline : ProducerInterceptorPipeline<PublishC
         if (!_targetVisited)
         {
             _targetVisited = true;
-            await _bus.ProduceToTransport(_message, _message.GetType(), _context.Path, _context.Headers, _targetBus, _context.CancellationToken);
+            await _bus.ProduceToTransport(_message,
+                                          _message.GetType(),
+                                          _context.Path,
+                                          _context.Headers,
+                                          _targetBus,
+                                          _context.CancellationToken);
             return null;
         }
 

@@ -2,5 +2,5 @@
 
 public interface IMessageHeadersFactory
 {
-    IDictionary<string, object> CreateHeaders();
+    Dictionary<string, object> CreateHeaders();
 }

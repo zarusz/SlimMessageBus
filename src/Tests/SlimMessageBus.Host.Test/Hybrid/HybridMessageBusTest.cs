@@ -30,11 +30,11 @@ public class HybridMessageBusTest
         _messageBusBuilder.Settings.ServiceProvider = _serviceProviderMock.Object;
 
         _messageSerializerMock
-            .Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<object>()))
-            .Returns((Type type, object message) => Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(message)));
+            .Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<object>(), It.IsAny<object>()))
+            .Returns((Type type, IDictionary<string, object> headers, object message, object transportMessage) => Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(message)));
         _messageSerializerMock
-            .Setup(x => x.Deserialize(It.IsAny<Type>(), It.IsAny<byte[]>()))
-            .Returns((Type type, byte[] payload) => JsonConvert.DeserializeObject(Encoding.UTF8.GetString(payload), type));
+            .Setup(x => x.Deserialize(It.IsAny<Type>(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<byte[]>(), It.IsAny<object>()))
+            .Returns((Type type, IReadOnlyDictionary<string, object> headers, byte[] payload, object transportMessage) => JsonConvert.DeserializeObject(Encoding.UTF8.GetString(payload), type));
 
         _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializer))).Returns(_messageSerializerMock.Object);
         _serviceProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver());
@@ -68,7 +68,7 @@ public class HybridMessageBusTest
             mbb.Produce<SomeRequest>(x => x.DefaultTopic("topic4"));
             mbb.WithProvider(mbs =>
             {
-                _bus2Mock = new Mock<MessageBusBase>(new[] { mbs });
+                _bus2Mock = new Mock<MessageBusBase>([mbs]);
                 _bus2Mock.SetupGet(x => x.Settings).Returns(mbs);
 
                 _bus2Mock.Setup(x => x.ProducePublish(It.IsAny<SomeMessage>(), It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IMessageBusTarget>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);

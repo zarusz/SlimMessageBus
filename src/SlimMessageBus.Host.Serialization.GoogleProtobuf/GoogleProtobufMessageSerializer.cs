@@ -1,5 +1,6 @@
 namespace SlimMessageBus.Host.Serialization.GoogleProtobuf;
 
+using System.Collections.Generic;
 using System.Reflection;
 
 using Google.Protobuf;
@@ -15,12 +16,12 @@ public class GoogleProtobufMessageSerializer : IMessageSerializer, IMessageSeria
         _messageParserFactory = messageParserFactory ?? new MessageParserFactory();
     }
 
-    public byte[] Serialize(Type t, object message)
+    public byte[] Serialize(Type messageType, IDictionary<string, object> headers, object message, object transportMessage)
         => ((IMessage)message).ToByteArray();
 
-    public object Deserialize(Type t, byte[] payload)
+    public object Deserialize(Type messageType, IReadOnlyDictionary<string, object> headers, byte[] payload, object transportMessage)
     {
-        var messageParser = _messageParserFactory.CreateMessageParser(t);
+        var messageParser = _messageParserFactory.CreateMessageParser(messageType);
         try
         {
             var message = messageParser.GetType()
@@ -35,7 +36,7 @@ public class GoogleProtobufMessageSerializer : IMessageSerializer, IMessageSeria
         }
         catch (TargetInvocationException exception)
         {
-            _logger.LogWarning(exception, "Failed to call 'ParseFrom' of type [{typename}]", t.FullName);
+            _logger.LogWarning(exception, "Failed to call 'ParseFrom' of type [{typename}]", messageType.FullName);
 
             throw exception.InnerException ?? exception;
         }
