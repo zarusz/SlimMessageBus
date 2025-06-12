@@ -107,7 +107,8 @@ abstract internal class SqsBaseConsumer : AbstractConsumer
 
     protected async Task Run()
     {
-        var queueUrl = MessageBus.TopologyCache.GetMetaOrException(Path).Url;
+        var queueMeta = await MessageBus.TopologyCache.GetMetaWithPreloadOrException(Path, PathKind.Queue, CancellationToken);
+        var queueUrl = queueMeta.Url;
 
         var messagesToDelete = new List<Message>(_maxMessages);
 
@@ -159,7 +160,7 @@ abstract internal class SqsBaseConsumer : AbstractConsumer
 
             messagePayload = snsEnvelope.Message ?? throw new ConsumerMessageBusException("Message of the SNS Envelope was null");
             messageHeaders = (snsEnvelope.MessageAttributes ?? throw new ConsumerMessageBusException("Message of the SNS Envelope was null"))
-                .ToDictionary(x => x.Key, x => HeaderSerializer.Deserialize(x.Key, new MessageAttributeValue { DataType = x.Value.Type, StringValue = x.Value.Value }));
+                .ToDictionary(x => x.Key, x => HeaderSerializer.Deserialize(x.Key, new Amazon.SQS.Model.MessageAttributeValue { DataType = x.Value.Type, StringValue = x.Value.Value }));
         }
         else
         {

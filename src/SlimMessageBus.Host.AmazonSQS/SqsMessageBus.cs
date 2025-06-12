@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.AmazonSQS;
 
-using Amazon.SimpleNotificationService.Model;
-
 public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
 {
     private readonly ILogger _logger;
@@ -9,7 +7,7 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
     private readonly ISqsClientProvider _clientProviderSqs;
     private readonly ISnsClientProvider _clientProviderSns;
 
-    public SqsTopologyCache TopologyCache { get; } = new();
+    internal SqsTopologyCache TopologyCache { get; }
 
     public ISqsHeaderSerializer<Amazon.SQS.Model.MessageAttributeValue> SqsHeaderSerializer { get; }
     public ISqsHeaderSerializer<Amazon.SimpleNotificationService.Model.MessageAttributeValue> SnsHeaderSerializer { get; }
@@ -24,6 +22,8 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
 
         SqsHeaderSerializer = providerSettings.SqsHeaderSerializer;
         SnsHeaderSerializer = providerSettings.SnsHeaderSerializer;
+
+        TopologyCache = new SqsTopologyCache(_clientProviderSqs, _clientProviderSns);
 
         OnBuildProvider();
     }
@@ -135,13 +135,22 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
         await provisioningService.ProvisionTopology(CancellationToken); // provisioning happens asynchronously
     }
 
+    private async Task<(IMessageSerializer<string> messageSerializer, SqsPathMeta pathMeta)> GetMetaForPath(string path, CancellationToken cancellationToken)
+    {
+        var messageSerializer = GetMessageSerializer(path);
+
+        // Note: When a path not declared during bus producer/consumer declarations (it is dynamic), e.g. for RequestResponse - the path kind is not known at this point, so we assume it is a queue
+        // See SqsRequestResponseBuilderExtensions.ReplyToQueue
+        var pathMeta = await TopologyCache.GetMetaWithPreloadOrException(path, PathKind.Queue, cancellationToken);
+
+        return (messageSerializer, pathMeta);
+    }
+
     public override async Task ProduceToTransport(object message, Type messageType, string path, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
         OnProduceToTransport(message, messageType, path, messageHeaders);
 
-        var messageSerializer = GetMessageSerializer(path);
-
-        var pathMeta = TopologyCache.GetMetaOrException(path);
+        var (messageSerializer, pathMeta) = await GetMetaForPath(path, cancellationToken);
 
         try
         {
@@ -181,8 +190,7 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
         var dispatched = new List<T>(envelopes.Count);
         try
         {
-            var messageSerializer = GetMessageSerializer(path);
-            var pathMeta = TopologyCache.GetMetaOrException(path);
+            var (messageSerializer, pathMeta) = await GetMetaForPath(path, cancellationToken);
 
             if (pathMeta.PathKind == PathKind.Queue)
             {
