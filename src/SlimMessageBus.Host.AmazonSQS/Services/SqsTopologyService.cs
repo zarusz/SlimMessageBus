@@ -1,13 +1,8 @@
 ﻿namespace SlimMessageBus.Host.AmazonSQS;
 
-using System.Threading;
-
-using Amazon.SimpleNotificationService.Model;
-using Amazon.SQS.Model;
-
 using Newtonsoft.Json;
 
-public class SqsTopologyService
+internal class SqsTopologyService
 {
     private readonly ILogger _logger;
     private readonly MessageBusSettings _settings;
@@ -34,13 +29,7 @@ public class SqsTopologyService
 
     public Task ProvisionTopology(CancellationToken cancellationToken) => _providerSettings.TopologyProvisioning.OnProvisionTopology(_clientProviderSqs.Client, _clientProviderSns.Client, () => DoProvisionTopology(cancellationToken), cancellationToken);
 
-    private async Task<string> GetQueueArn(string queueUrl, CancellationToken cancellationToken)
-    {
-        var r = await _clientProviderSqs.Client.GetQueueAttributesAsync(queueUrl, [QueueAttributeName.QueueArn], cancellationToken);
-        return r.QueueARN;
-    }
-
-    private string GetQueuePolicyForTopic(string queueArn, string topicArn)
+    private static string GetQueuePolicyForTopic(string queueArn, string topicArn)
     {
         // Define the policy allowing SNS to send messages to SQS
         var policy = new
@@ -87,19 +76,11 @@ public class SqsTopologyService
                 return;
             }
 
-            try
+            var queueMeta = await _cache.LookupQueue(path, cancellationToken);
+            if (queueMeta != null)
             {
-                var r = await _clientProviderSqs.Client.GetQueueUrlAsync(path, cancellationToken);
-                if (r != null)
-                {
-                    var arn = await GetQueueArn(r.QueueUrl, cancellationToken);
-                    _cache.SetMeta(path, new(url: r.QueueUrl, arn: arn, PathKind.Queue));
-                    return;
-                }
-            }
-            catch (QueueDoesNotExistException)
-            {
-                // proceed to create the queue
+                _cache.SetMeta(path, queueMeta);
+                return;
             }
 
             if (!canCreate)
@@ -144,8 +125,11 @@ public class SqsTopologyService
             try
             {
                 var createQueueResponse = await _clientProviderSqs.Client.CreateQueueAsync(createQueueRequest, cancellationToken);
-                var queueArn = await GetQueueArn(createQueueResponse.QueueUrl, cancellationToken);
+                var getQueueAttributesResponse = await _clientProviderSqs.Client.GetQueueAttributesAsync(createQueueResponse.QueueUrl, [QueueAttributeName.QueueArn], cancellationToken);
+
+                var queueArn = getQueueAttributesResponse.QueueARN;
                 _cache.SetMeta(path, new(url: createQueueResponse.QueueUrl, arn: queueArn, PathKind.Queue));
+
                 _logger.LogInformation("Created queue {QueueName} with ARN {QueueArn}", path, queueArn);
             }
             catch (QueueNameExistsException)
@@ -174,18 +158,11 @@ public class SqsTopologyService
                 return;
             }
 
-            try
+            var topicMeta = await _cache.LookupTopic(path, cancellationToken);
+            if (topicMeta != null)
             {
-                var topicModel = await _clientProviderSns.Client.FindTopicAsync(path);
-                if (topicModel != null)
-                {
-                    _cache.SetMeta(path, new(url: null, arn: topicModel.TopicArn, PathKind.Topic));
-                    return;
-                }
-            }
-            catch (QueueDoesNotExistException)
-            {
-                // proceed to create the queue
+                _cache.SetMeta(path, topicMeta);
+                return;
             }
 
             if (!canCreate)
@@ -242,10 +219,10 @@ public class SqsTopologyService
     {
         try
         {
-            var topicArn = _cache.GetMetaOrException(topic).Arn;
-            var queueMeta = _cache.GetMetaOrException(queue);
+            var topicMeta = await _cache.GetMetaWithPreloadOrException(topic, PathKind.Topic, cancellationToken);
+            var queueMeta = await _cache.GetMetaWithPreloadOrException(queue, PathKind.Queue, cancellationToken);
 
-            var subscriptions = await _clientProviderSns.Client.ListSubscriptionsByTopicAsync(topicArn, cancellationToken);
+            var subscriptions = await _clientProviderSns.Client.ListSubscriptionsByTopicAsync(topicMeta.Arn, cancellationToken);
 
             var subscription = subscriptions.Subscriptions.FirstOrDefault(x => x.Endpoint == queueMeta.Arn && x.Protocol == "sqs");
             if (subscription != null)
@@ -260,7 +237,8 @@ public class SqsTopologyService
             }
 
             // Ensure the policy is set on the queue to accept messages from the topic
-            var policy = GetQueuePolicyForTopic(queueMeta.Arn, topicArn);
+            var policy = GetQueuePolicyForTopic(queueMeta.Arn, topicMeta.Arn);
+
             await _clientProviderSqs.Client.SetQueueAttributesAsync(
                 queueUrl: queueMeta.Url,
                 attributes: new Dictionary<string, string>
@@ -273,7 +251,7 @@ public class SqsTopologyService
 
             var subscribeRequest = new SubscribeRequest
             {
-                TopicArn = topicArn,
+                TopicArn = topicMeta.Arn,
                 Protocol = "sqs",
                 Endpoint = queueMeta.Arn,
                 Attributes = []
