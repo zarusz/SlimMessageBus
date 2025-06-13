@@ -51,7 +51,7 @@ void ConfigureMessageBus(MessageBusBuilder mbb, IConfiguration configuration)
         .Produce<AddCommand>(x => x.DefaultTopic(topicForAddCommand)
                                    .WithModifier((msg, nativeMsg) => nativeMsg.PartitionKey = msg.Left.ToString())) // By default AddCommand messages will go to event-hub/topic named 'add-command'
         .Consume<AddCommand>(x => x.Topic(topicForAddCommand)
-                                   .WithConsumerOfContext<AddCommandConsumer>()
+                                   //.WithConsumerOfContext<AddCommandConsumer>()
                                    //.WithConsumer<AddCommandConsumer>(nameof(AddCommandConsumer.OnHandle))
                                    //.WithConsumer<AddCommandConsumer>((consumer, message, name) => consumer.OnHandle(message, name))
                                    .KafkaGroup(consumerGroup) // for Apache Kafka
@@ -93,7 +93,7 @@ void ConfigureMessageBus(MessageBusBuilder mbb, IConfiguration configuration)
         })
         .Handle<MultiplyRequest, MultiplyResponse>(x => x
             .Topic(topicForMultiplyRequest) // topic to expect the requests
-            .WithHandler<MultiplyRequestHandler>()
+                                            //.WithHandler<MultiplyRequestHandler>()
             .KafkaGroup(consumerGroup) // for Apache Kafka
             .EventHubGroup(consumerGroup) // for Azure Event Hub
             .SubscriptionName(consumerGroup) // for Azure Service Bus
@@ -251,22 +251,31 @@ await Host.CreateDefaultBuilder(args)
     .RunAsync();
 
 
-internal class ApplicationService(IMessageBus messageBus) : IHostedService
+internal class ApplicationService(IServiceProvider serviceProvider) : IHostedService
 {
     private readonly Random _random = new();
     private bool _canRun = true;
+    private IServiceScope _serviceScope;
+    private IMessageBus _messageBus;
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
+        _serviceScope = serviceProvider.CreateScope();
+        _messageBus = _serviceScope.ServiceProvider.GetService<IMessageBus>();
+
         var addTask = Task.Factory.StartNew(AddLoop, cancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         var multiplyTask = Task.Factory.StartNew(MultiplyLoop, cancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         return Task.CompletedTask;
     }
 
-    public Task StopAsync(CancellationToken cancellationToken)
+    public async Task StopAsync(CancellationToken cancellationToken)
     {
         _canRun = false;
-        return Task.CompletedTask;
+
+        if (_serviceScope is IAsyncDisposable asyncDisposable)
+        {
+            await asyncDisposable.DisposeAsync();
+        }
     }
 
     private async Task AddLoop()
@@ -279,7 +288,7 @@ internal class ApplicationService(IMessageBus messageBus) : IHostedService
             Console.WriteLine("Producer: Sending numbers {0} and {1}", a, b);
             try
             {
-                await messageBus.Publish(new AddCommand(a, b));
+                await _messageBus.Publish(new AddCommand(a, b));
             }
             catch (Exception ex)
             {
@@ -300,7 +309,7 @@ internal class ApplicationService(IMessageBus messageBus) : IHostedService
             Console.WriteLine("Sender: Sending numbers {0} and {1}", a, b);
             try
             {
-                var response = await messageBus.Send(new MultiplyRequest(a, b));
+                var response = await _messageBus.Send(new MultiplyRequest(a, b));
                 Console.WriteLine("Sender: Got response back with result {0}", response.Result);
             }
             catch (Exception e)
@@ -325,11 +334,11 @@ enum Provider
 
 public record AddCommand(int Left, int Right);
 
-public class AddCommandConsumer : IConsumer<IConsumerContext<AddCommand>>
+public class AddCommandConsumer : IConsumer<AddCommand>
 {
-    public async Task OnHandle(IConsumerContext<AddCommand> message, CancellationToken cancellationToken)
+    public async Task OnHandle(AddCommand message, CancellationToken cancellationToken)
     {
-        Console.WriteLine("Consumer: Adding {0} and {1} gives {2}", message.Message.Left, message.Message.Right, message.Message.Left + message.Message.Right);
+        Console.WriteLine("Consumer: Adding {0} and {1} gives {2}", message.Left, message.Right, message.Left + message.Right);
         // Context.Headers -> has the headers
         await Task.Delay(50, cancellationToken); // Simulate some work
     }
