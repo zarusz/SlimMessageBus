@@ -9,6 +9,7 @@ public static class SqsRequestResponseBuilderExtensions
 
         builder.Settings.Path = queue;
         builder.Settings.PathKind = PathKind.Queue;
+        SqsProperties.UnderlyingQueue.Set(builder.Settings, queue);
 
         builderConfig?.Invoke(builder);
 

@@ -5,14 +5,9 @@ public interface IMessageBusSettingsValidationService
     void AssertSettings();
 }
 
-public class DefaultMessageBusSettingsValidationService : IMessageBusSettingsValidationService
+public class DefaultMessageBusSettingsValidationService(MessageBusSettings settings) : IMessageBusSettingsValidationService
 {
-    public MessageBusSettings Settings { get; }
-
-    public DefaultMessageBusSettingsValidationService(MessageBusSettings settings)
-    {
-        Settings = settings;
-    }
+    public MessageBusSettings Settings { get; } = settings;
 
     public virtual void AssertSettings()
     {

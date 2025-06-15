@@ -1,21 +1,33 @@
 ﻿namespace SlimMessageBus.Host.AmazonSQS;
 
-using SlimMessageBus.Host.Serialization;
+using SlimMessageBus.Host.Services;
 
 public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
 {
     private readonly ILogger _logger;
-    private readonly ISqsClientProvider _clientProvider;
-    private readonly Dictionary<string, string> _queueUrlByPath = [];
 
-    public ISqsHeaderSerializer HeaderSerializer { get; }
+    private readonly ISqsClientProvider _clientProviderSqs;
+    private readonly ISnsClientProvider _clientProviderSns;
+
+    internal SqsTopologyCache TopologyCache { get; }
+
+    public ISqsHeaderSerializer<Amazon.SQS.Model.MessageAttributeValue> SqsHeaderSerializer { get; }
+    public ISqsHeaderSerializer<Amazon.SimpleNotificationService.Model.MessageAttributeValue> SnsHeaderSerializer { get; }
+    protected override IMessageBusSettingsValidationService ValidationService => new SqsMessageBusSettingsValidationService(Settings);
 
     public SqsMessageBus(MessageBusSettings settings, SqsMessageBusSettings providerSettings)
         : base(settings, providerSettings)
     {
         _logger = LoggerFactory.CreateLogger<SqsMessageBus>();
-        _clientProvider = settings.ServiceProvider.GetRequiredService<ISqsClientProvider>();
-        HeaderSerializer = providerSettings.SqsHeaderSerializer;
+
+        _clientProviderSqs = settings.ServiceProvider.GetRequiredService<ISqsClientProvider>();
+        _clientProviderSns = settings.ServiceProvider.GetRequiredService<ISnsClientProvider>();
+
+        SqsHeaderSerializer = providerSettings.SqsHeaderSerializer;
+        SnsHeaderSerializer = providerSettings.SnsHeaderSerializer;
+
+        TopologyCache = new SqsTopologyCache(_clientProviderSqs, _clientProviderSns);
+
         OnBuildProvider();
     }
 
@@ -32,56 +44,50 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
     {
         await base.CreateConsumers();
 
-        void AddConsumerFrom(string path, PathKind pathKind, IMessageProcessor<Message> messageProcessor, IEnumerable<AbstractConsumerSettings> consumerSettings)
+        void AddQueueConsumer(string queue, IMessageProcessor<SqsTransportMessageWithPayload> messageProcessor, IEnumerable<AbstractConsumerSettings> consumerSettings, IMessageSerializer<string> messageSerializer)
         {
-            if (pathKind == PathKind.Queue)
-            {
-                _logger.LogInformation("Creating consumer for Queue: {Queue}", path);
-                var consumer = new SqsQueueConsumer(this, path, _clientProvider, messageProcessor, consumerSettings);
-                AddConsumer(consumer);
-            }
+            _logger.LogInformation("Creating consumer for Queue: {Queue}", queue);
+            var consumer = new SqsQueueConsumer(this, queue, _clientProviderSqs, messageProcessor, messageSerializer, consumerSettings);
+            AddConsumer(consumer);
         }
 
-        static void InitConsumerContext(Message m, ConsumerContext ctx) => ctx.SetTransportMessage(m);
+        static void InitConsumerContext(SqsTransportMessageWithPayload t, ConsumerContext ctx) => ctx.SetTransportMessage(t.TransportMessage);
 
-        foreach (var ((path, pathKind), consumerSettings) in Settings.Consumers
-                .GroupBy(x => (x.Path, x.PathKind))
+        foreach (var (queue, consumerSettings) in Settings.Consumers
+                .GroupBy(x => x.GetOrDefault(SqsProperties.UnderlyingQueue))
+                .Where(x => x.Key != null) // The SqsMessageBusSettingsValidationService will ensure that the queue is set, but just in case
                 .ToDictionary(x => x.Key, x => x.ToList()))
         {
-            var messageSerializer = GetMessageSerializer(path);
-            object MessageProvider(Type messageType, Message transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Body);
+            var messageSerializer = GetMessageSerializer(queue);
+            object MessageProvider(Type messageType, SqsTransportMessageWithPayload transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Payload);
 
-            var messageProcessor = new MessageProcessor<Message>(
+            var messageProcessor = new MessageProcessor<SqsTransportMessageWithPayload>(
                 consumerSettings,
                 this,
                 messageProvider: MessageProvider,
-                path: path,
+                path: queue,
                 responseProducer: this,
                 consumerContextInitializer: InitConsumerContext,
                 consumerErrorHandlerOpenGenericType: typeof(ISqsConsumerErrorHandler<>));
 
-            AddConsumerFrom(path, pathKind, messageProcessor, consumerSettings);
+            AddQueueConsumer(queue, messageProcessor, consumerSettings, messageSerializer);
         }
 
         if (Settings.RequestResponse != null)
         {
-            var path = Settings.RequestResponse.Path;
+            var queue = Settings.RequestResponse.GetOrDefault(SqsProperties.UnderlyingQueue);
 
-            var messageSerializer = GetMessageSerializer(path);
-            object MessageProvider(Type messageType, Message transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Body);
+            var messageSerializer = GetMessageSerializer(queue);
+            object MessageProvider(Type messageType, SqsTransportMessageWithPayload transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Payload);
 
-            var messageProcessor = new ResponseMessageProcessor<Message>(
+            var messageProcessor = new ResponseMessageProcessor<SqsTransportMessageWithPayload>(
                 LoggerFactory,
                 Settings.RequestResponse,
                 messageProvider: MessageProvider,
                 PendingRequestStore,
                 TimeProvider);
 
-            AddConsumerFrom(
-                path,
-                Settings.RequestResponse.PathKind,
-                messageProcessor,
-                [Settings.RequestResponse]);
+            AddQueueConsumer(queue, messageProcessor, [Settings.RequestResponse], messageSerializer);
         }
     }
 
@@ -95,7 +101,8 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
         {
             _logger.LogInformation("Ensuring client is authenticate");
             // Ensure the client finished the first authentication
-            await _clientProvider.EnsureClientAuthenticated();
+            await _clientProviderSqs.EnsureClientAuthenticated();
+            await _clientProviderSns.EnsureClientAuthenticated();
 
             // Provision the topology if enabled
             if (ProviderSettings.TopologyProvisioning?.Enabled ?? false)
@@ -103,10 +110,6 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
                 _logger.LogInformation("Provisioning topology");
                 await ProvisionTopology();
             }
-
-            // Read the Queue/Topic URLs for the producers
-            _logger.LogInformation("Populating queue URLs");
-            await PopulatePathToUrlMappings();
         }
         catch (Exception ex)
         {
@@ -118,56 +121,56 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
     {
         await base.ProvisionTopology();
 
-        var provisioningService = new SqsTopologyService(LoggerFactory.CreateLogger<SqsTopologyService>(), Settings, ProviderSettings, _clientProvider);
-        await provisioningService.ProvisionTopology(); // provisioning happens asynchronously
+        var provisioningService = new SqsTopologyService(LoggerFactory.CreateLogger<SqsTopologyService>(),
+                                                         Settings,
+                                                         ProviderSettings,
+                                                         _clientProviderSqs,
+                                                         _clientProviderSns,
+                                                         TopologyCache);
+
+        await provisioningService.ProvisionTopology(CancellationToken); // provisioning happens asynchronously
     }
 
-    private async Task PopulatePathToUrlMappings()
+    private async Task<(IMessageSerializer<string> messageSerializer, SqsPathMeta pathMeta)> GetMetaForPath(string path, CancellationToken cancellationToken)
     {
-        var queuePaths = Settings.Producers.Where(x => x.PathKind == PathKind.Queue).Select(x => x.DefaultPath)
-            .Concat(Settings.Consumers.Where(x => x.PathKind == PathKind.Queue).Select(x => x.Path))
-            .Concat(Settings.RequestResponse?.PathKind == PathKind.Queue ? [Settings.RequestResponse.Path] : [])
-            .ToHashSet();
+        var messageSerializer = GetMessageSerializer(path);
 
-        foreach (var queuePath in queuePaths)
-        {
-            try
-            {
-                _logger.LogDebug("Populating URL for queue {QueueName}", queuePath);
-                var queueResponse = await _clientProvider.Client.GetQueueUrlAsync(queuePath, CancellationToken);
-                _queueUrlByPath[queuePath] = queueResponse.QueueUrl;
-            }
-            catch (QueueDoesNotExistException ex)
-            {
-                _logger.LogError(ex, "Queue {QueueName} does not exist, ensure that it either exists or topology provisioning is enabled", queuePath);
-            }
-        }
-    }
-    internal string GetQueueUrlOrException(string path)
-    {
-        if (_queueUrlByPath.TryGetValue(path, out var queueUrl))
-        {
-            return queueUrl;
-        }
-        throw new ProducerMessageBusException($"Queue {path} has unknown URL at this point. Ensure the queue exists in Amazon SQS.");
+        // Note: When a path not declared during bus producer/consumer declarations (it is dynamic), e.g. for RequestResponse - the path kind is not known at this point, so we assume it is a queue
+        // See SqsRequestResponseBuilderExtensions.ReplyToQueue
+        var pathMeta = await TopologyCache.GetMetaWithPreloadOrException(path, PathKind.Queue, cancellationToken);
+
+        return (messageSerializer, pathMeta);
     }
 
     public override async Task ProduceToTransport(object message, Type messageType, string path, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
         OnProduceToTransport(message, messageType, path, messageHeaders);
 
-        var messageSerializer = GetMessageSerializer(path);
-        var queueUrl = GetQueueUrlOrException(path);
+        var (messageSerializer, pathMeta) = await GetMetaForPath(path, cancellationToken);
+
         try
         {
-            var (payload, attributes, deduplicationId, groupId) = GetTransportMessage(message, messageType, messageHeaders, messageSerializer);
 
-            await _clientProvider.Client.SendMessageAsync(new SendMessageRequest(queueUrl, payload)
+            if (pathMeta.PathKind == PathKind.Queue)
             {
-                MessageAttributes = attributes,
-                MessageDeduplicationId = deduplicationId,
-                MessageGroupId = groupId
-            }, cancellationToken);
+                var (payload, attributes, deduplicationId, groupId) = GetTransportMessage(message, messageType, messageHeaders, messageSerializer, SqsHeaderSerializer);
+                await _clientProviderSqs.Client.SendMessageAsync(new SendMessageRequest(pathMeta.Url, payload)
+                {
+                    MessageAttributes = attributes,
+                    MessageDeduplicationId = deduplicationId,
+                    MessageGroupId = groupId
+                }, cancellationToken);
+            }
+            else
+            {
+                var (payload, attributes, deduplicationId, groupId) = GetTransportMessage(message, messageType, messageHeaders, messageSerializer, SnsHeaderSerializer);
+                await _clientProviderSns.Client.PublishAsync(new PublishRequest(pathMeta.Arn, payload)
+                {
+                    MessageAttributes = attributes,
+                    MessageDeduplicationId = deduplicationId,
+                    MessageGroupId = groupId,
+                }, cancellationToken);
+            }
         }
         catch (Exception ex) when (ex is not ProducerMessageBusException && ex is not TaskCanceledException)
         {
@@ -183,31 +186,61 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
         var dispatched = new List<T>(envelopes.Count);
         try
         {
-            var messageSerializer = GetMessageSerializer(path);
-            var queueUrl = GetQueueUrlOrException(path);
+            var (messageSerializer, pathMeta) = await GetMetaForPath(path, cancellationToken);
 
-            var entries = new List<SendMessageBatchRequestEntry>(MaxMessagesInBatch);
-
-            var envelopeChunks = envelopes.Chunk(MaxMessagesInBatch);
-            foreach (var envelopeChunk in envelopeChunks)
+            if (pathMeta.PathKind == PathKind.Queue)
             {
-                foreach (var envelope in envelopeChunk)
+                var entries = new List<SendMessageBatchRequestEntry>(MaxMessagesInBatch);
+
+                var envelopeChunks = envelopes.Chunk(MaxMessagesInBatch);
+                foreach (var envelopeChunk in envelopeChunks)
                 {
-                    var (payload, attributes, deduplicationId, groupId) = GetTransportMessage(envelope.Message, envelope.MessageType, envelope.Headers, messageSerializer);
-
-                    entries.Add(new SendMessageBatchRequestEntry(Guid.NewGuid().ToString(), payload)
+                    foreach (var envelope in envelopeChunk)
                     {
-                        MessageAttributes = attributes,
-                        MessageDeduplicationId = deduplicationId,
-                        MessageGroupId = groupId
-                    });
+                        var (payload, attributes, deduplicationId, groupId) = GetTransportMessage(envelope.Message, envelope.MessageType, envelope.Headers, messageSerializer, SqsHeaderSerializer);
+
+                        entries.Add(new SendMessageBatchRequestEntry(Guid.NewGuid().ToString(), payload)
+                        {
+                            MessageAttributes = attributes,
+                            MessageDeduplicationId = deduplicationId,
+                            MessageGroupId = groupId
+                        });
+                    }
+
+                    await _clientProviderSqs.Client.SendMessageBatchAsync(new SendMessageBatchRequest(pathMeta.Url, entries), cancellationToken);
+
+                    entries.Clear();
+
+                    dispatched.AddRange(envelopeChunk);
                 }
+            }
+            else
+            {
+                var entries = new List<PublishBatchRequestEntry>(MaxMessagesInBatch);
 
-                await _clientProvider.Client.SendMessageBatchAsync(new SendMessageBatchRequest(queueUrl, entries), cancellationToken);
+                var envelopeChunks = envelopes.Chunk(MaxMessagesInBatch);
+                foreach (var envelopeChunk in envelopeChunks)
+                {
+                    foreach (var envelope in envelopeChunk)
+                    {
+                        var (payload, attributes, deduplicationId, groupId) = GetTransportMessage(envelope.Message, envelope.MessageType, envelope.Headers, messageSerializer, SnsHeaderSerializer);
 
-                entries.Clear();
+                        entries.Add(new PublishBatchRequestEntry
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            Message = payload,
+                            MessageAttributes = attributes,
+                            MessageDeduplicationId = deduplicationId,
+                            MessageGroupId = groupId
+                        });
+                    }
 
-                dispatched.AddRange(envelopeChunk);
+                    await _clientProviderSns.Client.PublishBatchAsync(new PublishBatchRequest { TopicArn = pathMeta.Arn, PublishBatchRequestEntries = entries }, cancellationToken);
+
+                    entries.Clear();
+
+                    dispatched.AddRange(envelopeChunk);
+                }
             }
 
             return new(dispatched, null);
@@ -219,7 +252,13 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
         }
     }
 
-    private (string Payload, Dictionary<string, MessageAttributeValue> Attributes, string DeduplicationId, string GroupId) GetTransportMessage(object message, Type messageType, IDictionary<string, object> messageHeaders, IMessageSerializer<string> messageSerializer)
+    private (string Payload, Dictionary<string, THeaderValue> Attributes, string DeduplicationId, string GroupId) GetTransportMessage<THeaderValue>(
+        object message,
+        Type messageType,
+        IDictionary<string, object> messageHeaders,
+        IMessageSerializer<string> messageSerializer,
+        ISqsHeaderSerializer<THeaderValue> headerSerializer)
+        where THeaderValue : class
     {
         var producerSettings = GetProducerSettings(messageType);
 
@@ -229,18 +268,29 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
         var messageGroupIdProvider = producerSettings.GetOrDefault(SqsProperties.MessageGroupId, null);
         var groupId = messageGroupIdProvider?.Invoke(message, messageHeaders);
 
-        Dictionary<string, MessageAttributeValue> messageAttributes = null;
-        if (messageHeaders != null)
-        {
-            messageAttributes = [];
-            foreach (var header in messageHeaders)
-            {
-                var headerValue = HeaderSerializer.Serialize(header.Key, header.Value);
-                messageAttributes.Add(header.Key, headerValue);
-            }
-        }
+        var messageAttributes = GetTransportMessageAttibutes(messageHeaders, headerSerializer);
 
         var messagePayload = messageSerializer.Serialize(messageType, message);
+
         return (messagePayload, messageAttributes, deduplicationId, groupId);
+    }
+
+    private static Dictionary<string, THeaderValue> GetTransportMessageAttibutes<THeaderValue>(IDictionary<string, object> messageHeaders, ISqsHeaderSerializer<THeaderValue> headerSerializer)
+        where THeaderValue : class
+    {
+        if (messageHeaders is null)
+        {
+            return null;
+        }
+
+        var messageAttributes = new Dictionary<string, THeaderValue>(messageHeaders.Count);
+
+        foreach (var header in messageHeaders)
+        {
+            var headerValue = headerSerializer.Serialize(header.Key, header.Value);
+            messageAttributes.Add(header.Key, headerValue);
+        }
+
+        return messageAttributes;
     }
 }
