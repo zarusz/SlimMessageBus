@@ -21,4 +21,8 @@
     <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="SlimMessageBus.Host.AmazonSQS.Test" />
+  </ItemGroup>    
+
 </Project>

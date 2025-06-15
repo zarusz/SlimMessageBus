@@ -269,18 +269,19 @@ public class SqsMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<Sqs
 
         AddBusConfiguration(mbb =>
         {
-            mbb.Produce<EchoRequest>(x =>
-            {
-                x.DefaultQueue(queue);
-            })
-            .Handle<EchoRequest, EchoResponse>(x => x.Queue(queue)
-                .WithHandler<EchoRequestHandler>()
-                .Instances(20))
-            .ExpectRequestResponses(x =>
-            {
-                x.ReplyToQueue(responseQueue);
-                x.DefaultTimeout(TimeSpan.FromSeconds(60));
-            });
+            mbb
+                .Produce<EchoRequest>(x =>
+                {
+                    x.DefaultQueue(queue);
+                })
+                .Handle<EchoRequest, EchoResponse>(x => x.Queue(queue)
+                    .WithHandler<EchoRequestHandler>()
+                    .Instances(20))
+                .ExpectRequestResponses(x =>
+                {
+                    x.ReplyToQueue(responseQueue);
+                    x.DefaultTimeout(TimeSpan.FromSeconds(60));
+                });
         });
         await BasicReqResp();
     }

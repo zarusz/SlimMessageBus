@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.AmazonSQS;
 
+using SlimMessageBus.Host.Services;
+
 public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
 {
     private readonly ILogger _logger;
@@ -11,6 +13,7 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
 
     public ISqsHeaderSerializer<Amazon.SQS.Model.MessageAttributeValue> SqsHeaderSerializer { get; }
     public ISqsHeaderSerializer<Amazon.SimpleNotificationService.Model.MessageAttributeValue> SnsHeaderSerializer { get; }
+    protected override IMessageBusSettingsValidationService ValidationService => new SqsMessageBusSettingsValidationService(Settings);
 
     public SqsMessageBus(MessageBusSettings settings, SqsMessageBusSettings providerSettings)
         : base(settings, providerSettings)
@@ -41,42 +44,40 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
     {
         await base.CreateConsumers();
 
-        void AddConsumerFrom(string path, PathKind pathKind, IMessageProcessor<SqsTransportMessageWithPayload> messageProcessor, IEnumerable<AbstractConsumerSettings> consumerSettings, IMessageSerializer<string> messageSerializer)
+        void AddQueueConsumer(string queue, IMessageProcessor<SqsTransportMessageWithPayload> messageProcessor, IEnumerable<AbstractConsumerSettings> consumerSettings, IMessageSerializer<string> messageSerializer)
         {
-            if (pathKind == PathKind.Queue)
-            {
-                _logger.LogInformation("Creating consumer for Queue: {Queue}", path);
-                var consumer = new SqsQueueConsumer(this, path, _clientProviderSqs, messageProcessor, messageSerializer, consumerSettings);
-                AddConsumer(consumer);
-            }
+            _logger.LogInformation("Creating consumer for Queue: {Queue}", queue);
+            var consumer = new SqsQueueConsumer(this, queue, _clientProviderSqs, messageProcessor, messageSerializer, consumerSettings);
+            AddConsumer(consumer);
         }
 
         static void InitConsumerContext(SqsTransportMessageWithPayload t, ConsumerContext ctx) => ctx.SetTransportMessage(t.TransportMessage);
 
-        foreach (var ((path, pathKind), consumerSettings) in Settings.Consumers
-                .GroupBy(x => (x.Path, x.PathKind))
+        foreach (var (queue, consumerSettings) in Settings.Consumers
+                .GroupBy(x => x.GetOrDefault(SqsProperties.UnderlyingQueue))
+                .Where(x => x.Key != null) // The SqsMessageBusSettingsValidationService will ensure that the queue is set, but just in case
                 .ToDictionary(x => x.Key, x => x.ToList()))
         {
-            var messageSerializer = GetMessageSerializer(path);
+            var messageSerializer = GetMessageSerializer(queue);
             object MessageProvider(Type messageType, SqsTransportMessageWithPayload transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Payload);
 
             var messageProcessor = new MessageProcessor<SqsTransportMessageWithPayload>(
                 consumerSettings,
                 this,
                 messageProvider: MessageProvider,
-                path: path,
+                path: queue,
                 responseProducer: this,
                 consumerContextInitializer: InitConsumerContext,
                 consumerErrorHandlerOpenGenericType: typeof(ISqsConsumerErrorHandler<>));
 
-            AddConsumerFrom(path, pathKind, messageProcessor, consumerSettings, messageSerializer);
+            AddQueueConsumer(queue, messageProcessor, consumerSettings, messageSerializer);
         }
 
         if (Settings.RequestResponse != null)
         {
-            var path = Settings.RequestResponse.Path;
+            var queue = Settings.RequestResponse.GetOrDefault(SqsProperties.UnderlyingQueue);
 
-            var messageSerializer = GetMessageSerializer(path);
+            var messageSerializer = GetMessageSerializer(queue);
             object MessageProvider(Type messageType, SqsTransportMessageWithPayload transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Payload);
 
             var messageProcessor = new ResponseMessageProcessor<SqsTransportMessageWithPayload>(
@@ -86,12 +87,7 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
                 PendingRequestStore,
                 TimeProvider);
 
-            AddConsumerFrom(
-                path,
-                Settings.RequestResponse.PathKind,
-                messageProcessor,
-                [Settings.RequestResponse],
-                messageSerializer);
+            AddQueueConsumer(queue, messageProcessor, [Settings.RequestResponse], messageSerializer);
         }
     }
 

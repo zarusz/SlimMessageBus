@@ -8,8 +8,18 @@ public static class SqsConsumerBuilderExtensions
         if (consumerBuilder is null) throw new ArgumentNullException(nameof(consumerBuilder));
         if (queue is null) throw new ArgumentNullException(nameof(queue));
 
-        consumerBuilder.ConsumerSettings.PathKind = PathKind.Queue;
-        consumerBuilder.ConsumerSettings.Path = queue;
+        // Capture the underlying queue name in the consumer settings.
+        SqsProperties.UnderlyingQueue.Set(consumerBuilder.ConsumerSettings, queue);
+
+        // If the consumer is not subscribing to a topic, set the path kind to Queue
+        var topic = consumerBuilder.ConsumerSettings.GetOrDefault(SqsProperties.SubscribeToTopic);
+        if (topic is null)
+        {
+            // This will happend if the .Queue() is before .SubscribeToTopic
+            consumerBuilder.ConsumerSettings.PathKind = PathKind.Queue;
+            consumerBuilder.ConsumerSettings.Path = queue;
+        }
+
         return consumerBuilder;
     }
 
@@ -30,6 +40,10 @@ public static class SqsConsumerBuilderExtensions
 
         SqsProperties.SubscribeToTopic.Set(consumerBuilder.ConsumerSettings, topic);
         SqsProperties.SubscribeToTopicFilterPolicy.Set(consumerBuilder.ConsumerSettings, filterPolicy);
+
+        consumerBuilder.ConsumerSettings.PathKind = PathKind.Topic;
+        consumerBuilder.ConsumerSettings.Path = topic;
+
         return consumerBuilder;
     }
 
