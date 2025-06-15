@@ -17,8 +17,8 @@ public class DefaultKafkaHeaderSerializerTest
         var subject = new DefaultKafkaHeaderSerializer(inferType: inferType);
 
         // act
-        var payload = subject.Serialize(typeof(object), inValue);
-        var actualValue = subject.Deserialize(typeof(object), payload);
+        var payload = subject.Serialize(typeof(object), null, inValue, null);
+        var actualValue = subject.Deserialize(typeof(object), null, payload, null);
 
         // assert
         if (inValue is null)

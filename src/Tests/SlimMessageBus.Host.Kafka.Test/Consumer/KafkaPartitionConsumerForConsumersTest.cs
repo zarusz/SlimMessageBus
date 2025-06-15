@@ -35,8 +35,16 @@ public class KafkaPartitionConsumerForConsumersTest : IDisposable
         massageBusMock.ServiceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(IPendingRequestManager))).Returns(() => new PendingRequestManager(new InMemoryPendingRequestStore(), TimeProvider.System, NullLoggerFactory.Instance));
 
         var headerSerializer = new StringValueSerializer();
+        var messageProviderMock = new Mock<MessageProvider<ConsumeResult>>();
 
-        _subject = new Lazy<KafkaPartitionConsumerForConsumers>(() => new KafkaPartitionConsumerForConsumers(massageBusMock.Bus.LoggerFactory, [_consumerBuilder.ConsumerSettings], group, _topicPartition, _commitControllerMock.Object, headerSerializer, massageBusMock.Bus));
+        _subject = new Lazy<KafkaPartitionConsumerForConsumers>(() => new KafkaPartitionConsumerForConsumers(massageBusMock.Bus.LoggerFactory,
+                                                                                                             [_consumerBuilder.ConsumerSettings],
+                                                                                                             group,
+                                                                                                             _topicPartition,
+                                                                                                             _commitControllerMock.Object,
+                                                                                                             headerSerializer,
+                                                                                                             messageProviderMock.Object,
+                                                                                                             massageBusMock.Bus));
     }
 
     public void Dispose()

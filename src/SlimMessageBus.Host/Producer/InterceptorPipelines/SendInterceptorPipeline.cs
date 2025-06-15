@@ -45,7 +45,17 @@ internal class SendInterceptorPipeline<TResponse> : ProducerInterceptorPipeline<
         if (!_targetVisited)
         {
             _targetVisited = true;
-            var response = await _bus.SendInternal<TResponse>(_message, _context.Path, _message.GetType(), typeof(TResponse), _producerSettings, _context.Created, _context.Expires, _context.RequestId, _context.Headers, _targetBus, _context.CancellationToken);
+            var response = await _bus.SendInternal<TResponse>(_message,
+                                                              _context.Path,
+                                                              _message.GetType(),
+                                                              typeof(TResponse),
+                                                              _producerSettings,
+                                                              _context.Created,
+                                                              _context.Expires,
+                                                              _context.RequestId,
+                                                              _context.Headers,
+                                                              _targetBus,
+                                                              _context.CancellationToken);
             return response;
         }
 

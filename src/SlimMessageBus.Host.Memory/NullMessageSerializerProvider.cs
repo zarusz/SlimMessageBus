@@ -2,9 +2,9 @@
 
 internal class NullMessageSerializerProvider : IMessageSerializer, IMessageSerializerProvider
 {
-    public object Deserialize(Type t, byte[] payload) => null;
+    public byte[] Serialize(Type messageType, IDictionary<string, object> headers, object message, object transportMessage) => [];
 
-    public byte[] Serialize(Type t, object message) => null;
+    public object Deserialize(Type messageType, IReadOnlyDictionary<string, object> headers, byte[] payload, object transportMessage) => null;
 
     public IMessageSerializer GetSerializer(string path) => this;
 }

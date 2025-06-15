@@ -1,9 +1,12 @@
 ﻿namespace SlimMessageBus.Host.Serialization.Benchmark;
 
-using global::Avro;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
+
+using global::Avro;
+
 using Microsoft.Extensions.Logging.Abstractions;
+
 using SlimMessageBus.Host.Serialization.Avro;
 using SlimMessageBus.Host.Serialization.Json;
 
@@ -43,8 +46,8 @@ public class SerDesBenchmark
     [Benchmark]
     public void SerDes()
     {
-        var payload = scenario.Serializer.Serialize(scenario.MessageType, scenario.Message);
-        scenario.Serializer.Deserialize(scenario.MessageType, payload);
+        var payload = scenario.Serializer.Serialize(scenario.MessageType, null, scenario.Message, null);
+        scenario.Serializer.Deserialize(scenario.MessageType, null, payload, null);
     }
 
     public class Scenario

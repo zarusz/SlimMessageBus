@@ -17,11 +17,11 @@ public class MessageWithHeadersSerializerTests
     public void When_Deserialize_Given_WithoutHeaders_Then_SerializationWorks()
     {
         // arrange
-        var m = new MessageWithHeaders(_payload, new Dictionary<string, object>());
+        var m = new MessageWithHeaders(_payload, []);
 
         // act
-        var payload = _serializer.Serialize(typeof(MessageWithHeaders), m);
-        var m2 = (MessageWithHeaders)_serializer.Deserialize(typeof(MessageWithHeaders), payload);
+        var payload = _serializer.Serialize(typeof(MessageWithHeaders), null, m, null);
+        var m2 = (MessageWithHeaders)_serializer.Deserialize(typeof(MessageWithHeaders), null, payload, null);
 
         // assert
         m2.Headers.Count.Should().Be(0);
@@ -32,11 +32,11 @@ public class MessageWithHeadersSerializerTests
     public void When_Serialize_Given_WithoutPayload_Then_SerializationWorks()
     {
         // arrange
-        var m = new MessageWithHeaders(null, new Dictionary<string, object>());
+        var m = new MessageWithHeaders(null, []);
 
         // act
-        var payload = _serializer.Serialize(typeof(MessageWithHeaders), m);
-        var m2 = (MessageWithHeaders)_serializer.Deserialize(typeof(MessageWithHeaders), payload);
+        var payload = _serializer.Serialize(typeof(MessageWithHeaders), null, m, null);
+        var m2 = (MessageWithHeaders)_serializer.Deserialize(typeof(MessageWithHeaders), null, payload, null);
 
         // assert
         m2.Headers.Count.Should().Be(0);
@@ -61,8 +61,8 @@ public class MessageWithHeadersSerializerTests
             });
 
         // act
-        var payload = _serializer.Serialize(typeof(MessageWithHeaders), m);
-        var m2 = (MessageWithHeaders)_serializer.Deserialize(typeof(MessageWithHeaders), payload);
+        var payload = _serializer.Serialize(typeof(MessageWithHeaders), null, m, null);
+        var m2 = (MessageWithHeaders)_serializer.Deserialize(typeof(MessageWithHeaders), null, payload, null);
 
         // assert
         m2.Headers.Count.Should().Be(m.Headers.Count);
@@ -91,8 +91,8 @@ public class MessageWithHeadersSerializerTests
 
 
         // act
-        var payload = _serializer.Serialize(typeof(MessageWithHeaders), m);
-        var m2 = (MessageWithHeaders)_serializer.Deserialize(typeof(MessageWithHeaders), payload);
+        var payload = _serializer.Serialize(typeof(MessageWithHeaders), null, m, null);
+        var m2 = (MessageWithHeaders)_serializer.Deserialize(typeof(MessageWithHeaders), null, payload, null);
 
         // assert
         m2.Headers.Count.Should().Be(1);

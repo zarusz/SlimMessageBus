@@ -1,8 +1,5 @@
 ﻿namespace SlimMessageBus.Host.Mqtt;
 
-using System.Collections.Generic;
-using System.Threading;
-
 using Microsoft.Extensions.DependencyInjection;
 
 using MQTTnet.Extensions.ManagedClient;
@@ -59,15 +56,15 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
             AddConsumer(consumer);
         }
 
+        MessageProvider<MqttApplicationMessage> GetMessageProvider(string path)
+            => SerializerProvider.GetSerializer(path).GetMessageProvider<byte[], MqttApplicationMessage>(t => t.PayloadSegment.Array);
+
         foreach (var (path, consumerSettings) in Settings.Consumers.GroupBy(x => x.Path).ToDictionary(x => x.Key, x => x.ToList()))
         {
-            var messageSerializer = SerializerProvider.GetSerializer(path);
-            object MessageProvider(Type messageType, MqttApplicationMessage transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.PayloadSegment.Array);
-
             var processor = new MessageProcessor<MqttApplicationMessage>(
                 consumerSettings,
                 messageBus: this,
-                messageProvider: MessageProvider,
+                messageProvider: GetMessageProvider(path),
                 path: path,
                 responseProducer: this,
                 consumerErrorHandlerOpenGenericType: typeof(IMqttConsumerErrorHandler<>));
@@ -79,13 +76,10 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
         {
             var path = Settings.RequestResponse.Path;
 
-            var messageSerializer = SerializerProvider.GetSerializer(path);
-            object MessageProvider(Type messageType, MqttApplicationMessage transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.PayloadSegment.Array);
-
             var processor = new ResponseMessageProcessor<MqttApplicationMessage>(
                 LoggerFactory,
                 Settings.RequestResponse,
-                messageProvider: MessageProvider,
+                messageProvider: GetMessageProvider(path),
                 PendingRequestStore,
                 TimeProvider);
 
@@ -131,33 +125,35 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
         {
             OnProduceToTransport(message, messageType, path, messageHeaders);
 
-            var messagePayload = SerializerProvider.GetSerializer(path).Serialize(messageType, message);
-
-            var m = new MqttApplicationMessage
+            var transportMessage = new MqttApplicationMessage
             {
-                PayloadSegment = new ArraySegment<byte>(messagePayload),
-                Topic = path
+                Topic = path,
             };
 
             if (messageHeaders != null)
             {
-                m.UserProperties = new List<MQTTnet.Packets.MqttUserProperty>(messageHeaders.Count);
+                transportMessage.UserProperties = new List<MQTTnet.Packets.MqttUserProperty>(messageHeaders.Count);
                 foreach (var header in messageHeaders)
                 {
-                    m.UserProperties.Add(new(header.Key, header.Value.ToString()));
+                    transportMessage.UserProperties.Add(new(header.Key, header.Value.ToString()));
                 }
+            }
+
+            if (message != null)
+            {
+                transportMessage.PayloadSegment = new ArraySegment<byte>(SerializerProvider.GetSerializer(path).Serialize(messageType, messageHeaders, message, transportMessage));
             }
 
             try
             {
                 var messageModifier = Settings.GetMessageModifier();
-                messageModifier?.Invoke(message, m);
+                messageModifier?.Invoke(message, transportMessage);
 
                 if (messageType != null)
                 {
                     var producerSettings = GetProducerSettings(messageType);
                     messageModifier = producerSettings.GetMessageModifier();
-                    messageModifier?.Invoke(message, m);
+                    messageModifier?.Invoke(message, transportMessage);
                 }
             }
             catch (Exception e)
@@ -165,7 +161,7 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
                 _logger.LogWarning(e, "The configured message modifier failed for message type {MessageType} and message {Message}", messageType, message);
             }
 
-            await _mqttClient.EnqueueAsync(m);
+            await _mqttClient.EnqueueAsync(transportMessage);
         }
         catch (Exception ex) when (ex is not ProducerMessageBusException && ex is not TaskCanceledException)
         {

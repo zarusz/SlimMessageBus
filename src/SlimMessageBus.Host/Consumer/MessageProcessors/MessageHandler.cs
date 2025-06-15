@@ -54,7 +54,13 @@ public partial class MessageHandler : IMessageHandler
         }
     }
 
-    public async Task<(ProcessResult Result, object Response, Exception ResponseException, string RequestId)> DoHandle(object message, IReadOnlyDictionary<string, object> messageHeaders, IMessageTypeConsumerInvokerSettings consumerInvoker, object transportMessage = null, IDictionary<string, object> consumerContextProperties = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
+    public async Task<(ProcessResult Result, object Response, Exception ResponseException, string RequestId)> DoHandle(object message,
+                                                                                                                       IReadOnlyDictionary<string, object> messageHeaders,
+                                                                                                                       IMessageTypeConsumerInvokerSettings consumerInvoker,
+                                                                                                                       object transportMessage = null,
+                                                                                                                       IDictionary<string, object> consumerContextProperties = null,
+                                                                                                                       IServiceProvider currentServiceProvider = null,
+                                                                                                                       CancellationToken cancellationToken = default)
     {
         var messageType = message.GetType();
 

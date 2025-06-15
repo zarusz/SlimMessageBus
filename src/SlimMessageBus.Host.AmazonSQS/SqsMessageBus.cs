@@ -1,7 +1,5 @@
 ﻿namespace SlimMessageBus.Host.AmazonSQS;
 
-using SlimMessageBus.Host.Serialization;
-
 public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
 {
     private readonly ILogger _logger;
@@ -43,18 +41,16 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
         }
 
         static void InitConsumerContext(Message m, ConsumerContext ctx) => ctx.SetTransportMessage(m);
+        MessageProvider<Message> GetMessageProvider(string path) => GetMessageSerializer(path).GetMessageProvider<string, Message>(t => t.Body);
 
         foreach (var ((path, pathKind), consumerSettings) in Settings.Consumers
                 .GroupBy(x => (x.Path, x.PathKind))
                 .ToDictionary(x => x.Key, x => x.ToList()))
         {
-            var messageSerializer = GetMessageSerializer(path);
-            object MessageProvider(Type messageType, Message transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Body);
-
             var messageProcessor = new MessageProcessor<Message>(
                 consumerSettings,
                 this,
-                messageProvider: MessageProvider,
+                messageProvider: GetMessageProvider(path),
                 path: path,
                 responseProducer: this,
                 consumerContextInitializer: InitConsumerContext,
@@ -67,13 +63,10 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
         {
             var path = Settings.RequestResponse.Path;
 
-            var messageSerializer = GetMessageSerializer(path);
-            object MessageProvider(Type messageType, Message transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Body);
-
             var messageProcessor = new ResponseMessageProcessor<Message>(
                 LoggerFactory,
                 Settings.RequestResponse,
-                messageProvider: MessageProvider,
+                messageProvider: GetMessageProvider(path),
                 PendingRequestStore,
                 TimeProvider);
 
@@ -162,12 +155,13 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
         {
             var (payload, attributes, deduplicationId, groupId) = GetTransportMessage(message, messageType, messageHeaders, messageSerializer);
 
-            await _clientProvider.Client.SendMessageAsync(new SendMessageRequest(queueUrl, payload)
+            var r = new SendMessageRequest(queueUrl, payload)
             {
                 MessageAttributes = attributes,
                 MessageDeduplicationId = deduplicationId,
                 MessageGroupId = groupId
-            }, cancellationToken);
+            };
+            await _clientProvider.Client.SendMessageAsync(r, cancellationToken);
         }
         catch (Exception ex) when (ex is not ProducerMessageBusException && ex is not TaskCanceledException)
         {
@@ -203,7 +197,8 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
                     });
                 }
 
-                await _clientProvider.Client.SendMessageBatchAsync(new SendMessageBatchRequest(queueUrl, entries), cancellationToken);
+                var r = new SendMessageBatchRequest(queueUrl, entries);
+                await _clientProvider.Client.SendMessageBatchAsync(r, cancellationToken);
 
                 entries.Clear();
 
@@ -229,6 +224,8 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
         var messageGroupIdProvider = producerSettings.GetOrDefault(SqsProperties.MessageGroupId, null);
         var groupId = messageGroupIdProvider?.Invoke(message, messageHeaders);
 
+        var messagePayload = messageSerializer.Serialize(messageType, messageHeaders, message, null);
+
         Dictionary<string, MessageAttributeValue> messageAttributes = null;
         if (messageHeaders != null)
         {
@@ -240,7 +237,6 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
             }
         }
 
-        var messagePayload = messageSerializer.Serialize(messageType, message);
         return (messagePayload, messageAttributes, deduplicationId, groupId);
     }
 }
