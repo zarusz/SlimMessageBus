@@ -3,7 +3,7 @@
 public static class SqsConsumerBuilderExtensions
 {
     public static TConsumerBuilder Queue<TConsumerBuilder>(this TConsumerBuilder consumerBuilder, string queue)
-        where TConsumerBuilder : AbstractConsumerBuilder
+        where TConsumerBuilder : AbstractConsumerBuilder<TConsumerBuilder>
     {
         if (consumerBuilder is null) throw new ArgumentNullException(nameof(consumerBuilder));
         if (queue is null) throw new ArgumentNullException(nameof(queue));

@@ -421,15 +421,15 @@ public class ConsumerInstanceMessageProcessorTest
         childScopeMock.Verify(x => x.GetService(typeof(IConsumer<SomeMessage>)), Times.Once);
     }
 
-    public static IEnumerable<object[]> Data =>
-    [
-        [new SomeMessage(), false, false],
-        [new SomeDerivedMessage(), false, false],
-        [new SomeRequest(), false, false],
-        [new SomeDerived2Message(), false, false],
-        [new object(), true, true,],
-        [new object(), true, false],
-    ];
+    public static TheoryData<object, bool, bool> Data => new()
+    {
+        { new SomeMessage(), false, false },
+        { new SomeDerivedMessage(), false, false },
+        { new SomeRequest(), false, false },
+        { new SomeDerived2Message(), false, false },
+        { new object(), true, true },
+        { new object(), true, false },
+    };
 
     [Theory]
     [MemberData(nameof(Data))]
@@ -449,11 +449,19 @@ public class ConsumerInstanceMessageProcessorTest
         var consumerSettingsForSomeMessageInterface = new ConsumerBuilder<ISomeMessageMarkerInterface>(_busMock.Bus.Settings)
             .Topic(_topic)
             .WithConsumer<IConsumer<ISomeMessageMarkerInterface>>()
+            .WhenUndeclaredMessageTypeArrives(opts =>
+            {
+                opts.Fail = shouldFailOnUndeclaredMessageType;
+            })
             .ConsumerSettings;
 
         var consumerSettingsForSomeRequest = new HandlerBuilder<SomeRequest, SomeResponse>(_busMock.Bus.Settings)
             .Topic(_topic)
             .WithHandler<IRequestHandler<SomeRequest, SomeResponse>>()
+            .WhenUndeclaredMessageTypeArrives(opts =>
+            {
+                opts.Fail = shouldFailOnUndeclaredMessageType;
+            })
             .ConsumerSettings;
 
         var messageWithHeaderProviderMock = new Mock<MessageProvider<byte[]>>();
@@ -497,16 +505,19 @@ public class ConsumerInstanceMessageProcessorTest
         {
             if (shouldFailOnUndeclaredMessageType)
             {
-                result.Exception.Should().BeAssignableTo<MessageBusException>();
+                result.Exception.Should().BeAssignableTo<ConsumerMessageBusException>();
+                result.Result.Should().Be(ProcessResult.Failure);
             }
             else
             {
                 result.Exception.Should().BeNull();
+                result.Result.Should().Be(ProcessResult.Success);
             }
         }
         else
         {
             result.Exception.Should().BeNull();
+            result.Result.Should().Be(ProcessResult.Success);
         }
 
         if (message is SomeMessage someMessage)

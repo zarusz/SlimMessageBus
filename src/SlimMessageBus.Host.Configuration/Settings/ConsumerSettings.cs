@@ -50,20 +50,4 @@ public class ConsumerSettings : AbstractConsumerSettings, IMessageTypeConsumerIn
     /// Enables the disposal of consumer instance after the message has been consumed.
     /// </summary>
     public bool IsDisposeConsumerEnabled { get; set; }
-    /// <summary>
-    /// Settings that should apply when a message type arrives for which there is no declared consumers
-    /// </summary>
-    public UndeclaredMessageTypeSettings UndeclaredMessageType { get; set; } = new UndeclaredMessageTypeSettings();
-}
-
-public class UndeclaredMessageTypeSettings
-{
-    /// <summary>
-    /// Should the message fail when an undeclared message type arrives on the queue/topic that cannot be handled by any of the declared consumers.
-    /// </summary>
-    public bool Fail { get; set; }
-    /// <summary>
-    /// Should the message be logged when an undeclared message type arrives on the queue/topic that cannot be handled by any of the declared consumers.
-    /// </summary>
-    public bool Log { get; set; }
 }

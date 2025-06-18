@@ -46,16 +46,20 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
         _logger = messageBus.LoggerFactory.CreateLogger<MessageProcessor<TTransportMessage>>();
         _messageProvider = messageProvider ?? throw new ArgumentNullException(nameof(messageProvider));
         _messageTypeProvider = messageTypeProvider;
-        _consumerSettings = (consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings))).ToList();
+        _consumerSettings = [.. consumerSettings ?? throw new ArgumentNullException(nameof(consumerSettings))];
         _responseProducer = responseProducer;
 
         _consumerContextInitializer = consumerContextInitializer;
 
-        _invokers = consumerSettings.OfType<ConsumerSettings>().SelectMany(x => x.Invokers).ToList();
+        _invokers = [.. consumerSettings.OfType<ConsumerSettings>().SelectMany(x => x.Invokers)];
         _singleInvoker = _invokers.Count == 1 ? _invokers.First() : null;
 
-        _shouldFailWhenUnrecognizedMessageType = consumerSettings.OfType<ConsumerSettings>().Any(x => x.UndeclaredMessageType.Fail);
-        _shouldLogWhenUnrecognizedMessageType = consumerSettings.OfType<ConsumerSettings>().Any(x => x.UndeclaredMessageType.Log);
+        // true by default, if not set on the consumer settings
+        _shouldFailWhenUnrecognizedMessageType = !consumerSettings.Any(x => x.UndeclaredMessageType.Fail.HasValue)
+            || consumerSettings.Any(x => x.UndeclaredMessageType.Fail.HasValue && x.UndeclaredMessageType.Fail.Value);
+        // false by default, if not set on the consumer settings
+        _shouldLogWhenUnrecognizedMessageType = consumerSettings.Any(x => x.UndeclaredMessageType.Log.HasValue)
+            && consumerSettings.Any(x => x.UndeclaredMessageType.Log.HasValue && x.UndeclaredMessageType.Log.Value);
     }
 
     protected override ConsumerContext CreateConsumerContext(IMessageScope messageScope,
@@ -80,75 +84,69 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
         var result = ProcessResult.Success;
         Exception lastException = null;
         object lastResponse = null;
+        Type messageType = null;
 
         try
         {
-            var messageType = _messageTypeProvider != null
+            messageType = _messageTypeProvider != null
                 ? _messageTypeProvider(transportMessage)
                 : GetMessageType(messageHeaders);
 
             if (messageType != null)
             {
+                var message = _messageProvider(messageType, transportMessage);
                 try
                 {
-                    var message = _messageProvider(messageType, transportMessage);
-                    try
+                    var consumerInvokers = TryMatchConsumerInvoker(messageType);
+
+                    foreach (var consumerInvoker in consumerInvokers)
                     {
-                        var consumerInvokers = TryMatchConsumerInvoker(messageType);
+                        lastConsumerInvoker = consumerInvoker;
 
-                        foreach (var consumerInvoker in consumerInvokers)
+                        // Skip the loop if it was cancelled
+                        if (cancellationToken.IsCancellationRequested)
                         {
-                            lastConsumerInvoker = consumerInvoker;
-
-                            // Skip the loop if it was cancelled
-                            if (cancellationToken.IsCancellationRequested)
-                            {
-                                break;
-                            }
-
-                            (result, lastResponse, lastException, var requestId) = await DoHandle(message, messageHeaders, consumerInvoker, transportMessage, consumerContextProperties, currentServiceProvider, cancellationToken).ConfigureAwait(false);
-
-                            Debug.Assert(result is not ProcessResult.RetryState);
-
-                            if (consumerInvoker.ParentSettings.ConsumerMode == ConsumerMode.RequestResponse && _responseProducer != null)
-                            {
-                                if (!ReferenceEquals(ResponseForExpiredRequest, lastResponse))
-                                {
-                                    // We discard expired requests, so there is no response to provide
-                                    await _responseProducer.ProduceResponse(requestId, message, messageHeaders, lastResponse, lastException, consumerInvoker, cancellationToken).ConfigureAwait(false);
-                                }
-                                // Clear the exception as it will be returned to the sender.
-                                lastException = null;
-                            }
-                            else if (lastException != null)
-                            {
-                                break;
-                            }
+                            break;
                         }
-                    }
-                    finally
-                    {
-                        if (message is IAsyncDisposable asyncDisposable)
+
+                        (result, lastResponse, lastException, var requestId) = await DoHandle(message, messageHeaders, consumerInvoker, transportMessage, consumerContextProperties, currentServiceProvider, cancellationToken).ConfigureAwait(false);
+
+                        Debug.Assert(result is not ProcessResult.RetryState);
+
+                        if (consumerInvoker.ParentSettings.ConsumerMode == ConsumerMode.RequestResponse && _responseProducer != null)
                         {
-                            await asyncDisposable.DisposeAsync();
+                            if (!ReferenceEquals(ResponseForExpiredRequest, lastResponse))
+                            {
+                                // We discard expired requests, so there is no response to provide
+                                await _responseProducer.ProduceResponse(requestId, message, messageHeaders, lastResponse, lastException, consumerInvoker, cancellationToken).ConfigureAwait(false);
+                            }
+                            // Clear the exception as it will be returned to the sender.
+                            lastException = null;
                         }
-                        else if (message is IDisposable disposable)
+                        else if (lastException != null)
                         {
-                            disposable.Dispose();
+                            break;
                         }
                     }
                 }
-                catch (Exception e)
+                finally
                 {
-                    LogProcessingMessageFailedTypeKnown(transportMessage, messageType, e);
-                    lastException ??= e;
+                    if (message is IAsyncDisposable asyncDisposable)
+                    {
+                        await asyncDisposable.DisposeAsync();
+                    }
+                    else if (message is IDisposable disposable)
+                    {
+                        disposable.Dispose();
+                    }
                 }
             }
         }
         catch (Exception e)
         {
-            LogProcessingMessageFailed(transportMessage, e);
-            lastException = e;
+            LogProcessingMessageFailedTypeKnown(transportMessage, messageType, e);
+            lastException ??= e;
+            result = ProcessResult.Failure;
         }
         return new(result, lastException, lastException != null ? lastConsumerInvoker?.ParentSettings : null, lastResponse);
     }
@@ -166,7 +164,7 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
 
             if (_shouldFailWhenUnrecognizedMessageType)
             {
-                throw new MessageBusException($"The message arrived with {MessageHeaders.MessageType} header on path {Path}, but the type value {messageTypeName} is not a known type");
+                throw new ConsumerMessageBusException($"The message arrived with {MessageHeaders.MessageType} header on path {Path}, but the type value {messageTypeName} is not a known type");
             }
             return null;
         }
@@ -181,7 +179,7 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
 
         if (_shouldFailWhenUnrecognizedMessageType)
         {
-            throw new MessageBusException($"The message arrived without {MessageHeaders.MessageType} header on path {Path}, so it is impossible to match one of the known consumer types {string.Join(",", _invokers.Select(x => x.ConsumerType.Name))}");
+            throw new ConsumerMessageBusException($"The message arrived without {MessageHeaders.MessageType} header on path {Path}, so it is impossible to match one of the known consumer types {string.Join(",", _invokers.Select(x => x.ConsumerType.Name))}");
         }
 
         return null;
@@ -230,29 +228,23 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
     [LoggerMessage(
        EventId = 1,
        Level = LogLevel.Debug,
-       Message = "Processing of the message {TransportMessage} failed")]
-    private partial void LogProcessingMessageFailed(TTransportMessage transportMessage, Exception e);
-
-    [LoggerMessage(
-       EventId = 2,
-       Level = LogLevel.Debug,
        Message = "Message type {MessageType} was declared in the message header")]
     private partial void LogMessageTypeDeclaredInHeader(Type messageType);
 
     [LoggerMessage(
-       EventId = 3,
+       EventId = 2,
        Level = LogLevel.Debug,
        Message = "No message type header was present, defaulting to the only declared message type {MessageType}")]
     private partial void LogMessageTypeHeaderMissingAndDefaulting(Type messageType);
 
     [LoggerMessage(
-       EventId = 4,
+       EventId = 3,
        Level = LogLevel.Debug,
        Message = "No message type header was present in the message header, multiple consumer types declared therefore cannot infer the message type")]
     private partial void LogNoMessageTypeHeaderPresent();
 
     [LoggerMessage(
-       EventId = 5,
+       EventId = 4,
        Level = LogLevel.Information,
        Message = "The message on path {Path} declared {HeaderName} header of type {MessageType}, but none of the known consumer types {ConsumerTypes} was able to handle it")]
     private partial void LogNoConsumerTypeMatched(Type messageType, string path, string headerName, string consumerTypes);
@@ -266,9 +258,6 @@ public partial class MessageProcessor<TTransportMessage>
 {
     private partial void LogProcessingMessageFailedTypeKnown(TTransportMessage transportMessage, Type messageType, Exception e)
         => _logger.LogDebug(e, "Processing of the message {TransportMessage} of type {MessageType} failed", transportMessage, messageType);
-
-    private partial void LogProcessingMessageFailed(TTransportMessage transportMessage, Exception e)
-        => _logger.LogDebug(e, "Processing of the message {TransportMessage} failed", transportMessage);
 
     private partial void LogMessageTypeDeclaredInHeader(Type messageType)
         => _logger.LogDebug("Message type {MessageType} was declared in the message header", messageType);

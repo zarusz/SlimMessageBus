@@ -13,6 +13,144 @@ public class HandlerBuilderTest
         _path = _fixture.Create<string>();
     }
 
+    #region HandlerBuilder<TRequest, TResponse> Tests
+
+    [Fact]
+    public void When_WithHandler_Given_HandlerType_Then_ConsumerTypeShouldBeSet()
+    {
+        // arrange
+        var subject = new HandlerBuilder<SomeRequest, SomeResponse>(_messageBusSettings);
+
+        // act
+        var result = subject.WithHandler<SomeRequestMessageHandler>();
+
+        // assert
+        result.Should().BeSameAs(subject);
+        subject.ConsumerSettings.ConsumerType.Should().Be<SomeRequestMessageHandler>();
+        subject.ConsumerSettings.Invokers.Should().Contain(subject.ConsumerSettings);
+        subject.ConsumerSettings.ConsumerMethod.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void When_WithHandlerOfDerivedType_Given_DerivedTypeAndHandler_Then_InvokerShouldBeAdded()
+    {
+        // arrange
+        var subject = new HandlerBuilder<SomeRequest, SomeResponse>(_messageBusSettings);
+
+        // act
+        var result = subject.WithHandler<SomeDerivedRequestMessageHandler, SomeDerivedRequest>();
+
+        // assert
+        result.Should().BeSameAs(subject);
+        subject.ConsumerSettings.Invokers.Should().HaveCount(1);
+        var invoker = subject.ConsumerSettings.Invokers.Single();
+        invoker.MessageType.Should().Be<SomeDerivedRequest>();
+        invoker.ConsumerType.Should().Be<SomeDerivedRequestMessageHandler>();
+    }
+
+    [Fact]
+    public void When_WithHandlerOfContext_Given_HandlerType_Then_ConsumerTypeShouldBeSet()
+    {
+        // arrange
+        var subject = new HandlerBuilder<SomeRequest, SomeResponse>(_messageBusSettings);
+
+        // act
+        var result = subject.WithHandlerOfContext<SomeRequestMessageHandlerOfContext>();
+
+        // assert
+        result.Should().BeSameAs(subject);
+        subject.ConsumerSettings.ConsumerType.Should().Be<SomeRequestMessageHandlerOfContext>();
+        subject.ConsumerSettings.Invokers.Should().Contain(subject.ConsumerSettings);
+    }
+
+    [Fact]
+    public void When_WithHandlerOfContextForDerivedType_Given_DerivedTypeAndHandler_Then_InvokerShouldBeAdded()
+    {
+        // arrange
+        var subject = new HandlerBuilder<SomeRequest, SomeResponse>(_messageBusSettings);
+
+        // act
+        var result = subject.WithHandlerOfContext<SomeDerivedRequestMessageHandlerOfContext, SomeDerivedRequest>();
+
+        // assert
+        result.Should().BeSameAs(subject);
+        subject.ConsumerSettings.Invokers.Should().HaveCount(1);
+        var invoker = subject.ConsumerSettings.Invokers.Single();
+        invoker.MessageType.Should().Be<SomeDerivedRequest>();
+        invoker.ConsumerType.Should().Be<SomeDerivedRequestMessageHandlerOfContext>();
+    }
+
+    #endregion
+
+    #region HandlerBuilder<TRequest> Tests
+
+    [Fact]
+    public void When_WithHandler_Given_HandlerTypeForRequestWithoutResponse_Then_ConsumerTypeShouldBeSet()
+    {
+        // arrange
+        var subject = new HandlerBuilder<SomeRequestWithoutResponse>(_messageBusSettings);
+
+        // act
+        var result = subject.WithHandler<SomeRequestWithoutResponseHandler>();
+
+        // assert
+        result.Should().BeSameAs(subject);
+        subject.ConsumerSettings.ConsumerType.Should().Be<SomeRequestWithoutResponseHandler>();
+        subject.ConsumerSettings.Invokers.Should().Contain(subject.ConsumerSettings);
+        subject.ConsumerSettings.ConsumerMethod.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void When_WithHandlerOfDerivedType_Given_DerivedTypeAndHandlerForRequestWithoutResponse_Then_InvokerShouldBeAdded()
+    {
+        // arrange
+        var subject = new HandlerBuilder<SomeRequestWithoutResponse>(_messageBusSettings);
+
+        // act
+        var result = subject.WithHandler<SomeDerivedRequestWithoutResponseHandler, SomeDerivedRequestWithoutResponse>();
+
+        // assert
+        result.Should().BeSameAs(subject);
+        subject.ConsumerSettings.Invokers.Should().HaveCount(1);
+        var invoker = subject.ConsumerSettings.Invokers.Single();
+        invoker.MessageType.Should().Be<SomeDerivedRequestWithoutResponse>();
+        invoker.ConsumerType.Should().Be<SomeDerivedRequestWithoutResponseHandler>();
+    }
+
+    [Fact]
+    public void When_WithHandlerOfContext_Given_HandlerTypeForRequestWithoutResponse_Then_ConsumerTypeShouldBeSet()
+    {
+        // arrange
+        var subject = new HandlerBuilder<SomeRequestWithoutResponse>(_messageBusSettings);
+
+        // act
+        var result = subject.WithHandlerOfContext<SomeRequestWithoutResponseHandlerOfContext>();
+
+        // assert
+        result.Should().BeSameAs(subject);
+        subject.ConsumerSettings.ConsumerType.Should().Be<SomeRequestWithoutResponseHandlerOfContext>();
+        subject.ConsumerSettings.Invokers.Should().Contain(subject.ConsumerSettings);
+    }
+
+    [Fact]
+    public void When_WithHandlerOfContextForDerivedType_Given_DerivedTypeAndHandlerForRequestWithoutResponse_Then_InvokerShouldBeAdded()
+    {
+        // arrange
+        var subject = new HandlerBuilder<SomeRequestWithoutResponse>(_messageBusSettings);
+
+        // act
+        var result = subject.WithHandlerOfContext<SomeDerivedRequestWithoutResponseHandlerOfContext, SomeDerivedRequestWithoutResponse>();
+
+        // assert
+        result.Should().BeSameAs(subject);
+        subject.ConsumerSettings.Invokers.Should().HaveCount(1);
+        var invoker = subject.ConsumerSettings.Invokers.Single();
+        invoker.MessageType.Should().Be<SomeDerivedRequestWithoutResponse>();
+        invoker.ConsumerType.Should().Be<SomeDerivedRequestWithoutResponseHandlerOfContext>();
+    }
+
+    #endregion
+
     [Fact]
     public void When_Created_Given_RequestAndResposeType_Then_MessageType_And_ResponseType_And_DefaultHandlerTypeSet_ProperlySet()
     {
