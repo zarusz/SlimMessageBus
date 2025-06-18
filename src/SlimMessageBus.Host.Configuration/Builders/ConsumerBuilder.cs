@@ -1,6 +1,6 @@
 namespace SlimMessageBus.Host;
 
-public class ConsumerBuilder<TMessage> : AbstractConsumerBuilder, IConsumerBuilder
+public class ConsumerBuilder<TMessage> : AbstractConsumerBuilder<ConsumerBuilder<TMessage>>, IConsumerBuilder
 {
     HasProviderExtensions IBuilderWithSettings.Settings => ConsumerSettings;
 
@@ -217,17 +217,4 @@ public class ConsumerBuilder<TMessage> : AbstractConsumerBuilder, IConsumerBuild
         ConsumerSettings.IsDisposeConsumerEnabled = enabled;
         return this;
     }
-
-    /// <summary>
-    /// Configures what should happen when an undeclared message type arrives on the topic/queue.
-    /// </summary>
-    /// <param name="action"></param>
-    /// <returns></returns>
-    public ConsumerBuilder<TMessage> WhenUndeclaredMessageTypeArrives(Action<UndeclaredMessageTypeSettings> action)
-    {
-        action(ConsumerSettings.UndeclaredMessageType);
-        return this;
-    }
-
-    public ConsumerBuilder<TMessage> Do(Action<ConsumerBuilder<TMessage>> action) => base.Do(action);
 }

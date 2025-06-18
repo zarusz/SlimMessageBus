@@ -11,12 +11,12 @@
     - [Health check circuit breaker](#health-check-circuit-breaker)
   - [Consumer Context (Accessing Additional Message Information)](#consumer-context-accessing-additional-message-information)
     - [Recommended Approach: Constructor Injection](#recommended-approach-constructor-injection)
-  - [Obsolete Approaches](#obsolete-approaches)
-    - [1. Wrapping the Message in `IConsumerContext<TMessage>`](#1-wrapping-the-message-in-iconsumercontexttmessage)
-    - [2. Implementing `IConsumerWithContext`](#2-implementing-iconsumerwithcontext)
-    - [Per-message DI container scope](#per-message-di-container-scope)
+    - [Obsolete Approaches](#obsolete-approaches)
+      - [1. Wrapping the Message in `IConsumerContext<TMessage>`](#1-wrapping-the-message-in-iconsumercontexttmessage)
+      - [2. Implementing `IConsumerWithContext`](#2-implementing-iconsumerwithcontext)
+  - [Per-message DI container scope](#per-message-di-container-scope)
     - [Hybrid bus and message scope reuse](#hybrid-bus-and-message-scope-reuse)
-    - [Concurrently processed messages](#concurrently-processed-messages)
+  - [Concurrently processed messages](#concurrently-processed-messages)
 - [Request-response communication](#request-response-communication)
   - [Delivery guarantees](#delivery-guarantees)
   - [Dedicated reply queue/topic](#dedicated-reply-queuetopic)
@@ -51,6 +51,9 @@
 - [Error Handling](#error-handling)
   - [Azure Service Bus](#azure-service-bus)
   - [RabbitMQ](#rabbitmq)
+  - [Deserialization Errors](#deserialization-errors)
+    - [MessageType Cannot Be Determined](#messagetype-cannot-be-determined)
+    - [Message Cannot Be Deserialized](#message-cannot-be-deserialized)
 - [Logging](#logging)
 - [Debugging](#debugging)
 - [Provider specific functionality](#provider-specific-functionality)
@@ -381,11 +384,11 @@ public class PingConsumer(IConsumerContext context) : IConsumer<PingMessage>
 
 > Check the documentation of your specific transport provider for details on what transport-level metadata is accessible (e.g., Kafka’s topic/partition information).
 
-### Obsolete Approaches
+#### Obsolete Approaches
 
 Although still supported, the following methods are no longer recommended and may be phased out in the future.
 
-#### 1. Wrapping the Message in `IConsumerContext<TMessage>`
+##### 1. Wrapping the Message in `IConsumerContext<TMessage>`
 
 This approach involves defining the consumer to accept a contextualized message wrapper:
 
@@ -411,7 +414,7 @@ mbb.Consume<SomeMessage>(x => x
     .WithConsumerOfContext<PingConsumer>());
 ```
 
-#### 2. Implementing `IConsumerWithContext`
+##### 2. Implementing `IConsumerWithContext`
 
 Another legacy option is to implement the [`IConsumerWithContext`](/src/SlimMessageBus/IConsumerWithContext.cs) interface, which exposes a `Context` property:
 
@@ -435,7 +438,7 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
 
 > ⚠️ **Important:** When using this approach, the consumer must be registered as either **transient** or **scoped**. Using a **singleton** would result in a race condition between setting the `Context` and executing `OnHandle`.
 
-#### Per-message DI container scope
+### Per-message DI container scope
 
 SMB can be configured to create a DI scope for every message being consumed. That is if the chosen DI container supports child scopes.
 This allows to have a scoped `IConsumer<T>` or `IRequestHandler<TRequest, TResponse>` which can have any dependant collaborators that are also scoped (e.g. EF Core DataContext).
@@ -472,7 +475,7 @@ Here the memory bus would detect there is a message scope already started and wi
 
 > In a Hybrid bus setup, the Memory bus will detect if there is already a started message scope and use that to resolve its dependencies from.
 
-#### Concurrently processed messages
+### Concurrently processed messages
 
 The `.Instances(n)` allows setting the number of concurrently processed messages within the same consumer type.
 
@@ -1045,8 +1048,8 @@ mbb.Consume<CustomerEvent>(x =>
   // When a message type arrives we do not handle, instruct SMB what to do
   /*
   x.WhenUndeclaredMessageTypeArrives(opts => {
-    opts.Fail = false; // raise an exception
-    opts.Log = false; // log a warn entry
+    opts.Fail = false; // do not raise an exception
+    opts.Log = false; // do not log a warn entry
   });
   */
 });
@@ -1061,7 +1064,7 @@ In this example:
 - The arriving message `CustomerCreatedEvent` will activate both the `CustomerCreatedEventConsumer` and `CustomerEventConsumer`.
 - While any other arriving message type will be discarded (unless it derives from one of the declared message types).
 
-> By default SMB will silently discard the message type that arrived for which it cannot match any registered consumer. This behavior can be adjusted in `WhenUndeclaredMessageTypeArrives()`.
+> By default SMB will error the message for which the message type cannot be determined or match any registered consumer. This behavior can be adjusted in `WhenUndeclaredMessageTypeArrives()`. This has changed since 3.3.0.
 
 ## Message Headers
 
@@ -1287,14 +1290,14 @@ This approach allows for transport-specific error handling, ensuring that specia
 
 Example retry with exponential back-off and short-curcuit to dead letter exchange on non-transient exceptions (using the [RabbitMqConsumerErrorHandler](../src/SlimMessageBus.Host.RabbitMQ/Consumers/IRabbitMqConsumerErrorHandler.cs) abstract implementation):
 
-```cs
+```csharp
 public class RetryHandler<T> : RabbitMqConsumerErrorHandler<T>
 {
     private static readonly Random _random = new();
 
     public override async Task<ConsumerErrorHandlerResult> OnHandleError(T message, IConsumerContext consumerContext, Exception exception, int attempts)
     {
-        if (!IsTranientException(exception))
+        if (!IsTransientException(exception))
         {
           return Failure();
         }
@@ -1308,7 +1311,7 @@ public class RetryHandler<T> : RabbitMqConsumerErrorHandler<T>
             return Retry();
         }
 
-        // re-qeuue for out of process execution
+        // re-queue for out of process execution
         return Requeue();
     }
 
@@ -1323,6 +1326,33 @@ public class RetryHandler<T> : RabbitMqConsumerErrorHandler<T>
     }
 }
 ```
+
+#### Deserialization Errors
+
+When messages are deserialized from the underlying transport, errors may occur at two stages:
+
+- **MessageType resolution** (e.g. unknown type)
+- **Actual deserialization** (e.g. malformed payload)
+
+##### MessageType Cannot Be Determined
+
+SlimMessageBus (SMB) includes a `MessageType` header when sending messages so that the consumer can determine the expected type of the payload.
+
+If this header is missing, SMB attempts to infer the message type based on the declared consumer path (topic or queue name), but **only if a single message type is associated with that path**.
+If **multiple message types** are declared on the same path, the type cannot be determined, and the message will **fail to deserialize**.
+
+If the message type in the header is **malformed** or refers to a CLR type that is unknown to the consumer, the message will **fail** in the underlying transport.
+
+If there are no matching message types (exact or assignable) declared on the consumer for the given path (topic or queue name), the message will **fail** in the underlying transport.
+
+> **Note:** You can change this default behavior if you'd prefer such messages to be acknowledge and avoid them to end in dead-letter queue (DLQ) where supported. See: [Polymorphic Consumer](#polymorphic-consumer)
+
+##### Message Cannot Be Deserialized
+
+If the transport message cannot be deserialized by the configured serialization plugin, the message will **fail**.
+
+- For transports that support DLQs (e.g. **Azure Service Bus**, **SQS**, **RabbitMQ**), the message will be retried and eventually routed to the DLQ.
+- For transports that do not support DLQs (e.g. **Kafka**), the message will be **acknowledged** as processed.
 
 ## Logging
 
