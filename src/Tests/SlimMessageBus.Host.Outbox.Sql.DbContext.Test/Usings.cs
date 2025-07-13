@@ -3,7 +3,7 @@ global using System.Reflection;
 
 global using Confluent.Kafka;
 
-global using FluentAssertions;
+global using AwesomeAssertions;
 
 global using Microsoft.EntityFrameworkCore;
 global using Microsoft.Extensions.Configuration;

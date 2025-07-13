@@ -1,6 +1,6 @@
 ﻿global using Confluent.Kafka;
 
-global using FluentAssertions;
+global using AwesomeAssertions;
 
 global using Microsoft.Extensions.Logging;
 global using Microsoft.Extensions.Logging.Abstractions;

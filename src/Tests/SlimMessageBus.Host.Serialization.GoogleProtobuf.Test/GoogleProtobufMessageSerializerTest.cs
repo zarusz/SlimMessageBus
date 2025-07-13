@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Serialization.GoogleProtobuf.Test;
 
-using FluentAssertions;
+using AwesomeAssertions;
 
 using global::Test;
 

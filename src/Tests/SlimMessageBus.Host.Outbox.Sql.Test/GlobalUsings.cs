@@ -4,7 +4,7 @@ global using System.Threading.Tasks;
 
 global using AutoFixture;
 
-global using FluentAssertions;
+global using AwesomeAssertions;
 
 global using Microsoft.Data.SqlClient;
 global using Microsoft.Extensions.Logging.Abstractions;
