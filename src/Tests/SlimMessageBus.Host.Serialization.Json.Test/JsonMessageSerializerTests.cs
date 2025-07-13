@@ -1,7 +1,5 @@
 namespace SlimMessageBus.Host.Serialization.Json.Test;
 
-using FluentAssertions;
-
 public class JsonMessageSerializerTests
 {
     public static TheoryData<object, object> Data => new()

@@ -1,6 +1,6 @@
 // Global using directives
 
-global using FluentAssertions;
+global using AwesomeAssertions;
 
 global using Microsoft.Extensions.Configuration;
 global using Microsoft.Extensions.DependencyInjection;
