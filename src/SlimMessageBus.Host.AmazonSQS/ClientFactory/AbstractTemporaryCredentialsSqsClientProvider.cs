@@ -9,7 +9,7 @@ using Amazon.SecurityToken.Model;
 /// <typeparam name="TClient"></typeparam>
 /// <typeparam name="TClientConfig"></typeparam>
 public abstract class AbstractTemporaryCredentialsSqsClientProvider<TClient, TClientConfig> : IDisposable
-    where TClient : IDisposable
+    where TClient : class, IDisposable
 {
     private bool _disposedValue;
 

@@ -94,7 +94,7 @@ public partial class ResponseMessageProcessor<TTransportMessage> : ResponseMessa
                 try
                 {
                     // deserialize the response message
-                    var response = transportMessage != null
+                    var response = !EqualityComparer<TTransportMessage>.Default.Equals(transportMessage, default)
                         ? _messageProvider(requestState.ResponseType, responseHeaders, transportMessage)
                         : null;
 
