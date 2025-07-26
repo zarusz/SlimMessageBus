@@ -69,7 +69,16 @@ public class RedisListCheckerConsumer : AbstractConsumer, IRedisConsumer
             {
                 var queue = _queues[queueIndex];
 
-                var value = await _database.ListLeftPopAsync(queue.Name).ConfigureAwait(false);
+                var value = RedisValue.Null;
+                try
+                {
+                    value = await _database.ListLeftPopAsync(queue.Name).ConfigureAwait(false);
+                }
+                catch (Exception e) when (e is RedisConnectionException or RedisTimeoutException)
+                {
+                    Logger.LogWarning(e, "Redis connection error occurred while checking keys");
+                    await Task.Delay(1_000).ConfigureAwait(false);
+                }
                 if (value != RedisValue.Null)
                 {
                     Logger.LogDebug("Retrieved value on queue {Queue}", queue.Name);
