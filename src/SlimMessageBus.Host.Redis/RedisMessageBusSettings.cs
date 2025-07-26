@@ -18,7 +18,7 @@ public class RedisMessageBusSettings
     /// <summary>
     /// Specifies the optional delay between when polling of keys that are list in the event that none of the keys have new messages.
     /// If you want to optimize latency between periods on queue retrieval set to null. However, having some small delay is advised to optimize CPU usage.
-    /// This delay is also applied after handling exceptions during polling or processing to avoid tight retry loops.
+    /// This delay is also applied after handling exceptions during polling to avoid tight retry loops.
     /// Default is 1 second.
     /// </summary>        
     public TimeSpan? QueuePollDelay { get; set; } = TimeSpan.FromSeconds(1);
