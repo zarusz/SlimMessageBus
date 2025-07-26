@@ -74,10 +74,13 @@ public class RedisListCheckerConsumer : AbstractConsumer, IRedisConsumer
                 {
                     value = await _database.ListLeftPopAsync(queue.Name).ConfigureAwait(false);
                 }
-                catch (Exception e) when (e is RedisConnectionException or RedisTimeoutException)
+                catch (Exception e)
                 {
-                    Logger.LogWarning(e, "Redis connection error occurred while checking keys");
-                    await Task.Delay(1_000).ConfigureAwait(false);
+                    Logger.LogWarning(e, "Error occurred while checking keys");
+                    if (_pollDelay != null)
+                    {
+                        await Task.Delay(_pollDelay.Value, CancellationToken).ConfigureAwait(false);
+                    }
                 }
                 if (value != RedisValue.Null)
                 {
