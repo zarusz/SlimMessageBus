@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 
 using Azure.Messaging.ServiceBus;
+using Azure.Messaging.ServiceBus.Administration;
 
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.Collections;
@@ -46,6 +47,11 @@ public class ServiceBusMessageBusTests : IDisposable
                 var m = new Mock<ServiceBusSender>();
                 SenderMockByPath.Add(path, m);
                 return m.Object;
+            },
+            AdminClientFactory = (_, _) =>
+            {
+                var adminClient = new Mock<ServiceBusAdministrationClient>();
+                return adminClient.Object;
             },
             TopologyProvisioning = new ServiceBusTopologySettings
             {
