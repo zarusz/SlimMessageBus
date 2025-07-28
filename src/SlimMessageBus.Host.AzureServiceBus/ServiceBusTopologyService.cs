@@ -16,7 +16,7 @@ public class ServiceBusTopologyService
     }
 
     [Flags]
-    private enum TopologyCreationStatus
+    internal enum TopologyCreationStatus
     {
         None = 0,
         NotExists = 1,
@@ -51,7 +51,7 @@ public class ServiceBusTopologyService
         }
     }
 
-    private Task<TopologyCreationStatus> TryCreateQueue(string path, bool canCreate, Action<CreateQueueOptions> action) => SwallowExceptionIfEntityExists(async () =>
+    internal Task<TopologyCreationStatus> TryCreateQueue(string path, bool canCreate, Action<CreateQueueOptions> action = null) => SwallowExceptionIfEntityExists(async () =>
     {
         if (await _adminClient.QueueExistsAsync(path)) return TopologyCreationStatus.Exists;
 
@@ -71,7 +71,7 @@ public class ServiceBusTopologyService
         return TopologyCreationStatus.Exists | TopologyCreationStatus.Created;
     });
 
-    private Task<TopologyCreationStatus> TryCreateTopic(string path, bool canCreate, Action<CreateTopicOptions> action) => SwallowExceptionIfEntityExists(async () =>
+    internal Task<TopologyCreationStatus> TryCreateTopic(string path, bool canCreate, Action<CreateTopicOptions> action = null) => SwallowExceptionIfEntityExists(async () =>
     {
         if (await _adminClient.TopicExistsAsync(path)) return TopologyCreationStatus.Exists;
 
@@ -171,7 +171,7 @@ public class ServiceBusTopologyService
                 _providerSettings.TopologyProvisioning?.CreateSubscriptionOptions?.Invoke(options);
                 options.RequiresSession = consumerSettings.GetEnableSession();
 
-                consumerSettings.GetSubscriptionOptions()?.Invoke(options);
+                consumerSettings.GetOrDefault(AsbProperties.CreateSubscriptionOptions)?.Invoke(options);
                 if (acc != null && !ReferenceEquals(acc, options))
                 {
                     ThrowOnFalse(acc.AutoDeleteOnIdle.Equals(options.AutoDeleteOnIdle), nameof(options.AutoDeleteOnIdle));
@@ -270,7 +270,7 @@ public class ServiceBusTopologyService
                             // Note: Populate the require session flag on the queue
                             options.RequiresSession = consumerSettings.GetEnableSession();
 
-                            consumerSettings.GetQueueOptions()?.Invoke(options);
+                            consumerSettings.GetOrDefault(AsbProperties.CreateQueueOptions)?.Invoke(options);
                         }
                     }).ConfigureAwait(false);
                 }
@@ -280,7 +280,7 @@ public class ServiceBusTopologyService
                     {
                         foreach (var consumerSettings in consumerSettingsList)
                         {
-                            consumerSettings.GetTopicOptions()?.Invoke(options);
+                            consumerSettings.GetOrDefault(AsbProperties.CreateTopicOptions)?.Invoke(options);
                         }
                     }).ConfigureAwait(false);
 
@@ -297,15 +297,21 @@ public class ServiceBusTopologyService
                 }
             }
 
-            foreach (var producerSettings in _settings.Producers)
+            foreach (var producerSettings in _settings.Producers.Where(x => x.DefaultPath != null)) // only provision producers with a default path
             {
                 if (producerSettings.PathKind == PathKind.Queue)
                 {
-                    await TryCreateQueue(producerSettings.DefaultPath, topologyProvisioning.CanProducerCreateQueue, options => producerSettings.GetQueueOptions()?.Invoke(options)).ConfigureAwait(false);
+                    await TryCreateQueue(producerSettings.DefaultPath,
+                                         topologyProvisioning.CanProducerCreateQueue,
+                                         options => producerSettings.GetOrDefault(AsbProperties.CreateQueueOptions)?.Invoke(options))
+                        .ConfigureAwait(false);
                 }
                 if (producerSettings.PathKind == PathKind.Topic)
                 {
-                    await TryCreateTopic(producerSettings.DefaultPath, topologyProvisioning.CanProducerCreateTopic, options => producerSettings.GetTopicOptions()?.Invoke(options)).ConfigureAwait(false);
+                    await TryCreateTopic(producerSettings.DefaultPath,
+                                         topologyProvisioning.CanProducerCreateTopic,
+                                         options => producerSettings.GetOrDefault(AsbProperties.CreateTopicOptions)?.Invoke(options))
+                        .ConfigureAwait(false);
                 }
             }
         }
