@@ -7,12 +7,12 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
     private readonly ILogger _logger;
     private ServiceBusClient _client;
     private SafeDictionaryWrapper<string, ServiceBusSender> _producerByPath;
+    private ServiceBusTopologyService _topologyService;
 
     public ServiceBusMessageBus(MessageBusSettings settings, ServiceBusMessageBusSettings providerSettings)
         : base(settings, providerSettings)
     {
         _logger = LoggerFactory.CreateLogger<ServiceBusMessageBus>();
-
         OnBuildProvider();
     }
 
@@ -46,9 +46,10 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
     public override async Task ProvisionTopology()
     {
         await base.ProvisionTopology();
-
-        var provisioningService = new ServiceBusTopologyService(LoggerFactory.CreateLogger<ServiceBusTopologyService>(), Settings, ProviderSettings);
-        await provisioningService.ProvisionTopology(); // provisioning happens asynchronously
+        if (_topologyService != null)
+        {
+            await _topologyService.ProvisionTopology(); // provisioning happens asynchronously
+        }
     }
 
     #region Overrides of MessageBusBase
@@ -59,6 +60,7 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
 
         if (ProviderSettings.TopologyProvisioning?.Enabled ?? false)
         {
+            _topologyService = new ServiceBusTopologyService(LoggerFactory.CreateLogger<ServiceBusTopologyService>(), Settings, ProviderSettings);
             InitTaskList.Add(ProvisionTopology, CancellationToken);
         }
 
@@ -133,8 +135,19 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
         {
             var transportMessage = GetTransportMessage(message, messageType, messageHeaders, path);
             var senderClient = _producerByPath.GetOrAdd(path);
-            await senderClient.SendMessageAsync(transportMessage, cancellationToken).ConfigureAwait(false);
-            _logger.LogDebug("Delivered item {Message} of type {MessageType} to {Path}", message, messageType?.Name, path);
+
+            try
+            {
+                await senderClient.SendMessageAsync(transportMessage, cancellationToken).ConfigureAwait(false);
+            }
+            catch (ServiceBusException ex) when (ex.Reason == ServiceBusFailureReason.MessagingEntityNotFound && _topologyService != null)
+            {
+                await EnsurePathExists(messageType, path);
+                // Resend messages after the path has been created
+                await senderClient.SendMessageAsync(transportMessage, cancellationToken).ConfigureAwait(false);
+            }
+
+            _logger.LogDebug("Delivered message {Message} of type {MessageType} to {Path}", message, messageType?.Name, path);
         }
         catch (Exception ex) when (ex is not ProducerMessageBusException && ex is not TaskCanceledException)
         {
@@ -142,31 +155,73 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
         }
     }
 
+    /// <summary>
+    /// When the topic or queue does not exist, we can try to create it. 
+    /// This happens in cases where the path is dynamically set upon publish/send (different from default path)
+    /// </summary>
+    /// <param name="messageType"></param>
+    /// <param name="path">topic or queue</param>
+    /// <returns></returns>
+    private async Task EnsurePathExists(Type messageType, string path)
+    {
+        var producerSettings = GetProducerSettings(messageType);
+        if (producerSettings.PathKind == PathKind.Topic)
+        {
+            _logger.LogInformation("Topic {Path} does not exist, trying to create it", path);
+            await _topologyService.TryCreateTopic(path, ProviderSettings.TopologyProvisioning.CanProducerCreateTopic);
+        }
+        else
+        {
+            _logger.LogInformation("Queue {Path} does not exist, trying to create it", path);
+            await _topologyService.TryCreateQueue(path, ProviderSettings.TopologyProvisioning.CanProducerCreateQueue);
+        }
+    }
+
+    internal Task SendBatchAsync<T>(string path,
+                                    ServiceBusSender senderClient,
+                                    IReadOnlyCollection<T> envelopes,
+                                    ServiceBusMessageBatch batch,
+                                    CancellationToken cancellationToken)
+        where T : BulkMessageEnvelope
+        => Retry.WithDelay(
+            operation: async cancellationToken =>
+            {
+                try
+                {
+                    await senderClient.SendMessagesAsync(batch, cancellationToken).ConfigureAwait(false);
+                }
+                catch (ServiceBusException ex) when (ex.Reason == ServiceBusFailureReason.MessagingEntityNotFound && _topologyService != null)
+                {
+                    var messageType = envelopes.FirstOrDefault()?.MessageType;
+                    if (messageType != null)
+                    {
+                        await EnsurePathExists(messageType, path);
+                        // Resend messages after the path has been created
+                        await senderClient.SendMessagesAsync(batch, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+
+                _logger.LogDebug("Batch of {BatchSize} message(s) dispatched to {Path} ({SizeInBytes} bytes)", batch.Count, path, batch.SizeInBytes);
+            },
+            shouldRetry: (exception, attempt) =>
+            {
+                if (attempt < 3
+                    && exception is ServiceBusException ex
+                    && ex.Reason == ServiceBusFailureReason.ServiceBusy)
+                {
+                    _logger.LogWarning("Service bus throttled. Backing off (Attempt: {Attempt}).", attempt);
+                    return true;
+                }
+                return false;
+            },
+            delay: TimeSpan.FromSeconds(2),
+            jitter: TimeSpan.FromSeconds(1),
+            cancellationToken);
+
+
     public override async Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
         AssertActive();
-
-        Task SendBatchAsync(ServiceBusSender senderClient, ServiceBusMessageBatch batch, CancellationToken cancellationToken) =>
-            Retry.WithDelay(
-                operation: async cancellationToken =>
-                {
-                    await senderClient.SendMessagesAsync(batch, cancellationToken).ConfigureAwait(false);
-                    _logger.LogDebug("Batch of {BatchSize} message(s) dispatched to {Path} ({SizeInBytes} bytes)", batch.Count, path, batch.SizeInBytes);
-                },
-                shouldRetry: (exception, attempt) =>
-                {
-                    if (attempt < 3
-                        && exception is ServiceBusException ex
-                        && ex.Reason == ServiceBusFailureReason.ServiceBusy)
-                    {
-                        _logger.LogWarning("Service bus throttled. Backing off (Attempt: {Attempt}).", attempt);
-                        return true;
-                    }
-                    return false;
-                },
-                delay: TimeSpan.FromSeconds(2),
-                jitter: TimeSpan.FromSeconds(1),
-                cancellationToken);
 
         var messages = envelopes
             .Select(envelope =>
@@ -208,7 +263,7 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
                 }
 
                 advance = false;
-                await SendBatchAsync(senderClient, batch, cancellationToken).ConfigureAwait(false);
+                await SendBatchAsync(path, senderClient, envelopes, batch, cancellationToken).ConfigureAwait(false);
                 dispatched.AddRange(inBatch);
                 inBatch.Clear();
 
@@ -265,7 +320,7 @@ public class ServiceBusMessageBus : MessageBusBase<ServiceBusMessageBusSettings>
     {
         try
         {
-            var messageModifier = settings.GetMessageModifier();
+            var messageModifier = settings.GetOrDefault(AsbProperties.MessageModifier);
             messageModifier?.Invoke(message, m);
         }
         catch (Exception e)

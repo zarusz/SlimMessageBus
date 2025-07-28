@@ -98,8 +98,8 @@ public class ServiceBusMessageBusSettings : HasProviderExtensions
     {
         if (modifier is null) throw new ArgumentNullException(nameof(modifier));
 
-        var previousModifier = executePrevious ? this.GetMessageModifier() : null;
-        this.SetMessageModifier(previousModifier == null
+        var previousModifier = executePrevious ? GetOrDefault(AsbProperties.MessageModifier) : null;
+        AsbProperties.MessageModifier.Set(this, previousModifier == null
             ? modifier
             : (message, transportMessage) =>
             {

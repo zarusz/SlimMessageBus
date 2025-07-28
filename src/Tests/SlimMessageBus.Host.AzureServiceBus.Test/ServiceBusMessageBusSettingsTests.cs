@@ -75,7 +75,7 @@ public class ServiceBusMessageBusSettingsTests
         _subject.WithModifier(modifier3.Object, executePrevious: executePrevious);
         _subject.WithModifier(modifier4.Object, executePrevious: executePrevious);
 
-        var modifier = _subject.GetMessageModifier();
+        var modifier = _subject.GetOrDefault(AsbProperties.MessageModifier);
 
         // act
         modifier(someMessage, transportMessage.Object);
