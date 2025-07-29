@@ -16,7 +16,7 @@ public class ServiceBusTopologyService
     }
 
     [Flags]
-    private enum TopologyCreationStatus
+    internal enum TopologyCreationStatus
     {
         None = 0,
         NotExists = 1,
@@ -51,7 +51,7 @@ public class ServiceBusTopologyService
         }
     }
 
-    private Task<TopologyCreationStatus> TryCreateQueue(string path, bool canCreate, Action<CreateQueueOptions> action) => SwallowExceptionIfEntityExists(async () =>
+    internal Task<TopologyCreationStatus> TryCreateQueue(string path, bool canCreate, Action<CreateQueueOptions> action = null) => SwallowExceptionIfEntityExists(async () =>
     {
         if (await _adminClient.QueueExistsAsync(path)) return TopologyCreationStatus.Exists;
 
@@ -71,7 +71,7 @@ public class ServiceBusTopologyService
         return TopologyCreationStatus.Exists | TopologyCreationStatus.Created;
     });
 
-    private Task<TopologyCreationStatus> TryCreateTopic(string path, bool canCreate, Action<CreateTopicOptions> action) => SwallowExceptionIfEntityExists(async () =>
+    internal Task<TopologyCreationStatus> TryCreateTopic(string path, bool canCreate, Action<CreateTopicOptions> action = null) => SwallowExceptionIfEntityExists(async () =>
     {
         if (await _adminClient.TopicExistsAsync(path)) return TopologyCreationStatus.Exists;
 

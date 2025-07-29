@@ -85,11 +85,12 @@ public class RuntimeTypeCacheTests
         { new SomeMessage[] { new(), new() }, true},
         { new HashSet<SomeMessage> { new(), new() }, true },
         { new object(), false },
+        { new Dictionary<string, object>(), false },
     };
 
     [Theory]
     [MemberData(nameof(Data))]
-    public void Given_ObjectThatIsCollection_When_Then(object collection, bool isCollection)
+    public void Given_ObjectThatIsCollection_When_GetCollectionTypeInfo_Then_ReturnsCollectionInfo(object collection, bool isCollection)
     {
         // arrange
 
