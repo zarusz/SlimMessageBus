@@ -25,7 +25,14 @@ public class RuntimeTypeCache : IRuntimeTypeCache
         _closedGenericTypeOfOpenGenericType = new SafeDictionaryWrapper<(Type OpenGenericType, Type GenericPatameterType), Type>(x => x.OpenGenericType.MakeGenericType(x.GenericPatameterType));
         _collectionInfoByType = new SafeDictionaryWrapper<Type, CollectionTypeInfo>(type =>
         {
-            var enumerableType = type.GetInterfaces().Concat([type])
+            var types = type.GetInterfaces().Concat([type]).ToHashSet();
+            if (types.Any(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IDictionary<,>)))
+            {
+                // IDictionary<K, V> types should not be treated as collections.
+                return null;
+            }
+
+            var enumerableType = types
                 .SingleOrDefault(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IEnumerable<>));
 
             if (enumerableType != null)
