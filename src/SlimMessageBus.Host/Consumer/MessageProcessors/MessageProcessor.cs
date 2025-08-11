@@ -94,7 +94,7 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
 
             if (messageType != null)
             {
-                    var message = _messageProvider(messageType, messageHeaders, transportMessage);
+                var message = _messageProvider(messageType, messageHeaders, transportMessage);
                 try
                 {
                     var consumerInvokers = TryMatchConsumerInvoker(messageType);
