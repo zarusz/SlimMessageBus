@@ -236,22 +236,22 @@ public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBui
     }
 
     /// <summary>
-    /// Serializer type (<see cref="IMessageSerializer"/>) to look up in the DI for this bus.
+    /// Serializer type (<see cref="IMessageSerializerProvider"/>) to look up in the DI for this bus.
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public MessageBusBuilder WithSerializer<T>() where T : IMessageSerializer => WithSerializer(typeof(T));
+    public MessageBusBuilder WithSerializer<T>() where T : IMessageSerializerProvider => WithSerializer(typeof(T));
 
     /// <summary>
-    /// Serializer type (<see cref="IMessageSerializer"/>) to look up in the DI for this bus.
+    /// Serializer type (<see cref="IMessageSerializerProvider"/>) to look up in the DI for this bus.
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
     public MessageBusBuilder WithSerializer(Type serializerType)
     {
-        if (serializerType is not null && !typeof(IMessageSerializer).IsAssignableFrom(serializerType))
+        if (serializerType is not null && !typeof(IMessageSerializerProvider).IsAssignableFrom(serializerType))
         {
-            throw new ConfigurationMessageBusException($"The serializer type {serializerType.FullName} does not implement the interface {nameof(IMessageSerializer)}");
+            throw new ConfigurationMessageBusException($"The serializer type {serializerType.FullName} does not implement the interface {nameof(IMessageSerializerProvider)}");
         }
 
         Settings.SerializerType = serializerType ?? throw new ArgumentNullException(nameof(serializerType));
@@ -264,10 +264,6 @@ public class MessageBusBuilder : IHasPostConfigurationActions, ISerializationBui
         PostConfigurationActions.Add(services);
         PostConfigurationActions.Add(services => services.TryAddSingleton<IMessageSerializerProvider>(sp => sp.GetRequiredService<TMessageSerializerProvider>()));
     }
-
-    [Obsolete("Use WithServiceProvider()")]
-    public MessageBusBuilder WithDependencyResolver(IServiceProvider serviceProvider)
-        => WithServiceProvider(serviceProvider);
 
     public MessageBusBuilder WithServiceProvider(IServiceProvider serviceProvider)
     {
