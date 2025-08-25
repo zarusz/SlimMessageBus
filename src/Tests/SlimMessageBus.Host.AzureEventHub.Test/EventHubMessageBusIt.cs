@@ -20,6 +20,7 @@ using SlimMessageBus.Host.Test.Common.IntegrationTest;
 public class EventHubMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<EventHubMessageBusIt>(output)
 {
     private const int NumberOfMessages = 100;
+    private const int LargeBatchSize = 1000;
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
@@ -170,6 +171,89 @@ public class EventHubMessageBusIt(ITestOutputHelper output) : BaseIntegrationTes
         // all messages got back
         responses.Count.Should().Be(NumberOfMessages);
         responses.All(x => x.Item1.Message == x.Item2.Message).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task When_BulkPublish_Given_1000Messages_Then_AllDelivered()
+    {
+        // arrange
+        var hubName = "test-ping-bulk";
+
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+            .Produce<PingMessage>(x => x.DefaultPath(hubName).KeyProvider(m => (m.Counter % 4).ToString())) // Use 4 partitions to distribute messages
+            .Consume<PingMessage>(x => x.Path(hubName)
+                                        .Group("bulk-subscriber") // ensure consumer group exists on the event hub
+                                        .WithConsumerOfContext<PingConsumer>()
+                                        .CheckpointAfter(TimeSpan.FromSeconds(30)) // Longer checkpoint interval for large batch
+                                        .CheckpointEvery(100) // Checkpoint every 100 messages
+                                        .Instances(4)); // More instances to handle the load
+        });
+
+        var consumedMessages = ServiceProvider.GetRequiredService<ConcurrentBag<PingMessage>>();
+        var messageBus = MessageBus;
+
+        // act
+
+        // consume all messages that might be on the queue/subscription
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 5);
+        consumedMessages.Clear();
+
+        // publish
+        var stopwatch = Stopwatch.StartNew();
+
+        var messages = Enumerable
+            .Range(0, LargeBatchSize)
+            .Select(i => new PingMessage { Counter = i, Timestamp = DateTime.UtcNow })
+            .ToList();
+
+        // Publish all messages in a single bulk operation
+        await messageBus.Publish(messages);
+
+        stopwatch.Stop();
+        Logger.LogInformation("Published {PublishedMessageCount} messages in bulk in {Duration}", messages.Count, stopwatch.Elapsed);
+
+        // consume
+        stopwatch.Restart();
+
+        // Wait for all messages to arrive with extended timeout for large batch
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 60); // 60 second timeout for large batch
+
+        stopwatch.Stop();
+        Logger.LogInformation("Consumed {ConsumedMessageCount} messages in {Duration}", consumedMessages.Count, stopwatch.Elapsed);
+
+        // assert
+
+        // all messages should be delivered
+        consumedMessages.Count.Should().Be(messages.Count,
+            $"All {LargeBatchSize} messages should be delivered");
+
+        // verify all message counters are present (no duplicates or missing messages)
+        var receivedCounters = consumedMessages.Select(m => m.Counter).OrderBy(c => c).ToList();
+        var expectedCounters = Enumerable.Range(0, LargeBatchSize).ToList();
+
+        receivedCounters.Should().BeEquivalentTo(expectedCounters,
+            "All message counters from 0 to 999 should be present exactly once");
+
+        // verify messages were distributed across partitions (using partition key)
+        var partitionDistribution = consumedMessages
+            .GroupBy(m => m.Counter % 4) // Our partition key logic
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        partitionDistribution.Keys.Should().HaveCount(4, "Messages should be distributed across 4 partitions");
+
+        foreach (var (partition, count) in partitionDistribution)
+        {
+            // Each partition should have approximately 250 messages (1000/4), allow some variance
+            count.Should().BeInRange(200, 300,
+                $"Partition {partition} should have a reasonable distribution of messages");
+        }
+
+        Logger.LogInformation("Successfully verified delivery of {Count} messages published in bulk. " +
+                             "Partition distribution: {PartitionDistribution}",
+                             LargeBatchSize,
+                             string.Join(", ", partitionDistribution.Select(kvp => $"P{kvp.Key}:{kvp.Value}")));
     }
 }
 

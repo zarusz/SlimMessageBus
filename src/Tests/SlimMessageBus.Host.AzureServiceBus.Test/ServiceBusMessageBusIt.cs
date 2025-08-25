@@ -28,6 +28,7 @@ public class ServiceBusMessageBusIt(ITestOutputHelper output)
     : BaseIntegrationTest<ServiceBusMessageBusIt>(output)
 {
     private const int NumberOfMessages = 100;
+    private const int LargeBatchSize = 1000;
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
@@ -606,6 +607,87 @@ public class ServiceBusMessageBusIt(ITestOutputHelper output)
 
     private static string TopicName([CallerMemberName] string testName = null)
         => QueueName(testName);
+
+    [Fact]
+    public async Task When_BulkPublish_Given_1000Messages_Then_AllDelivered()
+    {
+        //r arrange
+        var queue = QueueName();
+
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+            .Produce<PingMessage>(x => x.DefaultQueue(queue).WithModifier(MessageModifier))
+            .Consume<PingMessage>(x => x
+                    .Queue(queue)
+                    .WithConsumer<PingConsumer>()
+                    .WithConsumer<PingDerivedConsumer, PingDerivedMessage>()
+                    .Instances(20));
+        });
+
+        var testMetric = ServiceProvider.GetRequiredService<TestMetric>();
+        var consumedMessages = ServiceProvider.GetRequiredService<TestEventCollector<TestEvent>>();
+        var messageBus = MessageBus;
+
+        // act
+        var stopwatch = Stopwatch.StartNew();
+
+        // Create 1000 messages with alternating types (similar to BasicPubSub pattern)
+        var producedMessages = Enumerable
+            .Range(0, LargeBatchSize)
+            .Select(i => i % 2 == 0 ? new PingMessage { Counter = i } : new PingDerivedMessage { Counter = i })
+            .ToList();
+
+        // Publish all messages in a single bulk operation
+        await messageBus.Publish(producedMessages);
+
+        stopwatch.Stop();
+        Logger.LogInformation("Published {Count} messages in bulk in {Elapsed}", producedMessages.Count, stopwatch.Elapsed);
+
+        // consume
+        stopwatch.Restart();
+
+        // Wait for all messages to arrive
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 30); // Increased timeout for larger batch
+
+        stopwatch.Stop();
+        Logger.LogInformation("Consumed {Count} messages in {Elapsed}", consumedMessages.Count, stopwatch.Elapsed);
+
+        // assert
+
+        // Calculate expected consumed count: 
+        // - Each PingMessage is consumed once
+        // - Each PingDerivedMessage is consumed twice (once as PingMessage, once as PingDerivedMessage)
+        var expectedConsumedCount = producedMessages.Count + producedMessages.OfType<PingDerivedMessage>().Count();
+
+        // Ensure number of consumer instances created matches expected
+        testMetric.CreatedConsumerCount.Should().Be(expectedConsumedCount);
+        consumedMessages.Count.Should().Be(expectedConsumedCount);
+
+        // Verify all messages were delivered with correct content
+        foreach (var producedMessage in producedMessages)
+        {
+            var messageCopies = consumedMessages.Snapshot()
+                .Count(x => x.Message.Counter == producedMessage.Counter
+                    && x.Message.Value == producedMessage.Value
+                    && x.MessageId == GetMessageId(x.Message));
+
+            // PingDerivedMessage should be consumed twice, PingMessage once
+            var expectedCopies = producedMessage is PingDerivedMessage ? 2 : 1;
+            messageCopies.Should().Be(expectedCopies,
+                $"Message with Counter {producedMessage.Counter} should be consumed {expectedCopies} time(s)");
+        }
+
+        // Verify all message IDs are unique as expected
+        var uniqueMessageIds = consumedMessages.Snapshot()
+            .Select(x => x.MessageId)
+            .Distinct()
+            .Count();
+
+        uniqueMessageIds.Should().Be(LargeBatchSize, "All messages should have unique message IDs");
+
+        Logger.LogInformation("Successfully verified delivery of {Count} messages published in bulk", LargeBatchSize);
+    }
 }
 
 public record TestEvent(PingMessage Message, string MessageId, string SessionId, string SubscriptionName);

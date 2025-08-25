@@ -187,21 +187,31 @@ public class EventHubMessageBus : MessageBusBase<EventHubMessageBusSettings>
                         {
                             inBatch.Add(item.Envelope);
                             advance = it.MoveNext();
-                            if (advance)
-                            {
-                                continue;
-                            }
                         }
-
-                        if (batch.Count == 0)
+                        else
                         {
-                            throw new ProducerMessageBusException($"Failed to add message {item.Envelope.Message} of type {item.Envelope.MessageType?.Name} on path {path} to an empty batch");
-                        }
+                            // Current message doesn't fit in this batch
+                            if (batch.Count == 0)
+                            {
+                                throw new ProducerMessageBusException($"Failed to add message {item.Envelope.Message} of type {item.Envelope.MessageType?.Name} on path {path} to an empty batch");
+                            }
 
-                        advance = false;
+                            // Send the current batch and retry with the current message in a new batch
+                            await producer.SendAsync(batch, cancellationToken).ConfigureAwait(false);
+                            dispatched.AddRange(inBatch);
+                            inBatch.Clear();
+
+                            batch.Dispose();
+                            batch = null;
+                            // Don't advance - retry the current message in the next iteration
+                        }
+                    }
+
+                    // Send any remaining messages in the final batch
+                    if (batch != null && batch.Count > 0)
+                    {
                         await producer.SendAsync(batch, cancellationToken).ConfigureAwait(false);
                         dispatched.AddRange(inBatch);
-                        inBatch.Clear();
 
                         batch.Dispose();
                         batch = null;
