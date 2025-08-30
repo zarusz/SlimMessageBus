@@ -20,8 +20,6 @@ internal class RabbitMqMessageBusSettingsValidationService : DefaultMessageBusSe
 
     protected override void AssertProducer(ProducerSettings producerSettings)
     {
-        base.AssertProducer(producerSettings);
-
         var exchangeName = producerSettings.DefaultPath;
         if (exchangeName == null)
         {
@@ -42,7 +40,20 @@ internal class RabbitMqMessageBusSettingsValidationService : DefaultMessageBusSe
 
     protected override void AssertConsumer(ConsumerSettings consumerSettings)
     {
-        base.AssertConsumer(consumerSettings);
+        if (consumerSettings == null) throw new ArgumentNullException(nameof(consumerSettings));
+
+        if (consumerSettings.MessageType == null)
+        {
+            ThrowConsumerFieldNotSet(consumerSettings, nameof(consumerSettings.MessageType));
+        }
+        if (consumerSettings.ConsumerType == null)
+        {
+            ThrowConsumerFieldNotSet(consumerSettings, nameof(consumerSettings.ConsumerType));
+        }
+        if (consumerSettings.ConsumerMethod == null)
+        {
+            ThrowConsumerFieldNotSet(consumerSettings, nameof(consumerSettings.ConsumerMethod));
+        }
 
         var exchangeName = consumerSettings.Path;
         if (exchangeName == null)

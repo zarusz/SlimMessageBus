@@ -362,10 +362,40 @@ services.AddSlimMessageBus((mbb) =>
 Avoiding the call `applyDefaultTopology()` will suppress the SMB inferred topology creation.
 This might be useful in case the SMB inferred topology is not desired or there are other custom needs.
 
-## Not Supported
+### Default Exchange
 
-- [Default type exchanges](https://www.rabbitmq.com/tutorials/amqp-concepts.html#exchange-default) are not yet supported
-- Broker generated queues are not yet supported.
+In RabbitMQ, the default exchange (sometimes referred to as the default direct exchange) is a pre-declared, nameless direct exchange with a special behavior:
+
+- Its name is an empty string (`""`).
+- It is of type direct.
+- Every queue that you declare is automatically bound to this default exchange with a routing key equal to the queue’s name.
+
+This means:
+
+- When you publish a message to the default exchange (exchange name = `""`) with a routing key set to the queue name, the message is delivered directly to that queue — no explicit binding is needed.
+
+Example:
+
+```csharp
+channel.basic_publish(
+    exchange: "",             // default exchange
+    routing_key: "my_queue",  // must match the queue name
+    body: Encoding.UTF8.GetBytes("Hello World!")
+);
+```
+
+This will deliver the message straight to the `my_queue` queue.
+
+### Why it exists
+
+The default exchange makes it easy to send messages directly to a queue without having to explicitly set up an exchange and binding. It’s often used for simple "Hello World" style examples and direct queue messaging.
+
+✅ **Key points to remember**
+
+- The default exchange has no name (`""`).
+- Type: direct.
+- Auto-binds every queue by its own name.
+- Messages published to it must use the queue’s name as the routing key.
 
 ## Recipes
 
