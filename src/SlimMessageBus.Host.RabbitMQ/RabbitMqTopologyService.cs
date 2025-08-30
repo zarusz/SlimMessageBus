@@ -80,6 +80,12 @@ public class RabbitMqTopologyService
     {
         var bindingRoutingKey = settings.GetBindingRoutingKey(_providerSettings) ?? string.Empty;
 
+        if (string.IsNullOrEmpty(bindingExchangeName))
+        {
+            _logger.LogInformation("Skipping binding for queue {QueueName} because exchange is default (empty string)", queueName);
+            return;
+        }
+
         _logger.LogInformation("Binding queue {QueueName} to exchange {ExchangeName} using routing key {RoutingKey}", queueName, bindingExchangeName, bindingRoutingKey);
         try
         {
@@ -136,6 +142,12 @@ public class RabbitMqTopologyService
 
     private void DeclareExchange(HasProviderExtensions settings, string exchangeName)
     {
+        if (string.IsNullOrEmpty(exchangeName))
+        {
+            _logger.LogInformation("Skipping exchange declaration because exchange name is default (empty string)");
+            return;
+        }
+
         var exchangeType = settings.GetOrDefault(RabbitMqProperties.ExchangeType, _providerSettings, global::RabbitMQ.Client.ExchangeType.Fanout);
         var durable = settings.GetOrDefault(RabbitMqProperties.ExchangeDurable, _providerSettings, false);
         var autoDelete = settings.GetOrDefault(RabbitMqProperties.ExchangeAutoDelete, _providerSettings, false);
@@ -146,6 +158,12 @@ public class RabbitMqTopologyService
 
     private void DeclareExchange(string exchangeName, string exchangeType, bool durable, bool autoDelete, IDictionary<string, object> arguments = null)
     {
+        if (string.IsNullOrEmpty(exchangeName))
+        {
+            _logger.LogInformation("Skipping exchange declaration because exchange name is default (empty string)");
+            return;
+        }
+
         _logger.LogInformation("Declaring exchange {ExchangeName}, ExchangeType: {ExchangeType}, Durable: {Durable}, AutoDelete: {AutoDelete}", exchangeName, exchangeType, durable, autoDelete);
         try
         {
