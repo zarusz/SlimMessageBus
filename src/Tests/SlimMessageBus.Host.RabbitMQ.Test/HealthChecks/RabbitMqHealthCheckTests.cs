@@ -11,11 +11,11 @@ public class RabbitMqHealthCheckTests
     public async Task CheckHealthAsync_Should_Return_Unhealthy_When_Channel_Is_Null()
     {
         // Arrange
-        var messageBusMock = new Mock<RabbitMqMessageBus>(Mock.Of<MessageBusSettings>(), Mock.Of<RabbitMqMessageBusSettings>());
-        messageBusMock.Setup(x => x.Channel).Returns((IModel)null);
+        var channelMock = new Mock<IRabbitMqChannel>();
+        channelMock.Setup(x => x.Channel).Returns((IModel)null);
         
         var loggerMock = new Mock<ILogger<RabbitMqHealthCheck>>();
-        var healthCheck = new RabbitMqHealthCheck(messageBusMock.Object, loggerMock.Object);
+        var healthCheck = new RabbitMqHealthCheck(channelMock.Object, loggerMock.Object);
         var context = new HealthCheckContext();
 
         // Act
@@ -35,11 +35,11 @@ public class RabbitMqHealthCheckTests
         channelMock.SetupGet(x => x.ChannelNumber).Returns(123);
         channelMock.SetupGet(x => x.CloseReason).Returns(new ShutdownEventArgs(ShutdownInitiator.Library, 123, "Test close"));
 
-        var messageBusMock = new Mock<RabbitMqMessageBus>(Mock.Of<MessageBusSettings>(), Mock.Of<RabbitMqMessageBusSettings>());
-        messageBusMock.Setup(x => x.Channel).Returns(channelMock.Object);
+        var rabbitMqChannelMock = new Mock<IRabbitMqChannel>();
+        rabbitMqChannelMock.Setup(x => x.Channel).Returns(channelMock.Object);
         
         var loggerMock = new Mock<ILogger<RabbitMqHealthCheck>>();
-        var healthCheck = new RabbitMqHealthCheck(messageBusMock.Object, loggerMock.Object);
+        var healthCheck = new RabbitMqHealthCheck(rabbitMqChannelMock.Object, loggerMock.Object);
         var context = new HealthCheckContext();
 
         // Act
@@ -60,11 +60,11 @@ public class RabbitMqHealthCheckTests
         channelMock.SetupGet(x => x.IsOpen).Returns(true);
         channelMock.SetupGet(x => x.ChannelNumber).Returns(456);
 
-        var messageBusMock = new Mock<RabbitMqMessageBus>(Mock.Of<MessageBusSettings>(), Mock.Of<RabbitMqMessageBusSettings>());
-        messageBusMock.Setup(x => x.Channel).Returns(channelMock.Object);
+        var rabbitMqChannelMock = new Mock<IRabbitMqChannel>();
+        rabbitMqChannelMock.Setup(x => x.Channel).Returns(channelMock.Object);
         
         var loggerMock = new Mock<ILogger<RabbitMqHealthCheck>>();
-        var healthCheck = new RabbitMqHealthCheck(messageBusMock.Object, loggerMock.Object);
+        var healthCheck = new RabbitMqHealthCheck(rabbitMqChannelMock.Object, loggerMock.Object);
         var context = new HealthCheckContext();
 
         // Act
@@ -83,11 +83,11 @@ public class RabbitMqHealthCheckTests
     public async Task CheckHealthAsync_Should_Return_Unhealthy_When_Exception_Thrown()
     {
         // Arrange
-        var messageBusMock = new Mock<RabbitMqMessageBus>(Mock.Of<MessageBusSettings>(), Mock.Of<RabbitMqMessageBusSettings>());
-        messageBusMock.Setup(x => x.Channel).Throws(new InvalidOperationException("Test exception"));
+        var rabbitMqChannelMock = new Mock<IRabbitMqChannel>();
+        rabbitMqChannelMock.Setup(x => x.Channel).Throws(new InvalidOperationException("Test exception"));
         
         var loggerMock = new Mock<ILogger<RabbitMqHealthCheck>>();
-        var healthCheck = new RabbitMqHealthCheck(messageBusMock.Object, loggerMock.Object);
+        var healthCheck = new RabbitMqHealthCheck(rabbitMqChannelMock.Object, loggerMock.Object);
         var context = new HealthCheckContext();
 
         // Act

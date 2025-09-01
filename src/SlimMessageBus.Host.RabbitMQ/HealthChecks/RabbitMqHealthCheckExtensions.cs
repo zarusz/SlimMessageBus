@@ -33,10 +33,10 @@ public static class RabbitMqHealthCheckExtensions
     }
 
     /// <summary>
-    /// Adds a health check for a specific RabbitMQ message bus instance.
+    /// Adds a health check for a specific RabbitMQ channel instance.
     /// </summary>
     /// <param name="builder">The health checks builder.</param>
-    /// <param name="messageBusFactory">A factory function to resolve the specific RabbitMQ message bus instance.</param>
+    /// <param name="channelFactory">A factory function to resolve the specific RabbitMQ channel instance.</param>
     /// <param name="name">The health check name. If null, "rabbitmq" will be used.</param>
     /// <param name="failureStatus">The health status that should be reported when the health check fails. If null, <see cref="HealthStatus.Unhealthy"/> will be reported.</param>
     /// <param name="tags">A list of tags that can be used to filter sets of health checks.</param>
@@ -44,7 +44,7 @@ public static class RabbitMqHealthCheckExtensions
     /// <returns>The health checks builder.</returns>
     public static IHealthChecksBuilder AddRabbitMq(
         this IHealthChecksBuilder builder,
-        Func<IServiceProvider, RabbitMqMessageBus> messageBusFactory,
+        Func<IServiceProvider, IRabbitMqChannel> channelFactory,
         string name = null,
         HealthStatus? failureStatus = null,
         IEnumerable<string> tags = null,
@@ -54,9 +54,9 @@ public static class RabbitMqHealthCheckExtensions
             name ?? "rabbitmq",
             serviceProvider =>
             {
-                var messageBus = messageBusFactory(serviceProvider);
+                var channel = channelFactory(serviceProvider);
                 var logger = serviceProvider.GetRequiredService<ILogger<RabbitMqHealthCheck>>();
-                return new RabbitMqHealthCheck(messageBus, logger);
+                return new RabbitMqHealthCheck(channel, logger);
             },
             failureStatus,
             tags,
@@ -79,17 +79,17 @@ public static class RabbitMqHealthCheckExtensions
     /// Registers a specific RabbitMQ health check service in the dependency injection container.
     /// </summary>
     /// <param name="services">The service collection.</param>
-    /// <param name="messageBusFactory">A factory function to resolve the specific RabbitMQ message bus instance.</param>
+    /// <param name="channelFactory">A factory function to resolve the specific RabbitMQ channel instance.</param>
     /// <returns>The service collection.</returns>
     public static IServiceCollection AddRabbitMqHealthCheck(
         this IServiceCollection services,
-        Func<IServiceProvider, RabbitMqMessageBus> messageBusFactory)
+        Func<IServiceProvider, IRabbitMqChannel> channelFactory)
     {
         services.AddTransient(serviceProvider =>
         {
-            var messageBus = messageBusFactory(serviceProvider);
+            var channel = channelFactory(serviceProvider);
             var logger = serviceProvider.GetRequiredService<ILogger<RabbitMqHealthCheck>>();
-            return new RabbitMqHealthCheck(messageBus, logger);
+            return new RabbitMqHealthCheck(channel, logger);
         });
         return services;
     }
