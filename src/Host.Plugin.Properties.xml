@@ -4,7 +4,7 @@
   <Import Project="Common.NuGet.Properties.xml" />
 
   <PropertyGroup>
-    <Version>3.3.2-rc102</Version>
+    <Version>3.3.2-rc103</Version>
   </PropertyGroup>
 
 </Project>

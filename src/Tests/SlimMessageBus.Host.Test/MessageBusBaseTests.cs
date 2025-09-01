@@ -285,15 +285,22 @@ public class MessageBusBaseTests : IDisposable
 
         // act
         var rTask = Bus.ProduceSend<ResponseA>(r);
-        await WaitForTasks(2000, rTask);
-        Bus.TriggerPendingRequestCleanup();
-
+        
+        // Wait for the task to complete (response should arrive quickly in this test)
+        var completedTask = await Task.WhenAny(rTask, Task.Delay(2000));
+        
         // assert
+        completedTask.Should().Be(rTask, "The request task should complete before timeout");
         rTask.IsCompleted.Should().BeTrue("Response should be completed");
+        
         var response = await rTask;
-        response.Id.Should().Be(r.Id);
+        response.Should().NotBeNull("Response should not be null");
+        response.Id.Should().Be(r.Id, "Response ID should match request ID");
 
-        Bus.PendingRequestsCount.Should().Be(0, "There should be no pending requests");
+        // Now trigger cleanup - the response should already be processed
+        Bus.TriggerPendingRequestCleanup();
+        
+        Bus.PendingRequestsCount.Should().Be(0, "There should be no pending requests after response is received");
     }
 
     [Fact]

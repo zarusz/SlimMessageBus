@@ -4,23 +4,24 @@ using Microsoft.Extensions.DependencyInjection;
 
 public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IRabbitMqChannel
 {
-    private readonly ILogger _logger;
-    private IConnection _connection;
-
-    private readonly object _channelLock = new();
-    private IModel _channel;
+    private readonly RabbitMqChannelManager _channelManager;
 
     #region IRabbitMqChannel
 
-    public IModel Channel => _channel;
+    public IModel Channel => _channelManager.Channel;
 
-    public object ChannelLock => _channelLock;
+    public object ChannelLock => _channelManager.ChannelLock;
 
     #endregion
 
     public RabbitMqMessageBus(MessageBusSettings settings, RabbitMqMessageBusSettings providerSettings) : base(settings, providerSettings)
     {
-        _logger = LoggerFactory.CreateLogger<RabbitMqMessageBus>();
+        // Initialize the channel manager with a delegate to check disposal state
+        _channelManager = new RabbitMqChannelManager(
+            LoggerFactory,
+            ProviderSettings,
+            Settings,
+            () => IsDisposing || IsDisposed);
 
         OnBuildProvider();
     }
@@ -31,7 +32,7 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
     {
         base.Build();
 
-        InitTaskList.Add(CreateConnection, CancellationToken);
+        InitTaskList.Add(() => _channelManager.InitializeConnection(CancellationToken), CancellationToken);
     }
 
     protected override async Task CreateConsumers()
@@ -44,7 +45,7 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
         foreach (var (queueName, consumers) in Settings.Consumers.GroupBy(x => x.GetQueueName()).ToDictionary(x => x.Key, x => x.ToList()))
         {
             AddConsumer(new RabbitMqConsumer(LoggerFactory,
-                channel: this,
+                channel: _channelManager,
                 queueName: queueName,
                 consumers,
                 messageBus: this,
@@ -58,7 +59,7 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
 
             AddConsumer(new RabbitMqResponseConsumer(LoggerFactory,
                 interceptors: Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(),
-                channel: this,
+                channel: _channelManager,
                 queueName: queueName,
                 Settings.RequestResponse,
                 messageProvider: GetMessageProvider(queueName),
@@ -68,97 +69,25 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
         }
     }
 
-    private async Task CreateConnection()
-    {
-        try
-        {
-            const int retryCount = 3;
-            await Retry.WithDelay(
-                operation: (ct) =>
-                {
-                    // See https://www.rabbitmq.com/client-libraries/dotnet-api-guide#connection-recovery
-                    ProviderSettings.ConnectionFactory.AutomaticRecoveryEnabled = true;
-                    ProviderSettings.ConnectionFactory.DispatchConsumersAsync = true;
-
-                    _connection = ProviderSettings.Endpoints != null && ProviderSettings.Endpoints.Count > 0
-                        ? ProviderSettings.ConnectionFactory.CreateConnection(ProviderSettings.Endpoints)
-                        : ProviderSettings.ConnectionFactory.CreateConnection();
-
-                    return Task.CompletedTask;
-                },
-                shouldRetry: (ex, attempt) =>
-                {
-                    if (ex is global::RabbitMQ.Client.Exceptions.BrokerUnreachableException && attempt < retryCount)
-                    {
-                        _logger.LogInformation(ex, "Retrying {Retry} of {RetryCount} connection to RabbitMQ...", attempt, retryCount);
-                        return true;
-                    }
-                    return false;
-                },
-                delay: ProviderSettings.ConnectionFactory.NetworkRecoveryInterval
-            );
-#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
-
-            lock (_channelLock)
-            {
-                _channel?.CloseAndDispose();
-
-                if (_connection != null)
-                {
-                    _channel = _connection.CreateModel();
-
-                    var topologyService = new RabbitMqTopologyService(LoggerFactory, _channel, Settings, ProviderSettings);
-
-                    var customAction = ProviderSettings.GetOrDefault(RabbitMqProperties.TopologyInitializer);
-                    if (customAction != null)
-                    {
-                        // Allow the user to specify its own initializer
-                        customAction(_channel, () => topologyService.ProvisionTopology());
-                    }
-                    else
-                    {
-                        // Perform default topology setup
-                        topologyService.ProvisionTopology();
-                    }
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            _logger.LogError(e, "Could not initialize RabbitMQ connection: {ErrorMessage}", e.Message);
-        }
-    }
-
     protected override async ValueTask DisposeAsyncCore()
     {
         await base.DisposeAsyncCore().ConfigureAwait(false);
 
-        if (_channel != null)
-        {
-            _channel.CloseAndDispose();
-            _channel = null;
-        }
-
-        if (_connection != null)
-        {
-            _connection.CloseAndDispose();
-            _connection = null;
-        }
+        _channelManager?.Dispose();
     }
 
     public override Task ProduceToTransport(object message, Type messageType, string path, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
-        EnsureChannel();
         try
         {
             OnProduceToTransport(message, messageType, path, messageHeaders);
 
-            lock (_channelLock)
+            _channelManager.EnsureChannel();
+            lock (_channelManager.ChannelLock)
             {
                 GetTransportMessage(message, messageType, messageHeaders, path, out var messagePayload, out var messageProperties, out var routingKey);
-                _channel.BasicPublish(path, routingKey: routingKey, mandatory: false, basicProperties: messageProperties, body: messagePayload);
+                _channelManager.Channel.BasicPublish(path, routingKey: routingKey, mandatory: false, basicProperties: messageProperties, body: messagePayload);
             }
-
             return Task.CompletedTask;
         }
         catch (Exception ex) when (ex is not ProducerMessageBusException && ex is not TaskCanceledException)
@@ -169,13 +98,12 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
 
     public override Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
-        EnsureChannel();
-
         try
         {
-            lock (_channelLock)
+            _channelManager.EnsureChannel();
+            lock (_channelManager.ChannelLock)
             {
-                var batch = _channel.CreateBasicPublishBatch();
+                var batch = _channelManager.Channel.CreateBasicPublishBatch();
                 foreach (var envelope in envelopes)
                 {
                     GetTransportMessage(envelope.Message, envelope.MessageType, envelope.Headers, path, out var messagePayload, out var messageProperties, out var routingKey);
@@ -183,6 +111,7 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
                 }
                 batch.Publish();
             }
+
             return Task.FromResult(new ProduceToTransportBulkResult<T>(envelopes, null));
         }
         catch (Exception ex)
@@ -191,19 +120,14 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
         }
     }
 
-    private void EnsureChannel()
-    {
-        if (_channel == null)
-        {
-            throw new ProducerMessageBusException("The Channel is not available at this time");
-        }
-    }
-
     private void GetTransportMessage(object message, Type messageType, IDictionary<string, object> messageHeaders, string path, out byte[] messagePayload, out IBasicProperties messageProperties, out string routingKey)
     {
         var producer = GetProducerSettings(messageType);
         messagePayload = SerializerProvider.GetSerializer(path).Serialize(messageType, messageHeaders, message, null);
-        messageProperties = _channel.CreateBasicProperties();
+
+        // This assumes there is a lock aquired for the Channel by the caller
+        messageProperties = _channelManager.Channel.CreateBasicProperties();
+
         if (messageHeaders != null)
         {
             messageProperties.Headers ??= new Dictionary<string, object>();
