@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Serialization.GoogleProtobuf.Test;
 
-using FluentAssertions;
+using AwesomeAssertions;
 
 using global::Test;
 
@@ -15,6 +15,7 @@ public class GoogleProtobufMessageSerializerTest
     {
         // arrange
         var serializer = new GoogleProtobufMessageSerializer(new NullLoggerFactory());
+        var headers = new Dictionary<string, object>();
 
         // act
         var personMessage = new PersonMessage
@@ -22,10 +23,10 @@ public class GoogleProtobufMessageSerializerTest
             Id = 1,
             Name = "SlimMessageBus"
         };
-        var serializedPerson = serializer.Serialize(personMessage.GetType(), personMessage);
+        var serializedPerson = serializer.Serialize(personMessage.GetType(), headers, personMessage, null);
 
         // assert
-        var deserializedPerson = serializer.Deserialize(typeof(PersonMessage), serializedPerson);
+        var deserializedPerson = serializer.Deserialize(typeof(PersonMessage), headers, serializedPerson, null);
         ((PersonMessage)deserializedPerson).Should().BeEquivalentTo(personMessage);
     }
 }

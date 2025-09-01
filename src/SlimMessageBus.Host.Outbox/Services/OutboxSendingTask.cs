@@ -281,9 +281,9 @@ internal class OutboxSendingTask<TOutboxMessage>(
                             _logger.LogError("Outbox message with Id {Id} - the MessageType {MessageType} is not recognised. The type might have been renamed or moved namespaces.", outboxMessage, outboxMessage.MessageType);
                             return null;
                         }
-
-                        var message = messageSerializer.Deserialize(messageType, outboxMessage.MessagePayload);
-                        return new OutboxBulkMessage(outboxMessage, message, messageType, outboxMessage.Headers ?? new Dictionary<string, object>());
+                        var messageHeaders = outboxMessage.Headers ?? new Dictionary<string, object>();
+                        var message = messageSerializer.Deserialize(messageType, messageHeaders.AsReadOnly(), outboxMessage.MessagePayload, null);
+                        return new OutboxBulkMessage(outboxMessage, message, messageType, messageHeaders);
                     })
                     .Where(x => x != null)
                     .Batch(bulkProducer.MaxMessagesPerTransaction ?? defaultBatchSize);

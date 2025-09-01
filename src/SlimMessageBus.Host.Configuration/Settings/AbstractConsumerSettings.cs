@@ -23,6 +23,11 @@ public abstract class AbstractConsumerSettings : HasProviderExtensions
     /// </summary>
     public int Instances { get; set; }
 
+    /// <summary>
+    /// Settings that should apply when a message type arrives for which there is no declared consumers
+    /// </summary>
+    public UndeclaredMessageTypeSettings UndeclaredMessageType { get; set; } = new UndeclaredMessageTypeSettings();
+
     protected AbstractConsumerSettings()
     {
         Instances = 1;

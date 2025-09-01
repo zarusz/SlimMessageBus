@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 
 using Azure.Messaging.ServiceBus;
+using Azure.Messaging.ServiceBus.Administration;
 
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.Collections;
@@ -47,6 +48,11 @@ public class ServiceBusMessageBusTests : IDisposable
                 SenderMockByPath.Add(path, m);
                 return m.Object;
             },
+            AdminClientFactory = (_, _) =>
+            {
+                var adminClient = new Mock<ServiceBusAdministrationClient>();
+                return adminClient.Object;
+            },
             TopologyProvisioning = new ServiceBusTopologySettings
             {
                 Enabled = false
@@ -74,7 +80,7 @@ public class ServiceBusMessageBusTests : IDisposable
     }
 
     [Fact]
-    public async Task WhenPublishGivenModifierConfiguredForMessageTypeThenModifierExecuted()
+    public async Task When_Publish_Given_ModifierConfiguredForMessageType_Then_ModifierExecuted()
     {
         // arrange
         BusBuilder.Produce<SomeMessage>(x =>
@@ -127,11 +133,11 @@ public class ServiceBusMessageBusTests : IDisposable
         BusBuilder.Produce<SomeMessage>(x => x.ToQueue());
 
         // act
-        Func<IMessageBusProvider> creation = () => BusBuilder.Build();
+        Func<IMessageBusProvider> creation = BusBuilder.Build;
 
         // assert
         creation.Should().Throw<ConfigurationMessageBusException>()
-            .WithMessage($"* {typeof(SomeMessage).FullName} *");
+            .WithMessage($"* '{typeof(SomeMessage).FullName}' *");
     }
 
     [Fact]

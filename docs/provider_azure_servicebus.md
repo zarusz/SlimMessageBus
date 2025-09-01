@@ -4,6 +4,9 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 
 - [Configuration](#configuration)
 - [Producing Messages](#producing-messages)
+  - [Publishing Messages](#publishing-messages)
+    - [Using Default Destinations](#using-default-destinations)
+    - [Notes](#notes)
   - [Message modifier](#message-modifier)
     - [Global message modifier](#global-message-modifier)
 - [Consuming Messages](#consuming-messages)
@@ -46,54 +49,64 @@ This determination is set as part of the bus builder configuration.
 
 ## Producing Messages
 
-To produce a given `TMessage` to a Azure Service Bus queue (or topic) use:
+To send a message of type `TMessage` to an Azure Service Bus **queue** or **topic**, configure the producer as follows:
 
-```cs
-// send TMessage to Azure SB queues
+```csharp
+// Send TMessage to an Azure Service Bus queue
 mbb.Produce<TMessage>(x => x.UseQueue());
 
 // OR
 
-// send TMessage to Azure SB topics
+// Send TMessage to an Azure Service Bus topic
 mbb.Produce<TMessage>(x => x.UseTopic());
 ```
 
-The above example configures the runtime to deliver all message types of `TMessage` to an Azure Service Bus queue (or topic) respectively.
+This tells the runtime where messages of type `TMessage` should be delivered - either to a queue or a topic.
 
-Then anytime you produce a message like this:
+### Publishing Messages
 
-```cs
+Once configured, you can publish a message with:
+
+```csharp
 TMessage msg;
 
-// msg will go to the "some-queue" queue
+// Send msg to the "some-queue" queue
 bus.Publish(msg, "some-queue");
 
 // OR
 
-// msg will go to the "some-topic" topic
+// Send msg to the "some-topic" topic
 bus.Publish(msg, "some-topic");
 ```
 
-The second (`path`) parameter indicates a queue or topic name - depending on the bus configuration.
+The second parameter (`path`) specifies the queue or topic name, depending on the producer configuration.
 
-When the default queue (or topic) path is configured for a message type:
+#### Using Default Destinations
 
-```cs
+You can also configure a **default queue or topic** for a message type:
+
+```csharp
+// Set a default queue for TMessage
 mbb.Produce<TMessage>(x => x.DefaultQueue("some-queue"));
 
 // OR
 
+// Set a default topic for TMessage
 mbb.Produce<TMessage>(x => x.DefaultTopic("some-topic"));
 ```
 
-and the second (`path`) parameter is omitted in `bus.Publish()`, then that default queue (or topic) name is going to be used:
+When a default is set, you can omit the `path` parameter:
 
-```cs
-// msg will go to the "some-queue" queue (or "some-topic")
+```csharp
+// msg will be sent to "some-queue" (or "some-topic")
 bus.Publish(msg);
 ```
 
-Setting the default queue name `DefaultQueue()` for a message type will implicitly configure `UseQueue()` for that message type. By default, if configuration is not provided then runtime will assume a message needs to be sent on a topic (and works as if `UseTopic()` was configured).
+#### Notes
+
+- Calling `.DefaultQueue("...")` automatically applies `.UseQueue()` for that message type, and respectively for `.DefaultTopic()` implies `.UseTopic()`.
+- When none of the `.UseQueue()`, `.UseTopic()`, `.DefaultQueue()`, nor `.DefaultTopic()` is configured, then runtime implies the producer path represents a topic entity.
+- If no `.DefaultQueue()` or `.DefaultTopic()` is set, [topology provisioning](#topology-provisioning) will **not** create the corresponding Azure Service Bus entity.
 
 ### Message modifier
 

@@ -69,13 +69,25 @@ public class RedisListCheckerConsumer : AbstractConsumer, IRedisConsumer
             {
                 var queue = _queues[queueIndex];
 
-                var value = await _database.ListLeftPopAsync(queue.Name).ConfigureAwait(false);
+                var value = RedisValue.Null;
+                try
+                {
+                    value = await _database.ListLeftPopAsync(queue.Name).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    Logger.LogWarning(e, "Error occurred while checking keys");
+                    if (_pollDelay != null)
+                    {
+                        await Task.Delay(_pollDelay.Value, CancellationToken).ConfigureAwait(false);
+                    }
+                }
                 if (value != RedisValue.Null)
                 {
                     Logger.LogDebug("Retrieved value on queue {Queue}", queue.Name);
                     try
                     {
-                        var transportMessage = (MessageWithHeaders)_envelopeSerializer.Deserialize(typeof(MessageWithHeaders), value);
+                        var transportMessage = (MessageWithHeaders)_envelopeSerializer.Deserialize(typeof(MessageWithHeaders), null, value, null);
 
                         // for loop to avoid iterator allocation
                         for (var i = 0; i < queue.Processors.Count && !CancellationToken.IsCancellationRequested; i++)

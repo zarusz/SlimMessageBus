@@ -8,7 +8,14 @@ using ConsumeResult = ConsumeResult<Ignore, byte[]>;
 /// </summary>
 public class KafkaPartitionConsumerForConsumers : KafkaPartitionConsumer
 {
-    public KafkaPartitionConsumerForConsumers(ILoggerFactory loggerFactory, ConsumerSettings[] consumerSettings, string group, TopicPartition topicPartition, IKafkaCommitController commitController, IMessageSerializer headerSerializer, MessageBusBase messageBus)
+    public KafkaPartitionConsumerForConsumers(ILoggerFactory loggerFactory,
+                                              ConsumerSettings[] consumerSettings,
+                                              string group,
+                                              TopicPartition topicPartition,
+                                              IKafkaCommitController commitController,
+                                              IMessageSerializer headerSerializer,
+                                              MessageProvider<ConsumeResult> messageProvider,
+                                              MessageBusBase messageBus)
         : base(
             loggerFactory,
             consumerSettings,
@@ -21,7 +28,7 @@ public class KafkaPartitionConsumerForConsumers : KafkaPartitionConsumer
                 messageBus,
                 path: topicPartition.Topic,
                 responseProducer: messageBus,
-                messageProvider: (messageType, transportMessage) => messageBus.SerializerProvider.GetSerializer(topicPartition.Topic).Deserialize(messageType, transportMessage.Message.Value),
+                messageProvider: messageProvider,
                 consumerContextInitializer: (m, ctx) => ctx.SetTransportMessage(m),
                 consumerErrorHandlerOpenGenericType: typeof(IKafkaConsumerErrorHandler<>)))
     {

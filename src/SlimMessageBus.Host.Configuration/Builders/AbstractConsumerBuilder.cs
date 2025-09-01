@@ -25,15 +25,6 @@ public abstract class AbstractConsumerBuilder : IAbstractConsumerBuilder, IConsu
         Settings.Consumers.Add(ConsumerSettings);
     }
 
-    public T Do<T>(Action<T> builder) where T : AbstractConsumerBuilder
-    {
-        if (builder == null) throw new ArgumentNullException(nameof(builder));
-
-        builder((T)this);
-
-        return (T)this;
-    }
-
     static internal void SetupConsumerOnHandleMethod(IMessageTypeConsumerInvokerSettings invoker, string methodName = null)
     {
         static bool ParameterMatch(IMessageTypeConsumerInvokerSettings invoker, MethodInfo methodInfo)
@@ -91,11 +82,36 @@ public abstract class AbstractConsumerBuilder : IAbstractConsumerBuilder, IConsu
         invoker.ConsumerMethodInfo = consumerOnHandleMethod;
     }
 
-    protected void AssertInvokerUnique(Type derivedConsumerType, Type derivedMessageType)
+    protected internal void AssertInvokerUnique(Type derivedConsumerType, Type derivedMessageType)
     {
         if (ConsumerSettings.Invokers.Any(x => x.MessageType == derivedMessageType && x.ConsumerType == derivedConsumerType))
         {
             throw new ConfigurationMessageBusException($"The (derived) message type {derivedMessageType} and consumer type {derivedConsumerType} is already declared on the consumer for message type {ConsumerSettings.MessageType}");
         }
+    }
+}
+
+public abstract class AbstractConsumerBuilder<TConsumerBuilder>(MessageBusSettings settings, Type messageType, string path = null)
+    : AbstractConsumerBuilder(settings, messageType, path)
+    where TConsumerBuilder : AbstractConsumerBuilder<TConsumerBuilder>
+{
+    public TConsumerBuilder Do(Action<TConsumerBuilder> builder)
+    {
+        if (builder == null) throw new ArgumentNullException(nameof(builder));
+
+        builder((TConsumerBuilder)this);
+
+        return (TConsumerBuilder)this;
+    }
+
+    /// <summary>
+    /// Configures what should happen when an undeclared message type (or unhandled message type) arrives on the topic/queue.
+    /// </summary>
+    /// <param name="action"></param>
+    /// <returns></returns>
+    public TConsumerBuilder WhenUndeclaredMessageTypeArrives(Action<UndeclaredMessageTypeSettings> action)
+    {
+        action(ConsumerSettings.UndeclaredMessageType);
+        return (TConsumerBuilder)this;
     }
 }

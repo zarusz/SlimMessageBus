@@ -8,10 +8,7 @@ public static class ConsumerBuilderExtensions
         where T : AbstractConsumerBuilder
         where TConsumerCircuitBreaker : IConsumerCircuitBreaker
     {
-        if (builder is null)
-        {
-            throw new ArgumentNullException(nameof(builder));
-        }
+        if (builder is null) throw new ArgumentNullException(nameof(builder));
 
         var breakersTypes = builder.ConsumerSettings.GetOrCreate(ConsumerSettingsProperties.CircuitBreakerTypes, () => []);
         breakersTypes.TryAdd<TConsumerCircuitBreaker>();

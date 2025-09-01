@@ -15,7 +15,7 @@ public class RabbitMqMessageBusSettingsExtensionsTests
         _settings.AcknowledgementMode(mode);
 
         // assert
-        var modeReturned = _settings.GetOrDefault<RabbitMqMessageAcknowledgementMode>(RabbitMqProperties.MessageAcknowledgementMode);
+        var modeReturned = _settings.GetOrDefault(RabbitMqProperties.MessageAcknowledgementMode);
         modeReturned.Should().Be(mode);
     }
 
@@ -29,7 +29,7 @@ public class RabbitMqMessageBusSettingsExtensionsTests
         _settings.UseRoutingKeyProvider(routingKeyProviderMock.Object);
 
         // assert
-        var routingKeyProviderReturned = _settings.GetOrDefault<RabbitMqMessageRoutingKeyProvider<object>>(RabbitMqProperties.MessageRoutingKeyProvider);
+        var routingKeyProviderReturned = _settings.GetOrDefault(RabbitMqProperties.MessageRoutingKeyProvider);
         routingKeyProviderReturned.Should().BeSameAs(routingKeyProviderMock.Object);
     }
 }

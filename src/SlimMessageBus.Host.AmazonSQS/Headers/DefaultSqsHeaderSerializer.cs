@@ -1,6 +1,8 @@
 ﻿namespace SlimMessageBus.Host.AmazonSQS;
 
-public class DefaultSqsHeaderSerializer(bool detectStringType = true) : ISqsHeaderSerializer
+using MessageAttributeValue = Amazon.SQS.Model.MessageAttributeValue;
+
+public class DefaultSqsHeaderSerializer(bool detectStringType = true) : ISqsHeaderSerializer<MessageAttributeValue>
 {
     const string DataTypeNumber = "Number";
     const string DataTypeString = "String";

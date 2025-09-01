@@ -34,72 +34,72 @@ public class MemoryMessageBusBuilderTests
 
         producers.Should().Contain(x =>
             x.MessageType == typeof(SomeMessageA)
-            && x.DefaultPath == nameof(SomeMessageA));
+            && x.DefaultPath == typeof(SomeMessageA).FullName);
 
         producers.Should().Contain(x =>
             x.MessageType == typeof(SomeMessageB)
-            && x.DefaultPath == nameof(SomeMessageB));
+            && x.DefaultPath == typeof(SomeMessageB).FullName);
 
         producers.Should().Contain(x =>
             x.MessageType == typeof(PingMessage)
-            && x.DefaultPath == nameof(PingMessage));
+            && x.DefaultPath == typeof(PingMessage).FullName);
 
         producers.Should().Contain(x =>
             x.MessageType == typeof(EchoRequest)
-            && x.DefaultPath == nameof(EchoRequest));
+            && x.DefaultPath == typeof(EchoRequest).FullName);
 
         producers.Should().Contain(x =>
             x.MessageType == typeof(SomeRequest)
-            && x.DefaultPath == nameof(SomeRequest));
+            && x.DefaultPath == typeof(SomeRequest).FullName);
 
         producers.Should().Contain(x =>
             x.MessageType == typeof(SomeRequestWithoutResponse)
-            && x.DefaultPath == nameof(SomeRequestWithoutResponse));
+            && x.DefaultPath == typeof(SomeRequestWithoutResponse).FullName);
 
         consumers.Count.Should().Be(7);
 
         consumers.Should().Contain(x =>
             x.MessageType == typeof(SomeMessageA)
-            && x.Path == nameof(SomeMessageA)
+            && x.Path == typeof(SomeMessageA).FullName
             && x.Invokers.Count == 2
             && x.Invokers.Any(i => i.ConsumerType == typeof(SomeMessageAConsumer))
             && x.Invokers.Any(i => i.ConsumerType == typeof(SomeMessageAConsumer2)));
 
         consumers.Should().Contain(x =>
             x.MessageType == typeof(SomeMessageB)
-            && x.Path == nameof(SomeMessageB)
+            && x.Path == typeof(SomeMessageB).FullName
             && x.Invokers.Count == 1
             && x.ConsumerType == typeof(SomeMessageBConsumer));
 
         consumers.Should().Contain(x =>
             x.MessageType == typeof(PingMessage)
-            && x.Path == nameof(PingMessage)
+            && x.Path == typeof(PingMessage).FullName
             && x.Invokers.Count == 1
             && x.ConsumerType == typeof(PingConsumer));
 
         consumers.Should().Contain(x =>
             x.MessageType == typeof(EchoRequest)
-            && x.Path == nameof(EchoRequest)
+            && x.Path == typeof(EchoRequest).FullName
             && x.Invokers.Count == 1
             && x.ConsumerType == typeof(EchoRequestHandler)
             && x.ResponseType == typeof(EchoResponse));
 
         consumers.Should().Contain(x =>
             x.MessageType == typeof(SomeRequest)
-            && x.Path == nameof(SomeRequest)
+            && x.Path == typeof(SomeRequest).FullName
             && x.Invokers.Count == 1
             && x.ConsumerType == typeof(SomeRequestConsumer));
 
         consumers.Should().Contain(x =>
             x.MessageType == typeof(SomeRequest)
-            && x.Path == nameof(SomeRequest)
+            && x.Path == typeof(SomeRequest).FullName
             && x.Invokers.Count == 1
             && x.ConsumerType == typeof(SomeRequestHandler)
             && x.ResponseType == typeof(SomeResponse));
 
         consumers.Should().Contain(x =>
             x.MessageType == typeof(SomeRequestWithoutResponse)
-            && x.Path == nameof(SomeRequestWithoutResponse)
+            && x.Path == typeof(SomeRequestWithoutResponse).FullName
             && x.Invokers.Count == 1
             && x.ConsumerType == typeof(SomeRequestWithoutResponseHandler)
             && x.ResponseType == null);
@@ -123,22 +123,22 @@ public class MemoryMessageBusBuilderTests
 
         producers.Should().Contain(x =>
             x.MessageType == typeof(PingMessage)
-            && x.DefaultPath == nameof(PingMessage));
+            && x.DefaultPath == typeof(PingMessage).FullName);
 
         producers.Should().Contain(x =>
             x.MessageType == typeof(EchoRequest)
-            && x.DefaultPath == nameof(EchoRequest));
+            && x.DefaultPath == typeof(EchoRequest).FullName);
 
         consumers.Count.Should().Be(2);
 
         consumers.Should().Contain(x =>
             x.MessageType == typeof(PingMessage)
-            && x.Path == nameof(PingMessage)
+            && x.Path == typeof(PingMessage).FullName
             && x.ConsumerType == typeof(PingConsumer));
 
         consumers.Should().Contain(x =>
             x.MessageType == typeof(EchoRequest)
-            && x.Path == nameof(EchoRequest)
+            && x.Path == typeof(EchoRequest).FullName
             && x.ResponseType == typeof(EchoResponse)
             && x.ConsumerType == typeof(EchoRequestHandler));
     }
@@ -161,17 +161,17 @@ public class MemoryMessageBusBuilderTests
 
         producers.Should().Contain(x =>
             x.MessageType == typeof(CustomerEvent)
-            && x.DefaultPath == nameof(CustomerEvent));
+            && x.DefaultPath == typeof(CustomerEvent).FullName);
 
         producers.Should().Contain(x =>
             x.MessageType == typeof(OrderShipped)
-            && x.DefaultPath == nameof(OrderShipped));
+            && x.DefaultPath == typeof(OrderShipped).FullName);
 
         consumers.Count.Should().Be(2);
 
         consumers.Should().Contain(x =>
             x.MessageType == typeof(CustomerEvent)
-            && x.Path == nameof(CustomerEvent)
+            && x.Path == typeof(CustomerEvent).FullName
             && x.ConsumerType == typeof(CustomerEventConsumer)
             && x.Invokers.Count == 3
             && x.Invokers.Any(i => i.ConsumerType == typeof(CustomerEventConsumer))
@@ -181,7 +181,7 @@ public class MemoryMessageBusBuilderTests
         consumers.Should().Contain(x =>
             x.MessageType == typeof(OrderShipped)
             && x.ConsumerType == typeof(OrderShippedConsumer)
-            && x.Path == nameof(OrderShipped)
+            && x.Path == typeof(OrderShipped).FullName
             && x.Invokers.Count == 1
             && x.Invokers.Any(i => i.ConsumerType == typeof(OrderShippedConsumer)));
     }

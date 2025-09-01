@@ -54,7 +54,7 @@ public static class AsbProducerBuilderExtensions
         if (producerBuilder is null) throw new ArgumentNullException(nameof(producerBuilder));
         if (modifier is null) throw new ArgumentNullException(nameof(modifier));
 
-        producerBuilder.Settings.SetMessageModifier((e, m) => modifier((T)e, m));
+        AsbProperties.MessageModifier.Set(producerBuilder.Settings, (e, m) => modifier((T)e, m));
         return producerBuilder;
     }
 
@@ -69,7 +69,7 @@ public static class AsbProducerBuilderExtensions
         if (producerBuilder is null) throw new ArgumentNullException(nameof(producerBuilder));
         if (action is null) throw new ArgumentNullException(nameof(action));
 
-        producerBuilder.Settings.SetQueueOptions(action);
+        AsbProperties.CreateQueueOptions.Set(producerBuilder.Settings, action);
         return producerBuilder;
     }
 
@@ -84,7 +84,7 @@ public static class AsbProducerBuilderExtensions
         if (producerBuilder is null) throw new ArgumentNullException(nameof(producerBuilder));
         if (action is null) throw new ArgumentNullException(nameof(action));
 
-        producerBuilder.Settings.SetTopicOptions(action);
+        AsbProperties.CreateTopicOptions.Set(producerBuilder.Settings, action);
         return producerBuilder;
     }
 }

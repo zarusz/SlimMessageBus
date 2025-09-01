@@ -18,26 +18,26 @@ public static class RabbitMqConsumerBuilderExtensions
     {
         if (string.IsNullOrEmpty(queueName)) throw new ArgumentNullException(nameof(queueName));
 
-        builder.ConsumerSettings.Properties[RabbitMqProperties.QueueName] = queueName;
+        RabbitMqProperties.QueueName.Set(builder.ConsumerSettings, queueName);
 
         if (exclusive != null)
         {
-            builder.ConsumerSettings.Properties[RabbitMqProperties.QueueExclusive] = exclusive.Value;
+            RabbitMqProperties.QueueExclusive.Set(builder.ConsumerSettings, exclusive.Value);
         }
 
         if (durable != null)
         {
-            builder.ConsumerSettings.Properties[RabbitMqProperties.QueueDurable] = durable.Value;
+            RabbitMqProperties.QueueDurable.Set(builder.ConsumerSettings, durable.Value);
         }
 
         if (autoDelete != null)
         {
-            builder.ConsumerSettings.Properties[RabbitMqProperties.QueueAutoDelete] = autoDelete.Value;
+            RabbitMqProperties.QueueAutoDelete.Set(builder.ConsumerSettings, autoDelete.Value);
         }
 
         if (arguments != null)
         {
-            builder.ConsumerSettings.Properties[RabbitMqProperties.QueueArguments] = arguments;
+            RabbitMqProperties.QueueArguments.Set(builder.ConsumerSettings, arguments);
         }
 
         return builder;
@@ -58,7 +58,7 @@ public static class RabbitMqConsumerBuilderExtensions
         if (string.IsNullOrEmpty(exchangeName)) throw new ArgumentNullException(nameof(exchangeName));
 
         builder.ConsumerSettings.Path = exchangeName;
-        builder.ConsumerSettings.Properties[RabbitMqProperties.BindingRoutingKey] = routingKey;
+        RabbitMqProperties.BindingRoutingKey.Set(builder.ConsumerSettings, routingKey);
 
         return builder;
     }
@@ -70,36 +70,36 @@ public static class RabbitMqConsumerBuilderExtensions
     /// <typeparam name="TConsumerBuilder"></typeparam>
     /// <param name="builder"></param>
     /// <param name="exchangeName">Will set the "x-dead-letter-exchange" argument on the queue</param>
-    /// <param name="exchangeType">Type of the exchange, when provided SMB will attempt to provision the exchange</param>
+    /// <param name="exchangeType">Type of the exchange, when provided SMB will attempt to provision the exchange. See <see cref="ExchangeType"/>.</param>
     /// <param name="durable"></param>
     /// <param name="autoDelete"></param>
     /// <param name="routingKey">Will set the "x-dead-letter-routing-key" argument on the queue</param>
     /// <returns></returns>
-    public static TConsumerBuilder DeadLetterExchange<TConsumerBuilder>(this TConsumerBuilder builder, string exchangeName, ExchangeType? exchangeType = null, bool? durable = null, bool? autoDelete = null, string routingKey = null)
+    public static TConsumerBuilder DeadLetterExchange<TConsumerBuilder>(this TConsumerBuilder builder, string exchangeName, string exchangeType = null, bool? durable = null, bool? autoDelete = null, string routingKey = null)
         where TConsumerBuilder : AbstractConsumerBuilder
     {
         if (string.IsNullOrEmpty(exchangeName)) throw new ArgumentNullException(nameof(exchangeName));
 
-        builder.ConsumerSettings.Properties[RabbitMqProperties.DeadLetterExchange] = exchangeName;
+        RabbitMqProperties.DeadLetterExchange.Set(builder.ConsumerSettings, exchangeName);
 
         if (exchangeType != null)
         {
-            builder.ConsumerSettings.Properties[RabbitMqProperties.DeadLetterExchangeType] = RabbitMqProducerBuilderExtensions.MapExchangeType(exchangeType.Value);
+            RabbitMqProperties.DeadLetterExchangeType.Set(builder.ConsumerSettings, exchangeType);
         }
 
         if (durable != null)
         {
-            builder.ConsumerSettings.Properties[RabbitMqProperties.DeadLetterExchangeDurable] = durable.Value;
+            RabbitMqProperties.DeadLetterExchangeDurable.Set(builder.ConsumerSettings, durable.Value);
         }
 
         if (autoDelete != null)
         {
-            builder.ConsumerSettings.Properties[RabbitMqProperties.DeadLetterExchangeAutoDelete] = autoDelete.Value;
+            RabbitMqProperties.DeadLetterExchangeAutoDelete.Set(builder.ConsumerSettings, autoDelete.Value);
         }
 
         if (routingKey != null)
         {
-            builder.ConsumerSettings.Properties[RabbitMqProperties.DeadLetterExchangeRoutingKey] = routingKey;
+            RabbitMqProperties.DeadLetterExchangeRoutingKey.Set(builder.ConsumerSettings, routingKey);
         }
 
         return builder;
@@ -115,7 +115,7 @@ public static class RabbitMqConsumerBuilderExtensions
     public static TConsumerBuilder AcknowledgementMode<TConsumerBuilder>(this TConsumerBuilder builder, RabbitMqMessageAcknowledgementMode mode)
        where TConsumerBuilder : AbstractConsumerBuilder
     {
-        builder.ConsumerSettings.Properties[RabbitMqProperties.MessageAcknowledgementMode] = mode;
+        RabbitMqProperties.MessageAcknowledgementMode.Set(builder.ConsumerSettings, mode);
         return builder;
     }
 }

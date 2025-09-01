@@ -1,4 +1,4 @@
-﻿global using FluentAssertions;
+﻿global using AwesomeAssertions;
 
 global using Microsoft.AspNetCore.Hosting;
 global using Microsoft.AspNetCore.Http;

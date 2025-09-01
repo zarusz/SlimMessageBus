@@ -3,21 +3,27 @@
   <Import Project="../Host.Plugin.Properties.xml" />
 
   <PropertyGroup>
-    <Description>Amazon SQS provider for SlimMessageBus</Description>
+    <Description>Amazon SQS and SNS transport for SlimMessageBus</Description>
     <PackageReleaseNotes>See https://github.com/zarusz/SlimMessageBus/releases</PackageReleaseNotes>
-    <PackageTags>Amazon AWS SQS provider SlimMessageBus MessageBus bus facade messaging</PackageTags>
+    <PackageTags>Amazon AWS SQS SNS transport SlimMessageBus MessageBus bus facade messaging</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.SecurityToken" Version="3.7.401.73" />
-    <PackageReference Include="AWSSDK.SQS" Version="3.7.400.124" />
+    <PackageReference Include="AWSSDK.SecurityToken" Version="3.7.401.82" />
+    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="3.7.400.133" />
+    <PackageReference Include="AWSSDK.SQS" Version="3.7.400.133" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\SlimMessageBus.Host.Serialization.Json\SlimMessageBus.Host.Serialization.Json.csproj" />
     <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SlimMessageBus.Host.AmazonSQS.Test" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+  </ItemGroup>    
 
 </Project>

@@ -27,11 +27,11 @@ public class ConsumerInstanceMessageProcessorTest
         var mockMessage = new Mock<IAsyncDisposable>();
         mockMessage.Setup(x => x.DisposeAsync()).Verifiable();
 
-        object MessageProvider(Type messageType, byte[] payload) => mockMessage.Object;
+        object MessageProvider(Type messageType, IReadOnlyDictionary<string, object> messageHeaders, object transportMessage) => mockMessage.Object;
 
         var p = new MessageProcessor<byte[]>([_handlerSettings], _busMock.Bus, MessageProvider, "path", responseProducer: _busMock.Bus);
 
-        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<byte[]>())).Returns(mockMessage.Object);
+        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<byte[]>(), It.IsAny<object>())).Returns(mockMessage.Object);
 
         // act
         await p.ProcessMessage(_transportMessage, new Dictionary<string, object>(), default);
@@ -48,11 +48,11 @@ public class ConsumerInstanceMessageProcessorTest
         mockMessage.Setup(x => x.DisposeAsync()).Verifiable();
         mockMessage.Setup(x => x.Dispose()).Verifiable();
 
-        object MessageProvider(Type messageType, byte[] payload) => mockMessage.Object;
+        object MessageProvider(Type messageType, IReadOnlyDictionary<string, object> messageHeaders, object transportMessage) => mockMessage.Object;
 
-        var p = new MessageProcessor<byte[]>(new[] { _handlerSettings }, _busMock.Bus, MessageProvider, "path", responseProducer: _busMock.Bus);
+        var p = new MessageProcessor<byte[]>([_handlerSettings], _busMock.Bus, MessageProvider, "path", responseProducer: _busMock.Bus);
 
-        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<byte[]>())).Returns(mockMessage.Object);
+        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<byte[]>(), It.IsAny<object>())).Returns(mockMessage.Object);
 
         // act
         await p.ProcessMessage(_transportMessage, new Dictionary<string, object>(), default);
@@ -69,11 +69,11 @@ public class ConsumerInstanceMessageProcessorTest
         var mockMessage = new Mock<IDisposable>();
         mockMessage.Setup(x => x.Dispose()).Verifiable();
 
-        object MessageProvider(Type messageType, byte[] payload) => mockMessage.Object;
+        object MessageProvider(Type messageType, IReadOnlyDictionary<string, object> messageHeaders, object transportMessage) => mockMessage.Object;
 
-        var p = new MessageProcessor<byte[]>(new[] { _handlerSettings }, _busMock.Bus, MessageProvider, "path", responseProducer: _busMock.Bus);
+        var p = new MessageProcessor<byte[]>([_handlerSettings], _busMock.Bus, MessageProvider, "path", responseProducer: _busMock.Bus);
 
-        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<byte[]>())).Returns(mockMessage.Object);
+        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<byte[]>(), It.IsAny<object>())).Returns(mockMessage.Object);
 
         // act
         await p.ProcessMessage(_transportMessage, new Dictionary<string, object>(), default);
@@ -91,11 +91,11 @@ public class ConsumerInstanceMessageProcessorTest
         headers.SetHeader(ReqRespMessageHeaders.Expires, _busMock.TimeProvider.GetUtcNow().Subtract(TimeSpan.FromSeconds(10)));
         headers.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
 
-        object MessageProvider(Type messageType, byte[] payload) => request;
+        object MessageProvider(Type messageType, IReadOnlyDictionary<string, object> messageHeaders, object transportMessage) => request;
 
         var p = new MessageProcessor<byte[]>([_handlerSettings], _busMock.Bus, MessageProvider, "path", responseProducer: _busMock.Bus);
 
-        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<byte[]>())).Returns(request);
+        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<byte[]>(), It.IsAny<object>())).Returns(request);
 
         // act
         await p.ProcessMessage(_transportMessage, headers, default);
@@ -118,11 +118,11 @@ public class ConsumerInstanceMessageProcessorTest
         var headers = new Dictionary<string, object>();
         headers.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
         headers.SetHeader(ReqRespMessageHeaders.ReplyTo, replyTo);
-        object MessageProvider(Type messageType, byte[] payload) => request;
+        object MessageProvider(Type messageType, IReadOnlyDictionary<string, object> messageHeaders, object transportMessage) => request;
 
         var p = new MessageProcessor<byte[]>([_handlerSettings], _busMock.Bus, MessageProvider, _topic, responseProducer: _busMock.Bus);
 
-        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<byte[]>())).Returns(request);
+        _busMock.SerializerMock.Setup(x => x.Deserialize(typeof(SomeRequest), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<byte[]>(), It.IsAny<object>())).Returns(request);
 
         var ex = new Exception("Something went bad");
         _busMock.HandlerMock.Setup(x => x.OnHandle(request, It.IsAny<CancellationToken>())).Returns(Task.FromException<SomeResponse>(ex));
@@ -154,7 +154,7 @@ public class ConsumerInstanceMessageProcessorTest
         // arrange
         var message = new SomeMessage();
         var messageHeaders = new Dictionary<string, object>();
-        _messageProviderMock.Setup(x => x(message.GetType(), It.IsAny<byte[]>())).Returns(message);
+        _messageProviderMock.Setup(x => x(message.GetType(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<byte[]>())).Returns(message);
 
         var ex = new Exception("Something went bad");
         _busMock.ConsumerMock.Setup(x => x.OnHandle(message, It.IsAny<CancellationToken>())).ThrowsAsync(ex);
@@ -195,7 +195,7 @@ public class ConsumerInstanceMessageProcessorTest
         // arrange
         var message = new SomeMessage();
 
-        _messageProviderMock.Setup(x => x(message.GetType(), It.IsAny<byte[]>())).Returns(message);
+        _messageProviderMock.Setup(x => x(message.GetType(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<byte[]>())).Returns(message);
         _busMock.ConsumerMock.Setup(x => x.OnHandle(message, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         var p = new MessageProcessor<byte[]>([_consumerSettings], _busMock.Bus, _messageProviderMock.Object, _topic, responseProducer: _busMock.Bus);
@@ -228,7 +228,7 @@ public class ConsumerInstanceMessageProcessorTest
             .Setup(x => x.GetService(typeof(IEnumerable<IConsumerInterceptor<SomeMessage>>)))
             .Returns(new[] { messageConsumerInterceptor.Object });
 
-        _messageProviderMock.Setup(x => x(message.GetType(), It.IsAny<byte[]>())).Returns(message);
+        _messageProviderMock.Setup(x => x(message.GetType(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<byte[]>())).Returns(message);
         _busMock.ConsumerMock.Setup(x => x.OnHandle(message, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         var p = new MessageProcessor<byte[]>([_consumerSettings], _busMock.Bus, _messageProviderMock.Object, _topic, responseProducer: _busMock.Bus);
@@ -277,7 +277,7 @@ public class ConsumerInstanceMessageProcessorTest
             .Setup(x => x.ProduceResponse(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<object>(), It.IsAny<Exception>(), It.IsAny<IMessageTypeConsumerInvokerSettings>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        _messageProviderMock.Setup(x => x(request.GetType(), requestPayload)).Returns(request);
+        _messageProviderMock.Setup(x => x(request.GetType(), It.IsAny<IReadOnlyDictionary<string, object>>(), requestPayload)).Returns(request);
 
         var p = new MessageProcessor<byte[]>([_handlerSettings], _busMock.Bus, _messageProviderMock.Object, _topic, responseProducer: _busMock.Bus);
 
@@ -326,7 +326,7 @@ public class ConsumerInstanceMessageProcessorTest
 
         var consumerSettings = new HandlerBuilder<SomeRequestWithoutResponse>(_busMock.Bus.Settings).Topic(_topic).WithHandler<IRequestHandler<SomeRequestWithoutResponse>>().ConsumerSettings;
 
-        _messageProviderMock.Setup(x => x(request.GetType(), requestPayload)).Returns(request);
+        _messageProviderMock.Setup(x => x(request.GetType(), It.IsAny<IReadOnlyDictionary<string, object>>(), requestPayload)).Returns(request);
 
         var p = new MessageProcessor<byte[]>([consumerSettings], _busMock.Bus, _messageProviderMock.Object, _topic, responseProducer: _busMock.Bus);
 
@@ -370,7 +370,7 @@ public class ConsumerInstanceMessageProcessorTest
 
         var consumerSettings = new ConsumerBuilder<SomeMessage>(_busMock.Bus.Settings).Topic(_topic).WithConsumer<SomeMessageConsumerWithContext>().ConsumerSettings;
 
-        _messageProviderMock.Setup(x => x(message.GetType(), _transportMessage)).Returns(message);
+        _messageProviderMock.Setup(x => x(message.GetType(), It.IsAny<IReadOnlyDictionary<string, object>>(), _transportMessage)).Returns(message);
 
         var p = new MessageProcessor<byte[]>([consumerSettings], _busMock.Bus, _messageProviderMock.Object, _topic, responseProducer: _busMock.Bus);
 
@@ -398,7 +398,7 @@ public class ConsumerInstanceMessageProcessorTest
 
         var message = new SomeMessage();
 
-        _messageProviderMock.Setup(x => x(message.GetType(), It.IsAny<byte[]>())).Returns(message);
+        _messageProviderMock.Setup(x => x(message.GetType(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<byte[]>())).Returns(message);
         _busMock.ConsumerMock.Setup(x => x.OnHandle(message, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         var p = new MessageProcessor<byte[]>([consumerSettings], _busMock.Bus, _messageProviderMock.Object, _topic, responseProducer: _busMock.Bus);
@@ -421,15 +421,15 @@ public class ConsumerInstanceMessageProcessorTest
         childScopeMock.Verify(x => x.GetService(typeof(IConsumer<SomeMessage>)), Times.Once);
     }
 
-    public static IEnumerable<object[]> Data =>
-    [
-        [new SomeMessage(), false, false],
-        [new SomeDerivedMessage(), false, false],
-        [new SomeRequest(), false, false],
-        [new SomeDerived2Message(), false, false],
-        [new object(), true, true,],
-        [new object(), true, false],
-    ];
+    public static TheoryData<object, bool, bool> Data => new()
+    {
+        { new SomeMessage(), false, false },
+        { new SomeDerivedMessage(), false, false },
+        { new SomeRequest(), false, false },
+        { new SomeDerived2Message(), false, false },
+        { new object(), true, true },
+        { new object(), true, false },
+    };
 
     [Theory]
     [MemberData(nameof(Data))]
@@ -449,11 +449,19 @@ public class ConsumerInstanceMessageProcessorTest
         var consumerSettingsForSomeMessageInterface = new ConsumerBuilder<ISomeMessageMarkerInterface>(_busMock.Bus.Settings)
             .Topic(_topic)
             .WithConsumer<IConsumer<ISomeMessageMarkerInterface>>()
+            .WhenUndeclaredMessageTypeArrives(opts =>
+            {
+                opts.Fail = shouldFailOnUndeclaredMessageType;
+            })
             .ConsumerSettings;
 
         var consumerSettingsForSomeRequest = new HandlerBuilder<SomeRequest, SomeResponse>(_busMock.Bus.Settings)
             .Topic(_topic)
             .WithHandler<IRequestHandler<SomeRequest, SomeResponse>>()
+            .WhenUndeclaredMessageTypeArrives(opts =>
+            {
+                opts.Fail = shouldFailOnUndeclaredMessageType;
+            })
             .ConsumerSettings;
 
         var messageWithHeaderProviderMock = new Mock<MessageProvider<byte[]>>();
@@ -470,8 +478,8 @@ public class ConsumerInstanceMessageProcessorTest
             _topic,
             responseProducer: _busMock.Bus);
 
-        _busMock.SerializerMock.Setup(x => x.Deserialize(message.GetType(), _transportMessage)).Returns(message);
-        messageWithHeaderProviderMock.Setup(x => x(message.GetType(), _transportMessage)).Returns(message);
+        _busMock.SerializerMock.Setup(x => x.Deserialize(message.GetType(), mesageHeaders, _transportMessage, It.IsAny<object>())).Returns(message);
+        messageWithHeaderProviderMock.Setup(x => x(message.GetType(), It.IsAny<IReadOnlyDictionary<string, object>>(), _transportMessage)).Returns(message);
 
         var someMessageConsumerMock = new Mock<IConsumer<SomeMessage>>();
         var someMessageInterfaceConsumerMock = new Mock<IConsumer<ISomeMessageMarkerInterface>>();
@@ -497,16 +505,19 @@ public class ConsumerInstanceMessageProcessorTest
         {
             if (shouldFailOnUndeclaredMessageType)
             {
-                result.Exception.Should().BeAssignableTo<MessageBusException>();
+                result.Exception.Should().BeAssignableTo<ConsumerMessageBusException>();
+                result.Result.Should().Be(ProcessResult.Failure);
             }
             else
             {
                 result.Exception.Should().BeNull();
+                result.Result.Should().Be(ProcessResult.Success);
             }
         }
         else
         {
             result.Exception.Should().BeNull();
+            result.Result.Should().Be(ProcessResult.Success);
         }
 
         if (message is SomeMessage someMessage)

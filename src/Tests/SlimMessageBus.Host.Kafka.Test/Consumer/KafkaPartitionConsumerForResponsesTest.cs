@@ -96,7 +96,7 @@ public class KafkaPartitionConsumerForResponsesTest : IDisposable
         var pendingRequestState = new PendingRequestState(requestId, request, request.GetType(), response.GetType(), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1), default);
         _pendingRequestStore.Setup(x => x.GetById(requestId)).Returns(pendingRequestState);
 
-        _messageProvider.Setup(x => x(response.GetType(), responseTransportMessage)).Returns(response);
+        _messageProvider.Setup(x => x(response.GetType(), It.IsAny<IReadOnlyDictionary<string, object>>(), responseTransportMessage)).Returns(response);
 
         // act
         await _subject.OnMessage(responseTransportMessage);

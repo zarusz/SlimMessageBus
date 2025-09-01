@@ -1,7 +1,5 @@
 namespace SlimMessageBus.Host.Serialization.Json.Test;
 
-using FluentAssertions;
-
 public class JsonMessageSerializerTests
 {
     public static TheoryData<object, object> Data => new()
@@ -23,8 +21,8 @@ public class JsonMessageSerializerTests
         var subject = new JsonMessageSerializer();
 
         // act
-        var bytes = subject.Serialize(typeof(object), value);
-        var deserializedValue = subject.Deserialize(typeof(object), bytes);
+        var bytes = subject.Serialize(typeof(object), null, value, null);
+        var deserializedValue = subject.Deserialize(typeof(object), null, bytes, null);
 
         // assert
         deserializedValue.Should().Be(expectedValue);
@@ -38,8 +36,8 @@ public class JsonMessageSerializerTests
         var subject = new JsonMessageSerializer() as IMessageSerializer<string>;
 
         // act
-        var json = subject.Serialize(typeof(object), value);
-        var deserializedValue = subject.Deserialize(typeof(object), json);
+        var json = subject.Serialize(typeof(object), null, value, null);
+        var deserializedValue = subject.Deserialize(typeof(object), null, json, null);
 
         // assert
         deserializedValue.Should().Be(expectedValue);

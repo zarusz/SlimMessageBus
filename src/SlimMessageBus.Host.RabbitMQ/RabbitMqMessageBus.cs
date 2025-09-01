@@ -38,17 +38,17 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
     {
         await base.CreateConsumers();
 
+        MessageProvider<BasicDeliverEventArgs> GetMessageProvider(string path)
+            => SerializerProvider.GetSerializer(path).GetMessageProvider<byte[], BasicDeliverEventArgs>(t => t.Body.ToArray());
+
         foreach (var (queueName, consumers) in Settings.Consumers.GroupBy(x => x.GetQueueName()).ToDictionary(x => x.Key, x => x.ToList()))
         {
-            var messageSerializer = SerializerProvider.GetSerializer(queueName);
-            object MessageProvider(Type messageType, BasicDeliverEventArgs transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Body.ToArray());
-
             AddConsumer(new RabbitMqConsumer(LoggerFactory,
                 channel: this,
                 queueName: queueName,
                 consumers,
                 messageBus: this,
-                MessageProvider,
+                messageProvider: GetMessageProvider(queueName),
                 ProviderSettings.HeaderValueConverter));
         }
 
@@ -56,15 +56,12 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
         {
             var queueName = Settings.RequestResponse.GetQueueName();
 
-            var messageSerializer = SerializerProvider.GetSerializer(queueName);
-            object MessageProvider(Type messageType, BasicDeliverEventArgs transportMessage) => messageSerializer.Deserialize(messageType, transportMessage.Body.ToArray());
-
             AddConsumer(new RabbitMqResponseConsumer(LoggerFactory,
                 interceptors: Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(),
                 channel: this,
                 queueName: queueName,
                 Settings.RequestResponse,
-                MessageProvider,
+                messageProvider: GetMessageProvider(queueName),
                 PendingRequestStore,
                 TimeProvider,
                 ProviderSettings.HeaderValueConverter));
@@ -112,7 +109,7 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
 
                     var topologyService = new RabbitMqTopologyService(LoggerFactory, _channel, Settings, ProviderSettings);
 
-                    var customAction = ProviderSettings.GetOrDefault<RabbitMqTopologyInitializer>(RabbitMqProperties.TopologyInitializer);
+                    var customAction = ProviderSettings.GetOrDefault(RabbitMqProperties.TopologyInitializer);
                     if (customAction != null)
                     {
                         // Allow the user to specify its own initializer
@@ -205,7 +202,7 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
     private void GetTransportMessage(object message, Type messageType, IDictionary<string, object> messageHeaders, string path, out byte[] messagePayload, out IBasicProperties messageProperties, out string routingKey)
     {
         var producer = GetProducerSettings(messageType);
-        messagePayload = SerializerProvider.GetSerializer(path).Serialize(messageType, message);
+        messagePayload = SerializerProvider.GetSerializer(path).Serialize(messageType, messageHeaders, message, null);
         messageProperties = _channel.CreateBasicProperties();
         if (messageHeaders != null)
         {

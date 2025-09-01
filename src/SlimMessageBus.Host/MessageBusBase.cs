@@ -491,9 +491,9 @@ public abstract partial class MessageBusBase : IDisposable, IAsyncDisposable,
     /// Create an instance of message headers.
     /// </summary>
     /// <returns></returns>
-    public virtual IDictionary<string, object> CreateHeaders() => new Dictionary<string, object>(10);
+    public virtual Dictionary<string, object> CreateHeaders() => new(10);
 
-    private IDictionary<string, object> GetMessageHeaders(object message, IDictionary<string, object> headers, ProducerSettings producerSettings)
+    private Dictionary<string, object> GetMessageHeaders(object message, IDictionary<string, object> headers, ProducerSettings producerSettings)
     {
         var messageHeaders = CreateHeaders();
         if (messageHeaders != null)

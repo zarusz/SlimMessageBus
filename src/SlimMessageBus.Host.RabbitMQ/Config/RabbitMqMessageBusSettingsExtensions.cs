@@ -9,15 +9,10 @@ public static class RabbitMqMessageBusSettingsExtensions
     /// <param name="action">Action to be executed, the first param is the RabbitMQ <see cref="IModel"/> from the underlying client, and second parameter represents the SMB exchange, queue and binding setup</param>
     public static RabbitMqMessageBusSettings UseTopologyInitializer(this RabbitMqMessageBusSettings settings, RabbitMqTopologyInitializer action)
     {
-#if NETSTANDARD2_0
         if (settings is null) throw new ArgumentNullException(nameof(settings));
         if (action is null) throw new ArgumentNullException(nameof(action));
-#else
-        ArgumentNullException.ThrowIfNull(settings);
-        ArgumentNullException.ThrowIfNull(action);
-#endif
 
-        settings.Properties[RabbitMqProperties.TopologyInitializer] = action;
+        RabbitMqProperties.TopologyInitializer.Set(settings, action);
         return settings;
     }
 
@@ -32,11 +27,11 @@ public static class RabbitMqMessageBusSettingsExtensions
     {
         if (durable != null)
         {
-            settings.Properties[RabbitMqProperties.ExchangeDurable] = durable.Value;
+            RabbitMqProperties.ExchangeDurable.Set(settings, durable.Value);
         }
         if (autoDelete != null)
         {
-            settings.Properties[RabbitMqProperties.ExchangeAutoDelete] = autoDelete.Value;
+            RabbitMqProperties.ExchangeAutoDelete.Set(settings, autoDelete.Value);
         }
         return settings;
     }
@@ -45,28 +40,28 @@ public static class RabbitMqMessageBusSettingsExtensions
     /// Sets the default settings for dead letter exchanges on the bus level. This default will be taken unless it is overridden at the relevant producer level.
     /// </summary>
     /// <param name="settings"></param>
-    /// <param name="exchangeType"></param>
+    /// <param name="exchangeType">See <see cref="ExchangeType"/></param>
     /// <param name="durable"></param>
     /// <param name="autoDelete"></param>
     /// <param name="routingKey"></param>
     /// <returns></returns>
-    public static RabbitMqMessageBusSettings UseDeadLetterExchangeDefaults(this RabbitMqMessageBusSettings settings, ExchangeType? exchangeType = null, bool? durable = null, bool? autoDelete = null, string routingKey = null)
+    public static RabbitMqMessageBusSettings UseDeadLetterExchangeDefaults(this RabbitMqMessageBusSettings settings, string exchangeType = null, bool? durable = null, bool? autoDelete = null, string routingKey = null)
     {
         if (exchangeType != null)
         {
-            settings.Properties[RabbitMqProperties.DeadLetterExchangeType] = RabbitMqProducerBuilderExtensions.MapExchangeType(exchangeType.Value);
+            RabbitMqProperties.DeadLetterExchangeType.Set(settings, exchangeType);
         }
         if (durable != null)
         {
-            settings.Properties[RabbitMqProperties.DeadLetterExchangeDurable] = durable.Value;
+            RabbitMqProperties.DeadLetterExchangeDurable.Set(settings, durable.Value);
         }
         if (autoDelete != null)
         {
-            settings.Properties[RabbitMqProperties.DeadLetterExchangeAutoDelete] = autoDelete.Value;
+            RabbitMqProperties.DeadLetterExchangeAutoDelete.Set(settings, autoDelete.Value);
         }
         if (routingKey != null)
         {
-            settings.Properties[RabbitMqProperties.DeadLetterExchangeRoutingKey] = routingKey;
+            RabbitMqProperties.DeadLetterExchangeRoutingKey.Set(settings, routingKey);
         }
         return settings;
     }
@@ -80,19 +75,15 @@ public static class RabbitMqMessageBusSettingsExtensions
     /// <returns></returns>
     public static RabbitMqMessageBusSettings UseQueueDefaults(this RabbitMqMessageBusSettings settings, bool? durable = null, bool? autoDelete = null)
     {
-#if NETSTANDARD2_0
         if (settings is null) throw new ArgumentNullException(nameof(settings));
-#else
-        ArgumentNullException.ThrowIfNull(settings);
-#endif
 
         if (durable != null)
         {
-            settings.Properties[RabbitMqProperties.QueueDurable] = durable.Value;
+            RabbitMqProperties.QueueDurable.Set(settings, durable.Value);
         }
         if (autoDelete != null)
         {
-            settings.Properties[RabbitMqProperties.QueueAutoDelete] = autoDelete.Value;
+            RabbitMqProperties.QueueAutoDelete.Set(settings, autoDelete.Value);
         }
         return settings;
     }
@@ -105,15 +96,10 @@ public static class RabbitMqMessageBusSettingsExtensions
     /// <returns></returns>
     public static RabbitMqMessageBusSettings UseMessagePropertiesModifier(this RabbitMqMessageBusSettings settings, RabbitMqMessagePropertiesModifier<object> messagePropertiesModifier)
     {
-#if NETSTANDARD2_0
         if (settings is null) throw new ArgumentNullException(nameof(settings));
         if (messagePropertiesModifier is null) throw new ArgumentNullException(nameof(messagePropertiesModifier));
-#else
-        ArgumentNullException.ThrowIfNull(settings);
-        ArgumentNullException.ThrowIfNull(messagePropertiesModifier);
-#endif
 
-        settings.Properties[RabbitMqProperties.MessagePropertiesModifier] = messagePropertiesModifier;
+        RabbitMqProperties.MessagePropertiesModifier.Set(settings, messagePropertiesModifier);
         return settings;
     }
 
@@ -125,15 +111,10 @@ public static class RabbitMqMessageBusSettingsExtensions
     /// <returns></returns>
     public static RabbitMqMessageBusSettings UseRoutingKeyProvider(this RabbitMqMessageBusSettings settings, RabbitMqMessageRoutingKeyProvider<object> routingKeyProvider)
     {
-#if NETSTANDARD2_0
         if (settings is null) throw new ArgumentNullException(nameof(settings));
         if (routingKeyProvider is null) throw new ArgumentNullException(nameof(routingKeyProvider));
-#else
-        ArgumentNullException.ThrowIfNull(settings);
-        ArgumentNullException.ThrowIfNull(routingKeyProvider);
-#endif
 
-        settings.Properties[RabbitMqProperties.MessageRoutingKeyProvider] = routingKeyProvider;
+        RabbitMqProperties.MessageRoutingKeyProvider.Set(settings, routingKeyProvider);
         return settings;
     }
 
@@ -145,13 +126,9 @@ public static class RabbitMqMessageBusSettingsExtensions
     /// <returns></returns>
     public static RabbitMqMessageBusSettings AcknowledgementMode(this RabbitMqMessageBusSettings settings, RabbitMqMessageAcknowledgementMode mode)
     {
-#if NETSTANDARD2_0
         if (settings is null) throw new ArgumentNullException(nameof(settings));
-#else
-        ArgumentNullException.ThrowIfNull(settings);
-#endif
 
-        settings.Properties[RabbitMqProperties.MessageAcknowledgementMode] = mode;
+        RabbitMqProperties.MessageAcknowledgementMode.Set(settings, mode);
         return settings;
     }
 }

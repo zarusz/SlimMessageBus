@@ -236,7 +236,7 @@ public static class AsbConsumerBuilderExtensions
         if (builder is null) throw new ArgumentNullException(nameof(builder));
         if (action is null) throw new ArgumentNullException(nameof(action));
 
-        builder.ConsumerSettings.SetQueueOptions(action);
+        AsbProperties.CreateQueueOptions.Set(builder.ConsumerSettings, action);
         return builder;
     }
 
@@ -253,7 +253,7 @@ public static class AsbConsumerBuilderExtensions
         if (builder is null) throw new ArgumentNullException(nameof(builder));
         if (action is null) throw new ArgumentNullException(nameof(action));
 
-        builder.ConsumerSettings.SetTopicOptions(action);
+        AsbProperties.CreateTopicOptions.Set(builder.ConsumerSettings, action);
         return builder;
     }
 
@@ -270,7 +270,7 @@ public static class AsbConsumerBuilderExtensions
         if (builder is null) throw new ArgumentNullException(nameof(builder));
         if (action is null) throw new ArgumentNullException(nameof(action));
 
-        builder.ConsumerSettings.SetSubscriptionOptions(action);
+        AsbProperties.CreateSubscriptionOptions.Set(builder.ConsumerSettings, action);
         return builder;
     }
 }

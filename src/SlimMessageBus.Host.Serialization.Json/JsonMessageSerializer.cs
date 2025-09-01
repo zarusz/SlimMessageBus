@@ -1,5 +1,6 @@
 namespace SlimMessageBus.Host.Serialization.Json;
 
+using System.Collections.Generic;
 using System.Text;
 
 using Microsoft.Extensions.Logging;
@@ -27,20 +28,20 @@ public partial class JsonMessageSerializer : IMessageSerializer, IMessageSeriali
 
     #region Implementation of IMessageSerializer
 
-    public byte[] Serialize(Type t, object message)
+    public byte[] Serialize(Type messageType, IDictionary<string, object> headers, object message, object transportMessage)
     {
-        var jsonPayload = JsonConvert.SerializeObject(message, t, _serializerSettings);
-        LogSerialized(t, message, jsonPayload);
+        var jsonPayload = JsonConvert.SerializeObject(message, messageType, _serializerSettings);
+        LogSerialized(messageType, message, jsonPayload);
         return _encoding.GetBytes(jsonPayload);
     }
 
-    public object Deserialize(Type t, byte[] payload)
+    public object Deserialize(Type messageType, IReadOnlyDictionary<string, object> headers, byte[] payload, object transportMessage)
     {
         var jsonPayload = string.Empty;
         try
         {
             jsonPayload = _encoding.GetString(payload);
-            return Deserialize(t, jsonPayload);
+            return Deserialize(messageType, headers, jsonPayload, transportMessage);
         }
         catch (Exception e)
         {
@@ -48,7 +49,7 @@ public partial class JsonMessageSerializer : IMessageSerializer, IMessageSeriali
                 ? Convert.ToBase64String(payload)
                 : "(...)";
 
-            LogDeserializationFailed(t, jsonPayload, base64Payload, e);
+            LogDeserializationFailed(messageType, jsonPayload, base64Payload, e);
             throw;
         }
     }
@@ -57,24 +58,24 @@ public partial class JsonMessageSerializer : IMessageSerializer, IMessageSeriali
 
     #region Implementation of IMessageSerializer<string>
 
-    string IMessageSerializer<string>.Serialize(Type t, object message)
+    string IMessageSerializer<string>.Serialize(Type messageType, IDictionary<string, object> headers, object message, object transportMessage)
     {
-        var payload = JsonConvert.SerializeObject(message, t, _serializerSettings);
-        LogSerialized(t, message, payload);
+        var payload = JsonConvert.SerializeObject(message, messageType, _serializerSettings);
+        LogSerialized(messageType, message, payload);
         return payload;
     }
 
-    public object Deserialize(Type t, string payload)
+    public object Deserialize(Type messageType, IReadOnlyDictionary<string, object> headers, string payload, object transportMessage)
     {
         try
         {
-            var message = JsonConvert.DeserializeObject(payload, t, _serializerSettings);
-            LogDeserializedFromString(t, payload, message);
+            var message = JsonConvert.DeserializeObject(payload, messageType, _serializerSettings);
+            LogDeserializedFromString(messageType, payload, message);
             return message;
         }
         catch (Exception e)
         {
-            LogDeserializationFailed(t, payload, string.Empty, e);
+            LogDeserializationFailed(messageType, payload, string.Empty, e);
             throw;
         }
     }

@@ -17,7 +17,7 @@ public class MemoryMessageBusBuilder : MessageBusBuilder
         };
     }
 
-    private static string DefaultMessageTypeToTopicConverter(Type type) => type.Name;
+    private static string DefaultMessageTypeToTopicConverter(Type type) => type.FullName;
 
     private static ISet<Type> GetAncestorTypes(Type messageType)
     {
