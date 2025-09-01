@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="SlimMessageBus.Host.RabbitMQ.Test"/>
+    <InternalsVisibleTo Include="SlimMessageBus.Host.RabbitMQ.Test" />
   </ItemGroup>
 
 </Project>

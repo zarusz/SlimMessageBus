@@ -14,7 +14,9 @@ Please read the [Introduction](intro.md) before reading this provider documentat
     - [Consumer Concurrency Level](#consumer-concurrency-level)
   - [Request-Response](#request-response)
 - [Topology Provisioning](#topology-provisioning)
-- [Not Supported](#not-supported)
+- [Default Exchange](#default-exchange)
+  - [Why it exists](#why-it-exists)
+- [Connection Resiliency](#connection-resiliency)
 - [Recipes](#recipes)
   - [01 Multiple consumers on the same queue with different concurrency](#01-multiple-consumers-on-the-same-queue-with-different-concurrency)
 - [Feedback](#feedback)
@@ -362,7 +364,7 @@ services.AddSlimMessageBus((mbb) =>
 Avoiding the call `applyDefaultTopology()` will suppress the SMB inferred topology creation.
 This might be useful in case the SMB inferred topology is not desired or there are other custom needs.
 
-### Default Exchange
+## Default Exchange
 
 In RabbitMQ, the default exchange (sometimes referred to as the default direct exchange) is a pre-declared, nameless direct exchange with a special behavior:
 
@@ -373,16 +375,6 @@ In RabbitMQ, the default exchange (sometimes referred to as the default direct e
 This means:
 
 - When you publish a message to the default exchange (exchange name = `""`) with a routing key set to the queue name, the message is delivered directly to that queue — no explicit binding is needed.
-
-Example:
-
-```csharp
-channel.basic_publish(
-    exchange: "",             // default exchange
-    routing_key: "my_queue",  // must match the queue name
-    body: Encoding.UTF8.GetBytes("Hello World!")
-);
-```
 
 This will deliver the message straight to the `my_queue` queue.
 
@@ -396,6 +388,16 @@ The default exchange makes it easy to send messages directly to a queue without 
 - Type: direct.
 - Auto-binds every queue by its own name.
 - Messages published to it must use the queue’s name as the routing key.
+
+## Connection Resiliency
+
+The `RabbitMqChannelManager` provides enhanced connection resilience:
+
+- **Continuous Retry**: Unlike the previous 3-attempt limit, the connection now retries indefinitely in the background
+- **Automatic Recovery**: Integrates with RabbitMQ's built-in automatic recovery features
+- **Connection Monitoring**: Monitors connection shutdown events and triggers reconnection
+- **Health Integration**: The health check provides visibility into connection retry status
+- **Thread-Safe Operations**: All channel operations are properly synchronized
 
 ## Recipes
 
