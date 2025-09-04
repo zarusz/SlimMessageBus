@@ -1,11 +1,12 @@
 ﻿namespace SlimMessageBus.Host.Test;
 
 using SlimMessageBus.Host.Collections;
+using SlimMessageBus.Host.Hybrid;
 using SlimMessageBus.Host.Test.Common;
 
 public class MessageBusBaseTests : IDisposable
 {
-    private MessageBusBuilder BusBuilder { get; }
+    private MessageBusBuilder BusBuilder { get; set; }
     private readonly Lazy<MessageBusTested> _busLazy;
     private MessageBusTested Bus => _busLazy.Value;
     private readonly DateTimeOffset _timeZero;
@@ -59,7 +60,15 @@ public class MessageBusBaseTests : IDisposable
                 };
             });
 
-        _busLazy = new Lazy<MessageBusTested>(() => (MessageBusTested)BusBuilder.Build());
+        _busLazy = new Lazy<MessageBusTested>(CreateMessageBus<MessageBusTested>);
+    }
+
+    private T CreateMessageBus<T>() where T : IMasterMessageBus
+    {
+        var bus = (T)BusBuilder.Build();
+        _ = Task.Run(() => bus.AutoStart(default));
+        Thread.Sleep(200);
+        return bus;
     }
 
     public void Dispose()
@@ -92,6 +101,74 @@ public class MessageBusBaseTests : IDisposable
         // assert
         busCreation.Should().Throw<ConfigurationMessageBusException>()
             .WithMessage("*was declared more than once*");
+    }
+
+    [Theory]
+    [InlineData(null, null, true, true)]
+    [InlineData(null, false, false, true)]
+    [InlineData(false, null, false, false)]
+    [InlineData(false, true, true, false)]
+    public async Task When_Create_Given_TwoChildBusAndOneHasAutoStartConsumersAsOff_Then_OnlyChildBusIsStarted(bool? rootBusEnabled, bool? child1Enabled, bool child1ShouldStart, bool child2ShouldStart)
+    {
+        // arrange
+        BusBuilder = MessageBusBuilder
+            .Create()
+            .WithServiceProvider(_serviceProviderMock.Object)
+            .WithProviderHybrid();
+
+        Mock<MessageBusBase> childBusMock1 = null;
+        Mock<MessageBusBase> childBusMock2 = null;
+
+        if (rootBusEnabled != null)
+        {
+            BusBuilder.AutoStartConsumersEnabled(rootBusEnabled.Value);
+        }
+
+        BusBuilder.AddChildBus("child1", mbb =>
+        {
+
+            if (child1Enabled != null)
+            {
+                mbb.AutoStartConsumersEnabled(child1Enabled.Value);
+            }
+            mbb.WithProvider((s) =>
+            {
+                var childBusSettings = new MessageBusSettings(s)
+                {
+                    Name = "child1"
+                };
+                childBusMock1 = new Mock<MessageBusBase>(childBusSettings) { CallBase = true };
+                return childBusMock1.Object;
+            });
+        });
+
+        BusBuilder.AddChildBus("child2", mbb =>
+        {
+            mbb.WithProvider((s) =>
+            {
+                var childBusSettings = new MessageBusSettings(s)
+                {
+                    Name = "child2"
+                };
+                childBusMock2 = new Mock<MessageBusBase>(childBusSettings) { CallBase = true };
+                return childBusMock2.Object;
+            });
+        });
+
+
+        // act
+        var bus = CreateMessageBus<IMasterMessageBus>();
+
+        await Task.Delay(TimeSpan.FromSeconds(2));
+
+        // assert
+        childBusMock1.Should().NotBeNull();
+        childBusMock2.Should().NotBeNull();
+
+        childBusMock1.Verify(x => x.AutoStart(It.IsAny<CancellationToken>()), Times.Once);
+        childBusMock2.Verify(x => x.AutoStart(It.IsAny<CancellationToken>()), Times.Once);
+        childBusMock1.Verify(x => x.OnStart(), child1ShouldStart ? Times.Once : Times.Never);
+        childBusMock2.Verify(x => x.OnStart(), child2ShouldStart ? Times.Once : Times.Never);
     }
 
     [Fact]

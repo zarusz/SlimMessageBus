@@ -5,15 +5,9 @@ using Microsoft.Extensions.Hosting;
 /// <summary>
 /// <see cref="IHostedService"/> responsible for starting message bus consumers.
 /// </summary>
-public class MessageBusHostedService(IConsumerControl bus, MessageBusSettings messageBusSettings) : IHostedService
+internal class MessageBusHostedService(IMasterMessageBus bus) : IHostedService
 {
-    public async Task StartAsync(CancellationToken cancellationToken)
-    {
-        if (messageBusSettings.AutoStartConsumers)
-        {
-            await bus.Start();
-        }
-    }
+    public Task StartAsync(CancellationToken cancellationToken) => bus.AutoStart(cancellationToken);
 
     public Task StopAsync(CancellationToken cancellationToken) => bus.Stop();
 }
