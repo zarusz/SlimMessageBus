@@ -101,7 +101,7 @@ public abstract partial class MessageBusBase : IDisposable, IAsyncDisposable,
 
         RuntimeTypeCache = settings.ServiceProvider.GetRequiredService<RuntimeTypeCache>();
 
-        MessageBusTarget = new MessageBusProxy(this, Settings.ServiceProvider);
+        MessageBusTarget = new MessageBusProxy(this, settings.ServiceProvider);
 
         TimeProvider = settings.ServiceProvider.GetRequiredService<TimeProvider>();
 
@@ -124,24 +124,9 @@ public abstract partial class MessageBusBase : IDisposable, IAsyncDisposable,
 
         // Notify the bus has been created - before any message can be produced
         InitTaskList.Add(() => OnBusLifecycle(MessageBusLifecycleEventType.Created), CancellationToken);
-
-        // Auto start consumers if enabled
-        if (Settings.AutoStartConsumers)
-        {
-            // Fire and forget start
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await Start().ConfigureAwait(false);
-                }
-                catch (Exception e)
-                {
-                    LogCouldNotStartConsumers(e);
-                }
-            });
-        }
     }
+
+
 
     protected virtual void Build()
     {
@@ -174,6 +159,22 @@ public abstract partial class MessageBusBase : IDisposable, IAsyncDisposable,
                 {
                     await task;
                 }
+            }
+        }
+    }
+
+    public async virtual Task AutoStart(CancellationToken cancellationToken)
+    {
+        // Auto start consumers if enabled for this bus (check first on this bus if setting set, otherwise check parent bus, fallack to true)
+        if (Settings.AutoStartConsumers ?? Settings.Parent?.AutoStartConsumers ?? true)
+        {
+            try
+            {
+                await Start().ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                LogCouldNotStartConsumers(e);
             }
         }
     }

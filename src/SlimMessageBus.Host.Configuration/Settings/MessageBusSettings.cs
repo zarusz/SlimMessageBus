@@ -37,7 +37,7 @@ public class MessageBusSettings : HasProviderExtensions
     /// <summary>
     /// When true will start the message consumption on consumers after the bus is created.
     /// </summary>
-    public bool AutoStartConsumers { get; set; }
+    public bool? AutoStartConsumers { get; set; }
 
     public MessageBusSettings(MessageBusSettings parent = null)
     {
@@ -45,7 +45,6 @@ public class MessageBusSettings : HasProviderExtensions
         Producers = [];
         Consumers = [];
         SerializerType = typeof(IMessageSerializerProvider);
-        AutoStartConsumers = true;
 
         if (parent != null)
         {
