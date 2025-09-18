@@ -7,6 +7,9 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 - [Configuration](#configuration)
   - [Producers](#producers)
   - [Consumers](#consumers)
+    - [Routing Keys and Wildcard Support](#routing-keys-and-wildcard-support)
+      - [Basic Routing Keys](#basic-routing-keys)
+      - [Wildcard Routing Keys](#wildcard-routing-keys)
     - [Acknowledgment Mode](#acknowledgment-mode)
     - [Consumer Error Handling](#consumer-error-handling)
       - [Dead Letter Exchange](#dead-letter-exchange)
@@ -147,6 +150,79 @@ We can specify defaults for all consumers on the bus level:
     });
 });
 ```
+
+#### Routing Keys and Wildcard Support
+
+RabbitMQ routing keys are used by exchanges to determine which queues should receive a message. SlimMessageBus fully supports RabbitMQ's routing key semantics, including **wildcard routing keys** for topic exchanges.
+
+##### Basic Routing Keys
+
+For direct and topic exchanges, you can specify exact routing keys when binding consumers:
+
+```cs
+mbb.Consume<OrderEvent>(x => x
+    .Queue("orders-queue")
+    .ExchangeBinding("orders-exchange", routingKey: "orders.created")
+    .WithConsumer<OrderCreatedConsumer>());
+```
+
+##### Wildcard Routing Keys
+
+For topic exchanges, SlimMessageBus supports RabbitMQ's wildcard routing key patterns:
+
+- **`*` (asterisk)** - matches exactly one segment
+- **`#` (hash)** - matches zero or more segments
+- Segments are separated by `.` (dot)
+
+**Examples:**
+
+```cs
+services.AddSlimMessageBus(mbb =>
+{
+    // Producer sends messages with specific routing keys
+    mbb.Produce<RegionEvent>(x => x
+        .Exchange("regions", exchangeType: ExchangeType.Topic)
+        .RoutingKeyProvider((m, p) => $"regions.{m.Country}.cities.{m.City}"));
+
+    // Consumer 1: Match all cities in North America
+    mbb.Consume<RegionEvent>(x => x
+        .Queue("na-cities-queue")
+        .ExchangeBinding("regions", routingKey: "regions.na.cities.*")  // * matches exactly one city
+        .WithConsumer<NorthAmericaCitiesConsumer>());
+
+    // Consumer 2: Match all events in the regions exchange
+    mbb.Consume<RegionEvent>(x => x
+        .Queue("all-regions-queue")
+        .ExchangeBinding("regions", routingKey: "regions.#")  // # matches zero or more segments
+        .WithConsumer<AllRegionsConsumer>());
+
+    // Consumer 3: Match all audit events with any number of segments
+    mbb.Consume<AuditEvent>(x => x
+        .Queue("audit-queue")
+        .ExchangeBinding("audit", routingKey: "audit.events.#")
+        .WithConsumer<AuditConsumer>());
+
+    // Consumer 4: Complex pattern - match region events ending with specific pattern
+    mbb.Consume<RegionEvent>(x => x
+        .Queue("region-reports-queue")
+        .ExchangeBinding("regions", routingKey: "regions.*.reports.*")  // matches regions.{country}.reports.{type}
+        .WithConsumer<RegionReportsConsumer>());
+});
+```
+
+**Routing Key Pattern Examples:**
+
+| Pattern | Matches | Doesn't Match |
+|---------|---------|---------------|
+| `regions.na.cities.*` | `regions.na.cities.toronto`<br/>`regions.na.cities.newyork` | `regions.na.cities` (missing segment)<br/>`regions.na.cities.toronto.downtown` (extra segment) |
+| `audit.events.#` | `audit.events.users.signup`<br/>`audit.events.orders.placed`<br/>`audit.events` | `audit.users` (wrong prefix) |
+| `orders.#.region.*` | `orders.processed.region.na`<br/>`orders.created.cancelled.region.eu`<br/>`orders.region.na` | `orders.processed.state.california` (wrong pattern)<br/>`orders.processed.region` (missing final segment) |
+| `#` | Any routing key | None (matches everything) |
+
+**Performance Note:** SlimMessageBus optimizes routing key matching by:
+- Using exact matches first for better performance
+- Only applying wildcard pattern matching when no exact match is found
+- Caching routing key patterns for efficient lookup
 
 #### Acknowledgment Mode
 
@@ -370,7 +446,7 @@ In RabbitMQ, the default exchange (sometimes referred to as the default direct e
 
 - Its name is an empty string (`""`).
 - It is of type direct.
-- Every queue that you declare is automatically bound to this default exchange with a routing key equal to the queue’s name.
+- Every queue that you declare is automatically bound to this default exchange with a routing key equal to the queue's name.
 
 This means:
 
@@ -380,14 +456,14 @@ This will deliver the message straight to the `my_queue` queue.
 
 ### Why it exists
 
-The default exchange makes it easy to send messages directly to a queue without having to explicitly set up an exchange and binding. It’s often used for simple "Hello World" style examples and direct queue messaging.
+The default exchange makes it easy to send messages directly to a queue without having to explicitly set up an exchange and binding. It's often used for simple "Hello World" style examples and direct queue messaging.
 
 ✅ **Key points to remember**
 
 - The default exchange has no name (`""`).
 - Type: direct.
 - Auto-binds every queue by its own name.
-- Messages published to it must use the queue’s name as the routing key.
+- Messages published to it must use the queue's name as the routing key.
 
 ## Connection Resiliency
 

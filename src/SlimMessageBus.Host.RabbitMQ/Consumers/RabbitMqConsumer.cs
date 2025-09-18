@@ -14,7 +14,7 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
 
     private readonly RabbitMqMessageAcknowledgementMode _acknowledgementMode;
     private readonly IMessageProcessor<BasicDeliverEventArgs> _messageProcessor;
-    private readonly IDictionary<string, IMessageProcessor<BasicDeliverEventArgs>> _messageProcessorByRoutingKey;
+    private readonly RoutingKeyMatcherService<IMessageProcessor<BasicDeliverEventArgs>> _routingKeyMatcher;
 
     protected override RabbitMqMessageAcknowledgementMode AcknowledgementMode => _acknowledgementMode;
 
@@ -57,12 +57,28 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
             return messageProcessor;
         }
 
-        _messageProcessorByRoutingKey = consumers
+        var routingKeyProcessors = consumers
             .GroupBy(x => x.GetBindingRoutingKey() ?? string.Empty)
             .ToDictionary(x => x.Key, CreateMessageProcessor);
 
-        _messageProcessor = _messageProcessorByRoutingKey.Count == 1 && _messageProcessorByRoutingKey.TryGetValue(string.Empty, out var value)
+        // Initialize routing key matcher service
+        _routingKeyMatcher = new RoutingKeyMatcherService<IMessageProcessor<BasicDeliverEventArgs>>(routingKeyProcessors);
+
+        // Set single processor optimization if only one exact match exists and no wildcards
+        _messageProcessor = routingKeyProcessors.Count == 1 && routingKeyProcessors.TryGetValue(string.Empty, out var value)
             ? value : null;
+    }
+
+    private IMessageProcessor<BasicDeliverEventArgs> FindMessageProcessor(string messageRoutingKey)
+    {
+        // If only single processor for all messages, return it directly for better performance
+        if (_messageProcessor != null)
+        {
+            return _messageProcessor;
+        }
+
+        // Use routing key matcher service to find the appropriate processor
+        return _routingKeyMatcher.FindMatch(messageRoutingKey);
     }
 
     protected override async Task OnStop()
@@ -71,11 +87,12 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
         {
             // Wait max 5 seconds for all background processing tasks to complete
             using var taskCancellationSource = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var backgrounProcessingTasks = _messageProcessorByRoutingKey.Values
+            var backgroundProcessingTasks = _routingKeyMatcher.AllItems
+                .Distinct()
                 .OfType<ConcurrentMessageProcessorDecorator<BasicDeliverEventArgs>>()
                 .Select(x => x.WaitAll(taskCancellationSource.Token));
 
-            await Task.WhenAll(backgrounProcessingTasks);
+            await Task.WhenAll(backgroundProcessingTasks);
         }
         catch (Exception e)
         {
@@ -139,8 +156,8 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
             ConfirmMessage(transportMessage, RabbitMqMessageConfirmOptions.Ack, consumerContextProperties);
         }
 
-        var messageProcessor = _messageProcessor;
-        if (messageProcessor != null || _messageProcessorByRoutingKey.TryGetValue(transportMessage.RoutingKey, out messageProcessor))
+        var messageProcessor = FindMessageProcessor(transportMessage.RoutingKey);
+        if (messageProcessor != null)
         {
             await messageProcessor.ProcessMessage(transportMessage, messageHeaders: messageHeaders, consumerContextProperties: consumerContextProperties, cancellationToken: CancellationToken);
         }
@@ -157,7 +174,7 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
     {
         await base.DisposeAsyncCore();
 
-        foreach (var messageProcessor in _messageProcessorByRoutingKey.Values)
+        foreach (var messageProcessor in _routingKeyMatcher.AllItems.Distinct())
         {
             if (messageProcessor is IDisposable disposable)
             {
