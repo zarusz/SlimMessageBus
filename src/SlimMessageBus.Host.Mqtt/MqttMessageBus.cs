@@ -1,8 +1,10 @@
-﻿namespace SlimMessageBus.Host.Mqtt;
-
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
-
 using MQTTnet.Extensions.ManagedClient;
+
+namespace SlimMessageBus.Host.Mqtt;
 
 public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
 {
@@ -101,9 +103,18 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
         }
     }
 
+    private static bool CheckTopic(string allowedTopic, string topic)
+    {
+        if (string.Equals(allowedTopic, topic))
+            return true;
+        var realTopicRegex = allowedTopic.Replace(@"/", @"\/").Replace("+", @"[a-zA-Z0-9 _.-]*").Replace("#", @"[a-zA-Z0-9 \/_#+.-]*");
+        var regex = new Regex(realTopicRegex);
+        return regex.IsMatch(topic);
+    }
+
     private Task OnMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs arg)
     {
-        var consumer = Consumers.Cast<MqttTopicConsumer>().FirstOrDefault(x => x.Path == arg.ApplicationMessage.Topic);
+        var consumer = Consumers.Cast<MqttTopicConsumer>().FirstOrDefault(x => CheckTopic(x.Path, arg.ApplicationMessage.Topic));
         if (consumer != null)
         {
             var headers = new Dictionary<string, object>();
