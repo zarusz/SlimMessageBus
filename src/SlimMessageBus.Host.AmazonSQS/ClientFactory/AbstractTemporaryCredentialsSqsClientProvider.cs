@@ -63,13 +63,16 @@ public abstract class AbstractTemporaryCredentialsSqsClientProvider<TClient, TCl
 
         var assumeRoleResponse = await _stsClient.AssumeRoleAsync(assumeRoleRequest);
 
+        var expiration = assumeRoleResponse.Credentials.Expiration
+            ?? throw new InvalidOperationException("STS AssumeRole response did not include an Expiration. This should never happen against real AWS — check test/mocked responses.");
+
         var temporaryCredentials = new SessionAWSCredentials(
             assumeRoleResponse.Credentials.AccessKeyId,
             assumeRoleResponse.Credentials.SecretAccessKey,
             assumeRoleResponse.Credentials.SessionToken
         );
 
-        var clientCredentialsExpiry = assumeRoleResponse.Credentials.Expiration.AddMinutes(-5); // Renew 5 mins before expiry
+        var clientCredentialsExpiry = expiration.AddMinutes(-3); // Renew 3 mins before expiry
 
         var client = CreateClient(temporaryCredentials, _clientConfig);
         return (client, clientCredentialsExpiry);

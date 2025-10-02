@@ -139,7 +139,7 @@ public class SqsCacheServiceTest
 
     private static GetQueueAttributesResponse CreateQueueAttributesResponse(string queueArn) => new()
     {
-        Attributes = { [SQSConstants.ATTRIBUTE_QUEUE_ARN] = queueArn }
+        Attributes = new Dictionary<string, string> { [SQSConstants.ATTRIBUTE_QUEUE_ARN] = queueArn }
     };
 
     [Fact]

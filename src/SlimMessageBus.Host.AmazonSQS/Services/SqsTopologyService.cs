@@ -225,7 +225,7 @@ internal class SqsTopologyService
 
             var subscriptions = await _clientProviderSns.Client.ListSubscriptionsByTopicAsync(topicMeta.Arn, cancellationToken);
 
-            var subscription = subscriptions.Subscriptions.FirstOrDefault(x => x.Endpoint == queueMeta.Arn && x.Protocol == "sqs");
+            var subscription = subscriptions.Subscriptions?.FirstOrDefault(x => x.Endpoint == queueMeta.Arn && x.Protocol == "sqs");
             if (subscription != null)
             {
                 return; // it exists
