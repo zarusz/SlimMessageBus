@@ -88,7 +88,7 @@ abstract internal class SqsBaseConsumer : AbstractConsumer
         var deleteResponse = await _clientProvider.Client.DeleteMessageBatchAsync(deleteRequest, CancellationToken);
 
         // ToDo: capture failed messages
-        return deleteResponse.Failed.Count > 0;
+        return deleteResponse.Failed != null && deleteResponse.Failed.Count > 0;
     }
 
     protected override Task OnStart()
@@ -117,22 +117,24 @@ abstract internal class SqsBaseConsumer : AbstractConsumer
             try
             {
                 var messages = await ReceiveMessagesByUrl(queueUrl).ConfigureAwait(false);
-                foreach (var message in messages)
+                if (messages != null)
                 {
-                    Logger.LogDebug("Received message on Queue: {Queue}, MessageId: {MessageId}, Payload: {MessagePayload}", Path, message.MessageId, message.Body);
-
-                    GetPayloadAndHeadersFromMessage(message, out var messagePayload, out var messageHeaders);
-
-                    var r = await MessageProcessor.ProcessMessage(new(message, messagePayload), messageHeaders, cancellationToken: CancellationToken).ConfigureAwait(false);
-                    if (r.Exception != null)
+                    foreach (var message in messages)
                     {
-                        Logger.LogError(r.Exception, "Message processing error - Queue: {Queue}, MessageId: {MessageId}", Path, message.MessageId);
-                        // ToDo: DLQ handling
-                        break;
-                    }
-                    messagesToDelete.Add(message);
-                }
+                        Logger.LogDebug("Received message on Queue: {Queue}, MessageId: {MessageId}, Payload: {MessagePayload}", Path, message.MessageId, message.Body);
 
+                        GetPayloadAndHeadersFromMessage(message, out var messagePayload, out var messageHeaders);
+
+                        var r = await MessageProcessor.ProcessMessage(new(message, messagePayload), messageHeaders, cancellationToken: CancellationToken).ConfigureAwait(false);
+                        if (r.Exception != null)
+                        {
+                            Logger.LogError(r.Exception, "Message processing error - Queue: {Queue}, MessageId: {MessageId}", Path, message.MessageId);
+                            // ToDo: DLQ handling
+                            break;
+                        }
+                        messagesToDelete.Add(message);
+                    }
+                }
                 if (messagesToDelete.Count > 0)
                 {
                     await DeleteMessageBatchByUrl(queueUrl, messagesToDelete).ConfigureAwait(false);

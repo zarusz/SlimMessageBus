@@ -150,7 +150,7 @@ public class SqsTopologyServiceTest
 
         var getQueueAttributesResponse = new GetQueueAttributesResponse
         {
-            Attributes = { { QueueAttributeName.QueueArn, "arn:aws:sqs:us-east-1:123456789012:test-queue" } }
+            Attributes = new Dictionary<string, string> { { QueueAttributeName.QueueArn, "arn:aws:sqs:us-east-1:123456789012:test-queue" } }
         };
         _sqsClientMock.Setup(x => x.GetQueueAttributesAsync(createQueueResponse.QueueUrl, It.IsAny<List<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(getQueueAttributesResponse);
@@ -367,7 +367,7 @@ public class SqsTopologyServiceTest
 
         var getQueueAttributesResponse = new GetQueueAttributesResponse
         {
-            Attributes = { { QueueAttributeName.QueueArn, "arn:aws:sqs:us-east-1:123456789012:test-queue" } }
+            Attributes = new Dictionary<string, string> { { QueueAttributeName.QueueArn, "arn:aws:sqs:us-east-1:123456789012:test-queue" } }
         };
         _sqsClientMock.Setup(x => x.GetQueueAttributesAsync(It.IsAny<string>(), It.IsAny<List<string>>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(getQueueAttributesResponse);

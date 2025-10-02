@@ -120,6 +120,10 @@ internal class SqsTopologyCache(ISqsClientProvider clientProviderSqs, ISnsClient
         {
             // proceed to create the queue
         }
+        catch (ArgumentNullException)
+        {
+            // ToDo: See issue in v4 SDK: https://github.com/awsdocs/aws-doc-sdk-examples/issues/7615
+        }
         return null;
     }
 }

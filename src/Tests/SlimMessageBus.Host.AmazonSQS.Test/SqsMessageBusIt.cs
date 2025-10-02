@@ -41,18 +41,20 @@ public class SqsMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<Sqs
             cfg.TopologyProvisioning.CreateQueueOptions = opts =>
             {
                 // Tag the queue with the creation date
+                opts.Tags ??= [];
                 opts.Tags.Add(CreatedDateTag, today);
             };
             cfg.TopologyProvisioning.CreateTopicOptions = opts =>
             {
                 // Tag the queue with the creation date
+                opts.Tags ??= [];
                 opts.Tags.Add(new() { Key = CreatedDateTag, Value = today });
             };
             cfg.TopologyProvisioning.OnProvisionTopology = async (clientSqs, clientSns, provision, cancellationToken) =>
             {
                 // Remove all older test queues (SQS does not support queue auto deletion)
                 var r = await clientSqs.ListQueuesAsync(QueueNamePrefix, cancellationToken);
-                foreach (var queueUrl in r.QueueUrls)
+                foreach (var queueUrl in r.QueueUrls ?? [])
                 {
                     try
                     {
@@ -71,7 +73,7 @@ public class SqsMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<Sqs
 
                 // Remove all older test topics
                 var topicsResponse = await clientSns.ListTopicsAsync(cancellationToken);
-                foreach (var topic in topicsResponse.Topics)
+                foreach (var topic in topicsResponse.Topics ?? [])
                 {
                     var tagsResponse = await clientSns.ListTagsForResourceAsync(new() { ResourceArn = topic.TopicArn }, cancellationToken);
                     var createdDateTagValue = tagsResponse.Tags.FirstOrDefault(x => x.Key == CreatedDateTag)?.Value;
