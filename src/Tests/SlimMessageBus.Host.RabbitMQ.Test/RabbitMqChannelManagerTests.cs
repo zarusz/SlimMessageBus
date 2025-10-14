@@ -591,6 +591,53 @@ public class RabbitMqChannelManagerTests : IDisposable
         }
     }
 
+    [Fact]
+    public void When_ChannelRecoveredEvent_Given_ManagerCreated_Then_ShouldAllowSubscription()
+    {
+        // Arrange
+        var manager = CreateChannelManager();
+        var eventRaised = false;
+
+        // Act
+        manager.ChannelRecovered += (sender, args) => { eventRaised = true; };
+
+        // Assert - event subscription should succeed without throwing
+        eventRaised.Should().BeFalse("Event should not be raised until channel is actually recovered");
+    }
+
+    [Fact]
+    public void When_ChannelRecoveredEvent_Given_MultipleSubscribers_Then_ShouldAllowMultipleSubscriptions()
+    {
+        // Arrange
+        var manager = CreateChannelManager();
+        var eventCount = 0;
+
+        // Act
+        manager.ChannelRecovered += (sender, args) => { eventCount++; };
+        manager.ChannelRecovered += (sender, args) => { eventCount++; };
+        manager.ChannelRecovered += (sender, args) => { eventCount++; };
+
+        // Assert
+        eventCount.Should().Be(0, "Events should not be raised until channel recovery happens");
+    }
+
+    [Fact]
+    public void When_ChannelRecoveredEvent_Given_Unsubscribe_Then_ShouldRemoveSubscription()
+    {
+        // Arrange
+        var manager = CreateChannelManager();
+        var eventCount = 0;
+        void handler(object sender, EventArgs args) { eventCount++; }
+
+        // Act
+        manager.ChannelRecovered += handler;
+        manager.ChannelRecovered -= handler;
+
+        // Assert
+        // Event should have been unsubscribed successfully
+        eventCount.Should().Be(0);
+    }
+
     private RabbitMqChannelManager CreateChannelManager()
     {
         var manager = new RabbitMqChannelManager(

@@ -467,13 +467,31 @@ The default exchange makes it easy to send messages directly to a queue without 
 
 ## Connection Resiliency
 
-The `RabbitMqChannelManager` provides enhanced connection resilience:
+The `RabbitMqChannelManager` provides enhanced connection resilience with automatic consumer recovery:
 
 - **Continuous Retry**: Unlike the previous 3-attempt limit, the connection now retries indefinitely in the background
 - **Automatic Recovery**: Integrates with RabbitMQ's built-in automatic recovery features
 - **Connection Monitoring**: Monitors connection shutdown events and triggers reconnection
+- **Consumer Re-registration**: When the connection is recovered, all consumers automatically re-register themselves with the new channel
 - **Health Integration**: The health check provides visibility into connection retry status
 - **Thread-Safe Operations**: All channel operations are properly synchronized
+
+### Consumer Recovery
+
+When a RabbitMQ server restarts or the connection is lost, SlimMessageBus automatically:
+
+1. Detects the connection loss through shutdown events
+2. Attempts to reconnect at regular intervals (default: every 5 seconds, configurable via `ConnectionFactory.NetworkRecoveryInterval`)
+3. Recreates the channel and provisions the topology (exchanges, queues, bindings)
+4. Notifies all consumers to re-register themselves with the new channel
+5. Resumes message processing automatically
+
+This ensures that:
+- Messages don't pile up in queues during temporary outages
+- Consumers are visible in the RabbitMQ management UI after recovery
+- No manual intervention is required to restore message processing
+
+**Example scenario**: If you restart your RabbitMQ Docker container, SlimMessageBus will detect the disconnection, wait for the server to come back online, and automatically restore all consumers without any code changes or manual restarts.
 
 ## Recipes
 
