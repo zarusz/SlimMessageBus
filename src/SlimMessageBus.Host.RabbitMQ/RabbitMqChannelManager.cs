@@ -25,6 +25,12 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IDisposable
     private volatile bool _isConnecting;
     private bool _disposed;
 
+    /// <summary>
+    /// Event raised when the channel has been successfully recovered after a connection loss.
+    /// Consumers should subscribe to this event to re-register themselves with the new channel.
+    /// </summary>
+    public event EventHandler<EventArgs> ChannelRecovered;
+
     public IModel Channel => _channel;
     public object ChannelLock => _channelLock;
 
@@ -128,12 +134,14 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IDisposable
             // Subscribe to connection shutdown events for better resilience
             newConnection.ConnectionShutdown += OnConnectionShutdown;
 
+            var isRecovery = false;
             lock (_channelLock)
             {
                 // Clean up existing connection
                 if (_connection != null)
                 {
                     _connection.ConnectionShutdown -= OnConnectionShutdown;
+                    isRecovery = true;
                 }
 
                 CloseAndDisposeChannel(_channel);
@@ -148,6 +156,13 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IDisposable
                     // Provision topology
                     ProvisionTopology();
                 }
+            }
+
+            // Notify consumers to re-register after recovery
+            if (isRecovery)
+            {
+                LogChannelRecoveredNotifyingConsumers();
+                ChannelRecovered?.Invoke(this, EventArgs.Empty);
             }
 
             return true;
@@ -391,6 +406,12 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IDisposable
         Message = "Error during RabbitMQ reconnection attempt: {ErrorMessage}")]
     private partial void LogErrorDuringReconnectionAttempt(string errorMessage, Exception ex);
 
+    [LoggerMessage(
+        EventId = 13,
+        Level = LogLevel.Information,
+        Message = "RabbitMQ channel recovered, notifying consumers to re-register")]
+    private partial void LogChannelRecoveredNotifyingConsumers();
+
     #endregion
 }
 
@@ -436,6 +457,9 @@ internal partial class RabbitMqChannelManager
 
     private partial void LogErrorDuringReconnectionAttempt(string errorMessage, Exception ex)
         => _logger.LogError(ex, "Error during RabbitMQ reconnection attempt: {ErrorMessage}", errorMessage);
+
+    private partial void LogChannelRecoveredNotifyingConsumers()
+        => _logger.LogInformation("RabbitMQ channel recovered, notifying consumers to re-register");
 }
 
 #endif
