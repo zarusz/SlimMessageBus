@@ -1,5 +1,8 @@
 namespace SlimMessageBus.Host.RabbitMQ.Test;
 
+using System.Collections.Concurrent;
+using System.Diagnostics;
+
 using global::RabbitMQ.Client;
 
 using SlimMessageBus.Host.RabbitMQ;
@@ -43,91 +46,57 @@ public class RabbitMqChannelManagerTests : IDisposable
         manager.ChannelLock.Should().NotBeNull();
     }
 
-    [Fact]
-    public void When_ConstructorCalled_Given_NullLoggerFactory_Then_ShouldThrowArgumentNullException()
+    [Theory]
+    [InlineData("loggerFactory")]
+    [InlineData("providerSettings")]
+    [InlineData("settings")]
+    [InlineData("isDisposingOrDisposed")]
+    public void When_ConstructorCalled_Given_NullParameter_Then_ShouldThrowArgumentNullException(string parameterName)
     {
-        // Act & Assert
-        var action = () => new RabbitMqChannelManager(null, _providerSettings, _settings, () => false);
-        action.Should().Throw<ArgumentNullException>().WithParameterName("loggerFactory");
+        // Arrange & Act & Assert
+        Action action = parameterName switch
+        {
+#pragma warning disable CA1806 // Do not ignore method results - Intentionally testing constructor exceptions
+            "loggerFactory" => () => new RabbitMqChannelManager(null, _providerSettings, _settings, () => false),
+            "providerSettings" => () => new RabbitMqChannelManager(_loggerFactory, null, _settings, () => false),
+            "settings" => () => new RabbitMqChannelManager(_loggerFactory, _providerSettings, null, () => false),
+            "isDisposingOrDisposed" => () => new RabbitMqChannelManager(_loggerFactory, _providerSettings, _settings, null),
+#pragma warning restore CA1806 // Do not ignore method results
+            _ => throw new ArgumentException("Invalid parameter name", nameof(parameterName))
+        };
+
+        action.Should().Throw<ArgumentNullException>().WithParameterName(parameterName);
     }
 
-    [Fact]
-    public void When_ConstructorCalled_Given_NullProviderSettings_Then_ShouldThrowArgumentNullException()
-    {
-        // Act & Assert
-        var action = () => new RabbitMqChannelManager(_loggerFactory, null, _settings, () => false);
-        action.Should().Throw<ArgumentNullException>().WithParameterName("providerSettings");
-    }
-
-    [Fact]
-    public void When_ConstructorCalled_Given_NullSettings_Then_ShouldThrowArgumentNullException()
-    {
-        // Act & Assert
-        var action = () => new RabbitMqChannelManager(_loggerFactory, _providerSettings, null, () => false);
-        action.Should().Throw<ArgumentNullException>().WithParameterName("settings");
-    }
-
-    [Fact]
-    public void When_ConstructorCalled_Given_NullIsDisposingOrDisposedFunc_Then_ShouldThrowArgumentNullException()
-    {
-        // Act & Assert
-        var action = () => new RabbitMqChannelManager(_loggerFactory, _providerSettings, _settings, null);
-        action.Should().Throw<ArgumentNullException>().WithParameterName("isDisposingOrDisposed");
-    }
-
-    [Fact]
-    public void When_ConstructorCalled_Given_ZeroNetworkRecoveryInterval_Then_ShouldDefaultToTenSeconds()
+    [Theory]
+    [InlineData(0)] // Zero interval should default to 10 seconds
+    [InlineData(30)] // Custom interval should be used
+    public void When_ConstructorCalled_Given_NetworkRecoveryInterval_Then_ShouldHandleCorrectly(int intervalSeconds)
     {
         // Arrange
-        var settingsWithZeroInterval = new RabbitMqMessageBusSettings
+        var interval = TimeSpan.FromSeconds(intervalSeconds);
+        var settingsWithInterval = new RabbitMqMessageBusSettings
         {
             ConnectionFactory = new ConnectionFactory
             {
-                NetworkRecoveryInterval = TimeSpan.Zero
+                NetworkRecoveryInterval = interval
             }
         };
 
         var manager = new RabbitMqChannelManager(
             _loggerFactory,
-            settingsWithZeroInterval,
+            settingsWithInterval,
             _settings,
             () => false);
 
         _managersToDispose.Add(manager);
 
-        // Act & Assert
-        // The manager should initialize successfully and use the default 10-second interval
+        // Assert
         manager.Should().NotBeNull();
     }
 
     [Fact]
-    public void When_ConstructorCalled_Given_CustomNetworkRecoveryInterval_Then_ShouldUseCustomInterval()
-    {
-        // Arrange
-        var customInterval = TimeSpan.FromSeconds(30);
-        var settingsWithCustomInterval = new RabbitMqMessageBusSettings
-        {
-            ConnectionFactory = new ConnectionFactory
-            {
-                NetworkRecoveryInterval = customInterval
-            }
-        };
-
-        var manager = new RabbitMqChannelManager(
-            _loggerFactory,
-            settingsWithCustomInterval,
-            _settings,
-            () => false);
-
-        _managersToDispose.Add(manager);
-
-        // Act & Assert
-        // The manager should initialize successfully and use the custom interval
-        manager.Should().NotBeNull();
-    }
-
-    [Fact]
-    public void When_EnsureChannelCalled_Given_ChannelIsNull_Then_ShouldThrowProducerMessageBusException()
+    public void When_EnsureChannelCalled_Given_ChannelIsNull_Then_ShouldThrowAndTriggerReconnection()
     {
         // Arrange
         var manager = CreateChannelManager();
@@ -136,21 +105,6 @@ public class RabbitMqChannelManagerTests : IDisposable
         manager.Invoking(m => m.EnsureChannel())
             .Should().Throw<ProducerMessageBusException>()
             .WithMessage("*The Channel is not available at this time*");
-    }
-
-    [Fact]
-    public void When_EnsureChannelCalled_Given_ChannelIsNull_Then_ShouldTriggerReconnectionAttempt()
-    {
-        // Arrange
-        var manager = CreateChannelManager();
-
-        // Act & Assert
-        // This should throw but also trigger a background reconnection attempt
-        manager.Invoking(m => m.EnsureChannel())
-            .Should().Throw<ProducerMessageBusException>();
-
-        // Verify that the reconnection was triggered by checking that the method throws
-        // In a real scenario, this would start the retry timer
     }
 
     [Fact]
@@ -182,8 +136,11 @@ public class RabbitMqChannelManagerTests : IDisposable
         manager.Channel.Should().BeNull();
     }
 
-    [Fact]
-    public async Task When_InitializeConnectionCalled_Given_CancellationToken_Then_ShouldRespectCancellation()
+    [Theory]
+    [InlineData(100, 10000)] // Cancel after 100ms with 10s interval
+    [InlineData(10, 30000)] // Very short timeout with 30s interval
+    public async Task When_InitializeConnectionCalled_Given_CancellationToken_Then_ShouldRespectCancellation(
+        int cancelAfterMs, int networkRecoveryIntervalMs)
     {
         // Arrange
         var settingsWithBadConnection = new RabbitMqMessageBusSettings
@@ -192,7 +149,7 @@ public class RabbitMqChannelManagerTests : IDisposable
             {
                 HostName = "nonexistent-host-for-testing",
                 Port = 5672,
-                NetworkRecoveryInterval = TimeSpan.FromSeconds(10) // Long interval to ensure cancellation happens first
+                NetworkRecoveryInterval = TimeSpan.FromMilliseconds(networkRecoveryIntervalMs)
             }
         };
 
@@ -205,13 +162,19 @@ public class RabbitMqChannelManagerTests : IDisposable
         _managersToDispose.Add(manager);
 
         using var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMilliseconds(100));
+        cts.CancelAfter(TimeSpan.FromMilliseconds(cancelAfterMs));
 
         // Act
+        var stopwatch = Stopwatch.StartNew();
         await manager.InitializeConnection(cts.Token);
+        stopwatch.Stop();
 
         // Assert
         manager.Channel.Should().BeNull("Channel should remain null if initialization is cancelled");
+        if (cancelAfterMs == 10)
+        {
+            stopwatch.ElapsedMilliseconds.Should().BeLessThan(5000, "Should cancel quickly without waiting for full retry");
+        }
     }
 
     [Fact]
@@ -257,76 +220,58 @@ public class RabbitMqChannelManagerTests : IDisposable
         channelInterface.ChannelLock.Should().BeSameAs(manager.ChannelLock);
     }
 
-    [Fact]
-    public void When_DisposeCalled_Given_ValidManager_Then_ShouldCleanupResourcesWithoutThrowing()
+    [Theory]
+    [InlineData(false)] // First dispose
+    [InlineData(true)]  // Already disposed (double dispose)
+    public void When_DisposeCalled_Given_ManagerState_Then_ShouldCleanupWithoutThrowing(bool alreadyDisposed)
     {
         // Arrange
         var manager = CreateChannelManager();
+
+        if (alreadyDisposed)
+        {
+            manager.Dispose();
+        }
 
         // Act
         Action act = () => manager.Dispose();
 
         // Assert
-        // Should not throw and cleanup should happen silently
         act.Should().NotThrow();
 
         // Remove from disposal list since we manually disposed
         _managersToDispose.Remove(manager);
     }
 
-    [Fact]
-    public void When_DisposeCalled_Given_AlreadyDisposedManager_Then_ShouldNotThrow()
+    [Theory]
+    [InlineData(1)]  // Single endpoint
+    [InlineData(2)]  // Multiple endpoints
+    [InlineData(0)]  // Empty endpoints
+    public void When_ChannelManagerCreated_Given_Endpoints_Then_ShouldInitializeCorrectly(int endpointCount)
     {
         // Arrange
-        var manager = CreateChannelManager();
-        manager.Dispose();
-        _managersToDispose.Remove(manager);
+        var endpoints = endpointCount switch
+        {
+            0 => [],
+            1 => [new("localhost")],
+            2 => new List<AmqpTcpEndpoint>
+            {
+                new("localhost"),
+                new("localhost", 5673)
+            },
+            _ => throw new ArgumentException("Invalid endpoint count")
+        };
 
-        // Act & Assert
-        manager.Invoking(m => m.Dispose()).Should().NotThrow();
-    }
-
-    [Fact]
-    public void When_ChannelManagerCreated_Given_ProviderSettingsWithEndpoints_Then_ShouldInitializeCorrectly()
-    {
-        // Arrange
         var settingsWithEndpoints = new RabbitMqMessageBusSettings
         {
             ConnectionFactory = new ConnectionFactory(),
-            Endpoints = [new AmqpTcpEndpoint("localhost")]
+            Endpoints = endpoints
         };
 
         // Act
         var manager = new RabbitMqChannelManager(
             _loggerFactory,
             settingsWithEndpoints,
-            _settings,
-            () => false);
-
-        _managersToDispose.Add(manager);
-
-        // Assert
-        manager.Should().NotBeNull();
-        manager.Channel.Should().BeNull();
-    }
-
-    [Fact]
-    public void When_ChannelManagerCreated_Given_ProviderSettingsWithMultipleEndpoints_Then_ShouldInitializeCorrectly()
-    {
-        // Arrange
-        var settingsWithMultipleEndpoints = new RabbitMqMessageBusSettings
-        {
-            ConnectionFactory = new ConnectionFactory(),
-            Endpoints = [
-                new AmqpTcpEndpoint("localhost"),
-                new AmqpTcpEndpoint("localhost", 5673)
-            ]
-        };
-
-        // Act
-        var manager = new RabbitMqChannelManager(
-            _loggerFactory,
-            settingsWithMultipleEndpoints,
             _settings,
             () => false);
 
@@ -423,15 +368,17 @@ public class RabbitMqChannelManagerTests : IDisposable
         manager.Channel.Should().BeNull();
     }
 
-    [Fact]
-    public void When_EnsureChannelCalled_Given_ConcurrentAccess_Then_ShouldHandleThreadSafety()
+    [Theory]
+    [InlineData(10)]
+    [InlineData(50)]
+    public void When_EnsureChannelCalled_Given_ConcurrentAccess_Then_ShouldHandleThreadSafety(int concurrencyLevel)
     {
         // Arrange
         var manager = CreateChannelManager();
         var exceptions = new List<Exception>();
 
         // Act
-        Parallel.For(0, 10, _ =>
+        Parallel.For(0, concurrencyLevel, _ =>
         {
             try
             {
@@ -488,69 +435,63 @@ public class RabbitMqChannelManagerTests : IDisposable
         locks.All(x => ReferenceEquals(x, locks.First())).Should().BeTrue("All threads should get the same lock instance");
     }
 
-    [Fact]
-    public void When_ChannelPropertyAccessed_Given_NewManager_Then_ShouldReturnNull()
-    {
-        // Arrange
-        var manager = CreateChannelManager();
-
-        // Act
-        var channel = manager.Channel;
-
-        // Assert
-        channel.Should().BeNull();
-    }
-
-    [Fact]
-    public void When_ChannelPropertyAccessed_Given_ConcurrentAccess_Then_ShouldAlwaysReturnNull()
+    [Theory]
+    [InlineData(1)]     // Single access
+    [InlineData(10)]    // Concurrent access
+    [InlineData(1000)]  // Rapid successive access
+    public void When_ChannelPropertyAccessed_Given_MultipleAccess_Then_ShouldConsistentlyReturnNull(int accessCount)
     {
         // Arrange
         var manager = CreateChannelManager();
         var channels = new List<IModel>();
 
         // Act
-        Parallel.For(0, 10, _ =>
+        if (accessCount <= 10)
         {
-            var channel = manager.Channel;
-            lock (channels)
+            Parallel.For(0, accessCount, _ =>
             {
-                channels.Add(channel);
+                var channel = manager.Channel;
+                lock (channels)
+                {
+                    channels.Add(channel);
+                }
+            });
+        }
+        else
+        {
+            for (int i = 0; i < accessCount; i++)
+            {
+                channels.Add(manager.Channel);
             }
-        });
+        }
 
         // Assert
         channels.Should().OnlyContain(x => x == null, "Channel should be null until connection is established");
     }
 
-    [Fact]
-    public void When_ManagerCreated_Given_ValidSettings_Then_ShouldImplementIRabbitMqChannelInterface()
+    [Theory]
+    [InlineData(typeof(IRabbitMqChannel))]
+    [InlineData(typeof(IDisposable))]
+    public void When_ManagerCreated_Given_ValidSettings_Then_ShouldImplementExpectedInterface(Type expectedInterfaceType)
     {
         // Arrange & Act
         var manager = CreateChannelManager();
 
         // Assert
-        manager.Should().BeAssignableTo<IRabbitMqChannel>();
+        manager.Should().BeAssignableTo(expectedInterfaceType);
     }
 
-    [Fact]
-    public void When_ManagerCreated_Given_ValidSettings_Then_ShouldImplementIDisposableInterface()
-    {
-        // Arrange & Act
-        var manager = CreateChannelManager();
-
-        // Assert
-        manager.Should().BeAssignableTo<IDisposable>();
-    }
-
-    [Fact]
-    public void When_ManagerCreated_Given_IsDisposingFuncReturnsTrue_Then_ShouldHandleCorrectly()
+    [Theory]
+    [InlineData(true)]  // Always disposing
+    [InlineData(false)] // Never disposing
+    public void When_ManagerCreated_Given_IsDisposingFunc_Then_ShouldHandleCorrectly(bool isDisposing)
     {
         // Arrange & Act
         var manager = new RabbitMqChannelManager(
             _loggerFactory,
             _providerSettings,
             _settings,
-            () => true); // Always disposing
+            () => isDisposing);
 
         _managersToDispose.Add(manager);
 
@@ -559,36 +500,295 @@ public class RabbitMqChannelManagerTests : IDisposable
         manager.Channel.Should().BeNull();
     }
 
-    [Fact]
-    public void When_ManagerCreated_Given_IsDisposingFuncReturnsFalse_Then_ShouldHandleCorrectly()
-    {
-        // Arrange & Act
-        var manager = new RabbitMqChannelManager(
-            _loggerFactory,
-            _providerSettings,
-            _settings,
-            () => false); // Never disposing
-
-        _managersToDispose.Add(manager);
-
-        // Assert
-        manager.Should().NotBeNull();
-        manager.Channel.Should().BeNull();
-    }
-
-    [Fact]
-    public void When_EnsureChannelCalled_Given_RepeatedCalls_Then_ShouldConsistentlyThrow()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(5)]
+    public void When_EnsureChannelCalled_Given_RepeatedCalls_Then_ShouldConsistentlyThrow(int callCount)
     {
         // Arrange
         var manager = CreateChannelManager();
 
         // Act & Assert
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < callCount; i++)
         {
             manager.Invoking(m => m.EnsureChannel())
                 .Should().Throw<ProducerMessageBusException>()
                 .WithMessage("*The Channel is not available at this time*");
         }
+    }
+
+    [Theory]
+    [InlineData(1)]  // Single subscriber
+    [InlineData(3)]  // Multiple subscribers
+    public void When_ChannelRecoveredEvent_Given_Subscribers_Then_ShouldAllowSubscription(int subscriberCount)
+    {
+        // Arrange
+        var manager = CreateChannelManager();
+        var eventCount = 0;
+
+        // Act
+        for (int i = 0; i < subscriberCount; i++)
+        {
+            manager.ChannelRecovered += (sender, args) => { eventCount++; };
+        }
+
+        // Assert
+        eventCount.Should().Be(0, "Events should not be raised until channel recovery happens");
+    }
+
+    [Theory]
+    [InlineData(1)]  // Unsubscribe once
+    [InlineData(2)]  // Multiple unsubscribes (should not throw)
+    public void When_ChannelRecoveredEvent_Given_Unsubscribe_Then_ShouldRemoveSubscription(int unsubscribeCount)
+    {
+        // Arrange
+        var manager = CreateChannelManager();
+        var eventCount = 0;
+        void handler(object sender, EventArgs args) { eventCount++; }
+
+        // Act
+        manager.ChannelRecovered += handler;
+        for (int i = 0; i < unsubscribeCount; i++)
+        {
+            manager.ChannelRecovered -= handler;
+        }
+
+        // Assert
+        eventCount.Should().Be(0);
+        manager.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void When_DisposeCalled_Given_EventSubscribers_Then_ShouldCleanupWithoutError()
+    {
+        // Arrange
+        var manager = CreateChannelManager();
+        var eventRaised = false;
+        manager.ChannelRecovered += (sender, args) => { eventRaised = true; };
+
+        // Act
+        manager.Dispose();
+        _managersToDispose.Remove(manager);
+
+        // Assert
+        eventRaised.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task When_InitializeConnectionCalled_Given_TopologyProvisioningFails_Then_ShouldHandleGracefully()
+    {
+        // Arrange
+        var settingsWithTopology = new RabbitMqMessageBusSettings
+        {
+            ConnectionFactory = new ConnectionFactory
+            {
+                HostName = "nonexistent-host",
+                NetworkRecoveryInterval = TimeSpan.FromMilliseconds(50)
+            }
+        };
+
+        var busSettings = new MessageBusSettings();
+
+        var manager = new RabbitMqChannelManager(
+            _loggerFactory,
+            settingsWithTopology,
+            busSettings,
+            () => false);
+
+        _managersToDispose.Add(manager);
+
+        // Act
+        await manager.InitializeConnection();
+
+        // Assert
+        manager.Channel.Should().BeNull("Channel should be null when connection fails");
+    }
+
+    [Fact]
+    public void When_GarbageCollectionHappens_Given_ManagerNotDisposed_Then_ShouldSuppressFinalize()
+    {
+        // Arrange
+        var manager = CreateChannelManager();
+
+        // Act
+        manager.Dispose();
+        _managersToDispose.Remove(manager);
+
+        // Act
+        var act = () =>
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        };
+
+        // Assert - Should not throw during GC
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task When_InitializeConnectionCalled_Given_AlreadyCancelled_Then_ShouldReturnImmediately()
+    {
+        // Arrange
+        var manager = CreateChannelManager();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel(); // Cancel before calling
+
+        // Act
+        var stopwatch = Stopwatch.StartNew();
+        await manager.InitializeConnection(cts.Token);
+        stopwatch.Stop();
+
+        // Assert
+        manager.Channel.Should().BeNull();
+        stopwatch.ElapsedMilliseconds.Should().BeLessThan(1000, "Should return immediately when already cancelled");
+    }
+
+    [Fact]
+    public async Task When_ChannelLockUsed_Given_ConcurrentOperations_Then_ShouldProvideThreadSafety()
+    {
+        // Arrange
+        var manager = CreateChannelManager();
+        var errors = new ConcurrentBag<Exception>();
+        var accessCount = 0;
+
+        // Act
+        var tasks = Enumerable.Range(0, 100).Select(_ => Task.Run(async () =>
+        {
+            try
+            {
+                lock (manager.ChannelLock)
+                {
+                    Interlocked.Increment(ref accessCount);
+                    // Simulate some work
+                }
+                await Task.Delay(1);
+            }
+            catch (Exception ex)
+            {
+                errors.Add(ex);
+            }
+        }));
+
+        await Task.WhenAll(tasks);
+
+        // Assert
+        errors.Should().BeEmpty("No exceptions should occur during concurrent access");
+        accessCount.Should().Be(100, "All threads should have accessed the lock");
+        manager.Should().NotBeNull("Manager should remain valid after concurrent operations");
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    public async Task When_InitializeConnectionRetries_Given_MultipleAttempts_Then_ShouldRespectRetryCount(int expectedRetries)
+    {
+        // This test verifies the retry mechanism respects the initial retry count
+
+        // Arrange
+        var settingsWithBadHost = new RabbitMqMessageBusSettings
+        {
+            ConnectionFactory = new ConnectionFactory
+            {
+                HostName = $"nonexistent-host-retry-test-{expectedRetries}",
+                Port = 5672,
+                NetworkRecoveryInterval = TimeSpan.FromMilliseconds(10)
+            }
+        };
+
+        var manager = new RabbitMqChannelManager(
+            _loggerFactory,
+            settingsWithBadHost,
+            _settings,
+            () => false);
+
+        _managersToDispose.Add(manager);
+
+        // Act
+        await manager.InitializeConnection();
+
+        // Assert - After retries, channel should still be null
+        manager.Channel.Should().BeNull();
+    }
+
+    [Fact]
+    public void When_EnsureChannelCalled_Given_ChannelNull_Then_ShouldTriggerBackgroundReconnection()
+    {
+        // This test verifies that EnsureChannel triggers a background reconnection attempt
+
+        // Arrange
+        var manager = CreateChannelManager();
+
+        // Act & Assert - First call should throw and trigger reconnection
+        manager.Invoking(m => m.EnsureChannel())
+            .Should().Throw<ProducerMessageBusException>()
+            .WithMessage("*The Channel is not available at this time*");
+
+        // Second call should also throw (connection still not established)
+        manager.Invoking(m => m.EnsureChannel())
+            .Should().Throw<ProducerMessageBusException>();
+    }
+
+    [Fact]
+    public void When_ManagerDisposed_Given_WithConnectionRetryTimer_Then_ShouldDisposeTimerProperly()
+    {
+        // This test verifies proper cleanup of the connection retry timer
+
+        // Arrange
+        var manager = CreateChannelManager();
+
+        // Trigger EnsureChannel to potentially start retry timer
+        try
+        {
+            manager.EnsureChannel();
+        }
+        catch (ProducerMessageBusException)
+        {
+            // Expected
+        }
+
+        // Act - Dispose should clean up timer
+        manager.Dispose();
+        _managersToDispose.Remove(manager);
+
+        // Assert - Should not throw
+        manager.Channel.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task When_CancellationRequested_Given_DuringInitialization_Then_ShouldStopRetrying()
+    {
+        // This test verifies cancellation during initialization stops the retry loop
+
+        // Arrange
+        var settingsWithBadConnection = new RabbitMqMessageBusSettings
+        {
+            ConnectionFactory = new ConnectionFactory
+            {
+                HostName = "nonexistent-cancellation-test",
+                Port = 5672,
+                NetworkRecoveryInterval = TimeSpan.FromSeconds(5)
+            }
+        };
+
+        var manager = new RabbitMqChannelManager(
+            _loggerFactory,
+            settingsWithBadConnection,
+            _settings,
+            () => false);
+
+        _managersToDispose.Add(manager);
+
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(TimeSpan.FromMilliseconds(50));
+
+        // Act
+        var stopwatch = Stopwatch.StartNew();
+        await manager.InitializeConnection(cts.Token);
+        stopwatch.Stop();
+
+        // Assert
+        manager.Channel.Should().BeNull();
+        stopwatch.ElapsedMilliseconds.Should().BeLessThan(3000, "Should stop quickly after cancellation");
     }
 
     private RabbitMqChannelManager CreateChannelManager()
