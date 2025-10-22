@@ -49,10 +49,7 @@ public sealed partial class ConcurrentMessageProcessorDecorator<TMessage> : IMes
 
     public async Task<ProcessMessageResult> ProcessMessage(TMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, IDictionary<string, object> consumerContextProperties = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
     {
-        // Ensure only desired number of messages are being processed concurrently
-        await _concurrentSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-
-        // Check if there was an exception from and earlier transportMessage processing
+        // Check if there was an exception from an earlier transportMessage processing
         var e = _lastException;
         if (e != null)
         {
@@ -60,6 +57,9 @@ public sealed partial class ConcurrentMessageProcessorDecorator<TMessage> : IMes
             _lastException = null;
             return new(ProcessResult.Failure, e, _lastExceptionSettings, null);
         }
+
+        // Ensure only desired number of messages are being processed concurrently
+        await _concurrentSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
 
         Interlocked.Increment(ref _pendingCount);
 
