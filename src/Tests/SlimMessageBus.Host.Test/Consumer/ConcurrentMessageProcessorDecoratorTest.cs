@@ -2,12 +2,10 @@
 
 public class ConcurrentMessageProcessorDecoratorTest
 {
-    private readonly MessageBusMock _busMock;
     private readonly Mock<IMessageProcessor<SomeMessage>> _messageProcessorMock;
 
     public ConcurrentMessageProcessorDecoratorTest()
     {
-        _busMock = new MessageBusMock();
         _messageProcessorMock = new Mock<IMessageProcessor<SomeMessage>>();
     }
 
@@ -159,4 +157,61 @@ public class ConcurrentMessageProcessorDecoratorTest
         // assert
         result.Exception.Should().Be(exception);
     }
+
+    [Fact]
+    public async Task When_ProcessMessage_Given_ExceptionHappensOnTarget_Then_SemaphoreIsNotLeakedAndProcessingContinues()
+    {
+        // arrange
+        var subject = new ConcurrentMessageProcessorDecorator<SomeMessage>(1, NullLoggerFactory.Instance, _messageProcessorMock.Object);
+
+        var exception = new Exception("Boom!");
+        var firstCallCompleted = new TaskCompletionSource<bool>();
+        var callCount = 0;
+
+        _messageProcessorMock
+            .Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IServiceProvider>(), It.IsAny<CancellationToken>()))
+            .Returns(async () =>
+            {
+                var currentCall = Interlocked.Increment(ref callCount);
+                await Task.Delay(50);
+                if (currentCall == 1)
+                {
+                    firstCallCompleted.TrySetResult(true);
+                }
+                return new ProcessMessageResult(ProcessResult.Failure, exception, null, null);
+            });
+
+        var msg = new SomeMessage();
+        var msgHeaders = new Dictionary<string, object>();
+
+        // act - first call processes and sets exception
+        var result1 = await subject.ProcessMessage(msg, msgHeaders, default);
+
+        // Wait for background processing to complete and save the exception
+        await firstCallCompleted.Task;
+        await Task.Delay(100); // Give it time to save the exception
+
+        // Second call should return the saved exception immediately without blocking
+        var result2 = await subject.ProcessMessage(msg, msgHeaders, default);
+
+        // After exception is returned, it's cleared, so third call can process again
+        var result3 = await subject.ProcessMessage(msg, msgHeaders, default);
+
+        // Wait for any background processing to complete
+        await Task.Delay(200);
+
+        // assert
+        result1.Exception.Should().BeNull(); // First call returns success (background processing)
+        result2.Exception.Should().Be(exception); // Second call returns the saved exception
+        result3.Exception.Should().BeNull(); // Third call can proceed (semaphore not leaked)
+
+        // Two processing calls should have been made (first and third)
+        callCount.Should().BeGreaterThanOrEqualTo(2);
+
+        // The key assertion: verify processing is not stalled (would happen with semaphore leak)
+        // If semaphore was leaked, the third call would never spawn background processing
+        // and we'd have only 1 call
+        subject.PendingCount.Should().Be(0); // All processing should complete
+    }
 }
+
