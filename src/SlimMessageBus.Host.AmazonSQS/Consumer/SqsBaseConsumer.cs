@@ -169,8 +169,8 @@ abstract internal class SqsBaseConsumer : AbstractConsumer
         else
         {
             messagePayload = message.Body;
-            messageHeaders = message.MessageAttributes
-                .ToDictionary(x => x.Key, x => HeaderSerializer.Deserialize(x.Key, x.Value));
+            messageHeaders = message.MessageAttributes?
+                .ToDictionary(x => x.Key, x => HeaderSerializer.Deserialize(x.Key, x.Value)) ?? new Dictionary<string, object>();
         }
     }
 }
