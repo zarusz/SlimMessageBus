@@ -42,8 +42,9 @@ internal class PublishInterceptorPipeline : ProducerInterceptorPipeline<PublishC
         if (!_targetVisited)
         {
             _targetVisited = true;
+            // Note: We want to send the producer message type here to preserve polymorphic behavior of the serializers
             await _bus.ProduceToTransport(_message,
-                                          _message.GetType(),
+                                          _producerSettings.MessageType,
                                           _context.Path,
                                           _context.Headers,
                                           _targetBus,
@@ -55,3 +56,4 @@ internal class PublishInterceptorPipeline : ProducerInterceptorPipeline<PublishC
         throw new PublishMessageBusException("The next() was invoked more than once on one of the provided interceptors");
     }
 }
+

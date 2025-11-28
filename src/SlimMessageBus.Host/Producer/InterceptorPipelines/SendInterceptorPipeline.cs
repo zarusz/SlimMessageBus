@@ -47,7 +47,8 @@ internal class SendInterceptorPipeline<TResponse> : ProducerInterceptorPipeline<
             _targetVisited = true;
             var response = await _bus.SendInternal<TResponse>(_message,
                                                               _context.Path,
-                                                              _message.GetType(),
+                                                              // Note: We want to send the producer message type here to preserve polymorphic behavior of the serializers
+                                                              _producerSettings.MessageType,
                                                               typeof(TResponse),
                                                               _producerSettings,
                                                               _context.Created,

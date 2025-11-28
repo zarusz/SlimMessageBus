@@ -441,7 +441,8 @@ public abstract partial class MessageBusBase : IDisposable, IAsyncDisposable,
             // produce multiple messages to transport
             var messages = collectionInfo
                 .ToCollection(message)
-                .Select(m => new BulkMessageEnvelope(m, messageType, GetMessageHeaders(m, headers, producerSettings)))
+                // Note: We want to send the producer message type here to preserve polymorphic behavior of the serializers
+                .Select(m => new BulkMessageEnvelope(m, producerSettings.MessageType, GetMessageHeaders(m, headers, producerSettings)))
                 .ToList();
 
             var result = await ProduceToTransportBulk(messages, path, targetBus, cancellationToken);
@@ -482,7 +483,8 @@ public abstract partial class MessageBusBase : IDisposable, IAsyncDisposable,
         }
 
         // produce a single message to transport
-        await ProduceToTransport(message, messageType, path, messageHeaders, targetBus, cancellationToken);
+        // Note: We want to send the producer message type here to preserve polymorphic behavior of the serializers
+        await ProduceToTransport(message, producerSettings.MessageType, path, messageHeaders, targetBus, cancellationToken);
     }
 
     protected static string GetProducerErrorMessage(string path, object message, Type messageType, Exception ex)
@@ -570,7 +572,8 @@ public abstract partial class MessageBusBase : IDisposable, IAsyncDisposable,
             return await pipeline.Next();
         }
 
-        return await SendInternal<TResponse>(request, path, requestType, responseType, producerSettings, created, expires, requestId, requestHeaders, targetBus, cancellationToken);
+        // Note: We want to send the producer message type here to preserve polymorphic behavior of the serializers
+        return await SendInternal<TResponse>(request, path, producerSettings.MessageType, responseType, producerSettings, created, expires, requestId, requestHeaders, targetBus, cancellationToken);
     }
 
     protected async internal virtual Task<TResponseMessage> SendInternal<TResponseMessage>(object request, string path, Type requestType, Type responseType, ProducerSettings producerSettings, DateTimeOffset created, DateTimeOffset expires, string requestId, IDictionary<string, object> requestHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken)
