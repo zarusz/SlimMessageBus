@@ -37,7 +37,7 @@ services.AddSlimMessageBus((mbb) =>
         cfg.UseRegion(Amazon.RegionEndpoint.EUCentral1);
 
         // Use static credentials: https://docs.aws.amazon.com/sdkref/latest/guide/access-iam-users.html
-        cfg.UseStaticCredentials(accessKey, secretAccessKey, SqsMessageBusMode.All);
+        cfg.UseStaticCredentials(accessKey, secretAccessKey, SqsMessageBusModes.All);
 
         // Use default credentials pulled from environment variables (EC2, ECS, Fargate, etc.):
         // cfg.UseDefaultCredentials(); // This is the default, so you can skip this line if you want to use the default credentials.

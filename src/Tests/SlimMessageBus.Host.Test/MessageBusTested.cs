@@ -7,6 +7,12 @@ public class MessageBusTested : MessageBusBase
 
     public IMessageProcessor<object> RequestResponseMessageProcessor { get; private set; }
 
+    /// <summary>
+    /// When true, all messages (not just requests) will be serialized/deserialized through the serializer.
+    /// This is useful for testing that the correct messageType is passed to the serializer.
+    /// </summary>
+    public bool SerializeAllMessages { get; set; }
+
     public MessageBusTested(MessageBusSettings settings, TimeProvider timeProvider)
         : base(settings)
     {
@@ -53,25 +59,33 @@ public class MessageBusTested : MessageBusBase
     {
         OnProduced(messageType, path, message);
 
-        if (messageType.GetInterfaces().Any(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IRequest<>)))
+        var isRequest = messageType.GetInterfaces().Any(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IRequest<>));
+
+        // Serialize all messages if SerializeAllMessages is enabled, or if it's a request
+        if (SerializeAllMessages || isRequest)
         {
             var messageSerializer = SerializerProvider.GetSerializer(path);
             var messagePayload = messageSerializer.Serialize(messageType, messageHeaders, message, null);
-            var req = messageSerializer.Deserialize(messageType, messageHeaders.AsReadOnly(), messagePayload, null);
-
-            var resp = OnReply(messageType, path, req);
-            if (resp == null)
+            
+            // Only deserialize and process response for requests
+            if (isRequest)
             {
-                return;
+                var req = messageSerializer.Deserialize(messageType, messageHeaders.AsReadOnly(), messagePayload, null);
+
+                var resp = OnReply(messageType, path, req);
+                if (resp == null)
+                {
+                    return;
+                }
+
+                messageHeaders.TryGetHeader(ReqRespMessageHeaders.ReplyTo, out string replyTo);
+                messageHeaders.TryGetHeader(ReqRespMessageHeaders.RequestId, out string requestId);
+
+                var responseHeaders = CreateHeaders() as Dictionary<string, object>;
+                responseHeaders.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
+
+                await RequestResponseMessageProcessor.ProcessMessage(resp, responseHeaders, null, null, cancellationToken);
             }
-
-            messageHeaders.TryGetHeader(ReqRespMessageHeaders.ReplyTo, out string replyTo);
-            messageHeaders.TryGetHeader(ReqRespMessageHeaders.RequestId, out string requestId);
-
-            var responseHeaders = CreateHeaders() as Dictionary<string, object>;
-            responseHeaders.SetHeader(ReqRespMessageHeaders.RequestId, requestId);
-
-            await RequestResponseMessageProcessor.ProcessMessage(resp, responseHeaders, null, null, cancellationToken);
         }
     }
 

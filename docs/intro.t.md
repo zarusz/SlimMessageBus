@@ -1020,6 +1020,13 @@ await bus.Publish(new CustomerCreatedEvent { });
 await bus.Publish(new CustomerChangedEvent { });
 ```
 
+> **Note on Serialization with Polymorphic Messages:**  
+> When publishing a derived message type (e.g., `CustomerCreatedEvent`) with only the base type configured (e.g., `Produce<CustomerEvent>`), the serializer's `Serialize` method will receive the **configured type** from the `Produce<T>()` declaration (i.e., `CustomerEvent`), not the actual runtime type (`CustomerCreatedEvent`). This allows serializers to maintain consistent type information in headers and ensures proper polymorphic behavior.
+>
+> However, if you explicitly declare `Produce<CustomerCreatedEvent>()` for the derived type, the serializer will receive `CustomerCreatedEvent` instead. SMB will use the most specific matching producer configuration available for each message type.
+>
+> This behavior applies to both single message publishing via `Publish()` and bulk publishing with collections of messages.
+
 #### Polymorphic consumer
 
 Given the following consumers:

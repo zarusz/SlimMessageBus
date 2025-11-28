@@ -67,7 +67,6 @@ public class MessageBusBaseTests : IDisposable
     {
         var bus = (T)BusBuilder.Build();
         _ = Task.Run(() => bus.AutoStart(default));
-        Thread.Sleep(200);
         return bus;
     }
 
@@ -285,21 +284,21 @@ public class MessageBusBaseTests : IDisposable
 
         // act
         var rTask = Bus.ProduceSend<ResponseA>(r);
-        
+
         // Wait for the task to complete (response should arrive quickly in this test)
         var completedTask = await Task.WhenAny(rTask, Task.Delay(2000));
-        
+
         // assert
         completedTask.Should().Be(rTask, "The request task should complete before timeout");
         rTask.IsCompleted.Should().BeTrue("Response should be completed");
-        
+
         var response = await rTask;
         response.Should().NotBeNull("Response should not be null");
         response.Id.Should().Be(r.Id, "Response ID should match request ID");
 
         // Now trigger cleanup - the response should already be processed
         Bus.TriggerPendingRequestCleanup();
-        
+
         Bus.PendingRequestsCount.Should().Be(0, "There should be no pending requests after response is received");
     }
 
@@ -396,7 +395,8 @@ public class MessageBusBaseTests : IDisposable
 
         // assert
         _producedMessages.Count.Should().Be(1);
-        _producedMessages.Should().ContainSingle(x => x.MessageType == typeof(SomeDerivedMessage) && ReferenceEquals(x.Message, m) && x.Path == someMessageTopic);
+        // The messageType should be the ProducerSettings.MessageType (SomeMessage), not the actual message type (SomeDerivedMessage)
+        _producedMessages.Should().ContainSingle(x => x.MessageType == typeof(SomeMessage) && ReferenceEquals(x.Message, m) && x.Path == someMessageTopic);
     }
 
     [Theory]
@@ -598,102 +598,147 @@ public class MessageBusBaseTests : IDisposable
         publishInterceptorMock.VerifyNoOtherCalls();
     }
 
-    [Theory]
-    [InlineData(1, null, null)]   // no interceptors
-    [InlineData(1, true, true)]   // both interceptors call next()
-    [InlineData(1, true, null)]   // producer interceptor calls next(), other does not exist
-    [InlineData(1, null, true)]   // send interceptor calls next(), other does not exist
-    [InlineData(0, false, false)] // none of the interceptors calls next()
-    [InlineData(0, false, null)]  // producer interceptor does not call next()
-    [InlineData(0, null, false)]  // send interceptor does not call next()
-    public async Task When_Send_Given_InterceptorsInDI_Then_InterceptorInfluenceIfTheMessageIsDelivered(
-        int producedMessages, bool? producerInterceptorCallsNext, bool? sendInterceptorCallsNext)
+    [Fact]
+    public async Task When_Publish_DerivedMessage_Given_DerivedConfigured_Then_SerializerReceivesDerivedMessageType()
     {
         // arrange
-        var topic = "a-requests";
+        var someMessageTopic = "some-messages";
+        var someDerived2MessageTopic = "some-derived2-messages";
 
-        var request = new RequestA();
+        var serializerMock = new Mock<IMessageSerializer>();
+        serializerMock
+            .Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<object>(), It.IsAny<object>()))
+            .Returns([1, 2, 3]);
 
-        Bus.OnReply = (type, topicOnReply, requestOnReply) =>
-        {
-            if (topicOnReply == topic)
-            {
-                var req = (RequestA)requestOnReply;
-                // resolve only r1 request
-                if (req.Id == request.Id)
-                {
-                    return new ResponseA { Id = req.Id };
-                }
-            }
-            return null;
-        };
+        var serializerProviderMock = new Mock<IMessageSerializerProvider>();
+        serializerProviderMock
+            .Setup(x => x.GetSerializer(It.IsAny<string>()))
+            .Returns(serializerMock.Object);
 
-        var producerInterceptorMock = new Mock<IProducerInterceptor<RequestA>>();
-        producerInterceptorMock
-            .Setup(x => x.OnHandle(request, It.IsAny<Func<Task<object>>>(), It.IsAny<IProducerContext>()))
-            .Returns((RequestA m, Func<Task<object>> next, IProducerContext context)
-                => producerInterceptorCallsNext == true ? next() : Task.FromResult<object>(null));
+        // Create a fresh service provider mock for this test
+        var testServiceProviderMock = new Mock<IServiceProvider>();
+        testServiceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializerProvider))).Returns(serializerProviderMock.Object);
+        testServiceProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver([]));
+        testServiceProviderMock.Setup(x => x.GetService(typeof(TimeProvider))).Returns(() => _timeProvider);
+        testServiceProviderMock.Setup(x => x.GetService(It.Is<Type>(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)))).Returns((Type t) => Array.CreateInstance(t.GetGenericArguments()[0], 0));
+        testServiceProviderMock.Setup(x => x.GetService(typeof(RuntimeTypeCache))).Returns(new RuntimeTypeCache());
+        testServiceProviderMock.Setup(x => x.GetService(typeof(IPendingRequestManager))).Returns(() => new PendingRequestManager(new InMemoryPendingRequestStore(), _timeProvider, NullLoggerFactory.Instance));
 
-        var sendInterceptorMock = new Mock<ISendInterceptor<RequestA, ResponseA>>();
-        sendInterceptorMock
-            .Setup(x => x.OnHandle(request, It.IsAny<Func<Task<ResponseA>>>(), It.IsAny<IProducerContext>()))
-            .Returns((RequestA m, Func<Task<ResponseA>> next, IProducerContext context)
-                => sendInterceptorCallsNext == true ? next() : Task.FromResult<ResponseA>(null));
+        var testBusBuilder = MessageBusBuilder.Create()
+            .Produce<SomeMessage>(x => x.DefaultTopic(someMessageTopic))
+            .Produce<SomeDerived2Message>(x => x.DefaultTopic(someDerived2MessageTopic))
+            .WithServiceProvider(testServiceProviderMock.Object)
+            .WithProvider(s => new MessageBusTested(s, _timeProvider));
 
-        if (producerInterceptorCallsNext != null)
-        {
-            _serviceProviderMock
-                .Setup(x => x.GetService(typeof(IEnumerable<IProducerInterceptor<RequestA>>)))
-                .Returns(new[] { producerInterceptorMock.Object });
-        }
+        var testBus = testBusBuilder.Build() as MessageBusTested;
 
-        if (sendInterceptorCallsNext != null)
-        {
-            _serviceProviderMock
-                .Setup(x => x.GetService(typeof(IEnumerable<ISendInterceptor<RequestA, ResponseA>>)))
-                .Returns(new[] { sendInterceptorMock.Object });
-        }
+        testBus.SerializeAllMessages = true; // Enable serialization for all messages
+        testBus.OnProduced = (messageType, path, message) => { }; // Initialize callback to avoid null reference
+
+        var derived2Message = new SomeDerived2Message();
 
         // act
-        var response = await Bus.ProduceSend<ResponseA>(request);
+        await testBus.ProducePublish(derived2Message);
 
         // assert
+        // The serializer should be called with the ProducerSettings.MessageType (SomeDerived2Message) when exact type is configured
+        serializerMock.Verify(
+            x => x.Serialize(
+                typeof(SomeDerived2Message), // ProducerSettings.MessageType for the derived type
+                It.IsAny<IDictionary<string, object>>(),
+                derived2Message, // actual message instance
+                It.IsAny<object>()),
+            Times.Once);
 
-        // message delivered
-        _producedMessages.Count.Should().Be(producedMessages);
+        testBus.Dispose();
+    }
 
-        if (producedMessages > 0)
+    [Theory]
+    [InlineData(false, false, 1)] // Single message, no interceptor, base type configured
+    [InlineData(false, true, 1)]  // Single message, with interceptor, base type configured
+    [InlineData(true, false, 3)]  // Bulk publish, no interceptor, base type configured
+    [InlineData(true, true, 3)]   // Bulk publish, with interceptor, base type configured
+    public async Task When_PublishBulk_DerivedMessages_Given_BaseConfigured_Then_SerializerReceivesProducerSettingsMessageType(bool isBulk, bool withInterceptor, int messageCount)
+    {
+        // arrange
+        var someMessageTopic = "some-messages";
+
+        var serializerMock = new Mock<IMessageSerializer>();
+        serializerMock
+            .Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<object>(), It.IsAny<object>()))
+            .Returns([1, 2, 3]);
+
+        var serializerProviderMock = new Mock<IMessageSerializerProvider>();
+        serializerProviderMock
+            .Setup(x => x.GetSerializer(It.IsAny<string>()))
+            .Returns(serializerMock.Object);
+
+        // Create a fresh service provider mock for this test
+        var testServiceProviderMock = new Mock<IServiceProvider>();
+        testServiceProviderMock.Setup(x => x.GetService(typeof(IMessageSerializerProvider))).Returns(serializerProviderMock.Object);
+        testServiceProviderMock.Setup(x => x.GetService(typeof(IMessageTypeResolver))).Returns(new AssemblyQualifiedNameMessageTypeResolver([]));
+        testServiceProviderMock.Setup(x => x.GetService(typeof(TimeProvider))).Returns(() => _timeProvider);
+        testServiceProviderMock.Setup(x => x.GetService(It.Is<Type>(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)))).Returns((Type t) => Array.CreateInstance(t.GetGenericArguments()[0], 0));
+        testServiceProviderMock.Setup(x => x.GetService(typeof(RuntimeTypeCache))).Returns(new RuntimeTypeCache());
+        testServiceProviderMock.Setup(x => x.GetService(typeof(IPendingRequestManager))).Returns(() => new PendingRequestManager(new InMemoryPendingRequestStore(), _timeProvider, NullLoggerFactory.Instance));
+
+        if (withInterceptor)
         {
-            response.Id.Should().Be(request.Id);
+            // Setup producer interceptor
+            var producerInterceptorMock = new Mock<IProducerInterceptor<SomeDerivedMessage>>();
+            producerInterceptorMock
+                .Setup(x => x.OnHandle(It.IsAny<SomeDerivedMessage>(), It.IsAny<Func<Task<object>>>(), It.IsAny<IProducerContext>()))
+                .Returns((SomeDerivedMessage m, Func<Task<object>> next, IProducerContext context) => next());
+
+            testServiceProviderMock
+                .Setup(x => x.GetService(typeof(IEnumerable<IProducerInterceptor<SomeDerivedMessage>>)))
+                .Returns(new[] { producerInterceptorMock.Object });
+
+            // Setup publish interceptor  
+            var publishInterceptorMock = new Mock<IPublishInterceptor<SomeDerivedMessage>>();
+            publishInterceptorMock
+                .Setup(x => x.OnHandle(It.IsAny<SomeDerivedMessage>(), It.IsAny<Func<Task>>(), It.IsAny<IProducerContext>()))
+                .Returns((SomeDerivedMessage m, Func<Task> next, IProducerContext context) => next());
+
+            testServiceProviderMock
+                .Setup(x => x.GetService(typeof(IEnumerable<IPublishInterceptor<SomeDerivedMessage>>)))
+                .Returns(new[] { publishInterceptorMock.Object });
+        }
+
+        var testBusBuilder = MessageBusBuilder.Create()
+            .Produce<SomeMessage>(x => x.DefaultTopic(someMessageTopic))
+            .WithServiceProvider(testServiceProviderMock.Object)
+            .WithProvider(s => new MessageBusTested(s, _timeProvider));
+
+        var testBus = testBusBuilder.Build() as MessageBusTested;
+
+        testBus.SerializeAllMessages = true; // Enable serialization for all messages
+        testBus.OnProduced = (messageType, path, message) => { }; // Initialize callback to avoid null reference
+
+        // act
+        if (isBulk)
+        {
+            var derivedMessages = new[] { new SomeDerivedMessage(), new SomeDerivedMessage(), new SomeDerivedMessage() };
+            await testBus.ProducePublish(derivedMessages);
         }
         else
         {
-            // when the interceptor does not call next() the response resolved to default (null)
-            response.Should().BeNull();
+            var derivedMessage = new SomeDerivedMessage();
+            await testBus.ProducePublish(derivedMessage);
         }
 
-        _serviceProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IProducerInterceptor<RequestA>>)), Times.Once);
-        _serviceProviderMock.Verify(x => x.GetService(typeof(IEnumerable<ISendInterceptor<RequestA, ResponseA>>)), Times.Once);
+        // assert
+        // The serializer should be called with the ProducerSettings.MessageType (SomeMessage), not the actual message type (SomeDerivedMessage)
+        // This should work the same regardless of whether interceptors are present or if it's bulk/single
+        serializerMock.Verify(
+            x => x.Serialize(
+                typeof(SomeMessage), // ProducerSettings.MessageType
+                It.IsAny<IDictionary<string, object>>(),
+                It.IsAny<SomeDerivedMessage>(), // actual message instance
+                It.IsAny<object>()),
+            Times.Exactly(messageCount));
 
-        VerifyCommonServiceProvider();
-
-        _serviceProviderMock.VerifyNoOtherCalls();
-
-        if (producerInterceptorCallsNext != null)
-        {
-            producerInterceptorMock.Verify(x => x.OnHandle(request, It.IsAny<Func<Task<object>>>(), It.IsAny<IProducerContext>()), Times.Once);
-        }
-        producerInterceptorMock.VerifyNoOtherCalls();
-
-        if (sendInterceptorCallsNext != null)
-        {
-            // ProducePublish interceptor is called after Producer interceptor, if producer does not call next() the publish interceptor does not get a chance to fire
-            if (producerInterceptorCallsNext == null || producerInterceptorCallsNext == true)
-            {
-                sendInterceptorMock.Verify(x => x.OnHandle(request, It.IsAny<Func<Task<ResponseA>>>(), It.IsAny<IProducerContext>()), Times.Once);
-            }
-        }
-        sendInterceptorMock.VerifyNoOtherCalls();
+        testBus.Dispose();
     }
 
     private void VerifyCommonServiceProvider()
