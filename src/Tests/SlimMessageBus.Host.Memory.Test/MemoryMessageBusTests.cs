@@ -560,6 +560,51 @@ public class MemoryMessageBusTests
         // assert
         response.Should().BeNull();
     }
+
+    [Fact]
+    public async Task When_Publish_Given_TwoConsumersOnSameTopic_WithDifferentFilters_Then_OnlyMatchingConsumerInvoked()
+    {
+        // arrange 
+        const string topic = "topic-filtered";
+
+        // Register production and two separate consumer registrations on the same topic 
+        _builder.Produce<SomeMessageA>(x => x.DefaultTopic(topic));
+
+        // First consumer: matches ResourceType == nameof(SomeMessageA) 
+        _builder.Consume<SomeMessageA>(x => x.Topic(topic)
+            .Filter((headers, message) => headers != null && headers.TryGetValue("ResourceType", out var v) && (string)v == nameof(SomeMessageA))
+            .WithConsumer<SomeMessageAConsumer>());
+
+        // Second consumer: matches ResourceType == nameof(SomeMessageB) 
+        _builder.Consume<SomeMessageA>(x => x.Topic(topic)
+            .Filter((headers, message) => headers != null && headers.TryGetValue("ResourceType", out var v) && (string)v == nameof(SomeMessageB))
+            .WithConsumer<SomeMessageAConsumer2>());
+
+        var consumer1Mock = new Mock<SomeMessageAConsumer>() { CallBase = true };
+        var consumer2Mock = new Mock<SomeMessageAConsumer2>();
+
+        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeMessageAConsumer))).Returns(consumer1Mock.Object);
+        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeMessageAConsumer2))).Returns(consumer2Mock.Object);
+
+        _providerSettings.EnableMessageSerialization = false;
+
+        var m = new SomeMessageA(Guid.NewGuid());
+        var headers = new Dictionary<string, object>
+        {
+            ["ResourceType"] = nameof(SomeMessageA)
+        };
+
+        // act 
+        await _subject.Value.ProducePublish(m, headers: headers);
+
+        // assert 
+        consumer1Mock.Verify(x => x.OnHandle(It.Is<SomeMessageA>(a => a.Equals(m)), It.IsAny<CancellationToken>()), Times.Once);
+        consumer2Mock.Verify(x => x.OnHandle(It.IsAny<SomeMessageA>(), It.IsAny<CancellationToken>()), Times.Never);
+
+        consumer1Mock.VerifySet(x => x.Context = It.IsAny<IConsumerContext>(), Times.Once);
+        consumer1Mock.VerifyNoOtherCalls();
+        consumer2Mock.VerifyNoOtherCalls();
+    }
 }
 
 public record SomeMessageA(Guid Value);

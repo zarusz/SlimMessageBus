@@ -114,4 +114,14 @@ public abstract class AbstractConsumerBuilder<TConsumerBuilder>(MessageBusSettin
         action(ConsumerSettings.UndeclaredMessageType);
         return (TConsumerBuilder)this;
     }
+
+    /// <summary> 
+    /// More advanced overload where transport message is passed as well. 
+    /// </summary> 
+    public TConsumerBuilder Filter(ConsumerFilter<object> headerPredicateWithTransport)
+    {
+        if (headerPredicateWithTransport == null) throw new ArgumentNullException(nameof(headerPredicateWithTransport));
+        ConsumerSettings.Filter = headerPredicateWithTransport;
+        return (TConsumerBuilder)this;
+    }
 }
