@@ -1,6 +1,7 @@
 ﻿namespace SlimMessageBus.Host;
 
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 using SlimMessageBus.Host.Consumer;
 
@@ -97,7 +98,7 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
                 var message = _messageProvider(messageType, messageHeaders, transportMessage);
                 try
                 {
-                    var consumerInvokers = TryMatchConsumerInvoker(messageType);
+                    var consumerInvokers = TryMatchConsumerInvoker(messageType, messageHeaders, transportMessage);
 
                     foreach (var consumerInvoker in consumerInvokers)
                     {
@@ -185,20 +186,28 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
         return null;
     }
 
-    protected IEnumerable<IMessageTypeConsumerInvokerSettings> TryMatchConsumerInvoker(Type messageType)
+    protected IEnumerable<IMessageTypeConsumerInvokerSettings> TryMatchConsumerInvoker(Type messageType, IReadOnlyDictionary<string, object> messageHeaders, object transportMessage)
     {
+       
+
         if (_singleInvoker != null)
         {
-            // fallback to the first one
-            yield return _singleInvoker;
+            if (ApplyFilter(_singleInvoker, messageHeaders, transportMessage))
+            {
+                // fallback to the first one
+                yield return _singleInvoker;
+            }
         }
         else
         {
             var found = false;
             foreach (var invoker in _invokers.Where(x => RuntimeTypeCache.IsAssignableFrom(messageType, x.MessageType)))
             {
-                found = true;
-                yield return invoker;
+                if (ApplyFilter(invoker, messageHeaders, transportMessage))
+                {
+                    found = true;
+                    yield return invoker;
+                }
             }
 
             if (!found)
@@ -217,6 +226,29 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
         }
     }
 
+    private bool ApplyFilter(IMessageTypeConsumerInvokerSettings invoker,
+        IReadOnlyDictionary<string, object> messageHeaders,
+        object transportMessage)
+    {
+        // If either the invoker has a filter or the parent consumer has a filter evaluate it. 
+        var invFilter = invoker.Filter ?? invoker.ParentSettings.Filter;
+
+        if (invFilter == null)
+        {
+            return true;
+        }
+
+        try
+        {
+            return invFilter(messageHeaders, transportMessage);
+        }
+        catch (Exception ex)
+        {
+            // If filter throws, treat as non-match and log 
+            FilterException(_singleInvoker.ConsumerType.Name, Path, ex);
+            return false;
+        }
+    }
     #region Logging
 
     [LoggerMessage(
@@ -249,6 +281,12 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
        Message = "The message on path {Path} declared {HeaderName} header of type {MessageType}, but none of the known consumer types {ConsumerTypes} was able to handle it")]
     private partial void LogNoConsumerTypeMatched(Type messageType, string path, string headerName, string consumerTypes);
 
+    [LoggerMessage(
+        EventId = 5,
+        Level = LogLevel.Warning,
+        Message = "Filter for ConsumerType {ConsumerType} on path {Path} threw an exception and will be treated as non-match")]
+    private partial void FilterException(string consumerType, string path, Exception e);
+
     #endregion
 }
 
@@ -270,6 +308,9 @@ public partial class MessageProcessor<TTransportMessage>
 
     private partial void LogNoConsumerTypeMatched(Type messageType, string path, string headerName, string consumerTypes)
         => _logger.LogInformation("The message on path {Path} declared {HeaderName} header of type {MessageType}, but none of the known consumer types {ConsumerTypes} was able to handle it", path, headerName, messageType, consumerTypes);
+
+    private partial void FilterException(string consumerType, string path, Exception e) 
+        => _logger.LogWarning(e, "Filter for ConsumerType {ConsumerType} on path {Path} threw an exception and will be treated as non-match", consumerType, path); 
 }
 
 #endif

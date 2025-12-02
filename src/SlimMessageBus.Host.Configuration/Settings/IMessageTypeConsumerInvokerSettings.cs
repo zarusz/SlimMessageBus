@@ -19,4 +19,10 @@ public interface IMessageTypeConsumerInvokerSettings
     /// The consumer method.
     /// </summary>
     MethodInfo ConsumerMethodInfo { get; set; }
+
+    /// <summary> 
+    /// Optional predicate to filter arriving messages by headers/transport message. 
+    /// When set, the invoker is only considered if the predicate returns true. 
+    /// </summary> 
+   ConsumerFilter<object> Filter { get; set; }
 }
