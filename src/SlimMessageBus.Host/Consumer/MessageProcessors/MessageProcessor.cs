@@ -185,34 +185,55 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
         return null;
     }
 
-    protected IEnumerable<IMessageTypeConsumerInvokerSettings> TryMatchConsumerInvoker(Type messageType)
+    protected IEnumerable<IMessageTypeConsumerInvokerSettings> TryMatchConsumerInvoker(Type messageType, IReadOnlyDictionary<string, object> messageHeaders, object transportMessage)
     {
-        if (_singleInvoker != null)
+
+        var invokers = _singleInvoker != null ? [_singleInvoker] : _invokers;
+        var found = false;
+
+       
+        foreach (var invoker in _invokers.Where(x => RuntimeTypeCache.IsAssignableFrom(messageType, x.MessageType)))
         {
-            // fallback to the first one
-            yield return _singleInvoker;
-        }
-        else
-        {
-            var found = false;
-            foreach (var invoker in _invokers.Where(x => RuntimeTypeCache.IsAssignableFrom(messageType, x.MessageType)))
+            // If either the invoker has a filter or the parent consumer has a filter evaluate it. 
+            var invFilter = invoker.Filter ?? invoker.ParentSettings.Filter;
+
+
+            if (invFilter != null)
             {
-                found = true;
-                yield return invoker;
+                bool matches;
+                try
+                {
+                    matches = invFilter(messageHeaders, transportMessage);
+                }
+                catch (Exception ex)
+                {
+                    // If filter throws, treat as non-match and log 
+                    FilterException(invoker.ConsumerType.Name, Path, ex);
+
+                    matches = false;
+                }
+
+                if (!matches)
+                {
+                    continue;
+                }
             }
 
-            if (!found)
-            {
-                if (_shouldLogWhenUnrecognizedMessageType)
-                {
-                    var consumerTypes = string.Join(",", _invokers.Select(x => x.ConsumerType.Name));
-                    LogNoConsumerTypeMatched(messageType, Path, MessageHeaders.MessageType, consumerTypes);
-                }
+            found = true;
+            yield return invoker;
+        }
 
-                if (_shouldFailWhenUnrecognizedMessageType)
-                {
-                    throw new ConsumerMessageBusException($"The message on path {Path} declared {MessageHeaders.MessageType} header of type {messageType}, but none of the known consumer types {string.Join(",", _invokers.Select(x => x.ConsumerType.Name))} was able to handle that");
-                }
+        if (!found)
+        {
+            if (_shouldLogWhenUnrecognizedMessageType)
+            {
+                var consumerTypes = string.Join(",", _invokers.Select(x => x.ConsumerType.Name));
+                LogNoConsumerTypeMatched(messageType, Path, MessageHeaders.MessageType, consumerTypes);
+            }
+
+            if (_shouldFailWhenUnrecognizedMessageType)
+            {
+                throw new ConsumerMessageBusException($"The message on path {Path} declared {MessageHeaders.MessageType} header of type {messageType}, but none of the known consumer types {string.Join(",", _invokers.Select(x => x.ConsumerType.Name))} was able to handle that");
             }
         }
     }
@@ -249,6 +270,12 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
        Message = "The message on path {Path} declared {HeaderName} header of type {MessageType}, but none of the known consumer types {ConsumerTypes} was able to handle it")]
     private partial void LogNoConsumerTypeMatched(Type messageType, string path, string headerName, string consumerTypes);
 
+    [LoggerMessage(
+        EventId = 5,
+        Level = LogLevel.Warning,
+        Message = "Filter for ConsumerType {ConsumerType} on path {Path} threw an exception and will be treated as non-match")]
+    private partial void FilterException(string consumerType, string path, Exception e);
+
     #endregion
 }
 
@@ -270,6 +297,9 @@ public partial class MessageProcessor<TTransportMessage>
 
     private partial void LogNoConsumerTypeMatched(Type messageType, string path, string headerName, string consumerTypes)
         => _logger.LogInformation("The message on path {Path} declared {HeaderName} header of type {MessageType}, but none of the known consumer types {ConsumerTypes} was able to handle it", path, headerName, messageType, consumerTypes);
+
+    private partial void FilterException(string consumerType, string path, Exception e) 
+        => _logger.LogWarning(e, "Filter for ConsumerType {ConsumerType} on path {Path} threw an exception and will be treated as non-match", consumerType, path); 
 }
 
 #endif

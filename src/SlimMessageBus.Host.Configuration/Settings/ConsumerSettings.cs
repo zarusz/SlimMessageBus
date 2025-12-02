@@ -50,4 +50,9 @@ public class ConsumerSettings : AbstractConsumerSettings, IMessageTypeConsumerIn
     /// Enables the disposal of consumer instance after the message has been consumed.
     /// </summary>
     public bool IsDisposeConsumerEnabled { get; set; }
+
+    /// <summary> 
+    /// Optional predicate evaluated on arrival headers and transport message to decide if this invoker should be used. 
+    /// </summary> 
+    public Func<IReadOnlyDictionary<string, object>, object, bool> Filter { get; set; }
 }

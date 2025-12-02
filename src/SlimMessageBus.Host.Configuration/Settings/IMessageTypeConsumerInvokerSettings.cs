@@ -19,4 +19,13 @@ public interface IMessageTypeConsumerInvokerSettings
     /// The consumer method.
     /// </summary>
     MethodInfo ConsumerMethodInfo { get; set; }
+
+    /// <summary> 
+    /// Optional predicate to filter arriving messages by headers/transport message. 
+    /// When set, the invoker is only considered if the predicate returns true. 
+    /// Parameters: 
+    ///   IReadOnlyDictionary&lt;string, object&gt; headers - arriving message headers 
+    ///   object transportMessage - underlying transport message (can be null) 
+    /// </summary> 
+    Func<IReadOnlyDictionary<string, object>, object, bool> Filter { get; set; }
 }

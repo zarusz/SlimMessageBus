@@ -114,4 +114,25 @@ public abstract class AbstractConsumerBuilder<TConsumerBuilder>(MessageBusSettin
         action(ConsumerSettings.UndeclaredMessageType);
         return (TConsumerBuilder)this;
     }
+
+    /// <summary> 
+    /// Filter arriving messages by headers. When filter returns false, this consumer will not be invoked for that arrival. 
+    /// Example: .Filter(headers => headers.TryGetValue("ResourceType", out var v) && (string)v == nameof(MyMessage)) 
+    /// </summary> 
+    public TConsumerBuilder Filter(Func<IReadOnlyDictionary<string, object>, bool> headerPredicate)
+    {
+        if (headerPredicate == null) throw new ArgumentNullException(nameof(headerPredicate));
+        ConsumerSettings.Filter = (headers, transportMessage) => headerPredicate(headers);
+        return (TConsumerBuilder)this;
+    }
+
+    /// <summary> 
+    /// More advanced overload where transport message is passed as well. 
+    /// </summary> 
+    public TConsumerBuilder Filter(Func<IReadOnlyDictionary<string, object>, object, bool> headerPredicateWithTransport)
+    {
+        if (headerPredicateWithTransport == null) throw new ArgumentNullException(nameof(headerPredicateWithTransport));
+        ConsumerSettings.Filter = headerPredicateWithTransport;
+        return (TConsumerBuilder)this;
+    }
 }
