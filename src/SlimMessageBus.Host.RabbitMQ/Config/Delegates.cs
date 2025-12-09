@@ -30,3 +30,13 @@ public delegate void RabbitMqMessagePropertiesModifier<T>(T message, IBasicPrope
 /// </summary>
 /// <param name="option"></param>
 public delegate void RabbitMqMessageConfirmAction(RabbitMqMessageConfirmOptions option);
+
+/// <summary>
+/// Represents the method that handles a RabbitMQ message that includes an routing key that is obsolete or non relevent from the applicatin perspective
+/// Provides access to the message, its properties, and a confirmation action.
+/// </summary>
+/// <remarks>Use this delegate to process messages received from RabbitMQ queues where the routing key is not
+/// relevant or not provided. The handler is responsible for invoking the confirmation action to ensure proper message
+/// acknowledgment.</remarks>
+/// <param name="transportMessage">The event arguments containing the delivered RabbitMQ message and related metadata.</param>
+public delegate RabbitMqMessageConfirmOptions RabbitMqMessageUnrecognizedRoutingKeyHandler(BasicDeliverEventArgs transportMessage);
