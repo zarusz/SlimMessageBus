@@ -25,5 +25,11 @@ public class RabbitMqMessageBusSettings : HasProviderExtensions
     /// See the <see cref="DefaultHeaderValueConverter"/>.
     /// </summary>
     public IHeaderValueConverter HeaderValueConverter { get; set; } = new DefaultHeaderValueConverter();
+
+    /// <summary>
+    /// Allows to handle messages that arrive with an unrecognized routing key and decide what to do with them.
+    /// By default the message is Acknowledged.
+    /// </summary>
+    public RabbitMqMessageUnrecognizedRoutingKeyHandler MessageUnrecognizedRoutingKeyHandler { get; set; } = (_) => RabbitMqMessageConfirmOptions.Ack;
 }
 

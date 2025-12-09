@@ -16,6 +16,8 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
     private readonly IMessageProcessor<BasicDeliverEventArgs> _messageProcessor;
     private readonly RoutingKeyMatcherService<IMessageProcessor<BasicDeliverEventArgs>> _routingKeyMatcher;
 
+    private readonly RabbitMqMessageUnrecognizedRoutingKeyHandler _messageUnrecognizedRoutingKeyHandler;
+
     protected override RabbitMqMessageAcknowledgementMode AcknowledgementMode => _acknowledgementMode;
 
     public RabbitMqConsumer(
@@ -23,7 +25,7 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
         IRabbitMqChannel channel,
         string queueName,
         IList<ConsumerSettings> consumers,
-        MessageBusBase messageBus,
+        MessageBusBase<RabbitMqMessageBusSettings> messageBus,
         MessageProvider<BasicDeliverEventArgs> messageProvider,
         IHeaderValueConverter headerValueConverter)
         : base(loggerFactory.CreateLogger<RabbitMqConsumer>(),
@@ -33,6 +35,7 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
                queueName,
                headerValueConverter)
     {
+        _messageUnrecognizedRoutingKeyHandler = messageBus.ProviderSettings.MessageUnrecognizedRoutingKeyHandler;
         _acknowledgementMode = consumers.Select(x => x.GetOrDefault(RabbitMqProperties.MessageAcknowledgementMode, messageBus.Settings)).FirstOrDefault(x => x != null)
             ?? RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade; // be default choose the safer acknowledgement mode
 
@@ -102,7 +105,7 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
         await base.OnStop();
     }
 
-    private void InitializeConsumerContext(BasicDeliverEventArgs transportMessage, ConsumerContext consumerContext)
+    internal void InitializeConsumerContext(BasicDeliverEventArgs transportMessage, ConsumerContext consumerContext)
     {
         if (_acknowledgementMode == RabbitMqMessageAcknowledgementMode.AckAutomaticByRabbit)
         {
@@ -164,6 +167,8 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
         else
         {
             Logger.LogDebug("Exchange {Exchange} - Queue {Queue}: No message processor found for routing key {RoutingKey}", transportMessage.Exchange, Path, transportMessage.RoutingKey);
+            var confirmAction = _messageUnrecognizedRoutingKeyHandler(transportMessage);
+            ConfirmMessage(transportMessage, confirmAction, messageHeaders);
         }
 
         // error handling happens in the message processor
