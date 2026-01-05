@@ -9,14 +9,17 @@ using System.Text.Json.Serialization;
 /// </summary>
 public class JsonMessageSerializer : IMessageSerializer, IMessageSerializer<string>, IMessageSerializerProvider
 {
+    private readonly bool _useActualTypeOnSerialize;
+
     /// <summary>
     /// <see cref="JsonSerializerOptions"/> options for the JSON serializer. By default adds <see cref="ObjectToInferredTypesConverter"/> converter.
     /// </summary>
     public JsonSerializerOptions Options { get; set; }
 
-    public JsonMessageSerializer(JsonSerializerOptions options = null)
+    public JsonMessageSerializer(JsonSerializerOptions options = null, bool useActualTypeOnSerialize = true)
     {
         Options = options ?? CreateDefaultOptions();
+        _useActualTypeOnSerialize = useActualTypeOnSerialize;
     }
 
     public virtual JsonSerializerOptions CreateDefaultOptions()
@@ -34,7 +37,7 @@ public class JsonMessageSerializer : IMessageSerializer, IMessageSerializer<stri
     #region Implementation of IMessageSerializer
 
     public byte[] Serialize(Type messageType, IDictionary<string, object> headers, object message, object transportMessage)
-        => JsonSerializer.SerializeToUtf8Bytes(message, messageType, Options);
+        => JsonSerializer.SerializeToUtf8Bytes(message, _useActualTypeOnSerialize && message != null ? message.GetType() : messageType, Options);
 
     public object Deserialize(Type messageType, IReadOnlyDictionary<string, object> headers, byte[] payload, object transportMessage)
         => JsonSerializer.Deserialize(payload, messageType, Options)!;
@@ -44,7 +47,7 @@ public class JsonMessageSerializer : IMessageSerializer, IMessageSerializer<stri
     #region Implementation of IMessageSerializer<string>
 
     string IMessageSerializer<string>.Serialize(Type messageType, IDictionary<string, object> headers, object message, object transportMessage)
-        => JsonSerializer.Serialize(message, messageType, Options);
+        => JsonSerializer.Serialize(message, _useActualTypeOnSerialize && message != null ? message.GetType() : messageType, Options);
 
     public object Deserialize(Type messageType, IReadOnlyDictionary<string, object> headers, string payload, object transportMessage)
         => JsonSerializer.Deserialize(payload, messageType, Options)!;
