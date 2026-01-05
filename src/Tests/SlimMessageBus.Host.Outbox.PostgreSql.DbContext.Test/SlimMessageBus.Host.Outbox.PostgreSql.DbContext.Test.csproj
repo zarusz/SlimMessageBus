@@ -8,9 +8,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.3" Condition="'$(TargetFramework)' == 'net9.0'" />
-    <PackageReference Include="Testcontainers.Kafka" Version="4.3.0" />
-    <PackageReference Include="Testcontainers.PostgreSql" Version="4.3.0" />
-    <PackageReference Include="Testcontainers.RabbitMq" Version="4.3.0" />
+    <PackageReference Include="Testcontainers.Kafka" Version="4.10.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.10.0" />
+    <PackageReference Include="Testcontainers.RabbitMq" Version="4.10.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -30,6 +30,10 @@
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="xunit.runner.visualstudio" Version="3.1.5" />
   </ItemGroup>
 
 </Project>

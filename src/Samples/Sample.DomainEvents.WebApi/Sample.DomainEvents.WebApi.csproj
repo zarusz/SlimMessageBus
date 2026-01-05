@@ -15,7 +15,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.3" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="8.1.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.6" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.3" />
   </ItemGroup>
 

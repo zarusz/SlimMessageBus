@@ -64,16 +64,3 @@ public static partial class SqlHelper
 
     #endregion
 }
-
-#if NETSTANDARD2_0
-
-partial class SqlHelper
-{
-    private static partial void LogSqlError(ILogger logger, int sqlRetryCount, int sqlRetryNumber)
-        => logger.LogInformation("SQL error encountered. Will begin attempt number {SqlRetryNumber} of {SqlRetryCount} max...", sqlRetryNumber, sqlRetryCount);
-
-    private static partial void LogWillRetry(ILogger logger, int sqlErrorCode, SqlException e)
-        => logger.LogDebug(e, "SQL error occurred {SqlErrorCode}. Will retry operation", sqlErrorCode);
-}
-
-#endif

@@ -8,4 +8,8 @@
     <ProjectReference Include="..\..\SlimMessageBus.Host.FluentValidation\SlimMessageBus.Host.FluentValidation.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Update="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+
 </Project>

@@ -120,10 +120,21 @@ public class KafkaMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<K
                 // Remove self to cause only delay once (in case the same message gets repeated)
                 pauseAtOffsets.Remove(message.Message.Counter);
 
-                consumerControl.Stop().ContinueWith(async (_) =>
+                // Use fire-and-forget pattern to avoid blocking the event handler
+                _ = Task.Run(async () =>
                 {
+                    Logger.LogInformation("Consumer stopped at message {MessageCounter}, waiting {DelayTime} before restart", message.Message.Counter, DelayTimeSpan);
+                    await consumerControl.Stop();
                     await Task.Delay(DelayTimeSpan);
                     await consumerControl.Start();
+                    
+                    // Wait for consumers to fully restart
+                    var timeout = Stopwatch.StartNew();
+                    while (!consumerControl.IsStarted && timeout.ElapsedMilliseconds < 10000)
+                    {
+                        await Task.Delay(100);
+                    }
+                    Logger.LogInformation("Consumer restarted after {ElapsedTime}, IsStarted: {IsStarted}", timeout.Elapsed, consumerControl.IsStarted);
                 });
             }
         };
@@ -163,15 +174,17 @@ public class KafkaMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<K
         // consume
         stopwatch.Restart();
 
-        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 10);
+        // Wait longer to account for consumer pause/resume (10s baseline + 2x delay for consumer stop/start + buffer)
+        var consumeTimeout = 10 + (int)(DelayTimeSpan.TotalSeconds * 2) + 5;
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: consumeTimeout, expectedCount: messages.Count);
 
         stopwatch.Stop();
-        Logger.LogInformation("Consumed {MessageCount} messages in {ConsumeTime} including simlulated delay {DelayTime}", consumedMessages.Count, stopwatch.Elapsed, DelayTimeSpan);
+        Logger.LogInformation("Consumed {ActualCount}/{ExpectedCount} messages in {ConsumeTime} including simlulated delay {DelayTime}", consumedMessages.Count, messages.Count, stopwatch.Elapsed, DelayTimeSpan);
 
         // assert
 
         // all messages got back
-        consumedMessages.Count.Should().Be(messages.Count);
+        consumedMessages.Count.Should().Be(messages.Count, $"Expected all {messages.Count} messages to be consumed. Consumer IsStarted: {consumerControl.IsStarted}");
 
         // Partition #0 => Messages with even counter
         consumedMessages.Snapshot()
