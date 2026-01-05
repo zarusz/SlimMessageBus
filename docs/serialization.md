@@ -4,6 +4,8 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 
 - [Configuration](#configuration)
 - [Json (System.Text.Json)](#json-systemtextjson)
+  - [Polymorphic Type Handling](#polymorphic-type-handling)
+  - [Object to Inferred Types Converter](#object-to-inferred-types-converter)
 - [Json (Newtonsoft.Json)](#json-newtonsoftjson)
 - [Avro](#avro)
 - [GoogleProtobuf](#googleprotobuf)
@@ -83,7 +85,64 @@ services.AddSlimMessageBus(mbb =>
 });
 ```
 
-By default the plugin adds a custom converter (see [`ObjectToInferredTypesConverter`](../src/SlimMessageBus.Host.Serialization.SystemTextJson/ObjectToInferredTypesConverter.cs)) that infers primitive types whenever the type to deseriaize is object (unknown). This helps with header value serialization for transport providers that transmit the headers as binary (Kafka). See the source code for better explanation.
+### Polymorphic Type Handling
+
+By default, the serializer uses the `useActualTypeOnSerialize: true` parameter, which ensures that the actual runtime type of the message is used during serialization. This is important for polymorphic message types where you might publish a derived type but declare the producer with a base type.
+
+```cs
+// Default behavior - uses actual type during serialization
+mbb.AddJsonSerializer(useActualTypeOnSerialize: true);
+
+// Alternative - uses declared type during serialization
+mbb.AddJsonSerializer(useActualTypeOnSerialize: false);
+```
+
+**When `useActualTypeOnSerialize: true` (default):**
+
+- The serializer uses `message.GetType()` to determine which properties to serialize
+- All properties of the derived type are included in the JSON
+- Useful when consumers know the actual message type and need all properties
+- Works without requiring `[JsonDerivedType]` attributes on base message types
+
+**When `useActualTypeOnSerialize: false`:**
+
+- The serializer uses the declared `messageType` parameter passed to the serialize method
+- Only properties of the declared base type are serialized
+- Useful for strict contract enforcement where consumers should only see base type properties
+- Requires `[JsonDerivedType]` attributes on base types if you need polymorphic deserialization
+
+**Example:**
+
+```cs
+public class BaseMessage
+{
+    public string Id { get; set; }
+}
+
+public class DerivedMessage : BaseMessage
+{
+    public string ExtraData { get; set; }
+}
+
+// Producer configuration
+mbb.Produce<BaseMessage>(x => x.DefaultTopic("my-topic"));
+
+// When publishing
+var message = new DerivedMessage { Id = "123", ExtraData = "test" };
+await bus.Publish(message);
+
+// With useActualTypeOnSerialize: true (default)
+// Serialized JSON: {"id":"123","extraData":"test"}
+
+// With useActualTypeOnSerialize: false
+// Serialized JSON: {"id":"123"}
+```
+
+> **Note:** System.Text.Json requires `[JsonDerivedType]` attributes on the base type for proper polymorphic deserialization. The `useActualTypeOnSerialize: true` setting helps with serialization but doesn't affect deserialization requirements.
+
+### Object to Inferred Types Converter
+
+By default the plugin adds a custom converter (see [`ObjectToInferredTypesConverter`](../src/SlimMessageBus.Host.Serialization.SystemTextJson/ObjectToInferredTypesConverter.cs)) that infers primitive types whenever the type to deserialize is object (unknown). This helps with header value serialization for transport providers that transmit the headers as binary (Kafka). See the source code for better explanation.
 
 ## Json (Newtonsoft.Json)
 
@@ -109,6 +168,8 @@ var jsonSerializerSettings = new Newtonsoft.Json.JsonSerializerSettings
 
 mbb.AddJsonSerializer(jsonSerializerSettings, Encoding.UTF8);
 ```
+
+> **Note:** Newtonsoft.Json always serializes using the declared type (`messageType` parameter). For polymorphic type handling with Newtonsoft.Json, use the `TypeNameHandling` setting in `JsonSerializerSettings`.
 
 ## Avro
 

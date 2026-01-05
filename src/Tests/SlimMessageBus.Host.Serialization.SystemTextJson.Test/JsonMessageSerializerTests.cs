@@ -20,7 +20,7 @@ public class JsonMessageSerializerTests
         // arrange
         var subject = new JsonMessageSerializer();
 
-        // actx
+        // act
         var bytes = subject.Serialize(typeof(object), null, value, null);
         var deserializedValue = subject.Deserialize(typeof(object), null, bytes, null);
 
