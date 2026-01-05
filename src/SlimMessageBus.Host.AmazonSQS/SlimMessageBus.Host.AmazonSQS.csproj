@@ -11,9 +11,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.SecurityToken" Version="4.0.2.6" />
-    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="4.0.1.6" />
-    <PackageReference Include="AWSSDK.SQS" Version="4.0.1.8" />
+    <PackageReference Include="AWSSDK.SecurityToken" Version="4.0.5.9" />
+    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="4.0.2.16" />
+    <PackageReference Include="AWSSDK.SQS" Version="4.0.2.14" />
   </ItemGroup>
 
   <ItemGroup>

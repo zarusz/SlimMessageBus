@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.3" />
-    <PackageReference Include="NSwag.AspNetCore" Version="14.3.0" />
+    <PackageReference Include="NSwag.AspNetCore" Version="14.6.3" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.AsyncApi\SlimMessageBus.Host.AsyncApi.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.AzureServiceBus\SlimMessageBus.Host.AzureServiceBus.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Kafka\SlimMessageBus.Host.Kafka.csproj" />

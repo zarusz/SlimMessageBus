@@ -32,4 +32,8 @@
     <Folder Include="Migrations\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Update="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+
 </Project>

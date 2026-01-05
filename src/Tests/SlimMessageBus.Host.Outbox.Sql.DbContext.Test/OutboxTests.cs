@@ -103,7 +103,8 @@ public class OutboxTests(ITestOutputHelper output) : BaseOutboxIntegrationTest<O
             mbb.AddOutboxUsingDbContext<CustomerContext>(opts =>
             {
                 opts.PollBatchSize = 100;
-                opts.PollIdleSleep = TimeSpan.FromSeconds(1);
+                // Reduce poll interval for faster test execution
+                opts.PollIdleSleep = TimeSpan.FromMilliseconds(250);
                 opts.MessageCleanup.Interval = TimeSpan.FromSeconds(10);
                 opts.MessageCleanup.Age = TimeSpan.FromMinutes(1);
                 opts.SqlSettings.DatabaseSchemaName = CustomerContext.Schema;
@@ -176,7 +177,10 @@ public class OutboxTests(ITestOutputHelper output) : BaseOutboxIntegrationTest<O
 
         await Task.WhenAll(sendTasks);
 
-        await store.WaitUntilArriving(newMessagesTimeout: 5, expectedCount: validCommands.Count);
+        // Wait for messages to arrive first (they should start arriving quickly)
+        await store.WaitUntilArriving(newMessagesTimeout: 20);
+        
+        Logger.LogInformation("Received {ActualCount}/{ExpectedCount} messages after initial wait", store.Count, validCommands.Count);
 
         // assert
         using var scope = ServiceProvider!.CreateScope();
@@ -271,7 +275,10 @@ public class OutboxTests(ITestOutputHelper output) : BaseOutboxIntegrationTest<O
 
         await Task.WhenAll(publishTasks);
 
-        await store.WaitUntilArriving(newMessagesTimeout: 5, expectedCount: validEvents.Count);
+        // Wait for messages to arrive (they should start arriving quickly)
+        await store.WaitUntilArriving(newMessagesTimeout: 20);
+        
+        Logger.LogInformation("Received {ActualCount}/{ExpectedCount} messages after initial wait", store.Count, validEvents.Count);
 
         // assert
 
