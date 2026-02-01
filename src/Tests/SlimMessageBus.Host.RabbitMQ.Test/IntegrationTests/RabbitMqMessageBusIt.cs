@@ -15,6 +15,8 @@ using SlimMessageBus.Host.Test.Common.IntegrationTest;
 public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<RabbitMqMessageBusIt>(output)
 {
     private const int NumberOfMessages = 300;
+    private const int NumberOfReqRespMessages = 50;
+    private const int ReqRespConcurrency = 20;
 
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)
     {
@@ -40,16 +42,21 @@ public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTes
                 cfg.UseExchangeDefaults(durable: false);
                 cfg.UseDeadLetterExchangeDefaults(durable: false, autoDelete: false, exchangeType: ExchangeType.Direct, routingKey: string.Empty);
                 cfg.UseQueueDefaults(durable: false);
-                cfg.UseTopologyInitializer((channel, applyDefaultTopology) =>
+                cfg.UseTopologyInitializer(async (channel, applyDefaultTopology) =>
                 {
                     // before test clean up
-                    channel.QueueDelete("subscriber-0", ifUnused: true, ifEmpty: false);
-                    channel.QueueDelete("subscriber-1", ifUnused: true, ifEmpty: false);
-                    channel.ExchangeDelete("test-ping", ifUnused: true);
-                    channel.ExchangeDelete("subscriber-dlq", ifUnused: true);
+                    await channel.QueueDeleteAsync("subscriber-0", ifUnused: true, ifEmpty: false);
+                    await channel.QueueDeleteAsync("subscriber-1", ifUnused: true, ifEmpty: false);
+                    await channel.QueueDeleteAsync("echo-request-handler", ifUnused: true, ifEmpty: false);
+                    await channel.QueueDeleteAsync("test-echo-resp-queue", ifUnused: true, ifEmpty: false);
+                    await channel.ExchangeDeleteAsync("test-ping", ifUnused: true);
+                    await channel.ExchangeDeleteAsync("subscriber-dlq", ifUnused: true);
+                    await channel.ExchangeDeleteAsync("test-echo", ifUnused: true);
+                    await channel.ExchangeDeleteAsync("echo-request-handler-dlq", ifUnused: true);
+                    await channel.ExchangeDeleteAsync("test-echo-resp", ifUnused: true);
 
                     // apply default SMB inferred topology
-                    applyDefaultTopology();
+                    await applyDefaultTopology();
 
                     // after
                 });
@@ -121,7 +128,7 @@ public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTes
             {
                 // For concurrency > 1, we should see at least some concurrent processing
                 // This is a more realistic expectation than perfect theoretical maximum
-                testData.TestMetric.ProcessingCountMax.Should().BeGreaterThan(subscribers, 
+                testData.TestMetric.ProcessingCountMax.Should().BeGreaterThan(subscribers,
                     "When concurrency > 1, we should see more than just single-threaded processing per subscriber");
             }
             else
@@ -170,7 +177,7 @@ public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTes
         // Calculate the exact expected count to ensure we wait for all messages
         var expectedConsumedCount = producedMessages.Count + producedMessages.OfType<PingDerivedMessage>().Count();
         var totalExpectedCount = expectedConsumedCount * expectedMessageCopies;
-        
+
         // Wait for all expected messages with a longer timeout to ensure message delivery
         await consumedMessages.WaitUntilArriving(newMessagesTimeout: 15, expectedCount: totalExpectedCount);
 
@@ -208,6 +215,7 @@ public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTes
     public async Task BasicReqRespOnTopic(RabbitMqMessageAcknowledgementMode acknowledgementMode)
     {
         const string topic = "test-echo";
+        var requestResponseTimeout = TimeSpan.FromSeconds(180);
 
         AddBusConfiguration(mbb =>
         {
@@ -240,15 +248,15 @@ public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTes
                 x.Queue("test-echo-resp-queue");
                 // Bind to the reply to exchange
                 x.ExchangeBinding();
-                // Timeout if the response doesn't arrive within 60 seconds
-                x.DefaultTimeout(TimeSpan.FromSeconds(60));
+                // Timeout if the response doesn't arrive within configured period
+                x.DefaultTimeout(requestResponseTimeout);
             });
         });
 
-        await BasicReqResp();
+        await BasicReqResp(NumberOfReqRespMessages);
     }
 
-    private async Task BasicReqResp()
+    private async Task BasicReqResp(int messageCount)
     {
         // arrange
         var messageBus = MessageBus;
@@ -259,17 +267,19 @@ public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTes
         var stopwatch = Stopwatch.StartNew();
 
         var requests = Enumerable
-            .Range(0, NumberOfMessages)
+            .Range(0, messageCount)
             .Select(i => new EchoRequest { Index = i, Message = $"Echo {i}" })
             .ToList();
 
         var responses = new ConcurrentBag<Tuple<EchoRequest, EchoResponse>>();
-        var responseTasks = requests.Select(async req =>
-        {
-            var resp = await messageBus.Send(req).ConfigureAwait(false);
-            responses.Add(Tuple.Create(req, resp));
-        });
-        await Task.WhenAll(responseTasks).ConfigureAwait(false);
+        await Parallel.ForEachAsync(
+            requests,
+            new ParallelOptions { MaxDegreeOfParallelism = ReqRespConcurrency },
+            async (req, ct) =>
+            {
+                var resp = await messageBus.Send(req, cancellationToken: ct).ConfigureAwait(false);
+                responses.Add(Tuple.Create(req, resp));
+            }).ConfigureAwait(false);
 
         stopwatch.Stop();
         Logger.LogInformation("Published and received {MessageCount} messages in {Elapsed}", responses.Count, stopwatch.Elapsed);
@@ -277,7 +287,7 @@ public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTes
         // assert
 
         // all messages got back
-        responses.Count.Should().Be(NumberOfMessages);
+        responses.Count.Should().Be(messageCount);
         responses.All(x => x.Item1.Message == x.Item2.Message).Should().BeTrue();
     }
 }

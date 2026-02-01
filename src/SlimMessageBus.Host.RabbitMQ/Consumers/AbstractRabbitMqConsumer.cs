@@ -52,69 +52,106 @@ public abstract class AbstractRabbitMqConsumer : AbstractConsumer
     protected override Task OnStart()
         => ReRegisterConsumer();
 
-    private Task ReRegisterConsumer()
+    private async Task ReRegisterConsumer()
     {
+        string existingConsumerTag = null;
+        AsyncEventingBasicConsumer existingConsumer = null;
+
         lock (_consumerLock)
         {
-            // Cancel existing consumer if any
-            if (_consumerTag != null && _channel.Channel != null && _channel.Channel.IsOpen)
-            {
-                try
-                {
-                    lock (_channel.ChannelLock)
-                    {
-                        _channel.Channel.BasicCancel(_consumerTag);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogWarning(ex, "Failed to cancel existing consumer tag {ConsumerTag} for queue {QueueName}", _consumerTag, Path);
-                }
-            }
-
-            // Create new consumer
-            _consumer = new AsyncEventingBasicConsumer(_channel.Channel);
-            _consumer.Received += OnMessageReceived;
-
-            lock (_channel.ChannelLock)
-            {
-                _consumerTag = _channel.Channel.BasicConsume(Path, autoAck: AcknowledgementMode == RabbitMqMessageAcknowledgementMode.AckAutomaticByRabbit, _consumer);
-            }
-
-            Logger.LogDebug("Consumer registered for queue {QueueName} with tag {ConsumerTag}", Path, _consumerTag);
+            existingConsumerTag = _consumerTag;
+            existingConsumer = _consumer;
         }
 
-        return Task.CompletedTask;
+        // Cancel existing consumer if any (outside lock to avoid blocking)
+        if (existingConsumerTag != null && _channel.Channel != null && _channel.Channel.IsOpen)
+        {
+            try
+            {
+                // Unsubscribe event handler before canceling
+                if (existingConsumer != null)
+                {
+                    existingConsumer.ReceivedAsync -= OnMessageReceived;
+                }
+
+                await _channel.Channel.BasicCancelAsync(existingConsumerTag);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Failed to cancel existing consumer tag {ConsumerTag} for queue {QueueName}", existingConsumerTag, Path);
+            }
+        }
+
+        // Create and register new consumer (outside lock to avoid blocking)
+        var newConsumer = new AsyncEventingBasicConsumer(_channel.Channel);
+        newConsumer.ReceivedAsync += OnMessageReceived;
+
+        // Set _consumer BEFORE calling BasicConsumeAsync to prevent a race condition where the broker
+        // starts delivering pre-queued messages during the await and OnMessageReceived drops them
+        // because _consumer is still null (the lock below would only run after BasicConsumeAsync returns).
+        lock (_consumerLock)
+        {
+            _consumer = newConsumer;
+            _consumerTag = null;
+        }
+
+        string newConsumerTag;
+        try
+        {
+            newConsumerTag = await _channel.Channel.BasicConsumeAsync(Path, autoAck: AcknowledgementMode == RabbitMqMessageAcknowledgementMode.AckAutomaticByRabbit, newConsumer);
+        }
+        catch
+        {
+            // Reset consumer on failure so callers get a clean state on retry
+            lock (_consumerLock)
+            {
+                if (ReferenceEquals(_consumer, newConsumer))
+                {
+                    _consumer = null;
+                }
+            }
+            throw;
+        }
+
+        lock (_consumerLock)
+        {
+            _consumerTag = newConsumerTag;
+        }
+
+        Logger.LogDebug("Consumer registered for queue {QueueName} with tag {ConsumerTag}", Path, newConsumerTag);
     }
 
-    protected override Task OnStop()
+    protected override async Task OnStop()
     {
+        string consumerTagToCancel = null;
+        AsyncEventingBasicConsumer consumerToCleanup = null;
+
         lock (_consumerLock)
         {
-            if (_consumerTag != null && _channel.Channel != null && _channel.Channel.IsOpen)
-            {
-                try
-                {
-                    lock (_channel.ChannelLock)
-                    {
-                        _channel.Channel.BasicCancel(_consumerTag);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogWarning(ex, "Failed to cancel consumer tag {ConsumerTag} for queue {QueueName} during stop", _consumerTag, Path);
-                }
-            }
+            consumerTagToCancel = _consumerTag;
+            consumerToCleanup = _consumer;
             _consumerTag = null;
-
-            if (_consumer != null)
-            {
-                _consumer.Received -= OnMessageReceived;
-                _consumer = null;
-            }
+            _consumer = null;
         }
 
-        return Task.CompletedTask;
+        // Unsubscribe event handler
+        if (consumerToCleanup != null)
+        {
+            consumerToCleanup.ReceivedAsync -= OnMessageReceived;
+        }
+
+        // Cancel consumer (outside lock to avoid blocking)
+        if (consumerTagToCancel != null && _channel.Channel != null && _channel.Channel.IsOpen)
+        {
+            try
+            {
+                await _channel.Channel.BasicCancelAsync(consumerTagToCancel);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Failed to cancel consumer tag {ConsumerTag} for queue {QueueName} during stop", consumerTagToCancel, Path);
+            }
+        }
     }
 
     protected async Task OnMessageReceived(object sender, BasicDeliverEventArgs @event)
@@ -153,22 +190,16 @@ public abstract class AbstractRabbitMqConsumer : AbstractConsumer
 
     protected abstract Task<Exception> OnMessageReceived(Dictionary<string, object> messageHeaders, BasicDeliverEventArgs transportMessage);
 
-    public void NackMessage(BasicDeliverEventArgs @event, bool requeue)
+    public async Task NackMessage(BasicDeliverEventArgs @event, bool requeue)
     {
-        lock (_channel.ChannelLock)
-        {
-            // ToDo: Introduce a setting for allowing the client to allow for batching acks
-            _channel.Channel.BasicNack(@event.DeliveryTag, multiple: false, requeue: requeue);
-        }
+        // ToDo: Introduce a setting for allowing the client to allow for batching acks
+        await _channel.Channel.BasicNackAsync(@event.DeliveryTag, multiple: false, requeue: requeue);
     }
 
-    public void AckMessage(BasicDeliverEventArgs @event)
+    public async Task AckMessage(BasicDeliverEventArgs @event)
     {
-        lock (_channel.ChannelLock)
-        {
-            // ToDo: Introduce a setting for allowing the client to allow for batching acks
-            _channel.Channel.BasicAck(@event.DeliveryTag, multiple: false);
-        }
+        // ToDo: Introduce a setting for allowing the client to allow for batching acks
+        await _channel.Channel.BasicAckAsync(@event.DeliveryTag, multiple: false);
     }
 
     protected override async ValueTask DisposeAsyncCore()

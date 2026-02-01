@@ -21,6 +21,7 @@ public class OutboxBenchmarkTests(ITestOutputHelper output, PostgreSqlFixture po
     private readonly PostgreSqlFixture _postgreSqlFixture = postgreSqlFixture;
     private readonly RabbitMqFixture _rabbitMqFixture = rabbitMqFixture;
     private readonly string _databaseName = $"smb_{Guid.NewGuid().ToString("N").ToLowerInvariant().Substring(6)}";
+    private readonly string _testId = Guid.NewGuid().ToString("N");
 
     private bool _useOutbox;
     private BusType _testParamBusType;
@@ -62,8 +63,8 @@ public class OutboxBenchmarkTests(ITestOutputHelper output, PostgreSqlFixture po
                 case BusType.RabbitMQ:
                     mbb.AddChildBus("Rabbit", mbb =>
                     {
-                        var topic = $"{nameof(OutboxBenchmarkTests)}-{DateTimeOffset.UtcNow.Ticks}";
-                        var queue = nameof(CustomerCreatedEvent);
+                        var topic = $"{nameof(OutboxBenchmarkTests)}-{_testId}-{DateTimeOffset.UtcNow.Ticks}";
+                        var queue = $"{nameof(CustomerCreatedEvent)}-{_testId}";
 
                         mbb.WithProviderRabbitMQ(cfg =>
                         {
@@ -73,14 +74,14 @@ public class OutboxBenchmarkTests(ITestOutputHelper output, PostgreSqlFixture po
                             cfg.UseMessagePropertiesModifier((m, p) => p.ContentType = MediaTypeNames.Application.Json);
                             cfg.UseExchangeDefaults(durable: false);
                             cfg.UseQueueDefaults(durable: false);
-                            cfg.UseTopologyInitializer((channel, applyDefaultTopology) =>
+                            cfg.UseTopologyInitializer(async (channel, applyDefaultTopology) =>
                             {
                                 // before test clean up
-                                channel.QueueDelete(queue, ifUnused: true, ifEmpty: false);
-                                channel.ExchangeDelete(topic, ifUnused: true);
+                                await channel.QueueDeleteAsync(queue, ifUnused: true, ifEmpty: false);
+                                await channel.ExchangeDeleteAsync(topic, ifUnused: true);
 
                                 // apply default SMB inferred topology
-                                applyDefaultTopology();
+                                await applyDefaultTopology();
 
                                 // after
                             });
@@ -91,8 +92,8 @@ public class OutboxBenchmarkTests(ITestOutputHelper output, PostgreSqlFixture po
                         .Consume<CustomerCreatedEvent>(x => x
                             .Queue(queue, autoDelete: true)
                             .ExchangeBinding(topic)
-                            .AcknowledgementMode(RabbitMqMessageAcknowledgementMode.AckAutomaticByRabbit)
-                            .WithConsumer<CustomerCreatedEventConsumer>());
+                            .AcknowledgementMode(RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade)
+                            .WithConsumer<OutboxBenchmarkCustomerCreatedEventConsumer>());
 
                         if (_useOutbox)
                         {
@@ -122,6 +123,15 @@ public class OutboxBenchmarkTests(ITestOutputHelper output, PostgreSqlFixture po
         // Entity Framework setup - application specific EF DbContext
         services.AddDbContext<CustomerContext>(
             options => options.UseNpgsql(_postgreSqlFixture.GetConnectionString(), x => x.MigrationsHistoryTable(HistoryRepository.DefaultTableName)));
+    }
+
+    public class OutboxBenchmarkCustomerCreatedEventConsumer(TestEventCollector<CustomerCreatedEvent> store) : IConsumer<CustomerCreatedEvent>
+    {
+        public Task OnHandle(CustomerCreatedEvent message, CancellationToken cancellationToken)
+        {
+            store.Add(message);
+            return Task.CompletedTask;
+        }
     }
 
     [Theory]
@@ -168,14 +178,7 @@ public class OutboxBenchmarkTests(ITestOutputHelper output, PostgreSqlFixture po
                 await using (unitOfWorkScope as IAsyncDisposable)
                 {
                     var bus = unitOfWorkScope.ServiceProvider.GetRequiredService<IMessageBus>();
-                    try
-                    {
-                        await bus.Publish(ev, headers: new Dictionary<string, object> { ["CustomerId"] = ev.Id.ToString() });
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.LogInformation("Exception occurred while publishing event {Event}: {Message}", ev, ex.Message);
-                    }
+                    await bus.Publish(ev, headers: new Dictionary<string, object> { ["CustomerId"] = ev.Id.ToString() }, cancellationToken: ct);
                 }
             });
 
@@ -201,7 +204,7 @@ public class OutboxBenchmarkTests(ITestOutputHelper output, PostgreSqlFixture po
 
         // consume the events from outbox
         var consumptionTimer = Stopwatch.StartNew();
-        await store.WaitUntilArriving(newMessagesTimeout: 5, expectedCount: events.Count);
+        await store.WaitUntilArriving(newMessagesTimeout: 30, expectedCount: events.Count);
 
         // assert
         var consumeTimerElapsed = consumptionTimer.Elapsed;

@@ -1,6 +1,5 @@
 namespace SlimMessageBus.Host.RabbitMQ.Test;
 
-using System.Collections.Concurrent;
 using System.Diagnostics;
 
 using global::RabbitMQ.Client;
@@ -25,7 +24,10 @@ public class RabbitMqChannelManagerTests : IDisposable
         {
             ConnectionFactory = new ConnectionFactory
             {
-                NetworkRecoveryInterval = TimeSpan.FromSeconds(5)
+                NetworkRecoveryInterval = TimeSpan.FromSeconds(5),
+                // Set short timeouts for tests to prevent hanging
+                RequestedConnectionTimeout = TimeSpan.FromMilliseconds(500),
+                ContinuationTimeout = TimeSpan.FromMilliseconds(500)
             }
         };
 
@@ -43,7 +45,6 @@ public class RabbitMqChannelManagerTests : IDisposable
         // Assert
         manager.Should().NotBeNull();
         manager.Channel.Should().BeNull(); // Channel should be null until connection is established
-        manager.ChannelLock.Should().NotBeNull();
     }
 
     [Theory]
@@ -217,7 +218,7 @@ public class RabbitMqChannelManagerTests : IDisposable
 
         // Assert
         channelInterface.Channel.Should().BeNull(); // No connection established yet
-        channelInterface.ChannelLock.Should().BeSameAs(manager.ChannelLock);
+        // Note: ChannelLock was removed in v7 since IChannel is thread-safe
     }
 
     [Theory]
@@ -293,9 +294,9 @@ public class RabbitMqChannelManagerTests : IDisposable
 
         // Set up a topology initializer
         settingsWithTopologyInitializer.Properties[RabbitMqProperties.TopologyInitializer.Key] =
-            new RabbitMqTopologyInitializer((channel, applyDefault) =>
+            new RabbitMqTopologyInitializer(async (channel, applyDefault) =>
             {
-                applyDefault();
+                await applyDefault();
             });
 
         // Act
@@ -399,42 +400,6 @@ public class RabbitMqChannelManagerTests : IDisposable
         exceptions.Should().AllBeOfType<ProducerMessageBusException>();
     }
 
-    [Fact]
-    public void When_ChannelLockAccessed_Given_ValidManager_Then_ShouldReturnNonNullObject()
-    {
-        // Arrange
-        var manager = CreateChannelManager();
-
-        // Act
-        var channelLock = manager.ChannelLock;
-
-        // Assert
-        channelLock.Should().NotBeNull();
-        channelLock.Should().BeOfType<object>();
-    }
-
-    [Fact]
-    public void When_ChannelLockAccessed_Given_ConcurrentAccess_Then_ShouldReturnSameInstance()
-    {
-        // Arrange
-        var manager = CreateChannelManager();
-        var locks = new List<object>();
-
-        // Act
-        Parallel.For(0, 10, _ =>
-        {
-            var channelLock = manager.ChannelLock;
-            lock (locks)
-            {
-                locks.Add(channelLock);
-            }
-        });
-
-        // Assert
-        locks.Should().NotBeEmpty();
-        locks.All(x => ReferenceEquals(x, locks.First())).Should().BeTrue("All threads should get the same lock instance");
-    }
-
     [Theory]
     [InlineData(1)]     // Single access
     [InlineData(10)]    // Concurrent access
@@ -443,7 +408,7 @@ public class RabbitMqChannelManagerTests : IDisposable
     {
         // Arrange
         var manager = CreateChannelManager();
-        var channels = new List<IModel>();
+        var channels = new List<IChannel>();
 
         // Act
         if (accessCount <= 10)
@@ -643,40 +608,6 @@ public class RabbitMqChannelManagerTests : IDisposable
         stopwatch.ElapsedMilliseconds.Should().BeLessThan(1000, "Should return immediately when already cancelled");
     }
 
-    [Fact]
-    public async Task When_ChannelLockUsed_Given_ConcurrentOperations_Then_ShouldProvideThreadSafety()
-    {
-        // Arrange
-        var manager = CreateChannelManager();
-        var errors = new ConcurrentBag<Exception>();
-        var accessCount = 0;
-
-        // Act
-        var tasks = Enumerable.Range(0, 100).Select(_ => Task.Run(async () =>
-        {
-            try
-            {
-                lock (manager.ChannelLock)
-                {
-                    Interlocked.Increment(ref accessCount);
-                    // Simulate some work
-                }
-                await Task.Delay(1);
-            }
-            catch (Exception ex)
-            {
-                errors.Add(ex);
-            }
-        }));
-
-        await Task.WhenAll(tasks);
-
-        // Assert
-        errors.Should().BeEmpty("No exceptions should occur during concurrent access");
-        accessCount.Should().Be(100, "All threads should have accessed the lock");
-        manager.Should().NotBeNull("Manager should remain valid after concurrent operations");
-    }
-
     [Theory]
     [InlineData(1)]
     [InlineData(3)]
@@ -789,6 +720,41 @@ public class RabbitMqChannelManagerTests : IDisposable
         // Assert
         manager.Channel.Should().BeNull();
         stopwatch.ElapsedMilliseconds.Should().BeLessThan(3000, "Should stop quickly after cancellation");
+    }
+
+    [Fact]
+    public void When_EnsureChannelCalled_Given_ChannelAlreadyAssigned_Then_ShouldNotThrow()
+    {
+        // arrange
+        var manager = CreateChannelManager();
+        var channelField = typeof(RabbitMqChannelManager).GetField("_channel", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        channelField!.SetValue(manager, new Mock<IChannel>().Object);
+
+        // act
+        var act = () => manager.EnsureChannel();
+
+        // assert
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task When_DisposeAsyncCalled_Given_ChannelAssigned_Then_ShouldClearAndDisposeChannel()
+    {
+        // arrange
+        var manager = CreateChannelManager();
+        var channelMock = new Mock<IChannel>();
+        channelMock.SetupGet(x => x.IsClosed).Returns(true); // avoid CloseAsync call path
+
+        var channelField = typeof(RabbitMqChannelManager).GetField("_channel", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        channelField!.SetValue(manager, channelMock.Object);
+
+        // act
+        await manager.DisposeAsync();
+        _managersToDispose.Remove(manager);
+
+        // assert
+        manager.Channel.Should().BeNull();
+        channelMock.Verify(x => x.DisposeAsync(), Times.Once);
     }
 
     private RabbitMqChannelManager CreateChannelManager()

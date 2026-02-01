@@ -35,15 +35,15 @@ public class RabbitMqResponseConsumer : AbstractRabbitMqConsumer
         switch (r.Result)
         {
             case RabbitMqProcessResult.RequeueState:
-                NackMessage(transportMessage, requeue: true);
+                await NackMessage(transportMessage, requeue: true);
                 break;
 
             case ProcessResult.FailureState:
-                NackMessage(transportMessage, requeue: false);
+                await NackMessage(transportMessage, requeue: false);
                 break;
 
             case ProcessResult.SuccessState:
-                AckMessage(transportMessage);
+                await AckMessage(transportMessage);
                 break;
 
             default:
