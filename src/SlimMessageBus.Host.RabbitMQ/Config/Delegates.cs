@@ -5,7 +5,7 @@
 /// </summary>
 /// <param name="channel">The RabbitMQ client channel</param>
 /// <param name="applyDefaultTopology">Calling this action will perform the default topology setup by SMB</param>
-public delegate void RabbitMqTopologyInitializer(IModel channel, Action applyDefaultTopology);
+public delegate Task RabbitMqTopologyInitializer(IChannel channel, Func<Task> applyDefaultTopology);
 
 /// <summary>
 /// Represents a key provider for a given message.
@@ -29,7 +29,7 @@ public delegate void RabbitMqMessagePropertiesModifier<T>(T message, IBasicPrope
 /// Represents an action to confirm the message.
 /// </summary>
 /// <param name="option"></param>
-public delegate void RabbitMqMessageConfirmAction(RabbitMqMessageConfirmOptions option);
+public delegate Task RabbitMqMessageConfirmAction(RabbitMqMessageConfirmOptions option);
 
 /// <summary>
 /// Represents the method that handles a RabbitMQ message that includes an routing key that is obsolete or non relevent from the applicatin perspective

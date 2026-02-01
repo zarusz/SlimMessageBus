@@ -1,5 +1,6 @@
 ﻿namespace SlimMessageBus.Host.RabbitMQ.Test.Consumer;
 
+using global::RabbitMQ.Client;
 using global::RabbitMQ.Client.Events;
 
 public class RabbitMqAutoAcknowledgeMessageProcessorTests
@@ -15,11 +16,16 @@ public class RabbitMqAutoAcknowledgeMessageProcessorTests
         _messageProcessorDisposableMock = _messageProcessorMock.As<IDisposable>();
         _consumerMock = new Mock<IRabbitMqConsumer>();
 
-        _transportMessage = new BasicDeliverEventArgs
-        {
-            Exchange = "exchange",
-            DeliveryTag = 1
-        };
+        var properties = new Mock<IReadOnlyBasicProperties>();
+        _transportMessage = new BasicDeliverEventArgs(
+            consumerTag: "test-consumer-tag",
+            deliveryTag: 1,
+            redelivered: false,
+            exchange: "exchange",
+            routingKey: "test.routing.key",
+            properties: properties.Object,
+            body: new ReadOnlyMemory<byte>(Array.Empty<byte>()),
+            cancellationToken: default);
     }
 
     [Fact]
@@ -76,6 +82,8 @@ public class RabbitMqAutoAcknowledgeMessageProcessorTests
             expected,
             It.IsAny<IDictionary<string, object>>(),
             It.IsAny<bool>()), Times.Once);
+
+        result.Result.Should().Be(processResult);
     }
 
     private RabbitMqAutoAcknowledgeMessageProcessor CreateSubject()

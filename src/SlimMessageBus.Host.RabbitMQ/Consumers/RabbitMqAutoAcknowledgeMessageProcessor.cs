@@ -50,7 +50,7 @@ internal sealed class RabbitMqAutoAcknowledgeMessageProcessor : IMessageProcesso
                 _ => throw new NotImplementedException()
             };
 
-            _consumer.ConfirmMessage(transportMessage, confirmOption, consumerContextProperties);
+            await _consumer.ConfirmMessage(transportMessage, confirmOption, consumerContextProperties);
         }
 
         if (r.Exception != null)

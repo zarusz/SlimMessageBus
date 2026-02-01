@@ -272,6 +272,10 @@ public class MessageBusBaseTests : IDisposable
         // arrange
         var r = new RequestA();
 
+        // Ensure deterministic startup before issuing request/response operations.
+        // The fixture starts AutoStart in a fire-and-forget task, which can race with ProduceSend.
+        await Bus.Start();
+
         Bus.OnReply = (type, topic, request) =>
         {
             if (topic == "a-requests")

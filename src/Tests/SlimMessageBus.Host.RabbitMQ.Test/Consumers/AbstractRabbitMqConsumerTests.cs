@@ -10,7 +10,7 @@ using SlimMessageBus.Host.RabbitMQ;
 public class AbstractRabbitMqConsumerTests : IDisposable
 {
     private readonly Mock<IRabbitMqChannel> _channelMock;
-    private readonly Mock<IModel> _modelMock;
+    private readonly Mock<IChannel> _modelMock;
     private readonly Mock<IHeaderValueConverter> _headerValueConverterMock;
     private readonly ILoggerFactory _loggerFactory;
     private readonly List<AbstractRabbitMqConsumer> _consumersToDispose;
@@ -20,14 +20,19 @@ public class AbstractRabbitMqConsumerTests : IDisposable
     {
         _loggerFactory = NullLoggerFactory.Instance;
         _channelMock = new Mock<IRabbitMqChannel>();
-        _modelMock = new Mock<IModel>();
+        _modelMock = new Mock<IChannel>();
         _headerValueConverterMock = new Mock<IHeaderValueConverter>();
         _consumersToDispose = new List<AbstractRabbitMqConsumer>();
 
         // Setup default mock behavior
         _channelMock.Setup(x => x.Channel).Returns(_modelMock.Object);
-        _channelMock.Setup(x => x.ChannelLock).Returns(new object());
+        // Note: ChannelLock removed in v7 - IChannel is thread-safe
         _modelMock.Setup(x => x.IsOpen).Returns(true);
+
+        // Default setup for broker consumer registration / deregistration
+        _modelMock
+            .Setup(x => x.BasicConsumeAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IAsyncBasicConsumer>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("test-consumer-tag");
     }
 
     [Fact]
@@ -118,36 +123,38 @@ public class AbstractRabbitMqConsumerTests : IDisposable
     [Theory]
     [InlineData(false, false)]
     [InlineData(true, true)]
-    public void When_NackMessageCalled_Given_RequeueOption_Then_ShouldCallBasicNackWithCorrectParameter(bool requeue, bool expectedRequeue)
+    public async Task When_NackMessageCalled_Given_RequeueOption_Then_ShouldCallBasicNackWithCorrectParameter(bool requeue, bool expectedRequeue)
     {
         // Arrange
         var consumer = CreateTestConsumer("test-queue");
         var deliverEventArgs = CreateBasicDeliverEventArgs();
 
         // Act
-        consumer.CallNackMessage(deliverEventArgs, requeue: requeue);
+        await consumer.CallNackMessage(deliverEventArgs, requeue: requeue);
 
         // Assert
-        _modelMock.Verify(x => x.BasicNack(
+        _modelMock.Verify(x => x.BasicNackAsync(
             deliverEventArgs.DeliveryTag,
             false,
-            expectedRequeue), Times.Once);
+            expectedRequeue,
+            default), Times.Once);
     }
 
     [Fact]
-    public void When_AckMessageCalled_Given_ValidMessage_Then_ShouldCallBasicAck()
+    public async Task When_AckMessageCalled_Given_ValidMessage_Then_ShouldCallBasicAck()
     {
         // Arrange
         var consumer = CreateTestConsumer("test-queue");
         var deliverEventArgs = CreateBasicDeliverEventArgs();
 
         // Act
-        consumer.CallAckMessage(deliverEventArgs);
+        await consumer.CallAckMessage(deliverEventArgs);
 
         // Assert
-        _modelMock.Verify(x => x.BasicAck(
+        _modelMock.Verify(x => x.BasicAckAsync(
             deliverEventArgs.DeliveryTag,
-            false), Times.Once);
+            false,
+            default), Times.Once);
     }
 
     [Theory]
@@ -173,7 +180,7 @@ public class AbstractRabbitMqConsumerTests : IDisposable
 
     [Theory]
     [InlineData(10)]
-    public void When_AckOrNackMessageCalledConcurrently_Given_MultipleMessages_Then_ShouldHandleThreadSafely(int messageCount)
+    public async Task When_AckOrNackMessageCalledConcurrently_Given_MultipleMessages_Then_ShouldHandleThreadSafely(int messageCount)
     {
         // Arrange
         var consumer = CreateTestConsumer("test-queue");
@@ -182,17 +189,20 @@ public class AbstractRabbitMqConsumerTests : IDisposable
             .ToList();
 
         // Act - Test both Ack and Nack
-        Parallel.ForEach(messages.Take(messageCount / 2), msg => consumer.CallAckMessage(msg));
-        Parallel.ForEach(messages.Skip(messageCount / 2), msg => consumer.CallNackMessage(msg, requeue: true));
+        var ackTasks = messages.Take(messageCount / 2).Select(msg => consumer.CallAckMessage(msg));
+        var nackTasks = messages.Skip(messageCount / 2).Select(msg => consumer.CallNackMessage(msg, requeue: true));
+        await Task.WhenAll(ackTasks.Concat(nackTasks));
 
         // Assert
-        _modelMock.Verify(x => x.BasicAck(
-            It.IsAny<ulong>(),
-            false), Times.Exactly(messageCount / 2));
-        _modelMock.Verify(x => x.BasicNack(
+        _modelMock.Verify(x => x.BasicAckAsync(
             It.IsAny<ulong>(),
             false,
-            true), Times.Exactly(messageCount - messageCount / 2));
+            default), Times.Exactly(messageCount / 2));
+        _modelMock.Verify(x => x.BasicNackAsync(
+            It.IsAny<ulong>(),
+            false,
+            true,
+            default), Times.Exactly(messageCount - messageCount / 2));
     }
 
     [Fact]
@@ -201,7 +211,7 @@ public class AbstractRabbitMqConsumerTests : IDisposable
         // Arrange - Use a mock that doesn't inherit from RabbitMqChannelManager
         var simpleChannelMock = new Mock<IRabbitMqChannel>();
         simpleChannelMock.Setup(x => x.Channel).Returns(_modelMock.Object);
-        simpleChannelMock.Setup(x => x.ChannelLock).Returns(new object());
+        // Note: ChannelLock removed in v7 - IChannel is thread-safe
 
         // Act
         var consumer = new TestRabbitMqConsumer(
@@ -218,7 +228,207 @@ public class AbstractRabbitMqConsumerTests : IDisposable
         consumer.Should().NotBeNull();
     }
 
-    private TestRabbitMqConsumer CreateTestConsumer(string queueName, bool shouldThrow = false)
+    // -----------------------------------------------------------------------
+    // ReRegisterConsumer / OnStart tests
+    // -----------------------------------------------------------------------
+
+    [Theory]
+    [InlineData(RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade, false)]
+    [InlineData(RabbitMqMessageAcknowledgementMode.AckAutomaticByRabbit, true)]
+    public async Task When_OnStart_Given_AcknowledgementMode_Then_ShouldCallBasicConsumeAsyncWithCorrectAutoAck(
+        RabbitMqMessageAcknowledgementMode ackMode, bool expectedAutoAck)
+    {
+        // Arrange
+        var consumer = CreateTestConsumer("test-queue", ackMode: ackMode);
+
+        // Act
+        await consumer.Start();
+
+        // Assert
+        _modelMock.Verify(x => x.BasicConsumeAsync("test-queue", expectedAutoAck, It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IAsyncBasicConsumer>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task When_OnStart_Twice_Given_ExistingConsumer_Then_ShouldCancelPreviousAndRegisterNew()
+    {
+        // Arrange
+        var consumer = CreateTestConsumer("test-queue");
+        await consumer.Start();
+
+        // Act – second Start re-registers (channel recovery / restart scenario)
+        await consumer.Start();
+
+        // Assert – BasicCancelAsync called for the tag from the first Start
+        _modelMock.Verify(x => x.BasicCancelAsync("test-consumer-tag", It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+        _modelMock.Verify(x => x.BasicConsumeAsync("test-queue", false, It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IAsyncBasicConsumer>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task When_OnStart_Given_ExistingConsumer_AndBasicCancelAsyncThrows_Then_ShouldLogWarningAndContinueRegistration()
+    {
+        // Arrange
+        var consumer = CreateTestConsumer("test-queue");
+        await consumer.Start();   // first Start stores "test-consumer-tag"
+
+        _modelMock
+            .Setup(x => x.BasicCancelAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("Cancel failed"));
+
+        // Act – should not propagate the cancel failure
+        await consumer.Invoking(c => c.Start()).Should().NotThrowAsync();
+
+        // Assert – BasicConsumeAsync still called for the new registration
+        _modelMock.Verify(x => x.BasicConsumeAsync("test-queue", false, It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IAsyncBasicConsumer>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task When_OnStart_Given_BasicConsumeAsyncThrows_Then_ShouldResetConsumerAndRethrow()
+    {
+        // Arrange
+        var consumer = CreateTestConsumer("test-queue");
+
+        _modelMock
+            .Setup(x => x.BasicConsumeAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IAsyncBasicConsumer>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Broker unavailable"));
+
+        // Act
+        await consumer.Invoking(c => c.Start()).Should().ThrowAsync<InvalidOperationException>();
+
+        // Assert – consumer is reset; messages arriving now are silently dropped (null-consumer guard)
+        var deliverEventArgs = CreateBasicDeliverEventArgs();
+        await consumer.TriggerBaseOnMessageReceived(null, deliverEventArgs);
+        consumer.ReceivedMessages.Should().BeEmpty();
+    }
+
+    // -----------------------------------------------------------------------
+    // OnStop tests
+    // -----------------------------------------------------------------------
+
+    [Theory]
+    [InlineData(true)]   // consumer was registered → cancel must be called
+    [InlineData(false)]  // consumer was never registered → cancel must not be called
+    public async Task When_OnStop_Given_StartedState_Then_ShouldCallBasicCancelAsyncAccordingly(bool startFirst)
+    {
+        // Arrange
+        var consumer = CreateTestConsumer("test-queue");
+        if (startFirst)
+        {
+            await consumer.Start();
+        }
+
+        // Act
+        await consumer.Stop();
+
+        // Assert
+        _modelMock.Verify(
+            x => x.BasicCancelAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            startFirst ? Times.Once : Times.Never);
+    }
+
+    [Fact]
+    public async Task When_OnStop_Given_BasicCancelAsyncThrows_Then_ShouldLogWarningAndComplete()
+    {
+        // Arrange
+        var consumer = CreateTestConsumer("test-queue");
+        await consumer.Start();
+
+        _modelMock
+            .Setup(x => x.BasicCancelAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("Broker gone"));
+
+        // Act & Assert – must not rethrow
+        await consumer.Invoking(c => c.Stop()).Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task When_StopThenStart_Given_ConsumerWasStopped_Then_ShouldNotAttemptCancelOnRestart()
+    {
+        // Arrange
+        var consumer = CreateTestConsumer("test-queue");
+        await consumer.Start();
+        await consumer.Stop();
+
+        _modelMock.Invocations.Clear();
+
+        // Act
+        await consumer.Start();
+
+        // Assert – no cancel call because consumer tag was cleared on Stop
+        _modelMock.Verify(x => x.BasicCancelAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
+        _modelMock.Verify(x => x.BasicConsumeAsync("test-queue", false, It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IAsyncBasicConsumer>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // -----------------------------------------------------------------------
+    // OnMessageReceived null-consumer guard test
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public async Task When_OnMessageReceived_Given_ConsumerIsNull_Then_ShouldDropMessageSilently()
+    {
+        // Arrange – consumer never started so _consumer field stays null
+        var consumer = CreateTestConsumer("test-queue");
+        var deliverEventArgs = CreateBasicDeliverEventArgs();
+
+        // Act – go through the base-class path that includes the null-consumer guard
+        await consumer.TriggerBaseOnMessageReceived(null, deliverEventArgs);
+
+        // Assert – inner OnMessageReceived never reached
+        consumer.ReceivedMessages.Should().BeEmpty();
+    }
+
+    // -----------------------------------------------------------------------
+    // Race-condition regression test (the bug fix)
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public async Task When_OnStart_Given_MessageArrivesBeforeBasicConsumeAsyncCompletes_Then_ShouldNotDropMessage()
+    {
+        // Arrange – simulate the broker delivering a pre-queued message *during* the
+        // BasicConsumeAsync await (i.e. before the method returns and the old code
+        // would have set _consumer).  Because we now set _consumer BEFORE the await,
+        // the message must be processed rather than silently dropped.
+        var deliverEventArgs = CreateBasicDeliverEventArgs();
+        TestRabbitMqConsumer consumer = null;
+
+        _modelMock
+            .Setup(x => x.BasicConsumeAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IAsyncBasicConsumer>(), It.IsAny<CancellationToken>()))
+            .Returns<string, bool, string, bool, bool, IDictionary<string, object>, IAsyncBasicConsumer, CancellationToken>(async (_, _, _, _, _, _, _, _) =>
+            {
+                // Simulate broker message delivery happening mid-await
+                await consumer!.TriggerBaseOnMessageReceived(null, deliverEventArgs);
+                return "test-consumer-tag";
+            });
+
+        consumer = CreateTestConsumer("test-queue");
+
+        // Act
+        await consumer.Start();
+
+        // Assert – message was processed, NOT silently dropped
+        consumer.ReceivedMessages.Should().ContainSingle();
+    }
+
+    private TestRabbitMqConsumer CreateTestConsumer(
+        string queueName,
+        bool shouldThrow = false,
+        RabbitMqMessageAcknowledgementMode ackMode = RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade)
+    {
+        var consumer = new TestRabbitMqConsumer(
+            _loggerFactory.CreateLogger<TestRabbitMqConsumer>(),
+            Array.Empty<AbstractConsumerSettings>(),
+            Array.Empty<IAbstractConsumerInterceptor>(),
+            _channelMock.Object,
+            queueName,
+            _headerValueConverterMock.Object,
+            shouldThrow,
+            ackMode);
+
+        _consumersToDispose.Add(consumer);
+        return consumer;
+    }
+
+    // Legacy overload kept for the existing tests that pass shouldThrow explicitly by position
+    private TestRabbitMqConsumer CreateTestConsumer(string queueName, bool shouldThrow)
     {
         var consumer = new TestRabbitMqConsumer(
             _loggerFactory.CreateLogger<TestRabbitMqConsumer>(),
@@ -237,17 +447,18 @@ public class AbstractRabbitMqConsumerTests : IDisposable
         Dictionary<string, object> headers = null,
         ulong deliveryTag = 1)
     {
-        var properties = new Mock<IBasicProperties>();
+        var properties = new Mock<IReadOnlyBasicProperties>();
         properties.Setup(x => x.Headers).Returns(headers);
 
-        return new BasicDeliverEventArgs
-        {
-            DeliveryTag = deliveryTag,
-            Exchange = "test-exchange",
-            RoutingKey = "test.routing.key",
-            BasicProperties = properties.Object,
-            Body = new ReadOnlyMemory<byte>(Array.Empty<byte>())
-        };
+        return new BasicDeliverEventArgs(
+            consumerTag: "test-consumer-tag",
+            deliveryTag: deliveryTag,
+            redelivered: false,
+            exchange: "test-exchange",
+            routingKey: "test.routing.key",
+            properties: properties.Object,
+            body: new ReadOnlyMemory<byte>(Array.Empty<byte>()),
+            cancellationToken: default);
     }
 
     private static BasicDeliverEventArgs CreateBasicDeliverEventArgs(ulong deliveryTag)
@@ -273,11 +484,12 @@ public class AbstractRabbitMqConsumerTests : IDisposable
     private class TestRabbitMqConsumer : AbstractRabbitMqConsumer
     {
         private readonly bool _shouldThrow;
+        private readonly RabbitMqMessageAcknowledgementMode _acknowledgementMode;
+
         public List<BasicDeliverEventArgs> ReceivedMessages { get; } = new();
         public Dictionary<string, object> ReceivedHeaders { get; private set; }
 
-        protected override RabbitMqMessageAcknowledgementMode AcknowledgementMode => 
-            RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade;
+        protected override RabbitMqMessageAcknowledgementMode AcknowledgementMode => _acknowledgementMode;
 
         public TestRabbitMqConsumer(
             ILogger logger,
@@ -286,10 +498,12 @@ public class AbstractRabbitMqConsumerTests : IDisposable
             IRabbitMqChannel channel,
             string queueName,
             IHeaderValueConverter headerValueConverter,
-            bool shouldThrow = false)
+            bool shouldThrow = false,
+            RabbitMqMessageAcknowledgementMode acknowledgementMode = RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade)
             : base(logger, consumerSettings, interceptors, channel, queueName, headerValueConverter)
         {
             _shouldThrow = shouldThrow;
+            _acknowledgementMode = acknowledgementMode;
         }
 
         protected override Task<Exception> OnMessageReceived(Dictionary<string, object> messageHeaders, BasicDeliverEventArgs transportMessage)
@@ -303,6 +517,10 @@ public class AbstractRabbitMqConsumerTests : IDisposable
             ReceivedHeaders = messageHeaders;
             return Task.FromResult<Exception>(null);
         }
+
+        /// <summary>Calls the base-class event handler, which includes the _consumer null-guard.</summary>
+        public Task TriggerBaseOnMessageReceived(object sender, BasicDeliverEventArgs e)
+            => OnMessageReceived(sender, e);
 
         public async Task TriggerMessageReceived(object sender, BasicDeliverEventArgs e)
         {
@@ -319,7 +537,7 @@ public class AbstractRabbitMqConsumerTests : IDisposable
                         .BaseType
                         .GetField("_headerValueConverter", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
                         ?.GetValue(this) as IHeaderValueConverter;
-                    
+
                     messageHeaders.Add(header.Key, headerValueConverter?.ConvertFrom(header.Value) ?? header.Value);
                 }
             }
@@ -334,14 +552,14 @@ public class AbstractRabbitMqConsumerTests : IDisposable
             }
         }
 
-        public void CallAckMessage(BasicDeliverEventArgs e)
+        public Task CallAckMessage(BasicDeliverEventArgs e)
         {
-            AckMessage(e);
+            return AckMessage(e);
         }
 
-        public void CallNackMessage(BasicDeliverEventArgs e, bool requeue)
+        public Task CallNackMessage(BasicDeliverEventArgs e, bool requeue)
         {
-            NackMessage(e, requeue);
+            return NackMessage(e, requeue);
         }
 
         public new Task Start() => OnStart();

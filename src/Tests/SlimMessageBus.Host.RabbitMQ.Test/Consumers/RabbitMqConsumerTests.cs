@@ -8,7 +8,7 @@ using SlimMessageBus.Host.Collections;
 public class RabbitMqConsumerTests : IAsyncLifetime
 {
     private readonly Mock<IRabbitMqChannel> _channelMock;
-    private readonly Mock<IModel> _modelMock;
+    private readonly Mock<IChannel> _modelMock;
     private readonly Mock<IHeaderValueConverter> _headerValueConverterMock;
     private readonly Mock<ILoggerFactory> _loggerFactoryMock;
     private readonly Mock<ILogger<RabbitMqConsumer>> _consumerLoggerMock;
@@ -20,7 +20,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
     public RabbitMqConsumerTests()
     {
         _channelMock = new Mock<IRabbitMqChannel>();
-        _modelMock = new Mock<IModel>();
+        _modelMock = new Mock<IChannel>();
         _headerValueConverterMock = new Mock<IHeaderValueConverter>();
         _loggerFactoryMock = new Mock<ILoggerFactory>();
         _consumerLoggerMock = new Mock<ILogger<RabbitMqConsumer>>();
@@ -29,7 +29,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
 
         // Setup default mock behavior
         _channelMock.Setup(x => x.Channel).Returns(_modelMock.Object);
-        _channelMock.Setup(x => x.ChannelLock).Returns(new object());
+        // Note: ChannelLock removed in v7 - IChannel is thread-safe
         _modelMock.Setup(x => x.IsOpen).Returns(true);
 
         // Setup logger factory to return the consumer logger mock for any string parameter
@@ -126,7 +126,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         exception.Should().BeNull();
 
         // Verify message was acknowledged (default behavior for unrecognized routing key)
-        _modelMock.Verify(x => x.BasicAck(deliverEventArgs.DeliveryTag, false), Times.Once);
+        _modelMock.Verify(x => x.BasicAckAsync(deliverEventArgs.DeliveryTag, false, default), Times.Once);
     }
 
     [Fact]
@@ -145,14 +145,14 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         await consumer.OnMessageReceivedPublic(messageHeaders, deliverEventArgs);
 
         // Assert - Should be called once (before processing)
-        _modelMock.Verify(x => x.BasicAck(deliverEventArgs.DeliveryTag, false), Times.Once);
+        _modelMock.Verify(x => x.BasicAckAsync(deliverEventArgs.DeliveryTag, false, default), Times.Once);
     }
 
     [Theory]
     [InlineData(RabbitMqMessageConfirmOptions.Ack, 1, 0, false)]
     [InlineData(RabbitMqMessageConfirmOptions.Nack, 0, 1, false)]
     [InlineData(RabbitMqMessageConfirmOptions.Nack | RabbitMqMessageConfirmOptions.Requeue, 0, 1, true)]
-    public void When_ConfirmMessage_Given_ConfirmOptions_Then_ShouldCallAppropriateMethod(
+    public async Task When_ConfirmMessage_Given_ConfirmOptions_Then_ShouldCallAppropriateMethod(
         RabbitMqMessageConfirmOptions option,
         int expectedAckCalls,
         int expectedNackCalls,
@@ -166,16 +166,16 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         var properties = new Dictionary<string, object>();
 
         // Act
-        consumer.ConfirmMessage(deliverEventArgs, option, properties);
+        await consumer.ConfirmMessage(deliverEventArgs, option, properties);
 
         // Assert
-        _modelMock.Verify(x => x.BasicAck(deliverEventArgs.DeliveryTag, false), Times.Exactly(expectedAckCalls));
-        _modelMock.Verify(x => x.BasicNack(deliverEventArgs.DeliveryTag, false, expectedRequeue), Times.Exactly(expectedNackCalls));
+        _modelMock.Verify(x => x.BasicAckAsync(deliverEventArgs.DeliveryTag, false, default), Times.Exactly(expectedAckCalls));
+        _modelMock.Verify(x => x.BasicNackAsync(deliverEventArgs.DeliveryTag, false, expectedRequeue, default), Times.Exactly(expectedNackCalls));
         properties.Should().ContainKey(RabbitMqConsumer.ContextProperty_MessageConfirmed);
     }
 
     [Fact]
-    public void When_ConfirmMessage_Given_MessageAlreadyConfirmed_Then_ShouldNotConfirmAgain()
+    public async Task When_ConfirmMessage_Given_MessageAlreadyConfirmed_Then_ShouldNotConfirmAgain()
     {
         // Arrange
         var consumers = CreateConsumerSettings("test-queue", "");
@@ -188,11 +188,11 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         };
 
         // Act
-        consumer.ConfirmMessage(deliverEventArgs, RabbitMqMessageConfirmOptions.Ack, properties, warnIfAlreadyConfirmed: true);
+        await consumer.ConfirmMessage(deliverEventArgs, RabbitMqMessageConfirmOptions.Ack, properties, warnIfAlreadyConfirmed: true);
 
         // Assert
-        _modelMock.Verify(x => x.BasicAck(It.IsAny<ulong>(), It.IsAny<bool>()), Times.Never);
-        _modelMock.Verify(x => x.BasicNack(It.IsAny<ulong>(), It.IsAny<bool>(), It.IsAny<bool>()), Times.Never);
+        _modelMock.Verify(x => x.BasicAckAsync(It.IsAny<ulong>(), It.IsAny<bool>(), default), Times.Never);
+        _modelMock.Verify(x => x.BasicNackAsync(It.IsAny<ulong>(), It.IsAny<bool>(), It.IsAny<bool>(), default), Times.Never);
     }
 
     [Fact]
@@ -320,17 +320,18 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         ulong deliveryTag = 1,
         string routingKey = "test.routing.key")
     {
-        var properties = new Mock<IBasicProperties>();
+        var properties = new Mock<IReadOnlyBasicProperties>();
         properties.Setup(x => x.Headers).Returns(headers);
 
-        return new BasicDeliverEventArgs
-        {
-            DeliveryTag = deliveryTag,
-            Exchange = "test-exchange",
-            RoutingKey = routingKey,
-            BasicProperties = properties.Object,
-            Body = new ReadOnlyMemory<byte>(Array.Empty<byte>())
-        };
+        return new BasicDeliverEventArgs(
+            consumerTag: "test-consumer-tag",
+            deliveryTag: deliveryTag,
+            redelivered: false,
+            exchange: "test-exchange",
+            routingKey: routingKey,
+            properties: properties.Object,
+            body: new ReadOnlyMemory<byte>(Array.Empty<byte>()),
+            cancellationToken: default);
     }
 
     // Test message and consumer types
