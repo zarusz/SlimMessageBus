@@ -37,7 +37,7 @@ public abstract class BaseIntegrationTest<T> : IAsyncLifetime
             .ReadFrom.Configuration(Configuration)
             .CreateLogger();
 
-        Secrets.Load(@"..\..\..\..\..\secrets.txt");
+        Secrets.Load(Path.Combine("..", "..", "..", "..", "..", "secrets.txt"));
 
         _serviceProvider = new Lazy<ServiceProvider>(() =>
         {

@@ -16,4 +16,11 @@ static internal class RabbitMqHasProviderExtensions
 
     public static string GetExchangeType(this ProducerSettings p, HasProviderExtensions settings = null)
         => p.GetOrDefault<string>(RabbitMqProperties.ExchangeType, settings, null);
+
+    /// <summary>
+    /// Resolves whether publisher confirms are enabled for the given producer.
+    /// Producer-level setting takes precedence over bus-level setting.
+    /// </summary>
+    public static bool IsPublisherConfirmsEnabled(this ProducerSettings p, RabbitMqMessageBusSettings providerSettings)
+        => p.GetOrDefault<bool?>(RabbitMqProperties.EnablePublisherConfirms, null) ?? providerSettings.EnablePublisherConfirms;
 }

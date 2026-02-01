@@ -32,4 +32,42 @@ public class RabbitMqMessageBusSettingsExtensionsTests
         var routingKeyProviderReturned = _settings.GetOrDefault(RabbitMqProperties.MessageRoutingKeyProvider);
         routingKeyProviderReturned.Should().BeSameAs(routingKeyProviderMock.Object);
     }
+
+    [Fact]
+    internal void When_UsePublisherConfirms_Then_EnabledWithDefaultTimeout()
+    {
+        // act
+        _settings.UsePublisherConfirms();
+
+        // assert
+        _settings.EnablePublisherConfirms.Should().BeTrue();
+        _settings.PublisherConfirmsTimeout.Should().Be(TimeSpan.FromSeconds(10));
+    }
+
+    [Fact]
+    internal void When_UsePublisherConfirms_Given_Timeout_Then_EnabledWithTimeout()
+    {
+        // arrange
+        var timeout = TimeSpan.FromSeconds(30);
+
+        // act
+        _settings.UsePublisherConfirms(timeout);
+
+        // assert
+        _settings.EnablePublisherConfirms.Should().BeTrue();
+        _settings.PublisherConfirmsTimeout.Should().Be(timeout);
+    }
+
+    [Fact]
+    internal void When_UsePublisherConfirms_Given_NullSettings_Then_ShouldThrowArgumentNullException()
+    {
+        // arrange
+        RabbitMqMessageBusSettings nullSettings = null;
+
+        // act
+        var act = () => nullSettings.UsePublisherConfirms();
+
+        // assert
+        act.Should().Throw<ArgumentNullException>().WithParameterName("settings");
+    }
 }

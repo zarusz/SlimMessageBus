@@ -1,4 +1,4 @@
-﻿namespace SlimMessageBus.Host.RabbitMQ;
+namespace SlimMessageBus.Host.RabbitMQ;
 
 using global::RabbitMQ.Client;
 using global::RabbitMQ.Client.Events;
