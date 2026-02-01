@@ -1,5 +1,6 @@
 ﻿namespace SlimMessageBus.Host.RabbitMQ.Test.Config;
 
+using global::RabbitMQ.Client;
 using global::RabbitMQ.Client.Events;
 
 public class RabbitMqConsumerContextExtensionsTests
@@ -10,7 +11,17 @@ public class RabbitMqConsumerContextExtensionsTests
     internal void When_GetTransportMessage_Then_ReturnsMessage_Given_SetTransportMessageWasCalled()
     {
         // arrange
-        var transportMessage = Mock.Of<BasicDeliverEventArgs>();
+        // Create a real BasicDeliverEventArgs instead of mocking (it doesn't have a parameterless constructor)
+        var propertiesMock = new Mock<IReadOnlyBasicProperties>();
+        var transportMessage = new BasicDeliverEventArgs(
+            consumerTag: "test-consumer",
+            deliveryTag: 1,
+            redelivered: false,
+            exchange: "test-exchange",
+            routingKey: "test.routing.key",
+            properties: propertiesMock.Object,
+            body: new ReadOnlyMemory<byte>(Array.Empty<byte>()),
+            cancellationToken: default);
 
         _consumerContext.SetTransportMessage(transportMessage);
 

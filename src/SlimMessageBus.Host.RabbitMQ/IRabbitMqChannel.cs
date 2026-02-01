@@ -1,9 +1,12 @@
-﻿namespace SlimMessageBus.Host.RabbitMQ;
+namespace SlimMessageBus.Host.RabbitMQ;
 
 using global::RabbitMQ.Client;
 
+/// <summary>
+/// Provides access to the RabbitMQ channel.
+/// Note: IChannel is thread-safe in RabbitMQ.Client v7+ and can be used concurrently without external locking.
+/// </summary>
 public interface IRabbitMqChannel
 {
-    public IModel Channel { get; }
-    public object ChannelLock { get; }
+    IChannel Channel { get; }
 }

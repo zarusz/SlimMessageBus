@@ -66,13 +66,13 @@ public class RabbitMqDefaultExchangeIt(ITestOutputHelper output) : BaseIntegrati
                     p.ContentType = MediaTypeNames.Application.Json;
                 });
                 cfg.UseQueueDefaults(durable: false);
-                cfg.UseTopologyInitializer((channel, applyDefaultTopology) =>
+                cfg.UseTopologyInitializer(async (channel, applyDefaultTopology) =>
                 {
                     // before test clean up
-                    channel.QueueDelete("default-exchange-queue", ifUnused: true, ifEmpty: false);
+                    await channel.QueueDeleteAsync("default-exchange-queue", ifUnused: true, ifEmpty: false);
 
                     // apply default SMB inferred topology
-                    applyDefaultTopology();
+                    await applyDefaultTopology();
 
                     // after
                 });

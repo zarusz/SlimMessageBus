@@ -5,11 +5,11 @@ using global::RabbitMQ.Client;
 public class RabbitMqTopologyService
 {
     private readonly ILogger _logger;
-    private readonly IModel _channel;
+    private readonly IChannel _channel;
     private readonly MessageBusSettings _settings;
     private readonly RabbitMqMessageBusSettings _providerSettings;
 
-    public RabbitMqTopologyService(ILoggerFactory loggerFactory, IModel channel, MessageBusSettings settings, RabbitMqMessageBusSettings providerSettings)
+    public RabbitMqTopologyService(ILoggerFactory loggerFactory, IChannel channel, MessageBusSettings settings, RabbitMqMessageBusSettings providerSettings)
     {
         _logger = loggerFactory.CreateLogger<RabbitMqTopologyService>();
         _channel = channel;
@@ -17,12 +17,12 @@ public class RabbitMqTopologyService
         _providerSettings = providerSettings;
     }
 
-    public bool ProvisionTopology()
+    public async Task<bool> ProvisionTopology()
     {
         try
         {
-            ProvisionProducers();
-            ProvisionConsumers();
+            await ProvisionProducers();
+            await ProvisionConsumers();
             return true;
         }
         catch (Exception e)
@@ -32,7 +32,7 @@ public class RabbitMqTopologyService
         }
     }
 
-    private void ProvisionConsumers()
+    private async Task ProvisionConsumers()
     {
         foreach (var consumer in _settings.Consumers)
         {
@@ -45,12 +45,12 @@ public class RabbitMqTopologyService
             // Declare DeadLetter exchange when details provided
             if (deadLetterExchange != null && deadLetterExchangeType != null)
             {
-                DeclareExchange(deadLetterExchange, exchangeType: deadLetterExchangeType, durable: deadLetterExchangeDurable, autoDelete: deadLetterExchangeAutoDelete);
+                await DeclareExchange(deadLetterExchange, exchangeType: deadLetterExchangeType, durable: deadLetterExchangeDurable, autoDelete: deadLetterExchangeAutoDelete);
             }
 
             // ToDo: Ability to create server generated queue names
             var queueName = consumer.GetQueueName();
-            DeclareQueue(consumer, queueName: queueName, arguments =>
+            await DeclareQueue(consumer, queueName: queueName, arguments =>
             {
                 if (deadLetterExchange != null)
                 {
@@ -62,21 +62,21 @@ public class RabbitMqTopologyService
                 }
             });
 
-            DeclareQueueBinding(consumer, consumer.Path, queueName);
+            await DeclareQueueBinding(consumer, consumer.Path, queueName);
         }
 
         if (_settings.RequestResponse != null)
         {
             var exchangeName = _settings.RequestResponse.Path;
-            DeclareExchange(_settings.RequestResponse, exchangeName: exchangeName);
+            await DeclareExchange(_settings.RequestResponse, exchangeName: exchangeName);
 
             var queueName = _settings.RequestResponse.GetQueueName();
-            DeclareQueue(_settings.RequestResponse, queueName: queueName);
-            DeclareQueueBinding(_settings.RequestResponse, bindingExchangeName: exchangeName, queueName);
+            await DeclareQueue(_settings.RequestResponse, queueName: queueName);
+            await DeclareQueueBinding(_settings.RequestResponse, bindingExchangeName: exchangeName, queueName);
         }
     }
 
-    private void DeclareQueueBinding(AbstractConsumerSettings settings, string bindingExchangeName, string queueName)
+    private async Task DeclareQueueBinding(AbstractConsumerSettings settings, string bindingExchangeName, string queueName)
     {
         var bindingRoutingKey = settings.GetBindingRoutingKey(_providerSettings) ?? string.Empty;
 
@@ -89,7 +89,7 @@ public class RabbitMqTopologyService
         _logger.LogInformation("Binding queue {QueueName} to exchange {ExchangeName} using routing key {RoutingKey}", queueName, bindingExchangeName, bindingRoutingKey);
         try
         {
-            _channel.QueueBind(queueName, bindingExchangeName, routingKey: bindingRoutingKey, arguments: null);
+            await _channel.QueueBindAsync(queueName, bindingExchangeName, routingKey: bindingRoutingKey, arguments: null);
         }
         catch (Exception e)
         {
@@ -97,11 +97,11 @@ public class RabbitMqTopologyService
         }
     }
 
-    private void ProvisionProducers()
+    private async Task ProvisionProducers()
     {
         foreach (var producer in _settings.Producers)
         {
-            DeclareExchange(producer, exchangeName: producer.DefaultPath);
+            await DeclareExchange(producer, exchangeName: producer.DefaultPath);
         }
     }
 
@@ -109,9 +109,10 @@ public class RabbitMqTopologyService
     /// Declares the queue
     /// </summary>
     /// <param name="settings"></param>
+    /// <param name="queueName"></param>
     /// <param name="argumentModifier"></param>
     /// <returns>The queue name</returns>
-    private string DeclareQueue(HasProviderExtensions settings, string queueName, Action<IDictionary<string, object>> argumentModifier = null)
+    private async Task<string> DeclareQueue(HasProviderExtensions settings, string queueName, Action<IDictionary<string, object>> argumentModifier = null)
     {
         var queueDurable = settings.GetOrDefault(RabbitMqProperties.QueueDurable, _providerSettings, false);
         var queueAutoDelete = settings.GetOrDefault(RabbitMqProperties.QueueAutoDelete, _providerSettings, false);
@@ -130,7 +131,7 @@ public class RabbitMqTopologyService
                 argumentModifier(arguments);
             }
 
-            _channel.QueueDeclare(queueName, durable: queueDurable, exclusive: queueExclusive, autoDelete: queueAutoDelete, arguments: arguments);
+            await _channel.QueueDeclareAsync(queueName, durable: queueDurable, exclusive: queueExclusive, autoDelete: queueAutoDelete, arguments: arguments);
         }
         catch (Exception e)
         {
@@ -140,7 +141,7 @@ public class RabbitMqTopologyService
         return queueName;
     }
 
-    private void DeclareExchange(HasProviderExtensions settings, string exchangeName)
+    private async Task DeclareExchange(HasProviderExtensions settings, string exchangeName)
     {
         if (string.IsNullOrEmpty(exchangeName))
         {
@@ -153,10 +154,10 @@ public class RabbitMqTopologyService
         var autoDelete = settings.GetOrDefault(RabbitMqProperties.ExchangeAutoDelete, _providerSettings, false);
         var arguments = settings.GetOrDefault<IDictionary<string, object>>(RabbitMqProperties.ExchangeArguments, _providerSettings, null);
 
-        DeclareExchange(exchangeName: exchangeName, exchangeType: exchangeType, durable: durable, autoDelete: autoDelete, arguments: arguments);
+        await DeclareExchange(exchangeName: exchangeName, exchangeType: exchangeType, durable: durable, autoDelete: autoDelete, arguments: arguments);
     }
 
-    private void DeclareExchange(string exchangeName, string exchangeType, bool durable, bool autoDelete, IDictionary<string, object> arguments = null)
+    private async Task DeclareExchange(string exchangeName, string exchangeType, bool durable, bool autoDelete, IDictionary<string, object> arguments = null)
     {
         if (string.IsNullOrEmpty(exchangeName))
         {
@@ -167,7 +168,7 @@ public class RabbitMqTopologyService
         _logger.LogInformation("Declaring exchange {ExchangeName}, ExchangeType: {ExchangeType}, Durable: {Durable}, AutoDelete: {AutoDelete}", exchangeName, exchangeType, durable, autoDelete);
         try
         {
-            _channel.ExchangeDeclare(exchangeName, exchangeType, durable: durable, autoDelete: autoDelete, arguments: arguments);
+            await _channel.ExchangeDeclareAsync(exchangeName, exchangeType, durable: durable, autoDelete: autoDelete, arguments: arguments);
         }
         catch (Exception e)
         {

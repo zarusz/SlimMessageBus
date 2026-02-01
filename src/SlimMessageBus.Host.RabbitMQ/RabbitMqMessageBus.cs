@@ -8,9 +8,7 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
 
     #region IRabbitMqChannel
 
-    public IModel Channel => _channelManager.Channel;
-
-    public object ChannelLock => _channelManager.ChannelLock;
+    public IChannel Channel => _channelManager.Channel;
 
     #endregion
 
@@ -76,19 +74,23 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
         _channelManager?.Dispose();
     }
 
-    public override Task ProduceToTransport(object message, Type messageType, string path, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken)
+    public override async Task ProduceToTransport(object message, Type messageType, string path, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
         try
         {
             OnProduceToTransport(message, messageType, path, messageHeaders);
 
             _channelManager.EnsureChannel();
-            lock (_channelManager.ChannelLock)
-            {
-                GetTransportMessage(message, messageType, messageHeaders, path, out var messagePayload, out var messageProperties, out var routingKey);
-                _channelManager.Channel.BasicPublish(path, routingKey: routingKey, mandatory: false, basicProperties: messageProperties, body: messagePayload);
-            }
-            return Task.CompletedTask;
+
+            // IChannel is thread-safe in v7 - no locking needed
+            GetTransportMessage(message, messageType, messageHeaders, path, out var messagePayload, out var messageProperties, out var routingKey);
+            await _channelManager.Channel.BasicPublishAsync(
+                exchange: path,
+                routingKey: routingKey,
+                mandatory: false,
+                basicProperties: (BasicProperties)messageProperties,
+                body: messagePayload,
+                cancellationToken: cancellationToken);
         }
         catch (Exception ex) when (ex is not ProducerMessageBusException && ex is not TaskCanceledException)
         {
@@ -96,27 +98,30 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
         }
     }
 
-    public override Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
+    public override async Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
         try
         {
             _channelManager.EnsureChannel();
-            lock (_channelManager.ChannelLock)
+
+            // IChannel is thread-safe in v7 - no locking needed
+            foreach (var envelope in envelopes)
             {
-                var batch = _channelManager.Channel.CreateBasicPublishBatch();
-                foreach (var envelope in envelopes)
-                {
-                    GetTransportMessage(envelope.Message, envelope.MessageType, envelope.Headers, path, out var messagePayload, out var messageProperties, out var routingKey);
-                    batch.Add(path, routingKey: routingKey, mandatory: false, properties: messageProperties, body: messagePayload.AsMemory());
-                }
-                batch.Publish();
+                GetTransportMessage(envelope.Message, envelope.MessageType, envelope.Headers, path, out var messagePayload, out var messageProperties, out var routingKey);
+                await _channelManager.Channel.BasicPublishAsync(
+                    exchange: path,
+                    routingKey: routingKey,
+                    mandatory: false,
+                    basicProperties: (BasicProperties)messageProperties,
+                    body: messagePayload,
+                    cancellationToken: cancellationToken);
             }
 
-            return Task.FromResult(new ProduceToTransportBulkResult<T>(envelopes, null));
+            return new ProduceToTransportBulkResult<T>(envelopes, null);
         }
         catch (Exception ex)
         {
-            return Task.FromResult(new ProduceToTransportBulkResult<T>([], ex));
+            return new ProduceToTransportBulkResult<T>([], ex);
         }
     }
 
@@ -125,28 +130,31 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
         var producer = GetProducerSettings(messageType);
         messagePayload = SerializerProvider.GetSerializer(path).Serialize(messageType, messageHeaders, message, null);
 
-        // This assumes there is a lock aquired for the Channel by the caller
-        messageProperties = _channelManager.Channel.CreateBasicProperties();
+        // IChannel is thread-safe in v7 - create properties without external locking
+        var writableProperties = new BasicProperties();
 
         if (messageHeaders != null)
         {
-            messageProperties.Headers ??= new Dictionary<string, object>();
+            writableProperties.Headers ??= new Dictionary<string, object>();
             foreach (var header in messageHeaders)
             {
-                messageProperties.Headers[header.Key] = ProviderSettings.HeaderValueConverter.ConvertTo(header.Value);
+                writableProperties.Headers[header.Key] = ProviderSettings.HeaderValueConverter.ConvertTo(header.Value);
             }
         }
 
         // Calculate the routing key for the message (if provider set)
         var routingKeyProvider = producer.GetMessageRoutingKeyProvider(ProviderSettings);
-        routingKey = routingKeyProvider?.Invoke(message, messageProperties) ?? string.Empty;
+        routingKey = routingKeyProvider?.Invoke(message, writableProperties) ?? string.Empty;
 
         // Invoke the bus level modifier
         var messagePropertiesModifier = ProviderSettings.GetMessagePropertiesModifier();
-        messagePropertiesModifier?.Invoke(message, messageProperties);
+        messagePropertiesModifier?.Invoke(message, writableProperties);
 
         // Invoke the producer level modifier
         messagePropertiesModifier = producer.GetMessagePropertiesModifier();
-        messagePropertiesModifier?.Invoke(message, messageProperties);
+        messagePropertiesModifier?.Invoke(message, writableProperties);
+
+        // Return the writable properties
+        messageProperties = writableProperties;
     }
 }

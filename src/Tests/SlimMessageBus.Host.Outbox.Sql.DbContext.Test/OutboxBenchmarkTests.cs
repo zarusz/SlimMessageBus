@@ -78,14 +78,14 @@ public class OutboxBenchmarkTests(ITestOutputHelper output) : BaseOutboxIntegrat
                             });
                             cfg.UseExchangeDefaults(durable: false);
                             cfg.UseQueueDefaults(durable: false);
-                            cfg.UseTopologyInitializer((channel, applyDefaultTopology) =>
+                            cfg.UseTopologyInitializer(async (channel, applyDefaultTopology) =>
                             {
                                 // before test clean up
-                                channel.QueueDelete(queue, ifUnused: true, ifEmpty: false);
-                                channel.ExchangeDelete(topic, ifUnused: true);
+                                await channel.QueueDeleteAsync(queue, ifUnused: true, ifEmpty: false);
+                                await channel.ExchangeDeleteAsync(topic, ifUnused: true);
 
                                 // apply default SMB inferred topology
-                                applyDefaultTopology();
+                                await applyDefaultTopology();
 
                                 // after
                             });

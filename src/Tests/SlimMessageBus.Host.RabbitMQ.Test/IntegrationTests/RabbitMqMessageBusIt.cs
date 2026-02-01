@@ -40,16 +40,16 @@ public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTes
                 cfg.UseExchangeDefaults(durable: false);
                 cfg.UseDeadLetterExchangeDefaults(durable: false, autoDelete: false, exchangeType: ExchangeType.Direct, routingKey: string.Empty);
                 cfg.UseQueueDefaults(durable: false);
-                cfg.UseTopologyInitializer((channel, applyDefaultTopology) =>
+                cfg.UseTopologyInitializer(async (channel, applyDefaultTopology) =>
                 {
                     // before test clean up
-                    channel.QueueDelete("subscriber-0", ifUnused: true, ifEmpty: false);
-                    channel.QueueDelete("subscriber-1", ifUnused: true, ifEmpty: false);
-                    channel.ExchangeDelete("test-ping", ifUnused: true);
-                    channel.ExchangeDelete("subscriber-dlq", ifUnused: true);
+                    await channel.QueueDeleteAsync("subscriber-0", ifUnused: true, ifEmpty: false);
+                    await channel.QueueDeleteAsync("subscriber-1", ifUnused: true, ifEmpty: false);
+                    await channel.ExchangeDeleteAsync("test-ping", ifUnused: true);
+                    await channel.ExchangeDeleteAsync("subscriber-dlq", ifUnused: true);
 
                     // apply default SMB inferred topology
-                    applyDefaultTopology();
+                    await applyDefaultTopology();
 
                     // after
                 });
@@ -121,7 +121,7 @@ public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTes
             {
                 // For concurrency > 1, we should see at least some concurrent processing
                 // This is a more realistic expectation than perfect theoretical maximum
-                testData.TestMetric.ProcessingCountMax.Should().BeGreaterThan(subscribers, 
+                testData.TestMetric.ProcessingCountMax.Should().BeGreaterThan(subscribers,
                     "When concurrency > 1, we should see more than just single-threaded processing per subscriber");
             }
             else
@@ -170,7 +170,7 @@ public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTes
         // Calculate the exact expected count to ensure we wait for all messages
         var expectedConsumedCount = producedMessages.Count + producedMessages.OfType<PingDerivedMessage>().Count();
         var totalExpectedCount = expectedConsumedCount * expectedMessageCopies;
-        
+
         // Wait for all expected messages with a longer timeout to ensure message delivery
         await consumedMessages.WaitUntilArriving(newMessagesTimeout: 15, expectedCount: totalExpectedCount);
 

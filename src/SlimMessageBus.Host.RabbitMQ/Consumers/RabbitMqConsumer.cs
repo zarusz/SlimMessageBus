@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 public interface IRabbitMqConsumer
 {
     string Path { get; }
-    void ConfirmMessage(BasicDeliverEventArgs transportMessage, RabbitMqMessageConfirmOptions option, IDictionary<string, object> properties, bool warnIfAlreadyConfirmed = false);
+    Task ConfirmMessage(BasicDeliverEventArgs transportMessage, RabbitMqMessageConfirmOptions option, IDictionary<string, object> properties, bool warnIfAlreadyConfirmed = false);
 }
 
 public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
@@ -119,7 +119,7 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
         consumerContext.SetConfirmAction(option => ConfirmMessage(transportMessage, option, consumerContext.Properties, warnIfAlreadyConfirmed: true));
     }
 
-    public void ConfirmMessage(BasicDeliverEventArgs transportMessage, RabbitMqMessageConfirmOptions option, IDictionary<string, object> properties, bool warnIfAlreadyConfirmed = false)
+    public async Task ConfirmMessage(BasicDeliverEventArgs transportMessage, RabbitMqMessageConfirmOptions option, IDictionary<string, object> properties, bool warnIfAlreadyConfirmed = false)
     {
         if (properties.TryGetValue(ContextProperty_MessageConfirmed, out var confirmed) && confirmed is true)
         {
@@ -133,12 +133,12 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
 
         if ((option & RabbitMqMessageConfirmOptions.Ack) != 0)
         {
-            AckMessage(transportMessage);
+            await AckMessage(transportMessage);
             confirmed = true;
         }
         else if ((option & RabbitMqMessageConfirmOptions.Nack) != 0)
         {
-            NackMessage(transportMessage, requeue: (option & RabbitMqMessageConfirmOptions.Requeue) != 0);
+            await NackMessage(transportMessage, requeue: (option & RabbitMqMessageConfirmOptions.Requeue) != 0);
             confirmed = true;
         }
 
@@ -156,7 +156,7 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
         if (_acknowledgementMode == RabbitMqMessageAcknowledgementMode.AckMessageBeforeProcessing)
         {
             // Acknowledge before processing
-            ConfirmMessage(transportMessage, RabbitMqMessageConfirmOptions.Ack, consumerContextProperties);
+            await ConfirmMessage(transportMessage, RabbitMqMessageConfirmOptions.Ack, consumerContextProperties);
         }
 
         var messageProcessor = FindMessageProcessor(transportMessage.RoutingKey);
@@ -168,7 +168,7 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
         {
             Logger.LogDebug("Exchange {Exchange} - Queue {Queue}: No message processor found for routing key {RoutingKey}", transportMessage.Exchange, Path, transportMessage.RoutingKey);
             var confirmAction = _messageUnrecognizedRoutingKeyHandler(transportMessage);
-            ConfirmMessage(transportMessage, confirmAction, messageHeaders);
+            await ConfirmMessage(transportMessage, confirmAction, messageHeaders);
         }
 
         // error handling happens in the message processor

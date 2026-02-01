@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 /// Manages RabbitMQ channel connection, reconnection, retry logic, and background timer.
 /// Acts as an IModel wrapper with automatic connection recovery.
 /// </summary>
-internal partial class RabbitMqChannelManager : IRabbitMqChannel, IDisposable
+internal partial class RabbitMqChannelManager : IRabbitMqChannel, IAsyncDisposable, IDisposable
 {
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger _logger;
@@ -17,13 +17,17 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IDisposable
     private readonly Func<bool> _isDisposingOrDisposed;
 
     private IConnection _connection;
-    private IModel _channel;
-    private readonly object _channelLock = new();
+    private IChannel _channel;
+
+    // Use SemaphoreSlim for async-compatible locking
+    private readonly SemaphoreSlim _channelLock = new(1, 1);
+
+    // Use SemaphoreSlim to ensure only one connection attempt at a time
+    private readonly SemaphoreSlim _connectionSemaphore = new(1, 1);
 
     private readonly Timer _connectionRetryTimer;
     private readonly TimeSpan _connectionRetryInterval;
-    private volatile bool _isConnecting;
-    private bool _disposed;
+    private int _disposed; // 0 = not disposed, 1 = disposed
 
     /// <summary>
     /// Event raised when the channel has been successfully recovered after a connection loss.
@@ -31,8 +35,10 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IDisposable
     /// </summary>
     public event EventHandler<EventArgs> ChannelRecovered;
 
-    public IModel Channel => _channel;
-    public object ChannelLock => _channelLock;
+    /// <summary>
+    /// Gets the current channel. IChannel is thread-safe in v7+ and can be used concurrently.
+    /// </summary>
+    public IChannel Channel => _channel;
 
     public RabbitMqChannelManager(
         ILoggerFactory loggerFactory,
@@ -66,10 +72,9 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IDisposable
         try
         {
             await Retry.WithDelay(
-                operation: (ct) =>
+                operation: async (ct) =>
                 {
-                    connectionEstablished = EstablishConnection();
-                    return Task.CompletedTask;
+                    connectionEstablished = await EstablishConnection();
                 },
                 shouldRetry: (ex, attempt) =>
                 {
@@ -108,54 +113,92 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IDisposable
         if (_channel == null)
         {
             // If channel is null, trigger immediate reconnection attempt
-            if (!_isConnecting)
-            {
-                LogChannelNotAvailableAttemptingReconnection();
-                Task.Run(() => OnConnectionRetryTimer(null));
-            }
+            // The semaphore in EstablishConnection will prevent concurrent attempts
+            LogChannelNotAvailableAttemptingReconnection();
+            OnConnectionRetryTimer(null);
 
             throw new ProducerMessageBusException("The Channel is not available at this time");
         }
     }
 
-    private bool EstablishConnection()
+    private async Task<bool> EstablishConnection()
     {
+        // Ensure only one connection attempt at a time using semaphore
+        if (!await _connectionSemaphore.WaitAsync(0))
+        {
+            // Another connection attempt is in progress
+            LogConnectionAttemptAlreadyInProgress();
+            return false;
+        }
+
         try
         {
             // See https://www.rabbitmq.com/client-libraries/dotnet-api-guide#connection-recovery
             _providerSettings.ConnectionFactory.AutomaticRecoveryEnabled = true;
-            _providerSettings.ConnectionFactory.DispatchConsumersAsync = true;
+            // DispatchConsumersAsync is removed in 7.x - consumers are always async
 
             // Set up connection recovery event handlers
             var newConnection = _providerSettings.Endpoints != null && _providerSettings.Endpoints.Count > 0
-                ? _providerSettings.ConnectionFactory.CreateConnection(_providerSettings.Endpoints)
-                : _providerSettings.ConnectionFactory.CreateConnection();
+                ? await _providerSettings.ConnectionFactory.CreateConnectionAsync(_providerSettings.Endpoints)
+                : await _providerSettings.ConnectionFactory.CreateConnectionAsync();
 
             // Subscribe to connection shutdown events for better resilience
-            newConnection.ConnectionShutdown += OnConnectionShutdown;
+            newConnection.ConnectionShutdownAsync += OnConnectionShutdownAsync;
 
+            IConnection oldConnection = null;
+            IChannel oldChannel = null;
             var isRecovery = false;
-            lock (_channelLock)
+
+            // Use semaphore instead of lock for async safety
+            await _channelLock.WaitAsync();
+            try
             {
                 // Clean up existing connection
                 if (_connection != null)
                 {
-                    _connection.ConnectionShutdown -= OnConnectionShutdown;
+                    _connection.ConnectionShutdownAsync -= OnConnectionShutdownAsync;
                     isRecovery = true;
-                }
 
-                CloseAndDisposeChannel(_channel);
-                CloseAndDisposeConnection(_connection);
+                    // Store old resources for cleanup outside lock
+                    oldConnection = _connection;
+                    oldChannel = _channel;
+                }
 
                 _connection = newConnection;
+                _channel = null; // Will be set after creation
+            }
+            finally
+            {
+                _channelLock.Release();
+            }
 
-                if (_connection != null)
+            // Cleanup old resources outside the lock
+            if (oldChannel != null)
+            {
+                await CloseAndDisposeChannelAsync(oldChannel);
+            }
+            if (oldConnection != null)
+            {
+                await CloseAndDisposeConnectionAsync(oldConnection);
+            }
+
+            // Create channel outside the lock to avoid holding lock during async operation
+            if (_connection != null)
+            {
+                var newChannel = await _connection.CreateChannelAsync();
+
+                await _channelLock.WaitAsync();
+                try
                 {
-                    _channel = _connection.CreateModel();
-
-                    // Provision topology
-                    ProvisionTopology();
+                    _channel = newChannel;
                 }
+                finally
+                {
+                    _channelLock.Release();
+                }
+
+                // Provision topology
+                await ProvisionTopology();
             }
 
             // Notify consumers to re-register after recovery
@@ -172,9 +215,13 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IDisposable
             LogFailedToEstablishConnection(ex.Message, ex);
             return false;
         }
+        finally
+        {
+            _connectionSemaphore.Release();
+        }
     }
 
-    private void ProvisionTopology()
+    private async Task ProvisionTopology()
     {
         if (_channel == null) return;
 
@@ -186,12 +233,12 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IDisposable
             if (customAction != null)
             {
                 // Allow the user to specify its own initializer
-                customAction(_channel, () => topologyService.ProvisionTopology());
+                await customAction(_channel, topologyService.ProvisionTopology);
             }
             else
             {
                 // Perform default topology setup
-                topologyService.ProvisionTopology();
+                await topologyService.ProvisionTopology();
             }
         }
         catch (Exception ex)
@@ -201,7 +248,7 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IDisposable
         }
     }
 
-    private void OnConnectionShutdown(object sender, ShutdownEventArgs e)
+    private Task OnConnectionShutdownAsync(object sender, ShutdownEventArgs e)
     {
         if (!_isDisposingOrDisposed())
         {
@@ -210,83 +257,119 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IDisposable
             // Start retry timer if not already running
             StartConnectionRetryTimer();
         }
+        return Task.CompletedTask;
     }
 
     private void StartConnectionRetryTimer()
     {
-        if (!_isConnecting && !_isDisposingOrDisposed())
-        {
-            LogStartingConnectionRetryTimer(_connectionRetryInterval);
-            _connectionRetryTimer.Change(_connectionRetryInterval, _connectionRetryInterval);
-        }
+        if (_isDisposingOrDisposed())
+            return;
+
+        // The connection semaphore in EstablishConnection will prevent concurrent attempts
+        LogStartingConnectionRetryTimer(_connectionRetryInterval);
+        _connectionRetryTimer.Change(_connectionRetryInterval, _connectionRetryInterval);
     }
 
     private void OnConnectionRetryTimer(object state)
     {
-        if (_isConnecting || _isDisposingOrDisposed())
+        if (_isDisposingOrDisposed())
             return;
 
-        // Check if connection is already healthy
-        lock (_channelLock)
+        // Check if connection is already healthy (quick check without lock)
+        if (_connection?.IsOpen == true && _channel?.IsOpen == true)
         {
-            if (_connection?.IsOpen == true && _channel?.IsOpen == true)
-            {
-                LogConnectionIsHealthy();
-                _connectionRetryTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            LogConnectionIsHealthy();
+            _connectionRetryTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            return;
+        }
+
+        // Fire and forget - don't block the timer thread
+        // The semaphore in EstablishConnection will prevent concurrent attempts
+        _ = Task.Run(async () =>
+        {
+            if (_isDisposingOrDisposed())
                 return;
-            }
-        }
 
-        _isConnecting = true;
-        try
-        {
-            LogAttemptingToReconnect();
+            try
+            {
+                LogAttemptingToReconnect();
 
-            var success = EstablishConnection();
-            if (success)
-            {
-                LogReconnectionSuccessful();
-                _connectionRetryTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                var success = await EstablishConnection();
+                if (success)
+                {
+                    LogReconnectionSuccessful();
+                    _connectionRetryTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                }
+                else
+                {
+                    LogReconnectionFailed(_connectionRetryInterval);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                LogReconnectionFailed(_connectionRetryInterval);
+                LogErrorDuringReconnectionAttempt(ex.Message, ex);
             }
-        }
-        catch (Exception ex)
-        {
-            LogErrorDuringReconnectionAttempt(ex.Message, ex);
-        }
-        finally
-        {
-            _isConnecting = false;
-        }
+        });
     }
 
     /// <summary>
-    /// Safely closes and disposes a RabbitMQ channel.
+    /// Safely closes and disposes a RabbitMQ channel asynchronously.
     /// </summary>
-    private static void CloseAndDisposeChannel(IModel channel)
+    private static async Task CloseAndDisposeChannelAsync(IChannel channel)
     {
         if (channel != null)
         {
-            if (!channel.IsClosed)
+            try
             {
-                channel.Close();
+                if (!channel.IsClosed)
+                {
+                    await channel.CloseAsync();
+                }
             }
-            channel.Dispose();
+            catch
+            {
+                // Ignore exceptions during cleanup
+            }
+            finally
+            {
+                try
+                {
+                    channel.Dispose();
+                }
+                catch
+                {
+                    // Ignore disposal exceptions
+                }
+            }
         }
     }
 
     /// <summary>
-    /// Safely closes and disposes a RabbitMQ connection.
+    /// Safely closes and disposes a RabbitMQ connection asynchronously.
     /// </summary>
-    private static void CloseAndDisposeConnection(IConnection connection)
+    private static async Task CloseAndDisposeConnectionAsync(IConnection connection)
     {
         if (connection != null)
         {
-            connection.Close();
-            connection.Dispose();
+            try
+            {
+                await connection.CloseAsync();
+            }
+            catch
+            {
+                // Ignore exceptions during cleanup
+            }
+            finally
+            {
+                try
+                {
+                    connection.Dispose();
+                }
+                catch
+                {
+                    // Ignore disposal exceptions
+                }
+            }
         }
     }
 
@@ -298,30 +381,74 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IDisposable
         GC.SuppressFinalize(this);
     }
 
+    public async ValueTask DisposeAsync()
+    {
+        await DisposeAsyncCore().ConfigureAwait(false);
+        Dispose(false);
+        GC.SuppressFinalize(this);
+    }
+
     protected virtual void Dispose(bool disposing)
     {
-        if (_disposed) return;
+        if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+            return; // Already disposed
+
         if (disposing)
         {
             // Stop the retry timer
             _connectionRetryTimer?.Dispose();
 
-            if (_channel != null)
-            {
-                CloseAndDisposeChannel(_channel);
-                _channel = null;
-            }
+            // For synchronous dispose, we have to block (not ideal but necessary for IDisposable)
+            DisposeAsyncCore().AsTask().GetAwaiter().GetResult();
+        }
+    }
 
-            if (_connection != null)
+    protected virtual async ValueTask DisposeAsyncCore()
+    {
+        if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+            return; // Already disposed
+
+        // Stop the retry timer
+        _connectionRetryTimer?.Dispose();
+
+        IConnection connectionToDispose = null;
+        IChannel channelToDispose = null;
+
+        // Acquire lock to safely extract resources
+        await _channelLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            channelToDispose = _channel;
+            connectionToDispose = _connection;
+
+            _channel = null;
+            _connection = null;
+
+            // Unsubscribe from events
+            if (connectionToDispose != null)
             {
-                // Unsubscribe from events before disposing
-                _connection.ConnectionShutdown -= OnConnectionShutdown;
-                CloseAndDisposeConnection(_connection);
-                _connection = null;
+                connectionToDispose.ConnectionShutdownAsync -= OnConnectionShutdownAsync;
             }
         }
-        // Free unmanaged resources (none in this class)
-        _disposed = true;
+        finally
+        {
+            _channelLock.Release();
+        }
+
+        // Dispose resources outside the lock
+        if (channelToDispose != null)
+        {
+            await CloseAndDisposeChannelAsync(channelToDispose).ConfigureAwait(false);
+        }
+
+        if (connectionToDispose != null)
+        {
+            await CloseAndDisposeConnectionAsync(connectionToDispose).ConfigureAwait(false);
+        }
+
+        // Dispose semaphores
+        _channelLock?.Dispose();
+        _connectionSemaphore?.Dispose();
     }
 
     #endregion
@@ -412,6 +539,12 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IDisposable
         Message = "RabbitMQ channel recovered, notifying consumers to re-register")]
     private partial void LogChannelRecoveredNotifyingConsumers();
 
+    [LoggerMessage(
+        EventId = 14,
+        Level = LogLevel.Debug,
+        Message = "RabbitMQ connection attempt already in progress, skipping")]
+    private partial void LogConnectionAttemptAlreadyInProgress();
+
     #endregion
 }
 
@@ -460,6 +593,9 @@ internal partial class RabbitMqChannelManager
 
     private partial void LogChannelRecoveredNotifyingConsumers()
         => _logger.LogInformation("RabbitMQ channel recovered, notifying consumers to re-register");
+
+    private partial void LogConnectionAttemptAlreadyInProgress()
+        => _logger.LogDebug("RabbitMQ connection attempt already in progress, skipping");
 }
 
 #endif

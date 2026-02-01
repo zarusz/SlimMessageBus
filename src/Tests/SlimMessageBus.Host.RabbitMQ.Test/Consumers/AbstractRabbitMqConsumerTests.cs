@@ -10,7 +10,7 @@ using SlimMessageBus.Host.RabbitMQ;
 public class AbstractRabbitMqConsumerTests : IDisposable
 {
     private readonly Mock<IRabbitMqChannel> _channelMock;
-    private readonly Mock<IModel> _modelMock;
+    private readonly Mock<IChannel> _modelMock;
     private readonly Mock<IHeaderValueConverter> _headerValueConverterMock;
     private readonly ILoggerFactory _loggerFactory;
     private readonly List<AbstractRabbitMqConsumer> _consumersToDispose;
@@ -20,13 +20,13 @@ public class AbstractRabbitMqConsumerTests : IDisposable
     {
         _loggerFactory = NullLoggerFactory.Instance;
         _channelMock = new Mock<IRabbitMqChannel>();
-        _modelMock = new Mock<IModel>();
+        _modelMock = new Mock<IChannel>();
         _headerValueConverterMock = new Mock<IHeaderValueConverter>();
         _consumersToDispose = new List<AbstractRabbitMqConsumer>();
 
         // Setup default mock behavior
         _channelMock.Setup(x => x.Channel).Returns(_modelMock.Object);
-        _channelMock.Setup(x => x.ChannelLock).Returns(new object());
+        // Note: ChannelLock removed in v7 - IChannel is thread-safe
         _modelMock.Setup(x => x.IsOpen).Returns(true);
     }
 
@@ -118,36 +118,38 @@ public class AbstractRabbitMqConsumerTests : IDisposable
     [Theory]
     [InlineData(false, false)]
     [InlineData(true, true)]
-    public void When_NackMessageCalled_Given_RequeueOption_Then_ShouldCallBasicNackWithCorrectParameter(bool requeue, bool expectedRequeue)
+    public async Task When_NackMessageCalled_Given_RequeueOption_Then_ShouldCallBasicNackWithCorrectParameter(bool requeue, bool expectedRequeue)
     {
         // Arrange
         var consumer = CreateTestConsumer("test-queue");
         var deliverEventArgs = CreateBasicDeliverEventArgs();
 
         // Act
-        consumer.CallNackMessage(deliverEventArgs, requeue: requeue);
+        await consumer.CallNackMessage(deliverEventArgs, requeue: requeue);
 
         // Assert
-        _modelMock.Verify(x => x.BasicNack(
+        _modelMock.Verify(x => x.BasicNackAsync(
             deliverEventArgs.DeliveryTag,
             false,
-            expectedRequeue), Times.Once);
+            expectedRequeue,
+            default), Times.Once);
     }
 
     [Fact]
-    public void When_AckMessageCalled_Given_ValidMessage_Then_ShouldCallBasicAck()
+    public async Task When_AckMessageCalled_Given_ValidMessage_Then_ShouldCallBasicAck()
     {
         // Arrange
         var consumer = CreateTestConsumer("test-queue");
         var deliverEventArgs = CreateBasicDeliverEventArgs();
 
         // Act
-        consumer.CallAckMessage(deliverEventArgs);
+        await consumer.CallAckMessage(deliverEventArgs);
 
         // Assert
-        _modelMock.Verify(x => x.BasicAck(
+        _modelMock.Verify(x => x.BasicAckAsync(
             deliverEventArgs.DeliveryTag,
-            false), Times.Once);
+            false,
+            default), Times.Once);
     }
 
     [Theory]
@@ -173,7 +175,7 @@ public class AbstractRabbitMqConsumerTests : IDisposable
 
     [Theory]
     [InlineData(10)]
-    public void When_AckOrNackMessageCalledConcurrently_Given_MultipleMessages_Then_ShouldHandleThreadSafely(int messageCount)
+    public async Task When_AckOrNackMessageCalledConcurrently_Given_MultipleMessages_Then_ShouldHandleThreadSafely(int messageCount)
     {
         // Arrange
         var consumer = CreateTestConsumer("test-queue");
@@ -182,17 +184,20 @@ public class AbstractRabbitMqConsumerTests : IDisposable
             .ToList();
 
         // Act - Test both Ack and Nack
-        Parallel.ForEach(messages.Take(messageCount / 2), msg => consumer.CallAckMessage(msg));
-        Parallel.ForEach(messages.Skip(messageCount / 2), msg => consumer.CallNackMessage(msg, requeue: true));
+        var ackTasks = messages.Take(messageCount / 2).Select(msg => consumer.CallAckMessage(msg));
+        var nackTasks = messages.Skip(messageCount / 2).Select(msg => consumer.CallNackMessage(msg, requeue: true));
+        await Task.WhenAll(ackTasks.Concat(nackTasks));
 
         // Assert
-        _modelMock.Verify(x => x.BasicAck(
-            It.IsAny<ulong>(),
-            false), Times.Exactly(messageCount / 2));
-        _modelMock.Verify(x => x.BasicNack(
+        _modelMock.Verify(x => x.BasicAckAsync(
             It.IsAny<ulong>(),
             false,
-            true), Times.Exactly(messageCount - messageCount / 2));
+            default), Times.Exactly(messageCount / 2));
+        _modelMock.Verify(x => x.BasicNackAsync(
+            It.IsAny<ulong>(),
+            false,
+            true,
+            default), Times.Exactly(messageCount - messageCount / 2));
     }
 
     [Fact]
@@ -201,7 +206,7 @@ public class AbstractRabbitMqConsumerTests : IDisposable
         // Arrange - Use a mock that doesn't inherit from RabbitMqChannelManager
         var simpleChannelMock = new Mock<IRabbitMqChannel>();
         simpleChannelMock.Setup(x => x.Channel).Returns(_modelMock.Object);
-        simpleChannelMock.Setup(x => x.ChannelLock).Returns(new object());
+        // Note: ChannelLock removed in v7 - IChannel is thread-safe
 
         // Act
         var consumer = new TestRabbitMqConsumer(
@@ -237,17 +242,18 @@ public class AbstractRabbitMqConsumerTests : IDisposable
         Dictionary<string, object> headers = null,
         ulong deliveryTag = 1)
     {
-        var properties = new Mock<IBasicProperties>();
+        var properties = new Mock<IReadOnlyBasicProperties>();
         properties.Setup(x => x.Headers).Returns(headers);
 
-        return new BasicDeliverEventArgs
-        {
-            DeliveryTag = deliveryTag,
-            Exchange = "test-exchange",
-            RoutingKey = "test.routing.key",
-            BasicProperties = properties.Object,
-            Body = new ReadOnlyMemory<byte>(Array.Empty<byte>())
-        };
+        return new BasicDeliverEventArgs(
+            consumerTag: "test-consumer-tag",
+            deliveryTag: deliveryTag,
+            redelivered: false,
+            exchange: "test-exchange",
+            routingKey: "test.routing.key",
+            properties: properties.Object,
+            body: new ReadOnlyMemory<byte>(Array.Empty<byte>()),
+            cancellationToken: default);
     }
 
     private static BasicDeliverEventArgs CreateBasicDeliverEventArgs(ulong deliveryTag)
@@ -276,7 +282,7 @@ public class AbstractRabbitMqConsumerTests : IDisposable
         public List<BasicDeliverEventArgs> ReceivedMessages { get; } = new();
         public Dictionary<string, object> ReceivedHeaders { get; private set; }
 
-        protected override RabbitMqMessageAcknowledgementMode AcknowledgementMode => 
+        protected override RabbitMqMessageAcknowledgementMode AcknowledgementMode =>
             RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade;
 
         public TestRabbitMqConsumer(
@@ -319,7 +325,7 @@ public class AbstractRabbitMqConsumerTests : IDisposable
                         .BaseType
                         .GetField("_headerValueConverter", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
                         ?.GetValue(this) as IHeaderValueConverter;
-                    
+
                     messageHeaders.Add(header.Key, headerValueConverter?.ConvertFrom(header.Value) ?? header.Value);
                 }
             }
@@ -334,14 +340,14 @@ public class AbstractRabbitMqConsumerTests : IDisposable
             }
         }
 
-        public void CallAckMessage(BasicDeliverEventArgs e)
+        public Task CallAckMessage(BasicDeliverEventArgs e)
         {
-            AckMessage(e);
+            return AckMessage(e);
         }
 
-        public void CallNackMessage(BasicDeliverEventArgs e, bool requeue)
+        public Task CallNackMessage(BasicDeliverEventArgs e, bool requeue)
         {
-            NackMessage(e, requeue);
+            return NackMessage(e, requeue);
         }
 
         public new Task Start() => OnStart();
