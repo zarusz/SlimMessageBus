@@ -24,11 +24,18 @@ builder.Services.AddSlimMessageBus(mbb =>
         cfg.AuthOpts = NatsAuthOpts.Default;
     });
 
+    // pub/sub
     mbb
         .Produce<PingMessage>(x => x.DefaultTopic(topic))
         .Consume<PingMessage>(x => x.Topic(topic).Instances(1));
 
+    // queue
+    mbb
+        .Produce<QueueMessage>(x => x.DefaultQueue(topic))
+        .Consume<QueueMessage>(x => x.Queue(topic).Instances(1));
+
     mbb.AddServicesFromAssemblyContaining<PingConsumer>();
+    mbb.AddServicesFromAssemblyContaining<QueueMessage>();
     mbb.AddJsonSerializer();
 });
 ```

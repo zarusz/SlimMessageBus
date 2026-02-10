@@ -6,6 +6,7 @@ using SecretStore;
 
 using SlimMessageBus;
 using SlimMessageBus.Host;
+using SlimMessageBus.Host.Nats;
 using SlimMessageBus.Host.Nats.Config;
 using SlimMessageBus.Host.Serialization.SystemTextJson;
 
@@ -29,11 +30,18 @@ builder.Services.AddSlimMessageBus(mbb =>
         cfg.AuthOpts = NatsAuthOpts.Default;
     });
 
+    // pub/sub
     mbb
         .Produce<PingMessage>(x => x.DefaultTopic(topic))
         .Consume<PingMessage>(x => x.Topic(topic).Instances(1));
 
+    // queue
+    mbb
+        .Produce<QueueMessage>(x => x.DefaultQueue(topic))
+        .Consume<QueueMessage>(x => x.Queue(topic).Instances(1));
+
     mbb.AddServicesFromAssemblyContaining<PingConsumer>();
+    mbb.AddServicesFromAssemblyContaining<QueueMessage>();
     mbb.AddJsonSerializer();
 });
 // doc:fragment:ExampleConfiguringMessageBus
@@ -52,6 +60,12 @@ app.MapGet("/publish-message", (IMessageBus bus, CancellationToken cancellationT
 {
     PingMessage pingMessage = new(0, Guid.NewGuid());
     bus.Publish(pingMessage, cancellationToken: cancellationToken);
+});
+
+app.MapGet("/publish-message-queue", (IMessageBus bus, CancellationToken cancellationToken) =>
+{
+    QueueMessage queueMessage = new(0, Guid.NewGuid());
+    bus.Publish(queueMessage, cancellationToken: cancellationToken);
 });
 
 app.Run();

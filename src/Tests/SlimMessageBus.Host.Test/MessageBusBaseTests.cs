@@ -786,6 +786,7 @@ public class MessageBusBaseTests : IDisposable
 
         // trigger lazy bus creation here ahead of the Tasks
         var bus = Bus;
+        bus.Settings.AutoStartConsumers = false;
 
         await bus.Start();
 
