@@ -57,8 +57,9 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
         MessageProvider<NatsMsg<byte[]>> GetMessageProvider(string path)
             => SerializerProvider.GetSerializer(path).GetMessageProvider<byte[], NatsMsg<byte[]>>(t => t.Data);
 
-        foreach (var (subject, consumerSettings) in Settings.Consumers.GroupBy(x => x.Path).ToDictionary(x => x.Key, x => x.ToList()))
+        foreach (var ((subject, pathKind), consumerSettings) in Settings.Consumers.GroupBy(x => (x.Path, x.PathKind)).ToDictionary(x => x.Key, x => x.ToList()))
         {
+            var queueGroup = pathKind == PathKind.Queue ? subject : null;
             var processor = new MessageProcessor<NatsMsg<byte[]>>(
                 consumerSettings,
                 messageBus: this,
@@ -67,22 +68,23 @@ public class NatsMessageBus : MessageBusBase<NatsMessageBusSettings>
                 this,
                 consumerErrorHandlerOpenGenericType: typeof(INatsConsumerErrorHandler<>));
 
-            AddSubjectConsumer(consumerSettings, subject, processor);
+            AddSubjectConsumer(consumerSettings, subject, queueGroup, processor);
         }
 
         if (Settings.RequestResponse != null)
         {
             var subject = Settings.RequestResponse.Path;
+            var queueGroup = Settings.RequestResponse.PathKind == PathKind.Queue ? subject : null;
 
             var processor = new ResponseMessageProcessor<NatsMsg<byte[]>>(LoggerFactory, Settings.RequestResponse, GetMessageProvider(subject), PendingRequestStore, TimeProvider);
-            AddSubjectConsumer([], subject, processor);
+            AddSubjectConsumer([], subject, queueGroup, processor);
         }
     }
 
-    private void AddSubjectConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, string subject, IMessageProcessor<NatsMsg<byte[]>> processor)
+    private void AddSubjectConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, string subject, string queueGroup, IMessageProcessor<NatsMsg<byte[]>> processor)
     {
         _logger.LogInformation("Creating consumer for {Subject}", subject);
-        var consumer = new NatsSubjectConsumer<byte[]>(LoggerFactory.CreateLogger<NatsSubjectConsumer<byte[]>>(), consumerSettings, interceptors: Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(), subject, _connection, processor);
+        var consumer = new NatsSubjectConsumer<byte[]>(LoggerFactory.CreateLogger<NatsSubjectConsumer<byte[]>>(), consumerSettings, interceptors: Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(), subject, queueGroup, _connection, processor);
         AddConsumer(consumer);
     }
 

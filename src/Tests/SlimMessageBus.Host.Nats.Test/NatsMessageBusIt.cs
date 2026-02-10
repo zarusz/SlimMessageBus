@@ -3,7 +3,7 @@ namespace SlimMessageBus.Host.Nats.Test;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 
-using Config;
+using SlimMessageBus.Host.Nats.Config;
 
 using Serialization.Json;
 
@@ -51,6 +51,34 @@ public class NatsMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<Na
         });
 
         await BasicPubSub(1, bulkProduce);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BasicPubSubOnQueue(bool bulkProduce)
+    {
+        var concurrency = 2;
+        var consumers = 2;
+        var queue = "test-ping-queue";
+
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+                .Produce<PingMessage>(x =>
+                {
+                    x.DefaultQueue(queue);
+                })
+                .Do(builder => Enumerable.Range(0, consumers).ToList().ForEach(i =>
+                {
+                    builder.Consume<PingMessage>(x => x
+                        .Queue(queue)
+                        .WithConsumer<PingConsumer>()
+                        .Instances(concurrency));
+                }));
+        });
+
+        await BasicPubSub(consumers, bulkProduce);
     }
 
     private async Task BasicPubSub(int expectedMessageCopies, bool bulkProduce)
@@ -127,6 +155,32 @@ public class NatsMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<Na
                 .ExpectRequestResponses(x =>
                 {
                     x.ReplyToTopic("test-echo-resp");
+                    x.DefaultTimeout(TimeSpan.FromSeconds(30));
+                });
+        });
+
+        await BasicReqResp();
+    }
+
+    [Fact]
+    public async Task BasicReqRespOnQueue()
+    {
+        var queue = "test-echo-queue";
+
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+                .Produce<EchoRequest>(x =>
+                {
+                    x.DefaultQueue(queue);
+                    x.DefaultTimeout(TimeSpan.FromSeconds(30));
+                })
+                .Handle<EchoRequest, EchoResponse>(x => x.Queue(queue)
+                    .WithHandler<EchoRequestHandler>()
+                    .Instances(2))
+                .ExpectRequestResponses(x =>
+                {
+                    x.ReplyToQueue("test-echo-queue-resp");
                     x.DefaultTimeout(TimeSpan.FromSeconds(30));
                 });
         });

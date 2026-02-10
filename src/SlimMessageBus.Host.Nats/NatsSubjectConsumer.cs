@@ -5,6 +5,7 @@ public class NatsSubjectConsumer<TType> : AbstractConsumer
 {
     private readonly INatsConnection _connection;
     private readonly IMessageProcessor<NatsMsg<TType>> _messageProcessor;
+    private readonly string _queueGroup;
     private INatsSub<TType>? _subscription;
     private Task? _messageConsumerTask;
 
@@ -12,6 +13,7 @@ public class NatsSubjectConsumer<TType> : AbstractConsumer
                                IEnumerable<AbstractConsumerSettings> consumerSettings,
                                IEnumerable<IAbstractConsumerInterceptor> interceptors,
                                string subject,
+                               string queueGroup,
                                INatsConnection connection,
                                IMessageProcessor<NatsMsg<TType>> messageProcessor)
         : base(logger,
@@ -21,11 +23,12 @@ public class NatsSubjectConsumer<TType> : AbstractConsumer
     {
         _connection = connection;
         _messageProcessor = messageProcessor;
+        _queueGroup = queueGroup;
     }
 
     protected override async Task OnStart()
     {
-        _subscription ??= await _connection.SubscribeCoreAsync<TType>(Path, cancellationToken: CancellationToken);
+        _subscription ??= await _connection.SubscribeCoreAsync<TType>(Path, queueGroup: _queueGroup, cancellationToken: CancellationToken);
 
         _messageConsumerTask = Task.Factory.StartNew(OnLoop, CancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap();
     }
@@ -56,9 +59,9 @@ public class NatsSubjectConsumer<TType> : AbstractConsumer
                 }
             }
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException)
         {
-            Logger.LogInformation(ex, "Consumer task was cancelled");
+            Logger.LogInformation("Consumer task was cancelled");
         }
     }
 }
