@@ -15,6 +15,7 @@ public static class ConsumerBuilderExtensions
 
         builder.PostConfigurationActions.Add(services =>
         {
+            services.TryAddSingleton<SharedBreakersStore>();
             services.TryAddEnumerable(ServiceDescriptor.Singleton<IAbstractConsumerInterceptor, CircuitBreakerConsumerInterceptor>());
         });
 

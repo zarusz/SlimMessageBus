@@ -3,7 +3,7 @@
 /// <summary>
 /// Circuit breaker to toggle consumer status on an external events.
 /// </summary>
-internal sealed partial class CircuitBreakerConsumerInterceptor(ILogger<CircuitBreakerConsumerInterceptor> logger) : IAbstractConsumerInterceptor
+internal sealed partial class CircuitBreakerConsumerInterceptor(ILogger<CircuitBreakerConsumerInterceptor> logger, SharedBreakersStore sharedBreakers) : IAbstractConsumerInterceptor
 {
     private readonly ILogger<CircuitBreakerConsumerInterceptor> _logger = logger;
 
@@ -50,15 +50,64 @@ internal sealed partial class CircuitBreakerConsumerInterceptor(ILogger<CircuitB
         var sp = consumer.Settings.Select(x => x.MessageBusSettings.ServiceProvider).First(x => x != null);
         foreach (var breakerType in breakerTypes)
         {
-            var breaker = (IConsumerCircuitBreaker)ActivatorUtilities.CreateInstance(sp, breakerType, consumer.Settings);
-            breakers.Add(breaker);
+            // Get or create a shared circuit breaker instance
+            var breakerKey = GetBreakerKey(breakerType, consumer.Settings);
+            var breaker = sharedBreakers.GetOrCreate(breakerType, breakerKey, sp, consumer.Settings);
 
+            breakers.Add(breaker);
             await breaker.Subscribe(BreakerChanged);
         }
 
         var isPaused = breakers.Exists(x => x.State == Circuit.Closed);
         consumer.SetIsPaused(isPaused);
         return !isPaused;
+    }
+
+    private static string GetBreakerKey(Type breakerType, IEnumerable<AbstractConsumerSettings> consumerSettings)
+    {
+        // Create a key based on all properties that define the circuit breaker's behavior
+        // This ensures consumers with the same circuit breaker configuration share the same instance
+
+        var keyParts = new List<string> { breakerType.FullName ?? breakerType.Name };
+
+        // Collect all property keys that look like circuit breaker configuration
+        var relevantPropertyKeys = consumerSettings
+            .SelectMany(x => x.Properties.Keys)
+            .Where(k => k.StartsWith("CircuitBreaker", StringComparison.Ordinal))
+            .Distinct()
+            .OrderBy(k => k)
+            .ToList();
+
+        foreach (var key in relevantPropertyKeys)
+        {
+            var values = consumerSettings
+                .Select(x => x.Properties.TryGetValue(key, out var val) ? val : null)
+                .Where(v => v != null)
+                .Distinct()
+                .OrderBy(v => v?.ToString() ?? "")
+                .ToList();
+
+            if (values.Count > 0)
+            {
+                // For dictionary properties (like health tags), serialize them
+                if (values[0] is System.Collections.IDictionary dict)
+                {
+                    var dictItems = new List<string>();
+                    foreach (System.Collections.DictionaryEntry entry in dict)
+                    {
+                        dictItems.Add($"{entry.Key}={entry.Value}");
+                    }
+                    dictItems.Sort();
+                    keyParts.Add($"{key}:[{string.Join(",", dictItems)}]");
+                }
+                else
+                {
+                    keyParts.Add($"{key}:{string.Join(",", values.Select(v => v?.ToString() ?? ""))}");
+                }
+            }
+        }
+
+        return string.Join("|", keyParts);
     }
 
     public async Task<bool> CanStop(AbstractConsumer consumer)
@@ -74,14 +123,8 @@ internal sealed partial class CircuitBreakerConsumerInterceptor(ILogger<CircuitB
         {
             breaker.Unsubscribe();
 
-            if (breaker is IAsyncDisposable asyncDisposable)
-            {
-                await asyncDisposable.DisposeAsync();
-            }
-            else if (breaker is IDisposable disposable)
-            {
-                disposable.Dispose();
-            }
+            // Don't dispose shared circuit breakers - they may be used by other consumers
+            // They will be disposed when the application shuts down
         }
         breakers.Clear();
 

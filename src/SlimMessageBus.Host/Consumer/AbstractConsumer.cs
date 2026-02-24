@@ -2,7 +2,7 @@
 
 public abstract partial class AbstractConsumer : HasProviderExtensions, IAsyncDisposable, IConsumerControl
 {
-    protected readonly ILogger Logger;
+    private readonly ILogger _logger;
     private readonly SemaphoreSlim _semaphore;
     private readonly IReadOnlyList<IAbstractConsumerInterceptor> _interceptors;
     private CancellationTokenSource _cancellationTokenSource;
@@ -13,6 +13,7 @@ public abstract partial class AbstractConsumer : HasProviderExtensions, IAsyncDi
     public string Path { get; }
     public IReadOnlyList<AbstractConsumerSettings> Settings { get; }
     protected CancellationToken CancellationToken => _cancellationTokenSource.Token;
+    protected ILogger Logger => _logger;
 
     protected AbstractConsumer(ILogger logger,
                                IEnumerable<AbstractConsumerSettings> consumerSettings,
@@ -21,7 +22,7 @@ public abstract partial class AbstractConsumer : HasProviderExtensions, IAsyncDi
     {
         _semaphore = new(1, 1);
         _interceptors = [.. interceptors.OrderBy(x => x.Order)];
-        Logger = logger;
+        _logger = logger;
         Settings = [.. consumerSettings];
         Path = path;
     }
@@ -196,7 +197,7 @@ public abstract partial class AbstractConsumer : HasProviderExtensions, IAsyncDi
 public partial class AbstractConsumer
 {
     private partial void LogInterceptorFailed(Type interceptorType, string error, Exception ex)
-        => Logger.LogError(ex, "Interceptor {InterceptorType} failed with error: {Error}", interceptorType, error);
+        => _logger.LogError(ex, "Interceptor {InterceptorType} failed with error: {Error}", interceptorType, error);
 }
 
 #endif
