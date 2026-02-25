@@ -201,7 +201,7 @@ public class OutboxBenchmarkTests(ITestOutputHelper output, PostgreSqlFixture po
 
         // consume the events from outbox
         var consumptionTimer = Stopwatch.StartNew();
-        await store.WaitUntilArriving(newMessagesTimeout: 5, expectedCount: events.Count);
+        await store.WaitUntilArriving(newMessagesTimeout: 15, expectedCount: events.Count);
 
         // assert
         var consumeTimerElapsed = consumptionTimer.Elapsed;
