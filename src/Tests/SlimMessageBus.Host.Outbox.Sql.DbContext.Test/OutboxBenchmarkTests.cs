@@ -1,4 +1,4 @@
-﻿namespace SlimMessageBus.Host.Outbox.Sql.DbContext.Test;
+namespace SlimMessageBus.Host.Outbox.Sql.DbContext.Test;
 
 using System.Net.Mime;
 
