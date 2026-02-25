@@ -1,4 +1,4 @@
-﻿namespace SlimMessageBus.Host.RabbitMQ;
+namespace SlimMessageBus.Host.RabbitMQ;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -80,17 +80,23 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
         {
             OnProduceToTransport(message, messageType, path, messageHeaders);
 
-            _channelManager.EnsureChannel();
-
+            var channels = _channelManager.EnsureChannel();
             // IChannel is thread-safe in v7 - no locking needed
-            GetTransportMessage(message, messageType, messageHeaders, path, out var messagePayload, out var messageProperties, out var routingKey);
-            await _channelManager.Channel.BasicPublishAsync(
+            GetTransportMessage(message, messageType, messageHeaders, path, channels, out var messagePayload, out var messageProperties, out var routingKey, out var useConfirms, out var producerChannel);
+            using var timeoutCts = CreateConfirmsTimeoutCts(useConfirms, cancellationToken, out var effectiveToken);
+
+            await producerChannel.BasicPublishAsync(
                 exchange: path,
                 routingKey: routingKey,
                 mandatory: false,
                 basicProperties: (BasicProperties)messageProperties,
                 body: messagePayload,
-                cancellationToken: cancellationToken);
+                cancellationToken: effectiveToken);
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            // The caller's token was not cancelled - this was our confirms timeout
+            throw new ProducerMessageBusException($"Publisher confirm timed out after {ProviderSettings.PublisherConfirmsTimeout} for message of type {messageType} on path {path}", ex);
         }
         catch (Exception ex) when (ex is not ProducerMessageBusException && ex is not TaskCanceledException)
         {
@@ -100,34 +106,68 @@ public class RabbitMqMessageBus : MessageBusBase<RabbitMqMessageBusSettings>, IR
 
     public override async Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
     {
+        var dispatched = new List<T>(envelopes.Count);
         try
         {
-            _channelManager.EnsureChannel();
+            var channels = _channelManager.EnsureChannel();
 
             // IChannel is thread-safe in v7 - no locking needed
+            // BasicPublishAsync waits for publisher confirms automatically when the confirms channel is used
             foreach (var envelope in envelopes)
             {
-                GetTransportMessage(envelope.Message, envelope.MessageType, envelope.Headers, path, out var messagePayload, out var messageProperties, out var routingKey);
-                await _channelManager.Channel.BasicPublishAsync(
+                GetTransportMessage(envelope.Message, envelope.MessageType, envelope.Headers, path, channels, out var messagePayload, out var messageProperties, out var routingKey, out var useConfirms, out var producerChannel);
+                using var timeoutCts = CreateConfirmsTimeoutCts(useConfirms, cancellationToken, out var effectiveToken);
+
+                await producerChannel.BasicPublishAsync(
                     exchange: path,
                     routingKey: routingKey,
                     mandatory: false,
                     basicProperties: (BasicProperties)messageProperties,
                     body: messagePayload,
-                    cancellationToken: cancellationToken);
+                    cancellationToken: effectiveToken);
+
+                dispatched.Add(envelope);
             }
 
             return new ProduceToTransportBulkResult<T>(envelopes, null);
         }
         catch (Exception ex)
         {
-            return new ProduceToTransportBulkResult<T>([], ex);
+            return new ProduceToTransportBulkResult<T>(dispatched, ex);
         }
     }
 
-    private void GetTransportMessage(object message, Type messageType, IDictionary<string, object> messageHeaders, string path, out byte[] messagePayload, out IBasicProperties messageProperties, out string routingKey)
+    /// <summary>
+    /// Creates a linked <see cref="CancellationTokenSource"/> with the configured publisher confirms timeout,
+    /// or returns <c>null</c> if no timeout is configured or confirms are not in use.
+    /// </summary>
+    private CancellationTokenSource CreateConfirmsTimeoutCts(bool useConfirms, CancellationToken callerToken, out CancellationToken effectiveToken)
+    {
+        if (useConfirms && ProviderSettings.PublisherConfirmsTimeout is { } timeout)
+        {
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(callerToken);
+            cts.CancelAfter(timeout);
+            effectiveToken = cts.Token;
+            return cts;
+        }
+
+        effectiveToken = callerToken;
+        return null;
+    }
+
+    private void GetTransportMessage(object message, Type messageType, IDictionary<string, object> messageHeaders, string path, ChannelSnapshot channels, out byte[] messagePayload, out IBasicProperties messageProperties, out string routingKey, out bool useConfirms, out IChannel producerChannel)
     {
         var producer = GetProducerSettings(messageType);
+        useConfirms = producer != null && producer.IsPublisherConfirmsEnabled(ProviderSettings);
+        if (useConfirms)
+        {
+            producerChannel = channels.ConfirmsChannel
+                ?? throw new ProducerMessageBusException("Publisher confirms are enabled but the confirms channel is not available. This may indicate a reconnection is in progress.");
+        }
+        else
+        {
+            producerChannel = channels.Channel;
+        }
         messagePayload = SerializerProvider.GetSerializer(path).Serialize(messageType, messageHeaders, message, null);
 
         // IChannel is thread-safe in v7 - create properties without external locking

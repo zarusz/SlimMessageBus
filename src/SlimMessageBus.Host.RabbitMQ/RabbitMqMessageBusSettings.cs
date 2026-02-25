@@ -18,6 +18,17 @@ public class RabbitMqMessageBusSettings : HasProviderExtensions
         ConsumerDispatchConcurrency = 1
     };
 
+    /// <summary>
+    /// Enables RabbitMQ Publisher Confirms. When enabled, the channel will be created in confirm mode
+    /// and each <c>BasicPublishAsync</c> call will wait for broker acknowledgement before completing.
+    /// This provides guaranteed message delivery at the cost of reduced throughput.
+    /// Default is <c>false</c> (opt-in).
+    /// </summary>
+    /// <remarks>
+    /// See https://www.rabbitmq.com/docs/confirms#publisher-confirms for more information.
+    /// </remarks>
+    public bool EnablePublisherConfirms { get; set; }
+
     public IList<AmqpTcpEndpoint> Endpoints { get; set; } = [];
 
     /// <summary>
@@ -31,5 +42,13 @@ public class RabbitMqMessageBusSettings : HasProviderExtensions
     /// By default the message is Acknowledged.
     /// </summary>
     public RabbitMqMessageUnrecognizedRoutingKeyHandler MessageUnrecognizedRoutingKeyHandler { get; set; } = (_) => RabbitMqMessageConfirmOptions.Ack;
+
+    /// <summary>
+    /// The maximum time to wait for the broker to acknowledge a published message when publisher confirms are enabled.
+    /// If the broker does not respond within this timeout, a <see cref="ProducerMessageBusException"/> is thrown.
+    /// Only applicable when publisher confirms are enabled (bus-level or producer-level).
+    /// Default is 10 seconds. Set to <c>null</c> to disable the timeout and rely solely on the caller's cancellation token.
+    /// </summary>
+    public TimeSpan? PublisherConfirmsTimeout { get; set; } = TimeSpan.FromSeconds(10);
 }
 

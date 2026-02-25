@@ -722,6 +722,43 @@ public class RabbitMqChannelManagerTests : IDisposable
         stopwatch.ElapsedMilliseconds.Should().BeLessThan(3000, "Should stop quickly after cancellation");
     }
 
+    [Theory]
+    [InlineData(true, false, true)]   // Bus-level enabled, no producer override -> true
+    [InlineData(false, false, false)]  // Bus-level disabled, no producer override -> false
+    [InlineData(false, true, true)]    // Bus-level disabled, producer enables -> true
+    [InlineData(true, true, true)]     // Both enabled -> true
+    public void When_NeedsConfirmsChannel_Given_BusAndProducerSettings_Then_ReturnsExpected(
+        bool busLevelEnabled, bool producerLevelEnabled, bool expected)
+    {
+        // Arrange
+        var providerSettings = new RabbitMqMessageBusSettings
+        {
+            ConnectionFactory = new ConnectionFactory(),
+            EnablePublisherConfirms = busLevelEnabled
+        };
+
+        var busSettings = new MessageBusSettings();
+        if (producerLevelEnabled)
+        {
+            var producerSettings = new ProducerSettings();
+            RabbitMqProperties.EnablePublisherConfirms.Set(producerSettings, true);
+            busSettings.Producers.Add(producerSettings);
+        }
+
+        var manager = new RabbitMqChannelManager(
+            _loggerFactory,
+            providerSettings,
+            busSettings,
+            () => false);
+        _managersToDispose.Add(manager);
+
+        // Act
+        var result = manager.NeedsConfirmsChannel();
+
+        // Assert
+        result.Should().Be(expected);
+    }
+
     private RabbitMqChannelManager CreateChannelManager()
     {
         var manager = new RabbitMqChannelManager(

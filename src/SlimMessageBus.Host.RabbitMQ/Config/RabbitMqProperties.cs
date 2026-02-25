@@ -28,7 +28,9 @@ static internal class RabbitMqProperties
 
     public static readonly ProviderExtensionProperty<BasicDeliverEventArgs> Message = new($"RabbitMQ_{nameof(Message)}");
 
-    public static readonly ProviderExtensionProperty<RabbitMqMessageBusSettings> ProviderSettings = new($"RabbitMQ_{nameof(ProviderSettings)}");
+    public static readonly ProviderExtensionProperty<bool?> EnablePublisherConfirms = new($"RabbitMQ_{nameof(EnablePublisherConfirms)}");
 
     public static readonly ProviderExtensionProperty<RabbitMqMessageAcknowledgementMode?> MessageAcknowledgementMode = new($"RabbitMQ_{nameof(MessageAcknowledgementMode)}");
+
+    public static readonly ProviderExtensionProperty<RabbitMqMessageBusSettings> ProviderSettings = new($"RabbitMQ_{nameof(ProviderSettings)}");
 }
