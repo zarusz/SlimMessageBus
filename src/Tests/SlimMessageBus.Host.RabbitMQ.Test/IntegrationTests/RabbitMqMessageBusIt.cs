@@ -206,25 +206,17 @@ public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTes
     [InlineData(false)]
     public async Task PubSubWithPublisherConfirms(bool busLevelConfirms)
     {
-        var topic = "test-ping-confirms";
+        var topic = "test-ping";
 
         AddBusConfiguration(mbb =>
         {
-            mbb.WithProviderRabbitMQ(cfg =>
+            if (busLevelConfirms)
             {
-                if (busLevelConfirms)
+                mbb.WithProviderRabbitMQ(cfg =>
                 {
                     cfg.UsePublisherConfirms();
-                }
-
-                cfg.UseTopologyInitializer(async (channel, applyDefaultTopology) =>
-                {
-                    await channel.QueueDeleteAsync("confirms-subscriber", ifUnused: true, ifEmpty: false);
-                    await channel.ExchangeDeleteAsync(topic, ifUnused: true);
-
-                    await applyDefaultTopology();
                 });
-            });
+            }
 
             mbb
                 .Produce<PingMessage>(x =>
@@ -239,10 +231,16 @@ public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTes
                     {
                         p.MessageId = GetMessageId(m);
                     });
+                    x.WithHeaderModifier((h, m) =>
+                    {
+                        h["Counter"] = m.Counter;
+                        h["Even"] = m.Counter % 2 == 0;
+                    });
                 })
                 .Consume<PingMessage>(x => x
-                    .Queue("confirms-subscriber", autoDelete: false)
+                    .Queue("subscriber-0", autoDelete: false)
                     .ExchangeBinding(topic)
+                    .DeadLetterExchange("subscriber-dlq")
                     .AcknowledgementMode(RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade)
                     .WithConsumer<PingConsumer>()
                     .WithConsumer<PingDerivedConsumer, PingDerivedMessage>());
