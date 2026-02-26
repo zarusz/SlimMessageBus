@@ -7,8 +7,8 @@ using SlimMessageBus.Host.Test.Common;
 public class MessageBusBaseTests : IDisposable
 {
     private MessageBusBuilder BusBuilder { get; set; }
-    private readonly Lazy<MessageBusTested> _busLazy;
-    private MessageBusTested Bus => _busLazy.Value;
+    private readonly Lazy<Task<MessageBusTested>> _busLazy;
+    private MessageBusTested Bus => _busLazy.Value.GetAwaiter().GetResult();
     private readonly DateTimeOffset _timeZero;
     private FakeTimeProvider _timeProvider;
 
@@ -60,13 +60,13 @@ public class MessageBusBaseTests : IDisposable
                 };
             });
 
-        _busLazy = new Lazy<MessageBusTested>(CreateMessageBus<MessageBusTested>);
+        _busLazy = new Lazy<Task<MessageBusTested>>(CreateMessageBusAsync<MessageBusTested>);
     }
 
-    private T CreateMessageBus<T>() where T : IMasterMessageBus
+    private async Task<T> CreateMessageBusAsync<T>() where T : IMasterMessageBus
     {
         var bus = (T)BusBuilder.Build();
-        _ = Task.Run(() => bus.AutoStart(default));
+        await bus.AutoStart(default);
         return bus;
     }
 
@@ -156,9 +156,7 @@ public class MessageBusBaseTests : IDisposable
 
 
         // act
-        var bus = CreateMessageBus<IMasterMessageBus>();
-
-        await Task.Delay(TimeSpan.FromSeconds(2));
+        var bus = await CreateMessageBusAsync<IMasterMessageBus>();
 
         // assert
         childBusMock1.Should().NotBeNull();

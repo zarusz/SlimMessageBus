@@ -18,6 +18,7 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IAsyncDisposab
 
     private IConnection _connection;
     private IChannel _channel;
+    private IChannel _confirmsChannel;
 
     // Use SemaphoreSlim for async-compatible locking
     private readonly SemaphoreSlim _channelLock = new(1, 1);
@@ -28,6 +29,7 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IAsyncDisposab
     private readonly Timer _connectionRetryTimer;
     private readonly TimeSpan _connectionRetryInterval;
     private int _disposed; // 0 = not disposed, 1 = disposed
+    private bool? _needsConfirmsChannel; // Cached result of NeedsConfirmsChannel()
 
     /// <summary>
     /// Event raised when the channel has been successfully recovered after a connection loss.
@@ -40,6 +42,11 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IAsyncDisposab
     /// </summary>
     public IChannel Channel => _channel;
 
+    /// <summary>
+    /// Gets the channel with publisher confirms enabled, or <c>null</c> if no producer requires confirms.
+    /// </summary>
+    public IChannel ConfirmsChannel => _confirmsChannel;
+
     public RabbitMqChannelManager(
         ILoggerFactory loggerFactory,
         RabbitMqMessageBusSettings providerSettings,
@@ -51,7 +58,6 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IAsyncDisposab
         _providerSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _isDisposingOrDisposed = isDisposingOrDisposed ?? throw new ArgumentNullException(nameof(isDisposingOrDisposed));
-
 
         // Set up connection retry interval (default to NetworkRecoveryInterval or 10 seconds)
         var networkRecoveryInterval = _providerSettings.ConnectionFactory.NetworkRecoveryInterval;
@@ -107,10 +113,14 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IAsyncDisposab
 
     /// <summary>
     /// Ensures the channel is available, triggering reconnection if necessary.
+    /// Returns a snapshot of both channels to avoid TOCTOU races between check and use.
     /// </summary>
-    public void EnsureChannel()
+    public ChannelSnapshot EnsureChannel()
     {
-        if (_channel == null)
+        var channel = _channel;
+        var confirmsChannel = _confirmsChannel;
+
+        if (channel == null)
         {
             // If channel is null, trigger immediate reconnection attempt
             // The semaphore in EstablishConnection will prevent concurrent attempts
@@ -119,6 +129,8 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IAsyncDisposab
 
             throw new ProducerMessageBusException("The Channel is not available at this time");
         }
+
+        return new ChannelSnapshot(channel, confirmsChannel);
     }
 
     private async Task<bool> EstablishConnection()
@@ -145,8 +157,11 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IAsyncDisposab
             // Subscribe to connection shutdown events for better resilience
             newConnection.ConnectionShutdownAsync += OnConnectionShutdownAsync;
 
+            var needsConfirmsChannel = NeedsConfirmsChannel();
+
             IConnection oldConnection = null;
             IChannel oldChannel = null;
+            IChannel oldConfirmsChannel = null;
             var isRecovery = false;
 
             // Use semaphore instead of lock for async safety
@@ -162,10 +177,12 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IAsyncDisposab
                     // Store old resources for cleanup outside lock
                     oldConnection = _connection;
                     oldChannel = _channel;
+                    oldConfirmsChannel = _confirmsChannel;
                 }
 
                 _connection = newConnection;
                 _channel = null; // Will be set after creation
+                _confirmsChannel = null;
             }
             finally
             {
@@ -173,6 +190,10 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IAsyncDisposab
             }
 
             // Cleanup old resources outside the lock
+            if (oldConfirmsChannel != null)
+            {
+                await CloseAndDisposeChannelAsync(oldConfirmsChannel);
+            }
             if (oldChannel != null)
             {
                 await CloseAndDisposeChannelAsync(oldChannel);
@@ -182,22 +203,30 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IAsyncDisposab
                 await CloseAndDisposeConnectionAsync(oldConnection);
             }
 
-            // Create channel outside the lock to avoid holding lock during async operation
+            // Create channels outside the lock to avoid holding lock during async operations
             if (_connection != null)
             {
                 var newChannel = await _connection.CreateChannelAsync();
+
+                IChannel newConfirmsChannel = null;
+                if (needsConfirmsChannel)
+                {
+                    newConfirmsChannel = await _connection.CreateChannelAsync(
+                        new CreateChannelOptions(publisherConfirmationsEnabled: true, publisherConfirmationTrackingEnabled: true));
+                }
 
                 await _channelLock.WaitAsync();
                 try
                 {
                     _channel = newChannel;
+                    _confirmsChannel = newConfirmsChannel;
                 }
                 finally
                 {
                     _channelLock.Release();
                 }
 
-                // Provision topology
+                // Provision topology (uses the main channel)
                 await ProvisionTopology();
             }
 
@@ -219,6 +248,29 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IAsyncDisposab
         {
             _connectionSemaphore.Release();
         }
+    }
+
+    /// <summary>
+    /// Determines if a separate confirms channel is needed based on bus-level and producer-level settings.
+    /// The result is cached after the first call since producer configuration does not change at runtime.
+    /// </summary>
+    internal bool NeedsConfirmsChannel()
+    {
+        _needsConfirmsChannel ??= ComputeNeedsConfirmsChannel();
+        return _needsConfirmsChannel.Value;
+    }
+
+    private bool ComputeNeedsConfirmsChannel()
+    {
+        // If bus-level confirms are enabled, we always need a confirms channel
+        // (some producers might opt out and use the regular channel)
+        if (_providerSettings.EnablePublisherConfirms)
+        {
+            return true;
+        }
+
+        // Check if any producer explicitly enables confirms
+        return _settings.Producers.Any(p => p.GetOrDefault<bool?>(RabbitMqProperties.EnablePublisherConfirms, null) == true);
     }
 
     private async Task ProvisionTopology()
@@ -265,9 +317,9 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IAsyncDisposab
         if (_isDisposingOrDisposed())
             return;
 
-        // The connection semaphore in EstablishConnection will prevent concurrent attempts
+        // Use one-shot timer (Timeout.Infinite for period) to avoid piling up fire-and-forget tasks
         LogStartingConnectionRetryTimer(_connectionRetryInterval);
-        _connectionRetryTimer.Change(_connectionRetryInterval, _connectionRetryInterval);
+        _connectionRetryTimer.Change(_connectionRetryInterval, Timeout.InfiniteTimeSpan);
     }
 
     private void OnConnectionRetryTimer(object state)
@@ -276,7 +328,8 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IAsyncDisposab
             return;
 
         // Check if connection is already healthy (quick check without lock)
-        if (_connection?.IsOpen == true && _channel?.IsOpen == true)
+        if (_connection?.IsOpen == true && _channel?.IsOpen == true
+            && (_confirmsChannel == null || _confirmsChannel.IsOpen))
         {
             LogConnectionIsHealthy();
             _connectionRetryTimer.Change(Timeout.Infinite, Timeout.Infinite);
@@ -298,16 +351,19 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IAsyncDisposab
                 if (success)
                 {
                     LogReconnectionSuccessful();
-                    _connectionRetryTimer.Change(Timeout.Infinite, Timeout.Infinite);
                 }
                 else
                 {
                     LogReconnectionFailed(_connectionRetryInterval);
+                    // Re-arm the one-shot timer for the next attempt
+                    StartConnectionRetryTimer();
                 }
             }
             catch (Exception ex)
             {
                 LogErrorDuringReconnectionAttempt(ex.Message, ex);
+                // Re-arm the one-shot timer for the next attempt
+                StartConnectionRetryTimer();
             }
         });
     }
@@ -399,7 +455,7 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IAsyncDisposab
             _connectionRetryTimer?.Dispose();
 
             // For synchronous dispose, we have to block (not ideal but necessary for IDisposable)
-            DisposeAsyncCore().AsTask().GetAwaiter().GetResult();
+            DisposeResourcesAsync().AsTask().GetAwaiter().GetResult();
         }
     }
 
@@ -411,17 +467,29 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IAsyncDisposab
         // Stop the retry timer
         _connectionRetryTimer?.Dispose();
 
+        await DisposeResourcesAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Shared cleanup method called by both synchronous and asynchronous dispose paths.
+    /// Must only be called once (guarded by the <see cref="_disposed"/> flag in the callers).
+    /// </summary>
+    private async ValueTask DisposeResourcesAsync()
+    {
         IConnection connectionToDispose = null;
         IChannel channelToDispose = null;
+        IChannel confirmsChannelToDispose = null;
 
         // Acquire lock to safely extract resources
         await _channelLock.WaitAsync().ConfigureAwait(false);
         try
         {
             channelToDispose = _channel;
+            confirmsChannelToDispose = _confirmsChannel;
             connectionToDispose = _connection;
 
             _channel = null;
+            _confirmsChannel = null;
             _connection = null;
 
             // Unsubscribe from events
@@ -436,6 +504,11 @@ internal partial class RabbitMqChannelManager : IRabbitMqChannel, IAsyncDisposab
         }
 
         // Dispose resources outside the lock
+        if (confirmsChannelToDispose != null)
+        {
+            await CloseAndDisposeChannelAsync(confirmsChannelToDispose).ConfigureAwait(false);
+        }
+
         if (channelToDispose != null)
         {
             await CloseAndDisposeChannelAsync(channelToDispose).ConfigureAwait(false);

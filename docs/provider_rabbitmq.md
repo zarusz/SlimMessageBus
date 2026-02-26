@@ -17,6 +17,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
       - [Custom Consumer Error Handler](#custom-consumer-error-handler)
     - [Consumer Concurrency Level](#consumer-concurrency-level)
   - [Request-Response](#request-response)
+- [Publisher Confirms](#publisher-confirms)
 - [Topology Provisioning](#topology-provisioning)
 - [Default Exchange](#default-exchange)
   - [Why it exists](#why-it-exists)
@@ -518,6 +519,110 @@ services.AddSlimMessageBus((mbb) =>
     });
 });
 ```
+
+## Publisher Confirms
+
+[RabbitMQ Publisher Confirms](https://www.rabbitmq.com/docs/confirms#publisher-confirms) provide a mechanism for the broker to acknowledge that messages have been successfully received. This ensures reliable message delivery at the cost of reduced throughput.
+
+Publisher Confirms are **opt-in** and disabled by default to maintain backward compatibility and performance for use cases that don't require guaranteed delivery.
+
+### Enabling Publisher Confirms
+
+```cs
+services.AddSlimMessageBus((mbb) =>
+{
+    mbb.WithProviderRabbitMQ(cfg =>
+    {
+        cfg.ConnectionString = configuration["RabbitMQ:ConnectionString"];
+
+        // Enable publisher confirms
+        cfg.UsePublisherConfirms();
+    });
+});
+```
+
+When enabled at the bus level, a dedicated channel is created with publisher confirmations enabled. Each publish operation on that channel will wait for the broker to acknowledge the message before completing. If the message is rejected (NACKed) by the broker, an exception is thrown.
+
+### Per-Producer Configuration
+
+Publisher confirms can be configured at the producer level, allowing you to enable confirms only for critical messages while keeping fire-and-forget semantics for less important ones (e.g., logging, telemetry):
+
+```cs
+services.AddSlimMessageBus((mbb) =>
+{
+    // Order events require guaranteed delivery
+    mbb.Produce<OrderEvent>(x => x
+        .Exchange("orders", exchangeType: ExchangeType.Fanout)
+        .EnablePublisherConfirms());
+
+    // Log events are fire-and-forget
+    mbb.Produce<LogEvent>(x => x
+        .Exchange("logs", exchangeType: ExchangeType.Fanout));
+
+    mbb.WithProviderRabbitMQ(cfg =>
+    {
+        cfg.ConnectionString = configuration["RabbitMQ:ConnectionString"];
+    });
+});
+```
+
+When configured at the bus level, individual producers can opt out:
+
+```cs
+services.AddSlimMessageBus((mbb) =>
+{
+    mbb.WithProviderRabbitMQ(cfg =>
+    {
+        cfg.ConnectionString = configuration["RabbitMQ:ConnectionString"];
+
+        // Enable publisher confirms for all producers by default
+        cfg.UsePublisherConfirms();
+    });
+
+    // This producer opts out of publisher confirms
+    mbb.Produce<LogEvent>(x => x
+        .Exchange("logs", exchangeType: ExchangeType.Fanout)
+        .EnablePublisherConfirms(enabled: false));
+});
+```
+
+When any producer requires publisher confirms, SMB creates two channels on the same connection: a regular channel for standard producers and a confirms-enabled channel for producers that require guaranteed delivery. This avoids the throughput penalty of publisher confirms for messages that don't need it.
+
+### Timeout
+
+By default, publisher confirms have a **10 second** timeout. If the broker does not acknowledge the message within that time (e.g., due to a network partition), a `ProducerMessageBusException` is thrown.
+
+You can customize the timeout:
+
+```cs
+mbb.WithProviderRabbitMQ(cfg =>
+{
+    // Enable with a custom timeout
+    cfg.UsePublisherConfirms(timeout: TimeSpan.FromSeconds(10));
+});
+```
+
+Or set the property directly:
+
+```cs
+mbb.WithProviderRabbitMQ(cfg =>
+{
+    cfg.EnablePublisherConfirms = true;
+    cfg.PublisherConfirmsTimeout = TimeSpan.FromSeconds(10);
+
+    // Set to null to disable timeout (rely on caller's cancellation token)
+    // cfg.PublisherConfirmsTimeout = null;
+});
+```
+
+### When to Use Publisher Confirms
+
+- **Use when** message delivery guarantees are critical (e.g., financial transactions, order processing)
+- **Avoid when** high throughput is more important than delivery guarantees (e.g., telemetry, logging)
+
+> Publisher confirms add latency to each publish operation since the producer waits for the broker's acknowledgement. For high-throughput scenarios, consider whether at-least-once delivery via consumer acknowledgements is sufficient.
+
+> **Important:** Publisher confirms only guarantee that the broker has received the message, not that it was routed to a queue. Messages published to an exchange with no matching bindings will be silently dropped even with confirms enabled. If you need to detect unroutable messages, configure [Alternate Exchanges](https://www.rabbitmq.com/docs/ae) on your exchange.
 
 ## Topology Provisioning
 

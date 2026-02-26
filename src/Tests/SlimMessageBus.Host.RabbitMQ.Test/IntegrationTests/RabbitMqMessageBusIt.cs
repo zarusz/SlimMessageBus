@@ -172,7 +172,7 @@ public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTes
         var totalExpectedCount = expectedConsumedCount * expectedMessageCopies;
 
         // Wait for all expected messages with a longer timeout to ensure message delivery
-        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 15, expectedCount: totalExpectedCount);
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 30, expectedCount: totalExpectedCount);
 
         stopwatch.Stop();
 
@@ -199,6 +199,54 @@ public class RabbitMqMessageBusIt(ITestOutputHelper output) : BaseIntegrationTes
             ConsumedMessages = consumedMessages.Snapshot(),
             TestMetric = testMetric
         });
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task PubSubWithPublisherConfirms(bool busLevelConfirms)
+    {
+        var topic = "test-ping";
+
+        AddBusConfiguration(mbb =>
+        {
+            if (busLevelConfirms)
+            {
+                mbb.WithProviderRabbitMQ(cfg =>
+                {
+                    cfg.UsePublisherConfirms();
+                });
+            }
+
+            mbb
+                .Produce<PingMessage>(x =>
+                {
+                    x.Exchange(topic, exchangeType: ExchangeType.Fanout);
+                    if (!busLevelConfirms)
+                    {
+                        // Enable confirms at the producer level only
+                        x.EnablePublisherConfirms();
+                    }
+                    x.MessagePropertiesModifier((m, p) =>
+                    {
+                        p.MessageId = GetMessageId(m);
+                    });
+                    x.WithHeaderModifier((h, m) =>
+                    {
+                        h["Counter"] = m.Counter;
+                        h["Even"] = m.Counter % 2 == 0;
+                    });
+                })
+                .Consume<PingMessage>(x => x
+                    .Queue("subscriber-0", autoDelete: false)
+                    .ExchangeBinding(topic)
+                    .DeadLetterExchange("subscriber-dlq")
+                    .AcknowledgementMode(RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade)
+                    .WithConsumer<PingConsumer>()
+                    .WithConsumer<PingDerivedConsumer, PingDerivedMessage>());
+        });
+
+        await BasicPubSub(expectedMessageCopies: 1);
     }
 
     [Theory]
