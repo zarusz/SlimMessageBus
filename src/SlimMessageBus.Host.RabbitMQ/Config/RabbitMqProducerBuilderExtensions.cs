@@ -3,6 +3,21 @@
 public static class RabbitMqProducerBuilderExtensions
 {
     /// <summary>
+    /// Enables or disables RabbitMQ Publisher Confirms for this producer.
+    /// When enabled, publish operations will wait for broker acknowledgement before completing.
+    /// This overrides the bus-level <see cref="RabbitMqMessageBusSettings.EnablePublisherConfirms"/> setting.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="builder"></param>
+    /// <param name="enabled">Whether to enable publisher confirms for this producer. Default is <c>true</c>.</param>
+    /// <returns></returns>
+    public static ProducerBuilder<T> EnablePublisherConfirms<T>(this ProducerBuilder<T> builder, bool enabled = true)
+    {
+        RabbitMqProperties.EnablePublisherConfirms.Set(builder.Settings, enabled);
+        return builder;
+    }
+
+    /// <summary>
     /// Sets the exchange name (and optionally other exchange parameters).
     /// </summary>
     /// <remarks>Setting the name is equivalent to using <see cref="ProducerBuilder{T}.DefaultPath(string)"/>.</remarks>
@@ -23,24 +38,26 @@ public static class RabbitMqProducerBuilderExtensions
         return builder;
     }
 
-    static internal void SetExchangeProperties(this HasProviderExtensions settings, string exchangeType = null, bool? durable = null, bool? autoDelete = null, IDictionary<string, object> arguments = null)
+    /// <summary>
+    /// Sets an modifier action for the message properties (headers). The content type, message id, and other RabbitMQ message properties can be set that way.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="builder"></param>
+    /// <param name="messagePropertiesModifier"></param>
+    /// <returns></returns>
+    public static ProducerBuilder<T> MessagePropertiesModifier<T>(this ProducerBuilder<T> builder, RabbitMqMessagePropertiesModifier<T> messagePropertiesModifier)
     {
-        if (exchangeType != null)
+        if (messagePropertiesModifier == null) throw new ArgumentNullException(nameof(messagePropertiesModifier));
+
+        RabbitMqMessagePropertiesModifier<object> untyped = (object message, IBasicProperties properties) =>
         {
-            RabbitMqProperties.ExchangeType.Set(settings, exchangeType);
-        }
-        if (durable != null)
-        {
-            RabbitMqProperties.ExchangeDurable.Set(settings, durable.Value);
-        }
-        if (autoDelete != null)
-        {
-            RabbitMqProperties.ExchangeAutoDelete.Set(settings, autoDelete.Value);
-        }
-        if (arguments != null)
-        {
-            RabbitMqProperties.ExchangeArguments.Set(settings, arguments);
-        }
+            if (message is T typedMessage)
+            {
+                messagePropertiesModifier(typedMessage, properties);
+            }
+        };
+        RabbitMqProperties.MessagePropertiesModifier.Set(builder.Settings, untyped);
+        return builder;
     }
 
     /// <summary>
@@ -66,25 +83,23 @@ public static class RabbitMqProducerBuilderExtensions
         return builder;
     }
 
-    /// <summary>
-    /// Sets an modifier action for the message properties (headers). The content type, message id, and other RabbitMQ message properties can be set that way.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="builder"></param>
-    /// <param name="messagePropertiesModifier"></param>
-    /// <returns></returns>
-    public static ProducerBuilder<T> MessagePropertiesModifier<T>(this ProducerBuilder<T> builder, RabbitMqMessagePropertiesModifier<T> messagePropertiesModifier)
+    static internal void SetExchangeProperties(this HasProviderExtensions settings, string exchangeType = null, bool? durable = null, bool? autoDelete = null, IDictionary<string, object> arguments = null)
     {
-        if (messagePropertiesModifier == null) throw new ArgumentNullException(nameof(messagePropertiesModifier));
-
-        RabbitMqMessagePropertiesModifier<object> untyped = (object message, IBasicProperties properties) =>
+        if (exchangeType != null)
         {
-            if (message is T typedMessage)
-            {
-                messagePropertiesModifier(typedMessage, properties);
-            }
-        };
-        RabbitMqProperties.MessagePropertiesModifier.Set(builder.Settings, untyped);
-        return builder;
+            RabbitMqProperties.ExchangeType.Set(settings, exchangeType);
+        }
+        if (durable != null)
+        {
+            RabbitMqProperties.ExchangeDurable.Set(settings, durable.Value);
+        }
+        if (autoDelete != null)
+        {
+            RabbitMqProperties.ExchangeAutoDelete.Set(settings, autoDelete.Value);
+        }
+        if (arguments != null)
+        {
+            RabbitMqProperties.ExchangeArguments.Set(settings, arguments);
+        }
     }
 }

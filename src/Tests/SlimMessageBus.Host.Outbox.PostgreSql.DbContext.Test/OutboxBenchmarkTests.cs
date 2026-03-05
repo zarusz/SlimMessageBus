@@ -1,4 +1,4 @@
-﻿namespace SlimMessageBus.Host.Outbox.PostgreSql.DbContext.Test;
+namespace SlimMessageBus.Host.Outbox.PostgreSql.DbContext.Test;
 
 
 [CollectionDefinition(nameof(OutboxBenchmarkTestsCollection))]
