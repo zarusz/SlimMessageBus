@@ -2,13 +2,16 @@
 
 public class MqttMessageBusSettings
 {
-    public MqttFactory MqttFactory { get; set; } = new();
     /// <summary>
-    /// Used to build the underlying <see cref="MqttClient"/> client.
+    /// Factory for creating the underlying <see cref="MqttClient"/>.
+    /// </summary>
+    public MqttClientFactory ClientFactory { get; set; } = new();
+    /// <summary>
+    /// Used to build the underlying <see cref="MqttClient"/> options.
     /// </summary>
     public MqttClientOptionsBuilder ClientBuilder { get; set; } = new();
     /// <summary>
-    /// Used to build the underlying <see cref="ManagedMqttClient"/> client wrapper.
+    /// Delay before a reconnect attempt is made after an unexpected disconnection.
     /// </summary>
-    public ManagedMqttClientOptionsBuilder ManagedClientBuilder { get; set; } = new();
+    public TimeSpan ReconnectDelay { get; set; } = TimeSpan.FromSeconds(5);
 }

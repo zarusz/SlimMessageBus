@@ -3,14 +3,15 @@
   <Import Project="../Host.Plugin.Properties.xml" />
 
   <PropertyGroup>
+    <!-- MQTTnet 5.x only supports .NET 8+ -->
+    <TargetFrameworks>net9.0;net8.0</TargetFrameworks>
     <Description>MQTT transport provider for SlimMessageBus</Description>
     <PackageTags>MQTT transport provider SlimMessageBus MessageBus bus facade messaging client</PackageTags>
     <PackageReleaseNotes />
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MQTTnet" Version="4.3.7.1207" />
-    <PackageReference Include="MQTTnet.Extensions.ManagedClient" Version="4.3.7.1207" />
+    <PackageReference Include="MQTTnet" Version="5.1.0.1559" />
   </ItemGroup>
 
   <ItemGroup>
