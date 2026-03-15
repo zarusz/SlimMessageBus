@@ -14,7 +14,8 @@ public class OutboxBenchmarkTestsCollection : ICollectionFixture<PostgreSqlFixtu
 /// </summary>
 /// <param name="output"></param>
 [Trait("Category", "Integration")] // for benchmarks
-[Trait("Transport", "Outbox")]
+[Trait("Transport", "Outbox.AzureSB")]   // some test cases use AzureServiceBus as the external bus
+[Trait("Transport", "Outbox.RabbitMQ")]  // some test cases use RabbitMQ (TestContainers) as the external bus
 [Collection(nameof(OutboxBenchmarkTestsCollection))]
 public class OutboxBenchmarkTests(ITestOutputHelper output, PostgreSqlFixture postgreSqlFixture, RabbitMqFixture rabbitMqFixture) : BaseIntegrationTest<OutboxBenchmarkTests>(output)
 {
@@ -210,9 +211,9 @@ public class OutboxBenchmarkTests(ITestOutputHelper output, PostgreSqlFixture po
         var consumeTimerElapsed = consumptionTimer.Elapsed;
 
         // Log the measured times
-        Logger.LogInformation("Message Publish took       : {Elapsed}", publishTimerElapsed);
-        Logger.LogInformation("Outbox Publish took        : {Elapsed}", outboxPublishTimerElapsed);
-        Logger.LogInformation("Message Consume took       : {Elapsed}", consumeTimerElapsed);
+        Logger.LogMessagePublishTook(publishTimerElapsed);
+        Logger.LogOutboxPublishTook(outboxPublishTimerElapsed);
+        Logger.LogMessageConsumeTook(consumeTimerElapsed);
 
         // Ensure the expected number of events was actually published to ASB and delivered via that channel.
         store.Count.Should().Be(events.Count);

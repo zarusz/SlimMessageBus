@@ -8,7 +8,8 @@ public class OutboxTestsCollection : ICollectionFixture<PostgreSqlFixture>, ICol
 }
 
 [Trait("Category", "Integration")]
-[Trait("Transport", "Outbox")]
+[Trait("Transport", "Outbox.AzureSB")]  // some test cases use AzureServiceBus as the external bus
+[Trait("Transport", "Outbox.Kafka")]    // some test cases use Kafka (TestContainers) as the external bus
 [Collection(nameof(OutboxTestsCollection))]
 public class OutboxTests(ITestOutputHelper output, PostgreSqlFixture postgreSqlFixture, KafkaFixture kafkaFixture) : BaseIntegrationTest<OutboxBenchmarkTests>(output)
 {
@@ -200,7 +201,7 @@ public class OutboxTests(ITestOutputHelper output, PostgreSqlFixture postgreSqlF
                     }
                     catch (Exception ex)
                     {
-                        Logger.LogInformation("Exception occurred while handling cmd {Command}: {Message}", cmd, ex.Message);
+                        Logger.LogCommandException(cmd, ex.Message);
                     }
                 }
             });
@@ -279,7 +280,7 @@ public class OutboxTests(ITestOutputHelper output, PostgreSqlFixture postgreSqlF
                     catch (Exception ex)
                     {
                         await txService.RollbackTransaction();
-                        Logger.LogInformation("Exception occurred while handling cmd {Command}: {Message}", ev, ex.Message);
+                        Logger.LogCommandException(ev, ex.Message);
                     }
                 }
             });

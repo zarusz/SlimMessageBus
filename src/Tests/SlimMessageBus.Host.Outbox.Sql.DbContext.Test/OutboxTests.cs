@@ -11,7 +11,8 @@ using SlimMessageBus.Host.Outbox.Sql.DbContext.Test.DataAccess;
 using SlimMessageBus.Host.Sql.Common;
 
 [Trait("Category", "Integration")]
-[Trait("Transport", "Outbox")]
+[Trait("Transport", "Outbox.AzureSB")]  // some test cases use AzureServiceBus as the external bus
+[Trait("Transport", "Outbox.Kafka")]    // some test cases use Kafka as the external bus
 [Collection(CustomerContext.Schema)]
 public class OutboxTests(ITestOutputHelper output) : BaseOutboxIntegrationTest<OutboxTests>(output)
 {
@@ -169,7 +170,7 @@ public class OutboxTests(ITestOutputHelper output) : BaseOutboxIntegrationTest<O
                     }
                     catch (Exception ex)
                     {
-                        Logger.LogInformation("Exception occurred while handling cmd {Command}: {Message}", cmd, ex.Message);
+                        Logger.LogCommandException(cmd, ex.Message);
                     }
                 }
             })
@@ -180,7 +181,7 @@ public class OutboxTests(ITestOutputHelper output) : BaseOutboxIntegrationTest<O
         // Wait for messages to arrive first (they should start arriving quickly)
         await store.WaitUntilArriving(newMessagesTimeout: 20);
         
-        Logger.LogInformation("Received {ActualCount}/{ExpectedCount} messages after initial wait", store.Count, validCommands.Count);
+        Logger.LogReceivedMessages(store.Count, validCommands.Count);
 
         // assert
         using var scope = ServiceProvider!.CreateScope();
@@ -267,7 +268,7 @@ public class OutboxTests(ITestOutputHelper output) : BaseOutboxIntegrationTest<O
                     catch (Exception ex)
                     {
                         await txService.RollbackTransaction();
-                        Logger.LogInformation("Exception occurred while handling cmd {Command}: {Message}", ev, ex.Message);
+                        Logger.LogCommandException(ev, ex.Message);
                     }
                 }
             })
@@ -278,7 +279,7 @@ public class OutboxTests(ITestOutputHelper output) : BaseOutboxIntegrationTest<O
         // Wait for messages to arrive (they should start arriving quickly)
         await store.WaitUntilArriving(newMessagesTimeout: 20);
         
-        Logger.LogInformation("Received {ActualCount}/{ExpectedCount} messages after initial wait", store.Count, validEvents.Count);
+        Logger.LogReceivedMessages(store.Count, validEvents.Count);
 
         // assert
 

@@ -20,7 +20,8 @@ using SlimMessageBus.Host.RabbitMQ;
 /// </summary>
 /// <param name="output"></param>
 [Trait("Category", "Integration")] // for benchmarks
-[Trait("Transport", "Outbox")]
+[Trait("Transport", "Outbox.AzureSB")]   // some test cases use AzureServiceBus as the external bus
+[Trait("Transport", "Outbox.RabbitMQ")]  // some test cases use RabbitMQ as the external bus
 [Collection(CustomerContext.Schema)]
 public class OutboxBenchmarkTests(ITestOutputHelper output) : BaseOutboxIntegrationTest<OutboxBenchmarkTests>(output)
 {
@@ -225,9 +226,9 @@ public class OutboxBenchmarkTests(ITestOutputHelper output) : BaseOutboxIntegrat
         var consumeTimerElapsed = consumptionTimer.Elapsed;
 
         // Log the measured times
-        Logger.LogInformation("Message Publish took       : {Elapsed}", publishTimerElapsed);
-        Logger.LogInformation("Outbox Publish took        : {Elapsed}", outboxPublishTimerElapsed);
-        Logger.LogInformation("Message Consume took       : {Elapsed}", consumeTimerElapsed);
+        Logger.LogMessagePublishTook(publishTimerElapsed);
+        Logger.LogOutboxPublishTook(outboxPublishTimerElapsed);
+        Logger.LogMessageConsumeTook(consumeTimerElapsed);
 
         // Ensure the expected number of events was actually published to ASB and delivered via that channel.
         store.Count.Should().Be(events.Count);
