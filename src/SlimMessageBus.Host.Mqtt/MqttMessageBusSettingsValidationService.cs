@@ -14,9 +14,5 @@ internal class MqttMessageBusSettingsValidationService : DefaultMessageBusSettin
         {
             throw new ConfigurationMessageBusException(Settings, $"The {nameof(MqttMessageBusSettings)}.{nameof(MqttMessageBusSettings.ClientBuilder)} must be set");
         }
-        if (ProviderSettings.ManagedClientBuilder is null)
-        {
-            throw new ConfigurationMessageBusException(Settings, $"The {nameof(MqttMessageBusSettings)}.{nameof(MqttMessageBusSettings.ManagedClientBuilder)} must be set");
-        }
     }
 }

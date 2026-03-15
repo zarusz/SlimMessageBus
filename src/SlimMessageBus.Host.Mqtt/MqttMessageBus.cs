@@ -1,13 +1,10 @@
 ﻿namespace SlimMessageBus.Host.Mqtt;
 
-using Microsoft.Extensions.DependencyInjection;
-
-using MQTTnet.Extensions.ManagedClient;
-
-public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
+public partial class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
 {
     private readonly ILogger _logger;
-    private IManagedMqttClient _mqttClient;
+    private IMqttClient _mqttClient;
+    private MqttClientOptions _mqttClientOptions;
 
     public MqttMessageBus(MessageBusSettings settings, MqttMessageBusSettings providerSettings) : base(settings, providerSettings)
     {
@@ -24,14 +21,9 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
     {
         await base.OnStart().ConfigureAwait(false);
 
-        var clientOptions = ProviderSettings.ClientBuilder
-            .Build();
-
-        var managedClientOptions = ProviderSettings.ManagedClientBuilder
-            .WithClientOptions(clientOptions)
-            .Build();
-
-        await _mqttClient.StartAsync(managedClientOptions).ConfigureAwait(false);
+        _mqttClientOptions = ProviderSettings.ClientBuilder.Build();
+        await _mqttClient.ConnectAsync(_mqttClientOptions, CancellationToken).ConfigureAwait(false);
+        await SubscribeAsync().ConfigureAwait(false);
     }
 
     protected override async Task OnStop()
@@ -40,24 +32,25 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
 
         if (_mqttClient != null)
         {
-            await _mqttClient.StopAsync().ConfigureAwait(false);
+            await _mqttClient.DisconnectAsync().ConfigureAwait(false);
         }
     }
 
     protected override async Task CreateConsumers()
     {
-        _mqttClient = ProviderSettings.MqttFactory.CreateManagedMqttClient();
+        _mqttClient = ProviderSettings.ClientFactory.CreateMqttClient();
         _mqttClient.ApplicationMessageReceivedAsync += OnMessageReceivedAsync;
+        _mqttClient.DisconnectedAsync += OnDisconnectedAsync;
 
         void AddTopicConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, string topic, IMessageProcessor<MqttApplicationMessage> messageProcessor)
         {
-            _logger.LogInformation("Creating consumer for {Path}", topic);
+            LogCreatingConsumer(topic);
             var consumer = new MqttTopicConsumer(LoggerFactory.CreateLogger<MqttTopicConsumer>(), consumerSettings, interceptors: Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(), topic, messageProcessor);
             AddConsumer(consumer);
         }
 
         MessageProvider<MqttApplicationMessage> GetMessageProvider(string path)
-            => SerializerProvider.GetSerializer(path).GetMessageProvider<byte[], MqttApplicationMessage>(t => t.PayloadSegment.Array);
+            => SerializerProvider.GetSerializer(path).GetMessageProvider<byte[], MqttApplicationMessage>(GetPayloadBytes);
 
         foreach (var (path, consumerSettings) in Settings.Consumers.GroupBy(x => x.Path).ToDictionary(x => x.Key, x => x.ToList()))
         {
@@ -85,9 +78,6 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
 
             AddTopicConsumer([Settings.RequestResponse], path, processor);
         }
-
-        var topics = Consumers.Cast<MqttTopicConsumer>().Select(x => new MqttTopicFilterBuilder().WithTopic(x.Path).Build()).ToList();
-        await _mqttClient.SubscribeAsync(topics).ConfigureAwait(false);
     }
 
     protected override async Task DestroyConsumers()
@@ -96,9 +86,53 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
 
         if (_mqttClient != null)
         {
+            _mqttClient.ApplicationMessageReceivedAsync -= OnMessageReceivedAsync;
+            _mqttClient.DisconnectedAsync -= OnDisconnectedAsync;
             _mqttClient.Dispose();
             _mqttClient = null;
         }
+    }
+
+    private async Task SubscribeAsync()
+    {
+        var consumers = Consumers.Cast<MqttTopicConsumer>().ToList();
+        if (consumers.Count == 0)
+        {
+            return;
+        }
+
+        var subscribeOptionsBuilder = new MqttClientSubscribeOptionsBuilder();
+        foreach (var consumer in consumers)
+        {
+            subscribeOptionsBuilder.WithTopicFilter(f => f.WithTopic(consumer.Path));
+        }
+        await _mqttClient.SubscribeAsync(subscribeOptionsBuilder.Build(), CancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task OnDisconnectedAsync(MqttClientDisconnectedEventArgs e)
+    {
+        if (e.Reason != MqttClientDisconnectReason.NormalDisconnection && !CancellationToken.IsCancellationRequested)
+        {
+            LogClientDisconnected(e.Reason);
+            try
+            {
+                await Task.Delay(ProviderSettings.ReconnectDelay, CancellationToken).ConfigureAwait(false);
+                await _mqttClient.ConnectAsync(_mqttClientOptions, CancellationToken).ConfigureAwait(false);
+                await SubscribeAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                LogReconnectFailed(ex);
+            }
+        }
+    }
+
+    private static byte[] GetPayloadBytes(MqttApplicationMessage message)
+    {
+        var payload = message.Payload;
+        var bytes = new byte[(int)payload.Length];
+        payload.CopyTo(bytes.AsSpan());
+        return bytes;
     }
 
     private Task OnMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs arg)
@@ -111,7 +145,7 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
             {
                 foreach (var prop in arg.ApplicationMessage.UserProperties)
                 {
-                    headers[prop.Name] = prop.Value;
+                    headers[prop.Name] = prop.ReadValueAsString();
                 }
             }
             return consumer.MessageProcessor.ProcessMessage(arg.ApplicationMessage, headers, cancellationToken: CancellationToken);
@@ -132,16 +166,17 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
 
             if (messageHeaders != null)
             {
-                transportMessage.UserProperties = new List<MQTTnet.Packets.MqttUserProperty>(messageHeaders.Count);
+                transportMessage.UserProperties = new List<MqttUserProperty>(messageHeaders.Count);
                 foreach (var header in messageHeaders)
                 {
-                    transportMessage.UserProperties.Add(new(header.Key, header.Value.ToString()));
+                    transportMessage.UserProperties.Add(new MqttUserProperty(header.Key, (ReadOnlyMemory<byte>)Encoding.UTF8.GetBytes(header.Value.ToString())));
                 }
             }
 
             if (message != null)
             {
-                transportMessage.PayloadSegment = new ArraySegment<byte>(SerializerProvider.GetSerializer(path).Serialize(messageType, messageHeaders, message, transportMessage));
+                var payloadBytes = SerializerProvider.GetSerializer(path).Serialize(messageType, messageHeaders, message, transportMessage);
+                transportMessage.Payload = new ReadOnlySequence<byte>(payloadBytes);
             }
 
             try
@@ -158,14 +193,42 @@ public class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
             }
             catch (Exception e)
             {
-                _logger.LogWarning(e, "The configured message modifier failed for message type {MessageType} and message {Message}", messageType, message);
+                LogMessageModifierFailed(e, messageType, message);
             }
 
-            await _mqttClient.EnqueueAsync(transportMessage);
+            await _mqttClient.PublishAsync(transportMessage, cancellationToken);
         }
         catch (Exception ex) when (ex is not ProducerMessageBusException && ex is not TaskCanceledException)
         {
             throw new ProducerMessageBusException(GetProducerErrorMessage(path, message, messageType, ex), ex);
         }
     }
+
+    #region Logging
+
+    [LoggerMessage(
+       EventId = 0,
+       Level = LogLevel.Information,
+       Message = "Creating consumer for {Path}")]
+    private partial void LogCreatingConsumer(string path);
+
+    [LoggerMessage(
+       EventId = 1,
+       Level = LogLevel.Warning,
+       Message = "MQTT client disconnected with reason {Reason}. Attempting to reconnect...")]
+    private partial void LogClientDisconnected(MqttClientDisconnectReason reason);
+
+    [LoggerMessage(
+       EventId = 2,
+       Level = LogLevel.Error,
+       Message = "Failed to reconnect MQTT client")]
+    private partial void LogReconnectFailed(Exception ex);
+
+    [LoggerMessage(
+       EventId = 3,
+       Level = LogLevel.Warning,
+       Message = "The configured message modifier failed for message type {MessageType} and message {Message}")]
+    private partial void LogMessageModifierFailed(Exception ex, Type messageType, object message);
+
+    #endregion
 }

@@ -217,4 +217,201 @@ public class MqttMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<Mq
             return Task.FromResult(new EchoResponse(request.Message));
         }
     }
+
+    [Fact]
+    public async Task When_PublishIsCalled_Given_HeadersAreProvided_Then_HeadersAreTransmitted()
+    {
+        // Arrange
+        var topic = "test-ping-with-headers";
+        var capturedHeaders = new ConcurrentBag<IDictionary<string, object>>();
+
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+                .Produce<PingMessage>(x => x.DefaultTopic(topic))
+                .Consume<PingMessage>(x => x.Topic(topic).Instances(1));
+        });
+
+        await EnsureConsumersStarted();
+        await WaitUntilConnected();
+
+        var consumedMessages = ServiceProvider.GetRequiredService<TestEventCollector<PingMessage>>();
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 2);
+        consumedMessages.Clear();
+
+        // Act
+        var message = new PingMessage(1, Guid.NewGuid());
+        var headers = new Dictionary<string, object>
+        {
+            ["CustomHeader1"] = "Value1",
+            ["CustomHeader2"] = "Value2"
+        };
+        await MessageBus.Publish(message, path: null, headers: headers);
+
+        // Assert
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 10, expectedCount: 1);
+        consumedMessages.Count.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task When_PublishIsCalled_Given_NoHeadersProvided_Then_MessageIsDelivered()
+    {
+        // Arrange
+        var topic = "test-ping-no-headers";
+
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+                .Produce<PingMessage>(x => x.DefaultTopic(topic))
+                .Consume<PingMessage>(x => x.Topic(topic).Instances(1));
+        });
+
+        await EnsureConsumersStarted();
+        await WaitUntilConnected();
+
+        var consumedMessages = ServiceProvider.GetRequiredService<TestEventCollector<PingMessage>>();
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 2);
+        consumedMessages.Clear();
+
+        // Act - Publish without explicit headers
+        var message = new PingMessage(42, Guid.NewGuid());
+        await MessageBus.Publish(message);
+
+        // Assert
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 10, expectedCount: 1);
+        consumedMessages.Count.Should().Be(1);
+        consumedMessages.Snapshot().First().Counter.Should().Be(42);
+    }
+
+    [Fact]
+    public async Task When_PublishIsCalled_Given_MessageModifierIsConfigured_Then_ModifierIsCalled()
+    {
+        // Arrange
+        var topic = "test-ping-with-modifier";
+        var modifierWasCalled = false;
+
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+                .Produce<PingMessage>(x => x
+                    .DefaultTopic(topic)
+                    .WithModifier((message, mqttMessage) =>
+                    {
+                        modifierWasCalled = true;
+                        mqttMessage.ResponseTopic = "custom-response-topic";
+                        mqttMessage.MessageExpiryInterval = 60;
+                    }))
+                .Consume<PingMessage>(x => x.Topic(topic).Instances(1));
+        });
+
+        await EnsureConsumersStarted();
+        await WaitUntilConnected();
+
+        var consumedMessages = ServiceProvider.GetRequiredService<TestEventCollector<PingMessage>>();
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 2);
+        consumedMessages.Clear();
+
+        // Act
+        var message = new PingMessage(99, Guid.NewGuid());
+        await MessageBus.Publish(message);
+
+        // Assert
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 10, expectedCount: 1);
+        modifierWasCalled.Should().BeTrue();
+        consumedMessages.Count.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task When_PublishIsCalled_Given_MessageModifierThrows_Then_MessageIsStillPublished()
+    {
+        // Arrange
+        var topic = "test-ping-modifier-throws";
+
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+                .Produce<PingMessage>(x => x
+                    .DefaultTopic(topic)
+                    .WithModifier((message, mqttMessage) =>
+                    {
+                        // This should be caught and logged but not prevent publishing
+                        throw new InvalidOperationException("Test exception in modifier");
+                    }))
+                .Consume<PingMessage>(x => x.Topic(topic).Instances(1));
+        });
+
+        await EnsureConsumersStarted();
+        await WaitUntilConnected();
+
+        var consumedMessages = ServiceProvider.GetRequiredService<TestEventCollector<PingMessage>>();
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 2);
+        consumedMessages.Clear();
+
+        // Act - Should not throw exception
+        var message = new PingMessage(123, Guid.NewGuid());
+        await MessageBus.Publish(message);
+
+        // Assert - Message should still be delivered despite modifier exception
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 10, expectedCount: 1);
+        consumedMessages.Count.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task When_BusStarts_Given_NoConsumersConfigured_Then_StartsSuccessfully()
+    {
+        // Arrange - Configure bus with NO consumers
+        AddBusConfiguration(mbb =>
+        {
+            mbb.Produce<PingMessage>(x => x.DefaultTopic("test-no-consumers"));
+            // Intentionally not adding any consumers
+        });
+
+        // Act
+        var act = async () =>
+        {
+            await EnsureConsumersStarted();
+            var messageBus = ServiceProvider.GetRequiredService<IMessageBus>();
+            await messageBus.Publish(new PingMessage(1, Guid.NewGuid()));
+        };
+
+        // Assert - Should not throw
+        await act.Should().NotThrowAsync();
+    }
+
+    [Theory]
+    [InlineData(0)] // QoS 0
+    [InlineData(1)] // QoS 1
+    public async Task When_PublishIsCalled_Given_DifferentQoSLevels_Then_MessageIsDelivered(byte qos)
+    {
+        // Arrange
+        var topic = $"test-qos-{qos}";
+
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+                .Produce<PingMessage>(x => x
+                    .DefaultTopic(topic)
+                    .WithModifier((message, mqttMessage) =>
+                    {
+                        mqttMessage.QualityOfServiceLevel = (MQTTnet.Protocol.MqttQualityOfServiceLevel)qos;
+                    }))
+                .Consume<PingMessage>(x => x.Topic(topic).Instances(1));
+        });
+
+        await EnsureConsumersStarted();
+        await WaitUntilConnected();
+
+        var consumedMessages = ServiceProvider.GetRequiredService<TestEventCollector<PingMessage>>();
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 2);
+        consumedMessages.Clear();
+
+        // Act
+        var message = new PingMessage(qos, Guid.NewGuid());
+        await MessageBus.Publish(message);
+
+        // Assert
+        await consumedMessages.WaitUntilArriving(newMessagesTimeout: 10, expectedCount: 1);
+        consumedMessages.Count.Should().Be(1);
+        consumedMessages.Snapshot().First().Counter.Should().Be(qos);
+    }
 }

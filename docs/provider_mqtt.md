@@ -21,7 +21,7 @@ services.AddSlimMessageBus(mbb =>
     {
         cfg.ClientBuilder
             .WithTcpServer(configuration["Mqtt:Server"], int.Parse(configuration["Mqtt:Port"]))
-            .WithTls()
+            .WithTlsOptions(o => o.UseTls())
             .WithCredentials(configuration["Mqtt:Username"], configuration["Mqtt:Password"])
             // Use MQTTv5 to use message headers (if the broker supports it)
             .WithProtocolVersion(MQTTnet.Formatter.MqttProtocolVersion.V500);
