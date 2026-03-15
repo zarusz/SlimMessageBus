@@ -9,6 +9,7 @@ using SlimMessageBus.Host.Memory;
 /// </summary>
 /// <param name="output"></param>
 [Trait("Category", "Integration")]
+[Trait("Transport", "Memory")]
 public class MessageScopeAccessorTests(ITestOutputHelper output) : BaseIntegrationTest<MessageScopeAccessorTests>(output)
 {
     protected override void SetupServices(ServiceCollection services, IConfigurationRoot configuration)

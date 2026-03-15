@@ -7,6 +7,7 @@ using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Memory;
 
 [Trait("Category", "Integration")]
+[Trait("Transport", "AzureServiceBus")]
 public class HybridTests(ITestOutputHelper output) : BaseIntegrationTest<HybridTests>(output)
 {
     public enum SerializerType
