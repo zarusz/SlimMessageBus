@@ -6,7 +6,7 @@
     <Description>Core configuration interfaces of SlimMessageBus</Description>
     <PackageTags>SlimMessageBus</PackageTags>
     <RootNamespace>SlimMessageBus.Host</RootNamespace>
-    <Version>3.4.0-rc114</Version>
+    <Version>3.4.0-rc115</Version>
   </PropertyGroup>
 
   <ItemGroup>
