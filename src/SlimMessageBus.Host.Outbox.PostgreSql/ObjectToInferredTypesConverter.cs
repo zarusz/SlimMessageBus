@@ -1,4 +1,4 @@
-﻿namespace SlimMessageBus.Host.Outbox.PostgreSql;
+namespace SlimMessageBus.Host.Outbox.PostgreSql;
 
 /// <summary>
 /// Converter that infers object to primitive types. See https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/converters-how-to?pivots=dotnet-7-0#deserialize-inferred-types-to-object-properties
