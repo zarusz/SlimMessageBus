@@ -1241,6 +1241,36 @@ See source:
 
 On the consumer side, before the received message is delivered to the consumer (or request handler) the SMB is performing a DI lookup for the interceptor interface types that are relevant for the given message type (or request and response type).
 
+#### Consumer instance resolution order
+
+The consumer (or handler) instance is resolved from the DI container **after** all interceptors have run — specifically, it is created the first time `IConsumerContext.Consumer` is accessed inside `ExecuteConsumer`, which is the final step of the interceptor pipeline (the inner-most `next()` call).
+
+This ordering has an important consequence: any **scoped DI service injected into the consumer's constructor** is resolved *after* every interceptor has executed. Interceptors can therefore set up ambient state (start a database transaction, populate an `AsyncLocal`, update a mutable scoped holder) that will be visible when the consumer's constructor fires and its dependencies are resolved.
+
+```
+Per-message DI scope created
+         │
+         ▼
+ Interceptors resolved from DI
+         │
+         ▼
+ IConsumerInterceptor<T>.OnHandle()   ← e.g. starts a DB transaction
+         │  (calls next())
+         ▼
+ IRequestHandlerInterceptor<TReq,TResp>.OnHandle()
+         │  (calls next())
+         ▼
+ Consumer resolved from DI            ← scoped constructor deps see the open transaction
+         │
+         ▼
+ Consumer.OnHandle() / Handler.OnHandle()
+         │
+         ▼
+ Interceptors unwind (commit / rollback)
+```
+
+> This is why, for example, the MongoDB outbox plugin can register `IClientSessionHandle` as a plain scoped service. The `MongoDbTransactionConsumerInterceptor` starts the session before the consumer is constructed, so the consumer receives a live (non-null) `IClientSessionHandle?` via normal constructor injection with no `Lazy<T>` wrapper needed.
+
 ```cs
 // Intercepts consumers of type IConsumer<TMessage> and IRequestHandler<TMessage, TResponse>
 public interface IConsumerInterceptor<in TMessage> : IInterceptor

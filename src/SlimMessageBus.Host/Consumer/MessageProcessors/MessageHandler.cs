@@ -96,13 +96,14 @@ public partial class MessageHandler : IMessageHandler
             }
 
             var messageBusTarget = new MessageBusProxy(MessageBus, messageScope.ServiceProvider);
-            object consumerInstance = null;
+            // Consumer is resolved lazily inside ConsumerContext.Consumer (on first access from
+            // ExecuteConsumer) so that all interceptors run first. This allows interceptors to
+            // start transactions or set up ambient state before the consumer's scoped DI
+            // dependencies are resolved.
+            ConsumerContext consumerContext = null;
             try
             {
-                consumerInstance = messageScope.ServiceProvider.GetService(consumerType)
-                    ?? throw new ConfigurationMessageBusException($"Could not resolve consumer/handler type {consumerType} from the DI container. Please check that the configured type {consumerType} is registered within the DI container.");
-
-                var consumerContext = CreateConsumerContext(messageScope, messageHeaders, consumerInvoker, transportMessage, consumerInstance, messageBusTarget, consumerContextProperties, cancellationToken);
+                consumerContext = CreateConsumerContext(messageScope, messageHeaders, consumerInvoker, transportMessage, consumerType, messageBusTarget, consumerContextProperties, cancellationToken);
                 try
                 {
                     var response = await DoHandleInternal(message, consumerInvoker, messageType, hasResponse, responseType, messageScope, consumerContext).ConfigureAwait(false);
@@ -128,9 +129,9 @@ public partial class MessageHandler : IMessageHandler
             }
             finally
             {
-                if (consumerInvoker.ParentSettings.IsDisposeConsumerEnabled && consumerInstance is IDisposable consumerInstanceDisposable)
+                if (consumerInvoker.ParentSettings.IsDisposeConsumerEnabled && consumerContext?.Consumer is IDisposable consumerInstanceDisposable)
                 {
-                    LogDisposingConsumer(consumerType, consumerInstance);
+                    LogDisposingConsumer(consumerType, consumerContext.Consumer);
                     consumerInstanceDisposable.DisposeSilently("ConsumerInstance", _logger);
                 }
             }
@@ -185,7 +186,7 @@ public partial class MessageHandler : IMessageHandler
         IReadOnlyDictionary<string, object> messageHeaders,
         IMessageTypeConsumerInvokerSettings consumerInvoker,
         object transportMessage,
-        object consumerInstance,
+        Type consumerType,
         IMessageBus messageBus,
         IDictionary<string, object> consumerContextProperties,
         CancellationToken cancellationToken)
@@ -197,9 +198,17 @@ public partial class MessageHandler : IMessageHandler
         consumerContext.Headers = messageHeaders;
         consumerContext.Bus = messageBus;
         consumerContext.CancellationToken = cancellationToken;
-        consumerContext.Consumer = consumerInstance;
         consumerContext.ConsumerInvoker = consumerInvoker;
         consumerContext.Properties = consumerContextProperties;
+
+        // Defer consumer resolution until first access (inside ExecuteConsumer, after all
+        // interceptors have run). This ensures that interceptors can set up ambient state
+        // (e.g. database transactions) before the consumer's scoped dependencies are created.
+        consumerContext.SetConsumerFactory(() =>
+            messageScope.ServiceProvider.GetService(consumerType)
+            ?? throw new ConfigurationMessageBusException(
+                $"Could not resolve consumer/handler type {consumerType} from the DI container. " +
+                $"Please check that the configured type {consumerType} is registered within the DI container."));
 
         return consumerContext;
     }

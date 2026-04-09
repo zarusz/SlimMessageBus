@@ -135,6 +135,7 @@ The configuration can be [modularized](docs/intro.md#modularization-of-configura
 - Plugins:
   - [Serialization](docs/serialization.md)
   - [Transactional Outbox](docs/plugin_outbox.md)
+    - [MongoDB](docs/plugin_outbox_mongodb.md)
   - [Validation using FluentValidation](docs/plugin_fluent_validation.md)
   - [AsyncAPI specification generation](docs/plugin_asyncapi.md)
   - [Consumer Circuit Breaker](docs/intro.md#health-check-circuit-breaker)
@@ -171,6 +172,7 @@ The configuration can be [modularized](docs/intro.md#modularization-of-configura
 | `.Host.Outbox.PostgreSql.DbContext`  | Transactional Outbox using PostgreSQL with EF DataContext integration                                               | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Outbox.PostgreSql.DbContext.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.PostgreSql.DbContext)   |
 | `.Host.Outbox.Sql`                   | Transactional Outbox using MSSQL                                                                                    | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Outbox.Sql.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql)                                     |
 | `.Host.Outbox.Sql.DbContext`         | Transactional Outbox using MSSQL with EF DataContext integration                                                    | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Outbox.Sql.DbContext.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.Sql.DbContext)                 |
+| `.Host.Outbox.MongoDb` *(beta)*      | [Transactional Outbox using MongoDB](docs/plugin_outbox_mongodb.md)                                                 | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Outbox.MongoDb.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Outbox.MongoDb)                             |
 | `.Host.AsyncApi`                     | [AsyncAPI](https://www.asyncapi.com/) specification generation via [Saunter](https://github.com/tehmantra/saunter)  | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AsyncApi.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AsyncApi)                                         |
 | `.Host.CircuitBreaker.HealthCheck`   | Consumer circuit breaker based on [health checks](docs/intro.md#health-check-circuit-breaker)                       | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.CircuitBreaker.HealthCheck.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.CircuitBreaker.HealthCheck)     |
 

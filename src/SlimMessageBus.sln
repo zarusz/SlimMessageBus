@@ -296,6 +296,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.Outbox.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.Outbox.PostgreSql.DbContext.Test", "Tests\SlimMessageBus.Host.Outbox.PostgreSql.DbContext.Test\SlimMessageBus.Host.Outbox.PostgreSql.DbContext.Test.csproj", "{0E3DB2A3-FF12-6B4E-6FE0-6B9E61C6D01C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.Outbox.MongoDb", "SlimMessageBus.Host.Outbox.MongoDb\SlimMessageBus.Host.Outbox.MongoDb.csproj", "{A3B45901-23CD-4EF5-89AB-C234567890AB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimMessageBus.Host.Outbox.MongoDb.Test", "Tests\SlimMessageBus.Host.Outbox.MongoDb.Test\SlimMessageBus.Host.Outbox.MongoDb.Test.csproj", "{B4C56012-34DE-5F06-9ABC-D345678901BC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -952,6 +956,22 @@ Global
 		{0E3DB2A3-FF12-6B4E-6FE0-6B9E61C6D01C}.Release|Any CPU.Build.0 = Release|Any CPU
 		{0E3DB2A3-FF12-6B4E-6FE0-6B9E61C6D01C}.Release|x86.ActiveCfg = Release|Any CPU
 		{0E3DB2A3-FF12-6B4E-6FE0-6B9E61C6D01C}.Release|x86.Build.0 = Release|Any CPU
+		{A3B45901-23CD-4EF5-89AB-C234567890AB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A3B45901-23CD-4EF5-89AB-C234567890AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A3B45901-23CD-4EF5-89AB-C234567890AB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A3B45901-23CD-4EF5-89AB-C234567890AB}.Debug|x86.Build.0 = Debug|Any CPU
+		{A3B45901-23CD-4EF5-89AB-C234567890AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A3B45901-23CD-4EF5-89AB-C234567890AB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A3B45901-23CD-4EF5-89AB-C234567890AB}.Release|x86.ActiveCfg = Release|Any CPU
+		{A3B45901-23CD-4EF5-89AB-C234567890AB}.Release|x86.Build.0 = Release|Any CPU
+		{B4C56012-34DE-5F06-9ABC-D345678901BC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B4C56012-34DE-5F06-9ABC-D345678901BC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B4C56012-34DE-5F06-9ABC-D345678901BC}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B4C56012-34DE-5F06-9ABC-D345678901BC}.Debug|x86.Build.0 = Debug|Any CPU
+		{B4C56012-34DE-5F06-9ABC-D345678901BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B4C56012-34DE-5F06-9ABC-D345678901BC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B4C56012-34DE-5F06-9ABC-D345678901BC}.Release|x86.ActiveCfg = Release|Any CPU
+		{B4C56012-34DE-5F06-9ABC-D345678901BC}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -1050,6 +1070,8 @@ Global
 		{DC7F9598-A395-425E-9997-5EA2D3B8D176} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
 		{C65E171C-6D9F-4C9A-931E-97ED84AF57BA} = {B7CDA0D2-98AB-42B6-A41A-9D893C1B9DCB}
 		{0E3DB2A3-FF12-6B4E-6FE0-6B9E61C6D01C} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
+		{A3B45901-23CD-4EF5-89AB-C234567890AB} = {B7CDA0D2-98AB-42B6-A41A-9D893C1B9DCB}
+		{B4C56012-34DE-5F06-9ABC-D345678901BC} = {9F005B5C-A856-4351-8C0C-47A8B785C637}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {435A0D65-610C-4B84-B1AA-2C7FBE72DB80}

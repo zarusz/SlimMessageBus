@@ -186,11 +186,18 @@ jobs:
             test_path: "Tests/SlimMessageBus.Host.Outbox.PostgreSql.DbContext.Test"
             docker_services: ""
 
-          # 3. Repository-layer tests – Sql.Test + PostgreSql.Test, both via TestContainers
+          # 3. Repository-layer tests – Sql.Test + PostgreSql.Test + MongoDb.Test, all via TestContainers
           - transport: Outbox.Repositories
             name: "Outbox (Repositories)"
             filter: "Category=Integration&Transport=Outbox.Sql"
             test_path: ""
+            docker_services: ""
+
+          # 4. MongoDb outbox repository tests – via TestContainers
+          - transport: Outbox.MongoDb
+            name: "Outbox (MongoDb)"
+            filter: "Category=Integration&Transport=Outbox.MongoDb"
+            test_path: "Tests/SlimMessageBus.Host.Outbox.MongoDb.Test"
             docker_services: ""
 
           # Cloud transports (require repository secrets)

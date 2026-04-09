@@ -67,12 +67,12 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
                                                              IReadOnlyDictionary<string, object> messageHeaders,
                                                              IMessageTypeConsumerInvokerSettings consumerInvoker,
                                                              object transportMessage,
-                                                             object consumerInstance,
+                                                             Type consumerType,
                                                              IMessageBus messageBus,
                                                              IDictionary<string, object> consumerContextProperties,
                                                              CancellationToken cancellationToken)
     {
-        var context = base.CreateConsumerContext(messageScope, messageHeaders, consumerInvoker, transportMessage, consumerInstance, messageBus, consumerContextProperties, cancellationToken);
+        var context = base.CreateConsumerContext(messageScope, messageHeaders, consumerInvoker, transportMessage, consumerType, messageBus, consumerContextProperties, cancellationToken);
 
         _consumerContextInitializer?.Invoke((TTransportMessage)transportMessage, context);
 
