@@ -1,4 +1,4 @@
-﻿namespace SlimMessageBus.Host.Outbox.Sql;
+namespace SlimMessageBus.Host.Outbox.Sql;
 
 using System.Text.Json;
 using System.Text.Json.Serialization;
