@@ -64,17 +64,22 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
 
     protected IConsumer CreateConsumer(string group)
     {
-        var config = new ConsumerConfig
+        var config = new KafkaClientConfig<ConsumerConfig>
         {
-            GroupId = group,
-            BootstrapServers = ProviderSettings.BrokerList
+            ConfluentConfig = new ConsumerConfig
+            {
+                GroupId = group,
+                BootstrapServers = ProviderSettings.BrokerList
+            },
+            Logger = Logger
         };
-        ProviderSettings.ConsumerConfig(config);
+        
+        ProviderSettings.ConsumerConfig(config.ConfluentConfig);
 
         // ToDo: add support for auto commit
-        config.EnableAutoCommit = false;
+        config.ConfluentConfig.EnableAutoCommit = false;
         // Notify when we reach EoF, so that we can do a manual commit
-        config.EnablePartitionEof = true;
+        config.ConfluentConfig.EnablePartitionEof = true;
 
         var consumer = ProviderSettings.ConsumerBuilderFactory(config)
             .SetStatisticsHandler((_, json) => OnStatistics(json))
