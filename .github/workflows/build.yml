@@ -116,9 +116,9 @@ jobs:
   integration-tests:
     name: ${{ matrix.name }}
     needs: build
-    # Skip cloud-secret jobs for fork PRs: pull_request from a fork has no secret access,
-    # and running untrusted code with secrets would be unsafe.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    # For fork PRs, this job waits for a maintainer to approve the "integration-tests"
+    # environment before secrets are exposed and the PR's code runs against cloud infra.
+    environment: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'integration-tests' || '' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false   # don't cancel sibling legs when one fails
@@ -337,7 +337,7 @@ jobs:
   # ──────────────────────────────────────────────────────────────────────────
   sonar:
     needs: [build, integration-tests]
-    if: (success() || failure()) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    if: success() || failure()
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
