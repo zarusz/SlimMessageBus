@@ -6,6 +6,7 @@ using IConsumer = IConsumer<Ignore, byte[]>;
 public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
 {
     private readonly SafeDictionaryWrapper<TopicPartition, IKafkaPartitionConsumer> _processors;
+    private readonly IReadOnlyList<IKafkaLoopFailureInterceptor> _failureInterceptors;
 
     private IConsumer _consumer;
     private Task _consumerTask;
@@ -19,6 +20,7 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
                               KafkaMessageBusSettings providerSettings,
                               IEnumerable<AbstractConsumerSettings> consumerSettings,
                               IEnumerable<IAbstractConsumerInterceptor> interceptors,
+                              IEnumerable<IKafkaLoopFailureInterceptor> failureInterceptors,
                               string group,
                               IReadOnlyCollection<string> topics,
                               Func<TopicPartition, IKafkaCommitController, IKafkaPartitionConsumer> processorFactory)
@@ -36,6 +38,8 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
         _processors = new SafeDictionaryWrapper<TopicPartition, IKafkaPartitionConsumer>(tp => processorFactory(tp, this));
 
         _consumer = CreateConsumer(group);
+
+        _failureInterceptors = [..failureInterceptors.OrderBy(x => x.Order)];
     }
 
     #region Implementation of IAsyncDisposable
@@ -154,6 +158,18 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
         catch (Exception e)
         {
             Logger.LogError(e, "Group [{Group}]: Error occurred in group loop (terminated)", Group);
+            var failureContext = new KafkaLoopFailureContext(Group, e);
+            foreach (var interceptor in _failureInterceptors)
+            {
+                try
+                {
+                    await interceptor.OnFailureAsync(failureContext).ConfigureAwait(false);
+                }
+                catch (Exception interceptorEx)
+                {
+                    Logger.LogError(interceptorEx, "Group [{Group}]: Exception occurred in IKafkaGroupLoopFailureInterceptor '{InterceptorType}'", Group, interceptor.GetType().Name);
+                }
+            }
         }
         finally
         {

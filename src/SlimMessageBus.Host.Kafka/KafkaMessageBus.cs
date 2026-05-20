@@ -66,7 +66,11 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
         void AddGroupConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, string group, IReadOnlyCollection<string> topics, Func<TopicPartition, IKafkaCommitController, IKafkaPartitionConsumer> processorFactory)
         {
             _logger.LogInformation("Creating consumer group {ConsumerGroup}", group);
-            AddConsumer(new KafkaGroupConsumer(LoggerFactory, ProviderSettings, consumerSettings, interceptors: Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(), group, topics, processorFactory));
+            AddConsumer(new KafkaGroupConsumer(LoggerFactory, 
+                ProviderSettings, consumerSettings, 
+                interceptors: Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(), 
+                failureInterceptors: Settings.ServiceProvider.GetServices<IKafkaLoopFailureInterceptor>(),
+                group, topics, processorFactory));
         }
 
         MessageProvider<ConsumeResult<Ignore, byte[]>> GetMessageProvider(string path)

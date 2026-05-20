@@ -17,6 +17,8 @@ Please read the [Introduction](intro.md) before reading this provider documentat
   - [Offset Commit](#offset-commit)
   - [Consumer Error Handling](#consumer-error-handling)
   - [Debugging](#debugging)
+- [Interceptors](#interceptors)
+  - [Consumer Loop Failure Interceptor](#consumer-loop-failure-interceptor)
 - [Deployment](#deployment)
 
 ## Underlying client
@@ -300,6 +302,21 @@ At this logging level, you can track the lifecycle events of the consumer group:
 [00:03:16 DBG] SlimMessageBus.Host.Kafka.KafkaGroupConsumer Group [subscriber]: Reached end of partition, Topic: 4p5ma6io-test-ping, Partition: [1], Offset: 98580
 [00:03:16 DBG] SlimMessageBus.Host.Kafka.KafkaGroupConsumer Group [subscriber]: Commit Offset, Topic: 4p5ma6io-test-ping, Partition: [1], Offset: 98579
 ```
+
+## Interceptors
+
+### Consumer Loop Failure Interceptor
+
+The `IKafkaLoopFailureInterceptor` provides a mechanism to intercept and handle fatal exceptions that occur within the main Kafka consumer group loop managed by KafkaGroupConsumer. These exceptions are typically unrecoverable errors that cause the consumer group's processing thread to terminate.
+Instances of `IKafkaLoopFailureInterceptor` are resolved from the DI container. They are executed in order, when a fatal exception occurs within the consumer loop.
+
+```cs
+public interface IKafkaLoopFailureInterceptor : IInterceptorWithOrder
+{
+    Task OnFailureAsync(KafkaLoopFailureContext context);
+}
+```
+Remember to register your interceptor types in the DI.
 
 ## Deployment
 
