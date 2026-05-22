@@ -3,7 +3,7 @@ name: build
 on:
   push:
     branches: ["master", "release/*", "feature/*"]
-  pull_request:
+  pull_request_target:
     branches: ["master", "release/*", "feature/*", "devops/*"]
   workflow_dispatch:
 
@@ -29,7 +29,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout (PR – use fork's head SHA)
+        if: github.event_name == 'pull_request_target'
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
       - name: Checkout
+        if: github.event_name != 'pull_request_target'
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
@@ -118,7 +126,7 @@ jobs:
     needs: build
     # For fork PRs, this job waits for a maintainer to approve the "integration-tests"
     # environment before secrets are exposed and the PR's code runs against cloud infra.
-    environment: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'integration-tests' || '' }}
+    environment: ${{ (github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name != github.repository) && 'integration-tests' || '' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false   # don't cancel sibling legs when one fails
@@ -212,7 +220,15 @@ jobs:
             docker_services: ""
 
     steps:
+      - name: Checkout (PR – use fork's head SHA)
+        if: github.event_name == 'pull_request_target'
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
       - name: Checkout
+        if: github.event_name != 'pull_request_target'
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
@@ -340,7 +356,15 @@ jobs:
     if: success() || failure()
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout (PR – use fork's head SHA)
+        if: github.event_name == 'pull_request_target'
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
       - name: Checkout
+        if: github.event_name != 'pull_request_target'
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
@@ -406,7 +430,15 @@ jobs:
     if: success() || failure()
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout (PR – use fork's head SHA)
+        if: github.event_name == 'pull_request_target'
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
       - name: Checkout
+        if: github.event_name != 'pull_request_target'
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
