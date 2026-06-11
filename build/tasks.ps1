@@ -75,7 +75,7 @@ function _MsBuild($target) {
 	_AssertExec
 }
 
-function Clean() {
+function CleanDist() {
 	
 	_Step "Clean folder $dist_folder"
 	# Ensure dist folder exists
@@ -86,7 +86,7 @@ function Clean() {
 }
 
 function Build() { 
-	Clean	
+	CleanDist	
 	NuRestore
 	_MsBuild "Build"
 }
