@@ -1,5 +1,8 @@
 ﻿namespace SlimMessageBus.Host.AmazonSQS;
 
+using System.Collections.Concurrent;
+
+
 abstract internal class SqsBaseConsumer : AbstractConsumer
 {
     private readonly ISqsClientProvider _clientProvider;
@@ -9,6 +12,7 @@ abstract internal class SqsBaseConsumer : AbstractConsumer
     private readonly int _visibilityTimeout;
     private readonly List<string> _messageAttributeNames;
     private readonly bool _isSubscribedToTopic;
+    private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(10);
 
     private Task _task;
 
@@ -69,7 +73,7 @@ abstract internal class SqsBaseConsumer : AbstractConsumer
         return messageResponse.Messages;
     }
 
-    private async Task<bool> DeleteMessageBatchByUrl(string queueUrl, IReadOnlyCollection<Message> messages)
+    private async Task<List<string>> DeleteMessageBatchByUrl(string queueUrl, IReadOnlyCollection<Message> messages)
     {
         var deleteRequest = new DeleteMessageBatchRequest
         {
@@ -86,9 +90,16 @@ abstract internal class SqsBaseConsumer : AbstractConsumer
         }
 
         var deleteResponse = await _clientProvider.Client.DeleteMessageBatchAsync(deleteRequest, CancellationToken);
-
-        // ToDo: capture failed messages
-        return deleteResponse.Failed != null && deleteResponse.Failed.Count > 0;
+        var failedMessages = new List<string>();
+        if (deleteResponse.Failed != null)
+        {
+            foreach (var failed in deleteResponse.Failed)
+            {
+                failedMessages.Add(failed.Id);
+                Logger.LogWarning("Failed to delete message from Queue: {Queue}, SenderFault: {SenderFault}, Code: {Code}, Message: {Message}", Path, failed.SenderFault, failed.Code, failed.Message);
+            }
+        }
+        return failedMessages;
     }
 
     protected override Task OnStart()
@@ -109,8 +120,7 @@ abstract internal class SqsBaseConsumer : AbstractConsumer
     {
         var queueMeta = await MessageBus.TopologyCache.GetMetaWithPreloadOrException(Path, PathKind.Queue, CancellationToken);
         var queueUrl = queueMeta.Url;
-
-        var messagesToDelete = new List<Message>(_maxMessages);
+        var messagesToDelete = new Dictionary<string, Message>(_maxMessages);
 
         while (!CancellationToken.IsCancellationRequested)
         {
@@ -132,13 +142,13 @@ abstract internal class SqsBaseConsumer : AbstractConsumer
                             // ToDo: DLQ handling
                             break;
                         }
-                        messagesToDelete.Add(message);
+
+                        messagesToDelete[message.MessageId] = message;
                     }
                 }
                 if (messagesToDelete.Count > 0)
                 {
-                    await DeleteMessageBatchByUrl(queueUrl, messagesToDelete).ConfigureAwait(false);
-                    messagesToDelete.Clear();
+                    await DeleteMessages(messagesToDelete, queueUrl);
                 }
             }
             catch (TaskCanceledException)
@@ -150,6 +160,54 @@ abstract internal class SqsBaseConsumer : AbstractConsumer
                 Logger.LogError(ex, "Error while processing messages - Queue: {Queue}", Path);
                 await Task.Delay(2000, CancellationToken).ConfigureAwait(false);
             }
+        }
+    }
+
+    private async Task DeleteMessages(Dictionary<string, Message> messagesToDelete, string queueUrl)
+    {
+        var failed = new ConcurrentDictionary<string, Message>();
+
+        var tasks = messagesToDelete.Values
+            .Chunk(10)
+            .Select(async batch =>
+            {
+                await _semaphore.WaitAsync();
+
+                try
+                {
+                    var failedIds = await DeleteMessageBatchByUrl(queueUrl, batch)
+                        .ConfigureAwait(false);
+
+                    var batchLookup = batch.ToDictionary(x => x.MessageId);
+
+                    foreach (var id in failedIds)
+                    {
+                        if (batchLookup.TryGetValue(id, out var message))
+                        {
+                            failed[message.MessageId] = message;
+                        }
+                    }
+                }
+                catch
+                {
+                    foreach (var message in batch)
+                    {
+                        failed[message.MessageId] = message;
+                    }
+                }
+                finally
+                {
+                    _semaphore.Release();
+                }
+            });
+
+        await Task.WhenAll(tasks);
+
+        messagesToDelete.Clear();
+
+        foreach (var kvp in failed)
+        {
+            messagesToDelete.Add(kvp.Key, kvp.Value);
         }
     }
 
