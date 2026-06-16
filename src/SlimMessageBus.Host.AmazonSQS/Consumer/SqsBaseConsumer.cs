@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.AmazonSQS;
 
+using System.Collections.Concurrent;
+
 abstract internal class SqsBaseConsumer : AbstractConsumer
 {
     private readonly ISqsClientProvider _clientProvider;
@@ -110,7 +112,11 @@ abstract internal class SqsBaseConsumer : AbstractConsumer
         var queueMeta = await MessageBus.TopologyCache.GetMetaWithPreloadOrException(Path, PathKind.Queue, CancellationToken);
         var queueUrl = queueMeta.Url;
 
-        var messagesToDelete = new List<Message>(_maxMessages);
+#if NETSTANDARD2_0
+        var messagesToDelete = new HashSet<Message>(new MessageIdComparer());
+#else
+        var messagesToDelete = new HashSet<Message>(_maxMessages, new MessageIdComparer());
+#endif
 
         while (!CancellationToken.IsCancellationRequested)
         {
@@ -132,13 +138,13 @@ abstract internal class SqsBaseConsumer : AbstractConsumer
                             // ToDo: DLQ handling
                             break;
                         }
+
                         messagesToDelete.Add(message);
                     }
                 }
                 if (messagesToDelete.Count > 0)
                 {
-                    await DeleteMessageBatchByUrl(queueUrl, messagesToDelete).ConfigureAwait(false);
-                    messagesToDelete.Clear();
+                    await DeleteMessages(messagesToDelete, queueUrl);
                 }
             }
             catch (TaskCanceledException)
@@ -151,6 +157,38 @@ abstract internal class SqsBaseConsumer : AbstractConsumer
                 await Task.Delay(2000, CancellationToken).ConfigureAwait(false);
             }
         }
+    }
+
+    private async Task DeleteMessages(HashSet<Message> messagesToDelete, string queueUrl)
+    {
+        var failed = new ConcurrentBag<Message>();
+        var semaphore = new SemaphoreSlim(10);
+
+        var tasks = messagesToDelete.Chunk(10).Select(async batch =>
+        {
+            await semaphore.WaitAsync();
+
+            try
+            {
+                await DeleteMessageBatchByUrl(queueUrl, batch).ConfigureAwait(false);
+            }
+            catch
+            {
+                foreach (var item in batch)
+                    failed.Add(item);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
+        await Task.WhenAll(tasks);
+
+        messagesToDelete.Clear();
+
+        foreach (var item in failed)
+            messagesToDelete.Add(item);
     }
 
     private static readonly IReadOnlyDictionary<string, object> EmptyHeaders = new Dictionary<string, object>();
@@ -171,6 +209,25 @@ abstract internal class SqsBaseConsumer : AbstractConsumer
             messagePayload = message.Body;
             messageHeaders = message.MessageAttributes?
                 .ToDictionary(x => x.Key, x => HeaderSerializer.Deserialize(x.Key, x.Value)) ?? new Dictionary<string, object>();
+        }
+    }
+
+    private sealed class MessageIdComparer : IEqualityComparer<Message>
+    {
+        public bool Equals(Message? x, Message? y)
+        {
+            if (ReferenceEquals(x, y))
+                return true;
+
+            if (x is null || y is null)
+                return false;
+
+            return x.MessageId == y.MessageId;
+        }
+
+        public int GetHashCode(Message obj)
+        {
+            return obj.MessageId.GetHashCode();
         }
     }
 }
