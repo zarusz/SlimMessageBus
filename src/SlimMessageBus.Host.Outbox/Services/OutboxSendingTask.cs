@@ -237,6 +237,7 @@ internal class OutboxSendingTask<TOutboxMessage>(
         const int defaultBatchSize = 50;
 
         var runAgain = outboxMessages.Count == _outboxSettings.PollBatchSize;
+        var failed = false;
         var count = 0;
 
         var aborted = new List<TOutboxMessage>(_outboxSettings.PollBatchSize);
@@ -291,7 +292,7 @@ internal class OutboxSendingTask<TOutboxMessage>(
                 foreach (var batch in batches)
                 {
                     var (success, published) = await DispatchBatch(outboxRepository, bulkProducer, messageBusTarget, batch, busName, path, cancellationToken);
-                    runAgain |= !success;
+                    failed |= !success;
                     count += published;
                 }
             }
@@ -302,7 +303,7 @@ internal class OutboxSendingTask<TOutboxMessage>(
             await outboxRepository.AbortDelivery(aborted, cancellationToken);
         }
 
-        return (runAgain, count);
+        return (!failed && runAgain, count);
     }
 
     async internal Task<(bool Success, int Published)> DispatchBatch(IOutboxMessageRepository<TOutboxMessage> outboxRepository, ITransportBulkProducer producer, IMessageBusTarget messageBusTarget, IReadOnlyCollection<OutboxBulkMessage> batch, string busName, string path, CancellationToken cancellationToken)
