@@ -29,7 +29,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: PR - Checkout
+      - name: Checkout (PR – use fork's head SHA)
         if: github.event_name == 'pull_request_target'
         uses: actions/checkout@v6
         with:
@@ -124,6 +124,9 @@ jobs:
   integration-tests:
     name: ${{ matrix.name }}
     needs: build
+    # For fork PRs, this job waits for a maintainer to approve the "integration-tests"
+    # environment before secrets are exposed and the PR's code runs against cloud infra.
+    environment: ${{ (github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name != github.repository) && 'integration-tests' || '' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false   # don't cancel sibling legs when one fails
@@ -217,7 +220,7 @@ jobs:
             docker_services: ""
 
     steps:
-      - name: PR - Checkout
+      - name: Checkout (PR – use fork's head SHA)
         if: github.event_name == 'pull_request_target'
         uses: actions/checkout@v6
         with:
@@ -353,7 +356,7 @@ jobs:
     if: success() || failure()
     runs-on: ubuntu-latest
     steps:
-      - name: PR - Checkout
+      - name: Checkout (PR – use fork's head SHA)
         if: github.event_name == 'pull_request_target'
         uses: actions/checkout@v6
         with:
@@ -427,7 +430,7 @@ jobs:
     if: success() || failure()
     runs-on: ubuntu-latest
     steps:
-      - name: PR - Checkout
+      - name: Checkout (PR – use fork's head SHA)
         if: github.event_name == 'pull_request_target'
         uses: actions/checkout@v6
         with:

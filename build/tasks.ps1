@@ -44,6 +44,7 @@ $projects = @(
 	"SlimMessageBus.Host.Outbox.Sql.DbContext",
 	"SlimMessageBus.Host.Outbox.PostgreSql",
 	"SlimMessageBus.Host.Outbox.PostgreSql.DbContext",
+	"SlimMessageBus.Host.Outbox.MongoDb",
 
 	"SlimMessageBus.Host.CircuitBreaker",
 	"SlimMessageBus.Host.CircuitBreaker.HealthCheck",
@@ -74,7 +75,7 @@ function _MsBuild($target) {
 	_AssertExec
 }
 
-function Clean() {
+function CleanDist() {
 	
 	_Step "Clean folder $dist_folder"
 	# Ensure dist folder exists
@@ -85,7 +86,7 @@ function Clean() {
 }
 
 function Build() { 
-	Clean	
+	CleanDist	
 	NuRestore
 	_MsBuild "Build"
 }

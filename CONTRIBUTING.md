@@ -60,3 +60,40 @@ addresses (such as username@users.noreply.github.com) or other non-reachable
 addresses are allowed).
 
 On the command line you can use `git commit -s` to sign off the commit.
+
+### CI pipeline (for maintainers)
+
+All CI runs through the single workflow in `.github/workflows/build.yml`, triggered on every push to `master`/`release/*`/`feature/*` and on every pull request.
+
+#### Jobs and order
+
+```
+build  ──►  integration-tests (matrix)  ──►  sonar
+                                         └──►  report
+```
+
+| Job                 | What it does                                                                                                                                                                                                                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `build`             | Restores, compiles, runs **unit tests** (no external infrastructure needed), archives NuGet packages and coverage.                                                                                                                                                                    |
+| `integration-tests` | Parallel matrix — one runner per transport. Local brokers (Kafka, RabbitMQ, Redis, MQTT, NATS, SQL Server, PostgreSQL, MongoDB) are started via Docker Compose or TestContainers. Cloud transports (Azure Service Bus, Azure Event Hub, Amazon SQS) connect using repository secrets. |
+| `sonar`             | Downloads all coverage reports from previous jobs and runs a SonarCloud analysis. Decorates PRs with a quality gate result.                                                                                                                                                           |
+| `report`            | Aggregates all `.trx` test result files and publishes a single test report via `dorny/test-reporter`.                                                                                                                                                                                 |
+
+#### Fork PRs and the approval gate
+
+Because integration tests require repository secrets (cloud connection strings, API keys), PRs from forks go through an approval gate:
+
+1. `build` runs immediately — no secrets are needed and no risk to credentials.
+2. `integration-tests` is paused at the **`integration-tests` GitHub Environment**, which requires a maintainer to approve.
+3. A maintainer **reviews the PR diff** to ensure no test code could exfiltrate secrets (e.g. reading env vars and POSTing them externally), then clicks **"Review deployments → Approve"** on the Actions run page.
+4. All matrix legs start in parallel and results are posted back to the PR.
+
+> **Security note:** The workflow YAML always comes from the base repository, so an external contributor cannot modify the pipeline itself. The approval gate is the control point before any secret is injected into a runner that executes fork code.
+
+#### Approving a fork PR's integration tests
+
+1. Open the PR on GitHub.
+2. Click the **Actions** tab, find the in-progress `build` workflow run.
+3. Click **"Review deployments"** (yellow banner) → tick `integration-tests` → **Approve and deploy**.
+
+Same-repo PRs and direct pushes bypass the gate and run immediately.
