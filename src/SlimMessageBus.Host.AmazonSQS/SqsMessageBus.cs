@@ -131,13 +131,19 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
         await provisioningService.ProvisionTopology(CancellationToken); // provisioning happens asynchronously
     }
 
-    private async Task<(IMessageSerializer<string> messageSerializer, SqsPathMeta pathMeta)> GetMetaForPath(string path, CancellationToken cancellationToken)
+    private async Task<(IMessageSerializer<string> messageSerializer, SqsPathMeta pathMeta)> GetMetaForPath(string path, Type messageType, CancellationToken cancellationToken)
     {
         var messageSerializer = GetMessageSerializer(path);
 
+        var producerSettings = GetProducerSettings(messageType);
+
         // Note: When a path not declared during bus producer/consumer declarations (it is dynamic), e.g. for RequestResponse - the path kind is not known at this point, so we assume it is a queue
         // See SqsRequestResponseBuilderExtensions.ReplyToQueue
-        var pathMeta = await TopologyCache.GetMetaWithPreloadOrException(path, PathKind.Queue, cancellationToken);
+        var pathKind = ReferenceEquals(producerSettings, MarkerProducerSettingsForResponses)
+            ? PathKind.Queue
+            : producerSettings.PathKind;
+
+        var pathMeta = await TopologyCache.GetMetaWithPreloadOrException(path, pathKind, cancellationToken);
 
         return (messageSerializer, pathMeta);
     }
@@ -146,7 +152,7 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
     {
         OnProduceToTransport(message, messageType, path, messageHeaders);
 
-        var (messageSerializer, pathMeta) = await GetMetaForPath(path, cancellationToken);
+        var (messageSerializer, pathMeta) = await GetMetaForPath(path, messageType, cancellationToken);
 
         try
         {
@@ -186,7 +192,7 @@ public class SqsMessageBus : MessageBusBase<SqsMessageBusSettings>
         var dispatched = new List<T>(envelopes.Count);
         try
         {
-            var (messageSerializer, pathMeta) = await GetMetaForPath(path, cancellationToken);
+            var (messageSerializer, pathMeta) = await GetMetaForPath(path, envelopes.First().MessageType, cancellationToken);
 
             if (pathMeta.PathKind == PathKind.Queue)
             {
