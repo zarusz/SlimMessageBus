@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.32014.148
+# Visual Studio Version 18
+VisualStudioVersion = 18.6.11822.322 stable
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{9F005B5C-A856-4351-8C0C-47A8B785C637}"
 	ProjectSection(SolutionItems) = preProject
@@ -234,6 +234,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlimMessageBus.Host.Outbox.
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Infrastructure", "Infrastructure", "{137BFD32-CD0A-47CA-8884-209CD49DEE8C}"
 	ProjectSection(SolutionItems) = preProject
+		..\AGENTS.md = ..\AGENTS.md
 		Infrastructure\docker-compose.yml = Infrastructure\docker-compose.yml
 		..\infrastructure.ps1 = ..\infrastructure.ps1
 		..\infrastructure.sh = ..\infrastructure.sh
