@@ -3,8 +3,8 @@
   <Import Project="../Host.Plugin.Properties.xml" />
 
   <PropertyGroup>
-    <Description>Redis transport provider for SlimMessageBus</Description>
-    <PackageTags>Redis transport provider SlimMessageBus MessageBus bus facade messaging client</PackageTags>
+    <Description>SQL Server transport provider for SlimMessageBus</Description>
+    <PackageTags>SQL Server transport provider SlimMessageBus MessageBus bus facade messaging client</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
     <PackageReleaseNotes />
   </PropertyGroup>

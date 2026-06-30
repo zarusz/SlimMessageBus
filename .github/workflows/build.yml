@@ -165,6 +165,19 @@ jobs:
             filter: "Category=Integration&Transport=NATS"
             docker_services: "nats"
 
+          # SQL transports use TestContainers directly
+          - transport: Sql
+            name: SQL Server
+            filter: "Category=Integration&Transport=Sql"
+            test_path: "Tests/SlimMessageBus.Host.Sql.Test"
+            docker_services: ""
+
+          - transport: PostgreSql
+            name: PostgreSQL
+            filter: "Category=Integration&Transport=PostgreSql"
+            test_path: "Tests/SlimMessageBus.Host.PostgreSql.Test"
+            docker_services: ""
+
           # Outbox – four parallel sub-legs:
           # 1a. Sql.DbContext OutboxTests – AzureSB + Kafka; SQL Server via local docker
           - transport: Outbox.SqlDbContext.Tests
