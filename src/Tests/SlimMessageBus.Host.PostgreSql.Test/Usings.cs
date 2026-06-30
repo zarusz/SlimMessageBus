@@ -1,0 +1,14 @@
+global using AwesomeAssertions;
+global using Microsoft.Extensions.Configuration;
+global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Logging;
+global using Npgsql;
+global using SecretStore;
+global using SlimMessageBus;
+global using SlimMessageBus.Host;
+global using SlimMessageBus.Host.PostgreSql;
+global using SlimMessageBus.Host.Serialization.Json;
+global using SlimMessageBus.Host.Test.Common.IntegrationTest;
+global using Testcontainers.PostgreSql;
+global using Xunit;
+global using Xunit.Abstractions;
