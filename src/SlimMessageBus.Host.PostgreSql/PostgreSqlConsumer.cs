@@ -49,6 +49,7 @@ public class PostgreSqlConsumer : AbstractConsumer
             }
             catch (OperationCanceledException) when (CancellationToken.IsCancellationRequested)
             {
+                Logger.LogDebug("PostgreSQL consumer for path {Path} stopped", Path);
             }
             _task = null;
         }
@@ -62,41 +63,7 @@ public class PostgreSqlConsumer : AbstractConsumer
         {
             try
             {
-                var scope = _serviceProvider.CreateScope();
-                try
-                {
-                    var repository = scope.ServiceProvider.GetRequiredService<IPostgreSqlRepository>();
-                    var messages = await repository.LockAndSelect(Path, _pathKind, _subscriptionName, _instanceId, _providerSettings.PollBatchSize, _providerSettings.LockDuration, CancellationToken).ConfigureAwait(false);
-
-                    if (messages.Count == 0)
-                    {
-                        if (idle.Elapsed >= _providerSettings.PollDelay)
-                        {
-                            await Task.Delay(_providerSettings.PollDelay, CancellationToken).ConfigureAwait(false);
-                        }
-                        continue;
-                    }
-
-                    idle.Restart();
-
-                    foreach (var message in messages)
-                    {
-                        var result = await _messageProcessor.ProcessMessage(message, message.Headers, cancellationToken: CancellationToken).ConfigureAwait(false);
-                        if (result.Exception == null)
-                        {
-                            await repository.Complete([message], CancellationToken).ConfigureAwait(false);
-                        }
-                        else
-                        {
-                            Logger.LogError(result.Exception, "Error occurred while processing PostgreSQL message {MessageId} on {Path}", message.Id, Path);
-                            await repository.Fail([message], _providerSettings.MaxDeliveryAttempts, CancellationToken).ConfigureAwait(false);
-                        }
-                    }
-                }
-                finally
-                {
-                    await scope.DisposeAsyncScope().ConfigureAwait(false);
-                }
+                await PollOnce(idle).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (CancellationToken.IsCancellationRequested)
             {
@@ -113,6 +80,54 @@ public class PostgreSqlConsumer : AbstractConsumer
                 {
                     return;
                 }
+            }
+        }
+    }
+
+    private async Task PollOnce(Stopwatch idle)
+    {
+        var scope = _serviceProvider.CreateScope();
+        try
+        {
+            var repository = scope.ServiceProvider.GetRequiredService<IPostgreSqlRepository>();
+            var messages = await repository.LockAndSelect(Path, _pathKind, _subscriptionName, _instanceId, _providerSettings.PollBatchSize, _providerSettings.LockDuration, CancellationToken).ConfigureAwait(false);
+
+            if (messages.Count == 0)
+            {
+                await DelayWhenIdle(idle).ConfigureAwait(false);
+                return;
+            }
+
+            idle.Restart();
+            await ProcessMessages(repository, messages).ConfigureAwait(false);
+        }
+        finally
+        {
+            await scope.DisposeAsyncScope().ConfigureAwait(false);
+        }
+    }
+
+    private async Task DelayWhenIdle(Stopwatch idle)
+    {
+        if (idle.Elapsed >= _providerSettings.PollDelay)
+        {
+            await Task.Delay(_providerSettings.PollDelay, CancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task ProcessMessages(IPostgreSqlRepository repository, IReadOnlyCollection<PostgreSqlTransportMessage> messages)
+    {
+        foreach (var message in messages)
+        {
+            var result = await _messageProcessor.ProcessMessage(message, message.Headers, cancellationToken: CancellationToken).ConfigureAwait(false);
+            if (result.Exception == null)
+            {
+                await repository.Complete([message], CancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                Logger.LogError(result.Exception, "Error occurred while processing PostgreSQL message {MessageId} on {Path}", message.Id, Path);
+                await repository.Fail([message], _providerSettings.MaxDeliveryAttempts, CancellationToken).ConfigureAwait(false);
             }
         }
     }

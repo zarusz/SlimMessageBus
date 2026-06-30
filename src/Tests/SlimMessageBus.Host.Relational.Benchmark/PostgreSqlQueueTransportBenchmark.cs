@@ -15,8 +15,7 @@ public class PostgreSqlQueueTransportBenchmark : AbstractRelationalTransportBenc
 
     protected override async Task StartInfrastructure()
     {
-        _container = new PostgreSqlBuilder()
-            .WithImage("postgres:17.4")
+        _container = new PostgreSqlBuilder("postgres:17.4")
             .WithReuse(true)
             .Build();
 

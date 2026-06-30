@@ -100,11 +100,7 @@ public class PostgreSqlTopologyService
                 await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
 
-#if NETSTANDARD2_0
-            transaction.Commit();
-#else
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-#endif
         }, cancellationToken).ConfigureAwait(false);
     }
 }

@@ -1,11 +1,7 @@
 namespace SlimMessageBus.Host.PostgreSql;
 
-using System.Text.RegularExpressions;
-
 public static partial class PostgreSqlHelper
 {
-    private static readonly Regex SafeIdentifierRegex = new("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant);
-
     private static readonly HashSet<int> TransientErrorNumbers =
     [
         40001,
@@ -54,12 +50,31 @@ public static partial class PostgreSqlHelper
 
     public static string QuoteIdentifier(string identifier, string name)
     {
-        if (string.IsNullOrWhiteSpace(identifier) || !SafeIdentifierRegex.IsMatch(identifier))
+        if (!IsSafeIdentifier(identifier))
         {
             throw new ArgumentException("PostgreSQL identifiers can only contain letters, numbers, and underscores, and cannot start with a number.", name);
         }
 
         return $"\"{identifier}\"";
+    }
+
+    private static bool IsSafeIdentifier(string identifier)
+    {
+        if (string.IsNullOrWhiteSpace(identifier) || !(char.IsLetter(identifier[0]) || identifier[0] == '_'))
+        {
+            return false;
+        }
+
+        for (var i = 1; i < identifier.Length; i++)
+        {
+            var c = identifier[i];
+            if (!(char.IsLetterOrDigit(c) || c == '_'))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     [LoggerMessage(
@@ -80,9 +95,19 @@ public static partial class PostgreSqlHelper
 partial class PostgreSqlHelper
 {
     private static partial void LogError(ILogger logger, int retryCount, int retryNumber)
-        => logger.LogInformation("PostgreSQL error encountered. Will begin attempt number {RetryNumber} of {RetryCount} max...", retryNumber, retryCount);
+    {
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation("PostgreSQL error encountered. Will begin attempt number {RetryNumber} of {RetryCount} max...", retryNumber, retryCount);
+        }
+    }
 
     private static partial void LogWillRetry(ILogger logger, int errorCode, NpgsqlException e)
-        => logger.LogDebug(e, "PostgreSQL error occurred {ErrorCode}. Will retry operation", errorCode);
+    {
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.LogDebug(e, "PostgreSQL error occurred {ErrorCode}. Will retry operation", errorCode);
+        }
+    }
 }
 #endif

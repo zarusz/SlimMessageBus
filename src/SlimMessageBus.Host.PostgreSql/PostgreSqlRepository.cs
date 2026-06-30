@@ -2,6 +2,8 @@ namespace SlimMessageBus.Host.PostgreSql;
 
 public class PostgreSqlRepository : IPostgreSqlRepository
 {
+    private const string SubscriptionNameParameter = "subscription_name";
+
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         Converters = { new ObjectToInferredTypesConverter() }
@@ -35,7 +37,7 @@ public class PostgreSqlRepository : IPostgreSqlRepository
         await ExecuteNonQuery(_settings.OperationRetry, _template.UpsertSubscription, cmd =>
         {
             cmd.Parameters.Add("path", NpgsqlDbType.Text).Value = path;
-            cmd.Parameters.Add("subscription_name", NpgsqlDbType.Text).Value = subscriptionName;
+            cmd.Parameters.Add(SubscriptionNameParameter, NpgsqlDbType.Text).Value = subscriptionName;
         }, cancellationToken).ConfigureAwait(false);
     }
 
@@ -75,7 +77,7 @@ public class PostgreSqlRepository : IPostgreSqlRepository
             }
             cmd.Parameters.Add("path", NpgsqlDbType.Text).Value = message.Path;
             cmd.Parameters.Add("path_kind", NpgsqlDbType.Smallint).Value = (short)message.PathKind;
-            cmd.Parameters.Add("subscription_name", NpgsqlDbType.Text).Value = (object?)message.SubscriptionName ?? DBNull.Value;
+            cmd.Parameters.Add(SubscriptionNameParameter, NpgsqlDbType.Text).Value = (object?)message.SubscriptionName ?? DBNull.Value;
             cmd.Parameters.Add("message_type", NpgsqlDbType.Text).Value = message.MessageType;
             cmd.Parameters.Add("message_payload", NpgsqlDbType.Bytea).Value = message.MessagePayload;
             cmd.Parameters.Add("headers", NpgsqlDbType.Jsonb).Value = message.Headers != null ? JsonSerializer.Serialize(message.Headers, _jsonOptions) : DBNull.Value;
@@ -90,7 +92,7 @@ public class PostgreSqlRepository : IPostgreSqlRepository
         cmd.CommandText = _template.LockAndSelect;
         cmd.Parameters.Add("path", NpgsqlDbType.Text).Value = path;
         cmd.Parameters.Add("path_kind", NpgsqlDbType.Smallint).Value = (short)pathKind;
-        cmd.Parameters.Add("subscription_name", NpgsqlDbType.Text).Value = (object?)subscriptionName ?? DBNull.Value;
+        cmd.Parameters.Add(SubscriptionNameParameter, NpgsqlDbType.Text).Value = (object?)subscriptionName ?? DBNull.Value;
         cmd.Parameters.Add("instance_id", NpgsqlDbType.Text).Value = instanceId;
         cmd.Parameters.Add("batch_size", NpgsqlDbType.Integer).Value = batchSize;
         cmd.Parameters.Add("lock_duration", NpgsqlDbType.Interval).Value = lockDuration;

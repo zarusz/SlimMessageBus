@@ -2,6 +2,9 @@
 
 public class SqlRepository : CommonSqlRepository, ISqlRepository
 {
+    private const string PathParameter = "@Path";
+    private const string SubscriptionNameParameter = "@SubscriptionName";
+
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         Converters = { new ObjectToInferredTypesConverter() }
@@ -22,8 +25,8 @@ public class SqlRepository : CommonSqlRepository, ISqlRepository
         await EnsureConnection();
         await ExecuteNonQuery(_settings.OperationRetry, _template.UpsertSubscription, cmd =>
         {
-            cmd.Parameters.Add("@Path", SqlDbType.NVarChar).Value = path;
-            cmd.Parameters.Add("@SubscriptionName", SqlDbType.NVarChar).Value = subscriptionName;
+            cmd.Parameters.Add(PathParameter, SqlDbType.NVarChar).Value = path;
+            cmd.Parameters.Add(SubscriptionNameParameter, SqlDbType.NVarChar).Value = subscriptionName;
         }, cancellationToken);
     }
 
@@ -33,7 +36,7 @@ public class SqlRepository : CommonSqlRepository, ISqlRepository
 
         using var cmd = CreateCommand();
         cmd.CommandText = _template.GetSubscriptions;
-        cmd.Parameters.Add("@Path", SqlDbType.NVarChar).Value = path;
+        cmd.Parameters.Add(PathParameter, SqlDbType.NVarChar).Value = path;
 
         using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
         var subscriptions = new List<string>();
@@ -62,9 +65,9 @@ public class SqlRepository : CommonSqlRepository, ISqlRepository
             {
                 cmd.Parameters.Add("@Id", SqlDbType.UniqueIdentifier).Value = message.Id;
             }
-            cmd.Parameters.Add("@Path", SqlDbType.NVarChar).Value = message.Path;
+            cmd.Parameters.Add(PathParameter, SqlDbType.NVarChar).Value = message.Path;
             cmd.Parameters.Add("@PathKind", SqlDbType.TinyInt).Value = (byte)message.PathKind;
-            cmd.Parameters.Add("@SubscriptionName", SqlDbType.NVarChar).Value = (object)message.SubscriptionName ?? DBNull.Value;
+            cmd.Parameters.Add(SubscriptionNameParameter, SqlDbType.NVarChar).Value = (object)message.SubscriptionName ?? DBNull.Value;
             cmd.Parameters.Add("@MessageType", SqlDbType.NVarChar).Value = message.MessageType;
             cmd.Parameters.Add("@MessagePayload", SqlDbType.VarBinary).Value = message.MessagePayload;
             cmd.Parameters.Add("@Headers", SqlDbType.NVarChar).Value = message.Headers != null ? JsonSerializer.Serialize(message.Headers, _jsonOptions) : DBNull.Value;
@@ -77,9 +80,9 @@ public class SqlRepository : CommonSqlRepository, ISqlRepository
 
         using var cmd = CreateCommand();
         cmd.CommandText = _template.LockAndSelect;
-        cmd.Parameters.Add("@Path", SqlDbType.NVarChar).Value = path;
+        cmd.Parameters.Add(PathParameter, SqlDbType.NVarChar).Value = path;
         cmd.Parameters.Add("@PathKind", SqlDbType.TinyInt).Value = (byte)pathKind;
-        cmd.Parameters.Add("@SubscriptionName", SqlDbType.NVarChar).Value = (object)subscriptionName ?? DBNull.Value;
+        cmd.Parameters.Add(SubscriptionNameParameter, SqlDbType.NVarChar).Value = (object)subscriptionName ?? DBNull.Value;
         cmd.Parameters.Add("@InstanceId", SqlDbType.NVarChar).Value = instanceId;
         cmd.Parameters.Add("@BatchSize", SqlDbType.Int).Value = batchSize;
         cmd.Parameters.Add("@LockDuration", SqlDbType.Int).Value = (int)lockDuration.TotalSeconds;
@@ -97,7 +100,7 @@ public class SqlRepository : CommonSqlRepository, ISqlRepository
         var messages = new List<SqlTransportMessage>(batchSize);
         while (await reader.ReadAsync(cancellationToken))
         {
-            var headers = reader.IsDBNull(headersOrdinal)
+            var headers = await reader.IsDBNullAsync(headersOrdinal, cancellationToken)
                 ? null
                 : JsonSerializer.Deserialize<Dictionary<string, object>>(reader.GetString(headersOrdinal), _jsonOptions);
 
@@ -106,7 +109,7 @@ public class SqlRepository : CommonSqlRepository, ISqlRepository
                 Id = reader.GetGuid(idOrdinal),
                 Path = reader.GetString(pathOrdinal),
                 PathKind = (PathKind)reader.GetByte(pathKindOrdinal),
-                SubscriptionName = reader.IsDBNull(subscriptionNameOrdinal) ? null : reader.GetString(subscriptionNameOrdinal),
+                SubscriptionName = await reader.IsDBNullAsync(subscriptionNameOrdinal, cancellationToken) ? null : reader.GetString(subscriptionNameOrdinal),
                 MessageType = reader.GetString(messageTypeOrdinal),
                 MessagePayload = reader.GetSqlBinary(messagePayloadOrdinal).Value,
                 Headers = headers

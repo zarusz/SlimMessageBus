@@ -8,8 +8,7 @@ public class SqlServerFixture : IAsyncLifetime
 
     public SqlServerFixture()
     {
-        var builder = new MsSqlBuilder()
-            .WithImage("mcr.microsoft.com/mssql/server:2022-CU13-ubuntu-22.04")
+        var builder = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-CU13-ubuntu-22.04")
             .WithReuse(true);
 
         if (Debugger.IsAttached)

@@ -15,8 +15,7 @@ public class SqlQueueTransportBenchmark : AbstractRelationalTransportBenchmark
 
     protected override async Task StartInfrastructure()
     {
-        _container = new MsSqlBuilder()
-            .WithImage("mcr.microsoft.com/mssql/server:2022-CU13-ubuntu-22.04")
+        _container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-CU13-ubuntu-22.04")
             .WithReuse(true)
             .Build();
 

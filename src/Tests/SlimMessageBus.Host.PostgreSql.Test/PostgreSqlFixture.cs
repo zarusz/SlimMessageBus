@@ -8,8 +8,7 @@ public class PostgreSqlFixture : IAsyncLifetime
 
     public PostgreSqlFixture()
     {
-        var builder = new PostgreSqlBuilder()
-            .WithImage("postgres:17.4")
+        var builder = new PostgreSqlBuilder("postgres:17.4")
             .WithReuse(true);
 
         if (Debugger.IsAttached)
