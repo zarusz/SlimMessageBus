@@ -1,0 +1,14 @@
+global using AwesomeAssertions;
+global using Microsoft.Data.SqlClient;
+global using Microsoft.Extensions.Configuration;
+global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Logging;
+global using SecretStore;
+global using SlimMessageBus;
+global using SlimMessageBus.Host;
+global using SlimMessageBus.Host.Sql;
+global using SlimMessageBus.Host.Serialization.Json;
+global using SlimMessageBus.Host.Test.Common.IntegrationTest;
+global using Testcontainers.MsSql;
+global using Xunit;
+global using Xunit.Abstractions;

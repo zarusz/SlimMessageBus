@@ -10,6 +10,7 @@
   - [MQTT](provider_mqtt.md)
   - [Memory](provider_memory.md)
   - [NATS](provider_nats.md)
+  - [PostgreSQL](provider_postgresql.md)
   - [RabbitMQ](provider_rabbitmq.md)
   - [Redis](provider_redis.md)
   - [SQL](provider_sql.md)
