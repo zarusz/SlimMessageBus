@@ -1,6 +1,6 @@
 namespace SlimMessageBus.Host.Sql;
 
-public class SqlTransportMessage
+public class SqlTransportMessage : IRelationalTransportMessage
 {
     public Guid Id { get; set; }
     public string MessageType { get; set; }

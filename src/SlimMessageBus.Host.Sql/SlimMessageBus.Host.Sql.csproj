@@ -10,6 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\SlimMessageBus.Host.Relational\SlimMessageBus.Host.Relational.csproj" />
     <ProjectReference Include="..\SlimMessageBus.Host.Sql.Common\SlimMessageBus.Host.Sql.Common.csproj" />
     <ProjectReference Include="..\SlimMessageBus.Host\SlimMessageBus.Host.csproj" />
   </ItemGroup>

@@ -1,6 +1,6 @@
 namespace SlimMessageBus.Host.PostgreSql;
 
-public class PostgreSqlMessageBusSettings
+public class PostgreSqlMessageBusSettings : IRelationalMessageBusSettings
 {
     public string? ConnectionString { get; set; }
     public string DatabaseSchemaName { get; set; } = "public";

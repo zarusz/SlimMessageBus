@@ -8,7 +8,7 @@ public class PostgreSqlHelperTests
     [InlineData("Messages", "\"Messages\"")]
     public void QuoteIdentifier_GivenSafeIdentifier_ThenQuotes(string identifier, string expected)
     {
-        var actual = PostgreSqlHelper.QuoteIdentifier(identifier, "identifier");
+        var actual = PostgreSqlHelper.QuoteIdentifier(identifier, nameof(identifier));
 
         actual.Should().Be(expected);
     }
@@ -22,7 +22,7 @@ public class PostgreSqlHelperTests
     [InlineData("messages.name")]
     public void QuoteIdentifier_GivenUnsafeIdentifier_ThenThrows(string identifier)
     {
-        var action = () => PostgreSqlHelper.QuoteIdentifier(identifier, "identifier");
+        var action = () => PostgreSqlHelper.QuoteIdentifier(identifier, nameof(identifier));
 
         action.Should().Throw<ArgumentException>().WithParameterName("identifier");
     }

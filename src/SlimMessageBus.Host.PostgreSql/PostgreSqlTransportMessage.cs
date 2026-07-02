@@ -1,6 +1,6 @@
 namespace SlimMessageBus.Host.PostgreSql;
 
-public class PostgreSqlTransportMessage
+public class PostgreSqlTransportMessage : IRelationalTransportMessage
 {
     public Guid Id { get; set; }
     public string MessageType { get; set; } = null!;

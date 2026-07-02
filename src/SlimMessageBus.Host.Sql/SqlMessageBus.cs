@@ -1,47 +1,29 @@
 ﻿namespace SlimMessageBus.Host.Sql;
 
-public class SqlMessageBus : MessageBusBase<SqlMessageBusSettings>
+public class SqlMessageBus : RelationalMessageBusBase<SqlMessageBusSettings, SqlTransportMessage, ISqlRepository>
 {
-    private readonly KindMapping _kindMapping = new();
-    private readonly string _instanceId = $"{Environment.MachineName}-{Guid.NewGuid():N}";
-
     public SqlMessageBus(MessageBusSettings settings, SqlMessageBusSettings providerSettings)
         : base(settings, providerSettings)
     {
-        OnBuildProvider();
     }
 
     protected override IMessageBusSettingsValidationService ValidationService => new SqlMessageBusSettingsValidationService(Settings, ProviderSettings);
 
-    protected override void Build()
-    {
-        base.Build();
-
-        _kindMapping.Configure(Settings);
-        InitTaskList.Add(ProvisionTopology, CancellationToken);
-    }
+    protected override Type ConsumerErrorHandlerOpenGenericType => typeof(ISqlConsumerErrorHandler<>);
 
     public override async Task ProvisionTopology()
     {
-        await base.ProvisionTopology();
+        await base.ProvisionTopology().ConfigureAwait(false);
 
         var scope = Settings.ServiceProvider.CreateScope();
         try
         {
-            var sqlRepository = scope.ServiceProvider.GetService<ISqlRepository>();
+            var sqlRepository = scope.ServiceProvider.GetRequiredService<ISqlRepository>();
             var sqlTransactionService = scope.ServiceProvider.GetService<ISqlTransactionService>();
             var provisioningService = new SqlTopologyService(LoggerFactory.CreateLogger<SqlTopologyService>(), (SqlRepository)sqlRepository, sqlTransactionService, ProviderSettings);
-            await provisioningService.Migrate(CancellationToken); // provisioning happens asynchronously
+            await provisioningService.Migrate(CancellationToken).ConfigureAwait(false);
 
-            foreach (var consumer in Settings.Consumers.Where(x => x.PathKind == PathKind.Topic))
-            {
-                await sqlRepository.UpsertSubscription(consumer.Path, consumer.GetSubscriptionName(), CancellationToken);
-            }
-
-            if (Settings.RequestResponse?.PathKind == PathKind.Topic)
-            {
-                await sqlRepository.UpsertSubscription(Settings.RequestResponse.Path, Settings.RequestResponse.GetSubscriptionName(), CancellationToken);
-            }
+            await ProvisionSubscriptions(sqlRepository).ConfigureAwait(false);
         }
         finally
         {
@@ -49,45 +31,11 @@ public class SqlMessageBus : MessageBusBase<SqlMessageBusSettings>
         }
     }
 
-    protected override async Task CreateConsumers()
-    {
-        await base.CreateConsumers();
+    protected override string GetSubscriptionName(AbstractConsumerSettings settings)
+        => settings.GetSubscriptionName();
 
-        MessageProvider<SqlTransportMessage> GetMessageProvider(string path)
-            => SerializerProvider.GetSerializer(path).GetMessageProvider<byte[], SqlTransportMessage>(t => t.MessagePayload);
-
-        foreach (var ((path, pathKind, subscriptionName), consumerSettings) in Settings.Consumers
-            .GroupBy(x => (x.Path, x.PathKind, SubscriptionName: x.PathKind == PathKind.Topic ? x.GetSubscriptionName() : null))
-            .ToDictionary(x => x.Key, x => x.ToList()))
-        {
-            var processor = new MessageProcessor<SqlTransportMessage>(
-                consumerSettings,
-                messageBus: this,
-                messageProvider: GetMessageProvider(path),
-                path: path,
-                responseProducer: this,
-                consumerErrorHandlerOpenGenericType: typeof(ISqlConsumerErrorHandler<>));
-
-            AddSqlConsumer(consumerSettings, processor, path, pathKind, subscriptionName);
-        }
-
-        if (Settings.RequestResponse != null)
-        {
-            var path = Settings.RequestResponse.Path;
-            var pathKind = Settings.RequestResponse.PathKind;
-            var subscriptionName = pathKind == PathKind.Topic ? Settings.RequestResponse.GetSubscriptionName() : null;
-            var processor = new ResponseMessageProcessor<SqlTransportMessage>(LoggerFactory, Settings.RequestResponse, GetMessageProvider(path), PendingRequestStore, TimeProvider);
-
-            AddSqlConsumer([Settings.RequestResponse], processor, path, pathKind, subscriptionName);
-        }
-    }
-
-    private void AddSqlConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, IMessageProcessor<SqlTransportMessage> processor, string path, PathKind pathKind, string subscriptionName)
-    {
-        var instances = consumerSettings.Max(x => x.Instances);
-        for (var i = 0; i < instances; i++)
-        {
-            var consumer = new SqlConsumer(
+    protected override AbstractConsumer CreateConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, IMessageProcessor<SqlTransportMessage> processor, string path, PathKind pathKind, string subscriptionName, string instanceId)
+        => new SqlConsumer(
                 LoggerFactory.CreateLogger<SqlConsumer>(),
                 consumerSettings,
                 Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(),
@@ -97,69 +45,9 @@ public class SqlMessageBus : MessageBusBase<SqlMessageBusSettings>
                 path,
                 pathKind,
                 subscriptionName,
-                $"{_instanceId}-{path}-{subscriptionName}-{i}");
-            AddConsumer(consumer);
-        }
-    }
+                instanceId);
 
-    public override async Task ProduceToTransport(object message, Type messageType, string path, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken)
-    {
-        try
-        {
-            OnProduceToTransport(message, messageType, path, messageHeaders);
-
-            var serviceProvider = targetBus?.ServiceProvider ?? Settings.ServiceProvider;
-            var scope = serviceProvider.CreateScope();
-            try
-            {
-                var repository = scope.ServiceProvider.GetRequiredService<ISqlRepository>();
-                var kind = _kindMapping.GetKind(messageType, path);
-                var payload = SerializerProvider.GetSerializer(path).Serialize(messageType, messageHeaders, message, null);
-                var messageTypeName = MessageTypeResolver.ToName(messageType);
-
-                if (kind == PathKind.Topic)
-                {
-                    var subscriptions = await repository.GetSubscriptions(path, cancellationToken).ConfigureAwait(false);
-                    foreach (var subscriptionName in subscriptions)
-                    {
-                        await repository.Insert(CreateTransportMessage(serviceProvider, path, kind, subscriptionName, messageTypeName, payload, messageHeaders), cancellationToken).ConfigureAwait(false);
-                    }
-                }
-                else
-                {
-                    await repository.Insert(CreateTransportMessage(serviceProvider, path, kind, null, messageTypeName, payload, messageHeaders), cancellationToken).ConfigureAwait(false);
-                }
-            }
-            finally
-            {
-                await scope.DisposeAsyncScope().ConfigureAwait(false);
-            }
-        }
-        catch (Exception ex) when (ex is not ProducerMessageBusException && ex is not TaskCanceledException)
-        {
-            throw new ProducerMessageBusException(GetProducerErrorMessage(path, message, messageType, ex), ex);
-        }
-    }
-
-    public override async Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
-    {
-        var dispatched = new List<T>();
-        try
-        {
-            foreach (var envelope in envelopes)
-            {
-                await ProduceToTransport(envelope.Message, envelope.MessageType, path, envelope.Headers, targetBus, cancellationToken).ConfigureAwait(false);
-                dispatched.Add(envelope);
-            }
-            return new ProduceToTransportBulkResult<T>(dispatched, null);
-        }
-        catch (Exception ex)
-        {
-            return new ProduceToTransportBulkResult<T>(dispatched, ex);
-        }
-    }
-
-    private SqlTransportMessage CreateTransportMessage(IServiceProvider serviceProvider, string path, PathKind pathKind, string subscriptionName, string messageType, byte[] payload, IDictionary<string, object> headers)
+    protected override SqlTransportMessage CreateTransportMessage(IServiceProvider serviceProvider, string path, PathKind pathKind, string subscriptionName, string messageType, byte[] payload, IDictionary<string, object> headers)
     {
         var guidGenerator = ProviderSettings.IdGeneration.GuidGenerator ?? (IGuidGenerator)serviceProvider.GetRequiredService(ProviderSettings.IdGeneration.GuidGeneratorType);
         return new SqlTransportMessage
