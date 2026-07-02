@@ -24,6 +24,6 @@ public class PostgreSqlHelperTests
     {
         var action = () => PostgreSqlHelper.QuoteIdentifier(identifier, nameof(identifier));
 
-        action.Should().Throw<ArgumentException>().WithParameterName("identifier");
+        action.Should().Throw<ArgumentException>().WithParameterName(nameof(identifier));
     }
 }
