@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Sql;
 
-public interface ISqlRepository
+public interface ISqlRepository : IRelationalRepository<SqlTransportMessage>
 {
-
+    Task EnsureConnection();
 }
