@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <Import Project="../Host.Plugin.Properties.xml" />
 
@@ -11,9 +11,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.SecurityToken" Version="4.0.5.10" />
-    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="4.0.2.17" />
-    <PackageReference Include="AWSSDK.SQS" Version="4.0.2.15" />
+    <PackageReference Include="AWSSDK.SecurityToken" Version="4.0.100.3" />
+    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="4.0.100.3" />
+    <PackageReference Include="AWSSDK.SQS" Version="4.0.100.3" />
   </ItemGroup>
 
   <ItemGroup>
