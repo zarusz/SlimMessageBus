@@ -3,6 +3,7 @@
   <Import Project="../Host.Plugin.Properties.xml" />
 
   <PropertyGroup>
+    <TargetFrameworks>net10.0;net8.0</TargetFrameworks>
     <Description>Redis transport provider for SlimMessageBus</Description>
     <PackageTags>Redis transport provider SlimMessageBus MessageBus bus facade messaging client</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
@@ -10,7 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="StackExchange.Redis" Version="2.11.8" />
+    <PackageReference Include="StackExchange.Redis" Version="3.0.11" />
   </ItemGroup>
 
   <ItemGroup>

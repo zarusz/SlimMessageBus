@@ -1,15 +1,16 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <Import Project="../Host.Plugin.Properties.xml" />
 
   <PropertyGroup>
+    <TargetFrameworks>net10.0;net8.0</TargetFrameworks>
     <Description>Extensions for SlimMessageBus that adds validation to the producer or consumer side based on the FluentValidation library</Description>
     <PackageTags>SlimMessageBus MessageBus FluentValidation Validation</PackageTags>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="FluentValidation" Version="11.12.0" />
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -9,8 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.4" />
-    <PackageReference Include="NSwag.AspNetCore" Version="14.6.3" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="NSwag.AspNetCore" Version="14.7.1" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.AsyncApi\SlimMessageBus.Host.AsyncApi.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.AzureServiceBus\SlimMessageBus.Host.AzureServiceBus.csproj" />
     <ProjectReference Include="..\..\SlimMessageBus.Host.Kafka\SlimMessageBus.Host.Kafka.csproj" />
