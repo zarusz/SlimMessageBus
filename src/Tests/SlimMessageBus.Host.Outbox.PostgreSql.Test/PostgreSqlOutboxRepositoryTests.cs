@@ -172,6 +172,76 @@ public static class PostgreSqlOutboxRepositoryTests
         }
     }
 
+    public class SendMessagesTests(PostgreSqlFixture postgreSqlFixture) : BasePostgreSqlOutboxRepositoryTest(postgreSqlFixture)
+    {
+        private const string InstanceId = "outbox-sender";
+
+        [Fact]
+        public async Task FailedBatch_IsNotRetriedImmediatelyWithSameLockInstance()
+        {
+            // arrange
+            const int messageCount = 5;
+            const int maxDeliveryAttempts = 3;
+
+            _settings.PollBatchSize = messageCount;
+            _settings.MaxDeliveryAttempts = maxDeliveryAttempts;
+            _settings.LockExpiration = TimeSpan.FromSeconds(5);
+
+            await SeedOutbox(messageCount, (i, message) =>
+            {
+                message.MessageType = typeof(TestOutboxMessage).AssemblyQualifiedName;
+                message.MessagePayload = JsonSerializer.SerializeToUtf8Bytes(new TestOutboxMessage(i));
+            });
+
+            var serializer = new Mock<IMessageSerializer>();
+            serializer
+                .Setup(x => x.Deserialize(typeof(TestOutboxMessage), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<byte[]>(), null))
+                .Returns((Type _, IReadOnlyDictionary<string, object> _, byte[] payload, object _) => JsonSerializer.Deserialize<TestOutboxMessage>(payload));
+
+            var serializerProvider = new Mock<IMessageSerializerProvider>();
+            serializerProvider.Setup(x => x.GetSerializer(It.IsAny<string>())).Returns(serializer.Object);
+
+            var masterBus = new Mock<IMasterMessageBus>();
+            masterBus.Setup(x => x.SerializerProvider).Returns(serializerProvider.Object);
+
+            var bulkProducer = masterBus.As<ITransportBulkProducer>();
+            bulkProducer.Setup(x => x.MaxMessagesPerTransaction).Returns((int?)null);
+            bulkProducer
+                .Setup(x => x.ProduceToTransportBulk(It.IsAny<IReadOnlyCollection<OutboxSendingTask<PostgreSqlOutboxMessage>.OutboxBulkMessage>>(), It.IsAny<string>(), It.IsAny<IMessageBusTarget>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ProduceToTransportBulkResult<OutboxSendingTask<PostgreSqlOutboxMessage>.OutboxBulkMessage>([], new ProducerMessageBusException("Broker unavailable")));
+
+            var messageBus = new Mock<IMessageBusTarget>();
+            messageBus.Setup(x => x.Target).Returns(masterBus.Object);
+
+            var lockRenewalTimer = new Mock<IOutboxLockRenewalTimer>();
+            lockRenewalTimer.Setup(x => x.InstanceId).Returns(InstanceId);
+            lockRenewalTimer.Setup(x => x.LockDuration).Returns(_settings.LockExpiration);
+
+            var lockRenewalTimerFactory = new Mock<IOutboxLockRenewalTimerFactory>();
+            lockRenewalTimerFactory
+                .Setup(x => x.CreateRenewalTimer(It.IsAny<TimeSpan>(), It.IsAny<TimeSpan>(), It.IsAny<Action<Exception>>(), It.IsAny<CancellationToken>()))
+                .Returns(lockRenewalTimer.Object);
+
+            var services = new ServiceCollection()
+                .AddSingleton<IMessageBus>(messageBus.Object)
+                .AddSingleton(lockRenewalTimerFactory.Object)
+                .BuildServiceProvider();
+
+            var target = new OutboxSendingTask<PostgreSqlOutboxMessage>(NullLoggerFactory.Instance, _settings, services);
+
+            // act
+            var published = await target.SendMessages(services, _target, CancellationToken.None);
+            var messages = await _target.GetAllMessages(CancellationToken.None);
+
+            // assert
+            published.Should().Be(0);
+            messages.Should().OnlyContain(x => x.DeliveryAttempt == 1);
+            messages.Should().OnlyContain(x => !x.DeliveryAborted);
+        }
+
+        private sealed record TestOutboxMessage(int Value);
+    }
+
     public class IncrementDeliveryAttemptTests(PostgreSqlFixture postgreSqlFixture) : BasePostgreSqlOutboxRepositoryTest(postgreSqlFixture)
     {
         [Fact]

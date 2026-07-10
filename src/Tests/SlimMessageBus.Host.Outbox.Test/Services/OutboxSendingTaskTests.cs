@@ -174,6 +174,31 @@ public sealed class OutboxSendingTaskTests
         }
 
         [Fact]
+        public async Task ProcessMessages_ShouldReturnRunAgainFalse_WhenBatchFailsAndOutboxMessagesCountEqualsPollBatchSize()
+        {
+            // Arrange
+            var outboxMessages = CreateOutboxMessages(50);
+            var cancellationToken = CancellationToken.None;
+
+            _mockCompositeMessageBus.Setup(x => x.GetChildBus(It.IsAny<string>())).Returns(_mockMasterMessageBus.Object);
+            _mockMessageBusBulkProducer.Setup(x => x.MaxMessagesPerTransaction).Returns(10);
+
+            _mockMessageBusBulkProducer.Setup(x => x.ProduceToTransportBulk(It.IsAny<IReadOnlyCollection<OutboxBulkMessage>>(), It.IsAny<string>(), It.IsAny<IMessageBusTarget>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((IReadOnlyCollection<OutboxBulkMessage> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken) => new ProduceToTransportBulkResult<OutboxBulkMessage>([], new ProducerMessageBusException("Broker unavailable")));
+
+            var mockMessageTypeResolver = new Mock<IMessageTypeResolver>();
+            mockMessageTypeResolver.Setup(x => x.ToType(It.IsAny<string>())).Returns(typeof(object));
+            _outboxSettings.MessageTypeResolver = mockMessageTypeResolver.Object;
+
+            // Act
+            var result = await _sut.ProcessMessages(_mockOutboxRepository.Object, outboxMessages, _mockCompositeMessageBus.Object, _mockMessageBusTarget.Object, cancellationToken);
+
+            // Assert
+            result.RunAgain.Should().BeFalse();
+            result.Count.Should().Be(0);
+        }
+
+        [Fact]
         public async Task ProcessMessages_ShouldAbortDelivery_WhenBusIsNotRecognised()
         {
             // Arrange

@@ -1,41 +1,64 @@
 ﻿namespace SlimMessageBus.Host.Sql;
 
-public class SqlMessageBus : MessageBusBase<SqlMessageBusSettings>
+public class SqlMessageBus : RelationalMessageBusBase<SqlMessageBusSettings, SqlTransportMessage, ISqlRepository>
 {
     public SqlMessageBus(MessageBusSettings settings, SqlMessageBusSettings providerSettings)
         : base(settings, providerSettings)
     {
     }
 
-    protected override void Build()
-    {
-        base.Build();
+    protected override IMessageBusSettingsValidationService ValidationService => new SqlMessageBusSettingsValidationService(Settings, ProviderSettings);
 
-        InitTaskList.Add(ProvisionTopology, CancellationToken);
-    }
+    protected override Type ConsumerErrorHandlerOpenGenericType => typeof(ISqlConsumerErrorHandler<>);
 
     public override async Task ProvisionTopology()
     {
-        await base.ProvisionTopology();
+        await base.ProvisionTopology().ConfigureAwait(false);
 
-        using var scope = Settings.ServiceProvider.CreateScope();
-        var sqlRepository = scope.ServiceProvider.GetService<ISqlRepository>();
-        var sqlTransactionService = scope.ServiceProvider.GetService<ISqlTransactionService>();
-        var provisioningService = new SqlTopologyService(LoggerFactory.CreateLogger<SqlTopologyService>(), (SqlRepository)sqlRepository, sqlTransactionService, ProviderSettings);
-        await provisioningService.Migrate(CancellationToken); // provisioning happens asynchronously
+        var scope = Settings.ServiceProvider.CreateScope();
+        try
+        {
+            var sqlRepository = scope.ServiceProvider.GetRequiredService<ISqlRepository>();
+            var sqlTransactionService = scope.ServiceProvider.GetService<ISqlTransactionService>();
+            var provisioningService = new SqlTopologyService(LoggerFactory.CreateLogger<SqlTopologyService>(), (SqlRepository)sqlRepository, sqlTransactionService, ProviderSettings);
+            await provisioningService.Migrate(CancellationToken).ConfigureAwait(false);
+
+            await ProvisionSubscriptions(sqlRepository).ConfigureAwait(false);
+        }
+        finally
+        {
+            await scope.DisposeAsyncScope().ConfigureAwait(false);
+        }
     }
 
-    public override Task ProduceToTransport(object message, Type messageType, string path, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken)
+    protected override string GetSubscriptionName(AbstractConsumerSettings settings)
+        => settings.GetSubscriptionName();
+
+    protected override AbstractConsumer CreateConsumer(IEnumerable<AbstractConsumerSettings> consumerSettings, IMessageProcessor<SqlTransportMessage> processor, string path, PathKind pathKind, string subscriptionName, string instanceId)
+        => new SqlConsumer(
+                LoggerFactory.CreateLogger<SqlConsumer>(),
+                consumerSettings,
+                Settings.ServiceProvider.GetServices<IAbstractConsumerInterceptor>(),
+                Settings.ServiceProvider,
+                ProviderSettings,
+                processor,
+                path,
+                pathKind,
+                subscriptionName,
+                instanceId);
+
+    protected override SqlTransportMessage CreateTransportMessage(IServiceProvider serviceProvider, string path, PathKind pathKind, string subscriptionName, string messageType, byte[] payload, IDictionary<string, object> headers)
     {
-        throw new NotImplementedException();
-    }
-
-    public override Task<ProduceToTransportBulkResult<T>> ProduceToTransportBulk<T>(IReadOnlyCollection<T> envelopes, string path, IMessageBusTarget targetBus, CancellationToken cancellationToken)
-    {
-        var sqlRepository = targetBus.ServiceProvider.GetService<ISqlRepository>();
-
-        // ToDo: Save to table
-
-        return Task.FromResult(new ProduceToTransportBulkResult<T>([], new NotImplementedException()));
+        var guidGenerator = ProviderSettings.IdGeneration.GuidGenerator ?? (IGuidGenerator)serviceProvider.GetRequiredService(ProviderSettings.IdGeneration.GuidGeneratorType);
+        return new SqlTransportMessage
+        {
+            Id = ProviderSettings.IdGeneration.Mode == SqlMessageIdGenerationMode.ClientGuidGenerator ? guidGenerator.NewGuid() : Guid.Empty,
+            Path = path,
+            PathKind = pathKind,
+            SubscriptionName = subscriptionName,
+            MessageType = messageType,
+            MessagePayload = payload,
+            Headers = headers != null ? new Dictionary<string, object>(headers) : null
+        };
     }
 }

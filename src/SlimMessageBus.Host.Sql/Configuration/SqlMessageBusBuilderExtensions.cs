@@ -15,21 +15,14 @@ public static class SqlMessageBusBuilderExtensions
         mbb.PostConfigurationActions.Add(services =>
         {
             services.TryAddSingleton(providerSettings);
+            services.TryAddSingleton<ISqlSettings>(providerSettings);
 
+            services.TryAddScoped(_ => new SqlConnection(providerSettings.ConnectionString));
+            services.TryAddScoped<ISqlTransactionService, SqlTransactionService>();
+            services.TryAddSingleton<SqlSequentialGuidGenerator>();
             services.TryAddScoped<SqlRepository>();
             services.Replace(ServiceDescriptor.Scoped<ISqlRepository>(svp => svp.GetRequiredService<SqlRepository>()));
-
-            /*
-            services.Replace(ServiceDescriptor.Transient<OutboxSettings>(svp => svp.GetRequiredService<SqlOutboxSettings>()));
-
-            services.TryAddEnumerable(ServiceDescriptor.Transient(typeof(IConsumerInterceptor<>), typeof(SqlTransactionConsumerInterceptor<>)));
-
-            services.TryAddScoped<TOutboxRepository>();
-            services.Replace(ServiceDescriptor.Scoped<ISqlOutboxRepository>(svp => svp.GetRequiredService<TOutboxRepository>()));
-            services.Replace(ServiceDescriptor.Scoped<IOutboxRepository>(svp => svp.GetRequiredService<TOutboxRepository>()));
-
             services.TryAddSingleton<SqlTemplate>();
-            */
         });
 
         return mbb.WithProvider(settings => new SqlMessageBus(settings, providerSettings));

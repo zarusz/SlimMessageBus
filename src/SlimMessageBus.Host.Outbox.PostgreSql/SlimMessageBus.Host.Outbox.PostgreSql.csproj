@@ -1,8 +1,9 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <Import Project="../Host.Plugin.Properties.xml" />
 
   <PropertyGroup>
+    <TargetFrameworks>net10.0;net8.0</TargetFrameworks>
     <Description>Plugin for SlimMessageBus that adds Transactional Outbox pattern support using PostgresSQL database</Description>
     <PackageTags>SlimMessageBus MessageBus Transactional Outbox PostgreSQL</PackageTags>
     <Nullable>enable</Nullable>
@@ -21,8 +22,8 @@
     <PackageReference Include="System.Text.Encodings.Web" Version="4.7.2" Condition="'$(TargetFramework)' == 'netstandard2.0'" />
     <PackageReference Include="Npgsql" Version="9.0.3" Condition="'$(TargetFramework)' == 'net6.0'" />
     <PackageReference Include="Npgsql" Version="9.0.3" Condition="'$(TargetFramework)' == 'net7.0'" />
-    <PackageReference Include="Npgsql" Version="9.0.3" Condition="'$(TargetFramework)' == 'net8.0'" />
-    <PackageReference Include="Npgsql" Version="9.0.3" Condition="'$(TargetFramework)' == 'net10.0'" />
+    <PackageReference Include="Npgsql" Version="10.0.3" Condition="'$(TargetFramework)' == 'net8.0'" />
+    <PackageReference Include="Npgsql" Version="10.0.3" Condition="'$(TargetFramework)' == 'net10.0'" />
   </ItemGroup>
 
 </Project>

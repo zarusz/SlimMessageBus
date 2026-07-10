@@ -3,6 +3,7 @@
   <Import Project="../Host.Plugin.Properties.xml" />
 
   <PropertyGroup>
+    <TargetFrameworks>net10.0;net8.0;net6.0</TargetFrameworks>
     <Description>Plugin for SlimMessageBus that adds Transactional Outbox pattern support using SQL database</Description>
     <PackageTags>SlimMessageBus MessageBus Transactional Outbox SQL</PackageTags>
   </PropertyGroup>
