@@ -55,7 +55,7 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
             // pick the maximum number of instances
             var instances = consumers.Max(x => x.Instances);
             // For a given rabbit channel, there is only 1 task that dispatches messages. We want to be able to let each SMB consume process within its own task (1 or more)
-            messageProcessor = new ConcurrentMessageProcessorDecorator<BasicDeliverEventArgs>(instances, loggerFactory, messageProcessor);
+            messageProcessor = new ConcurrentMessageProcessorDecorator<BasicDeliverEventArgs>(instances, loggerFactory, messageProcessor, reportBackgroundExceptions: false);
 
             return messageProcessor;
         }

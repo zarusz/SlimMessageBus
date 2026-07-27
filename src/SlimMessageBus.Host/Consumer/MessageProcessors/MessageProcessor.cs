@@ -86,6 +86,7 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
         Exception lastException = null;
         object lastResponse = null;
         Type messageType = null;
+        IReadOnlyCollection<IMessageTypeConsumerInvokerSettings> consumerInvokers = null;
 
         try
         {
@@ -95,11 +96,10 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
 
             if (messageType != null)
             {
+                consumerInvokers = [.. TryMatchConsumerInvoker(messageType, messageHeaders, transportMessage)];
                 var message = _messageProvider(messageType, messageHeaders, transportMessage);
                 try
                 {
-                    var consumerInvokers = TryMatchConsumerInvoker(messageType, messageHeaders, transportMessage);
-
                     foreach (var consumerInvoker in consumerInvokers)
                     {
                         lastConsumerInvoker = consumerInvoker;
@@ -148,6 +148,31 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
             LogProcessingMessageFailedTypeKnown(transportMessage, messageType, e);
             lastException ??= e;
             result = ProcessResult.Failure;
+
+            if (consumerInvokers != null)
+            {
+                var consumerInvoker = consumerInvokers.FirstOrDefault(x => x.ParentSettings.ConsumerMode == ConsumerMode.RequestResponse);
+                if (consumerInvoker != null)
+                {
+                    lastConsumerInvoker = consumerInvoker;
+
+                    if (_responseProducer != null && messageHeaders != null)
+                    {
+                        messageHeaders.TryGetHeader(ReqRespMessageHeaders.RequestId, out string requestId);
+                        try
+                        {
+                            await _responseProducer.ProduceResponse(requestId, null, messageHeaders, null, e, consumerInvoker, cancellationToken).ConfigureAwait(false);
+
+                            // Clear the exception as it will be returned to the sender.
+                            lastException = null;
+                        }
+                        catch
+                        {
+                            // Keep the original exception so the transport can handle the failed message.
+                        }
+                    }
+                }
+            }
         }
         return new(result, lastException, lastException != null ? lastConsumerInvoker?.ParentSettings : null, lastResponse);
     }

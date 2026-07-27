@@ -36,6 +36,7 @@ public class MessageProcessorTest
         messageProviderMock = new Mock<MessageProvider<SomeMessage>>();
 
         consumerBuilder = new ConsumerBuilder<SomeMessage>(new MessageBusSettings());
+        consumerBuilder.WithConsumer<SomeMessageConsumer>();
 
         subject = new Lazy<MessageProcessor<SomeMessage>>(
             () => new MessageProcessor<SomeMessage>(
@@ -73,6 +74,54 @@ public class MessageProcessorTest
         result.Should().NotBeNull();
         result.Result.Should().Be(ProcessResult.Failure);
         result.Exception.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task When_ProcessMessage_Given_RequestPayloadCannotDeserialize_Then_ErrorResponseIsSent()
+    {
+        // arrange
+        var transportMessageMock = new Mock<SomeMessage>();
+        var headers = new Dictionary<string, object>
+        {
+            { MessageHeaders.MessageType, typeof(SomeRequest).AssemblyQualifiedName },
+            { ReqRespMessageHeaders.RequestId, "request-id" },
+            { ReqRespMessageHeaders.ReplyTo, "reply-to" }
+        };
+
+        var deserializationException = new InvalidOperationException("Deserialization failed");
+        var handlerBuilder = new HandlerBuilder<SomeRequest, SomeResponse>(new MessageBusSettings());
+        handlerBuilder.WithHandler<SomeRequestMessageHandler>();
+
+        var subject = new MessageProcessor<SomeMessage>(
+            consumerSettings: [handlerBuilder.ConsumerSettings],
+            messageBus: busMock.Bus,
+            messageProvider: messageProviderMock.Object,
+            path: "topic1",
+            responseProducer: responseProducerMock.Object);
+
+        messageProviderMock
+            .Setup(x => x.Invoke(typeof(SomeRequest), headers, transportMessageMock.Object))
+            .Throws(deserializationException);
+
+        // act
+        var result = await subject.ProcessMessage(transportMessageMock.Object, headers);
+
+        // assert
+        messageProviderMock.Verify(x => x(typeof(SomeRequest), headers, transportMessageMock.Object), Times.Once);
+        responseProducerMock.Verify(
+            x => x.ProduceResponse(
+                "request-id",
+                null,
+                headers,
+                null,
+                deserializationException,
+                handlerBuilder.ConsumerSettings,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        result.Should().NotBeNull();
+        result.Result.Should().Be(ProcessResult.Failure);
+        result.Exception.Should().BeNull();
     }
 
     [Theory]
