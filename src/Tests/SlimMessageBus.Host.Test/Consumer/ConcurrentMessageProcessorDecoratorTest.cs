@@ -159,6 +159,42 @@ public class ConcurrentMessageProcessorDecoratorTest
     }
 
     [Fact]
+    public async Task When_ProcessMessage_Given_BackgroundExceptionReportingDisabled_Then_ExceptionIsNotReportedOnSecondInvocation()
+    {
+        // arrange
+        var subject = new ConcurrentMessageProcessorDecorator<SomeMessage>(1, NullLoggerFactory.Instance, _messageProcessorMock.Object, reportBackgroundExceptions: false);
+
+        var exception = new Exception("Boom!");
+        var firstCallCompleted = new TaskCompletionSource<bool>();
+        var callCount = 0;
+
+        _messageProcessorMock
+            .Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IServiceProvider>(), It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                if (Interlocked.Increment(ref callCount) == 1)
+                {
+                    firstCallCompleted.TrySetResult(true);
+                }
+                return Task.FromResult(new ProcessMessageResult(ProcessResult.Failure, exception, null, null));
+            });
+
+        var msg = new SomeMessage();
+        var msgHeaders = new Dictionary<string, object>();
+        await subject.ProcessMessage(msg, msgHeaders, default);
+        await firstCallCompleted.Task;
+        await subject.WaitAll(CancellationToken.None);
+
+        // act
+        var result = await subject.ProcessMessage(msg, msgHeaders, default);
+        await subject.WaitAll(CancellationToken.None);
+
+        // assert
+        result.Exception.Should().BeNull();
+        callCount.Should().Be(2);
+    }
+
+    [Fact]
     public async Task When_ProcessMessage_Given_ExceptionHappensOnTarget_Then_SemaphoreIsNotLeakedAndProcessingContinues()
     {
         // arrange
@@ -214,4 +250,3 @@ public class ConcurrentMessageProcessorDecoratorTest
         subject.PendingCount.Should().Be(0); // All processing should complete
     }
 }
-

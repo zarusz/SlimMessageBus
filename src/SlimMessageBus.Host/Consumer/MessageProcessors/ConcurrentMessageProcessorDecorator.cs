@@ -13,6 +13,7 @@ public sealed partial class ConcurrentMessageProcessorDecorator<TMessage> : IMes
     private Exception _lastException;
     private TMessage _lastExceptionMessage;
     private AbstractConsumerSettings _lastExceptionSettings;
+    private readonly bool _reportBackgroundExceptions;
     private readonly object _lastExceptionLock = new();
 
     private int _pendingCount;
@@ -21,7 +22,7 @@ public sealed partial class ConcurrentMessageProcessorDecorator<TMessage> : IMes
 
     public IReadOnlyCollection<AbstractConsumerSettings> ConsumerSettings => _target.ConsumerSettings;
 
-    public ConcurrentMessageProcessorDecorator(int concurrency, ILoggerFactory loggerFactory, IMessageProcessor<TMessage> target)
+    public ConcurrentMessageProcessorDecorator(int concurrency, ILoggerFactory loggerFactory, IMessageProcessor<TMessage> target, bool reportBackgroundExceptions = true)
     {
         if (target is null) throw new ArgumentNullException(nameof(target));
         if (loggerFactory is null) throw new ArgumentNullException(nameof(loggerFactory));
@@ -30,6 +31,7 @@ public sealed partial class ConcurrentMessageProcessorDecorator<TMessage> : IMes
         _logger = loggerFactory.CreateLogger<ConcurrentMessageProcessorDecorator<TMessage>>();
         _concurrentSemaphore = new SemaphoreSlim(concurrency);
         _target = target;
+        _reportBackgroundExceptions = reportBackgroundExceptions;
     }
 
     #region IDisposable
@@ -90,7 +92,7 @@ public sealed partial class ConcurrentMessageProcessorDecorator<TMessage> : IMes
             LogEntering(typeof(TMessage));
 
             var r = await _target.ProcessMessage(transportMessage, messageHeaders, consumerContextProperties, currentServiceProvider, cancellationToken).ConfigureAwait(false);
-            if (r.Exception != null)
+            if (_reportBackgroundExceptions && r.Exception != null)
             {
                 lock (_lastExceptionLock)
                 {
