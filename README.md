@@ -125,6 +125,7 @@ The configuration can be [modularized](docs/intro.md#modularization-of-configura
   - [Apache Kafka](docs/provider_kafka.md)
   - [Azure EventHubs](docs/provider_azure_eventhubs.md)
   - [Azure ServiceBus](docs/provider_azure_servicebus.md)
+  - [Google Cloud Pub/Sub](docs/provider_google_pubsub.md)
   - [Hybrid](docs/provider_hybrid.md)
   - [MQTT](docs/provider_mqtt.md)
   - [Memory](docs/provider_memory.md)
@@ -152,6 +153,7 @@ The configuration can be [modularized](docs/intro.md#modularization-of-configura
 | `.Host.AmazonSQS`                    | Transport provider for Amazon SQS / SNS                                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AmazonSQS.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AmazonSQS)                                       |
 | `.Host.AzureEventHub`                | Transport provider for Azure Event Hubs                                                                             | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AzureEventHub.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AzureEventHub)                               |
 | `.Host.AzureServiceBus`              | Transport provider for Azure Service Bus                                                                            | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.AzureServiceBus.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.AzureServiceBus)                           |
+| `.Host.GooglePubSub`                 | Transport provider for Google Cloud Pub/Sub                                                                          | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.GooglePubSub.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.GooglePubSub)                               |
 | `.Host.Kafka`                        | Transport provider for Apache Kafka                                                                                 | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Kafka.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Kafka)                                               |
 | `.Host.MQTT`                         | Transport provider for MQTT                                                                                         | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.MQTT.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.MQTT)                                                 |
 | `.Host.Memory`                       | Transport provider implementation for in-process (in memory) message passing (no messaging infrastructure required) | [![NuGet](https://img.shields.io/nuget/v/SlimMessageBus.Host.Memory.svg)](https://www.nuget.org/packages/SlimMessageBus.Host.Memory)                                             |
