@@ -6,6 +6,7 @@
   - [Apache Kafka](provider_kafka.md)
   - [Azure EventHubs](provider_azure_eventhubs.md)
   - [Azure ServiceBus](provider_azure_servicebus.md)
+  - [Google Cloud Pub/Sub](provider_google_pubsub.md)
   - [Hybrid](provider_hybrid.md)
   - [MQTT](provider_mqtt.md)
   - [Memory](provider_memory.md)

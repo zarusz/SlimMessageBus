@@ -178,6 +178,12 @@ jobs:
             test_path: "Tests/SlimMessageBus.Host.PostgreSql.Test"
             docker_services: ""
 
+          - transport: GooglePubSub
+            name: Google Pub/Sub
+            filter: "Category=Integration&Transport=GooglePubSub"
+            test_path: "Tests/SlimMessageBus.Host.GooglePubSub.Test"
+            docker_services: ""
+
           # Outbox – four parallel sub-legs:
           # 1a. Sql.DbContext OutboxTests – AzureSB + Kafka; SQL Server via local docker
           - transport: Outbox.SqlDbContext.Tests

@@ -3,6 +3,6 @@
   <Import Project="Common.NuGet.Properties.xml" />
 
   <PropertyGroup>
-    <Version>3.6.0-rc100</Version>
+    <Version>3.6.0-rc101</Version>
   </PropertyGroup>
 </Project>

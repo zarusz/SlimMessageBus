@@ -28,6 +28,7 @@ $projects = @(
 	"SlimMessageBus.Host.Kafka",
 	"SlimMessageBus.Host.AzureEventHub",
 	"SlimMessageBus.Host.AzureServiceBus",
+	"SlimMessageBus.Host.GooglePubSub",
 	"SlimMessageBus.Host.Memory",
 	"SlimMessageBus.Host.Redis",
 	"SlimMessageBus.Host.Mqtt",
