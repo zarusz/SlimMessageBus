@@ -45,13 +45,17 @@ public class KafkaMessageBus : MessageBusBase<KafkaMessageBusSettings>
     public IProducer CreateProducerInternal()
     {
         _logger.LogTrace("Creating producer settings");
-        var config = new ProducerConfig
+        var config = new KafkaClientConfig<ProducerConfig>
         {
-            BootstrapServers = ProviderSettings.BrokerList,
+            ConfluentConfig = new ProducerConfig()
+            {
+                BootstrapServers = ProviderSettings.BrokerList   
+            },
+            Logger =  _logger
         };
-        ProviderSettings.ProducerConfig(config);
+        ProviderSettings.ProducerConfig(config.ConfluentConfig);
 
-        _producerDeliveryReportsEnabled = config.EnableDeliveryReports ?? true; // when not set per Confluent.KafkaNet docs, it's defaulting to true
+        _producerDeliveryReportsEnabled = config.ConfluentConfig.EnableDeliveryReports ?? true; // when not set per Confluent.KafkaNet docs, it's defaulting to true
 
         _logger.LogDebug("Producer settings: {ProducerSettings}", config);
         return ProviderSettings.ProducerBuilderFactory(config).Build();
