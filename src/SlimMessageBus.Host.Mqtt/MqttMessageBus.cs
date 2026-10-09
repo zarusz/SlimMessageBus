@@ -1,5 +1,7 @@
 ﻿namespace SlimMessageBus.Host.Mqtt;
 
+using static System.Net.WebRequestMethods;
+
 public partial class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
 {
     private readonly ILogger _logger;
@@ -137,7 +139,7 @@ public partial class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
 
     private Task OnMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs arg)
     {
-        var consumer = Consumers.Cast<MqttTopicConsumer>().FirstOrDefault(x => x.Path == arg.ApplicationMessage.Topic);
+        var consumer = Consumers.Cast<MqttTopicConsumer>().FirstOrDefault(x => MqttTopicFilterComparer.Compare(arg.ApplicationMessage.Topic, x.Path) == MqttTopicFilterCompareResult.IsMatch);
         if (consumer != null)
         {
             var headers = new Dictionary<string, object>();
@@ -203,6 +205,7 @@ public partial class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
             throw new ProducerMessageBusException(GetProducerErrorMessage(path, message, messageType, ex), ex);
         }
     }
+
 
     #region Logging
 
