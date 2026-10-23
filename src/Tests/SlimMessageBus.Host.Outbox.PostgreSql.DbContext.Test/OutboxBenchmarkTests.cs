@@ -14,8 +14,6 @@ public class OutboxBenchmarkTestsCollection : ICollectionFixture<PostgreSqlFixtu
 /// </summary>
 /// <param name="output"></param>
 [Trait("Category", "Integration")] // for benchmarks
-[Trait("Transport", "Outbox.AzureSB")]   // some test cases use AzureServiceBus as the external bus
-[Trait("Transport", "Outbox.RabbitMQ")]  // some test cases use RabbitMQ (TestContainers) as the external bus
 [Collection(nameof(OutboxBenchmarkTestsCollection))]
 public class OutboxBenchmarkTests(ITestOutputHelper output, PostgreSqlFixture postgreSqlFixture, RabbitMqFixture rabbitMqFixture) : BaseIntegrationTest<OutboxBenchmarkTests>(output)
 {
@@ -136,11 +134,20 @@ public class OutboxBenchmarkTests(ITestOutputHelper output, PostgreSqlFixture po
     }
 
     [Theory]
+    [Trait("Transport", "Outbox.AzureSB")]
     [InlineData([BusType.AzureSB, true, 1000])]     // compare with outbox
-    [InlineData([BusType.RabbitMQ, true, 1000])]
     [InlineData([BusType.AzureSB, false, 1000])]    // vs. without outbox
+    public Task Given_EventPublisherAndConsumerUsingOutbox_When_BurstOfEventsIsSent_Then_EventsAreConsumedProperly_AzureSB(BusType busType, bool useOutbox, int messageCount)
+        => Given_EventPublisherAndConsumerUsingOutbox_When_BurstOfEventsIsSent_Then_EventsAreConsumedProperly(busType, useOutbox, messageCount);
+
+    [Theory]
+    [Trait("Transport", "Outbox.RabbitMQ")]
+    [InlineData([BusType.RabbitMQ, true, 1000])]
     [InlineData([BusType.RabbitMQ, false, 1000])]
-    public async Task Given_EventPublisherAndConsumerUsingOutbox_When_BurstOfEventsIsSent_Then_EventsAreConsumedProperly(BusType busType, bool useOutbox, int messageCount)
+    public Task Given_EventPublisherAndConsumerUsingOutbox_When_BurstOfEventsIsSent_Then_EventsAreConsumedProperly_RabbitMQ(BusType busType, bool useOutbox, int messageCount)
+        => Given_EventPublisherAndConsumerUsingOutbox_When_BurstOfEventsIsSent_Then_EventsAreConsumedProperly(busType, useOutbox, messageCount);
+
+    private async Task Given_EventPublisherAndConsumerUsingOutbox_When_BurstOfEventsIsSent_Then_EventsAreConsumedProperly(BusType busType, bool useOutbox, int messageCount)
     {
         _testParamBusType = busType;
 
