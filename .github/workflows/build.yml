@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: ["master", "release/*", "feature/*"]
+    branches: ["master", "release/*"]
   pull_request:
     branches: ["master", "release/*", "feature/*", "devops/*"]
   workflow_dispatch:
@@ -109,15 +109,9 @@ jobs:
           dotnet-version: 10.0.x
           cache: false
 
-      - name: Setup Python for CI policy tests
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
       - name: Test CI policy
-        run: |
-          python -m pip install --disable-pip-version-check -r build/tests/requirements.txt
-          python -m unittest discover -s build/tests -v
+        shell: pwsh
+        run: ./build/tests/Test-CiWorkflow.ps1
 
       - name: Restore dependencies
         run: dotnet restore $SOLUTION_NAME
@@ -197,7 +191,7 @@ jobs:
     name: ${{ matrix.name }}
     needs: [source, build]
     timeout-minutes: 45
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner || 'ubuntu-latest' }}
     strategy:
       fail-fast: false   # don't cancel sibling legs when one fails
       matrix:
@@ -281,7 +275,9 @@ jobs:
             docker_services: ""
 
           # 4. MongoDb outbox repository tests – via TestContainers
+          # MongoDB 8.0 cannot start on kernels 6.19+; Ubuntu 22.04 uses kernel 6.8.
           - transport: Outbox.MongoDb
+            runner: ubuntu-22.04
             name: "Outbox (MongoDb)"
             filter: "Category=Integration&Transport=Outbox.MongoDb"
             test_path: "Tests/SlimMessageBus.Host.Outbox.MongoDb.Test"
@@ -604,6 +600,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Checkout summary script
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
       - name: Download test results
         uses: actions/download-artifact@v6
         with:
@@ -612,24 +613,8 @@ jobs:
           merge-multiple: true
 
       - name: Summarize test results
-        shell: python
-        run: |
-          import os
-          from pathlib import Path
-          import xml.etree.ElementTree as ET
-
-          rows = []
-          for path in sorted(Path('test-results').glob('*.trx')):
-              counters = ET.parse(path).getroot().find('.//{*}Counters')
-              if counters is not None:
-                  # Artifact content is untrusted: include only numeric counters.
-                  rows.append([int(counters.get(key, '0')) for key in ('total', 'passed', 'failed', 'notExecuted')])
-          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
-              summary.write('## .NET tests\n\n| Total | Passed | Failed | Not executed |\n| --- | --- | --- | --- |\n')
-              if rows:
-                  summary.write('| ' + ' | '.join(str(sum(row[i] for row in rows)) for i in range(4)) + ' |\n')
-              else:
-                  summary.write('\nNo TRX test results were produced.\n')
+        shell: pwsh
+        run: ./build/Write-TestSummary.ps1
 
   # Configure this stable check as required; cloud jobs are optional before merge.
   ci:

@@ -5,11 +5,12 @@ The `build` GitHub Actions workflow separates contributor validation from tests 
 | Trigger | Build, unit tests, local integration tests | Cloud integration tests | SonarCloud |
 | --- | --- | --- | --- |
 | Pull request, including a fork | After any required GitHub workflow approval | Never | Never |
-| Push to `feature/*` | Automatic | Never | Never |
 | Push to `master` or `release/*` | Automatic | Automatic | Automatic |
 | Manual run from `master` or `release/*` | Automatic | After protected environment approval | Never |
 
 Local integration tests use Docker Compose, Testcontainers, or in-process transports. They receive no GitHub secrets. The SQL Server password in the workflow is a disposable local container password, not a cloud credential. Outbox theory entry points have separate `Transport` traits for Kafka/RabbitMQ and Azure Service Bus, so local cases remain covered on fork PRs.
+
+Feature branches are validated by their PR event, avoiding duplicate push/PR checks. The MongoDB matrix leg uses `ubuntu-22.04` (kernel 6.8) because MongoDB 8.0 refuses to start on incompatible newer kernels. Keep this runner selection until the MongoDB image supports the hosted runner's kernel. SQL outbox correctness tests bound concurrent transactions and propagate unexpected failures rather than treating SQL timeouts as expected rollbacks.
 
 PR validation checks GitHub's merge commit against the target branch. Test failures fail their jobs; the stable `CI` check requires the build and all local integration jobs to pass. TRX results and coverage are uploaded as artifacts, and the `report` job produces an Actions summary without write permissions. Cloud tests have separate artifact names.
 
@@ -64,11 +65,10 @@ The workflow change must reach the trusted branch before it can be used there. R
 
 ## Checking CI changes locally
 
-The policy tests execute the source-resolution JavaScript with a mocked GitHub API and check fork isolation. They require Python 3.12+, Node.js, and PyYAML:
+The PowerShell policy tests execute the source-resolution JavaScript with a mocked GitHub API, check fork isolation, and exercise the TRX summary script. They require PowerShell 7 and Node.js, with no extra modules:
 
-```shell
-python -m pip install -r build/tests/requirements.txt
-python -m unittest discover -s build/tests -v
+```powershell
+./build/tests/Test-CiWorkflow.ps1
 ```
 
 Validate workflow syntax with [actionlint](https://github.com/rhysd/actionlint). For outbox test changes, use `dotnet test --list-tests --filter "Category=Integration&Transport=Outbox.Kafka"` (or `Outbox.RabbitMQ` / `Outbox.AzureSB`) on the matching test project to verify the cases selected without connecting to a broker.

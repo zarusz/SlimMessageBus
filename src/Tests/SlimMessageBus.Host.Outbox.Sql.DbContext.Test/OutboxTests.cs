@@ -163,8 +163,11 @@ public class OutboxTests(ITestOutputHelper output) : BaseOutboxIntegrationTest<O
         store.Clear();
 
         // act
-        var sendTasks = commands
-            .Select(async cmd =>
+        // This checks transaction correctness, not throughput. Keep SQL contention
+        // bounded on hosted CI runners instead of opening 100 transactions at once.
+        await Parallel.ForEachAsync(commands,
+            new ParallelOptions { MaxDegreeOfParallelism = 8 },
+            async (cmd, _) =>
             {
                 var unitOfWorkScope = ServiceProvider!.CreateScope();
                 await using (unitOfWorkScope as IAsyncDisposable)
@@ -175,18 +178,15 @@ public class OutboxTests(ITestOutputHelper output) : BaseOutboxIntegrationTest<O
                     {
                         var res = await bus.Send(cmd);
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (cmd.Lastname == InvalidLastname)
                     {
                         Logger.LogCommandException(cmd, ex.Message);
                     }
                 }
-            })
-            .ToArray();
-
-        await Task.WhenAll(sendTasks);
+            });
 
         // Wait for messages to arrive first (they should start arriving quickly)
-        await store.WaitUntilArriving(newMessagesTimeout: 20);
+        await store.WaitUntilArriving(newMessagesTimeout: 20, expectedCount: validCommands.Count);
         
         Logger.LogReceivedMessages(store.Count, validCommands.Count);
 
@@ -259,8 +259,9 @@ public class OutboxTests(ITestOutputHelper output) : BaseOutboxIntegrationTest<O
         store.Clear();
 
         // act
-        var publishTasks = events
-            .Select(async ev =>
+        await Parallel.ForEachAsync(events,
+            new ParallelOptions { MaxDegreeOfParallelism = 8 },
+            async (ev, _) =>
             {
                 var unitOfWorkScope = ServiceProvider!.CreateScope();
                 await using (unitOfWorkScope as IAsyncDisposable)
@@ -281,19 +282,16 @@ public class OutboxTests(ITestOutputHelper output) : BaseOutboxIntegrationTest<O
 
                         await txService.CommitTransaction();
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ev.Lastname == InvalidLastname)
                     {
                         await txService.RollbackTransaction();
                         Logger.LogCommandException(ev, ex.Message);
                     }
                 }
-            })
-            .ToArray();
-
-        await Task.WhenAll(publishTasks);
+            });
 
         // Wait for messages to arrive (they should start arriving quickly)
-        await store.WaitUntilArriving(newMessagesTimeout: 20);
+        await store.WaitUntilArriving(newMessagesTimeout: 20, expectedCount: validEvents.Count);
         
         Logger.LogReceivedMessages(store.Count, validEvents.Count);
 
