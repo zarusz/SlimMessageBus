@@ -104,6 +104,17 @@ Test-Case 'Local matrix excludes Azure outbox cases' {
     Assert-That ($local -notmatch 'filter:.*Azure') 'Cloud case selected locally'
     Assert-That ($local -match 'filter:.*Outbox.Kafka' -and $local -match 'filter:.*Outbox.RabbitMQ') 'Local outbox coverage missing'
 }
+Test-Case 'All test jobs exclude generated code through shared coverage settings' {
+    foreach ($name in @('build', 'integration-tests', 'cloud-tests')) {
+        Assert-That ((Get-Job $name) -match '--settings ../build/coverage.runsettings') "Coverage settings missing in $name"
+    }
+    [xml] $settings = Get-Content (Join-Path $root 'build/coverage.runsettings') -Raw
+    $configuration = $settings.RunSettings.DataCollectionRunSettings.DataCollectors.DataCollector.Configuration
+    Assert-That ($configuration.Format -eq 'opencover') 'Unexpected coverage format'
+    Assert-That ($configuration.ExcludeByFile -match '\*\*/obj/\*\*' -and $configuration.ExcludeByFile -match '\*\.g.cs') 'Generated file exclusion missing'
+    Assert-That ($configuration.ExcludeByAttribute -eq 'GeneratedCodeAttribute') 'Generated-code attribute exclusion missing'
+    Assert-That ($configuration.ExcludeByAttribute -notmatch 'CompilerGenerated') 'Do not exclude user-written async methods or lambdas'
+}
 Test-Case 'Regular PRs use merge commit without a privileged API lookup' {
     $result = Invoke-SourceScript -Event pull_request -Ref refs/pull/484/merge
     Assert-That ($result.outputs.repository -eq $repository -and $result.outputs.sha -eq $sha -and $result.reads -eq 0) 'Incorrect PR source'
@@ -168,10 +179,50 @@ try {
         catch { $rejected = $true }
         Assert-That $rejected 'DTD was accepted'
     }
+    Test-Case 'Sonar import removes generated points and preserves handwritten coverage by module' {
+        $coverageInput = Join-Path $fixture 'raw'
+        $coverageOutput = Join-Path $fixture 'sonar'
+        New-Item -ItemType Directory -Path $coverageInput | Out-Null
+        $rawReport = Join-Path $coverageInput 'example.opencover.xml'
+        Set-Content -LiteralPath $rawReport -Value @'
+<CoverageSession><Modules>
+  <Module><Files>
+    <File uid="1" fullPath="/src/Scanner.cs" />
+    <File uid="2" fullPath="/_/src/obj/Release/LoggerMessage.g.cs" />
+  </Files><Classes><Class><Methods><Method><FileRef uid="2" />
+    <SequencePoints><SequencePoint fileid="2" sl="864" vc="0" /><SequencePoint fileid="1" sl="12" vc="1" /></SequencePoints>
+    <BranchPoints><BranchPoint fileid="2" sl="864" vc="0" /><BranchPoint sl="864" vc="0" /><BranchPoint fileid="1" sl="12" vc="1" /></BranchPoints>
+  </Method></Methods></Class></Classes></Module>
+  <Module><Files><File uid="2" fullPath="/src/Other.cs" /></Files><Classes><Class><Methods><Method>
+    <FileRef uid="2" /><SequencePoints><SequencePoint fileid="2" sl="864" vc="5" /></SequencePoints>
+  </Method></Methods></Class></Classes></Module>
+</Modules></CoverageSession>
+'@
+        $rawHash = (Get-FileHash $rawReport).Hash
+        & (Join-Path $root 'build/Prepare-SonarCoverage.ps1') -InputPath $coverageInput -OutputPath $coverageOutput
+        [xml] $prepared = Get-Content (Join-Path $coverageOutput 'example.opencover.xml') -Raw
+        Assert-That ($prepared.SelectNodes('//File[contains(@fullPath,"obj")]').Count -eq 0) 'Generated file retained'
+        Assert-That ($prepared.SelectNodes('//Module[1]//SequencePoint[@sl="864"] | //Module[1]//BranchPoint[@sl="864"]').Count -eq 0) 'Generated points retained'
+        Assert-That ($prepared.SelectNodes('//Module[1]//SequencePoint[@sl="12" and @vc="1"] | //Module[1]//BranchPoint[@sl="12" and @vc="1"]').Count -eq 2) 'Handwritten points changed'
+        Assert-That ($prepared.SelectSingleNode('//Module[1]//FileRef').uid -eq '1') 'Mixed-method file reference not repaired'
+        Assert-That ($prepared.SelectSingleNode('//Module[2]//SequencePoint').vc -eq '5') 'File IDs leaked across modules'
+        Assert-That ((Get-FileHash $rawReport).Hash -eq $rawHash) 'Raw artifact was modified'
+        $rejected = $false
+        try { & (Join-Path $root 'build/Prepare-SonarCoverage.ps1') -InputPath $coverageInput -OutputPath $coverageInput }
+        catch { $rejected = $true }
+        Assert-That $rejected 'Overwriting raw coverage was permitted'
+    }
 }
 finally {
     Remove-Item -LiteralPath $resultFile -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath $summaryFile -ErrorAction SilentlyContinue
+    foreach ($folder in @('raw', 'sonar')) {
+        $coverageFolder = Join-Path $fixture $folder
+        if (Test-Path -LiteralPath $coverageFolder) {
+            Remove-Item -LiteralPath (Join-Path $coverageFolder 'example.opencover.xml') -ErrorAction SilentlyContinue
+            Remove-Item -LiteralPath $coverageFolder
+        }
+    }
     Remove-Item -LiteralPath $fixture
 }
 
