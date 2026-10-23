@@ -14,6 +14,8 @@ Feature branches are validated by their PR event, avoiding duplicate push/PR che
 
 PR validation checks GitHub's merge commit against the target branch. Test failures fail their jobs; the stable `CI` check requires the build and all local integration jobs to pass. TRX results and coverage are uploaded as artifacts, and the `report` job produces an Actions summary without write permissions. Cloud tests have separate artifact names.
 
+All test jobs use `build/coverage.runsettings` to produce OpenCover coverage and exclude generated files/code. Coverlet can still emit generated static initializer points, so `build/Prepare-SonarCoverage.ps1` creates separate Sonar import copies with remaining `obj`, `*.g.cs`, and `*.g.i.cs` points removed. Raw artifacts remain untouched. This prevents generated logging code from contributing coverage for files SonarCloud does not index. Handwritten points, hit counts, and line numbers are preserved, even in methods containing both handwritten and generated code. OpenCover summaries in the import copies are not recalculated because Sonar imports sequence/branch points; use raw artifacts for other coverage tools. User-written async methods and lambdas remain included; do not exclude `CompilerGeneratedAttribute`. The filter does not discard points merely because their line numbers are out of range.
+
 ## Repository settings
 
 These settings live in GitHub, outside workflow YAML:
