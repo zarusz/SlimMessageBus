@@ -8,8 +8,6 @@ public class OutboxTestsCollection : ICollectionFixture<PostgreSqlFixture>, ICol
 }
 
 [Trait("Category", "Integration")]
-[Trait("Transport", "Outbox.AzureSB")]  // some test cases use AzureServiceBus as the external bus
-[Trait("Transport", "Outbox.Kafka")]    // some test cases use Kafka (TestContainers) as the external bus
 [Collection(nameof(OutboxTestsCollection))]
 public class OutboxTests(ITestOutputHelper output, PostgreSqlFixture postgreSqlFixture, KafkaFixture kafkaFixture) : BaseIntegrationTest<OutboxBenchmarkTests>(output)
 {
@@ -159,10 +157,19 @@ public class OutboxTests(ITestOutputHelper output, PostgreSqlFixture postgreSqlF
     }
 
     [Theory]
+    [Trait("Transport", "Outbox.AzureSB")]
     [InlineData([TransactionType.DbTransaction, BusType.AzureSB, 100])]
     [InlineData([TransactionType.TransactionScope, BusType.AzureSB, 100])]
+    public Task Given_CommandHandlerInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoDataSaved_And_NoEventRaised_AzureSB(TransactionType transactionType, BusType busType, int messageCount)
+        => Given_CommandHandlerInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoDataSaved_And_NoEventRaised(transactionType, busType, messageCount);
+
+    [Theory]
+    [Trait("Transport", "Outbox.Kafka")]
     [InlineData([TransactionType.DbTransaction, BusType.Kafka, 100])]
-    public async Task Given_CommandHandlerInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoDataSaved_And_NoEventRaised(TransactionType transactionType, BusType busType, int messageCount)
+    public Task Given_CommandHandlerInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoDataSaved_And_NoEventRaised_Kafka(TransactionType transactionType, BusType busType, int messageCount)
+        => Given_CommandHandlerInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoDataSaved_And_NoEventRaised(transactionType, busType, messageCount);
+
+    private async Task Given_CommandHandlerInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoDataSaved_And_NoEventRaised(TransactionType transactionType, BusType busType, int messageCount)
     {
         // arrange
         _testParamUseHybridBus = true;
@@ -225,9 +232,18 @@ public class OutboxTests(ITestOutputHelper output, PostgreSqlFixture postgreSqlF
     }
 
     [Theory]
+    [Trait("Transport", "Outbox.AzureSB")]
     [InlineData([BusType.AzureSB, 100])]
+    public Task Given_PublishExternalEventInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoEventRaised_AzureSB(BusType busType, int messageCount)
+        => Given_PublishExternalEventInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoEventRaised(busType, messageCount);
+
+    [Theory]
+    [Trait("Transport", "Outbox.Kafka")]
     [InlineData([BusType.Kafka, 100])]
-    public async Task Given_PublishExternalEventInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoEventRaised(BusType busType, int messageCount)
+    public Task Given_PublishExternalEventInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoEventRaised_Kafka(BusType busType, int messageCount)
+        => Given_PublishExternalEventInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoEventRaised(busType, messageCount);
+
+    private async Task Given_PublishExternalEventInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoEventRaised(BusType busType, int messageCount)
     {
         // arrange
         _testParamUseHybridBus = false;

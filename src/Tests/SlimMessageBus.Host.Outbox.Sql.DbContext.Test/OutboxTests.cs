@@ -11,8 +11,6 @@ using SlimMessageBus.Host.Outbox.Sql.DbContext.Test.DataAccess;
 using SlimMessageBus.Host.Sql.Common;
 
 [Trait("Category", "Integration")]
-[Trait("Transport", "Outbox.AzureSB")]  // some test cases use AzureServiceBus as the external bus
-[Trait("Transport", "Outbox.Kafka")]    // some test cases use Kafka as the external bus
 [Collection(CustomerContext.Schema)]
 public class OutboxTests(ITestOutputHelper output) : BaseOutboxIntegrationTest<OutboxTests>(output)
 {
@@ -130,12 +128,21 @@ public class OutboxTests(ITestOutputHelper output) : BaseOutboxIntegrationTest<O
 
 
     [Theory]
+    [Trait("Transport", "Outbox.AzureSB")]
     [InlineData([TransactionType.SqlTransaction, BusType.AzureSB, 100, SqlOutboxMessageIdGenerationMode.ClientGuidGenerator])]
     [InlineData([TransactionType.SqlTransaction, BusType.AzureSB, 100, SqlOutboxMessageIdGenerationMode.DatabaseGeneratedSequentialGuid])]
     [InlineData([TransactionType.SqlTransaction, BusType.AzureSB, 100, SqlOutboxMessageIdGenerationMode.DatabaseGeneratedGuid])]
     [InlineData([TransactionType.TransactionScope, BusType.AzureSB, 100, SqlOutboxMessageIdGenerationMode.ClientGuidGenerator])]
+    public Task Given_CommandHandlerInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoDataSaved_And_NoEventRaised_AzureSB(TransactionType transactionType, BusType busType, int messageCount, SqlOutboxMessageIdGenerationMode mode)
+        => Given_CommandHandlerInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoDataSaved_And_NoEventRaised(transactionType, busType, messageCount, mode);
+
+    [Theory]
+    [Trait("Transport", "Outbox.Kafka")]
     [InlineData([TransactionType.SqlTransaction, BusType.Kafka, 100, SqlOutboxMessageIdGenerationMode.ClientGuidGenerator])]
-    public async Task Given_CommandHandlerInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoDataSaved_And_NoEventRaised(TransactionType transactionType, BusType busType, int messageCount, SqlOutboxMessageIdGenerationMode mode)
+    public Task Given_CommandHandlerInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoDataSaved_And_NoEventRaised_Kafka(TransactionType transactionType, BusType busType, int messageCount, SqlOutboxMessageIdGenerationMode mode)
+        => Given_CommandHandlerInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoDataSaved_And_NoEventRaised(transactionType, busType, messageCount, mode);
+
+    private async Task Given_CommandHandlerInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoDataSaved_And_NoEventRaised(TransactionType transactionType, BusType busType, int messageCount, SqlOutboxMessageIdGenerationMode mode)
     {
         // arrange
         _testParamUseHybridBus = true;
@@ -217,11 +224,20 @@ public class OutboxTests(ITestOutputHelper output) : BaseOutboxIntegrationTest<O
         });
 
     [Theory]
+    [Trait("Transport", "Outbox.AzureSB")]
     [InlineData([BusType.AzureSB, 100, SqlOutboxMessageIdGenerationMode.ClientGuidGenerator])]
     [InlineData([BusType.AzureSB, 100, SqlOutboxMessageIdGenerationMode.DatabaseGeneratedGuid])]
     [InlineData([BusType.AzureSB, 100, SqlOutboxMessageIdGenerationMode.DatabaseGeneratedSequentialGuid])]
+    public Task Given_PublishExternalEventInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoEventRaised_AzureSB(BusType busType, int messageCount, SqlOutboxMessageIdGenerationMode mode)
+        => Given_PublishExternalEventInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoEventRaised(busType, messageCount, mode);
+
+    [Theory]
+    [Trait("Transport", "Outbox.Kafka")]
     [InlineData([BusType.Kafka, 100, SqlOutboxMessageIdGenerationMode.ClientGuidGenerator])]
-    public async Task Given_PublishExternalEventInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoEventRaised(BusType busType, int messageCount, SqlOutboxMessageIdGenerationMode mode)
+    public Task Given_PublishExternalEventInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoEventRaised_Kafka(BusType busType, int messageCount, SqlOutboxMessageIdGenerationMode mode)
+        => Given_PublishExternalEventInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoEventRaised(busType, messageCount, mode);
+
+    private async Task Given_PublishExternalEventInTransaction_When_ExceptionThrownDuringHandlingRaisedAtTheEnd_Then_TransactionIsRolledBack_And_NoEventRaised(BusType busType, int messageCount, SqlOutboxMessageIdGenerationMode mode)
     {
         // arrange
         _testParamUseHybridBus = false;

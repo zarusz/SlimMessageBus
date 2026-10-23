@@ -3,18 +3,25 @@ name: build
 on:
   push:
     branches: ["master", "release/*", "feature/*"]
-  pull_request_target:
+  pull_request:
     branches: ["master", "release/*", "feature/*", "devops/*"]
   workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Optional PR number for cloud tests; leave empty to test the selected trusted branch"
+        type: string
+        default: ""
+      reviewed_sha:
+        description: "Full reviewed PR head SHA (required with pr_number)"
+        type: string
+        default: ""
 
 permissions:
   contents: read
-  id-token: write # needed by dorny/test-reporter
-  checks: write # needed by dorny/test-reporter
 
 # Cancel any in-progress run for the same branch when a new push arrives
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || inputs.pr_number || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -23,30 +30,94 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
+  # No checkout: resolve a manual PR to an immutable, explicitly reviewed commit.
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      repository: ${{ steps.source.outputs.repository }}
+      sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - name: Resolve source
+        id: source
+        uses: actions/github-script@v8
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          REVIEWED_SHA: ${{ inputs.reviewed_sha }}
+        with:
+          script: |
+            let repository = context.payload.repository.full_name;
+            // Ordinary PR validation uses GitHub's merge commit against the target branch.
+            let sha = context.sha;
+            if (context.eventName === 'workflow_dispatch') {
+              if (context.ref !== 'refs/heads/master' && !context.ref.startsWith('refs/heads/release/')) {
+                throw new Error('Dispatch cloud tests from master or a protected release branch.');
+              }
+              const number = process.env.PR_NUMBER;
+              const reviewedSha = process.env.REVIEWED_SHA;
+              if (number) {
+                if (!/^[1-9][0-9]*$/.test(number) || !/^[0-9a-f]{40}$/.test(reviewedSha)) {
+                  throw new Error('Provide a PR number and its full reviewed head SHA.');
+                }
+                const { data: pr } = await github.rest.pulls.get({
+                  ...context.repo, pull_number: Number(number)
+                });
+                if (pr.state !== 'open' || pr.head.sha !== reviewedSha || !pr.head.repo ||
+                    pr.base.repo.full_name !== repository ||
+                    (pr.base.ref !== 'master' && !pr.base.ref.startsWith('release/'))) {
+                  throw new Error('PR must be open, target master/release, and still have the reviewed head SHA.');
+                }
+                const { data: comparison } = await github.rest.repos.compareCommitsWithBasehead({
+                  ...context.repo, basehead: `${context.sha}...${reviewedSha}`
+                });
+                if (comparison.merge_base_commit.sha !== context.sha) {
+                  throw new Error('Update the PR with the selected trusted branch before manual cloud validation, then review its new SHA.');
+                }
+                repository = pr.head.repo.full_name;
+                sha = reviewedSha;
+              } else if (reviewedSha) {
+                throw new Error('reviewed_sha requires pr_number.');
+              }
+            }
+            core.setOutput('repository', repository);
+            core.setOutput('sha', sha);
+            await core.summary.addHeading('Source selected for validation')
+              .addCodeBlock(`${repository}@${sha}`).write();
+
   # ──────────────────────────────────────────────────────────────────────────
   # Build and unit-test (SonarCloud analysis runs separately in the sonar job)
   # ──────────────────────────────────────────────────────────────────────────
   build:
+    needs: source
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout (PR – use fork's head SHA)
-        if: github.event_name == 'pull_request_target'
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
-
       - name: Checkout
-        if: github.event_name != 'pull_request_target'
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          persist-credentials: false
+          repository: ${{ needs.source.outputs.repository }}
+          ref: ${{ needs.source.outputs.sha }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
           cache: false
+
+      - name: Setup Python for CI policy tests
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Test CI policy
+        run: |
+          python -m pip install --disable-pip-version-check -r build/tests/requirements.txt
+          python -m unittest discover -s build/tests -v
 
       - name: Restore dependencies
         run: dotnet restore $SOLUTION_NAME
@@ -60,6 +131,7 @@ jobs:
         working-directory: ./src
 
       - name: Unit Tests
+        id: tests
         run: |
           dotnet test $SOLUTION_NAME \
             --configuration $SOLUTION_CONFIGURATION \
@@ -71,7 +143,7 @@ jobs:
         working-directory: ./src
 
       - name: Collect unit test coverage
-        if: success() || failure()
+        if: ${{ !cancelled() && contains(fromJSON('["success","failure"]'), steps.tests.outcome) }}
         run: |
           mkdir -p ./coverage
           find ./src -name "coverage.opencover.xml" | while read file; do
@@ -81,14 +153,14 @@ jobs:
           done
 
       - name: Upload unit test coverage
-        if: success() || failure()
+        if: ${{ !cancelled() && contains(fromJSON('["success","failure"]'), steps.tests.outcome) }}
         uses: actions/upload-artifact@v6
         with:
           name: coverage-unit
           path: ./coverage
 
       - name: Collect unit test results
-        if: success() || failure()
+        if: ${{ !cancelled() && contains(fromJSON('["success","failure"]'), steps.tests.outcome) }}
         run: |
           mkdir -p ./test-results
           find ./src -name "*.trx" | while read file; do
@@ -98,7 +170,7 @@ jobs:
           done
 
       - name: Upload Unit Test Results
-        if: success() || failure()
+        if: ${{ !cancelled() && contains(fromJSON('["success","failure"]'), steps.tests.outcome) }}
         uses: actions/upload-artifact@v6
         with:
           name: test-results-unit
@@ -119,14 +191,12 @@ jobs:
           path: "./dist"
 
   # ──────────────────────────────────────────────────────────────────────────
-  # Integration tests – one parallel runner per transport
+  # Local integration tests – no repository or environment secrets
   # ──────────────────────────────────────────────────────────────────────────
   integration-tests:
     name: ${{ matrix.name }}
-    needs: build
-    # For fork PRs, this job waits for a maintainer to approve the "integration-tests"
-    # environment before secrets are exposed and the PR's code runs against cloud infra.
-    environment: ${{ (github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name != github.repository) && 'integration-tests' || '' }}
+    needs: [source, build]
+    timeout-minutes: 45
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false   # don't cancel sibling legs when one fails
@@ -184,27 +254,22 @@ jobs:
             test_path: "Tests/SlimMessageBus.Host.GooglePubSub.Test"
             docker_services: ""
 
-          # Outbox – four parallel sub-legs:
-          # 1a. Sql.DbContext OutboxTests – AzureSB + Kafka; SQL Server via local docker
+          # Method-level traits separate local outbox cases from Azure cases.
           - transport: Outbox.SqlDbContext.Tests
             name: "Outbox (SqlDbContext Tests)"
-            filter: "Category=Integration&ClassName=SlimMessageBus.Host.Outbox.Sql.DbContext.Test.OutboxTests"
+            filter: "Category=Integration&Transport=Outbox.Kafka"
             test_path: "Tests/SlimMessageBus.Host.Outbox.Sql.DbContext.Test"
             docker_services: "sqldb zookeeper kafka kafka-init"
-            local_sql_connection: "Server=localhost;Initial Catalog=SlimMessageBus_Outbox;User ID=sa;Password=SuperSecretP@55word;TrustServerCertificate=true;MultipleActiveResultSets=true;"
 
-          # 1b. Sql.DbContext OutboxBenchmarkTests – AzureSB + RabbitMQ; SQL Server via local docker
           - transport: Outbox.SqlDbContext.Benchmarks
             name: "Outbox (SqlDbContext Benchmarks)"
-            filter: "Category=Integration&ClassName=SlimMessageBus.Host.Outbox.Sql.DbContext.Test.OutboxBenchmarkTests"
+            filter: "Category=Integration&Transport=Outbox.RabbitMQ"
             test_path: "Tests/SlimMessageBus.Host.Outbox.Sql.DbContext.Test"
             docker_services: "sqldb rabbitmq"
-            local_sql_connection: "Server=localhost;Initial Catalog=SlimMessageBus_Outbox;User ID=sa;Password=SuperSecretP@55word;TrustServerCertificate=true;MultipleActiveResultSets=true;"
 
-          # 2. PostgreSql.DbContext – PostgreSQL, Kafka, RabbitMQ all via TestContainers
           - transport: Outbox.PostgreSqlDbContext
             name: "Outbox (PostgreSqlDbContext)"
-            filter: "Category=Integration"
+            filter: "Category=Integration&(Transport=Outbox.Kafka|Transport=Outbox.RabbitMQ)"
             test_path: "Tests/SlimMessageBus.Host.Outbox.PostgreSql.DbContext.Test"
             docker_services: ""
 
@@ -222,35 +287,14 @@ jobs:
             test_path: "Tests/SlimMessageBus.Host.Outbox.MongoDb.Test"
             docker_services: ""
 
-          # Cloud transports (require repository secrets)
-          - transport: AmazonSQS
-            name: AmazonSQS
-            filter: "Category=Integration&Transport=AmazonSQS"
-            docker_services: ""
-
-          - transport: AzureServiceBus
-            name: AzureServiceBus
-            filter: "Category=Integration&Transport=AzureServiceBus"
-            docker_services: ""
-
-          - transport: AzureEventHub
-            name: AzureEventHub
-            filter: "Category=Integration&Transport=AzureEventHub"
-            docker_services: ""
-
     steps:
-      - name: Checkout (PR – use fork's head SHA)
-        if: github.event_name == 'pull_request_target'
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
-
       - name: Checkout
-        if: github.event_name != 'pull_request_target'
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          persist-credentials: false
+          repository: ${{ needs.source.outputs.repository }}
+          ref: ${{ needs.source.outputs.sha }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
@@ -275,6 +319,7 @@ jobs:
           docker compose -f src/Infrastructure/docker-compose.yml up --wait --force-recreate -V ${{ matrix.docker_services }}
 
       - name: Integration Tests
+        id: tests
         run: |
           TEST_TARGET="${{ matrix.test_path }}"
           [ -z "$TEST_TARGET" ] && TEST_TARGET="$SOLUTION_NAME"
@@ -287,33 +332,6 @@ jobs:
             --filter "${{ matrix.filter }}"
         working-directory: ./src
         env:
-          # Azure cloud
-          azure_servicebus_connectionstring: ${{ secrets.azure_servicebus_connectionstring }}
-          azure_eventhub_connectionstring: ${{ secrets.azure_eventhub_connectionstring }}
-          azure_storagecontainer_connectionstring: ${{ secrets.azure_storagecontainer_connectionstring }}
-
-          # AWS cloud
-          amazon_access_key: ${{ secrets.amazon_access_key }}
-          amazon_secret_access_key: ${{ secrets.amazon_secret_access_key }}
-
-          # Cloud broker overrides (prefixed with _ so local values take precedence)
-          _kafka_brokers: ${{ secrets.kafka_brokers }}
-          _kafka_username: ${{ secrets.kafka_username }}
-          _kafka_password: ${{ secrets.kafka_password }}
-          _kafka_secure: ${{ secrets.kafka_secure }}
-
-          _mqtt_server: ${{ secrets.mqtt_server }}
-          _mqtt_port: ${{ secrets.mqtt_port }}
-          _mqtt_username: ${{ secrets.mqtt_username }}
-          _mqtt_password: ${{ secrets.mqtt_password }}
-          _mqtt_secure: ${{ secrets.mqtt_secure }}
-
-          _rabbitmq_connectionstring: ${{ secrets.rabbitmq_connectionstring }}
-          _redis_connectionstring: ${{ secrets.redis_connectionstring }}
-
-          # local_sql_connection takes priority (set per matrix leg that uses docker sqldb)
-          sqlserver_connectionstring: ${{ matrix.local_sql_connection || secrets.sqlserver_connectionstring }}
-
           # Local TestContainers / docker compose values
           kafka_brokers: localhost:9092
           kafka_username: user
@@ -329,12 +347,12 @@ jobs:
           rabbitmq_connectionstring: amqp://localhost
           redis_connectionstring: localhost:6379
 
-          _sqlserver_connectionstring: "Server=localhost;Initial Catalog=SlimMessageBus_Outbox;User ID=sa;Password=SuperSecretP@55word;TrustServerCertificate=true;MultipleActiveResultSets=true;"
+          sqlserver_connectionstring: "Server=localhost;Initial Catalog=SlimMessageBus_Outbox;User ID=sa;Password=SuperSecretP@55word;TrustServerCertificate=true;MultipleActiveResultSets=true;"
 
           nats_endpoint: "nats://localhost:4222"
 
       - name: Collect integration test results
-        if: success() || failure()
+        if: ${{ !cancelled() && contains(fromJSON('["success","failure"]'), steps.tests.outcome) }}
         run: |
           mkdir -p ./test-results
           find ./src -name "*.trx" | while read file; do
@@ -344,14 +362,14 @@ jobs:
           done
 
       - name: Upload Test Results
-        if: success() || failure()
+        if: ${{ !cancelled() && contains(fromJSON('["success","failure"]'), steps.tests.outcome) }}
         uses: actions/upload-artifact@v6
         with:
           name: test-results-${{ matrix.transport }}
           path: ./test-results
 
       - name: Collect integration test coverage
-        if: success() || failure()
+        if: ${{ !cancelled() && contains(fromJSON('["success","failure"]'), steps.tests.outcome) }}
         run: |
           mkdir -p ./coverage
           find ./src -name "coverage.opencover.xml" | while read file; do
@@ -361,32 +379,175 @@ jobs:
           done
 
       - name: Upload integration test coverage
-        if: success() || failure()
+        if: ${{ !cancelled() && contains(fromJSON('["success","failure"]'), steps.tests.outcome) }}
         uses: actions/upload-artifact@v6
         with:
           name: coverage-${{ matrix.transport }}
           path: ./coverage
-
-  # ──────────────────────────────────────────────────────────────────────────
-  # SonarCloud analysis – runs after all tests so full coverage is included
-  # ──────────────────────────────────────────────────────────────────────────
-  sonar:
-    needs: [build, integration-tests]
-    if: success() || failure()
+  cloud-tests:
+    name: Cloud / ${{ matrix.name }}
+    needs: [source, build]
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      pull-requests: read
+    # Manual approval happens before checkout, restore, or execution of PR code.
+    if: >-
+      github.repository == 'zarusz/SlimMessageBus' &&
+      ((github.event_name == 'push' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/'))) ||
+       github.event_name == 'workflow_dispatch')
+    environment: ${{ github.event_name == 'workflow_dispatch' && 'integration-tests' || '' }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false   # don't cancel sibling legs when one fails
+      matrix:
+        include:
+          - transport: AmazonSQS
+            name: AmazonSQS
+            filter: "Category=Integration&Transport=AmazonSQS"
+            aws: true
+          - transport: AzureServiceBus
+            name: AzureServiceBus
+            filter: "Category=Integration&Transport=AzureServiceBus"
+            servicebus: true
+          - transport: AzureEventHub
+            name: AzureEventHub
+            filter: "Category=Integration&Transport=AzureEventHub"
+            eventhub: true
+          - transport: Outbox.SqlDbContext
+            name: "Outbox (SqlDbContext / Azure)"
+            filter: "Category=Integration&Transport=Outbox.AzureSB"
+            test_path: "Tests/SlimMessageBus.Host.Outbox.Sql.DbContext.Test"
+            docker_services: "sqldb"
+            servicebus: true
+          - transport: Outbox.PostgreSqlDbContext
+            name: "Outbox (PostgreSqlDbContext / Azure)"
+            filter: "Category=Integration&Transport=Outbox.AzureSB"
+            test_path: "Tests/SlimMessageBus.Host.Outbox.PostgreSql.DbContext.Test"
+            servicebus: true
+
     steps:
-      - name: Checkout (PR – use fork's head SHA)
-        if: github.event_name == 'pull_request_target'
-        uses: actions/checkout@v6
+      - name: Recheck reviewed PR after approval
+        if: github.event_name == 'workflow_dispatch' && inputs.pr_number != ''
+        uses: actions/github-script@v8
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          REVIEWED_SHA: ${{ needs.source.outputs.sha }}
         with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              ...context.repo, pull_number: Number(process.env.PR_NUMBER)
+            });
+            if (pr.state !== 'open' || pr.head.sha !== process.env.REVIEWED_SHA) {
+              throw new Error('PR changed while awaiting approval. Review and dispatch the new head SHA.');
+            }
 
       - name: Checkout
-        if: github.event_name != 'pull_request_target'
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          persist-credentials: false
+          repository: ${{ needs.source.outputs.repository }}
+          ref: ${{ needs.source.outputs.sha }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+          cache: false
+
+      - name: Restore dependencies
+        run: dotnet restore $SOLUTION_NAME
+        working-directory: ./src
+
+      - name: Build
+        run: |
+          dotnet build $SOLUTION_NAME \
+            --configuration $SOLUTION_CONFIGURATION \
+            --no-restore
+        working-directory: ./src
+
+      - name: Start infrastructure services
+        if: matrix.docker_services
+        run: |
+          docker compose -f src/Infrastructure/docker-compose.yml up --wait --force-recreate -V ${{ matrix.docker_services }}
+
+      - name: Integration Tests
+        id: tests
+        run: |
+          TEST_TARGET="${{ matrix.test_path }}"
+          [ -z "$TEST_TARGET" ] && TEST_TARGET="$SOLUTION_NAME"
+          dotnet test "$TEST_TARGET" \
+            --configuration $SOLUTION_CONFIGURATION \
+            --no-build \
+            --verbosity normal \
+            --logger "trx;LogFilePrefix=Integration_${{ matrix.transport }}" \
+            --collect:"XPlat Code Coverage;Format=opencover" \
+            --filter "${{ matrix.filter }}"
+        working-directory: ./src
+        env:
+          # Each leg receives only the cloud credentials it uses.
+          azure_servicebus_connectionstring: ${{ matrix.servicebus && secrets.azure_servicebus_connectionstring || '' }}
+          azure_eventhub_connectionstring: ${{ matrix.eventhub && secrets.azure_eventhub_connectionstring || '' }}
+          azure_storagecontainer_connectionstring: ${{ matrix.eventhub && secrets.azure_storagecontainer_connectionstring || '' }}
+          amazon_access_key: ${{ matrix.aws && secrets.amazon_access_key || '' }}
+          amazon_secret_access_key: ${{ matrix.aws && secrets.amazon_secret_access_key || '' }}
+          sqlserver_connectionstring: "Server=localhost;Initial Catalog=SlimMessageBus_Outbox;User ID=sa;Password=SuperSecretP@55word;TrustServerCertificate=true;MultipleActiveResultSets=true;"
+
+      - name: Collect integration test results
+        if: ${{ !cancelled() && contains(fromJSON('["success","failure"]'), steps.tests.outcome) }}
+        run: |
+          mkdir -p ./test-results
+          find ./src -name "*.trx" | while read file; do
+            grandparent_dir=$(basename $(dirname $(dirname "$file")))
+            filename=$(basename "$file")
+            cp "$file" "./test-results/${grandparent_dir}_${filename}"
+          done
+
+      - name: Upload Test Results
+        if: ${{ !cancelled() && contains(fromJSON('["success","failure"]'), steps.tests.outcome) }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results-cloud-${{ matrix.transport }}
+          path: ./test-results
+
+      - name: Collect integration test coverage
+        if: ${{ !cancelled() && contains(fromJSON('["success","failure"]'), steps.tests.outcome) }}
+        run: |
+          mkdir -p ./coverage
+          find ./src -name "coverage.opencover.xml" | while read file; do
+            dir=$(basename $(dirname $(dirname "$file")))
+            guid=$(basename $(dirname "$file"))
+            cp "$file" "./coverage/${dir}_${guid}.opencover.xml"
+          done
+
+      - name: Upload integration test coverage
+        if: ${{ !cancelled() && contains(fromJSON('["success","failure"]'), steps.tests.outcome) }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-cloud-${{ matrix.transport }}
+          path: ./coverage
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # SonarCloud analysis – trusted pushes only, including local and cloud coverage
+  # ──────────────────────────────────────────────────────────────────────────
+  sonar:
+    needs: [source, build, integration-tests, cloud-tests]
+    if: >-
+      !cancelled() && github.repository == 'zarusz/SlimMessageBus' &&
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/')) &&
+      needs.build.result == 'success'
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          repository: ${{ needs.source.outputs.repository }}
+          ref: ${{ needs.source.outputs.sha }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
@@ -419,12 +580,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          params=""
-          pr_number="${{ github.event.pull_request.number }}"
-          if [[ -n "$pr_number" ]]; then
-              params="/d:sonar.pullrequest.key=${pr_number}"
-          fi
-          ../.sonar/scanner/dotnet-sonarscanner begin /k:"zarusz_SlimMessageBus" /o:"zarusz" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="../coverage/*.opencover.xml" /d:sonar.exclusions="Samples/**/*,Tests/**/*" $params
+          ../.sonar/scanner/dotnet-sonarscanner begin /k:"zarusz_SlimMessageBus" /o:"zarusz" /d:sonar.token="$SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="../coverage/*.opencover.xml" /d:sonar.exclusions="Samples/**/*,Tests/**/*"
         working-directory: ./src
 
       - name: Build
@@ -438,42 +594,57 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: ../.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+        run: ../.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="$SONAR_TOKEN"
         working-directory: ./src
 
-  # ──────────────────────────────────────────────────────────────────────────
-  # Collect all test results from every job and publish a single report
-  # ──────────────────────────────────────────────────────────────────────────
+  # Artifacts and Actions summaries work on forks without a checks:write token.
   report:
-    needs: [build, integration-tests]
-    if: success() || failure()
+    needs: [build, integration-tests, cloud-tests]
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Checkout (PR – use fork's head SHA)
-        if: github.event_name == 'pull_request_target'
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Checkout
-        if: github.event_name != 'pull_request_target'
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Download all test results
+      - name: Download test results
         uses: actions/download-artifact@v6
         with:
           pattern: test-results-*
           path: ./test-results
           merge-multiple: true
 
-      - name: Publish Test Results
-        uses: dorny/test-reporter@v2
-        with:
-          name: .NET Tests
-          path: ./test-results/*.trx
-          reporter: dotnet-trx
-          fail-on-error: true
+      - name: Summarize test results
+        shell: python
+        run: |
+          import os
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
 
+          rows = []
+          for path in sorted(Path('test-results').glob('*.trx')):
+              counters = ET.parse(path).getroot().find('.//{*}Counters')
+              if counters is not None:
+                  # Artifact content is untrusted: include only numeric counters.
+                  rows.append([int(counters.get(key, '0')) for key in ('total', 'passed', 'failed', 'notExecuted')])
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+              summary.write('## .NET tests\n\n| Total | Passed | Failed | Not executed |\n| --- | --- | --- | --- |\n')
+              if rows:
+                  summary.write('| ' + ' | '.join(str(sum(row[i] for row in rows)) for i in range(4)) + ' |\n')
+              else:
+                  summary.write('\nNo TRX test results were produced.\n')
+
+  # Configure this stable check as required; cloud jobs are optional before merge.
+  ci:
+    name: CI
+    needs: [source, build, integration-tests]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require build and local tests
+        env:
+          SOURCE_RESULT: ${{ needs.source.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          TEST_RESULT: ${{ needs.integration-tests.result }}
+        run: |
+          test "$SOURCE_RESULT" = success
+          test "$BUILD_RESULT" = success
+          test "$TEST_RESULT" = success
