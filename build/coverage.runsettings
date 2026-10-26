@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Format>opencover</Format>
+          <!-- Generated logging code has deterministic obj paths and is not
+               part of the source files indexed by SonarCloud. Exclude it at
+               collection time rather than rewriting coverage line numbers. -->
+          <ExcludeByFile>**/obj/**,**/*.g.cs,**/*.g.i.cs</ExcludeByFile>
+          <ExcludeByAttribute>GeneratedCodeAttribute</ExcludeByAttribute>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>
