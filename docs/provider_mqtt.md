@@ -4,6 +4,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 
 - [Underlying MQTT client](#underlying-mqtt-client)
 - [Configuration](#configuration)
+- [Topic matching](#topic-matching)
 - [Message Headers](#message-headers)
 
 ## Underlying MQTT client
@@ -35,6 +36,14 @@ services.AddSlimMessageBus(mbb =>
 The `ClientBuilder` property (of type `MqttClientOptionsBuilder`) is used to configure the underlying [MQTTnet library client](https://github.com/dotnet/MQTTnet/wiki/Client).
 Please consult the MQTTnet library docs for more configuration options.
 
+## Topic matching
+
+Consumer topics can contain MQTT wildcard filters such as `sensors/+/temperature` or `sensors/#`. Wildcard matching follows MQTTnet's topic filter comparer.
+
+When filters overlap, the first matching subscription in consumer creation order is selected. An exact topic does not take precedence over an earlier matching wildcard. Request-response reply subscriptions participate in the same matching order.
+
+Exact topics are indexed when consumers are created. Without wildcard subscriptions, each incoming topic uses a dictionary lookup instead of scanning all consumers. With wildcards, only wildcard filters preceding a matching exact topic need comparison; if no exact topic exists, all wildcard filters may be checked. The index contains configured subscriptions only, so its memory use does not grow with the number of distinct incoming topics. It is rebuilt when consumers are recreated.
+
 ## Message Headers
 
 Headers are only supported with MQTTv5 protocol version.
@@ -48,7 +57,7 @@ services.AddSlimMessageBus(mbb =>
         cfg.ClientBuilder
             // ...
             // Use MQTTv5 to use message headers (if the broker supports it)
-            .WithProtocolVersion(MQTTnet.Formatter.MqttProtocolVersion.V500);            
+            .WithProtocolVersion(MQTTnet.Formatter.MqttProtocolVersion.V500);
     });
 });
 ```

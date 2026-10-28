@@ -1,12 +1,11 @@
 ﻿namespace SlimMessageBus.Host.Mqtt;
 
-using static System.Net.WebRequestMethods;
-
 public partial class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
 {
     private readonly ILogger _logger;
     private IMqttClient _mqttClient;
     private MqttClientOptions _mqttClientOptions;
+    private MqttTopicMatcher<MqttTopicConsumer> _topicMatcher = new([]);
 
     public MqttMessageBus(MessageBusSettings settings, MqttMessageBusSettings providerSettings) : base(settings, providerSettings)
     {
@@ -23,6 +22,7 @@ public partial class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
     {
         await base.OnStart().ConfigureAwait(false);
 
+        _topicMatcher = new(Consumers.Cast<MqttTopicConsumer>().Select(consumer => (consumer.Path, consumer)));
         _mqttClientOptions = ProviderSettings.ClientBuilder.Build();
         await _mqttClient.ConnectAsync(_mqttClientOptions, CancellationToken).ConfigureAwait(false);
         await SubscribeAsync().ConfigureAwait(false);
@@ -85,6 +85,7 @@ public partial class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
     protected override async Task DestroyConsumers()
     {
         await base.DestroyConsumers();
+        _topicMatcher = new([]);
 
         if (_mqttClient != null)
         {
@@ -139,7 +140,7 @@ public partial class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
 
     private Task OnMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs arg)
     {
-        var consumer = Consumers.Cast<MqttTopicConsumer>().FirstOrDefault(x => MqttTopicFilterComparer.Compare(arg.ApplicationMessage.Topic, x.Path) == MqttTopicFilterCompareResult.IsMatch);
+        var consumer = _topicMatcher.FindMatch(arg.ApplicationMessage.Topic);
         if (consumer != null)
         {
             var headers = new Dictionary<string, object>();
