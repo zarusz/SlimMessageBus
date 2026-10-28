@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <PackageReference Include="MQTTnet" Version="5.2.0.1603" />
+    <InternalsVisibleTo Include="SlimMessageBus.Host.Mqtt.Test" />
   </ItemGroup>
 
   <ItemGroup>
