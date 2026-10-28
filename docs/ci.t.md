@@ -18,6 +18,14 @@ All test jobs use `build/coverage.runsettings` to produce OpenCover coverage and
 
 Coverage artifacts are downloaded into separate job directories (`merge-multiple: false`). Preparation preserves those relative paths, and Sonar imports them with `../coverage-sonar/**/*.opencover.xml`. Do not flatten coverage artifacts: multiple jobs can produce an identically named runner report, causing lost or corrupted XML during parallel extraction into a shared destination. If an original report is malformed, preparation fails with its relative artifact path and the XML parse error; it does not skip coverage silently.
 
+## Trivy security report
+
+The build job runs [Trivy](https://trivy.dev/) after compiling the solution on every build workflow run. It scans the repository for dependency vulnerabilities and configuration issues. Building first produces the .NET `*.deps.json` files that Trivy uses to detect direct and transitive NuGet dependencies, including those in samples and tests.
+
+Download the **trivy-report** artifact from the workflow run's **Artifacts** section, extract it, and open `trivy-report.html` in a browser. The report includes all severities and vulnerabilities without a fix. Findings are informational (`--exit-code 0`); scanner errors still fail the build. The upload runs after scan success or failure and fails if no report was produced. It completes before unit tests, so a later test failure does not prevent report collection.
+
+Trivy scans vulnerabilities and misconfigurations, which its bundled HTML template supports. The scanner version and installer action are pinned in the workflow. The scan uses the same checked-out source as the build and requires no repository secrets or additional write permissions.
+
 ## Repository settings
 
 These settings live in GitHub, outside workflow YAML:
