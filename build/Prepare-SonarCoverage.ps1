@@ -4,13 +4,15 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-if ([IO.Path]::GetFullPath($InputPath) -eq [IO.Path]::GetFullPath($OutputPath)) {
+$inputRoot = [IO.Path]::TrimEndingDirectorySeparator([IO.Path]::GetFullPath($InputPath))
+$outputRoot = [IO.Path]::TrimEndingDirectorySeparator([IO.Path]::GetFullPath($OutputPath))
+if ($inputRoot -eq $outputRoot -or $outputRoot.StartsWith($inputRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
     throw 'Sonar import copies must be separate from the raw coverage artifacts.'
 }
-$reports = @(Get-ChildItem -LiteralPath $InputPath -Filter '*.opencover.xml' -File)
+$reports = @(Get-ChildItem -LiteralPath $inputRoot -Filter '*.opencover.xml' -File -Recurse | Sort-Object FullName)
 if (!$reports.Count) { throw 'No OpenCover reports were found.' }
 New-Item -ItemType Directory -Force -Path $OutputPath | Out-Null
-if (Get-ChildItem -LiteralPath $OutputPath -Filter '*.opencover.xml' -File) {
+if (Get-ChildItem -LiteralPath $outputRoot -Filter '*.opencover.xml' -File -Recurse) {
     throw 'The Sonar coverage output directory must not contain old reports.'
 }
 
@@ -20,10 +22,12 @@ $readerSettings.XmlResolver = $null
 $removedPoints = 0
 
 foreach ($report in $reports) {
+    $relativePath = [IO.Path]::GetRelativePath($inputRoot, $report.FullName)
     $reader = [System.Xml.XmlReader]::Create($report.FullName, $readerSettings)
     $document = [System.Xml.XmlDocument]::new()
     $document.XmlResolver = $null
     try { $document.Load($reader) }
+    catch { throw "Cannot parse coverage report '$relativePath': $($_.Exception.Message)" }
     finally { $reader.Dispose() }
 
     foreach ($module in $document.SelectNodes('/CoverageSession/Modules/Module')) {
@@ -65,6 +69,10 @@ foreach ($report in $reports) {
 
     # Sonar imports sequence/branch points, not OpenCover's summary percentages.
     # Keep the untouched raw reports for tools that consume those summaries.
-    $document.Save((Join-Path ([IO.Path]::GetFullPath($OutputPath)) $report.Name))
+    # Keep the artifact directory: runner-named reports can have the same filename
+    # in different jobs and must never be flattened into one shared destination.
+    $outputFile = Join-Path $outputRoot $relativePath
+    New-Item -ItemType Directory -Force -Path (Split-Path $outputFile -Parent) | Out-Null
+    $document.Save($outputFile)
 }
 Write-Host "Prepared $($reports.Count) Sonar import reports; excluded $removedPoints generated-code points."
