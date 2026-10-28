@@ -414,4 +414,24 @@ public class MqttMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<Mq
         consumedMessages.Count.Should().Be(1);
         consumedMessages.Snapshot().First().Counter.Should().Be(qos);
     }
+
+    [Theory]
+    [InlineData("test-ping/+/first", "test-ping/test/first", 1)]
+    [InlineData("test-ping/+/first", "test-ping/test/first/first", 0)]
+    [InlineData("test-ping/+/first", "test-ping/first/test", 0)]
+    [InlineData("test-ping/#", "test-ping/test/first", 1)]
+    [InlineData("test-ping/#", "test-ping/test/first/first", 1)]
+    public async Task WildCardSubOnTopic(string wildCardTopic, string topic, int expected)
+    {
+        var concurrency = 2;
+
+        AddBusConfiguration(mbb =>
+        {
+            mbb
+            .Produce<PingMessage>(x => x.DefaultTopic(topic))
+            .Consume<PingMessage>(x => x.Topic(wildCardTopic).Instances(concurrency));
+        });
+
+        await BasicPubSub(expected, false);
+    }
 }
