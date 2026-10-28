@@ -572,7 +572,9 @@ jobs:
         with:
           pattern: coverage-*
           path: ./coverage
-          merge-multiple: true
+          # Jobs can produce identically named runner reports. Preserve each
+          # artifact directory to avoid overwrites during parallel extraction.
+          merge-multiple: false
 
       - name: Prepare Sonar coverage import
         shell: pwsh
@@ -584,7 +586,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          ../.sonar/scanner/dotnet-sonarscanner begin /k:"zarusz_SlimMessageBus" /o:"zarusz" /d:sonar.token="$SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="../coverage-sonar/*.opencover.xml" /d:sonar.exclusions="Samples/**/*,Tests/**/*"
+          ../.sonar/scanner/dotnet-sonarscanner begin /k:"zarusz_SlimMessageBus" /o:"zarusz" /d:sonar.token="$SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="../coverage-sonar/**/*.opencover.xml" /d:sonar.exclusions="Samples/**/*,Tests/**/*"
         working-directory: ./src
 
       - name: Build

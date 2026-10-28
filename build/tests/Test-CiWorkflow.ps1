@@ -115,6 +115,11 @@ Test-Case 'All test jobs exclude generated code through shared coverage settings
     Assert-That ($configuration.ExcludeByAttribute -eq 'GeneratedCodeAttribute') 'Generated-code attribute exclusion missing'
     Assert-That ($configuration.ExcludeByAttribute -notmatch 'CompilerGenerated') 'Do not exclude user-written async methods or lambdas'
 }
+Test-Case 'Sonar keeps coverage artifact directories and imports reports recursively' {
+    $sonar = Get-Job 'sonar'
+    Assert-That ($sonar -match '(?s)pattern: coverage-\*.*?merge-multiple: false') 'Coverage artifacts must not share an extraction directory'
+    Assert-That ($sonar.Contains('../coverage-sonar/**/*.opencover.xml')) 'Nested Sonar coverage import is missing'
+}
 Test-Case 'Regular PRs use merge commit without a privileged API lookup' {
     $result = Invoke-SourceScript -Event pull_request -Ref refs/pull/484/merge
     Assert-That ($result.outputs.repository -eq $repository -and $result.outputs.sha -eq $sha -and $result.reads -eq 0) 'Incorrect PR source'
@@ -212,18 +217,54 @@ try {
         catch { $rejected = $true }
         Assert-That $rejected 'Overwriting raw coverage was permitted'
     }
+    Test-Case 'Sonar preserves different reports with the same filename in separate artifacts' {
+        $nestedInput = Join-Path $fixture 'nested-raw'
+        $nestedOutput = Join-Path $fixture 'nested-sonar'
+        $reportXml = '<CoverageSession><Modules><Module><Files><File uid="1" fullPath="/src/Example.cs" /></Files><Classes><Class><Methods><Method><FileRef uid="1" /><SequencePoints><SequencePoint fileid="1" sl="12" vc="__HITS__" /></SequencePoints></Method></Methods></Class></Classes></Module></Modules></CoverageSession>'
+        foreach ($artifact in @('coverage-unit', 'coverage-cloud')) {
+            $directory = Join-Path $nestedInput $artifact
+            New-Item -ItemType Directory -Path $directory -Force | Out-Null
+            $hits = if ($artifact -eq 'coverage-unit') { '3' } else { '7' }
+            Set-Content -LiteralPath (Join-Path $directory 'runner.opencover.xml') -Value $reportXml.Replace('__HITS__', $hits)
+        }
+        & (Join-Path $root 'build/Prepare-SonarCoverage.ps1') -InputPath $nestedInput -OutputPath $nestedOutput
+        Assert-That (@(Get-ChildItem -LiteralPath $nestedOutput -Recurse -Filter '*.opencover.xml').Count -eq 2) 'A same-named report was lost'
+        foreach ($artifact in @('coverage-unit', 'coverage-cloud')) {
+            [xml] $report = Get-Content (Join-Path $nestedOutput "$artifact/runner.opencover.xml") -Raw
+            $expected = if ($artifact -eq 'coverage-unit') { '3' } else { '7' }
+            Assert-That ($report.SelectSingleNode('//SequencePoint').vc -eq $expected) 'Coverage reports overwrote each other'
+        }
+        $rejected = $false
+        try { & (Join-Path $root 'build/Prepare-SonarCoverage.ps1') -InputPath $nestedInput -OutputPath $nestedOutput }
+        catch { $rejected = $_.Exception.Message -match 'old reports' }
+        Assert-That $rejected 'Existing nested reports were overwritten'
+        $rejected = $false
+        try { & (Join-Path $root 'build/Prepare-SonarCoverage.ps1') -InputPath $nestedInput -OutputPath (Join-Path $nestedInput 'prepared') }
+        catch { $rejected = $_.Exception.Message -match 'separate' }
+        Assert-That $rejected 'Output inside the raw artifact tree was allowed'
+    }
+    Test-Case 'Malformed coverage fails with the artifact path and XML error' {
+        $badInput = Join-Path $fixture 'malformed-raw/coverage-unit'
+        New-Item -ItemType Directory -Path $badInput -Force | Out-Null
+        $badReport = Join-Path $badInput 'runner.opencover.xml'
+        Set-Content -LiteralPath $badReport -Value '<CoverageSession />trailing-data'
+        $rawHash = (Get-FileHash $badReport).Hash
+        $errorMessage = ''
+        try { & (Join-Path $root 'build/Prepare-SonarCoverage.ps1') -InputPath (Join-Path $fixture 'malformed-raw') -OutputPath (Join-Path $fixture 'malformed-sonar') }
+        catch { $errorMessage = $_.Exception.Message }
+        Assert-That ($errorMessage -match 'coverage-unit[\\/]runner.opencover.xml' -and $errorMessage -match 'root level') 'Missing report path or XML parse diagnostic'
+        Assert-That ((Get-FileHash $badReport).Hash -eq $rawHash) 'Malformed raw report was modified'
+    }
 }
 finally {
-    Remove-Item -LiteralPath $resultFile -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath $summaryFile -ErrorAction SilentlyContinue
-    foreach ($folder in @('raw', 'sonar')) {
-        $coverageFolder = Join-Path $fixture $folder
-        if (Test-Path -LiteralPath $coverageFolder) {
-            Remove-Item -LiteralPath (Join-Path $coverageFolder 'example.opencover.xml') -ErrorAction SilentlyContinue
-            Remove-Item -LiteralPath $coverageFolder
-        }
+    # Only delete the freshly created, task-specific temporary fixture tree.
+    $resolvedFixture = [IO.Path]::GetFullPath($fixture)
+    $tempRoot = [IO.Path]::TrimEndingDirectorySeparator([IO.Path]::GetFullPath([IO.Path]::GetTempPath()))
+    if ((Split-Path $resolvedFixture -Parent) -ne $tempRoot -or
+        (Split-Path $resolvedFixture -Leaf) -notmatch '^SlimMessageBus-summary-[a-f0-9]{32}$') {
+        throw "Refusing to remove unexpected fixture path: $resolvedFixture"
     }
-    Remove-Item -LiteralPath $fixture
+    Remove-Item -LiteralPath $resolvedFixture -Recurse
 }
 
 Write-Host "$script:passed CI policy and summary tests passed."
