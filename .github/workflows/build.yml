@@ -92,7 +92,7 @@ jobs:
   # ──────────────────────────────────────────────────────────────────────────
   build:
     needs: source
-    timeout-minutes: 30
+    timeout-minutes: 40
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -123,6 +123,34 @@ jobs:
             --configuration $SOLUTION_CONFIGURATION \
             --no-restore
         working-directory: ./src
+
+      - name: Setup Trivy
+        uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
+        with:
+          version: v0.70.0
+          cache: true
+
+      # Scan after building so .NET *.deps.json files include transitive dependencies.
+      # Findings are informational; scanner errors still fail the build.
+      - name: Trivy scan
+        id: trivy
+        shell: bash
+        run: |
+          trivy fs . \
+            --scanners vuln,misconfig \
+            --format template \
+            --template "@$HOME/.local/bin/trivy-bin/contrib/html.tpl" \
+            --output trivy-report.html \
+            --exit-code 0 \
+            --timeout 10m
+
+      - name: Upload Trivy HTML report
+        if: ${{ !cancelled() && contains(fromJSON('["success","failure"]'), steps.trivy.outcome) }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: trivy-report
+          path: trivy-report.html
+          if-no-files-found: error
 
       - name: Unit Tests
         id: tests
