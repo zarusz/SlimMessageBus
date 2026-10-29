@@ -12,7 +12,7 @@ public class KafkaMessageBusSettings
     /// <summary>
     /// Factory method that creates a <see cref="ProducerBuilder"/> based on the supplied settings.
     /// </summary>
-    public Func<ProducerConfig, ProducerBuilder> ProducerBuilderFactory { get; set; }
+    public Func<KafkaClientConfig<ProducerConfig>, ProducerBuilder> ProducerBuilderFactory { get; set; }
     /// <summary>
     /// Factory method that created a <see cref="Producer"/>.
     /// See also: https://kafka.apache.org/documentation/#producerconfigs
@@ -21,7 +21,7 @@ public class KafkaMessageBusSettings
     /// <summary>
     /// Factory method that creates a <see cref="ConsumerBuilder"/> based on the supplied settings and consumer GroupId. 
     /// </summary>
-    public Func<ConsumerConfig, ConsumerBuilder> ConsumerBuilderFactory { get; set; }
+    public Func<KafkaClientConfig<ConsumerConfig>,ConsumerBuilder> ConsumerBuilderFactory { get; set; }
     /// <summary>
     /// Factory method that creates settings based on the consumer GroupId.
     /// See also: https://kafka.apache.org/documentation/#newconsumerconfigs
@@ -47,9 +47,9 @@ public class KafkaMessageBusSettings
     public KafkaMessageBusSettings()
     {
         ProducerConfig = (config) => { };
-        ProducerBuilderFactory = (config) => new ProducerBuilder<byte[], byte[]>(config);
+        ProducerBuilderFactory = (config) => new ProducerBuilder<byte[], byte[]>(config.ConfluentConfig);
         ConsumerConfig = (config) => { };
-        ConsumerBuilderFactory = (config) => new ConsumerBuilder<Ignore, byte[]>(config);
+        ConsumerBuilderFactory = (config) => new ConsumerBuilder<Ignore, byte[]>(config.ConfluentConfig);
         ConsumerPollRetryInterval = TimeSpan.FromSeconds(2);
         HeaderSerializer = new DefaultKafkaHeaderSerializer();
     }
