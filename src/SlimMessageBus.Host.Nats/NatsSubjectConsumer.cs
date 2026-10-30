@@ -59,9 +59,9 @@ public class NatsSubjectConsumer<TType> : AbstractConsumer
                 }
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException e)
         {
-            Logger.LogInformation("Consumer task was cancelled");
+            Logger.LogInformation(e, "Consumer task was cancelled");
         }
     }
 }

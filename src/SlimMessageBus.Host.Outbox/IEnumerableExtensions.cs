@@ -14,6 +14,11 @@ internal static class IEnumerableExtensions
             throw new ArgumentOutOfRangeException(nameof(batchSize), "Batch size must be greater than zero.");
         }
 
+        return BatchCore(items, batchSize);
+    }
+
+    private static IEnumerable<IReadOnlyCollection<T>> BatchCore<T>(IEnumerable<T> items, int batchSize)
+    {
         using var enumerator = items.GetEnumerator();
         while (enumerator.MoveNext())
         {

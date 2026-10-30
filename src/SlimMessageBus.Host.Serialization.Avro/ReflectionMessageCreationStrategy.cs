@@ -42,7 +42,10 @@ public class ReflectionMessageCreationStrategy : IMessageCreationStrategy
         try
         {
             // by default create types using reflection
-            _logger.LogDebug("Instantiating type {Type}", type);
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+                _logger.LogDebug("Instantiating type {Type}", type);
+            }
 
             var constructor = GetTypeConstructorSafe(type);
             return constructor.Invoke(null);

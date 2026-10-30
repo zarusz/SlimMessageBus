@@ -89,7 +89,10 @@ public class AvroMessageSerializer : IMessageSerializer, IMessageSerializerProvi
         var writerSchema = WriteSchemaLookup(messageType);
         AssertSchemaNotNull(messageType, writerSchema, true);
 
-        _logger.LogDebug("Type {Type} writer schema: {WriterSchema}", messageType, writerSchema);
+        if (_logger.IsEnabled(LogLevel.Debug))
+        {
+            _logger.LogDebug("Type {Type} writer schema: {WriterSchema}", messageType, writerSchema);
+        }
 
         var writer = new SpecificDefaultWriter(writerSchema); // Schema comes from pre-compiled, code-gen phase
         writer.Write(message, enc);
@@ -110,7 +113,10 @@ public class AvroMessageSerializer : IMessageSerializer, IMessageSerializerProvi
         var writerSchema = WriteSchemaLookup(messageType);
         AssertSchemaNotNull(messageType, writerSchema, true);
 
-        _logger.LogDebug("Type {Type} writer schema: {WriterSchema}, reader schema: {ReaderSchema}", messageType, writerSchema, readerSchema);
+        if (_logger.IsEnabled(LogLevel.Debug))
+        {
+            _logger.LogDebug("Type {Type} writer schema: {WriterSchema}, reader schema: {ReaderSchema}", messageType, writerSchema, readerSchema);
+        }
 
         var reader = new SpecificDefaultReader(writerSchema, readerSchema);
         reader.Read(message, dec);

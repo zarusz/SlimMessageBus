@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Collections;
 
-public interface IReadOnlyCache<TKey, TValue>
+public interface IReadOnlyCache<in TKey, out TValue>
 {
     TValue this[TKey key] { get; }
 }

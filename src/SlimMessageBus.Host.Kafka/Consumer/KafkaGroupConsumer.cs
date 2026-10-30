@@ -267,7 +267,7 @@ public class KafkaGroupConsumer : AbstractConsumer, IKafkaCommitController
 
     protected virtual void OnStatistics(string json)
     {
-        Logger.LogTrace("Group [{Group}]: Statistics: {statistics}", Group, json);
+        Logger.LogTrace("Group [{Group}]: Statistics: {Statistics}", Group, json);
     }
 
     #region Implementation of IKafkaCommitController

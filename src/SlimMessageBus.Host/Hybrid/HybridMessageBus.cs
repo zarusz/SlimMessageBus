@@ -89,7 +89,7 @@ public partial class HybridMessageBus : IMasterMessageBus, ICompositeMessageBus,
     {
         if (disposing)
         {
-            DisposeAsyncCore().ConfigureAwait(false).GetAwaiter().GetResult();
+            DisposeAsyncCore().AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
         }
     }
 

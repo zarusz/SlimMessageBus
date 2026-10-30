@@ -15,7 +15,7 @@ public delegate TPayload MessagePayloadProvider<in T, out TPayload>(T transportM
 /// <typeparam name="T"></typeparam>
 /// <param name="transportMessage"></param>
 /// <param name="consumerContext"></param>
-public delegate void ConsumerContextInitializer<T>(T transportMessage, ConsumerContext consumerContext);
+public delegate void ConsumerContextInitializer<in T>(T transportMessage, ConsumerContext consumerContext);
 
 /// <summary>
 /// Provides the type of the message from the provided transport message.

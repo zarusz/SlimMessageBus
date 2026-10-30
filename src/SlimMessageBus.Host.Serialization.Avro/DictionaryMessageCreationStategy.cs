@@ -32,7 +32,10 @@ public class DictionaryMessageCreationStategy : IMessageCreationStrategy
         if (!_registry.TryGetValue(type, out var factory))
         {
             var msg = $"The type {type} does not have a factory registered. Check your configuration.";
-            _logger.LogError(msg);
+            if (_logger.IsEnabled(LogLevel.Error))
+            {
+                _logger.LogError("The type {MessageType} does not have a factory registered. Check your configuration.", type);
+            }
             throw new InvalidOperationException(msg);
         }
         return factory();

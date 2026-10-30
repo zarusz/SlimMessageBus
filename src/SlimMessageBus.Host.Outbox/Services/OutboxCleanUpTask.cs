@@ -150,7 +150,7 @@ public class OutboxCleanUpTask<TOutboxMessage> : IMessageBusLifecycleInterceptor
             return;
         }
 
-        await _semaphore.WaitAsync();
+        await _semaphore.WaitAsync(CancellationToken.None);
         try
         {
             if (_executingTask == null)
@@ -160,12 +160,12 @@ public class OutboxCleanUpTask<TOutboxMessage> : IMessageBusLifecycleInterceptor
 
             try
             {
-                await _cts!.CancelAsync();
+                await _cts.CancelAsync();
                 await _executingTask;
             }
             finally
             {
-                _cts!.Dispose();
+                _cts.Dispose();
                 _cts = null;
                 _executingTask = null;
             }
