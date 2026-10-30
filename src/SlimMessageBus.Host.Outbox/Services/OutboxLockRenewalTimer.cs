@@ -1,6 +1,6 @@
 ﻿namespace SlimMessageBus.Host.Outbox.Services;
 
-internal sealed class OutboxLockRenewalTimer<TOutboxMessage> : IOutboxLockRenewalTimer
+internal sealed class OutboxLockRenewalTimer<TOutboxMessage> : IOutboxLockRenewalTimer, IAsyncDisposable
     where TOutboxMessage : OutboxMessage
 {
     private readonly object _lock;
@@ -11,6 +11,9 @@ internal sealed class OutboxLockRenewalTimer<TOutboxMessage> : IOutboxLockRenewa
     private readonly Action<Exception> _lockLost;
     private bool _active;
     private bool _renewingLock;
+    private bool _disposed;
+    private Task _callbackTask = Task.CompletedTask;
+    private readonly CancellationTokenRegistration _cancellationRegistration;
 
     public OutboxLockRenewalTimer(ILogger<OutboxLockRenewalTimer<TOutboxMessage>> logger, IOutboxMessageRepository<TOutboxMessage> outboxRepository, IInstanceIdProvider instanceIdProvider, TimeSpan lockDuration, TimeSpan lockRenewalInterval, Action<Exception> lockLost, CancellationToken cancellationToken)
     {
@@ -25,9 +28,9 @@ internal sealed class OutboxLockRenewalTimer<TOutboxMessage> : IOutboxLockRenewa
         _lockLost = lockLost;
 
         _lock = new object();
-        _timer = new Timer(async _ => await CallbackAsync(), null, Timeout.Infinite, Timeout.Infinite);
+        _timer = new Timer(_ => RunCallback(), null, Timeout.Infinite, Timeout.Infinite);
         _active = false;
-        _cancellationToken.Register(Stop);
+        _cancellationRegistration = _cancellationToken.Register(Stop);
     }
 
     public bool Active => _active;
@@ -39,6 +42,10 @@ internal sealed class OutboxLockRenewalTimer<TOutboxMessage> : IOutboxLockRenewa
     {
         lock (_lock)
         {
+            if (_disposed)
+            {
+                return;
+            }
             _active = true;
             if (!_renewingLock)
             {
@@ -51,6 +58,10 @@ internal sealed class OutboxLockRenewalTimer<TOutboxMessage> : IOutboxLockRenewa
     {
         lock (_lock)
         {
+            if (_disposed)
+            {
+                return;
+            }
             _timer.Change(Timeout.Infinite, Timeout.Infinite);
             _active = false;
         }
@@ -58,10 +69,41 @@ internal sealed class OutboxLockRenewalTimer<TOutboxMessage> : IOutboxLockRenewa
 
     public void Dispose()
     {
-        Stop();
+        lock (_lock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+            _active = false;
+            _disposed = true;
+        }
         _timer.Dispose();
+        _cancellationRegistration.Dispose();
 
         GC.SuppressFinalize(this);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Dispose();
+        Task callback;
+        lock (_lock)
+        {
+            callback = _callbackTask;
+        }
+        await callback.ConfigureAwait(false);
+    }
+
+    private void RunCallback()
+    {
+        lock (_lock)
+        {
+            if (!_disposed && !_renewingLock)
+            {
+                _callbackTask = CallbackAsync();
+            }
+        }
     }
 
     private async Task CallbackAsync()
@@ -128,7 +170,10 @@ internal sealed class OutboxLockRenewalTimer<TOutboxMessage> : IOutboxLockRenewa
         }
         finally
         {
-            _renewingLock = false;
+            lock (_lock)
+            {
+                _renewingLock = false;
+            }
         }
     }
 }

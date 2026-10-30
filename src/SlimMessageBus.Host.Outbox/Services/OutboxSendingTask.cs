@@ -143,52 +143,64 @@ internal class OutboxSendingTask<TOutboxMessage>(
 
     private async Task Run()
     {
+        var cancellationToken = _loopCts.Token;
+        var recovering = false;
+        _logger.LogInformation("Outbox loop started");
         try
         {
-            _logger.LogInformation("Outbox loop started");
-
-            var scope = _serviceProvider.CreateScope();
-            try
+            do
             {
-                var outboxRepository = scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository<TOutboxMessage>>();
-                do
+                cancellationToken.ThrowIfCancellationRequested();
+                _asyncManualResetEvent.Reset();
+                try
                 {
-                    if (_loopCts.Token.IsCancellationRequested)
-                    {
-                        return;
-                    }
-
+                    // Fresh scoped connections and DbContexts on every poll, including
+                    // after a connection failure or an error resolving the repository.
+                    var scope = _serviceProvider.CreateScope();
                     try
                     {
-                        await SendMessages(scope.ServiceProvider, outboxRepository, _loopCts.Token);
+                        var repository = scope.ServiceProvider.GetRequiredService<IOutboxMessageRepository<TOutboxMessage>>();
+                        await SendMessages(scope.ServiceProvider, repository, cancellationToken).ConfigureAwait(false);
                     }
-                    catch (Exception e)
+                    finally
                     {
-                        _logger.LogError(e, "Error while processing outbox messages");
+                        if (scope is IAsyncDisposable asyncDisposable)
+                        {
+                            await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            scope.Dispose();
+                        }
                     }
-                } while (await _asyncManualResetEvent.Wait(_outboxSettings.PollIdleSleep, _loopCts.Token).ConfigureAwait(false) || !_loopCts.Token.IsCancellationRequested);
-            }
-            catch (TaskCanceledException)
-            {
-                // do nothing
-            }
-            finally
-            {
-                if (scope is IAsyncDisposable asyncDisposable)
-                {
-                    await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                    if (recovering)
+                    {
+                        _logger.LogInformation("Outbox processing recovered after a failed polling cycle");
+                        recovering = false;
+                    }
                 }
-                else
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
-                    scope.Dispose();
+                    break;
                 }
-
-                _logger.LogInformation("Outbox loop stopped");
-            }
+                catch (Exception e)
+                {
+                    recovering = true;
+                    _logger.LogError(e, "Error while processing outbox messages; the next poll will use a fresh scope");
+                }
+            } while (await _asyncManualResetEvent.Wait(_outboxSettings.PollIdleSleep, cancellationToken).ConfigureAwait(false) || !cancellationToken.IsCancellationRequested);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Normal shutdown.
         }
         catch (Exception e)
         {
             _logger.LogError(e, "Outbox loop has crashed");
+        }
+        finally
+        {
+            _logger.LogInformation("Outbox loop stopped");
         }
     }
 
@@ -209,31 +221,45 @@ internal class OutboxSendingTask<TOutboxMessage>(
 
         _logger.LogDebug("Lock duration set to {LockDuration} with a lock renewal interval of {LockRenewalInterval}", lockDuration, lockInterval);
 
-        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
         var messageBus = serviceProvider.GetRequiredService<IMessageBus>();
         var lockRenewalTimerFactory = serviceProvider.GetRequiredService<IOutboxLockRenewalTimerFactory>();
-        using var lockRenewalTimer = lockRenewalTimerFactory.CreateRenewalTimer(lockDuration, lockInterval, _ => cts.Cancel(), cts.Token);
+        var lockRenewalTimer = lockRenewalTimerFactory.CreateRenewalTimer(lockDuration, lockInterval, _ => cts.Cancel(), cts.Token);
 
-        var compositeMessageBus = messageBus as ICompositeMessageBus;
-        var messageBusTarget = messageBus as IMessageBusTarget;
-
-        var runAgain = false;
-        var count = 0;
-        do
+        try
         {
-            _asyncManualResetEvent.Reset();
-            lockRenewalTimer.Start();
+            var compositeMessageBus = messageBus as ICompositeMessageBus;
+            var messageBusTarget = messageBus as IMessageBusTarget;
 
-            var outboxMessages = await outboxRepository.LockAndSelect(lockRenewalTimer.InstanceId, _outboxSettings.PollBatchSize, _outboxSettings.MaintainSequence, lockRenewalTimer.LockDuration, cts.Token);
-            var result = await ProcessMessages(outboxRepository, outboxMessages, compositeMessageBus, messageBusTarget, cts.Token);
-            runAgain = result.RunAgain;
-            count += result.Count;
+            var runAgain = false;
+            var count = 0;
+            do
+            {
+                _asyncManualResetEvent.Reset();
+                lockRenewalTimer.Start();
 
-            lockRenewalTimer.Stop();
-        } while (!cts.Token.IsCancellationRequested && runAgain);
+                var outboxMessages = await outboxRepository.LockAndSelect(lockRenewalTimer.InstanceId, _outboxSettings.PollBatchSize, _outboxSettings.MaintainSequence, lockRenewalTimer.LockDuration, cts.Token);
+                var result = await ProcessMessages(outboxRepository, outboxMessages, compositeMessageBus, messageBusTarget, cts.Token);
+                runAgain = result.RunAgain;
+                count += result.Count;
 
-        return count;
+                lockRenewalTimer.Stop();
+            } while (!cts.Token.IsCancellationRequested && runAgain);
+
+            return count;
+        }
+        finally
+        {
+            if (lockRenewalTimer is IAsyncDisposable asyncDisposable)
+            {
+                await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                lockRenewalTimer.Dispose();
+            }
+        }
     }
 
     async internal Task<(bool RunAgain, int Count)> ProcessMessages(IOutboxMessageRepository<TOutboxMessage> outboxRepository, IReadOnlyCollection<TOutboxMessage> outboxMessages, ICompositeMessageBus compositeMessageBus, IMessageBusTarget messageBusTarget, CancellationToken cancellationToken)

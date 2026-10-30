@@ -10,6 +10,7 @@ Please read the [Introduction](intro.md) before reading this provider documentat
   - [Direct Connection](#direct-connection)
     - [PostgreSQL](#postgresql-1)
     - [SQL Server](#sql-server-1)
+  - [SQL Server authentication and reconnect recovery](#sql-server-authentication-and-reconnect-recovery)
 - [Options](#options)
   - [UseOutbox for Producers](#useoutbox-for-producers)
   - [Transactions for Consumers](#transactions-for-consumers)
@@ -100,13 +101,47 @@ builder.Services.AddSlimMessageBus(mbb =>
 });
 
 // SMB requires the SqlConnection to be registered in the container
-builder.Services.AddTransient(svp =>
+builder.Services.AddScoped(svp =>
 {
     var configuration = svp.GetRequiredService<IConfiguration>();
     var connectionString = configuration.GetConnectionString("DefaultConnection");
     return new SqlConnection(connectionString);
 });
 ```
+
+### SQL Server authentication and reconnect recovery
+
+For Azure SQL, prefer SqlClient's built-in Microsoft Entra authentication instead of assigning an access token once in a connection factory. SqlClient acquires and renews tokens when establishing connections. Keep the `SqlConnection` (or EF `DbContext`) registration scoped, and let connection pooling reuse physical connections.
+
+On .NET 8 and .NET 10, the SQL outbox currently uses Microsoft.Data.SqlClient 7.0.2. Applications using its built-in Entra authentication modes must also reference the matching Azure extension package:
+
+```xml
+<PackageReference Include="Microsoft.Data.SqlClient.Extensions.Azure" Version="7.0.2" />
+```
+
+Keep the extension and driver versions aligned if the application overrides the SqlClient version; see the [7.0.2 package alignment notes](https://github.com/dotnet/SqlClient/blob/main/release-notes/7.0/7.0.2.md). SqlClient 6.x, used by the older target frameworks, includes these authentication providers in the driver itself.
+
+For a system-assigned managed identity exposed by the Azure host, configure the application's connection string as follows:
+
+```text
+Server=tcp:<server>.database.windows.net,1433;Database=<database>;Authentication=Active Directory Managed Identity;Encrypt=True;TrustServerCertificate=False;
+```
+
+For a user-assigned managed identity, add `User ID=<managed-identity-client-id>`. For an AKS pod configured with Microsoft Entra Workload ID federation, use:
+
+```text
+Server=tcp:<server>.database.windows.net,1433;Database=<database>;Authentication=Active Directory Workload Identity;Encrypt=True;TrustServerCertificate=False;
+```
+
+Workload identity requires `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_FEDERATED_TOKEN_FILE` in the pod. The identity must have database access and the permissions required for outbox schema provisioning. Authentication mode alone does not configure the Azure host, federation, or database permissions. See [Microsoft's authentication guide](https://learn.microsoft.com/en-us/sql/connect/ado-net/sql/azure-active-directory-authentication) and the [SqlClient 7.0 authentication package change](https://github.com/dotnet/SqlClient/blob/main/release-notes/7.0/7.0.0.md).
+
+Use the same connection registration shown above; do not also assign `AccessToken` or `AccessTokenCallback` when using a built-in authentication mode. If custom token acquisition is required, use a stable `AccessTokenCallback` that returns the token and its expiration, rather than a fixed `AccessToken` string. Do not assume a fixed token lifetime.
+
+The outbox sender creates a new DI scope for each polling cycle and disposes it before waiting for the next poll. Its lock-renewal factory is scoped too, with a separate connection for renewal; asynchronous renewal completes before the scopes are disposed. After a poll or repository-resolution failure, the next poll resolves fresh services without restarting the bus. Failures and subsequent recovery are logged. Register custom connection factories and repositories so they return fresh scoped instances rather than a singleton connection.
+
+SQL connection opening uses `SqlSettings.OperationRetry` for bounded retries of qualifying connection failures, handles broken connections by closing them before reopening, and honors the operation's cancellation token. `RetryCount` counts total attempts and must be at least one. Invalid-login (18456) and permission-denied (229) errors are propagated without connection retries; the next polling cycle can recover after the underlying configuration or permission issue is corrected.
+
+Connection recovery does not resume an interrupted transaction or replay an operation whose result is unknown. A disconnected active transaction fails and must be retried as a complete unit of work by its owner. The existing command retry policy is unchanged. Outbox delivery remains at least once: a disconnect after publishing but before recording delivery can cause redelivery, so consumers should tolerate duplicates.
 
 ## Options
 
