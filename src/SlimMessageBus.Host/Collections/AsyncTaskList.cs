@@ -13,21 +13,36 @@ public class AsyncTaskList : IAsyncTaskList
 {
     private readonly object _currentTaskLock = new();
     private Task _currentTask = null;
+    private Func<Task> _currentTaskFactory;
 
     public void Add(Func<Task> taskFactory, CancellationToken cancellationToken)
     {
-        static async Task AddNext(Task prevTask, Func<Task> taskFactory)
+        static async Task AddNext(Task prevTask, Func<Task> taskFactory, CancellationToken cancellationToken)
         {
-            await prevTask;
+            if (prevTask != null)
+            {
+                await prevTask.ConfigureAwait(false);
+            }
+            cancellationToken.ThrowIfCancellationRequested();
             await taskFactory();
         }
 
         lock (_currentTaskLock)
         {
-            var prevTask = _currentTask;
-            _currentTask = prevTask != null
-                ? AddNext(prevTask, taskFactory)
-                : taskFactory();
+            var prevFactory = _currentTaskFactory;
+            Task task = null;
+            // Each entry caches success independently, so retrying a failed chain does not
+            // repeat initialization steps that have already finished successfully.
+            Task GetOrStartTask()
+            {
+                if (task == null || task.IsFaulted || task.IsCanceled)
+                {
+                    task = AddNext(prevFactory?.Invoke(), taskFactory, cancellationToken);
+                }
+                return task;
+            }
+            _currentTaskFactory = GetOrStartTask;
+            _currentTask = GetOrStartTask();
         }
     }
 
@@ -38,7 +53,11 @@ public class AsyncTaskList : IAsyncTaskList
     /// <returns></returns>
     public async Task EnsureAllFinished()
     {
-        var initTask = _currentTask;
+        Task initTask;
+        lock (_currentTaskLock)
+        {
+            initTask = _currentTask = _currentTaskFactory?.Invoke();
+        }
         if (initTask != null)
         {
             await initTask.ConfigureAwait(false);
@@ -49,6 +68,7 @@ public class AsyncTaskList : IAsyncTaskList
                 if (ReferenceEquals(_currentTask, initTask))
                 {
                     _currentTask = null;
+                    _currentTaskFactory = null;
                 }
             }
         }

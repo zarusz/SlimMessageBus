@@ -34,6 +34,8 @@ SQL server
 
 Outbox plugin can work in combination with any transport provider.
 
+The outbox provisions its database schema during bus initialization. SQL Server schema migration retries use a fresh transaction after a rollback. Concurrent initialization calls share the migration attempt, and successful migrations are cached. A failed migration can run again on a subsequent publish or bus start, so fixing a database permission or availability problem does not require recreating the bus. The database account must have the permissions required to create and update the outbox schema.
+
 ## Configuration
 
 ### Entity Framework

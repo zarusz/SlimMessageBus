@@ -132,7 +132,11 @@ internal class OutboxSendingTask<TOutboxMessage>(
     {
         lock (_migrateSchemaTaskLock)
         {
-            // We optimize to ever only run once the schema migration, regardless if it was triggered from 1) bus created lifecycle or 2) outbox sending loop.
+            // Share an in-flight migration and cache success, but allow a failed attempt to recover.
+            if (_migrateSchemaTask is { IsFaulted: true } or { IsCanceled: true })
+            {
+                _migrateSchemaTask = null;
+            }
             return _migrateSchemaTask ??= MigrateSchema(serviceProvider, cancellationToken);
         }
     }
