@@ -31,14 +31,9 @@ public abstract class AbstractSqlTransactionService(SqlConnection connection) : 
 
     public async virtual Task BeginTransaction()
     {
-        if (_transactionCompleted)
-        {
-            throw new MessageBusException("Transaction was completed already");
-        }
-
         if (_transactionCount == 0)
         {
-            // Start transaction
+            // Start a fresh transaction, including after a previous commit or rollback.
             await OnBeginTransaction();
             _transactionFailed = false;
             _transactionCompleted = false;
