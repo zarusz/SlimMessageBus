@@ -22,7 +22,7 @@ public class SqlRepository : CommonSqlRepository, ISqlRepository
 
     public async Task UpsertSubscription(string path, string subscriptionName, CancellationToken cancellationToken)
     {
-        await EnsureConnection();
+        await EnsureConnection(cancellationToken);
         await ExecuteNonQuery(_settings.OperationRetry, _template.UpsertSubscription, cmd =>
         {
             cmd.Parameters.Add(PathParameter, SqlDbType.NVarChar).Value = path;
@@ -32,7 +32,7 @@ public class SqlRepository : CommonSqlRepository, ISqlRepository
 
     public async Task<IReadOnlyCollection<string>> GetSubscriptions(string path, CancellationToken cancellationToken)
     {
-        await EnsureConnection();
+        await EnsureConnection(cancellationToken);
 
         using var cmd = CreateCommand();
         cmd.CommandText = _template.GetSubscriptions;
@@ -50,7 +50,7 @@ public class SqlRepository : CommonSqlRepository, ISqlRepository
 
     public async Task Insert(SqlTransportMessage message, CancellationToken cancellationToken)
     {
-        await EnsureConnection();
+        await EnsureConnection(cancellationToken);
 
         var insertSql = _settings.IdGeneration.Mode switch
         {
@@ -76,7 +76,7 @@ public class SqlRepository : CommonSqlRepository, ISqlRepository
 
     public async Task<IReadOnlyCollection<SqlTransportMessage>> LockAndSelect(string path, PathKind pathKind, string subscriptionName, string instanceId, int batchSize, TimeSpan lockDuration, CancellationToken cancellationToken)
     {
-        await EnsureConnection();
+        await EnsureConnection(cancellationToken);
 
         using var cmd = CreateCommand();
         cmd.CommandText = _template.LockAndSelect;

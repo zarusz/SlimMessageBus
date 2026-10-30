@@ -80,7 +80,7 @@ public abstract class CommonSqlMigrationService<TRepository, TSettings>
 
     public async virtual Task Migrate(CancellationToken token)
     {
-        await Repository.EnsureConnection();
+        await Repository.EnsureConnection(token);
 
         try
         {
