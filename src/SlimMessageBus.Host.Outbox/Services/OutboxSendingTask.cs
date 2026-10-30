@@ -80,7 +80,7 @@ internal class OutboxSendingTask<TOutboxMessage>(
     {
         if (eventType == MessageBusLifecycleEventType.Created)
         {
-            return EnsureMigrateSchema(_serviceProvider, default);
+            return EnsureMigrateSchema(_serviceProvider, CancellationToken.None);
         }
         if (eventType == MessageBusLifecycleEventType.Started)
         {
@@ -327,7 +327,7 @@ internal class OutboxSendingTask<TOutboxMessage>(
 
         if (updated.Count != batch.Count)
         {
-            var failed = batch.Where(x => !updated.Contains(x.OutboxMessage!)).Select(x => x.OutboxMessage).ToHashSet();
+            var failed = batch.Where(x => !updated.Contains(x.OutboxMessage)).Select(x => x.OutboxMessage).ToHashSet();
             await outboxRepository.IncrementDeliveryAttempt(failed, _outboxSettings.MaxDeliveryAttempts, CancellationToken.None).ConfigureAwait(false);
 
             _logger.LogDebug("Failed to publish {MessageCount} messages in a batch of {BatchSize} to pathGroup {Path} on {BusName} bus", failed.Count, batch.Count, path, busName);

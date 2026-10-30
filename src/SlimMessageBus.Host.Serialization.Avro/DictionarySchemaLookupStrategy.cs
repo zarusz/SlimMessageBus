@@ -31,11 +31,17 @@ public class DictionarySchemaLookupStrategy : ISchemaLookupStrategy
         if (!_registry.TryGetValue(type, out var schema))
         {
             var msg = $"The type {type} does not have a schema registered. Check your configuration.";
-            _logger.LogError(msg);
+            if (_logger.IsEnabled(LogLevel.Error))
+            {
+                _logger.LogError("The type {MessageType} does not have a schema registered. Check your configuration.", type);
+            }
             throw new InvalidOperationException(msg);
         }
 
-        _logger.LogDebug("Schema for type {0} is {1}", type, schema);
+        if (_logger.IsEnabled(LogLevel.Debug))
+        {
+            _logger.LogDebug("Schema for type {MessageType} is {Schema}", type, schema);
+        }
         return schema;
     }
 }

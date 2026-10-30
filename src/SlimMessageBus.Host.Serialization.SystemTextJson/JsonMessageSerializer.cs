@@ -40,7 +40,7 @@ public class JsonMessageSerializer : IMessageSerializer, IMessageSerializer<stri
         => JsonSerializer.SerializeToUtf8Bytes(message, _useActualTypeOnSerialize && message != null ? message.GetType() : messageType, Options);
 
     public object Deserialize(Type messageType, IReadOnlyDictionary<string, object> headers, byte[] payload, object transportMessage)
-        => JsonSerializer.Deserialize(payload, messageType, Options)!;
+        => JsonSerializer.Deserialize(payload, messageType, Options);
 
     #endregion
 
@@ -50,7 +50,7 @@ public class JsonMessageSerializer : IMessageSerializer, IMessageSerializer<stri
         => JsonSerializer.Serialize(message, _useActualTypeOnSerialize && message != null ? message.GetType() : messageType, Options);
 
     public object Deserialize(Type messageType, IReadOnlyDictionary<string, object> headers, string payload, object transportMessage)
-        => JsonSerializer.Deserialize(payload, messageType, Options)!;
+        => JsonSerializer.Deserialize(payload, messageType, Options);
 
     #endregion
 

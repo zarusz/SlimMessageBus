@@ -45,7 +45,10 @@ public class ReflectionSchemaLookupStrategy : ISchemaLookupStrategy
         if (field == null || field.FieldType != typeof(Schema))
         {
             var msg = $"The type {type} does not have a static {_fieldName} field of type {typeof(Schema)}. Check your configuration.";
-            _logger.LogError(msg);
+            if (_logger.IsEnabled(LogLevel.Error))
+            {
+                _logger.LogError("The type {MessageType} does not have a static {FieldName} field of type {SchemaType}. Check your configuration.", type, _fieldName, typeof(Schema));
+            }
             throw new InvalidOperationException(msg);
         }
 

@@ -12,7 +12,7 @@ public static class IEnumerableExtensionsTests
             var batchSize = 2;
 
             // Act
-            var act = () => items.Batch(batchSize).ToList();
+            var act = () => items.Batch(batchSize);
 
             // Assert
             act.Should().Throw<ArgumentNullException>().WithMessage("Value cannot be null. (Parameter 'items')");
@@ -26,7 +26,7 @@ public static class IEnumerableExtensionsTests
             var batchSize = 0;
 
             // Act
-            var act = () => items.Batch(batchSize).ToList();
+            var act = () => items.Batch(batchSize);
 
             // Assert
             act.Should().Throw<ArgumentOutOfRangeException>().WithMessage("Batch size must be greater than zero. (Parameter 'batchSize')");
@@ -40,10 +40,21 @@ public static class IEnumerableExtensionsTests
             var batchSize = -1;
 
             // Act
-            var act = () => items.Batch(batchSize).ToList();
+            var act = () => items.Batch(batchSize);
 
             // Assert
             act.Should().Throw<ArgumentOutOfRangeException>().WithMessage("Batch size must be greater than zero. (Parameter 'batchSize')");
+        }
+
+        [Fact]
+        public void Batch_ValidInput_DefersEnumeration()
+        {
+            var items = new Mock<IEnumerable<int>>(MockBehavior.Strict);
+
+            var batches = items.Object.Batch(2);
+
+            batches.Should().NotBeNull();
+            items.Verify(x => x.GetEnumerator(), Times.Never);
         }
 
         [Fact]

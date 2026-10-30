@@ -199,7 +199,7 @@ public class MqttMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<Mq
         {
             _messages.Add(message);
 
-            _logger.LogInformation("Got message {0} on topic {1}.", message.Counter, Context.Path);
+            _logger.LogInformation("Got message {MessageCounter} on topic {Path}.", message.Counter, Context.Path);
             return Task.CompletedTask;
         }
 

@@ -36,7 +36,7 @@ public class GoogleProtobufMessageSerializer : IMessageSerializer, IMessageSeria
         }
         catch (TargetInvocationException exception)
         {
-            _logger.LogWarning(exception, "Failed to call 'ParseFrom' of type [{typename}]", messageType.FullName);
+            _logger.LogWarning(exception, "Failed to call 'ParseFrom' of type [{TypeName}]", messageType.FullName);
 
             throw exception.InnerException ?? exception;
         }

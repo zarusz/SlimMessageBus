@@ -14,7 +14,7 @@ public delegate Task RabbitMqTopologyInitializer(IChannel channel, Func<Task> ap
 /// <param name="message">The message</param>
 /// <param name="messageProperties">The message properties</param>
 /// <returns></returns>
-public delegate string RabbitMqMessageRoutingKeyProvider<T>(T message, IBasicProperties messageProperties);
+public delegate string RabbitMqMessageRoutingKeyProvider<in T>(T message, IBasicProperties messageProperties);
 
 /// <summary>
 /// Represents a message modifier for a given message.
@@ -23,7 +23,7 @@ public delegate string RabbitMqMessageRoutingKeyProvider<T>(T message, IBasicPro
 /// <param name="message">The message</param>
 /// <param name="messageProperties">The message properties to be modified</param>
 /// <returns></returns>
-public delegate void RabbitMqMessagePropertiesModifier<T>(T message, IBasicProperties messageProperties);
+public delegate void RabbitMqMessagePropertiesModifier<in T>(T message, IBasicProperties messageProperties);
 
 /// <summary>
 /// Represents an action to confirm the message.

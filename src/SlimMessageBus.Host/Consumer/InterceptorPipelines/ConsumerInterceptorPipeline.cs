@@ -50,7 +50,7 @@ internal class ConsumerInterceptorPipeline
 
         // Call the relevant generic version of the method
         var methodFunc = _runtimeTypeCache.GenericMethod[(typeof(ConsumerInterceptorPipeline), nameof(Next), _responseType)];
-        return (Task<object>)methodFunc(this);
+        return methodFunc(this);
     }
 
     private async Task<TResponse> NextOfTyped<TResponse>() => (TResponse)await Next();

@@ -51,7 +51,7 @@ public abstract partial class AbstractConsumer : HasProviderExtensions, IAsyncDi
     /// <returns></returns>
     public async Task DoStart()
     {
-        await _semaphore.WaitAsync().ConfigureAwait(false);
+        await _semaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
             await InternalOnStart().ConfigureAwait(false);
@@ -80,7 +80,7 @@ public abstract partial class AbstractConsumer : HasProviderExtensions, IAsyncDi
     /// <returns></returns>
     public async Task DoStop()
     {
-        await _semaphore.WaitAsync().ConfigureAwait(false);
+        await _semaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
             await InternalOnStop().ConfigureAwait(false);
@@ -98,7 +98,7 @@ public abstract partial class AbstractConsumer : HasProviderExtensions, IAsyncDi
             return;
         }
 
-        await _semaphore.WaitAsync();
+        await _semaphore.WaitAsync(CancellationToken.None);
         _starting = true;
         try
         {
@@ -129,7 +129,7 @@ public abstract partial class AbstractConsumer : HasProviderExtensions, IAsyncDi
             return;
         }
 
-        await _semaphore.WaitAsync();
+        await _semaphore.WaitAsync(CancellationToken.None);
         _stopping = true;
         try
         {

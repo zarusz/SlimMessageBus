@@ -213,6 +213,8 @@ mbb.AddAvroSerializer(mf, sl);
 
 The default `AvroMessageSerializer` constructor will use the `ReflectionMessageCreationStategy` and `ReflectionSchemaLookupStrategy` strategies. While these are slower bacause of usage of reflection, it is certainly more convenient to use.
 
+Avro strategy errors include a structured `MessageType` log property. Missing schema fields also include `FieldName` and `SchemaType`, so logging providers can filter these configuration errors without parsing the message text. Schema and message creation diagnostics are emitted at `Debug` level.
+
 ## GoogleProtobuf
 
 The GoogleProtobuf plugin brings in Protobuf serialization using the [Google.Protobuf](https://www.nuget.org/packages/Google.Protobuf) library.

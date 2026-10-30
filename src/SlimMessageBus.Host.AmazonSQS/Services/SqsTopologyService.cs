@@ -133,9 +133,9 @@ internal class SqsTopologyService
 
                 _logger.LogInformation("Created queue {QueueName} with ARN {QueueArn}", queue, queueArn);
             }
-            catch (QueueNameExistsException)
+            catch (QueueNameExistsException e)
             {
-                _logger.LogInformation("Queue {QueueName} already exists", queue);
+                _logger.LogInformation(e, "Queue {QueueName} already exists", queue);
             }
         }
         catch (Exception ex)
@@ -201,9 +201,9 @@ internal class SqsTopologyService
                 _cache.SetMeta(topic, new(url: null, arn: createTopicResponse.TopicArn, PathKind.Topic));
                 _logger.LogInformation("Created topic {TopicName}", topic);
             }
-            catch (QueueNameExistsException)
+            catch (QueueNameExistsException e)
             {
-                _logger.LogInformation("Topic {TopicName} already exists", topic);
+                _logger.LogInformation(e, "Topic {TopicName} already exists", topic);
             }
         }
         catch (Exception ex)

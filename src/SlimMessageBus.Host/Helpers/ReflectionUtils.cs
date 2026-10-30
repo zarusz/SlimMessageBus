@@ -30,7 +30,7 @@ public static class ReflectionUtils
     {
         static Expression ConvertIfNecessary(Expression expr, Type targetType) => expr.Type == targetType ? expr : Expression.Convert(expr, targetType);
 
-        var delegateSignature = typeof(TDelegate).GetMethod("Invoke")!;
+        var delegateSignature = typeof(TDelegate).GetMethod("Invoke");
         var delegateReturnType = delegateSignature.ReturnType;
         var delegateArgumentTypes = delegateSignature.GetParameters().Select(x => x.ParameterType).ToArray();
 
@@ -106,7 +106,7 @@ public static class ReflectionUtils
         ArgumentNullException.ThrowIfNull(methodInfo);
 #endif
 
-        var delegateSignature = typeof(TDelegate).GetMethod("Invoke")!;
+        var delegateSignature = typeof(TDelegate).GetMethod("Invoke");
         Debug.Assert(delegateSignature.ReturnType.IsAssignableFrom(methodInfo.ReturnType));
 
         var instanceParameter = Expression.Parameter(typeof(object), "instance");
@@ -153,7 +153,7 @@ public static class ReflectionUtils
         }
 
         var callExpression = Expression.Call(
-            Expression.Convert(instanceParameter, methodInfo.DeclaringType!),
+            Expression.Convert(instanceParameter, methodInfo.DeclaringType),
             methodInfo,
             argumentExpressions);
 

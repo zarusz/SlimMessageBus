@@ -287,7 +287,7 @@ public abstract partial class MessageBusBase : IDisposable, IAsyncDisposable,
     {
         if (disposing)
         {
-            DisposeAsyncInternal().ConfigureAwait(false).GetAwaiter().GetResult();
+            DisposeAsyncInternal().AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
         }
     }
 
