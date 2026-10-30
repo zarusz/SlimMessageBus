@@ -1,6 +1,8 @@
 namespace SlimMessageBus.Host.Outbox.Sql.Test;
 
 [Collection(nameof(SqlServerCollection))]
+[Trait("Category", "Integration")]
+[Trait("Transport", "Outbox.Sql")]
 public class SqlOutboxMigrationRetryTests(SqlServerFixture fixture)
 {
     [Theory]

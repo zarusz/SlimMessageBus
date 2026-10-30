@@ -17,13 +17,28 @@ public abstract class CommonSqlRepository : ISqlConnectionProvider
         TransactionService = transactionService;
     }
 
-    public async Task EnsureConnection()
-    {
-        if (Connection.State != ConnectionState.Open)
+    public Task EnsureConnection() => EnsureConnection(CancellationToken.None);
+
+    public Task EnsureConnection(CancellationToken cancellationToken) =>
+        SqlHelper.RetryIfTransientConnectionError(Logger, _settings.OperationRetry, async () =>
         {
-            await Connection.OpenAsync();
-        }
-    }
+            cancellationToken.ThrowIfCancellationRequested();
+            if (Connection.State == ConnectionState.Broken)
+            {
+                Connection.Close();
+            }
+            if (Connection.State != ConnectionState.Open)
+            {
+                // Reopening cannot restore an interrupted transaction. Its owner must
+                // roll it back and retry the complete unit of work in a fresh scope.
+                if (TransactionService.CurrentTransaction != null)
+                {
+                    throw new MessageBusException("Cannot reopen a SQL connection while a transaction is active");
+                }
+                await Connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            }
+            return true;
+        }, cancellationToken);
 
     protected virtual SqlCommand CreateCommand()
     {

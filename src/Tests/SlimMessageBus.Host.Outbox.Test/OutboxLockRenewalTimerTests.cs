@@ -2,6 +2,27 @@
 
 public class OutboxLockRenewalTimerTests
 {
+    [Fact]
+    public async Task DisposeAsync_WaitsForInFlightRenewalBeforeScopeCanBeDisposed()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _outboxRepositoryMock.Setup(x => x.RenewLock(_instanceId, _lockDuration, _cancellationTokenSource.Token))
+            .Returns(() => { entered.TrySetResult(); return completion.Task; });
+        var timer = new OutboxLockRenewalTimer<OutboxMessage>(_loggerMock.Object, _outboxRepositoryMock.Object,
+            _instanceIdProviderMock.Object, _lockDuration, TimeSpan.FromMilliseconds(10), _lockLostAction, _cancellationTokenSource.Token);
+        timer.Start();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var disposal = timer.DisposeAsync().AsTask();
+        disposal.IsCompleted.Should().BeFalse();
+        completion.SetResult(true);
+        await disposal.WaitAsync(TimeSpan.FromSeconds(5));
+
+        timer.Active.Should().BeFalse();
+        _outboxRepositoryMock.Verify(x => x.RenewLock(_instanceId, _lockDuration, _cancellationTokenSource.Token), Times.Once);
+    }
+
     private readonly Mock<ILogger<OutboxLockRenewalTimer<OutboxMessage>>> _loggerMock;
     private readonly Mock<IOutboxMessageRepository<OutboxMessage>> _outboxRepositoryMock;
     private readonly Mock<IInstanceIdProvider> _instanceIdProviderMock;

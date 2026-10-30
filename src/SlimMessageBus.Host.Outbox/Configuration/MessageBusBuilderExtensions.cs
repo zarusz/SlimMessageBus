@@ -42,7 +42,7 @@ public static class MessageBusBuilderExtensions
             services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageBusLifecycleInterceptor, OutboxCleanUpTask<TOutboxMessage>>(sp => sp.GetRequiredService<OutboxCleanUpTask<TOutboxMessage>>()));
 
             services.TryAddSingleton<IInstanceIdProvider, DefaultInstanceIdProvider>();
-            services.TryAddSingleton<IOutboxLockRenewalTimerFactory, OutboxLockRenewalTimerFactory<TOutboxMessage>>();
+            services.TryAddScoped<IOutboxLockRenewalTimerFactory, OutboxLockRenewalTimerFactory<TOutboxMessage>>();
 
             services.TryAddSingleton(svp =>
             {

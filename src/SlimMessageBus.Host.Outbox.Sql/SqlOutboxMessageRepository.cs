@@ -67,7 +67,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
             ? _sqlTemplate.InsertWithDatabaseId
             : _sqlTemplate.InsertWithClientId;
 
-        await EnsureConnection();
+        await EnsureConnection(cancellationToken);
 
         om.Id = (Guid)await ExecuteScalarAsync(Settings.SqlSettings.OperationRetry, template, cmd =>
         {
@@ -94,7 +94,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
 
     public async Task<IReadOnlyCollection<SqlOutboxMessage>> LockAndSelect(string instanceId, int batchSize, bool tableLock, TimeSpan lockDuration, CancellationToken cancellationToken)
     {
-        await EnsureConnection();
+        await EnsureConnection(cancellationToken);
 
         using var cmd = CreateCommand();
         cmd.CommandText = tableLock ? _sqlTemplate.LockTableAndSelect : _sqlTemplate.LockAndSelect;
@@ -145,7 +145,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
             return;
         }
 
-        await EnsureConnection();
+        await EnsureConnection(cancellationToken);
 
         var affected = await ExecuteNonQuery(Settings.SqlSettings.OperationRetry,
             _sqlTemplate.AbortDelivery,
@@ -165,7 +165,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
             return;
         }
 
-        await EnsureConnection();
+        await EnsureConnection(cancellationToken);
 
         var affected = await ExecuteNonQuery(Settings.SqlSettings.OperationRetry,
             _sqlTemplate.UpdateSent,
@@ -192,7 +192,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
             throw new ArgumentOutOfRangeException(nameof(maxDeliveryAttempts), "Must be larger than 0.");
         }
 
-        await EnsureConnection();
+        await EnsureConnection(cancellationToken);
 
         var affected = await ExecuteNonQuery(Settings.SqlSettings.OperationRetry,
             _sqlTemplate.IncrementDeliveryAttempt,
@@ -211,7 +211,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
 
     public async Task<int> DeleteSent(DateTimeOffset olderThan, int batchSize, CancellationToken cancellationToken)
     {
-        await EnsureConnection();
+        await EnsureConnection(cancellationToken);
 
         var affected = await ExecuteNonQuery(
             Settings.SqlSettings.OperationRetry,
@@ -230,7 +230,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
 
     public async Task<bool> RenewLock(string instanceId, TimeSpan lockDuration, CancellationToken cancellationToken)
     {
-        await EnsureConnection();
+        await EnsureConnection(cancellationToken);
 
         using var cmd = CreateCommand();
         cmd.CommandText = _sqlTemplate.RenewLock;
@@ -242,7 +242,7 @@ public class SqlOutboxMessageRepository : CommonSqlRepository, ISqlMessageOutbox
 
     internal async Task<IReadOnlyCollection<SqlOutboxAdminMessage>> GetAllMessages(CancellationToken cancellationToken)
     {
-        await EnsureConnection();
+        await EnsureConnection(cancellationToken);
 
         using var cmd = CreateCommand();
         cmd.CommandText = _sqlTemplate.AllMessages;
