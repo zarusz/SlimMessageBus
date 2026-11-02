@@ -143,6 +143,7 @@ public abstract class CommonSqlMigrationService<TRepository, TSettings>
             return cmd.Parameters.Add(new SqlParameter { Direction = ParameterDirection.ReturnValue });
         }, token: token);
 
-        return result == 0;
+        // Both immediate acquisition (0) and acquisition after waiting (1) succeed.
+        return result >= 0;
     }
 }
