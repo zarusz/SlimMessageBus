@@ -12,6 +12,11 @@ public class SqlMessageBusSettingsValidationService(MessageBusSettings settings,
             throw new ConfigurationMessageBusException("The SQL provider requires a connection string");
         }
 
+        if (providerSettings.PollImmediateDuration < TimeSpan.Zero)
+        {
+            throw new ConfigurationMessageBusException("The SQL provider poll immediate duration must not be negative");
+        }
+
         if (providerSettings.PollBatchSize <= 0)
         {
             throw new ConfigurationMessageBusException("The SQL provider poll batch size must be greater than 0");

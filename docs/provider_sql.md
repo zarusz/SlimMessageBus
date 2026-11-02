@@ -74,7 +74,8 @@ The most commonly configured settings are:
 - `DatabaseMigrationsTableName` - table used to track transport schema migrations.
 - `CommandTimeout` - optional SQL command timeout.
 - `TransactionIsolationLevel` - isolation level used by transport transactions. Defaults to `ReadCommitted`.
-- `PollDelay` - delay used when no message is available or after a transient polling error.
+- `PollDelay` - delay between empty polls, or after a transient polling error. Defaults to 250 milliseconds.
+- `PollImmediateDuration` - duration of immediate polling at startup and after a non-empty batch is dequeued. Defaults to zero, so every empty poll waits for `PollDelay`. Increase this independently of `PollDelay` to keep polling immediately for a short burst; setting it equal to `PollDelay` restores the previous behavior.
 - `PollBatchSize` - maximum number of messages locked by one polling operation.
 - `LockDuration` - how long a message lock is held before another consumer may pick it up.
 - `MaxDeliveryAttempts` - number of processing attempts before a message is marked aborted.
