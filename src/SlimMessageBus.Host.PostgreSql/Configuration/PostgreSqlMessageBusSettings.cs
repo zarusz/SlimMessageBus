@@ -9,6 +9,8 @@ public class PostgreSqlMessageBusSettings : IRelationalMessageBusSettings
     public TimeSpan? CommandTimeout { get; set; }
     public IsolationLevel TransactionIsolationLevel { get; set; } = IsolationLevel.ReadCommitted;
     public TimeSpan PollDelay { get; set; } = TimeSpan.FromMilliseconds(250);
+    /// <inheritdoc />
+    public TimeSpan PollImmediateDuration { get; set; } = TimeSpan.Zero;
     public TimeSpan LockDuration { get; set; } = TimeSpan.FromSeconds(30);
     public int PollBatchSize { get; set; } = 10;
     public int MaxDeliveryAttempts { get; set; } = 10;

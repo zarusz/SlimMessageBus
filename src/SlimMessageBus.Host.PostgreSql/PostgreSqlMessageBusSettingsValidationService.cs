@@ -12,6 +12,11 @@ public class PostgreSqlMessageBusSettingsValidationService(MessageBusSettings se
             throw new ConfigurationMessageBusException("The PostgreSQL provider requires a connection string");
         }
 
+        if (providerSettings.PollImmediateDuration < TimeSpan.Zero)
+        {
+            throw new ConfigurationMessageBusException("The PostgreSQL provider poll immediate duration must not be negative");
+        }
+
         if (providerSettings.PollBatchSize <= 0)
         {
             throw new ConfigurationMessageBusException("The PostgreSQL provider poll batch size must be greater than 0");

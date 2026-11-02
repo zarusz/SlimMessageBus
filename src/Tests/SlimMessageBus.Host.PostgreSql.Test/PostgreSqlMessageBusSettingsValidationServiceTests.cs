@@ -27,6 +27,23 @@ public class PostgreSqlMessageBusSettingsValidationServiceTests
         act.Should().NotThrow();
     }
 
+    [Fact]
+    public void PollImmediateDuration_DefaultsToZero()
+    {
+        _providerSettings.PollImmediateDuration.Should().Be(TimeSpan.Zero);
+    }
+
+    [Fact]
+    public void AssertSettings_GivenPollImmediateDurationIsNegative_ThenThrows()
+    {
+        _providerSettings.PollImmediateDuration = TimeSpan.FromMilliseconds(-1);
+
+        var act = _subject.AssertSettings;
+
+        act.Should().Throw<ConfigurationMessageBusException>()
+           .WithMessage("*poll immediate duration*");
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

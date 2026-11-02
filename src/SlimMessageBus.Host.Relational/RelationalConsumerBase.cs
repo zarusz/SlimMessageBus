@@ -126,7 +126,7 @@ public abstract class RelationalConsumerBase<TMessage, TRepository> : AbstractCo
 
     private async Task DelayWhenIdle(Stopwatch idle)
     {
-        if (idle.Elapsed >= _providerSettings.PollDelay)
+        if (idle.Elapsed >= _providerSettings.PollImmediateDuration)
         {
             await Task.Delay(_providerSettings.PollDelay, CancellationToken).ConfigureAwait(false);
         }

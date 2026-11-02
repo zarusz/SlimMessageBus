@@ -4,6 +4,8 @@ public class SqlMessageBusSettings : SqlSettings, IRelationalMessageBusSettings
 {
     public string ConnectionString { get; set; }
     public TimeSpan PollDelay { get; set; } = TimeSpan.FromMilliseconds(250);
+    /// <inheritdoc />
+    public TimeSpan PollImmediateDuration { get; set; } = TimeSpan.Zero;
     public TimeSpan LockDuration { get; set; } = TimeSpan.FromSeconds(30);
     public int PollBatchSize { get; set; } = 10;
     public int MaxDeliveryAttempts { get; set; } = 10;
