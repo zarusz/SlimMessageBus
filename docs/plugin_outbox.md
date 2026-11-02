@@ -37,6 +37,8 @@ Outbox plugin can work in combination with any transport provider.
 
 The outbox provisions its database schema during bus initialization. SQL Server schema migration retries use a fresh transaction after a rollback. Concurrent initialization calls share the migration attempt, and successful migrations are cached. A failed migration can run again on a subsequent publish or bus start, so fixing a database permission or availability problem does not require recreating the bus. The database account must have the permissions required to create and update the outbox schema.
 
+SQL Server migrations across application instances are serialized using a transaction-owned application lock. Both successful `sp_getapplock` return codes are accepted: `0` means the lock was acquired immediately, and `1` means it was acquired after waiting for another instance. Negative return values still indicate failure. See [SQL Server application lock return codes](https://learn.microsoft.com/en-us/sql/relational-databases/system-stored-procedures/sp-getapplock-transact-sql#return-code-values).
+
 ## Configuration
 
 ### Entity Framework
