@@ -60,6 +60,8 @@ Nuget package: [SlimMessageBus.Host.Serialization.SystemTextJson](https://www.nu
 
 The Json plugin brings in JSON serialization using the [System.Text.Json](https://www.nuget.org/packages/System.Text.Json) library.
 
+The plugin uses the System.Text.Json 10 NuGet package on .NET Standard 2.0, .NET 6, and .NET 8. On .NET 10, it uses the version included in the runtime.
+
 To use it install the nuget package `SlimMessageBus.Host.Serialization.SystemTextJson` and then configure the bus similar to Json above.
 
 ```cs
