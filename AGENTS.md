@@ -27,6 +27,7 @@ GitHub repository: https://github.com/zarusz/SlimMessageBus
 ## Development Notes
 
 - Use the `feature/` prefix for new working branches unless the user explicitly requests another prefix.
+- Use `git commit --signoff` for every commit, including amended commits, and verify the `Signed-off-by` trailer before pushing.
 - Follow existing patterns in the package/plugin being changed.
 - Keep core interfaces in `SlimMessageBus` transport-agnostic.
 - Keep common host behavior in `SlimMessageBus.Host` or shared host extension projects.
