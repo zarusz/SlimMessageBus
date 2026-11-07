@@ -217,10 +217,10 @@ builder.Services.AddScoped(svp =>
 
 For Azure SQL, prefer SqlClient's built-in Microsoft Entra authentication instead of assigning an access token once in a connection factory. SqlClient acquires and renews tokens when establishing connections. Keep the `SqlConnection` (or EF `DbContext`) registration scoped, and let connection pooling reuse physical connections.
 
-On .NET 8 and .NET 10, the SQL outbox currently uses Microsoft.Data.SqlClient 7.0.2. Applications using its built-in Entra authentication modes must also reference the matching Azure extension package:
+On .NET 8 and .NET 10, the SQL outbox currently uses Microsoft.Data.SqlClient 7.0.3. Applications using its built-in Entra authentication modes must also reference the matching Azure extension package:
 
 ```xml
-<PackageReference Include="Microsoft.Data.SqlClient.Extensions.Azure" Version="7.0.2" />
+<PackageReference Include="Microsoft.Data.SqlClient.Extensions.Azure" Version="7.0.3" />
 ```
 
 Keep the extension and driver versions aligned if the application overrides the SqlClient version; see the [7.0.2 package alignment notes](https://github.com/dotnet/SqlClient/blob/main/release-notes/7.0/7.0.2.md). SqlClient 6.x, used by the older target frameworks, includes these authentication providers in the driver itself.
