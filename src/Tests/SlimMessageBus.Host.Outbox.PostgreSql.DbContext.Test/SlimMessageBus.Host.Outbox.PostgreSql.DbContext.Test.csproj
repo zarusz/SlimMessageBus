@@ -8,9 +8,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
-    <PackageReference Include="Testcontainers.Kafka" Version="4.13.0" />
-    <PackageReference Include="Testcontainers.PostgreSql" Version="4.13.0" />
-    <PackageReference Include="Testcontainers.RabbitMq" Version="4.13.0" />
+    <PackageReference Include="Testcontainers.Kafka" Version="4.16.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.16.0" />
+    <PackageReference Include="Testcontainers.RabbitMq" Version="4.16.0" />
   </ItemGroup>
 
   <ItemGroup>
