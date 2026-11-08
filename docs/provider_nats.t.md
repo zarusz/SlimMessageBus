@@ -8,7 +8,9 @@ Please read the [Introduction](intro.md) before reading this provider documentat
 
 ## Underlying NATS client
 
-This transport provider uses [NATS.Nets](https://www.nuget.org/packages/NATS.Net) client to connect to the NATS broker.
+This transport provider uses the [NATS.Net 3.x client](https://www.nuget.org/packages/NATS.Net) to connect to the broker.
+
+SlimMessageBus uses Core NATS subjects for subscriptions and request/reply. A JetStream stream can capture messages published to a matching subject for consumption by a separate JetStream client.
 
 ## Configuration
 
