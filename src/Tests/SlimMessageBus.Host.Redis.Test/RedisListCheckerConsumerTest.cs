@@ -46,7 +46,7 @@ public class RedisListCheckerConsumerTest
             {
                 callCount++;
                 if (callCount == 1)
-                    throw new RedisConnectionException(ConnectionFailureType.SocketFailure, "Connection failed");
+                    throw new RedisConnectionException(ConnectionFailureType.SocketFailure, CommandFlags.None, "Connection failed");
                 if (callCount == 2)
                     return (RedisValue)"serialized-message";
                 return RedisValue.Null;
