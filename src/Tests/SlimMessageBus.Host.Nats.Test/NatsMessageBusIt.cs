@@ -3,6 +3,9 @@ namespace SlimMessageBus.Host.Nats.Test;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 
+using NATS.Client.JetStream;
+using NATS.Client.JetStream.Models;
+
 using SlimMessageBus.Host.Nats.Config;
 
 using Serialization.Json;
@@ -133,6 +136,39 @@ public class NatsMessageBusIt(ITestOutputHelper output) : BaseIntegrationTest<Na
                      consumedMessages.Snapshot().Count(x => x.Counter == producedMessage.Counter && x.Value == producedMessage.Value)))
         {
             messageCopies.Should().Be(expectedMessageCopies);
+        }
+    }
+
+    [Fact]
+    public async Task PublishedMessageCanBeAcknowledgedByJetStreamConsumer()
+    {
+        var streamName = $"SMB_{Guid.NewGuid():N}";
+        var subject = $"test-jetstream.{streamName}";
+        AddBusConfiguration(mbb => mbb.Produce<PingMessage>(x => x.DefaultTopic(subject)));
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var cancellationToken = timeout.Token;
+        await using var connection = new NatsConnection(new NatsOpts
+        {
+            Url = Secrets.Service.PopulateSecrets(Configuration["Nats:Endpoint"])
+        });
+        var jetStream = new NatsJSContext(connection);
+        var stream = await jetStream.CreateStreamAsync(new StreamConfig(streamName, [subject]), cancellationToken);
+        try
+        {
+            var consumer = await stream.CreateOrUpdateConsumerAsync(new ConsumerConfig("smb"), cancellationToken);
+            var published = new PingMessage(1, Guid.NewGuid());
+            await MessageBus.Publish(published, cancellationToken: cancellationToken);
+
+            var received = await consumer.NextAsync<byte[]>(cancellationToken: cancellationToken);
+            received.Should().NotBeNull();
+            System.Text.Json.JsonSerializer.Deserialize<PingMessage>(received.Data).Should().Be(published);
+            await received.AckAsync(new AckOpts { DoubleAck = true }, cancellationToken);
+        }
+        finally
+        {
+            using var cleanupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await jetStream.DeleteStreamAsync(streamName, cleanupTimeout.Token);
         }
     }
 

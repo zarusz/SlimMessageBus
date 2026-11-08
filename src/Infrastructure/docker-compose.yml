@@ -164,6 +164,7 @@ services:
   nats:
     container_name: slim.nats
     image: nats:2.12.4-alpine
+    command: ["-js"]
     ports:
       - 4222:4222
     healthcheck:

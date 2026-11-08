@@ -13,7 +13,7 @@
   </ItemGroup>
   
   <ItemGroup>
-    <PackageReference Include="NATS.Net" Version="2.8.2" />
+    <PackageReference Include="NATS.Net" Version="3.3.1" />
   </ItemGroup>
 
 </Project>
