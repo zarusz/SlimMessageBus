@@ -12,6 +12,8 @@ public sealed class MessageScopeWrapper : IMessageScope
 
     public IServiceProvider ServiceProvider => _messageScope;
 
+    internal bool OwnsScope => _messageScopeDisposable is not null;
+
     public MessageScopeWrapper(IServiceProvider serviceProvider, bool createMessageScope)
     {
         _messageScope = serviceProvider;

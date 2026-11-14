@@ -54,8 +54,6 @@ public class MemoryMessageBusTests
             .Returns(() => new PendingRequestManager(new InMemoryPendingRequestStore(), TimeProvider.System, NullLoggerFactory.Instance));
         _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(IPendingRequestManager)))
             .Returns(() => new PendingRequestManager(new InMemoryPendingRequestStore(), TimeProvider.System, NullLoggerFactory.Instance));
-        _serviceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(ConsumerContext)))
-            .Returns(() => new ConsumerContext());
 
         _messageSerializerMock
             .Setup(x => x.Serialize(It.IsAny<Type>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<object>(), It.IsAny<object>()))
@@ -176,7 +174,6 @@ public class MemoryMessageBusTests
         _serviceProviderMock.OnScopeCreated = (scopeProviderMockCreated, scopeMockCreated) =>
         {
             scopeProviderMockCreated.Setup(x => x.GetService(typeof(SomeMessageAConsumer))).Returns(() => consumerMock.Object);
-            scopeProviderMockCreated.Setup(x => x.GetService(typeof(ConsumerContext))).Returns(() => new ConsumerContext());
 
             scopeProviderMock = scopeProviderMockCreated;
             scopeMock = scopeMockCreated;
@@ -271,12 +268,10 @@ public class MemoryMessageBusTests
         if (isMessageScopeEnabled)
         {
             createdScopeServiceProviderMock.Setup(x => x.GetService(typeof(SomeMessageAConsumer))).Returns(() => consumerMock.Object);
-            createdScopeServiceProviderMock.Setup(x => x.GetService(typeof(ConsumerContext))).Returns(() => new ConsumerContext());
         }
         else
         {
             currentServiceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(SomeMessageAConsumer))).Returns(() => consumerMock.Object);
-            currentServiceProviderMock.ProviderMock.Setup(x => x.GetService(typeof(ConsumerContext))).Returns(() => new ConsumerContext());
         }
 
 
@@ -312,7 +307,6 @@ public class MemoryMessageBusTests
 
             createdScopeServiceProviderMock.Verify(x => x.GetService(typeof(SomeMessageAConsumer)), Times.Once);
             createdScopeServiceProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IConsumerInterceptor<SomeMessageA>>)), Times.Once);
-            createdScopeServiceProviderMock.Verify(x => x.GetService(typeof(ConsumerContext)), Times.Once);
         }
         else
         {
@@ -320,7 +314,6 @@ public class MemoryMessageBusTests
 
             currentServiceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(SomeMessageAConsumer)), Times.Once);
             currentServiceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IConsumerInterceptor<SomeMessageA>>)), Times.Once);
-            currentServiceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(ConsumerContext)), Times.Once);
         }
 
         currentServiceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IEnumerable<IProducerInterceptor<SomeMessageA>>)), Times.Once);
@@ -340,7 +333,6 @@ public class MemoryMessageBusTests
         _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(TimeProvider)), Times.Once);
         _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(RuntimeTypeCache)), Times.Once);
         _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(IPendingRequestManager)), Times.Once);
-        _serviceProviderMock.ProviderMock.Verify(x => x.GetService(typeof(ConsumerContext)), Times.Between(0, 2, Moq.Range.Inclusive));
     }
 
     [Fact]
