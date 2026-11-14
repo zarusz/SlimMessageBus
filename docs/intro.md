@@ -489,6 +489,8 @@ public class PingConsumer(IConsumerContext context) : IConsumer<PingMessage>
 }
 ```
 
+Read the injected context during message processing. It follows the active dispatch, including concurrent or nested Memory transport sends that reuse a caller's DI scope. For a reused DI scope, the injected interface delegates to the current context and can be a different object from the context passed to an interceptor or assigned through `IConsumerWithContext`. Copy any metadata you need for background work before the handler returns.
+
 > Check the documentation of your specific transport provider for details on what transport-level metadata is accessible (e.g., Kafka’s topic/partition information).
 
 #### Obsolete Approaches
