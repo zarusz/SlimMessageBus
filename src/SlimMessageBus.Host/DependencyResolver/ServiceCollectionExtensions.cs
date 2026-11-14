@@ -97,8 +97,8 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IMessageTypeResolver, AssemblyQualifiedNameMessageTypeResolver>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageBusSettingsPostProcessor, ConsumerMethodPostProcessor>());
 
-        services.TryAddTransient(_ => ConsumerContextScope.Current);
-        services.TryAddTransient<IConsumerContext>(ConsumerContextScope.Resolve);
+        services.TryAddTransient(_ => MessageScope.CurrentConsumerContext);
+        services.TryAddTransient<IConsumerContext>(MessageScope.ResolveConsumerContext);
         services.TryAddSingleton<IMessageScopeAccessor, MessageScopeAccessor>();
 
         services.AddHostedService<MessageBusHostedService>();

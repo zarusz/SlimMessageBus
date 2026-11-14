@@ -101,12 +101,12 @@ public partial class MessageHandler : IMessageHandler
             // start transactions or set up ambient state before the consumer's scoped DI
             // dependencies are resolved.
             var ownedServiceProvider = messageScope is MessageScopeWrapper { OwnsScope: true } ? messageScope.ServiceProvider : null;
-            using var contextScope = new ConsumerContextScope(ownedServiceProvider);
+            using var contextScope = MessageScope.BeginConsumerDispatch(ownedServiceProvider);
             ConsumerContext consumerContext = null;
             try
             {
                 consumerContext = CreateConsumerContext(messageScope, messageHeaders, consumerInvoker, transportMessage, consumerType, messageBusTarget, consumerContextProperties, cancellationToken);
-                contextScope.Context = consumerContext;
+                MessageScope.SetConsumerContext(consumerContext);
                 try
                 {
                     var response = await DoHandleInternal(message, consumerInvoker, messageType, hasResponse, responseType, messageScope, consumerContext).ConfigureAwait(false);

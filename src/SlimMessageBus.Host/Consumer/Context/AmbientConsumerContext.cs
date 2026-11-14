@@ -1,12 +1,14 @@
 namespace SlimMessageBus.Host;
 
+using SlimMessageBus.Host.Consumer;
+
 // Constructor-injected dependencies can outlive a dispatch when the caller's DI scope is reused.
 internal sealed class AmbientConsumerContext : IConsumerContext
 {
-    public string Path => ConsumerContextScope.Current.Path;
-    public IReadOnlyDictionary<string, object> Headers => ConsumerContextScope.Current.Headers;
-    public CancellationToken CancellationToken => ConsumerContextScope.Current.CancellationToken;
-    public IMessageBus Bus => ConsumerContextScope.Current.Bus;
-    public IDictionary<string, object> Properties => ConsumerContextScope.Current.Properties;
-    public object Consumer => ConsumerContextScope.Current.Consumer;
+    public string Path => MessageScope.CurrentConsumerContext.Path;
+    public IReadOnlyDictionary<string, object> Headers => MessageScope.CurrentConsumerContext.Headers;
+    public CancellationToken CancellationToken => MessageScope.CurrentConsumerContext.CancellationToken;
+    public IMessageBus Bus => MessageScope.CurrentConsumerContext.Bus;
+    public IDictionary<string, object> Properties => MessageScope.CurrentConsumerContext.Properties;
+    public object Consumer => MessageScope.CurrentConsumerContext.Consumer;
 }
