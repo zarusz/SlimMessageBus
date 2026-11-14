@@ -2,6 +2,7 @@ namespace SlimMessageBus.Host.Memory.Test;
 
 using Microsoft.Extensions.DependencyInjection;
 
+using SlimMessageBus.Host.Consumer;
 using SlimMessageBus.Host.Interceptor;
 
 public class MemoryConsumerContextTests
@@ -55,15 +56,18 @@ public class MemoryConsumerContextTests
         {
             if (Equals(context.Headers["marker"], "inner"))
             {
+                await Task.Yield();
                 return await next();
             }
 
             // Resolve the outer handler before re-entering it in the same caller DI scope.
+            var outerServiceProvider = MessageScope.Current;
             var outerHandler = context.Consumer;
             var inner = await context.Bus.Send(new FirstRequest(), headers: new Dictionary<string, object> { ["marker"] = "inner" });
             inner.Marker.Should().Be("inner");
             inner.Handler.Should().BeSameAs(outerHandler);
 
+            MessageScope.Current.Should().BeSameAs(outerServiceProvider);
             context.Headers["marker"].Should().Be("outer");
             return await next();
         });
