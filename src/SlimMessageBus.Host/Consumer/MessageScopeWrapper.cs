@@ -7,10 +7,11 @@
 public sealed class MessageScopeWrapper : IMessageScope
 {
     private readonly IServiceProvider _messageScope;
-    private readonly IServiceProvider _prevMessageScope;
     private IDisposable _messageScopeDisposable;
 
     public IServiceProvider ServiceProvider => _messageScope;
+
+    internal MessageScope.DispatchFrame Frame { get; }
 
     public MessageScopeWrapper(IServiceProvider serviceProvider, bool createMessageScope)
     {
@@ -23,23 +24,14 @@ public sealed class MessageScopeWrapper : IMessageScope
             _messageScopeDisposable = ms;
         }
 
-        // Set the current scope only if one did not exist before or changed 
-        _prevMessageScope = MessageScope.Current;
-        if (!ReferenceEquals(_prevMessageScope, _messageScope))
-        {
-            MessageScope.Current = _messageScope;
-        }
+        Frame = MessageScope.BeginDispatch(_messageScope);
     }
 
     public ValueTask DisposeAsync()
     {
         // Note: We need to clear the MessageScope.Current in the same async context (without the async call as the ExecutionContext does not populate up the async chain call)
         // More on this: https://stackoverflow.com/a/56299915
-        if (!ReferenceEquals(_prevMessageScope, _messageScope))
-        {
-            // Clear current scope only if one was started as part of this consumption
-            MessageScope.Current = _prevMessageScope;
-        }
+        Frame.Dispose();
 
         // Suppress finalization.
         GC.SuppressFinalize(this);

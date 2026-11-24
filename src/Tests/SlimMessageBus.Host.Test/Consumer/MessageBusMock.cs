@@ -43,8 +43,6 @@ public class MessageBusMock
                 .Returns(new RuntimeTypeCache());
             mock.Setup(x => x.GetService(typeof(IPendingRequestManager)))
                 .Returns(() => new PendingRequestManager(new InMemoryPendingRequestStore(), TimeProvider, NullLoggerFactory.Instance));
-            mock.Setup(x => x.GetService(typeof(ConsumerContext)))
-                .Returns(() => new ConsumerContext());
         }
 
         ServiceProviderMock = new Mock<IServiceProvider>();

@@ -34,4 +34,5 @@ GitHub repository: https://github.com/zarusz/SlimMessageBus
 - Keep provider-specific code, options, and tests in the relevant `SlimMessageBus.Host.*` project.
 - When changing behavior, add or update focused tests under the matching `src/Tests/...` project.
 - Add or update documentation under `docs` for relevant plugin or core functionality changes. Prefer evolving the corresponding `*.t.md` template first, then run `./build/md-processor.ps1` to regenerate the published markdown.
+- Update `docs/ChangeLog.md` for notable changes. Add a concise entry under `Unreleased` that describes the user-visible impact, and link the related issue or PR when available. Keep release sections in reverse chronological order.
 - Ask for, or add, respective unit tests for changed functionality. The test stack uses xUnit, Moq, and AwesomeAssertions.

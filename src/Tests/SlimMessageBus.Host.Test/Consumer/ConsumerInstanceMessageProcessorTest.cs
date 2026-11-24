@@ -361,7 +361,16 @@ public class ConsumerInstanceMessageProcessorTest
         CancellationToken cancellationToken = default;
 
         var consumerMock = new Mock<SomeMessageConsumerWithContext>();
-        consumerMock.Setup(x => x.OnHandle(message, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        consumerMock.Setup(x => x.OnHandle(message, It.IsAny<CancellationToken>()))
+            .Callback(() =>
+            {
+                context.Should().NotBeNull();
+                context.Path.Should().Be(_topic);
+                context.CancellationToken.Should().Be(cancellationToken);
+                context.Headers.Should().BeSameAs(headers);
+                context.Consumer.Should().BeSameAs(consumerMock.Object);
+            })
+            .Returns(Task.CompletedTask);
         consumerMock.SetupSet(x => x.Context = It.IsAny<IConsumerContext>())
             .Callback<IConsumerContext>(p => context = p)
             .Verifiable();
@@ -375,18 +384,13 @@ public class ConsumerInstanceMessageProcessorTest
         var p = new MessageProcessor<byte[]>([consumerSettings], _busMock.Bus, _messageProviderMock.Object, _topic, responseProducer: _busMock.Bus);
 
         // act
-        await p.ProcessMessage(_transportMessage, headers, cancellationToken: cancellationToken);
+        var result = await p.ProcessMessage(_transportMessage, headers, cancellationToken: cancellationToken);
 
         // assert
+        result.Exception.Should().BeNull();
         consumerMock.Verify(x => x.OnHandle(message, It.IsAny<CancellationToken>()), Times.Once); // handler called once
         consumerMock.VerifySet(x => x.Context = It.IsAny<IConsumerContext>());
         consumerMock.VerifyNoOtherCalls();
-
-        context.Should().NotBeNull();
-        context.Path.Should().Be(_topic);
-        context.CancellationToken.Should().Be(cancellationToken);
-        context.Headers.Should().BeSameAs(headers);
-        context.Consumer.Should().BeSameAs(consumerMock.Object);
     }
 
     [Fact]

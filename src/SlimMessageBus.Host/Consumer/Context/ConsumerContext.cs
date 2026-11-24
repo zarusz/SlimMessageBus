@@ -23,7 +23,7 @@ public class ConsumerContext : IConsumerContext
 
     /// <summary>
     /// Lazily resolves the consumer instance on first access.
-    /// Set by <see cref="MessageHandler"/> via <see cref="ConsumerFactory"/> so that
+    /// Set by <see cref="MessageHandler"/> via <see cref="SetConsumerFactory"/> so that
     /// the consumer is created <em>after</em> all interceptors have had a chance to run
     /// (e.g. to start a database transaction before the consumer is constructed and its
     /// scoped DI dependencies are resolved).
@@ -39,14 +39,11 @@ public class ConsumerContext : IConsumerContext
     /// Called by <see cref="MessageHandler.CreateConsumerContext"/> instead of an eager
     /// <c>GetService</c> call so that consumer construction is deferred until the
     /// interceptor pipeline has completed.
-    /// Setting a new factory also clears any previously cached <see cref="Consumer"/>
-    /// so the factory is always invoked fresh for each consumer invocation, even when
-    /// the same <see cref="ConsumerContext"/> instance is reused within the same DI scope.
     /// </summary>
     internal void SetConsumerFactory(Func<object> factory)
     {
         _consumerFactory = factory;
-        _consumer = null; // reset cache so factory is re-invoked for the new consumer type
+        _consumer = null;
     }
 
     public IMessageTypeConsumerInvokerSettings ConsumerInvoker { get; set; }

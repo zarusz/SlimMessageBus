@@ -1,6 +1,8 @@
 ### SlimMessageBus Documentation
 
 - [Introduction](intro.md)
+- [Roadmap](Roadmap.md)
+- [Changelog](ChangeLog.md)
 - Transports
   - [Amazon SQS/SNS](provider_amazon_sqs.md)
   - [Apache Kafka](provider_kafka.md)
