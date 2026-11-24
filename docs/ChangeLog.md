@@ -4,6 +4,7 @@ Notable changes in the 3.x series, newest first. See [GitHub Releases](https://g
 
 ## Unreleased
 
+- Added nine public [Agent Skills](agent-skills.md) for setting up, extending, migrating, testing, and troubleshooting SlimMessageBus applications.
 - Made critical Trivy vulnerabilities and misconfigurations fail the GitHub Actions build.
 - Published Trivy security findings directly in the GitHub Actions build run summary.
 - Fixed consumer context isolation for concurrent and nested Memory transport sends that share a DI scope, including legacy `IConsumerWithContext` handlers. Dispatch from the root provider works with scope validation when the handler's dependencies can be resolved from the root. Dependencies that inject the concrete `ConsumerContext` must switch to `IConsumerContext`. [#506](https://github.com/zarusz/SlimMessageBus/issues/506) · [#410](https://github.com/zarusz/SlimMessageBus/issues/410)

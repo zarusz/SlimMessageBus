@@ -120,6 +120,7 @@ The configuration can be [modularized](docs/intro.md#modularization-of-configura
 ## 📖 Documentation
 
 - [Introduction](docs/intro.md)
+- [Agent Skills](docs/agent-skills.md)
 - Transports:
   - [Amazon SQS/SNS](docs/provider_amazon_sqs.md)
   - [Apache Kafka](docs/provider_kafka.md)
