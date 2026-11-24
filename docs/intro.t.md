@@ -489,6 +489,10 @@ public class PingConsumer(IConsumerContext context) : IConsumer<PingMessage>
 }
 ```
 
+The injected `IConsumerContext` follows the active dispatch even when the same handler or scoped dependency is reused by concurrent or nested sends. `IConsumerWithContext.Context` uses the same proxy. Interceptors and handler method parameters receive the context for their specific dispatch, so compare values when working with both forms.
+
+Read the context during message processing and copy any metadata you need for background work before the handler returns. If a dependency currently injects the concrete `ConsumerContext` class, change its constructor parameter to `IConsumerContext`.
+
 > Check the documentation of your specific transport provider for details on what transport-level metadata is accessible (e.g., Kafka’s topic/partition information).
 
 #### Obsolete Approaches
@@ -543,7 +547,7 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerWithContext
 }
 ```
 
-> ⚠️ **Important:** When using this approach, the consumer must be registered as either **transient** or **scoped**. Using a **singleton** would result in a race condition between setting the `Context` and executing `OnHandle`.
+Read `Context` during message processing. If the same consumer instance can handle messages concurrently, protect any mutable state owned by that consumer.
 
 ### Per-message DI container scope
 

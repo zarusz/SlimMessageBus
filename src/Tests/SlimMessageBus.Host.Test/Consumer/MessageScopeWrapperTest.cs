@@ -1,4 +1,4 @@
-﻿namespace SlimMessageBus.Host.Test.Consumer;
+namespace SlimMessageBus.Host.Test.Consumer;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -6,6 +6,72 @@ using SlimMessageBus.Host.Consumer;
 
 public class MessageScopeWrapperTest
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NestedDispatchRestoresProviderAndContextAfterFailure(bool createScope)
+    {
+        var outerProvider = serviceProviderMock.Object;
+        var outerContext = new ConsumerContext { Path = "outer" };
+        var innerContext = new ConsumerContext { Path = "inner" };
+        using var outerFrame = MessageScope.BeginDispatch(outerProvider, outerContext);
+
+        Func<Task> dispatch = async () =>
+        {
+            await using var innerScope = new MessageScopeWrapper(serviceProviderMock.Object, createScope);
+            using var innerFrame = MessageScope.BeginDispatch(innerScope, innerContext);
+            await Task.Yield();
+
+            MessageScope.Current.Should().BeSameAs(innerScope.ServiceProvider);
+            MessageScope.CurrentConsumerContext.Should().BeSameAs(innerContext);
+            AmbientConsumerContext.Instance.Path.Should().Be("inner");
+
+            throw new InvalidOperationException("Dispatch failed");
+        };
+
+        await dispatch.Should().ThrowAsync<InvalidOperationException>();
+
+        MessageScope.Current.Should().BeSameAs(outerProvider);
+        MessageScope.CurrentConsumerContext.Should().BeSameAs(outerContext);
+    }
+
+    [Fact]
+    public async Task ChangingTheProviderDoesNotKeepTheContextAliveAfterDispatch()
+    {
+        var context = new ConsumerContext { Path = "message" };
+        ExecutionContext capturedContext;
+        await using (var scope = new MessageScopeWrapper(scopeServiceProviderMock.Object, createMessageScope: false))
+        {
+            using var dispatch = MessageScope.BeginDispatch(scope, context);
+            MessageScope.Current = serviceProviderMock.Object;
+            MessageScope.Current.Should().BeSameAs(serviceProviderMock.Object);
+            AmbientConsumerContext.Instance.Path.Should().Be("message");
+            capturedContext = ExecutionContext.Capture();
+        }
+
+        ExecutionContext.Run(capturedContext, _ =>
+        {
+            var readPath = () => AmbientConsumerContext.Instance.Path;
+            readPath.Should().Throw<InvalidOperationException>();
+        }, null);
+    }
+
+    [Fact]
+    public async Task DispatchUsesTheScopeProviderWhenTheAmbientProviderWasOverridden()
+    {
+        await using var scope = new MessageScopeWrapper(scopeServiceProviderMock.Object, createMessageScope: false);
+        MessageScope.Current = serviceProviderMock.Object;
+        var context = new ConsumerContext { Path = "message" };
+
+        using (MessageScope.BeginDispatch(scope, context))
+        {
+            MessageScope.Current.Should().BeSameAs(scopeServiceProviderMock.Object);
+            MessageScope.CurrentConsumerContext.Should().BeSameAs(context);
+        }
+
+        MessageScope.Current.Should().BeSameAs(serviceProviderMock.Object);
+    }
+
     private readonly Mock<IServiceScopeFactory> serviceScopeFactoryMock;
     private readonly Mock<IServiceProvider> serviceProviderMock;
     private readonly Mock<IServiceProvider> scopeServiceProviderMock;

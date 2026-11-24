@@ -1,4 +1,4 @@
-﻿namespace SlimMessageBus.Host;
+namespace SlimMessageBus.Host;
 
 using SlimMessageBus.Host.Consumer;
 
@@ -100,10 +100,10 @@ public partial class MessageHandler : IMessageHandler
             // ExecuteConsumer) so that all interceptors run first. This allows interceptors to
             // start transactions or set up ambient state before the consumer's scoped DI
             // dependencies are resolved.
-            ConsumerContext consumerContext = null;
             try
             {
-                consumerContext = CreateConsumerContext(messageScope, messageHeaders, consumerInvoker, transportMessage, consumerType, messageBusTarget, consumerContextProperties, cancellationToken);
+                var consumerContext = CreateConsumerContext(messageScope, messageHeaders, consumerInvoker, transportMessage, consumerType, messageBusTarget, consumerContextProperties, cancellationToken);
+                using var dispatchFrame = MessageScope.BeginDispatch(messageScope, consumerContext);
                 try
                 {
                     var response = await DoHandleInternal(message, consumerInvoker, messageType, hasResponse, responseType, messageScope, consumerContext).ConfigureAwait(false);
@@ -122,18 +122,18 @@ public partial class MessageHandler : IMessageHandler
                     var response = handleErrorResult.HasResponse ? handleErrorResult.Response : null;
                     return (handleErrorResult, response, exception, requestId);
                 }
+                finally
+                {
+                    if (consumerInvoker.ParentSettings.IsDisposeConsumerEnabled && consumerContext.Consumer is IDisposable consumerInstanceDisposable)
+                    {
+                        LogDisposingConsumer(consumerType, consumerContext.Consumer);
+                        consumerInstanceDisposable.DisposeSilently("ConsumerInstance", _logger);
+                    }
+                }
             }
             catch (Exception e)
             {
                 return (ProcessResult.Failure, null, e, requestId);
-            }
-            finally
-            {
-                if (consumerInvoker.ParentSettings.IsDisposeConsumerEnabled && consumerContext?.Consumer is IDisposable consumerInstanceDisposable)
-                {
-                    LogDisposingConsumer(consumerType, consumerContext.Consumer);
-                    consumerInstanceDisposable.DisposeSilently("ConsumerInstance", _logger);
-                }
             }
         }
     }
@@ -191,15 +191,15 @@ public partial class MessageHandler : IMessageHandler
         IDictionary<string, object> consumerContextProperties,
         CancellationToken cancellationToken)
     {
-        // Obtain from the current message scope (a scoped instance)
-        var consumerContext = messageScope.ServiceProvider.GetRequiredService<ConsumerContext>();
-
-        consumerContext.Path = Path;
-        consumerContext.Headers = messageHeaders;
-        consumerContext.Bus = messageBus;
-        consumerContext.CancellationToken = cancellationToken;
-        consumerContext.ConsumerInvoker = consumerInvoker;
-        consumerContext.Properties = consumerContextProperties;
+        var consumerContext = new ConsumerContext
+        {
+            Path = Path,
+            Headers = messageHeaders,
+            Bus = messageBus,
+            CancellationToken = cancellationToken,
+            ConsumerInvoker = consumerInvoker,
+            Properties = consumerContextProperties
+        };
 
         // Defer consumer resolution until first access (inside ExecuteConsumer, after all
         // interceptors have run). This ensures that interceptors can set up ambient state
@@ -218,7 +218,8 @@ public partial class MessageHandler : IMessageHandler
         if (RuntimeTypeCache.IsAssignableFrom(consumerContext.Consumer.GetType(), typeof(IConsumerWithContext)))
         {
             var consumerWithContext = (IConsumerWithContext)consumerContext.Consumer;
-            consumerWithContext.Context = consumerContext;
+            // Direct callers of ExecuteConsumer can supply a context outside the dispatch pipeline.
+            consumerWithContext.Context = MessageScope.IsCurrentContext(consumerContext) ? AmbientConsumerContext.Instance : consumerContext;
         }
 
         // the consumer just subscribes to the message
