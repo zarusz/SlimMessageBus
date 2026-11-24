@@ -99,17 +99,20 @@ Test-Case 'Cloud and Sonar jobs are restricted to approved events' {
     Assert-That ($cloud.IndexOf('Recheck reviewed PR') -lt $cloud.IndexOf('- name: Checkout')) 'PR recheck must precede checkout'
     Assert-That ((Get-Job 'sonar') -match "github.event_name == 'push'") 'Sonar must only run on trusted pushes'
 }
-Test-Case 'Trivy scans built dependencies and configuration and preserves its HTML report' {
+Test-Case 'Trivy scans built dependencies and configuration and publishes both reports' {
     $build = Get-Job 'build'
     $scan = [regex]::Match($build, '(?ms)^      - name: Trivy scan\r?\n(?<body>.*?)(?=^      - name:|\z)').Groups['body'].Value
+    $summary = [regex]::Match($build, '(?ms)^      - name: Publish Trivy run summary\r?\n(?<body>.*?)(?=^      - name:|\z)').Groups['body'].Value
+    $render = [regex]::Match($build, '(?ms)^      - name: Render Trivy HTML report\r?\n(?<body>.*?)(?=^      - name:|\z)').Groups['body'].Value
     $upload = [regex]::Match($build, '(?ms)^      - name: Upload Trivy HTML report\r?\n(?<body>.*?)(?=^      - name:|\z)').Groups['body'].Value
-    Assert-That ($build.IndexOf('- name: Build') -lt $build.IndexOf('- name: Trivy scan')) 'Scan must include generated .NET dependency manifests'
+    Assert-That ($build.IndexOf('- name: Build') -lt $build.IndexOf('- name: Trivy scan') -and $build.IndexOf('- name: Publish Trivy run summary') -lt $build.IndexOf('- name: Unit Tests')) 'Trivy must scan generated .NET dependency manifests and report before unit tests'
     Assert-That ($scan.Contains('trivy fs .') -and $scan.Contains('--scanners vuln,misconfig')) 'Dependency/configuration scan missing'
-    Assert-That ($scan.Contains('--format template') -and $scan.Contains('--template "@$HOME/.local/bin/trivy-bin/contrib/html.tpl"')) 'HTML template missing or HOME expansion broken'
-    Assert-That ($scan.Contains('--output trivy-report.html') -and $scan.Contains('--exit-code 0')) 'Informational report missing'
+    Assert-That ($scan.Contains('--format json') -and $scan.Contains('--output "$RUNNER_TEMP/trivy-results.json"') -and $scan.Contains('--exit-code 0')) 'Informational report missing'
     Assert-That ($scan -notmatch 'continue-on-error|\|\| true') 'Scanner errors must fail the build'
-    Assert-That ($upload.Contains('!cancelled()') -and $upload.Contains('steps.trivy.outcome') -and $upload.Contains('["success","failure"]')) 'Report must upload after scan success or failure'
-    Assert-That ($upload.Contains('actions/upload-artifact@v6') -and $upload.Contains('name: trivy-report') -and $upload.Contains('path: trivy-report.html') -and $upload.Contains('if-no-files-found: error')) 'HTML artifact missing'
+    Assert-That ($summary.Contains('!cancelled()') -and $summary.Contains('steps.trivy.outcome') -and $summary.Contains('["success","failure"]')) 'Run summary must be written after scan success or failure'
+    Assert-That ($summary.Contains('Write-TrivySummary.ps1 -ReportPath "$env:RUNNER_TEMP/trivy-results.json"') -and $summary.Contains('$env:GITHUB_STEP_SUMMARY')) 'Run summary is missing scan results or scan failure status'
+    Assert-That ($render.Contains('trivy convert --format template') -and $render.Contains('--template "@$HOME/.local/bin/trivy-bin/contrib/html.tpl"') -and $render.Contains('"$RUNNER_TEMP/trivy-results.json"')) 'HTML report must use the same scan results'
+    Assert-That ($upload.Contains('actions/upload-artifact@v6') -and $upload.Contains('name: trivy-report') -and $upload.Contains('path: ${{ runner.temp }}/trivy-report.html') -and $upload.Contains('if-no-files-found: error')) 'HTML artifact missing'
 }
 Test-Case 'Local matrix excludes Azure outbox cases' {
     $local = Get-Job 'integration-tests'
@@ -178,6 +181,40 @@ New-Item -ItemType Directory -Path $fixture | Out-Null
 $resultFile = Join-Path $fixture 'results.trx'
 $summaryFile = Join-Path $fixture 'summary.md'
 try {
+    Test-Case 'Trivy summary counts findings and previews distinct entries in severity order' {
+        $trivyReport = Join-Path $fixture 'trivy-results.json'
+        $trivySummary = Join-Path $fixture 'trivy-summary.md'
+        $vulnerability = @{ VulnerabilityID = 'CVE-2026-0001'; PkgName = 'Sample.Package'; InstalledVersion = '1.0.0'; FixedVersion = '1.1.0'; Severity = 'HIGH' }
+        $lowFindings = 1..25 | ForEach-Object { @{ VulnerabilityID = "LOW-$_"; PkgName = 'Sample.Package'; Severity = 'LOW' } }
+        @{
+            SchemaVersion = 2
+            Results = @(
+                @{ Vulnerabilities = @($vulnerability) + $lowFindings },
+                @{ Vulnerabilities = @($vulnerability) },
+                @{
+                    Target = "config|<test>`nDockerfile"
+                    Misconfigurations = @(
+                        @{ ID = 'AVD-TEST-0001'; Severity = 'CRITICAL'; Status = 'FAIL' },
+                        @{ ID = 'AVD-TEST-0002'; Severity = 'CRITICAL'; Status = 'PASS' }
+                    )
+                }
+            )
+        } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $trivyReport
+        & (Join-Path $root 'build/Write-TrivySummary.ps1') -ReportPath $trivyReport -SummaryPath $trivySummary
+        $markdown = Get-Content -LiteralPath $trivySummary -Raw
+        Assert-That ($markdown.Contains('| CRITICAL | 0 | 1 |') -and $markdown.Contains('| HIGH | 2 | 0 |') -and $markdown.Contains('| LOW | 25 | 0 |')) 'Incorrect severity totals'
+        Assert-That ($markdown.Contains('Showing 25 of 27 distinct findings') -and $markdown.Contains('| CVE-2026-0001 | Sample.Package | 1.0.0 | 1.1.0 |')) 'Incorrect findings preview'
+        Assert-That ($markdown.Contains('config&#124;&#60;test&#62; Dockerfile') -and !$markdown.Contains('AVD-TEST-0002')) 'Misconfiguration rendering is incorrect'
+        Assert-That ($markdown.IndexOf('AVD-TEST-0001') -lt $markdown.IndexOf('CVE-2026-0001')) 'Findings must be ordered by severity'
+    }
+    Test-Case 'Trivy summary reports a successful scan without findings' {
+        $trivyReport = Join-Path $fixture 'trivy-empty.json'
+        $trivySummary = Join-Path $fixture 'trivy-empty-summary.md'
+        Set-Content -LiteralPath $trivyReport -Value '{"SchemaVersion":2}'
+        & (Join-Path $root 'build/Write-TrivySummary.ps1') -ReportPath $trivyReport -SummaryPath $trivySummary
+        $markdown = Get-Content -LiteralPath $trivySummary -Raw
+        Assert-That ($markdown.Contains('No vulnerabilities or misconfigurations found.') -and $markdown.Contains('| UNKNOWN | 0 | 0 |')) 'Clean scan status or counts missing'
+    }
     Test-Case 'PowerShell summary reads namespaced TRX counters' {
         Set-Content -LiteralPath $resultFile -Value '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><ResultSummary><Counters total="5" passed="3" failed="1" notExecuted="1" /></ResultSummary></TestRun>'
         & (Join-Path $root 'build/Write-TestSummary.ps1') -ResultsPath $fixture -SummaryPath $summaryFile

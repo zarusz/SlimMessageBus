@@ -138,18 +138,39 @@ jobs:
         run: |
           trivy fs . \
             --scanners vuln,misconfig \
-            --format template \
-            --template "@$HOME/.local/bin/trivy-bin/contrib/html.tpl" \
-            --output trivy-report.html \
+            --format json \
+            --output "$RUNNER_TEMP/trivy-results.json" \
             --exit-code 0 \
             --timeout 10m
 
-      - name: Upload Trivy HTML report
+      - name: Publish Trivy run summary
         if: ${{ !cancelled() && contains(fromJSON('["success","failure"]'), steps.trivy.outcome) }}
+        shell: pwsh
+        env:
+          TRIVY_SCAN_OUTCOME: ${{ steps.trivy.outcome }}
+        run: |
+          if ($env:TRIVY_SCAN_OUTCOME -eq 'success') {
+            ./build/Write-TrivySummary.ps1 -ReportPath "$env:RUNNER_TEMP/trivy-results.json"
+          } else {
+            Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Value "## Trivy security scan`n`nScan failed. See the **Trivy scan** step logs for details."
+          }
+
+      - name: Render Trivy HTML report
+        id: trivy-html
+        if: ${{ !cancelled() && steps.trivy.outcome == 'success' }}
+        shell: bash
+        run: |
+          trivy convert --format template \
+            --template "@$HOME/.local/bin/trivy-bin/contrib/html.tpl" \
+            --output "$RUNNER_TEMP/trivy-report.html" \
+            "$RUNNER_TEMP/trivy-results.json"
+
+      - name: Upload Trivy HTML report
+        if: ${{ !cancelled() && steps.trivy-html.outcome == 'success' }}
         uses: actions/upload-artifact@v6
         with:
           name: trivy-report
-          path: trivy-report.html
+          path: ${{ runner.temp }}/trivy-report.html
           if-no-files-found: error
 
       - name: Unit Tests
