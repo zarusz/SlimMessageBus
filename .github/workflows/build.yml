@@ -131,7 +131,7 @@ jobs:
           cache: true
 
       # Scan after building so .NET *.deps.json files include transitive dependencies.
-      # Findings are informational; scanner errors still fail the build.
+      # Evaluate critical findings after publishing both reports.
       - name: Trivy scan
         id: trivy
         shell: bash
@@ -186,6 +186,12 @@ jobs:
           name: trivy-report
           path: ${{ runner.temp }}/trivy-report.html
           if-no-files-found: error
+
+      - name: Fail build on critical Trivy findings
+        shell: bash
+        run: |
+          trivy convert --format table --table-mode detailed \
+            --severity CRITICAL --exit-code 1 "$RUNNER_TEMP/trivy-results.json"
 
       - name: Unit Tests
         id: tests

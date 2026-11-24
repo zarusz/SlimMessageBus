@@ -115,6 +115,14 @@ Test-Case 'Trivy scans built dependencies and configuration and publishes both r
     Assert-That ($render.Contains('trivy convert --format template') -and $render.Contains('--template "@$HOME/.local/bin/trivy-bin/contrib/html.tpl"') -and $render.Contains('"$RUNNER_TEMP/trivy-results.json"')) 'HTML report must use the same scan results'
     Assert-That ($upload.Contains('actions/upload-artifact@v6') -and $upload.Contains('name: trivy-report') -and $upload.Contains('path: ${{ runner.temp }}/trivy-report.html') -and $upload.Contains('if-no-files-found: error')) 'HTML artifact missing'
 }
+Test-Case 'Trivy fails the build on critical findings after publishing both reports' {
+    $build = Get-Job 'build'
+    $gate = [regex]::Match($build, '(?ms)^      - name: Fail build on critical Trivy findings\r?\n(?<body>.*?)(?=^      - name:|\z)').Groups['body'].Value
+    $gateAt = $build.IndexOf('- name: Fail build on critical Trivy findings')
+    Assert-That ($build.IndexOf('- name: Publish Trivy run summary') -lt $gateAt -and $build.IndexOf('- name: Upload Trivy HTML report') -lt $gateAt) 'Both Trivy reports must publish before the gate can fail'
+    Assert-That ($gate.Contains('trivy convert --format table') -and $gate.Contains('--severity CRITICAL --exit-code 1 "$RUNNER_TEMP/trivy-results.json"')) 'Only critical findings from the same scan should fail the build'
+    Assert-That ($gate -notmatch 'continue-on-error|\|\| true') 'The critical gate must fail the build'
+}
 Test-Case 'Local matrix excludes Azure outbox cases' {
     $local = Get-Job 'integration-tests'
     Assert-That ($local -notmatch 'filter:.*Azure') 'Cloud case selected locally'
