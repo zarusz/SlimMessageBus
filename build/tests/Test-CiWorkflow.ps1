@@ -99,17 +99,21 @@ Test-Case 'Cloud and Sonar jobs are restricted to approved events' {
     Assert-That ($cloud.IndexOf('Recheck reviewed PR') -lt $cloud.IndexOf('- name: Checkout')) 'PR recheck must precede checkout'
     Assert-That ((Get-Job 'sonar') -match "github.event_name == 'push'") 'Sonar must only run on trusted pushes'
 }
-Test-Case 'Trivy scans built dependencies and configuration and preserves its HTML report' {
+Test-Case 'Trivy scans built dependencies and configuration and publishes both reports' {
     $build = Get-Job 'build'
     $scan = [regex]::Match($build, '(?ms)^      - name: Trivy scan\r?\n(?<body>.*?)(?=^      - name:|\z)').Groups['body'].Value
+    $summary = [regex]::Match($build, '(?ms)^      - name: Publish Trivy run summary\r?\n(?<body>.*?)(?=^      - name:|\z)').Groups['body'].Value
+    $render = [regex]::Match($build, '(?ms)^      - name: Render Trivy HTML report\r?\n(?<body>.*?)(?=^      - name:|\z)').Groups['body'].Value
     $upload = [regex]::Match($build, '(?ms)^      - name: Upload Trivy HTML report\r?\n(?<body>.*?)(?=^      - name:|\z)').Groups['body'].Value
-    Assert-That ($build.IndexOf('- name: Build') -lt $build.IndexOf('- name: Trivy scan')) 'Scan must include generated .NET dependency manifests'
+    Assert-That ($build.IndexOf('- name: Build') -lt $build.IndexOf('- name: Trivy scan') -and $build.IndexOf('- name: Publish Trivy run summary') -lt $build.IndexOf('- name: Unit Tests')) 'Trivy must scan generated .NET dependency manifests and report before unit tests'
     Assert-That ($scan.Contains('trivy fs .') -and $scan.Contains('--scanners vuln,misconfig')) 'Dependency/configuration scan missing'
-    Assert-That ($scan.Contains('--format template') -and $scan.Contains('--template "@$HOME/.local/bin/trivy-bin/contrib/html.tpl"')) 'HTML template missing or HOME expansion broken'
-    Assert-That ($scan.Contains('--output trivy-report.html') -and $scan.Contains('--exit-code 0')) 'Informational report missing'
+    Assert-That ($scan.Contains('--format json') -and $scan.Contains('--output "$RUNNER_TEMP/trivy-results.json"') -and $scan.Contains('--exit-code 0')) 'Informational report missing'
     Assert-That ($scan -notmatch 'continue-on-error|\|\| true') 'Scanner errors must fail the build'
-    Assert-That ($upload.Contains('!cancelled()') -and $upload.Contains('steps.trivy.outcome') -and $upload.Contains('["success","failure"]')) 'Report must upload after scan success or failure'
-    Assert-That ($upload.Contains('actions/upload-artifact@v6') -and $upload.Contains('name: trivy-report') -and $upload.Contains('path: trivy-report.html') -and $upload.Contains('if-no-files-found: error')) 'HTML artifact missing'
+    Assert-That ($summary.Contains('!cancelled()') -and $summary.Contains('steps.trivy.outcome') -and $summary.Contains('["success","failure"]')) 'Run summary must be written after scan success or failure'
+    Assert-That ($summary.Contains('shell: bash') -and $summary.Contains('trivy convert --format table --scanners vuln,misconfig "$RUNNER_TEMP/trivy-results.json"')) 'Run summary must use the native Trivy table from the same scan'
+    Assert-That ($summary.Contains('>> "$GITHUB_STEP_SUMMARY"') -and $summary.Contains('Scan failed.')) 'Run summary must publish scan findings and scanner failures'
+    Assert-That ($render.Contains('trivy convert --format template') -and $render.Contains('--template "@$HOME/.local/bin/trivy-bin/contrib/html.tpl"') -and $render.Contains('"$RUNNER_TEMP/trivy-results.json"')) 'HTML report must use the same scan results'
+    Assert-That ($upload.Contains('actions/upload-artifact@v6') -and $upload.Contains('name: trivy-report') -and $upload.Contains('path: ${{ runner.temp }}/trivy-report.html') -and $upload.Contains('if-no-files-found: error')) 'HTML artifact missing'
 }
 Test-Case 'Local matrix excludes Azure outbox cases' {
     $local = Get-Job 'integration-tests'

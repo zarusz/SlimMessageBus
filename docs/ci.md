@@ -22,7 +22,7 @@ Coverage artifacts are downloaded into separate job directories (`merge-multiple
 
 The build job runs [Trivy](https://trivy.dev/) after compiling the solution on every build workflow run. It scans the repository for dependency vulnerabilities and configuration issues. Building first produces the .NET `*.deps.json` files that Trivy uses to detect direct and transitive NuGet dependencies, including those in samples and tests.
 
-Download the **trivy-report** artifact from the workflow run's **Artifacts** section, extract it, and open `trivy-report.html` in a browser. The report includes all severities and vulnerabilities without a fix. Findings are informational (`--exit-code 0`); scanner errors still fail the build. The upload runs after scan success or failure and fails if no report was produced. It completes before unit tests, so a later test failure does not prevent report collection.
+The workflow run's **Summary** tab shows Trivy's vulnerability and misconfiguration tables by scan target. Long tables are truncated to fit GitHub's summary limit. The **trivy-report** artifact contains the full `trivy-report.html`, including all severities and vulnerabilities without a fix. Findings are informational. Scanner errors fail the build and appear in the run summary. Reporting runs before unit tests, so a later test failure does not prevent report collection.
 
 Trivy scans vulnerabilities and misconfigurations, which its bundled HTML template supports. The scanner version and installer action are pinned in the workflow. The scan uses the same checked-out source as the build and requires no repository secrets or additional write permissions.
 

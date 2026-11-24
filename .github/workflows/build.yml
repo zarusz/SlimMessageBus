@@ -138,18 +138,53 @@ jobs:
         run: |
           trivy fs . \
             --scanners vuln,misconfig \
-            --format template \
-            --template "@$HOME/.local/bin/trivy-bin/contrib/html.tpl" \
-            --output trivy-report.html \
+            --format json \
+            --output "$RUNNER_TEMP/trivy-results.json" \
             --exit-code 0 \
             --timeout 10m
 
-      - name: Upload Trivy HTML report
+      - name: Publish Trivy run summary
         if: ${{ !cancelled() && contains(fromJSON('["success","failure"]'), steps.trivy.outcome) }}
+        shell: bash
+        env:
+          TRIVY_SCAN_OUTCOME: ${{ steps.trivy.outcome }}
+        run: |
+          {
+            printf '## Trivy security scan\n\n'
+            if [[ "$TRIVY_SCAN_OUTCOME" == failure ]]; then
+              printf 'Scan failed. See the **Trivy scan** step logs for details.\n'
+              exit 0
+            fi
+
+            table="$RUNNER_TEMP/trivy-table.txt"
+            trivy convert --format table --scanners vuln,misconfig "$RUNNER_TEMP/trivy-results.json" \
+              | sed 's/^/    /' > "$table"
+            # Leave space below GitHub's 1 MiB step summary limit.
+            if (( $(wc -c < "$table") > 1000000 )); then
+              head -c 1000000 "$table" | sed '$d'
+              printf '\n\nThe table was truncated to fit the run summary.\n'
+            else
+              cat "$table"
+            fi
+            printf '\n\nSee the **trivy-report** artifact for the full HTML report.\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Render Trivy HTML report
+        id: trivy-html
+        if: ${{ !cancelled() && steps.trivy.outcome == 'success' }}
+        shell: bash
+        run: |
+          trivy convert --format template \
+            --template "@$HOME/.local/bin/trivy-bin/contrib/html.tpl" \
+            --output "$RUNNER_TEMP/trivy-report.html" \
+            "$RUNNER_TEMP/trivy-results.json"
+
+      - name: Upload Trivy HTML report
+        if: ${{ !cancelled() && steps.trivy-html.outcome == 'success' }}
         uses: actions/upload-artifact@v6
         with:
           name: trivy-report
-          path: trivy-report.html
+          path: ${{ runner.temp }}/trivy-report.html
           if-no-files-found: error
 
       - name: Unit Tests
