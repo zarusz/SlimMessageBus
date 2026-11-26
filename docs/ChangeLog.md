@@ -4,6 +4,10 @@ Notable changes in the 3.x series, newest first. See [GitHub Releases](https://g
 
 ## Unreleased
 
+- Preserve canceled deliveries for redelivery when the transport supports settlement after processing.
+- Keep processing new Redis deliveries after a previous concurrent delivery fails.
+- Count outbox deserialization failures against the unreadable record's delivery-attempt limit.
+- Run producer and publish interceptors for items in a batch, including validation and transactional outbox forwarding. [#425](https://github.com/zarusz/SlimMessageBus/issues/425)
 - Added nine public [Agent Skills](agent-skills.md) for setting up, extending, migrating, testing, and troubleshooting SlimMessageBus applications.
 - Made critical Trivy vulnerabilities and misconfigurations fail the GitHub Actions build.
 - Published Trivy security findings directly in the GitHub Actions build run summary.

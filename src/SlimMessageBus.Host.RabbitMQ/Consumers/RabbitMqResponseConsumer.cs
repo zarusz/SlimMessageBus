@@ -35,6 +35,7 @@ public class RabbitMqResponseConsumer : AbstractRabbitMqConsumer
         switch (r.Result)
         {
             case RabbitMqProcessResult.RequeueState:
+            case ProcessResult.CanceledState:
                 await NackMessage(transportMessage, requeue: true);
                 break;
 

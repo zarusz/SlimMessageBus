@@ -35,6 +35,11 @@ public partial class ResponseMessageProcessor<TTransportMessage> : ResponseMessa
 
     public Task<ProcessMessageResult> ProcessMessage(TTransportMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, IDictionary<string, object> consumerContextProperties = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
     {
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return Task.FromResult(new ProcessMessageResult(ProcessResult.Canceled, new OperationCanceledException(cancellationToken), _requestResponseSettings, null));
+        }
+
         Exception ex;
         try
         {

@@ -7,7 +7,7 @@ public interface IMessageProcessor<in TMessage>
     /// <summary>
     /// Processes the arrived message
     /// </summary>
-    /// <returns>Null, if message processing was successful, otherwise the Exception</returns>
+    /// <returns>The processing outcome and any associated exception or response.</returns>
     Task<ProcessMessageResult> ProcessMessage(TMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, IDictionary<string, object> consumerContextProperties = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default);
 }
 

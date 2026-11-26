@@ -110,6 +110,31 @@ public class KafkaPartitionConsumerForConsumersTest : IDisposable
         _commitControllerMock.Verify(x => x.Commit(message3.TopicPartitionOffset.AddOffset(1)), Times.Once);
     }
 
+    [Fact]
+    public async Task CanceledDeliveryPreventsCheckpointingLaterOffsetsInTheSameAssignment()
+    {
+        var processor = new Mock<IMessageProcessor<ConsumeResult>>();
+        processor.SetupSequence(x => x.ProcessMessage(It.IsAny<ConsumeResult>(), It.IsAny<IReadOnlyDictionary<string, object>>(), null, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ProcessMessageResult(ProcessResult.Success, null, null, null))
+            .ReturnsAsync(new ProcessMessageResult(ProcessResult.Canceled, new OperationCanceledException(), null, null));
+        using var consumer = new TestPartitionConsumer(_loggerFactory, _consumerBuilder.ConsumerSettings, _topicPartition, _commitControllerMock.Object, processor.Object);
+        var first = GetSomeMessage();
+        var later = GetSomeMessage(offsetAdd: 2);
+        consumer.OnPartitionAssigned(_topicPartition);
+
+        await consumer.OnMessage(first);
+        await consumer.OnMessage(GetSomeMessage(offsetAdd: 1));
+        await consumer.OnMessage(later);
+        consumer.OnPartitionEndReached();
+
+        processor.Verify(x => x.ProcessMessage(later, It.IsAny<IReadOnlyDictionary<string, object>>(), null, null, It.IsAny<CancellationToken>()), Times.Never);
+        _commitControllerMock.Verify(x => x.Commit(first.TopicPartitionOffset.AddOffset(1)), Times.Once);
+        _commitControllerMock.VerifyNoOtherCalls();
+    }
+
+    private sealed class TestPartitionConsumer(ILoggerFactory loggerFactory, ConsumerSettings settings, TopicPartition partition, IKafkaCommitController commitController, IMessageProcessor<ConsumeResult> processor)
+        : KafkaPartitionConsumer(loggerFactory, [settings], "group-a", partition, commitController, new StringValueSerializer(), processor);
+
     private ConsumeResult GetSomeMessage(int offsetAdd = 0)
     {
         return new ConsumeResult

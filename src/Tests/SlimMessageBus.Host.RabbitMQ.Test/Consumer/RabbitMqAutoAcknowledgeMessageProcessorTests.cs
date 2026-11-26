@@ -48,6 +48,12 @@ public class RabbitMqAutoAcknowledgeMessageProcessorTests
     }
 
     [Fact]
+    public Task When_Canceled_ThenAutoNackWithRequeue()
+    {
+        return When_ProcessMessage_Then_AutoAcknowledge(ProcessResult.Canceled, RabbitMqMessageConfirmOptions.Nack | RabbitMqMessageConfirmOptions.Requeue);
+    }
+
+    [Fact]
     public Task When_Failure_ThenAutoNack()
     {
         return When_ProcessMessage_Then_AutoAcknowledge(RabbitMqProcessResult.Failure, RabbitMqMessageConfirmOptions.Nack);

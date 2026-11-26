@@ -23,6 +23,11 @@ public abstract record ProcessResult
     public static readonly ProcessResult Retry = new RetryState();
 
     /// <summary>
+    /// Processing was canceled. The transport should leave the delivery available for redelivery when supported.
+    /// </summary>
+    public static readonly ProcessResult Canceled = new CanceledState();
+
+    /// <summary>
     /// The message processor should evaluate the message as having been processed successfully.
     /// </summary>
     public static readonly ProcessResult Success = new SuccessState();
@@ -34,6 +39,7 @@ public abstract record ProcessResult
 
     public record FailureState() : ProcessResult();
     public record RetryState() : ProcessResult();
+    public record CanceledState() : ProcessResult();
     public record SuccessState(object Response = null) : ProcessResult(Response);
     public record SuccessStateWithResponse(object Response) : SuccessState(Response);
 }

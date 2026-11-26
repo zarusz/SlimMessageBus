@@ -136,6 +136,11 @@ abstract internal class SqsBaseConsumer : AbstractConsumer
                         GetPayloadAndHeadersFromMessage(message, out var messagePayload, out var messageHeaders);
 
                         var r = await MessageProcessor.ProcessMessage(new(message, messagePayload), messageHeaders, cancellationToken: CancellationToken).ConfigureAwait(false);
+                        if (r.Result is ProcessResult.CanceledState)
+                        {
+                            break;
+                        }
+
                         if (r.Exception != null)
                         {
                             Logger.LogError(r.Exception, "Message processing error - Queue: {Queue}, MessageId: {MessageId}", Path, message.MessageId);

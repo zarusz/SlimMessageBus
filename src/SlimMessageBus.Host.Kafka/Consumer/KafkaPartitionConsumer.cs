@@ -11,6 +11,7 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
 
     private TopicPartitionOffset _lastOffset;
     private TopicPartitionOffset _lastCheckpointOffset;
+    private bool _hasCanceledDelivery;
     private CancellationTokenSource _cancellationTokenSource;
 
     private bool _disposedValue;
@@ -81,6 +82,7 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
     {
         _lastCheckpointOffset = null;
         _lastOffset = null;
+        _hasCanceledDelivery = false;
 
         CheckpointTrigger?.Reset();
 
@@ -94,15 +96,13 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
 
     public async Task OnMessage(ConsumeResult message)
     {
-        if (_cancellationTokenSource.IsCancellationRequested)
+        if (_hasCanceledDelivery || _cancellationTokenSource.IsCancellationRequested)
         {
             return;
         }
 
         try
         {
-            _lastOffset = message.TopicPartitionOffset;
-
             var messageHeaders = message.ToHeaders(_headerSerializer);
 
             // Log in trace level all the message headers converted to string
@@ -115,6 +115,14 @@ public abstract class KafkaPartitionConsumer : IKafkaPartitionConsumer
             }
 
             var r = await _messageProcessor.ProcessMessage(message, messageHeaders, cancellationToken: _cancellationTokenSource.Token).ConfigureAwait(false);
+            if (r.Result is ProcessResult.CanceledState)
+            {
+                // Later offsets cannot be committed past an unfinished delivery in this assignment.
+                _hasCanceledDelivery = true;
+                return;
+            }
+
+            _lastOffset = message.TopicPartitionOffset;
             if (r.Exception != null)
             {
                 // The IKafkaConsumerErrorHandler and OnMessageFaulted was called at this point by the MessageProcessor.

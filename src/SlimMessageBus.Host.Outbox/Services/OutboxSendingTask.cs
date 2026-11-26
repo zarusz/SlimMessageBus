@@ -302,28 +302,55 @@ internal class OutboxSendingTask<TOutboxMessage>(
 
                 var path = pathGroup.Key;
                 var messageSerializer = bus.SerializerProvider.GetSerializer(path);
-                var batches = pathGroup
-                    .Select(outboxMessage =>
+                foreach (var batch in pathGroup.Batch(bulkProducer.MaxMessagesPerTransaction ?? defaultBatchSize))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var decoded = new List<OutboxBulkMessage>(batch.Count);
+                    List<TOutboxMessage> decodeFailures = null;
+                    foreach (var outboxMessage in batch)
                     {
                         var messageType = _outboxSettings.MessageTypeResolver.ToType(outboxMessage.MessageType);
                         if (messageType == null)
                         {
                             aborted.Add(outboxMessage);
-                            _logger.LogError("Outbox message with Id {Id} - the MessageType {MessageType} is not recognised. The type might have been renamed or moved namespaces.", outboxMessage, outboxMessage.MessageType);
-                            return null;
+                            _logger.LogError("Outbox message {Message} has unknown message type {MessageType}. The type might have been renamed or moved namespaces.", outboxMessage, outboxMessage.MessageType);
+                            continue;
                         }
-                        var messageHeaders = outboxMessage.Headers ?? new Dictionary<string, object>();
-                        var message = messageSerializer.Deserialize(messageType, messageHeaders.AsReadOnly(), outboxMessage.MessagePayload, null);
-                        return new OutboxBulkMessage(outboxMessage, message, messageType, messageHeaders);
-                    })
-                    .Where(x => x != null)
-                    .Batch(bulkProducer.MaxMessagesPerTransaction ?? defaultBatchSize);
 
-                foreach (var batch in batches)
-                {
-                    var (success, published) = await DispatchBatch(outboxRepository, bulkProducer, messageBusTarget, batch, busName, path, cancellationToken);
-                    failed |= !success;
-                    count += published;
+                        var messageHeaders = outboxMessage.Headers ?? new Dictionary<string, object>();
+                        try
+                        {
+                            var message = messageSerializer.Deserialize(messageType, messageHeaders.AsReadOnly(), outboxMessage.MessagePayload, null);
+                            decoded.Add(new OutboxBulkMessage(outboxMessage, message, messageType, messageHeaders));
+                        }
+                        catch (Exception ex) when (ex is not OperationCanceledException)
+                        {
+                            (decodeFailures ??= []).Add(outboxMessage);
+                            _logger.LogError(ex, "Cannot deserialize outbox message {Message} of type {MessageType} on {BusName}/{Path}", outboxMessage, outboxMessage.MessageType, busName, path);
+                            if (_outboxSettings.MaintainSequence)
+                            {
+                                break;
+                            }
+                        }
+                    }
+
+                    if (decodeFailures != null)
+                    {
+                        await outboxRepository.IncrementDeliveryAttempt(decodeFailures, _outboxSettings.MaxDeliveryAttempts, cancellationToken).ConfigureAwait(false);
+                        failed = true;
+                    }
+
+                    if (decoded.Count > 0)
+                    {
+                        var (success, published) = await DispatchBatch(outboxRepository, bulkProducer, messageBusTarget, decoded, busName, path, cancellationToken);
+                        failed |= !success;
+                        count += published;
+                    }
+
+                    if (decodeFailures != null && _outboxSettings.MaintainSequence)
+                    {
+                        break;
+                    }
                 }
             }
         }

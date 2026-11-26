@@ -49,6 +49,50 @@ public class MessageProcessorTest
     }
 
     [Fact]
+    public async Task CancellationDuringRoutingReturnsCanceledWithoutInvokingTheConsumer()
+    {
+        using var cancellation = new CancellationTokenSource();
+        consumerBuilder.Filter((_, _) =>
+        {
+            cancellation.Cancel();
+            return true;
+        });
+        var message = new SomeMessage();
+
+        var result = await subject.Value.ProcessMessage(message, new Dictionary<string, object>(), cancellationToken: cancellation.Token);
+
+        result.Result.Should().Be(ProcessResult.Canceled);
+        result.Exception.Should().BeOfType<OperationCanceledException>().Which.CancellationToken.Should().Be(cancellation.Token);
+        messageProviderMock.VerifyNoOtherCalls();
+        responseProducerMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task CanceledRequestDoesNotSendAnErrorReply()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var request = new SomeRequest();
+        var transportMessage = new SomeMessage();
+        var headers = new Dictionary<string, object>();
+        var handlerSettings = new HandlerBuilder<SomeRequest, SomeResponse>(new MessageBusSettings())
+            .WithHandler<IRequestHandler<SomeRequest, SomeResponse>>().ConsumerSettings;
+        handlerSettings.IsMessageScopeEnabled = false;
+        var processor = new MessageProcessor<SomeMessage>([handlerSettings], busMock.Bus, messageProviderMock.Object, "topic1", responseProducerMock.Object);
+        messageProviderMock.Setup(x => x(typeof(SomeRequest), headers, transportMessage)).Returns(request);
+        busMock.HandlerMock.Setup(x => x.OnHandle(request, cancellation.Token)).Returns(() =>
+        {
+            cancellation.Cancel();
+            return Task.FromCanceled<SomeResponse>(cancellation.Token);
+        });
+
+        var result = await processor.ProcessMessage(transportMessage, headers, cancellationToken: cancellation.Token);
+
+        result.Result.Should().Be(ProcessResult.Canceled);
+        result.Exception.Should().BeAssignableTo<OperationCanceledException>();
+        responseProducerMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
     public async Task When_ProcessMessage_Given_MessagePayloadCannotDeserialize_Then_ResultIsFailure()
     {
         // arrange

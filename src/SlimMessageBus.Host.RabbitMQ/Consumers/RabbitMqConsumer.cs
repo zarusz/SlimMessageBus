@@ -162,7 +162,17 @@ public class RabbitMqConsumer : AbstractRabbitMqConsumer, IRabbitMqConsumer
         var messageProcessor = FindMessageProcessor(transportMessage.RoutingKey);
         if (messageProcessor != null)
         {
-            await messageProcessor.ProcessMessage(transportMessage, messageHeaders: messageHeaders, consumerContextProperties: consumerContextProperties, cancellationToken: CancellationToken);
+            var cancellationToken = CancellationToken;
+            try
+            {
+                await messageProcessor.ProcessMessage(transportMessage, messageHeaders: messageHeaders, consumerContextProperties: consumerContextProperties, cancellationToken: cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested
+                && _acknowledgementMode == RabbitMqMessageAcknowledgementMode.ConfirmAfterMessageProcessingWhenNoManualConfirmMade)
+            {
+                // Cancellation can also interrupt the wait for a concurrent processing slot.
+                await ConfirmMessage(transportMessage, RabbitMqMessageConfirmOptions.Nack | RabbitMqMessageConfirmOptions.Requeue, consumerContextProperties);
+            }
         }
         else
         {

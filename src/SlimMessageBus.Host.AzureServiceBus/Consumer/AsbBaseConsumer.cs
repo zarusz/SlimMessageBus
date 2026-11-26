@@ -183,6 +183,10 @@ public abstract class AsbBaseConsumer : AbstractConsumer
         var r = await MessageProcessor.ProcessMessage(message, message.ApplicationProperties, cancellationToken: token).ConfigureAwait(false);
         switch (r.Result)
         {
+            case ProcessResult.CanceledState:
+                // The receiver may already be stopping. Leave the lock to expire for redelivery.
+                return;
+
             case ProcessResult.SuccessState:
                 // Complete the message so that it is not received again.
                 // This can be done only if the subscriptionClient is created in ReceiveMode.PeekLock mode (which is the default).
