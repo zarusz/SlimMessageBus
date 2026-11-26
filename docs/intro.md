@@ -1247,9 +1247,9 @@ On the consumer side, before the received message is delivered to the consumer (
 
 #### Consumer instance resolution order
 
-The consumer (or handler) instance is resolved from the DI container **after** all interceptors have run — specifically, it is created the first time `IConsumerContext.Consumer` is accessed inside `ExecuteConsumer`, which is the final step of the interceptor pipeline (the inner-most `next()` call).
+The host resolves the consumer or request handler from DI when the last interceptor calls `next()` and the pipeline reaches the invocation. An interceptor that short-circuits the pipeline prevents the host from resolving the consumer, even when `.DisposeConsumerEnabled(true)` is configured. Reading `IConsumerContext.Consumer` before resolution returns `null`. Interceptors can inspect the instance after `await next()` if the pipeline reached the invocation.
 
-This ordering has an important consequence: any **scoped DI service injected into the consumer's constructor** is resolved *after* every interceptor has executed. Interceptors can therefore set up ambient state (start a database transaction, populate an `AsyncLocal`, update a mutable scoped holder) that will be visible when the consumer's constructor fires and its dependencies are resolved.
+Interceptors can set up ambient state before calling `next()`. For example, a database transaction, an `AsyncLocal` value, or a scoped service initialized by an interceptor is available when DI resolves the consumer's constructor dependencies.
 
 ```
 Per-message DI scope created

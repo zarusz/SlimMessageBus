@@ -4,6 +4,7 @@ Notable changes in the 3.x series, newest first. See [GitHub Releases](https://g
 
 ## Unreleased
 
+- Deferred consumer and request handler resolution until the interceptor pipeline reaches the invocation. Short-circuited dispatches skip resolution even with manual consumer disposal enabled. `IConsumerContext.Consumer` returns `null` until resolution.
 - Added nine public [Agent Skills](agent-skills.md) for setting up, extending, migrating, testing, and troubleshooting SlimMessageBus applications.
 - Made critical Trivy vulnerabilities and misconfigurations fail the GitHub Actions build.
 - Published Trivy security findings directly in the GitHub Actions build run summary.

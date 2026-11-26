@@ -96,10 +96,6 @@ public partial class MessageHandler : IMessageHandler
             }
 
             var messageBusTarget = new MessageBusProxy(MessageBus, messageScope.ServiceProvider);
-            // Consumer is resolved lazily inside ConsumerContext.Consumer (on first access from
-            // ExecuteConsumer) so that all interceptors run first. This allows interceptors to
-            // start transactions or set up ambient state before the consumer's scoped DI
-            // dependencies are resolved.
             try
             {
                 var consumerContext = CreateConsumerContext(messageScope, messageHeaders, consumerInvoker, transportMessage, consumerType, messageBusTarget, consumerContextProperties, cancellationToken);
@@ -126,7 +122,7 @@ public partial class MessageHandler : IMessageHandler
                 {
                     if (consumerInvoker.ParentSettings.IsDisposeConsumerEnabled && consumerContext.Consumer is IDisposable consumerInstanceDisposable)
                     {
-                        LogDisposingConsumer(consumerType, consumerContext.Consumer);
+                        LogDisposingConsumer(consumerType, consumerInstanceDisposable);
                         consumerInstanceDisposable.DisposeSilently("ConsumerInstance", _logger);
                     }
                 }
@@ -201,9 +197,7 @@ public partial class MessageHandler : IMessageHandler
             Properties = consumerContextProperties
         };
 
-        // Defer consumer resolution until first access (inside ExecuteConsumer, after all
-        // interceptors have run). This ensures that interceptors can set up ambient state
-        // (e.g. database transactions) before the consumer's scoped dependencies are created.
+        // Resolve at invocation so interceptors can set up ambient state before the consumer is created.
         consumerContext.SetConsumerFactory(() =>
             messageScope.ServiceProvider.GetService(consumerType)
             ?? throw new ConfigurationMessageBusException(
@@ -215,15 +209,15 @@ public partial class MessageHandler : IMessageHandler
 
     public async Task<object> ExecuteConsumer(object message, IConsumerContext consumerContext, IMessageTypeConsumerInvokerSettings consumerInvoker, Type responseType)
     {
-        if (RuntimeTypeCache.IsAssignableFrom(consumerContext.Consumer.GetType(), typeof(IConsumerWithContext)))
+        var consumer = consumerContext is ConsumerContext context ? context.ResolveConsumer() : consumerContext.Consumer;
+        if (consumer is IConsumerWithContext consumerWithContext)
         {
-            var consumerWithContext = (IConsumerWithContext)consumerContext.Consumer;
             // Direct callers of ExecuteConsumer can supply a context outside the dispatch pipeline.
             consumerWithContext.Context = MessageScope.IsCurrentContext(consumerContext) ? AmbientConsumerContext.Instance : consumerContext;
         }
 
         // the consumer just subscribes to the message
-        var task = consumerInvoker.ConsumerMethod(consumerContext.Consumer, message, consumerContext, consumerContext.CancellationToken);
+        var task = consumerInvoker.ConsumerMethod(consumer, message, consumerContext, consumerContext.CancellationToken);
         await task.ConfigureAwait(false);
 
         if (responseType != null && responseType != typeof(Void))

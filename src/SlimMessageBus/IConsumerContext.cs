@@ -23,7 +23,8 @@ public interface IConsumerContext
     /// </summary>
     IDictionary<string, object> Properties { get; }
     /// <summary>
-    /// The consumer instance that will handle the message.
+    /// The consumer instance for the current dispatch. The host sets it when it reaches the consumer invocation.
+    /// The value is <see langword="null"/> until the instance is resolved.
     /// </summary>
     object Consumer { get; }
 }

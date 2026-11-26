@@ -60,16 +60,16 @@ public class MemoryConsumerContextTests
                 return await next();
             }
 
-            // Resolve the outer handler before re-entering it in the same caller DI scope.
             var outerServiceProvider = MessageScope.Current;
-            var outerHandler = context.Consumer;
+            var outer = (Reply)await next();
             var inner = await context.Bus.Send(new FirstRequest(), headers: new Dictionary<string, object> { ["marker"] = "inner" });
             inner.Marker.Should().Be("inner");
-            inner.Handler.Should().BeSameAs(outerHandler);
+            inner.Handler.Should().BeSameAs(outer.Handler);
 
             MessageScope.Current.Should().BeSameAs(outerServiceProvider);
             context.Headers["marker"].Should().Be("outer");
-            return await next();
+            outer.Dependency.Marker.Should().Be("outer");
+            return outer;
         });
         await using var provider = CreateProvider(services => services.AddSingleton<IConsumerInterceptor<FirstRequest>>(interceptor));
         using var scope = provider.CreateScope();
