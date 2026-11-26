@@ -10,11 +10,7 @@ public sealed partial class ConcurrentMessageProcessorDecorator<TMessage> : IMes
     private readonly ILogger _logger;
     private SemaphoreSlim _concurrentSemaphore;
     private readonly IMessageProcessor<TMessage> _target;
-    private Exception _lastException;
-    private TMessage _lastExceptionMessage;
-    private AbstractConsumerSettings _lastExceptionSettings;
     private readonly bool _reportBackgroundExceptions;
-    private readonly object _lastExceptionLock = new();
 
     private int _pendingCount;
 
@@ -51,15 +47,6 @@ public sealed partial class ConcurrentMessageProcessorDecorator<TMessage> : IMes
 
     public async Task<ProcessMessageResult> ProcessMessage(TMessage transportMessage, IReadOnlyDictionary<string, object> messageHeaders, IDictionary<string, object> consumerContextProperties = null, IServiceProvider currentServiceProvider = null, CancellationToken cancellationToken = default)
     {
-        // Check if there was an exception from an earlier transportMessage processing
-        var e = _lastException;
-        if (e != null)
-        {
-            // report the last exception
-            _lastException = null;
-            return new(ProcessResult.Failure, e, _lastExceptionSettings, null);
-        }
-
         // Ensure only desired number of messages are being processed concurrently
         await _concurrentSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
 
@@ -92,19 +79,18 @@ public sealed partial class ConcurrentMessageProcessorDecorator<TMessage> : IMes
             LogEntering(typeof(TMessage));
 
             var r = await _target.ProcessMessage(transportMessage, messageHeaders, consumerContextProperties, currentServiceProvider, cancellationToken).ConfigureAwait(false);
-            if (_reportBackgroundExceptions && r.Exception != null)
+            if (_reportBackgroundExceptions && r.Exception != null && r.Result is not ProcessResult.CanceledState)
             {
-                lock (_lastExceptionLock)
-                {
-                    // ensure there was no error before this one, in which case forget about this error (the whole event stream will be rewind back).
-                    if (_lastException == null && _lastExceptionMessage == null)
-                    {
-                        _lastException = r.Exception;
-                        _lastExceptionMessage = transportMessage;
-                        _lastExceptionSettings = r.ConsumerSettings;
-                    }
-                }
+                _logger.LogError(r.Exception, "Error processing background message of type {MessageType} on {Path}", typeof(TMessage), r.ConsumerSettings?.Path);
             }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Processing stopped with the consumer.
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Background processing failed for message type {MessageType}", typeof(TMessage));
         }
         finally
         {

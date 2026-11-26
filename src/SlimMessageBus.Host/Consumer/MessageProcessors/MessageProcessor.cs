@@ -90,6 +90,7 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
 
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             messageType = _messageTypeProvider != null
                 ? _messageTypeProvider(transportMessage, messageHeaders)
                 : GetMessageType(messageHeaders);
@@ -97,6 +98,7 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
             if (messageType != null)
             {
                 consumerInvokers = [.. TryMatchConsumerInvoker(messageType, messageHeaders, transportMessage)];
+                cancellationToken.ThrowIfCancellationRequested();
                 var message = _messageProvider(messageType, messageHeaders, transportMessage);
                 try
                 {
@@ -104,21 +106,23 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
                     {
                         lastConsumerInvoker = consumerInvoker;
 
-                        // Skip the loop if it was cancelled
-                        if (cancellationToken.IsCancellationRequested)
-                        {
-                            break;
-                        }
+                        cancellationToken.ThrowIfCancellationRequested();
 
                         (result, lastResponse, lastException, var requestId) = await DoHandle(message, messageHeaders, consumerInvoker, transportMessage, consumerContextProperties, currentServiceProvider, cancellationToken).ConfigureAwait(false);
 
                         Debug.Assert(result is not ProcessResult.RetryState);
+
+                        if (result is ProcessResult.CanceledState)
+                        {
+                            break;
+                        }
 
                         if (consumerInvoker.ParentSettings.ConsumerMode == ConsumerMode.RequestResponse && _responseProducer != null)
                         {
                             if (!ReferenceEquals(ResponseForExpiredRequest, lastResponse))
                             {
                                 // We discard expired requests, so there is no response to provide
+                                cancellationToken.ThrowIfCancellationRequested();
                                 await _responseProducer.ProduceResponse(requestId, message, messageHeaders, lastResponse, lastException, consumerInvoker, cancellationToken).ConfigureAwait(false);
                             }
                             // Clear the exception as it will be returned to the sender.
@@ -142,6 +146,10 @@ public partial class MessageProcessor<TTransportMessage> : MessageHandler, IMess
                     }
                 }
             }
+        }
+        catch (OperationCanceledException e) when (cancellationToken.IsCancellationRequested)
+        {
+            return new(ProcessResult.Canceled, e, lastConsumerInvoker?.ParentSettings, null);
         }
         catch (Exception e)
         {

@@ -44,7 +44,7 @@ internal sealed class RabbitMqAutoAcknowledgeMessageProcessor : IMessageProcesso
             // Acknowledge after processing
             var confirmOption = r.Result switch
             {
-                RabbitMqProcessResult.RequeueState => RabbitMqMessageConfirmOptions.Nack | RabbitMqMessageConfirmOptions.Requeue, // Re-queue after processing on transient failure
+                RabbitMqProcessResult.RequeueState or ProcessResult.CanceledState => RabbitMqMessageConfirmOptions.Nack | RabbitMqMessageConfirmOptions.Requeue,
                 ProcessResult.FailureState => RabbitMqMessageConfirmOptions.Nack,                                                            // Fail after processing failure (no re-queue)
                 ProcessResult.SuccessState => RabbitMqMessageConfirmOptions.Ack,                                                             // Acknowledge after processing
                 _ => throw new NotImplementedException()

@@ -137,6 +137,12 @@ public abstract class RelationalConsumerBase<TMessage, TRepository> : AbstractCo
         foreach (var message in messages)
         {
             var result = await _messageProcessor.ProcessMessage(message, message.Headers, cancellationToken: CancellationToken).ConfigureAwait(false);
+            if (result.Result is ProcessResult.CanceledState)
+            {
+                // Leave the delivery reserved until the lock expires.
+                return;
+            }
+
             if (result.Exception == null)
             {
                 await repository.Complete([message], CancellationToken).ConfigureAwait(false);

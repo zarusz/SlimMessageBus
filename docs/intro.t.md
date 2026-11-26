@@ -217,7 +217,9 @@ While there’s no upper limit enforced by SMB, be aware that the underlying tra
 
 For transports that don’t natively support bulk publishing, messages are published individually in sequence.
 
-> **Note:** The [producer interceptor](#interceptors) pipeline is not executed during bulk publishing. This behavior may change in future updates.
+Producer and publish interceptors run per item. The bus looks up interceptors for the item's runtime type and the configured producer type when they differ. An interceptor can short-circuit an item, including by forwarding it to the transactional outbox. Adjacent items without interceptors can still use the transport's bulk operation. The collection's configured producer determines the path and serialization type.
+
+The bus stops starting later work when a failure is reported. A transport may already have sent items in its current bulk operation, and earlier items may already be in the outbox. Account for partial success when retrying a collection.
 
 #### Set message headers
 
@@ -1383,6 +1385,8 @@ public class LoggingConsumerInterceptor<TMessage> : IConsumerInterceptor<TMessag
 > This feature is provided by the chosen Dependency Injection container (e.g. MsDependencyInjection) - it is not a feature of SMB. Please consult the chosen DI library documentation.
 
 ## Error Handling
+
+Cancellation that interrupts message processing is reported as `ProcessResult.Canceled`. Custom transports should leave such deliveries unsettled or request redelivery when the transport supports it. A transport configured to acknowledge before processing cannot recover an already acknowledged delivery.
 
 Message processing by consumers or handlers may result in exceptions. The [IConsumerErrorHandler<T>](../src/SlimMessageBus.Host/Consumer/ErrorHandling/IConsumerErrorHandler.cs) provides a standard way to integrate custom error handling logic across different transports.
 

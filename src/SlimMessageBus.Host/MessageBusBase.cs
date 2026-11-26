@@ -435,56 +435,99 @@ public abstract partial class MessageBusBase : IDisposable, IAsyncDisposable,
 
         var producerSettings = GetProducerSettings(messageType);
         path ??= GetDefaultPath(producerSettings.MessageType, producerSettings);
+        var serviceProvider = targetBus?.ServiceProvider ?? Settings.ServiceProvider;
 
         if (collectionInfo != null)
         {
-            // produce multiple messages to transport
             var messages = collectionInfo
                 .ToCollection(message)
-                // Note: We want to send the producer message type here to preserve polymorphic behavior of the serializers
                 .Select(m => new BulkMessageEnvelope(m, producerSettings.MessageType, GetMessageHeaders(m, headers, producerSettings)))
                 .ToList();
 
-            var result = await ProduceToTransportBulk(messages, path, targetBus, cancellationToken);
-
-            if (result.Exception != null)
-            {
-                if (result.Exception is ProducerMessageBusException)
-                {
-                    // We want to pass the same exception to the sender as it happened in the handler/consumer
-                    ExceptionDispatchInfo.Capture(result.Exception).Throw();
-                }
-                throw new ProducerMessageBusException(GetProducerErrorMessage(path, message, messageType, result.Exception), result.Exception);
-            }
+            await PublishBatch(message, messageType, messages, path, producerSettings, targetBus, serviceProvider, cancellationToken);
             return;
         }
 
         var messageHeaders = GetMessageHeaders(message, headers, producerSettings);
+        var (producerInterceptors, publishInterceptors) = ResolvePublishInterceptors(serviceProvider, messageType);
+        await PublishSingle(message, path, messageHeaders, producerSettings, targetBus, serviceProvider, producerInterceptors, publishInterceptors, cancellationToken);
+    }
 
-        // Producer interceptors do not work on collections (batch publish)
-        var serviceProvider = targetBus?.ServiceProvider ?? Settings.ServiceProvider;
-
-        var producerInterceptors = RuntimeTypeCache.ProducerInterceptorType.ResolveAll(serviceProvider, messageType);
-        var publishInterceptors = RuntimeTypeCache.PublishInterceptorType.ResolveAll(serviceProvider, messageType);
-        if (producerInterceptors != null || publishInterceptors != null)
+    private async Task PublishBatch(object collection, Type messageType, List<BulkMessageEnvelope> messages, string path, ProducerSettings producerSettings, IMessageBusTarget targetBus, IServiceProvider serviceProvider, CancellationToken cancellationToken)
+    {
+        async Task SendBulk(List<BulkMessageEnvelope> batch)
         {
-            var context = new PublishContext
+            var result = await ProduceToTransportBulk(batch, path, targetBus, cancellationToken).ConfigureAwait(false);
+            if (result.Exception is ProducerMessageBusException or OperationCanceledException)
             {
-                Path = path,
-                CancellationToken = cancellationToken,
-                Headers = messageHeaders,
-                Bus = new MessageBusProxy(this, serviceProvider),
-                ProducerSettings = producerSettings
-            };
-
-            var pipeline = new PublishInterceptorPipeline(this, RuntimeTypeCache, message, producerSettings, targetBus, context, producerInterceptors: producerInterceptors, publishInterceptors: publishInterceptors);
-            await pipeline.Next();
-            return;
+                ExceptionDispatchInfo.Capture(result.Exception).Throw();
+            }
+            if (result.Exception != null)
+            {
+                throw new ProducerMessageBusException(GetProducerErrorMessage(path, collection, messageType, result.Exception), result.Exception);
+            }
         }
 
-        // produce a single message to transport
-        // Note: We want to send the producer message type here to preserve polymorphic behavior of the serializers
-        await ProduceToTransport(message, producerSettings.MessageType, path, messageHeaders, targetBus, cancellationToken);
+        var batchStart = 0;
+        for (var i = 0; i < messages.Count; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var envelope = messages[i];
+            var itemType = envelope.Message?.GetType() ?? messageType;
+            var (producerInterceptors, publishInterceptors) = ResolvePublishInterceptors(serviceProvider, itemType);
+            if (itemType != producerSettings.MessageType)
+            {
+                // A batch uses the declared producer, including policies such as UseOutbox on its message type.
+                var (declaredProducer, declaredPublish) = ResolvePublishInterceptors(serviceProvider, producerSettings.MessageType);
+                producerInterceptors = PublishInterceptorPipeline.IncludeDeclaredInterceptors(producerInterceptors, declaredProducer, producerSettings.MessageType);
+                publishInterceptors = PublishInterceptorPipeline.IncludeDeclaredInterceptors(publishInterceptors, declaredPublish, producerSettings.MessageType);
+            }
+            if (producerInterceptors == null && publishInterceptors == null)
+            {
+                continue;
+            }
+
+            // Flush preceding items before running the next item's pipeline to preserve publish order.
+            if (i > batchStart)
+            {
+                await SendBulk(messages.GetRange(batchStart, i - batchStart)).ConfigureAwait(false);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            await PublishSingle(envelope.Message, path, envelope.Headers, producerSettings, targetBus, serviceProvider, producerInterceptors, publishInterceptors, cancellationToken).ConfigureAwait(false);
+            batchStart = i + 1;
+        }
+
+        if (batchStart == 0)
+        {
+            await SendBulk(messages).ConfigureAwait(false);
+        }
+        else if (batchStart < messages.Count)
+        {
+            await SendBulk(messages.GetRange(batchStart, messages.Count - batchStart)).ConfigureAwait(false);
+        }
+    }
+
+    private (IEnumerable<object> Producer, IEnumerable<object> Publish) ResolvePublishInterceptors(IServiceProvider serviceProvider, Type messageType)
+        => (RuntimeTypeCache.ProducerInterceptorType.ResolveAll(serviceProvider, messageType), RuntimeTypeCache.PublishInterceptorType.ResolveAll(serviceProvider, messageType));
+
+    private Task PublishSingle(object message, string path, IDictionary<string, object> headers, ProducerSettings producerSettings, IMessageBusTarget targetBus, IServiceProvider serviceProvider, IEnumerable<object> producerInterceptors, IEnumerable<object> publishInterceptors, CancellationToken cancellationToken)
+    {
+        if (message == null) throw new ArgumentNullException(nameof(message));
+        if (producerInterceptors == null && publishInterceptors == null)
+        {
+            return ProduceToTransport(message, producerSettings.MessageType, path, headers, targetBus, cancellationToken);
+        }
+
+        var context = new PublishContext
+        {
+            Path = path,
+            CancellationToken = cancellationToken,
+            Headers = headers,
+            Bus = new MessageBusProxy(this, serviceProvider),
+            ProducerSettings = producerSettings
+        };
+        return new PublishInterceptorPipeline(this, RuntimeTypeCache, message, producerSettings, targetBus, context, producerInterceptors, publishInterceptors).Next();
     }
 
     protected static string GetProducerErrorMessage(string path, object message, Type messageType, Exception ex)

@@ -329,6 +329,8 @@ When applied on the (child) bus level then all consumers (or handlers) will inhe
 
 - Once a message is picked from outbox and successfully delivered then it is marked as sent in the outbox table.
 
+- A payload that fails deserialization consumes a delivery attempt for that record. With `MaintainSequence` enabled, later records on the same bus and path wait for a later poll. Processing can continue once the unreadable record is delivered or marked as aborted by the existing attempt limit. With `MaintainSequence` disabled, readable records can continue in the same poll.
+
 ## Clean up
 On starting SMB, messages that are older than `MessageCleanup.Age` will be removed from the `Outbox` table in batches of `MessageCleanup.BatchSize` until no sent messages of the specified age remain. The process is then repeated every `MessageCleanup.Interval` period.
 

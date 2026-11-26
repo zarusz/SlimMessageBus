@@ -265,6 +265,37 @@ public sealed class OutboxSendingTaskTests
             result.Count.Should().Be(knownMessageCount);
         }
 
+        [Theory]
+        [InlineData(true, 1)]
+        [InlineData(false, 2)]
+        public async Task UnreadablePayloadConsumesOnlyItsOwnDeliveryAttempt(bool maintainSequence, int publishedCount)
+        {
+            var messages = CreateOutboxMessages(3);
+            messages[1].MessagePayload = [0xff];
+            _outboxSettings.MaintainSequence = maintainSequence;
+            var typeResolver = new Mock<IMessageTypeResolver>();
+            typeResolver.Setup(x => x.ToType(It.IsAny<string>())).Returns(typeof(object));
+            _outboxSettings.MessageTypeResolver = typeResolver.Object;
+            _mockCompositeMessageBus.Setup(x => x.GetChildBus("TestBus")).Returns(_mockMasterMessageBus.Object);
+            _mockMessageSerializer.Setup(x => x.Deserialize(typeof(object), It.IsAny<IReadOnlyDictionary<string, object>>(), messages[1].MessagePayload, null))
+                .Throws(new FormatException("Invalid payload"));
+            var published = new List<OutboxMessage>();
+            _mockMessageBusBulkProducer.Setup(x => x.ProduceToTransportBulk(It.IsAny<IReadOnlyCollection<OutboxBulkMessage>>(), "TestPath", _mockMessageBusTarget.Object, CancellationToken.None))
+                .ReturnsAsync((IReadOnlyCollection<OutboxBulkMessage> envelopes, string _, IMessageBusTarget _, CancellationToken _) =>
+                {
+                    published.AddRange(envelopes.Select(x => x.OutboxMessage));
+                    return new ProduceToTransportBulkResult<OutboxBulkMessage>(envelopes, null);
+                });
+
+            var result = await _sut.ProcessMessages(_mockOutboxRepository.Object, messages, _mockCompositeMessageBus.Object, _mockMessageBusTarget.Object, CancellationToken.None);
+
+            result.Should().Be((false, publishedCount));
+            published.Should().Equal(messages.Where((_, i) => i == 0 || (!maintainSequence && i == 2)));
+            _mockOutboxRepository.Verify(x => x.IncrementDeliveryAttempt(
+                It.Is<IReadOnlyCollection<OutboxMessage>>(failed => failed.Count == 1 && failed.Contains(messages[1])),
+                _outboxSettings.MaxDeliveryAttempts, CancellationToken.None), Times.Once);
+        }
+
         private static List<OutboxMessage> CreateOutboxMessages(int count)
         {
             return Enumerable

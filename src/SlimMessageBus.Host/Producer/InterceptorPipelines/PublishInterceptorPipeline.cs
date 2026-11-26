@@ -3,6 +3,7 @@
 internal class PublishInterceptorPipeline : ProducerInterceptorPipeline<PublishContext>
 {
     private readonly ITransportProducer _bus;
+    private readonly RuntimeTypeCache _runtimeTypeCache;
     private readonly Func<object, object, Func<Task>, IProducerContext, Task> _publishInterceptorFunc;
     private IEnumerator<object> _publishInterceptorsEnumerator;
     private bool _publishInterceptorsVisited = false;
@@ -11,9 +12,24 @@ internal class PublishInterceptorPipeline : ProducerInterceptorPipeline<PublishC
         : base(runtimeTypeCache, message, producerSettings, targetBus, context, producerInterceptors)
     {
         _bus = bus;
+        _runtimeTypeCache = runtimeTypeCache;
         _publishInterceptorFunc = runtimeTypeCache.PublishInterceptorType[message.GetType()];
         _publishInterceptorsVisited = publishInterceptors is null;
         _publishInterceptorsEnumerator = publishInterceptors?.GetEnumerator();
+    }
+
+    private sealed record DeclaredInterceptor(object Instance, Type MessageType);
+
+    internal static IEnumerable<object> IncludeDeclaredInterceptors(IEnumerable<object> runtimeInterceptors, IEnumerable<object> declaredInterceptors, Type declaredType)
+    {
+        if (declaredInterceptors == null)
+        {
+            return runtimeInterceptors;
+        }
+
+        return (runtimeInterceptors ?? [])
+            .Concat(declaredInterceptors.Select(instance => new DeclaredInterceptor(instance, declaredType)))
+            .OrderBy(interceptor => ((interceptor is DeclaredInterceptor declared ? declared.Instance : interceptor) as IInterceptorWithOrder)?.Order ?? 0);
     }
 
     public async Task<object> Next()
@@ -22,7 +38,10 @@ internal class PublishInterceptorPipeline : ProducerInterceptorPipeline<PublishC
         {
             if (_producerInterceptorsEnumerator.MoveNext())
             {
-                return await _producerInterceptorFunc(_producerInterceptorsEnumerator.Current, _message, Next, _context);
+                var interceptor = _producerInterceptorsEnumerator.Current;
+                return interceptor is DeclaredInterceptor declared
+                    ? await _runtimeTypeCache.ProducerInterceptorType[declared.MessageType](declared.Instance, _message, Next, _context)
+                    : await _producerInterceptorFunc(interceptor, _message, Next, _context);
             }
             _producerInterceptorsVisited = true;
             _producerInterceptorsEnumerator = null;
@@ -32,7 +51,15 @@ internal class PublishInterceptorPipeline : ProducerInterceptorPipeline<PublishC
         {
             if (_publishInterceptorsEnumerator.MoveNext())
             {
-                await _publishInterceptorFunc(_publishInterceptorsEnumerator.Current, _message, Next, _context);
+                var interceptor = _publishInterceptorsEnumerator.Current;
+                if (interceptor is DeclaredInterceptor declared)
+                {
+                    await _runtimeTypeCache.PublishInterceptorType[declared.MessageType](declared.Instance, _message, Next, _context);
+                }
+                else
+                {
+                    await _publishInterceptorFunc(interceptor, _message, Next, _context);
+                }
                 return null;
             }
             _publishInterceptorsVisited = true;

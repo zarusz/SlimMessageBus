@@ -65,6 +65,11 @@ public class GooglePubSubConsumer : AbstractConsumer
             var headers = _messageBus.DeserializeHeaders(message.Attributes);
             var result = await _messageProcessor.ProcessMessage(message, headers, cancellationToken: cancellationToken).ConfigureAwait(false);
 
+            if (result.Result is ProcessResult.CanceledState)
+            {
+                return SubscriberClient.Reply.Nack;
+            }
+
             if (result.Result is ProcessResult.SuccessState)
             {
                 if (Logger.IsEnabled(LogLevel.Debug))

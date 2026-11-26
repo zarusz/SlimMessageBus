@@ -136,26 +136,32 @@ public class ConcurrentMessageProcessorDecoratorTest
     }
 
     [Fact]
-    public async Task When_ProcessMessage_Given_ExceptionHappensOnTarget_Then_ExceptionIsReportedOnSecondInvocation()
+    public async Task BackgroundFailureIsLoggedAndTheNextDeliveryIsProcessed()
     {
-        // arrange
-        var subject = new ConcurrentMessageProcessorDecorator<SomeMessage>(1, NullLoggerFactory.Instance, _messageProcessorMock.Object);
-
+        var logger = new Mock<ILogger>();
+        var loggerFactory = new Mock<ILoggerFactory>();
+        loggerFactory.Setup(x => x.CreateLogger(It.IsAny<string>())).Returns(logger.Object);
+        using var subject = new ConcurrentMessageProcessorDecorator<SomeMessage>(2, loggerFactory.Object, _messageProcessorMock.Object);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         var exception = new Exception("Boom!");
+        var first = new SomeMessage();
+        var second = new SomeMessage();
 
         _messageProcessorMock
-            .Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IServiceProvider>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.ProcessMessage(It.Is<SomeMessage>(m => ReferenceEquals(m, first)), null, null, null, timeout.Token))
             .ReturnsAsync(new ProcessMessageResult(ProcessResult.Failure, exception, null, null));
+        _messageProcessorMock
+            .Setup(x => x.ProcessMessage(It.Is<SomeMessage>(m => ReferenceEquals(m, second)), null, null, null, timeout.Token))
+            .ReturnsAsync(new ProcessMessageResult(ProcessResult.Success, null, null, null));
 
-        var msg = new SomeMessage();
-        var msgHeaders = new Dictionary<string, object>();
-        await subject.ProcessMessage(msg, msgHeaders, default);
+        await subject.ProcessMessage(first, null, cancellationToken: timeout.Token);
+        await subject.WaitAll(timeout.Token);
+        var result = await subject.ProcessMessage(second, null, cancellationToken: timeout.Token);
+        await subject.WaitAll(timeout.Token);
 
-        // act
-        var result = await subject.ProcessMessage(msg, msgHeaders, default);
-
-        // assert
-        result.Exception.Should().Be(exception);
+        result.Exception.Should().BeNull();
+        _messageProcessorMock.Verify(x => x.ProcessMessage(It.Is<SomeMessage>(m => ReferenceEquals(m, second)), null, null, null, timeout.Token), Times.Once);
+        logger.Verify(x => x.Log(LogLevel.Error, It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(), exception, It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Once);
     }
 
     [Fact]
@@ -198,55 +204,19 @@ public class ConcurrentMessageProcessorDecoratorTest
     public async Task When_ProcessMessage_Given_ExceptionHappensOnTarget_Then_SemaphoreIsNotLeakedAndProcessingContinues()
     {
         // arrange
-        var subject = new ConcurrentMessageProcessorDecorator<SomeMessage>(1, NullLoggerFactory.Instance, _messageProcessorMock.Object);
-
+        using var subject = new ConcurrentMessageProcessorDecorator<SomeMessage>(1, NullLoggerFactory.Instance, _messageProcessorMock.Object);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         var exception = new Exception("Boom!");
-        var firstCallCompleted = new TaskCompletionSource<bool>();
-        var callCount = 0;
+        var message = new SomeMessage();
+        _messageProcessorMock.SetupSequence(x => x.ProcessMessage(message, null, null, null, timeout.Token))
+            .ThrowsAsync(exception)
+            .ReturnsAsync(new ProcessMessageResult(ProcessResult.Success, null, null, null));
 
-        _messageProcessorMock
-            .Setup(x => x.ProcessMessage(It.IsAny<SomeMessage>(), It.IsAny<IReadOnlyDictionary<string, object>>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<IServiceProvider>(), It.IsAny<CancellationToken>()))
-            .Returns(async () =>
-            {
-                var currentCall = Interlocked.Increment(ref callCount);
-                await Task.Delay(50);
-                if (currentCall == 1)
-                {
-                    firstCallCompleted.TrySetResult(true);
-                }
-                return new ProcessMessageResult(ProcessResult.Failure, exception, null, null);
-            });
+        await subject.ProcessMessage(message, null, cancellationToken: timeout.Token);
+        await subject.ProcessMessage(message, null, cancellationToken: timeout.Token);
+        await subject.WaitAll(timeout.Token);
 
-        var msg = new SomeMessage();
-        var msgHeaders = new Dictionary<string, object>();
-
-        // act - first call processes and sets exception
-        var result1 = await subject.ProcessMessage(msg, msgHeaders, default);
-
-        // Wait for background processing to complete and save the exception
-        await firstCallCompleted.Task;
-        await Task.Delay(100); // Give it time to save the exception
-
-        // Second call should return the saved exception immediately without blocking
-        var result2 = await subject.ProcessMessage(msg, msgHeaders, default);
-
-        // After exception is returned, it's cleared, so third call can process again
-        var result3 = await subject.ProcessMessage(msg, msgHeaders, default);
-
-        // Wait for any background processing to complete
-        await Task.Delay(200);
-
-        // assert
-        result1.Exception.Should().BeNull(); // First call returns success (background processing)
-        result2.Exception.Should().Be(exception); // Second call returns the saved exception
-        result3.Exception.Should().BeNull(); // Third call can proceed (semaphore not leaked)
-
-        // Two processing calls should have been made (first and third)
-        callCount.Should().BeGreaterThanOrEqualTo(2);
-
-        // The key assertion: verify processing is not stalled (would happen with semaphore leak)
-        // If semaphore was leaked, the third call would never spawn background processing
-        // and we'd have only 1 call
-        subject.PendingCount.Should().Be(0); // All processing should complete
+        _messageProcessorMock.Verify(x => x.ProcessMessage(message, null, null, null, timeout.Token), Times.Exactly(2));
+        subject.PendingCount.Should().Be(0);
     }
 }

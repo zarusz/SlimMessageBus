@@ -655,6 +655,58 @@ public class MessageBusBaseTests : IDisposable
         testBus.Dispose();
     }
 
+    [Fact]
+    public async Task MixedBatchKeepsPublishOrderWhenAnInterceptorShortCircuits()
+    {
+        BusBuilder.Produce<SomeMessage>(x => x.DefaultTopic("messages"));
+        var first = new SomeMessage();
+        var intercepted = new SomeDerivedMessage();
+        var last = new SomeMessage();
+        var observed = new List<(string Stage, object Message)>();
+        var interceptor = new Mock<IPublishInterceptor<SomeDerivedMessage>>();
+        interceptor.Setup(x => x.OnHandle(intercepted, It.IsAny<Func<Task>>(), It.IsAny<IProducerContext>()))
+            .Callback(() => observed.Add(("intercepted", intercepted)))
+            .Returns(Task.CompletedTask);
+        _serviceProviderMock.Setup(x => x.GetService(typeof(IEnumerable<IPublishInterceptor<SomeDerivedMessage>>)))
+            .Returns(new[] { interceptor.Object });
+        Bus.OnProduced = (_, _, message) => observed.Add(("sent", message));
+
+        await Bus.ProducePublish(new[] { first, intercepted, last });
+
+        observed.Select(x => x.Stage).Should().Equal("sent", "intercepted", "sent");
+        observed[0].Message.Should().BeSameAs(first);
+        observed[1].Message.Should().BeSameAs(intercepted);
+        observed[2].Message.Should().BeSameAs(last);
+    }
+
+    [Fact]
+    public async Task DerivedBatchItemRunsBothRuntimeAndDeclaredProducerInterceptors()
+    {
+        BusBuilder.Produce<SomeMessage>(x => x.DefaultTopic("messages"));
+        var message = new SomeDerivedMessage();
+        var observed = new List<string>();
+        var runtimeInterceptor = new Mock<IPublishInterceptor<SomeDerivedMessage>>();
+        runtimeInterceptor.Setup(x => x.OnHandle(message, It.IsAny<Func<Task>>(), It.IsAny<IProducerContext>()))
+            .Returns((SomeDerivedMessage _, Func<Task> next, IProducerContext _) =>
+            {
+                observed.Add("runtime");
+                return next();
+            });
+        var declaredInterceptor = new Mock<IPublishInterceptor<SomeMessage>>();
+        declaredInterceptor.Setup(x => x.OnHandle(message, It.IsAny<Func<Task>>(), It.IsAny<IProducerContext>()))
+            .Callback(() => observed.Add("declared"))
+            .Returns(Task.CompletedTask);
+        _serviceProviderMock.Setup(x => x.GetService(typeof(IEnumerable<IPublishInterceptor<SomeDerivedMessage>>)))
+            .Returns(new[] { runtimeInterceptor.Object });
+        _serviceProviderMock.Setup(x => x.GetService(typeof(IEnumerable<IPublishInterceptor<SomeMessage>>)))
+            .Returns(new[] { declaredInterceptor.Object });
+
+        await Bus.ProducePublish(new[] { message });
+
+        observed.Should().Equal("runtime", "declared");
+        _producedMessages.Should().BeEmpty();
+    }
+
     [Theory]
     [InlineData(false, false, 1)] // Single message, no interceptor, base type configured
     [InlineData(false, true, 1)]  // Single message, with interceptor, base type configured
@@ -684,12 +736,15 @@ public class MessageBusBaseTests : IDisposable
         testServiceProviderMock.Setup(x => x.GetService(typeof(RuntimeTypeCache))).Returns(new RuntimeTypeCache());
         testServiceProviderMock.Setup(x => x.GetService(typeof(IPendingRequestManager))).Returns(() => new PendingRequestManager(new InMemoryPendingRequestStore(), _timeProvider, NullLoggerFactory.Instance));
 
+        var producerCalls = 0;
+        var publishCalls = 0;
         if (withInterceptor)
         {
             // Setup producer interceptor
             var producerInterceptorMock = new Mock<IProducerInterceptor<SomeDerivedMessage>>();
             producerInterceptorMock
                 .Setup(x => x.OnHandle(It.IsAny<SomeDerivedMessage>(), It.IsAny<Func<Task<object>>>(), It.IsAny<IProducerContext>()))
+                .Callback(() => producerCalls++)
                 .Returns((SomeDerivedMessage m, Func<Task<object>> next, IProducerContext context) => next());
 
             testServiceProviderMock
@@ -700,6 +755,7 @@ public class MessageBusBaseTests : IDisposable
             var publishInterceptorMock = new Mock<IPublishInterceptor<SomeDerivedMessage>>();
             publishInterceptorMock
                 .Setup(x => x.OnHandle(It.IsAny<SomeDerivedMessage>(), It.IsAny<Func<Task>>(), It.IsAny<IProducerContext>()))
+                .Callback(() => publishCalls++)
                 .Returns((SomeDerivedMessage m, Func<Task> next, IProducerContext context) => next());
 
             testServiceProviderMock
@@ -730,6 +786,8 @@ public class MessageBusBaseTests : IDisposable
         }
 
         // assert
+        producerCalls.Should().Be(withInterceptor ? messageCount : 0);
+        publishCalls.Should().Be(withInterceptor ? messageCount : 0);
         // The serializer should be called with the ProducerSettings.MessageType (SomeMessage), not the actual message type (SomeDerivedMessage)
         // This should work the same regardless of whether interceptors are present or if it's bulk/single
         serializerMock.Verify(

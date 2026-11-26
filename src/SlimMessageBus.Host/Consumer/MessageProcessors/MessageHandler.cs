@@ -109,7 +109,7 @@ public partial class MessageHandler : IMessageHandler
                     var response = await DoHandleInternal(message, consumerInvoker, messageType, hasResponse, responseType, messageScope, consumerContext).ConfigureAwait(false);
                     return (ProcessResult.Success, response, null, requestId);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
                 {
                     attempts++;
                     var handleErrorResult = await DoHandleError(message, messageType, messageScope, consumerContext, ex, attempts).ConfigureAwait(false);
@@ -124,14 +124,14 @@ public partial class MessageHandler : IMessageHandler
                 }
                 finally
                 {
-                    if (consumerInvoker.ParentSettings.IsDisposeConsumerEnabled && consumerContext.Consumer is IDisposable consumerInstanceDisposable)
+                    if (consumerInvoker.ParentSettings.IsDisposeConsumerEnabled && consumerContext.ResolvedConsumer is IDisposable consumerInstanceDisposable)
                     {
-                        LogDisposingConsumer(consumerType, consumerContext.Consumer);
+                        LogDisposingConsumer(consumerType, consumerInstanceDisposable);
                         consumerInstanceDisposable.DisposeSilently("ConsumerInstance", _logger);
                     }
                 }
             }
-            catch (Exception e)
+            catch (Exception e) when (e is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
                 return (ProcessResult.Failure, null, e, requestId);
             }
@@ -215,6 +215,8 @@ public partial class MessageHandler : IMessageHandler
 
     public async Task<object> ExecuteConsumer(object message, IConsumerContext consumerContext, IMessageTypeConsumerInvokerSettings consumerInvoker, Type responseType)
     {
+        var cancellationToken = consumerContext.CancellationToken;
+        cancellationToken.ThrowIfCancellationRequested();
         if (RuntimeTypeCache.IsAssignableFrom(consumerContext.Consumer.GetType(), typeof(IConsumerWithContext)))
         {
             var consumerWithContext = (IConsumerWithContext)consumerContext.Consumer;
@@ -223,7 +225,7 @@ public partial class MessageHandler : IMessageHandler
         }
 
         // the consumer just subscribes to the message
-        var task = consumerInvoker.ConsumerMethod(consumerContext.Consumer, message, consumerContext, consumerContext.CancellationToken);
+        var task = consumerInvoker.ConsumerMethod(consumerContext.Consumer, message, consumerContext, cancellationToken);
         await task.ConfigureAwait(false);
 
         if (responseType != null && responseType != typeof(Void))

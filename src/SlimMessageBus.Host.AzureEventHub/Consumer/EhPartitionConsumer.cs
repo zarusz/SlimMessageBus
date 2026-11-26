@@ -8,6 +8,7 @@ public abstract class EhPartitionConsumer
     private readonly ILogger _logger;
     private ProcessEventArgs _lastMessage;
     private ProcessEventArgs _lastCheckpointMessage;
+    private bool _hasCanceledDelivery;
 
     protected EventHubMessageBus MessageBus { get; }
     protected IMessageProcessor<EventData> MessageProcessor { get; set; }
@@ -24,6 +25,9 @@ public abstract class EhPartitionConsumer
     public Task OpenAsync()
     {
         _logger.LogDebug("Open lease - Group: {Group}, Path: {Path}, PartitionId: {PartitionId}", GroupPathPartition.Group, GroupPathPartition.Path, GroupPathPartition.PartitionId);
+        _lastMessage = default;
+        _lastCheckpointMessage = default;
+        _hasCanceledDelivery = false;
         CheckpointTrigger.Reset();
         return Task.CompletedTask;
     }
@@ -36,12 +40,23 @@ public abstract class EhPartitionConsumer
 
     public async Task ProcessEventAsync(ProcessEventArgs args)
     {
-        _logger.LogDebug("Message arrived - Group: {Group}, Path: {Path}, PartitionId: {PartitionId}, Offset: {Offset}", GroupPathPartition.Group, GroupPathPartition.Path, GroupPathPartition.PartitionId, args.Data.Offset);
+        if (_hasCanceledDelivery)
+        {
+            return;
+        }
 
-        _lastMessage = args;
+        _logger.LogDebug("Message arrived - Group: {Group}, Path: {Path}, PartitionId: {PartitionId}, Offset: {Offset}", GroupPathPartition.Group, GroupPathPartition.Path, GroupPathPartition.PartitionId, args.Data.Offset);
 
         var headers = GetHeadersFromTransportMessage(args.Data);
         var r = await MessageProcessor.ProcessMessage(args.Data, headers, cancellationToken: args.CancellationToken).ConfigureAwait(false);
+        if (r.Result is ProcessResult.CanceledState)
+        {
+            // Later events cannot be checkpointed past an unfinished delivery in this lease.
+            _hasCanceledDelivery = true;
+            return;
+        }
+
+        _lastMessage = args;
         if (r.Exception != null)
         {
             // Note: The OnMessageFaulted was called at this point by the MessageProcessor.

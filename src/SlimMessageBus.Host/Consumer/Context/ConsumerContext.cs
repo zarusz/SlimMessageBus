@@ -21,6 +21,8 @@ public class ConsumerContext : IConsumerContext
     private object _consumer;
     private Func<object> _consumerFactory;
 
+    internal object ResolvedConsumer => _consumer;
+
     /// <summary>
     /// Lazily resolves the consumer instance on first access.
     /// Set by <see cref="MessageHandler"/> via <see cref="SetConsumerFactory"/> so that

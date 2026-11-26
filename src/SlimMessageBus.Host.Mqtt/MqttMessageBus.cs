@@ -138,7 +138,7 @@ public partial class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
         return bytes;
     }
 
-    private Task OnMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs arg)
+    private async Task OnMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs arg)
     {
         var consumer = _topicMatcher.FindMatch(arg.ApplicationMessage.Topic);
         if (consumer != null)
@@ -151,9 +151,12 @@ public partial class MqttMessageBus : MessageBusBase<MqttMessageBusSettings>
                     headers[prop.Name] = prop.ReadValueAsString();
                 }
             }
-            return consumer.MessageProcessor.ProcessMessage(arg.ApplicationMessage, headers, cancellationToken: CancellationToken);
+            var result = await consumer.MessageProcessor.ProcessMessage(arg.ApplicationMessage, headers, cancellationToken: CancellationToken).ConfigureAwait(false);
+            if (result.Result is ProcessResult.CanceledState)
+            {
+                arg.AutoAcknowledge = false;
+            }
         }
-        return Task.CompletedTask;
     }
 
     public override async Task ProduceToTransport(object message, Type messageType, string path, IDictionary<string, object> messageHeaders, IMessageBusTarget targetBus, CancellationToken cancellationToken)
