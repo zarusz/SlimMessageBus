@@ -247,15 +247,51 @@ public class ConsumerInstanceMessageProcessorTest
         messageConsumerInterceptor.VerifyNoOtherCalls();
     }
 
-    [Fact]
-    public async Task When_ProcessMessage_Given_RequestArrived_Then_RequestHandlerInterceptorIsCalled()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ShortCircuitingConsumerInterceptorDoesNotResolveConsumer(bool inspectConsumer)
+    {
+        var message = new SomeMessage();
+        _consumerSettings.IsDisposeConsumerEnabled = true;
+        var interceptor = new Mock<IConsumerInterceptor<SomeMessage>>();
+        interceptor.Setup(x => x.OnHandle(message, It.IsAny<Func<Task<object>>>(), It.IsAny<IConsumerContext>()))
+            .Returns((SomeMessage _, Func<Task<object>> _, IConsumerContext context) =>
+            {
+                if (inspectConsumer)
+                {
+                    context.Consumer.Should().BeNull();
+                }
+                return Task.FromResult<object>(null);
+            });
+        _busMock.ServiceProviderMock.Setup(x => x.GetService(typeof(IEnumerable<IConsumerInterceptor<SomeMessage>>)))
+            .Returns(new[] { interceptor.Object });
+        _messageProviderMock.Setup(x => x(message.GetType(), It.IsAny<IReadOnlyDictionary<string, object>>(), _transportMessage)).Returns(message);
+        var processor = new MessageProcessor<byte[]>([_consumerSettings], _busMock.Bus, _messageProviderMock.Object, _topic, responseProducer: _busMock.Bus);
+
+        var result = await processor.ProcessMessage(_transportMessage, new Dictionary<string, object>());
+
+        result.Result.Should().Be(ProcessResult.Success);
+        result.Exception.Should().BeNull();
+        interceptor.Verify(x => x.OnHandle(message, It.IsAny<Func<Task<object>>>(), It.IsAny<IConsumerContext>()), Times.Once);
+        _busMock.ServiceProviderMock.Verify(x => x.GetService(typeof(IConsumer<SomeMessage>)), Times.Never);
+        _busMock.ConsumerMock.VerifyNoOtherCalls();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RequestHandlerIsResolvedOnlyWhenTheInterceptorCallsNext(bool callNext)
     {
         // arrange
         var request = new SomeRequest();
         var requestPayload = Array.Empty<byte>();
         var response = new SomeResponse();
+        var interceptedResponse = new SomeResponse();
+        _handlerSettings.IsDisposeConsumerEnabled = true;
 
         var handlerMock = new Mock<IRequestHandler<SomeRequest, SomeResponse>>();
+        var disposableHandlerMock = handlerMock.As<IDisposable>();
         handlerMock
             .Setup(x => x.OnHandle(request, It.IsAny<CancellationToken>()))
             .Returns(Task.FromResult(response));
@@ -263,7 +299,18 @@ public class ConsumerInstanceMessageProcessorTest
         var requestHandlerInterceptor = new Mock<IRequestHandlerInterceptor<SomeRequest, SomeResponse>>();
         requestHandlerInterceptor
             .Setup(x => x.OnHandle(request, It.IsAny<Func<Task<SomeResponse>>>(), It.IsAny<IConsumerContext>()))
-            .Returns((SomeRequest message, Func<Task<SomeResponse>> next, IConsumerContext context) => next?.Invoke());
+            .Returns(async (SomeRequest _, Func<Task<SomeResponse>> next, IConsumerContext context) =>
+            {
+                context.Consumer.Should().BeNull();
+                if (!callNext)
+                {
+                    return interceptedResponse;
+                }
+
+                var result = await next();
+                context.Consumer.Should().BeSameAs(handlerMock.Object);
+                return result;
+            });
 
         _busMock.ServiceProviderMock
             .Setup(x => x.GetService(typeof(IRequestHandler<SomeRequest, SomeResponse>)))
@@ -285,13 +332,16 @@ public class ConsumerInstanceMessageProcessorTest
         var result = await p.ProcessMessage(requestPayload, new Dictionary<string, object>(), default);
 
         // assert
+        result.Result.Should().Be(ProcessResult.Success);
         result.Exception.Should().BeNull();
-        result.Response.Should().BeSameAs(response);
+        result.Response.Should().BeSameAs(callNext ? response : interceptedResponse);
 
         requestHandlerInterceptor.Verify(x => x.OnHandle(request, It.IsAny<Func<Task<SomeResponse>>>(), It.IsAny<IConsumerContext>()), Times.Once);
         requestHandlerInterceptor.VerifyNoOtherCalls();
 
-        handlerMock.Verify(x => x.OnHandle(request, It.IsAny<CancellationToken>()), Times.Once); // handler called once
+        _busMock.ServiceProviderMock.Verify(x => x.GetService(typeof(IRequestHandler<SomeRequest, SomeResponse>)), callNext ? Times.Once() : Times.Never());
+        handlerMock.Verify(x => x.OnHandle(request, It.IsAny<CancellationToken>()), callNext ? Times.Once() : Times.Never());
+        disposableHandlerMock.Verify(x => x.Dispose(), callNext ? Times.Once() : Times.Never());
         handlerMock.VerifyNoOtherCalls();
     }
 
