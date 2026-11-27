@@ -39,9 +39,9 @@ public class KafkaLoopGroupConsumerTests
             .Setup(builder => builder.Build()) 
             .Returns(mockKafkaConsumer.Object);
         
-        var mockConsumerBuilderFactory = new Mock<Func<ConsumerConfig, ConsumerBuilder<Ignore, byte[]>>>(); 
+        var mockConsumerBuilderFactory = new Mock<Func<KafkaClientConfig<ConsumerConfig>, ConsumerBuilder<Ignore, byte[]>>>(); 
         mockConsumerBuilderFactory
-            .Setup(factory => factory(It.IsAny<ConsumerConfig>()))
+            .Setup(factory => factory(It.IsAny<KafkaClientConfig<ConsumerConfig>>()))
             .Returns(mockConsumerBuilder.Object);
         
         var settings = new KafkaMessageBusSettings
